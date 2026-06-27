@@ -92,9 +92,7 @@ fn test_go_transformer_plugin() {
     .expect("no JS bundle in output");
 
   let dist_path = js_bundle.dist_path(&bundle_graph.project_root);
-  let content = output_fs
-    .read_to_string(&dist_path)
-    .expect("read dist file");
+  let content = output_fs.read_to_string(dist_path).expect("read dist file");
 
   assert!(
     content.contains("Hello from Go!"),

@@ -46,8 +46,10 @@ pub struct ModuleResolver {
 
 impl ModuleResolver {
   pub fn new(project_root: String, fs: Arc<dyn FileSystem>) -> Self {
-    let mut resolver =
-      parcel_resolver::Resolver::node_esm(Path::new(&project_root), parcel_resolver::Cache::new());
+    let mut resolver = parcel_resolver::Resolver::node_esm(
+      parcel_resolver::PathId::new(Path::new(&project_root)),
+      parcel_resolver::Cache::new(),
+    );
     resolver.flags |= parcel_resolver::Flags::TYPESCRIPT;
 
     ModuleResolver {
@@ -61,14 +63,14 @@ impl Resolver for ModuleResolver {
   fn resolve<'js>(&mut self, _ctx: &Ctx<'js>, base: &str, name: &str) -> rquickjs::Result<String> {
     let res = self.resolver.resolve(
       name,
-      Path::new(base),
+      parcel_resolver::PathId::new(Path::new(base)),
       parcel_resolver::SpecifierType::Esm,
       &*self.fs,
     );
 
     match res {
       Ok(res) => match res.resolution {
-        parcel_resolver::Resolution::Path(p) => Ok(p.to_str().unwrap().to_owned()),
+        parcel_resolver::Resolution::Path(p) => Ok(p.to_path_buf().to_str().unwrap().to_owned()),
         parcel_resolver::Resolution::Builtin { module, .. } => {
           return Ok(format!("builtin:{}", module));
         }
@@ -154,7 +156,7 @@ impl Loader for ModuleLoader {
           let mut source =
             self
               .fs
-              .read_to_string(Path::new(name))
+              .read_to_string(parcel_core::PathId::new(Path::new(name)))
               .map_err(|e| rquickjs::Error::Loading {
                 name: name.into(),
                 message: Some(e.to_string()),
@@ -194,7 +196,7 @@ impl Loader for ModuleLoader {
         let source =
           self
             .fs
-            .read_to_string(Path::new(name))
+            .read_to_string(parcel_core::PathId::new(Path::new(name)))
             .map_err(|e| rquickjs::Error::Loading {
               name: name.into(),
               message: Some(e.to_string()),

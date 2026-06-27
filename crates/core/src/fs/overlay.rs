@@ -1,10 +1,10 @@
 use std::{
   ffi::OsString,
   io::{Error, ErrorKind, Result},
-  path::{Path, PathBuf},
 };
 
 use super::{DirEntry, FileKind, FileStat, FileSystem, MemoryFileSystem, OsFileSystem};
+use crate::PathId;
 
 pub struct OverlayFileSystem {
   pub mem: MemoryFileSystem,
@@ -21,7 +21,7 @@ impl OverlayFileSystem {
 }
 
 impl FileSystem for OverlayFileSystem {
-  fn read(&self, path: &Path) -> Result<Vec<u8>> {
+  fn read(&self, path: PathId) -> Result<Vec<u8>> {
     match self.mem.read(path) {
       Ok(v) => Ok(v),
       Err(e) if e.kind() == ErrorKind::NotFound => self.os.read(path),
@@ -29,7 +29,7 @@ impl FileSystem for OverlayFileSystem {
     }
   }
 
-  fn kind(&self, path: &Path) -> FileKind {
+  fn kind(&self, path: PathId) -> FileKind {
     let mem_kind = self.mem.kind(path);
     if !mem_kind.is_empty() {
       mem_kind
@@ -38,7 +38,7 @@ impl FileSystem for OverlayFileSystem {
     }
   }
 
-  fn read_link(&self, path: &Path) -> Result<PathBuf> {
+  fn read_link(&self, path: PathId) -> Result<PathId> {
     // MemoryFileSystem does not support symlinks (read_link is unimplemented), so delegate to the
     // OS filesystem when the path is not present in memory. If it is present in memory, return an
     // error indicating it's unsupported.
@@ -53,15 +53,15 @@ impl FileSystem for OverlayFileSystem {
     }
   }
 
-  fn write(&self, path: &Path, contents: &Vec<u8>) -> Result<()> {
+  fn write(&self, path: PathId, contents: &Vec<u8>) -> Result<()> {
     self.mem.write(path, contents)
   }
 
-  fn remove_file(&self, path: &Path) -> Result<()> {
+  fn remove_file(&self, path: PathId) -> Result<()> {
     self.mem.remove_file(path)
   }
 
-  fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>> {
+  fn read_dir(&self, path: PathId) -> Result<Vec<DirEntry>> {
     let mem_entries = match self.mem.read_dir(path) {
       Ok(v) => v,
       Err(e) if e.kind() == ErrorKind::NotFound => Vec::new(),
@@ -91,11 +91,11 @@ impl FileSystem for OverlayFileSystem {
     Ok(entries)
   }
 
-  fn create_dir_all(&self, path: &Path) -> Result<()> {
+  fn create_dir_all(&self, path: PathId) -> Result<()> {
     self.mem.create_dir_all(path)
   }
 
-  fn stat(&self, path: &Path) -> Option<FileStat> {
+  fn stat(&self, path: PathId) -> Option<FileStat> {
     let mem_stat = self.mem.stat(path);
     if mem_stat.is_some() {
       return mem_stat;
@@ -103,7 +103,7 @@ impl FileSystem for OverlayFileSystem {
     self.os.stat(path)
   }
 
-  fn lstat(&self, path: &Path) -> Option<FileStat> {
+  fn lstat(&self, path: PathId) -> Option<FileStat> {
     let mem_stat = self.mem.lstat(path);
     if mem_stat.is_some() {
       return mem_stat;

@@ -1,18 +1,17 @@
 use std::{
   any::Any,
   hash::{Hash, Hasher},
-  path::{Path, PathBuf},
   sync::Arc,
 };
 
-use crate::{Bundle, BundleGraph, Diagnostic, DiagnosticList, FileSystem, ParcelOptions};
+use crate::{Bundle, BundleGraph, Diagnostic, DiagnosticList, FileSystem, ParcelOptions, PathId};
 
 pub trait Content: Any + std::fmt::Debug + Send + Sync {
   /// Reads the content as a byte vector.
   fn read(&self) -> Result<Vec<u8>, Diagnostic>;
 
   /// Writes the content to a file.
-  fn write(&self, fs: &dyn FileSystem, path: &Path) -> Result<(), Diagnostic> {
+  fn write(&self, fs: &dyn FileSystem, path: PathId) -> Result<(), Diagnostic> {
     Ok(fs.write(path, &self.read()?)?)
   }
 
@@ -80,25 +79,25 @@ impl serde::Serialize for dyn Content {
 }
 
 pub struct FileContent {
-  path: PathBuf,
+  path: PathId,
   fs: Arc<dyn FileSystem>,
 }
 
 impl FileContent {
-  pub fn new(path: PathBuf, fs: Arc<dyn FileSystem>) -> Self {
+  pub fn new(path: PathId, fs: Arc<dyn FileSystem>) -> Self {
     FileContent { path, fs }
   }
 }
 
 impl Content for FileContent {
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
-    Ok(self.fs.read(&self.path)?)
+    Ok(self.fs.read(self.path)?)
   }
 
-  fn write(&self, fs: &dyn FileSystem, path: &Path) -> Result<(), Diagnostic> {
+  fn write(&self, fs: &dyn FileSystem, path: PathId) -> Result<(), Diagnostic> {
     // Use native FS copy so we get copy on write behavior.
     if Arc::as_ptr(&self.fs) == fs {
-      Ok(fs.copy(&self.path, path)?)
+      Ok(fs.copy(self.path, path)?)
     } else {
       Ok(fs.write(path, &self.read()?)?)
     }
@@ -139,7 +138,7 @@ impl Content for BufferContent {
     Ok(self.buf.clone())
   }
 
-  fn write(&self, fs: &dyn FileSystem, path: &Path) -> Result<(), Diagnostic> {
+  fn write(&self, fs: &dyn FileSystem, path: PathId) -> Result<(), Diagnostic> {
     Ok(fs.write(path, &self.buf)?)
   }
 }
@@ -161,9 +160,9 @@ impl Content for ContentWithSourceMap {
     Ok(self.code.clone())
   }
 
-  fn write(&self, fs: &dyn FileSystem, path: &Path) -> Result<(), Diagnostic> {
+  fn write(&self, fs: &dyn FileSystem, path: PathId) -> Result<(), Diagnostic> {
     fs.write(path, &self.code)?;
-    fs.write(&path.with_added_extension("map"), &self.map)?;
+    fs.write(path.add_extension("map"), &self.map)?;
     Ok(())
   }
 }

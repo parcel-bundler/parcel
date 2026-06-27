@@ -117,7 +117,7 @@ mod tests {
   use std::sync::Arc;
 
   use crate::{
-    AssetRequest, AssetType, ExportsCondition, FileContent, FileSystem, OsFileSystem,
+    AssetRequest, AssetType, ExportsCondition, FileContent, FileSystem, OsFileSystem, PathId,
     SourceLocation, SourceUrl,
   };
 
@@ -140,7 +140,10 @@ mod tests {
             ..Default::default()
           },
           ty: AssetType::Js,
-          content: Arc::new(FileContent::new("one.js".into(), Arc::new(OsFileSystem {}))),
+          content: Arc::new(FileContent::new(
+            PathId::new(Path::new("one.js")),
+            Arc::new(OsFileSystem {}),
+          )),
           pipeline: None,
           side_effects: false,
           target: Default::default(),
@@ -168,7 +171,10 @@ mod tests {
             ..Default::default()
           },
           ty: AssetType::Js,
-          content: Arc::new(FileContent::new("two.js".into(), Arc::new(OsFileSystem {}))),
+          content: Arc::new(FileContent::new(
+            PathId::new(Path::new("two.js")),
+            Arc::new(OsFileSystem {}),
+          )),
           pipeline: None,
           side_effects: false,
           target: Default::default(),

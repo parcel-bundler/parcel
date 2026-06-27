@@ -6,15 +6,18 @@ use crate::{
   package_json::PackageJson,
   tsconfig::{TsConfig, TsConfigWrapper},
 };
-use parcel_core::FileKind;
+use parcel_core::{FileKind, PathId};
 use std::{
   cell::UnsafeCell,
   ffi::OsStr,
   hash::{BuildHasherDefault, Hash, Hasher},
   ops::Deref,
   path::{Component, Path, PathBuf, is_separator},
-  sync::{Arc, Weak},
+  sync::{Arc, LazyLock, Weak},
 };
+
+static PATHS: LazyLock<papaya::HashSet<PathEntry, BuildHasherDefault<IdentityHasher>>> =
+  LazyLock::new(|| papaya::HashSet::default());
 
 /// Stores various cached info about file paths.
 pub struct Cache {
@@ -93,7 +96,7 @@ impl Cache {
 
     let key = BorrowedPathEntry { hash, path };
 
-    let paths = self.paths.pin();
+    let paths = PATHS.pin();
     if let Some(PathEntry(entry)) = paths.get(&key) {
       return CachedPath(entry.clone());
     }
@@ -204,7 +207,7 @@ impl CachedPath {
 
   fn kind(&self, fs: &dyn FileSystem) -> FileKind {
     // The file system caches this (when it is a `CachedFileSystem`); the resolver no longer does.
-    fs.kind(self.as_path())
+    fs.kind(PathId::new(self.as_path()))
   }
 
   /// Returns whether the path is a file.
@@ -236,8 +239,8 @@ impl CachedPath {
     cache: &Cache,
     fs: &dyn FileSystem,
   ) -> Result<CachedPath, ResolverError> {
-    let canonical = fs.canonicalize(self.as_path())?;
-    Ok(cache.get(&canonical))
+    let canonical = fs.canonicalize(PathId::new(self.as_path()))?;
+    Ok(cache.get(canonical.to_path_buf()))
   }
 
   /// Returns an iterator over all ancestor paths.
@@ -329,42 +332,42 @@ impl CachedPath {
     })
   }
 
-  /// Returns the parsed package.json at this path.
-  ///
-  /// Cached in the file system's [`ObjectCache`](parcel_core::ObjectCache) when available (so it is
-  /// invalidated when the file changes), otherwise parsed fresh each call.
-  pub fn package_json(
-    &self,
-    cache: &Cache,
-    fs: &dyn FileSystem,
-  ) -> Arc<Result<PackageJson, ResolverError>> {
-    if let Some(objects) = fs.as_object_cache() {
-      objects.get_or_compute(self.as_path(), || {
-        Arc::new(PackageJson::read(self, cache, fs))
-      })
-    } else {
-      Arc::new(PackageJson::read(self, cache, fs))
-    }
-  }
+  // /// Returns the parsed package.json at this path.
+  // ///
+  // /// Cached in the file system's [`ObjectCache`](parcel_core::ObjectCache) when available (so it is
+  // /// invalidated when the file changes), otherwise parsed fresh each call.
+  // pub fn package_json(
+  //   &self,
+  //   cache: &Cache,
+  //   fs: &dyn FileSystem,
+  // ) -> Arc<Result<PackageJson, ResolverError>> {
+  //   if let Some(objects) = fs.as_object_cache() {
+  //     objects.get_or_compute(self.as_path(), || {
+  //       Arc::new(PackageJson::read(self, cache, fs))
+  //     })
+  //   } else {
+  //     Arc::new(PackageJson::read(self, cache, fs))
+  //   }
+  // }
 
-  /// Returns the parsed tsconfig.json at this path.
-  ///
-  /// Cached in the file system's [`ObjectCache`](parcel_core::ObjectCache) when available, otherwise
-  /// parsed fresh each call. Note `process` only runs when the value is actually computed.
-  pub fn tsconfig<F: FnOnce(&mut TsConfigWrapper) -> Result<(), ResolverError>>(
-    &self,
-    cache: &Cache,
-    fs: &dyn FileSystem,
-    process: F,
-  ) -> Arc<Result<TsConfigWrapper, ResolverError>> {
-    if let Some(objects) = fs.as_object_cache() {
-      objects.get_or_compute(self.as_path(), || {
-        Arc::new(TsConfig::read(self, process, cache, fs))
-      })
-    } else {
-      Arc::new(TsConfig::read(self, process, cache, fs))
-    }
-  }
+  // /// Returns the parsed tsconfig.json at this path.
+  // ///
+  // /// Cached in the file system's [`ObjectCache`](parcel_core::ObjectCache) when available, otherwise
+  // /// parsed fresh each call. Note `process` only runs when the value is actually computed.
+  // pub fn tsconfig<F: FnOnce(&mut TsConfigWrapper) -> Result<(), ResolverError>>(
+  //   &self,
+  //   cache: &Cache,
+  //   fs: &dyn FileSystem,
+  //   process: F,
+  // ) -> Arc<Result<TsConfigWrapper, ResolverError>> {
+  //   if let Some(objects) = fs.as_object_cache() {
+  //     objects.get_or_compute(self.as_path(), || {
+  //       Arc::new(TsConfig::read(self, process, cache, fs))
+  //     })
+  //   } else {
+  //     Arc::new(TsConfig::read(self, process, cache, fs))
+  //   }
+  // }
 }
 
 // Per-thread pre-allocated path that is used to perform operations on paths more quickly.

@@ -26,7 +26,7 @@ impl Transformer for JsTransformer {
   ) -> Result<Asset, DiagnosticList> {
     let config = config(&mut asset, options, fs)?;
     let resolver = parcel_resolver::Resolver::parcel(
-      &options.project_root.to_file_path(&options.project_root)?,
+      options.project_root.to_file_path(&options.project_root)?,
       parcel_resolver::Cache::new(),
     );
 
@@ -39,7 +39,7 @@ impl Transformer for JsTransformer {
     let call_macro = move |src: String, export, args, loc| {
       let resolved = resolver.resolve(
         &src,
-        &resolve_from,
+        resolve_from,
         parcel_resolver::SpecifierType::Esm,
         &*fs_cloned,
       );
@@ -49,7 +49,7 @@ impl Transformer for JsTransformer {
             options,
             url.clone(),
             env.clone(),
-            p.to_str().unwrap().to_string(),
+            p.to_path_buf().to_str().unwrap().to_string(),
             export,
             args,
             loc,
@@ -523,16 +523,11 @@ fn config(
   }
 
   let resolver = parcel_resolver::Resolver::parcel(
-    &options.project_root.to_file_path(&options.project_root)?,
+    options.project_root.to_file_path(&options.project_root)?,
     parcel_resolver::Cache::new(),
   );
 
-  let pkg = resolver.find_package(
-    &resolver
-      .cache()
-      .get(asset.loc.url.to_file_path(&options.project_root)?),
-    &**fs,
-  );
+  let pkg = resolver.find_package(asset.loc.url.to_file_path(&options.project_root)?, &**fs);
   let mut react_refresh = false;
   let mut jsx_pragma = None;
   let mut jsx_pragma_frag = None;
@@ -567,12 +562,9 @@ fn config(
     let mut tsconfig_jsx = None;
     let mut tsconfig_jsx_import_source = None;
     let mut tsconfig_jsx_factory = None;
-    if let Some(tsconfig) = resolver.find_tsconfig(
-      &resolver
-        .cache()
-        .get(asset.loc.url.to_file_path(&options.project_root)?),
-      &**fs,
-    ) {
+    if let Some(tsconfig) =
+      resolver.find_tsconfig(asset.loc.url.to_file_path(&options.project_root)?, &**fs)
+    {
       if let Ok(tsconfig) = &*tsconfig {
         jsx_pragma = tsconfig.compiler_options.jsx_factory.clone();
         jsx_pragma_frag = tsconfig.compiler_options.jsx_fragment_factory.clone();
@@ -692,9 +684,7 @@ fn config(
   let mut inline_constants = false;
   let mut inline_env = InlineEnvironment::default();
   if let Some(root_pkg) = resolver.find_package(
-    &resolver
-      .cache()
-      .get(options.project_root.to_file_path(&options.project_root)?),
+    options.project_root.to_file_path(&options.project_root)?,
     &**fs,
   ) {
     if let Ok(root_pkg) = &*root_pkg {
@@ -740,6 +730,7 @@ fn config(
       .loc
       .url
       .to_file_path(&options.project_root)?
+      .to_path_buf()
       .to_string_lossy()
       .into_owned(),
     code: asset.content.read()?,
@@ -747,6 +738,7 @@ fn config(
     project_root: options
       .project_root
       .to_file_path(&options.project_root)?
+      .to_path_buf()
       .to_string_lossy()
       .into_owned(),
     context: match &asset.target.environment {

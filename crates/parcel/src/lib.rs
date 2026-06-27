@@ -52,7 +52,7 @@ pub fn watch(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
     Err(e) => print_diagnostics(&e, parcel.project_root()),
   }
 
-  let watcher = parcel_watcher::watch(&project_root);
+  let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {
     let (changed_urls, created_urls) = split_events(&events, parcel.project_root());
 
@@ -92,10 +92,11 @@ pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
     &graph.asset_graph.entries[0]
       .target
       .dist_dir
-      .to_file_path(&graph.project_root)?,
+      .to_file_path(&graph.project_root)?
+      .to_path_buf(),
   );
 
-  let watcher = parcel_watcher::watch(&project_root);
+  let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {
     let (changed_urls, created_urls) = split_events(&events, parcel.project_root());
 

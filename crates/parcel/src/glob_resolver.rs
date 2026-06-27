@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::BTreeMap, fmt::Write, sync::Arc};
 use glob_match::glob_match_with_captures;
 use parcel_core::{
   AssetRequest, AssetType, BufferContent, Dependency, DependencyResolution, DiagnosticList,
-  FileSystem, ParcelOptions, Priority, Resolver, SourceLocation, SourceUrl, is_glob,
+  FileSystem, ParcelOptions, PathId, Priority, Resolver, SourceLocation, SourceUrl, is_glob,
 };
 use xxhash_rust::xxh3::xxh3_64;
 
@@ -22,14 +22,18 @@ impl Resolver for GlobResolver {
       return Ok(DependencyResolution::None);
     }
 
-    let source_path = dep.resolve_from.as_ref().unwrap().to_file_path(&options.project_root)?;
+    let source_path = dep
+      .resolve_from
+      .as_ref()
+      .unwrap()
+      .to_file_path(&options.project_root)?;
     let dir = source_path.parent().unwrap();
     // Glob through `fs` so a new file matching the pattern triggers a rebuild (tracked as a
     // create-glob invalidation of this asset).
     let files: Vec<_> = fs
       .glob(specifier, dir)
       .into_iter()
-      .filter_map(|path| pathdiff::diff_paths(path, &dir))
+      .filter_map(|path| pathdiff::diff_paths(path.to_path_buf(), dir.to_path_buf()))
       .collect();
 
     // Build the nested object tree from all wildcard captures.
@@ -69,7 +73,7 @@ impl Resolver for GlobResolver {
     let hash = format!("glob-{:016x}.js", xxh3_64(specifier.as_bytes()));
     Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
       loc: SourceLocation {
-        url: SourceUrl::from_path(&dir.join(&hash), &options.project_root)?,
+        url: SourceUrl::from_path(&dir.child(&hash).to_path_buf(), &options.project_root)?,
         ..Default::default()
       },
       ty: AssetType::Js,
@@ -125,7 +129,12 @@ impl GlobEntry {
 
   fn write_js(&self, code: &mut String) {
     match self {
-      GlobEntry::Require(f) => write!(code, "require({:?})", f).ok(),
+      GlobEntry::Require(f) => write!(
+        code,
+        "(function(m){{return m&&m.__esModule?m.default:m}})(require({:?}))",
+        f
+      )
+      .ok(),
       GlobEntry::Import(f) => write!(code, "() => import({:?})", f).ok(),
       GlobEntry::Dir(map) => {
         code.push('{');

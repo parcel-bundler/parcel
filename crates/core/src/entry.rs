@@ -8,8 +8,8 @@ use serde_json::Value;
 
 use crate::{
   BuildMode, BuildOptions, Diagnostic, Engines, Environment, EnvironmentFlags, ExportsCondition,
-  FileKind, FileSystem, IncludeNodeModules, OutputFormat, SourceLocation, SourceType, SourceUrl,
-  Target, TargetSourceMapOptions, Version, is_glob,
+  FileKind, FileSystem, IncludeNodeModules, OutputFormat, PathId, SourceLocation, SourceType,
+  SourceUrl, Target, TargetSourceMapOptions, Version, is_glob,
 };
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -25,19 +25,22 @@ pub fn resolve_entries(
   entries: &Vec<String>,
   options: &BuildOptions,
 ) -> Result<(Vec<Entry>, PathBuf), Diagnostic> {
+  let cwd = PathId::new(&options.cwd);
   let mut paths = Vec::new();
   for entry in entries {
-    for path in options.input_fs.glob(&entry, &options.cwd) {
+    // `glob` yields interned `PathId`s; entry resolution below works in `PathBuf`/`SourceUrl` terms
+    // (a deferred migration), so materialize here at the boundary. This runs once at startup.
+    for path in options.input_fs.glob(entry, cwd) {
       paths.push(path);
     }
   }
 
-  let project_root = find_project_root(&*options.input_fs, &paths, &options.cwd);
-  let project_root_url = SourceUrl::from_absolute_directory_path(&project_root)?;
+  let project_root = find_project_root(&*options.input_fs, &paths, cwd);
+  let project_root_url = SourceUrl::from_absolute_directory_path(&project_root.to_path_buf())?;
 
   let mut entries = EntryResolver::new();
   for path in paths {
-    if options.input_fs.kind(&path).contains(FileKind::IS_DIR) {
+    if options.input_fs.kind(path).contains(FileKind::IS_DIR) {
       entries.resolve_package_entries(&*options.input_fs, path, &project_root_url)?;
     } else {
       let mut flags = EnvironmentFlags::empty();
@@ -59,7 +62,7 @@ pub fn resolve_entries(
         }
       }
 
-      let (context, engines) = if let Some(pkg) = find_package(&path, &*options.input_fs) {
+      let (context, engines) = if let Some(pkg) = find_package(path, &*options.input_fs) {
         let engines = pkg.get("engines");
         let context = if engines.and_then(|e| e.get("electron")).is_some() {
           Environment::ElectronMain
@@ -79,12 +82,15 @@ pub fn resolve_entries(
         engines,
         flags,
         output_format,
-        dist_dir: SourceUrl::from_directory_path(&project_root.join("dist"), &project_root_url)?,
+        dist_dir: SourceUrl::from_directory_path(
+          &project_root.child("dist").to_path_buf(),
+          &project_root_url,
+        )?,
         ..Default::default()
       });
 
       entries.add_entry(Entry {
-        url: SourceUrl::from_path(&path, &project_root_url)?,
+        url: SourceUrl::from_path(&path.to_path_buf(), &project_root_url)?,
         target: env,
         dist_entry: None,
         loc: None,
@@ -93,7 +99,7 @@ pub fn resolve_entries(
     }
   }
 
-  Ok((entries.entries, project_root))
+  Ok((entries.entries, project_root.to_path_buf()))
 }
 
 struct EntryResolver {
@@ -129,11 +135,11 @@ impl EntryResolver {
   fn resolve_package_entries(
     &mut self,
     fs: &dyn FileSystem,
-    dir: PathBuf,
+    dir: PathId,
     project_root: &SourceUrl,
   ) -> Result<(), Diagnostic> {
-    let pkg_path = dir.join("package.json");
-    let contents = fs.read(&pkg_path)?;
+    let pkg_path = dir.child("package.json");
+    let contents = fs.read(pkg_path)?;
     let json: Value = serde_json::from_slice(&contents)?;
     let context = ExportsContext {
       condition: ExportsCondition::empty(),
@@ -144,7 +150,15 @@ impl EntryResolver {
     };
 
     if let Some(exports) = json.get("exports") {
-      self.extract_exports(fs, &dir, &json, exports, Vec::new(), &context, project_root)?;
+      self.extract_exports(
+        fs,
+        &dir.to_path_buf(),
+        &json,
+        exports,
+        Vec::new(),
+        &context,
+        project_root,
+      )?;
     }
 
     if let Some(Value::String(source)) = json.get("source") {
@@ -160,7 +174,8 @@ impl EntryResolver {
           }
 
           if let Some(child) = context.child(&json, field) {
-            let (dist_dir, dist_entry) = dist_dir_entry(&dir, &main, &dir.join(source));
+            let source_path = dir.join(Path::new(source)).to_path_buf();
+            let (dist_dir, dist_entry) = dist_dir_entry(&dir.to_path_buf(), main, &source_path);
             let mut env = child.to_env(&json, &dist_dir, &dist_entry, project_root)?;
             if *cond == ExportsCondition::MODULE {
               env.output_format = OutputFormat::Esmodule;
@@ -169,7 +184,7 @@ impl EntryResolver {
             let env = self.target(env);
 
             self.add_entry(Entry {
-              url: SourceUrl::from_path(&dir.join(source), project_root)?,
+              url: SourceUrl::from_path(&source_path, project_root)?,
               target: env,
               dist_entry: Some(dist_entry),
               asset: None,
@@ -180,11 +195,12 @@ impl EntryResolver {
       }
 
       if self.entries.is_empty() {
-        for source in fs.glob(source, &dir) {
+        for source in fs.glob(source, dir) {
+          let source = source.to_path_buf();
           self.add_entry(Entry {
             url: SourceUrl::from_path(&source, project_root)?,
             target: Arc::new(Target {
-              dist_dir: SourceUrl::from_directory_path(&dir, project_root)?,
+              dist_dir: SourceUrl::from_directory_path(&dir.to_path_buf(), project_root)?,
               ..Default::default()
             }),
             dist_entry: None,
@@ -211,7 +227,9 @@ impl EntryResolver {
     if let Value::Object(exports) = value {
       let source = if let Some(Value::String(source)) = value.get("source") {
         if source.contains('*') {
-          let source_path = dir.join(source);
+          // Normalize so the `*`-match byte offsets below align with the glob results, which are
+          // interned `PathId`s and therefore normalized (e.g. `./` segments removed).
+          let source_path = crate::normalize_path(&dir.join(source));
           let source_bytes = source_path.to_str().unwrap().as_bytes();
           let start = source_bytes.iter().position(|b| *b == b'*').unwrap();
           let end = source_bytes.len() - start;
@@ -222,9 +240,10 @@ impl EntryResolver {
             source.clone()
           };
 
-          fs.glob(&source_glob, dir)
+          fs.glob(&source_glob, PathId::new(dir))
             .into_iter()
             .map(|path| {
+              let path = path.to_path_buf();
               // Find the part of the path that matched the "*".
               // This will be replaced in the target dist entry.
               let dest_bytes = path.to_str().unwrap().as_bytes();
@@ -485,8 +504,8 @@ fn package_engines(
   engines
 }
 
-pub fn find_project_root(fs: &dyn FileSystem, entries: &Vec<PathBuf>, cwd: &Path) -> PathBuf {
-  let root = common_root_path(entries.iter()).unwrap_or_else(|| cwd.to_owned());
+pub fn find_project_root(fs: &dyn FileSystem, entries: &Vec<PathId>, cwd: PathId) -> PathId {
+  let root = common_root_path(entries.iter()).unwrap_or(cwd);
 
   for dir in root.ancestors() {
     for file in &[
@@ -496,24 +515,24 @@ pub fn find_project_root(fs: &dyn FileSystem, entries: &Vec<PathBuf>, cwd: &Path
       ".git",
       ".hg",
     ] {
-      let p = dir.join(file);
-      if !fs.kind(&p).is_empty() {
-        return dir.to_path_buf();
+      let p = dir.child(file);
+      if !fs.kind(p).is_empty() {
+        return dir;
       }
     }
   }
 
-  cwd.to_owned()
+  cwd
 }
 
-fn common_root_path<'a>(paths: impl IntoIterator<Item = &'a PathBuf>) -> Option<PathBuf> {
+fn common_root_path<'a>(paths: impl IntoIterator<Item = &'a PathId>) -> Option<PathId> {
   let mut path_iter = paths.into_iter();
   let mut root = path_iter.next()?.to_path_buf();
 
   for path in path_iter {
     let mut new_root = PathBuf::new();
     let mut found = false;
-    for (a, b) in root.components().zip(path.components()) {
+    for (a, b) in root.components().zip(path.to_path_buf().components()) {
       if a == b {
         found = true;
         new_root.push(a);
@@ -527,20 +546,25 @@ fn common_root_path<'a>(paths: impl IntoIterator<Item = &'a PathBuf>) -> Option<
     }
   }
 
-  Some(root)
+  Some(PathId::new(&root))
 }
 
-fn find_package(path: &Path, fs: &dyn FileSystem) -> Option<serde_json::Value> {
-  let pkg = fs.find_ancestor_file(path, "package.json")?;
-  let contents = fs.read(&pkg).ok()?;
+fn find_package(path: PathId, fs: &dyn FileSystem) -> Option<serde_json::Value> {
+  let pkg = fs.find_ancestor(
+    path,
+    Path::new("package.json"),
+    FileKind::IS_FILE,
+    PathId::root(),
+  )?;
+  let contents = fs.read(pkg).ok()?;
   serde_json::from_slice(&contents).ok()
 }
 
 #[cfg(test)]
 mod tests {
   use crate::{
-    Entry, Environment, EnvironmentFlags, FileSystem, MemoryFileSystem, SourceUrl, Target, Version,
-    entry::resolve_entries,
+    Entry, Environment, EnvironmentFlags, FileSystem, MemoryFileSystem, PathId, SourceUrl, Target,
+    Version, entry::resolve_entries,
   };
   use pretty_assertions::assert_eq;
   use std::{collections::HashMap, num::NonZero, path::Path, sync::Arc};
@@ -549,14 +573,14 @@ mod tests {
     let fs = MemoryFileSystem::new();
     fs.mkdir(Path::new("/root")).unwrap();
     fs.write(
-      Path::new("/root/package.json"),
+      PathId::new(Path::new("/root/package.json")),
       &input.as_bytes().to_owned(),
     )
     .unwrap();
     fs.mkdir(Path::new("/root/src")).unwrap();
-    fs.write(Path::new("/root/src/foo.tsx"), &Vec::new())
+    fs.write(PathId::new(Path::new("/root/src/foo.tsx")), &Vec::new())
       .unwrap();
-    fs.write(Path::new("/root/src/bar.tsx"), &Vec::new())
+    fs.write(PathId::new(Path::new("/root/src/bar.tsx")), &Vec::new())
       .unwrap();
     let fs = Arc::new(fs);
     let (result, _) = resolve_entries(

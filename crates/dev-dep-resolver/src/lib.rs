@@ -6,8 +6,8 @@ use std::{
 use dashmap::{DashMap, DashSet};
 use es_module_lexer::{ImportKind, lex};
 use parcel_resolver::{
-  FileSystem, Invalidations, ModuleType, Resolution, ResolutionAndQuery, ResolveOptions, Resolver,
-  ResolverError, Specifier, SpecifierError, SpecifierType,
+  FileSystem, Invalidations, ModuleType, PathId, Resolution, ResolutionAndQuery, ResolveOptions,
+  Resolver, ResolverError, Specifier, SpecifierError, SpecifierType,
 };
 // use rayon::prelude::{ParallelBridge, ParallelIterator};
 
@@ -102,7 +102,7 @@ impl<'a> EsmGraphBuilder<'a> {
       ModuleType::CommonJs | ModuleType::Json => &self.cjs_resolver,
       ModuleType::Module => &self.esm_resolver,
     };
-    let contents = self.fs.read_to_string(file)?;
+    let contents = self.fs.read_to_string(PathId::new(file))?;
     let module = lex(&contents)?;
     #[allow(clippy::map_collect_result_unit)]
     module
@@ -130,7 +130,7 @@ impl<'a> EsmGraphBuilder<'a> {
               ..
             }) = resolver.resolve_with_options(
               &import.specifier(),
-              file,
+              PathId::new(file),
               SpecifierType::Esm,
               self.fs,
               ResolveOptions::default(),
@@ -142,6 +142,7 @@ impl<'a> EsmGraphBuilder<'a> {
               //   file,
               //   p
               // );
+              let p = p.to_path_buf();
               invalidations.invalidate_on_file_change(resolver.cache().get(&p));
               self.build(&p)?;
             } else {
@@ -181,7 +182,7 @@ impl<'a> EsmGraphBuilder<'a> {
         package += "/package.json";
         match resolver.resolve_with_options(
           &package,
-          from,
+          PathId::new(from),
           SpecifierType::Esm,
           self.fs,
           ResolveOptions::default(),
@@ -189,7 +190,7 @@ impl<'a> EsmGraphBuilder<'a> {
           Ok(ResolutionAndQuery {
             resolution: Resolution::Path(p),
             ..
-          }) => Cow::Owned(p.parent().unwrap().join(subpath.as_ref())),
+          }) => Cow::Owned(p.to_path_buf().parent().unwrap().join(subpath.as_ref())),
           _ => return Ok(()),
         }
       }
@@ -496,8 +497,8 @@ pub fn build_esm_graph<'a>(
     visited: DashSet::new(),
     visited_globs: DashSet::new(),
     invalidations: Invalidations::default(),
-    cjs_resolver: Resolver::node(project_root, resolver_cache),
-    esm_resolver: Resolver::node_esm(project_root, resolver_cache),
+    cjs_resolver: Resolver::node(PathId::new(project_root), resolver_cache),
+    esm_resolver: Resolver::node_esm(PathId::new(project_root), resolver_cache),
     cache,
     fs,
   };

@@ -78,16 +78,16 @@ pub fn main() -> ExitCode {
     Ok(_) => {}
     Err(err) => {
       let mut paths = Vec::new();
-      let cwd = std::env::current_dir().unwrap();
+      let cwd = parcel_core::PathId::new(&std::env::current_dir().unwrap());
       let fs = OsFileSystem {};
       for entry in entries {
-        for path in parcel_core::glob(&fs, &entry, &cwd) {
+        for path in parcel_core::glob(&fs, &entry, cwd) {
           paths.push(path);
         }
       }
-      let project_root = SourceUrl::from_absolute_directory_path(&parcel_core::find_project_root(
-        &fs, &paths, &cwd,
-      ))
+      let project_root = SourceUrl::from_absolute_directory_path(
+        &parcel_core::find_project_root(&fs, &paths, cwd).to_path_buf(),
+      )
       .unwrap();
 
       let mut stderr = std::io::stderr();

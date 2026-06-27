@@ -176,9 +176,6 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
             .to_file_path(&bundle_graph.project_root)
             .unwrap()
             .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
             .to_string()
         })
         .collect();
@@ -197,7 +194,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
       let found = found.unwrap();
       if !found.contains.is_empty() {
         let contents = output_fs
-          .read_to_string(&bundle.dist_path(&bundle_graph.project_root))
+          .read_to_string(bundle.dist_path(&bundle_graph.project_root))
           .unwrap();
         for substring in &found.contains {
           assert!(
@@ -228,7 +225,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
         AssetType::Js => {
           if is_library {
             let (output, side_effects) = run(
-              vec![(path.clone(), bundle.target.output_format)],
+              vec![(path.to_path_buf(), bundle.target.output_format)],
               output_fs.clone(),
               &cwd,
               Environment::Node,
@@ -247,13 +244,13 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
                 main = Some(bundle_graph.asset_graph.assets[m].expect_asset().id());
               }
             }
-            scripts.push((path.clone(), bundle.target.output_format));
+            scripts.push((path.to_path_buf(), bundle.target.output_format));
             env = bundle.target.environment;
           }
         }
         AssetType::Html => {
           let deps = parcel_html::transform_html(parcel_html::TransformOptions {
-            code: output_fs.read(&path).unwrap(),
+            code: output_fs.read(path).unwrap(),
             url: bundle.dist_url(),
             xml: false,
             target: Default::default(),
@@ -264,7 +261,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
             match dep.resolution {
               DependencyResolution::Deferred(_) => {}
               _ => {
-                let resolved = path.parent().unwrap().join(dep.specifier);
+                let resolved = path.parent().unwrap().join(Path::new(&dep.specifier));
 
                 if resolved
                   .extension()
@@ -279,7 +276,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
                     main = Some(bundle_graph.asset_graph.assets[m].expect_asset().id());
                   }
 
-                  scripts.push((resolved, b.target.output_format));
+                  scripts.push((resolved.to_path_buf(), b.target.output_format));
                 }
               }
             }
@@ -327,8 +324,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
                 .unwrap()
                 .file_prefix()
                 .unwrap()
-                .to_string_lossy()
-                .into_owned()
+                .to_string()
             })
             .collect::<Vec<_>>()
             .join("_");
@@ -338,18 +334,18 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
 
       if update_snapshots {
         let bytes = output_fs
-          .read(&bundle.dist_path(&bundle_graph.project_root))
+          .read(bundle.dist_path(&bundle_graph.project_root))
           .unwrap();
         std::fs::write(entry.path(), bytes).unwrap();
         eprintln!("Wrote snapshot: {:?}", entry.path());
       } else if bundle.ty.is_binary() {
         let actual_bytes = output_fs
-          .read(&bundle.dist_path(&bundle_graph.project_root))
+          .read(bundle.dist_path(&bundle_graph.project_root))
           .unwrap();
         assert_eq!(actual_bytes, expected_bytes, "{:?}", entry.file_name());
       } else {
         let actual_content = output_fs
-          .read_to_string(&bundle.dist_path(&bundle_graph.project_root))
+          .read_to_string(bundle.dist_path(&bundle_graph.project_root))
           .unwrap();
         assert_eq!(
           actual_content,

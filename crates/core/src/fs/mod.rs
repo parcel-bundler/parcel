@@ -24,6 +24,8 @@ mod overlay;
 #[cfg(not(target_arch = "wasm32"))]
 pub use overlay::*;
 
+use crate::PathId;
+
 bitflags! {
   /// Bitflags that describe path metadata.
   #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -101,71 +103,72 @@ impl FileStat {
 }
 
 /// A trait that provides the functions needed to read files and retrieve metadata from a file system.
+///
+/// All methods operate on interned [`PathId`]s rather than `&Path`. Leaf implementations
+/// (`OsFileSystem`, `MemoryFileSystem`, ...) materialize the path once at the boundary via
+/// [`PathId::with_path`]; decorators (`CachedFileSystem`, `TrackingFileSystem`, ...) stay entirely
+/// in `PathId` space, so a path is interned once and threaded as a cheap `Copy` handle throughout.
 pub trait FileSystem: Send + Sync {
   /// Reads the given path as a byte vector.
-  fn read(&self, path: &Path) -> Result<Vec<u8>>;
+  fn read(&self, path: PathId) -> Result<Vec<u8>>;
 
   /// Reads the given path as a string
-  fn read_to_string(&self, path: &Path) -> Result<String> {
+  fn read_to_string(&self, path: PathId) -> Result<String> {
     String::from_utf8(self.read(path)?).map_err(|e| std::io::Error::other(e))
   }
 
   /// Returns the kind of file or directory that the given path represents.
-  fn kind(&self, path: &Path) -> FileKind;
+  fn kind(&self, path: PathId) -> FileKind;
 
   /// Returns detailed metadata about the file, following symlinks.
-  fn stat(&self, path: &Path) -> Option<FileStat>;
+  fn stat(&self, path: PathId) -> Option<FileStat>;
 
   /// Returns detailed metadata about the file, without following symlinks.
-  fn lstat(&self, path: &Path) -> Option<FileStat>;
+  fn lstat(&self, path: PathId) -> Option<FileStat>;
 
-  /// Returns the resolution of a symbolic link.
-  fn read_link(&self, path: &Path) -> Result<PathBuf>;
+  /// Resolves a symbolic link, returning the (absolute) target as an interned path. Relative link
+  /// targets are resolved against the link's directory by the implementation, so the result is
+  /// always an absolute path that can be interned and canonicalized directly.
+  fn read_link(&self, path: PathId) -> Result<PathId>;
 
-  fn canonicalize(&self, path: &Path) -> Result<PathBuf> {
-    path
-      .parent()
-      .map(|parent| {
-        self.canonicalize(parent).and_then(|parent_canonical| {
-          let resolved = parent_canonical.join(path.strip_prefix(parent).map_err(|_| {
-            std::io::Error::new(
-              std::io::ErrorKind::InvalidFilename,
-              "Error stripping prefix",
-            )
-          })?);
+  /// Returns the canonical path, resolving every symlink in the path.
+  ///
+  /// Resolves one component at a time: canonicalize the parent, then append this path's final
+  /// segment. Because the parent is already canonical, the suffix is exactly `path`'s file name, so
+  /// no prefix-stripping is needed. If the path is a symlink, follow it (its target is already
+  /// absolute, see [`read_link`](Self::read_link)) and canonicalize that.
+  fn canonicalize(&self, path: PathId) -> Result<PathId> {
+    let Some(parent) = path.parent() else {
+      // Root has no parent; it is its own canonical path.
+      return Ok(path);
+    };
+    let parent_canonical = self.canonicalize(parent)?;
+    let resolved = parent_canonical.child(path.file_name());
 
-          if self.kind(&path).contains(FileKind::IS_SYMLINK) {
-            let link = self.read_link(&resolved)?;
-            if link.is_absolute() {
-              return self.canonicalize(&link);
-            } else {
-              return self.canonicalize(&resolve_path(&resolved, &link));
-            }
-          }
-
-          Ok(resolved)
-        })
-      })
-      .unwrap_or_else(|| Ok(path.to_path_buf()))
+    if self.kind(path).contains(FileKind::IS_SYMLINK) {
+      self.canonicalize(self.read_link(resolved)?)
+    } else {
+      Ok(resolved)
+    }
   }
 
-  fn write(&self, path: &Path, contents: &Vec<u8>) -> Result<()>;
+  fn write(&self, path: PathId, contents: &Vec<u8>) -> Result<()>;
 
-  fn copy(&self, from: &Path, to: &Path) -> Result<()> {
+  fn copy(&self, from: PathId, to: PathId) -> Result<()> {
     self.write(to, &self.read(from)?)
   }
 
-  fn remove_file(&self, path: &Path) -> Result<()>;
+  fn remove_file(&self, path: PathId) -> Result<()>;
 
-  fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>>;
+  fn read_dir(&self, path: PathId) -> Result<Vec<DirEntry>>;
 
-  fn create_dir_all(&self, path: &Path) -> Result<()>;
+  fn create_dir_all(&self, path: PathId) -> Result<()>;
 
   /// Returns the paths matching `pattern`, resolved relative to `cwd`.
   ///
   /// Implementations that track invalidations (see [`TrackingFileSystem`]) override this to record
   /// a create invalidation, so that a new file matching the pattern triggers a rebuild.
-  fn glob(&self, pattern: &str, cwd: &Path) -> Vec<PathBuf> {
+  fn glob(&self, pattern: &str, cwd: PathId) -> Vec<PathId> {
     glob(self, pattern, cwd)
   }
 
@@ -174,11 +177,28 @@ pub trait FileSystem: Send + Sync {
   ///
   /// Implementations that track invalidations override this to record a `file_create_above`
   /// invalidation, so that a closer file appearing later triggers a rebuild.
-  fn find_ancestor_file(&self, from: &Path, file_name: &str) -> Option<PathBuf> {
+  fn find_ancestor(
+    &self,
+    from: PathId,
+    file_name: &Path,
+    kind: FileKind,
+    root: PathId,
+  ) -> Option<PathId> {
     for dir in from.ancestors() {
+      // Break if we hit a node_modules directory
+      // if let Some(filename) = dir.file_name() {
+      //   if filename == "node_modules" {
+      //     break;
+      //   }
+      // }
+
       let candidate = dir.join(file_name);
-      if self.kind(&candidate).contains(FileKind::IS_FILE) {
+      if self.kind(candidate).contains(kind) {
         return Some(candidate);
+      }
+
+      if dir == root {
+        break;
       }
     }
     None
@@ -192,13 +212,22 @@ pub trait FileSystem: Send + Sync {
   }
 }
 
-pub fn glob<F: FileSystem + ?Sized>(fs: &F, pattern: &str, cwd: &Path) -> Vec<PathBuf> {
-  if !is_glob(pattern) {
-    let mut path = Path::new(pattern).to_path_buf();
-    if !path.is_absolute() {
-      path = cwd.join(path);
+pub fn glob<F: FileSystem + ?Sized>(fs: &F, pattern: &str, cwd: PathId) -> Vec<PathId> {
+  // Resolves a non-glob path segment (which may be absolute, relative, or empty) against `cwd`.
+  let resolve = |segment: &str| -> PathId {
+    let p = Path::new(segment);
+    if segment.is_empty() {
+      cwd
+    } else if p.is_absolute() {
+      PathId::new(p)
+    } else {
+      cwd.join(p)
     }
-    if !fs.kind(&path).is_empty() {
+  };
+
+  if !is_glob(pattern) {
+    let path = resolve(pattern);
+    if !fs.kind(path).is_empty() {
       return vec![path];
     }
     return Vec::new();
@@ -208,14 +237,10 @@ pub fn glob<F: FileSystem + ?Sized>(fs: &F, pattern: &str, cwd: &Path) -> Vec<Pa
   let mut matches = Vec::new();
 
   if !is_glob(dir) {
-    let mut path = Path::new(dir).to_path_buf();
-    if !path.is_absolute() {
-      path = cwd.join(path);
-    }
-    match_dir(fs, &path, file, &mut matches);
+    match_dir(fs, resolve(dir), file, &mut matches);
   } else {
     for dir in glob(fs, dir, cwd) {
-      match_dir(fs, &dir, file, &mut matches)
+      match_dir(fs, dir, file, &mut matches)
     }
   }
 
@@ -229,14 +254,14 @@ pub fn is_glob(pattern: &str) -> bool {
 
 fn match_dir<F: FileSystem + ?Sized>(
   fs: &F,
-  dir_path: &Path,
+  dir_path: PathId,
   pattern: &str,
-  matches: &mut Vec<PathBuf>,
+  matches: &mut Vec<PathId>,
 ) {
   if let Ok(mut entries) = fs.read_dir(dir_path) {
     let is_globstar = pattern == "**";
     if is_globstar {
-      matches.push(dir_path.to_path_buf());
+      matches.push(dir_path);
     }
 
     entries.sort_by(|a, b| a.name.cmp(&b.name));
@@ -245,14 +270,12 @@ fn match_dir<F: FileSystem + ?Sized>(
       if let Some(name) = entry.name.to_str() {
         if is_globstar {
           if entry.kind.contains(FileKind::IS_DIR) {
-            match_dir(fs, &dir_path.join(name), pattern, matches);
+            match_dir(fs, dir_path.child(name), pattern, matches);
           } else {
-            matches.push(dir_path.join(name));
+            matches.push(dir_path.child(name));
           }
-        } else {
-          if glob_match(pattern, name) {
-            matches.push(dir_path.join(name));
-          }
+        } else if glob_match(pattern, name) {
+          matches.push(dir_path.child(name));
         }
       }
     }

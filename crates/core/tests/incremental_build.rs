@@ -47,8 +47,9 @@ fn setup(
 /// Reads an output bundle as a string. Bundle paths are under `/project/dist/`.
 fn read_dist(output_fs: &RecordingFileSystem, name: &str) -> String {
   let path = PathBuf::from(format!("/project/dist/{}", name));
-  let bytes =
-    output_fs.read(&path).unwrap_or_else(|e| panic!("could not read dist/{}: {}", name, e));
+  let bytes = output_fs
+    .read(parcel_core::PathId::new(&path))
+    .unwrap_or_else(|e| panic!("could not read dist/{}: {}", name, e));
   String::from_utf8(bytes).unwrap()
 }
 

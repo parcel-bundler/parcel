@@ -7,7 +7,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use crate::Diagnostic;
+use crate::{Diagnostic, PathId};
 
 #[derive(PartialEq, Eq, Debug, Default, Clone, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -184,7 +184,7 @@ impl SourceUrl {
   /// Converts the URL to a file system path. For `project://` URLs, the path is resolved
   /// relative to `project_root`, which must be a `file://` URL. For `file://` URLs, the
   /// path is returned as-is.
-  pub fn to_file_path(&self, project_root: &SourceUrl) -> Result<PathBuf, Diagnostic> {
+  pub fn to_file_path(&self, project_root: &SourceUrl) -> Result<PathId, Diagnostic> {
     if self.url.scheme() == "project" {
       // Resolve relative to project root (which must be a file:// URL with trailing slash).
       let path_str = self.url.path().trim_start_matches('/');
@@ -195,19 +195,26 @@ impl SourceUrl {
           project_root.url.as_str()
         ))
       })?;
-      resolved.to_file_path().map_err(|_| {
-        Diagnostic::from_message(format!(
-          "Could not convert project URL to file path: {:?}",
-          self.url.as_str()
-        ))
-      })
+      resolved
+        .to_file_path()
+        .map(|p| PathId::new(&p))
+        .map_err(|_| {
+          Diagnostic::from_message(format!(
+            "Could not convert project URL to file path: {:?}",
+            self.url.as_str()
+          ))
+        })
     } else {
-      self.url.to_file_path().map_err(|_| {
-        Diagnostic::from_message(format!(
-          "Could not convert SourceUrl to file path: {:?}",
-          self.url.as_str()
-        ))
-      })
+      self
+        .url
+        .to_file_path()
+        .map(|p| PathId::new(&p))
+        .map_err(|_| {
+          Diagnostic::from_message(format!(
+            "Could not convert SourceUrl to file path: {:?}",
+            self.url.as_str()
+          ))
+        })
     }
   }
 
@@ -367,7 +374,10 @@ mod tests {
     let root = make_root("/home/user/project");
     let url = SourceUrl::parse("project:///src/foo.js").unwrap();
     let path = url.to_file_path(&root).unwrap();
-    assert_eq!(path, Path::new("/home/user/project/src/foo.js"));
+    assert_eq!(
+      path.to_path_buf(),
+      Path::new("/home/user/project/src/foo.js")
+    );
   }
 
   #[test]
@@ -375,7 +385,7 @@ mod tests {
     let root = make_root("/home/user/project");
     let url = SourceUrl::parse("file:///usr/lib/foo.js").unwrap();
     let path = url.to_file_path(&root).unwrap();
-    assert_eq!(path, Path::new("/usr/lib/foo.js"));
+    assert_eq!(path.to_path_buf(), Path::new("/usr/lib/foo.js"));
   }
 
   #[test]
@@ -383,7 +393,7 @@ mod tests {
     let root = make_root("/home/user/project");
     let url = SourceUrl::parse("project:///").unwrap();
     let path = url.to_file_path(&root).unwrap();
-    assert_eq!(path, Path::new("/home/user/project"));
+    assert_eq!(path.to_path_buf(), Path::new("/home/user/project"));
   }
 
   #[test]
@@ -392,7 +402,7 @@ mod tests {
     let original = Path::new("/home/user/project/src/foo.js");
     let url = SourceUrl::from_path(original, &root).unwrap();
     let path = url.to_file_path(&root).unwrap();
-    assert_eq!(path, original);
+    assert_eq!(path.to_path_buf(), original);
   }
 
   #[test]
@@ -401,7 +411,7 @@ mod tests {
     let original = Path::new("/usr/lib/node_modules/foo.js");
     let url = SourceUrl::from_path(original, &root).unwrap();
     let path = url.to_file_path(&root).unwrap();
-    assert_eq!(path, original);
+    assert_eq!(path.to_path_buf(), original);
   }
 
   #[test]
@@ -466,7 +476,10 @@ mod tests {
     )
     .unwrap();
     let path = url.to_file_path(&root).unwrap();
-    assert_eq!(path, Path::new("/home/user/project/src/foo.js"));
+    assert_eq!(
+      path.to_path_buf(),
+      Path::new("/home/user/project/src/foo.js")
+    );
   }
 
   #[test]
@@ -476,7 +489,10 @@ mod tests {
     // URL should be percent-encoded
     assert!(url.as_str().contains("foo%20bar") || url.as_str().contains("foo bar"));
     let path = url.to_file_path(&root).unwrap();
-    assert_eq!(path, Path::new("/home/user/project/src/foo bar.js"));
+    assert_eq!(
+      path.to_path_buf(),
+      Path::new("/home/user/project/src/foo bar.js")
+    );
   }
 
   #[test]

@@ -1,11 +1,12 @@
 use std::{
   ffi::{OsStr, OsString},
   io::{Error, ErrorKind, Result},
-  path::{Component, Path, PathBuf},
+  path::{Component, Path},
   sync::Mutex,
 };
 
 use super::{DirEntry, FileKind, FileStat, FileSystem};
+use crate::PathId;
 
 pub struct MemoryFileSystem {
   entries: Mutex<Vec<Entry>>,
@@ -127,174 +128,188 @@ impl MemoryFileSystem {
 }
 
 impl FileSystem for MemoryFileSystem {
-  fn kind(&self, path: &Path) -> FileKind {
-    let name = path.file_name().unwrap();
-    let node = path.parent().map_or(Ok(0), |p| self.dir(p));
-    if let Ok(found) = node.and_then(|node| self.entry(node, name)) {
-      let entries = self.entries.lock().unwrap();
-      entries[found].kind()
-    } else {
-      FileKind::empty()
-    }
+  fn kind(&self, path: PathId) -> FileKind {
+    path.with_path(|path| {
+      let name = path.file_name().unwrap();
+      let node = path.parent().map_or(Ok(0), |p| self.dir(p));
+      if let Ok(found) = node.and_then(|node| self.entry(node, name)) {
+        let entries = self.entries.lock().unwrap();
+        entries[found].kind()
+      } else {
+        FileKind::empty()
+      }
+    })
   }
 
-  fn read(&self, path: &Path) -> Result<Vec<u8>> {
-    let name = path.file_name().unwrap();
-    let node = path.parent().map_or(Ok(0), |p| self.dir(p))?;
-    if let Ok(found) = self.entry(node, name) {
-      let entries = self.entries.lock().unwrap();
-      if let Entry::File { contents, .. } = &entries[found] {
-        Ok(contents.clone())
+  fn read(&self, path: PathId) -> Result<Vec<u8>> {
+    path.with_path(|path| {
+      let name = path.file_name().unwrap();
+      let node = path.parent().map_or(Ok(0), |p| self.dir(p))?;
+      if let Ok(found) = self.entry(node, name) {
+        let entries = self.entries.lock().unwrap();
+        if let Entry::File { contents, .. } = &entries[found] {
+          Ok(contents.clone())
+        } else {
+          Err(std::io::Error::new(
+            std::io::ErrorKind::NotADirectory,
+            "not a directory",
+          ))
+        }
       } else {
         Err(std::io::Error::new(
-          std::io::ErrorKind::NotADirectory,
-          "not a directory",
+          std::io::ErrorKind::NotFound,
+          "not found",
         ))
       }
-    } else {
-      Err(std::io::Error::new(
-        std::io::ErrorKind::NotFound,
-        "not found",
-      ))
-    }
+    })
   }
 
-  fn read_link(&self, _path: &Path) -> Result<PathBuf> {
+  fn read_link(&self, _path: PathId) -> Result<PathId> {
     todo!()
   }
 
-  fn write(&self, path: &Path, contents: &Vec<u8>) -> Result<()> {
-    let name = path.file_name().unwrap();
-    let node = path.parent().map_or(Ok(0), |p| self.dir(p))?;
-    let found = self.entry(node, name);
-    let mut entries = self.entries.lock().unwrap();
+  fn write(&self, path: PathId, contents: &Vec<u8>) -> Result<()> {
+    path.with_path(|path| {
+      let name = path.file_name().unwrap();
+      let node = path.parent().map_or(Ok(0), |p| self.dir(p))?;
+      let found = self.entry(node, name);
+      let mut entries = self.entries.lock().unwrap();
 
-    if let Ok(found) = found {
-      if let Entry::File {
-        contents: file_contents,
-        ..
-      } = &mut entries[found]
-      {
-        *file_contents = contents.clone();
+      if let Ok(found) = found {
+        if let Entry::File {
+          contents: file_contents,
+          ..
+        } = &mut entries[found]
+        {
+          *file_contents = contents.clone();
+        } else {
+          return Err(Error::new(ErrorKind::NotFound, "not a file"));
+        }
       } else {
-        return Err(Error::new(ErrorKind::NotFound, "not a file"));
-      }
-    } else {
-      let index = entries.len();
-      entries.push(Entry::File {
-        name: name.into(),
-        contents: contents.clone(),
-        parent: Some(node),
-      });
-      if let Entry::Directory { children, .. } = &mut entries[node] {
-        children.push(index);
-      }
-    }
-
-    Ok(())
-  }
-
-  fn remove_file(&self, path: &Path) -> Result<()> {
-    let name = path.file_name().unwrap();
-    let parent = path.parent().map_or(Ok(0), |p| self.dir(p))?;
-    let found = self.entry(parent, name)?;
-    let mut entries = self.entries.lock().unwrap();
-    if let Entry::Directory { children, .. } = &mut entries[parent] {
-      children.retain(|&c| c != found);
-      Ok(())
-    } else {
-      Err(Error::new(ErrorKind::NotADirectory, "not a directory"))
-    }
-  }
-
-  fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>> {
-    let dir = self.dir(path)?;
-    let entries = self.entries.lock().unwrap();
-    let entry = &entries[dir];
-    if let Entry::Directory { children, .. } = entry {
-      let mut dir_entries = Vec::new();
-      for child in children {
-        let child = &entries[*child];
-        dir_entries.push(match child {
-          Entry::Directory { name, .. } => DirEntry {
-            name: name.clone(),
-            kind: FileKind::IS_DIR,
-          },
-          Entry::File { name, .. } => DirEntry {
-            name: name.clone(),
-            kind: FileKind::IS_FILE,
-          },
+        let index = entries.len();
+        entries.push(Entry::File {
+          name: name.into(),
+          contents: contents.clone(),
+          parent: Some(node),
         });
+        if let Entry::Directory { children, .. } = &mut entries[node] {
+          children.push(index);
+        }
       }
 
-      Ok(dir_entries)
-    } else {
-      Err(Error::new(ErrorKind::NotADirectory, "not a directory"))
-    }
+      Ok(())
+    })
   }
 
-  fn create_dir_all(&self, path: &Path) -> Result<()> {
-    let mut node = 0;
-    for component in path.components() {
-      match component {
-        Component::CurDir => {}
-        Component::ParentDir => {
-          let entries = self.entries.lock().unwrap();
-          let entry = &entries[node];
-          if let Some(parent) = entry.parent() {
-            node = parent;
-          } else {
-            return Err(Error::new(ErrorKind::NotFound, "not found"));
-          }
+  fn remove_file(&self, path: PathId) -> Result<()> {
+    path.with_path(|path| {
+      let name = path.file_name().unwrap();
+      let parent = path.parent().map_or(Ok(0), |p| self.dir(p))?;
+      let found = self.entry(parent, name)?;
+      let mut entries = self.entries.lock().unwrap();
+      if let Entry::Directory { children, .. } = &mut entries[parent] {
+        children.retain(|&c| c != found);
+        Ok(())
+      } else {
+        Err(Error::new(ErrorKind::NotADirectory, "not a directory"))
+      }
+    })
+  }
+
+  fn read_dir(&self, path: PathId) -> Result<Vec<DirEntry>> {
+    path.with_path(|path| {
+      let dir = self.dir(path)?;
+      let entries = self.entries.lock().unwrap();
+      let entry = &entries[dir];
+      if let Entry::Directory { children, .. } = entry {
+        let mut dir_entries = Vec::new();
+        for child in children {
+          let child = &entries[*child];
+          dir_entries.push(match child {
+            Entry::Directory { name, .. } => DirEntry {
+              name: name.clone(),
+              kind: FileKind::IS_DIR,
+            },
+            Entry::File { name, .. } => DirEntry {
+              name: name.clone(),
+              kind: FileKind::IS_FILE,
+            },
+          });
         }
-        Component::Prefix(_) => todo!(),
-        Component::RootDir => {
-          node = 0;
-        }
-        Component::Normal(name) => {
-          node = match self.entry(node, name) {
-            Ok(v) => v,
-            Err(e) if e.kind() == ErrorKind::NotFound => {
-              let mut entries = self.entries.lock().unwrap();
-              let index = entries.len();
-              entries.push(Entry::Directory {
-                name: name.into(),
-                children: vec![],
-                parent: Some(node),
-              });
-              if let Entry::Directory { children, .. } = &mut entries[node] {
-                children.push(index);
-              }
-              index
+
+        Ok(dir_entries)
+      } else {
+        Err(Error::new(ErrorKind::NotADirectory, "not a directory"))
+      }
+    })
+  }
+
+  fn create_dir_all(&self, path: PathId) -> Result<()> {
+    path.with_path(|path| {
+      let mut node = 0;
+      for component in path.components() {
+        match component {
+          Component::CurDir => {}
+          Component::ParentDir => {
+            let entries = self.entries.lock().unwrap();
+            let entry = &entries[node];
+            if let Some(parent) = entry.parent() {
+              node = parent;
+            } else {
+              return Err(Error::new(ErrorKind::NotFound, "not found"));
             }
-            Err(e) => return Err(e),
+          }
+          Component::Prefix(_) => todo!(),
+          Component::RootDir => {
+            node = 0;
+          }
+          Component::Normal(name) => {
+            node = match self.entry(node, name) {
+              Ok(v) => v,
+              Err(e) if e.kind() == ErrorKind::NotFound => {
+                let mut entries = self.entries.lock().unwrap();
+                let index = entries.len();
+                entries.push(Entry::Directory {
+                  name: name.into(),
+                  children: vec![],
+                  parent: Some(node),
+                });
+                if let Entry::Directory { children, .. } = &mut entries[node] {
+                  children.push(index);
+                }
+                index
+              }
+              Err(e) => return Err(e),
+            }
           }
         }
       }
-    }
 
-    Ok(())
+      Ok(())
+    })
   }
 
-  fn stat(&self, path: &Path) -> Option<FileStat> {
-    let name = path.file_name().unwrap();
-    let node = path.parent().map_or(Ok(0), |p| self.dir(p)).ok()?;
-    let found = self.entry(node, name).ok()?;
-    let entries = self.entries.lock().unwrap();
-    match &entries[found] {
-      Entry::Directory { .. } => Some(FileStat::new_unavailable(FileKind::IS_DIR)),
-      Entry::File { contents, .. } => Some(FileStat {
-        size: contents.len() as u64,
-        kind: FileKind::IS_FILE,
-        atime: -1,
-        mtime: -1,
-        ctime: -1,
-        birthtime: -1,
-      }),
-    }
+  fn stat(&self, path: PathId) -> Option<FileStat> {
+    path.with_path(|path| {
+      let name = path.file_name().unwrap();
+      let node = path.parent().map_or(Ok(0), |p| self.dir(p)).ok()?;
+      let found = self.entry(node, name).ok()?;
+      let entries = self.entries.lock().unwrap();
+      match &entries[found] {
+        Entry::Directory { .. } => Some(FileStat::new_unavailable(FileKind::IS_DIR)),
+        Entry::File { contents, .. } => Some(FileStat {
+          size: contents.len() as u64,
+          kind: FileKind::IS_FILE,
+          atime: -1,
+          mtime: -1,
+          ctime: -1,
+          birthtime: -1,
+        }),
+      }
+    })
   }
 
-  fn lstat(&self, path: &Path) -> Option<FileStat> {
+  fn lstat(&self, path: PathId) -> Option<FileStat> {
     self.stat(path)
   }
 }

@@ -1,19 +1,22 @@
 use std::{collections::HashMap, path::Path, sync::Arc};
 
-use parcel_core::{FileSystem, OverlayFileSystem};
+use parcel_core::{FileSystem, OverlayFileSystem, PathId};
 use parcel_plugin_js::create_runtime;
 
 fn run(code: &str) {
   let fs = Arc::new(OverlayFileSystem::new());
-  fs.create_dir_all(Path::new("/_parcel_test"))
+  fs.create_dir_all(PathId::new(Path::new("/_parcel_test")))
     .expect("Error creating dir");
   fs.write(
-    Path::new("/_parcel_test/test.txt"),
+    PathId::new(Path::new("/_parcel_test/test.txt")),
     &"test".as_bytes().to_owned(),
   )
   .expect("Error writing file");
-  fs.write(Path::new("/test.mjs"), &code.as_bytes().to_owned())
-    .expect("Error writing file");
+  fs.write(
+    PathId::new(Path::new("/test.mjs")),
+    &code.as_bytes().to_owned(),
+  )
+  .expect("Error writing file");
   let ctx = create_runtime(
     fs,
     &HashMap::new(),

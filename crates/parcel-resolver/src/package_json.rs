@@ -8,12 +8,12 @@ use std::{
 use bitflags::bitflags;
 use glob_match::{glob_match, glob_match_with_captures};
 use indexmap::IndexMap;
-use parcel_core::{ExportsCondition, FileSystem};
+use parcel_core::{ExportsCondition, FileSystem, PathId};
 use serde::Deserialize;
 
 use crate::{
   ResolverError,
-  cache::{Cache, CachedPath, WeakPath},
+  cache::Cache,
   error::JsonError,
   specifier::{Specifier, SpecifierType, decode_path},
 };
@@ -128,13 +128,13 @@ where
 
 #[derive(Debug)]
 pub struct PackageJson {
-  pub path: WeakPath,
+  pub path: PathId,
   pub name: String,
   pub module_type: ModuleType,
-  pub main: Option<WeakPath>,
-  pub module: Option<WeakPath>,
-  pub tsconfig: Option<WeakPath>,
-  pub types: Option<WeakPath>,
+  pub main: Option<PathId>,
+  pub module: Option<PathId>,
+  pub tsconfig: Option<PathId>,
+  pub types: Option<PathId>,
   pub source: SourceField,
   pub browser: BrowserField,
   pub alias: IndexMap<Specifier<'static>, AliasValue<'static>>,
@@ -185,18 +185,13 @@ pub enum ExportsField {
   None,
   String(String),
   #[serde(skip)]
-  Path(WeakPath),
+  Path(PathId),
   Array(Vec<ExportsField>),
   Map(IndexMap<ExportsKey<'static>, ExportsField>),
 }
 
 impl ExportsField {
-  fn convert_paths<F: FnMut() -> bool>(
-    &mut self,
-    base: &CachedPath,
-    cache: &Cache,
-    is_source: &mut F,
-  ) {
+  fn convert_paths<F: FnMut() -> bool>(&mut self, base: &PathId, cache: &Cache, is_source: &mut F) {
     match self {
       ExportsField::String(target) => {
         if target.starts_with("./") && !target.contains('*') {
@@ -217,7 +212,7 @@ impl ExportsField {
             return;
           }
 
-          *self = ExportsField::Path(base.resolve(&target_path, cache).downgrade());
+          *self = ExportsField::Path(base.resolve(&target_path));
         }
       }
       ExportsField::Array(arr) => {
@@ -310,24 +305,24 @@ pub enum PackageJsonError {
 #[derive(Debug, PartialEq)]
 pub enum ExportsResolution<'a> {
   None,
-  Path(CachedPath),
+  Path(PathId),
   Package(Cow<'a, str>),
 }
 
 impl PackageJson {
   pub fn read(
-    path: &CachedPath,
+    path: &PathId,
     cache: &Cache,
     fs: &dyn FileSystem,
   ) -> Result<PackageJson, ResolverError> {
-    let contents = fs.read_to_string(path.as_path())?;
+    let contents = fs.read_to_string(*path)?;
     let pkg = PackageJson::parse(path.clone(), contents, cache, fs)
-      .map_err(|e| JsonError::new(path.as_path().into(), e))?;
+      .map_err(|e| JsonError::new(path.to_path_buf().into(), e))?;
     Ok(pkg)
   }
 
   pub fn parse(
-    path: CachedPath,
+    path: PathId,
     data: String,
     cache: &Cache,
     fs: &dyn FileSystem,
@@ -337,7 +332,7 @@ impl PackageJson {
   }
 
   fn from_serialized(
-    path: CachedPath,
+    path: PathId,
     mut parsed: SerializedPackageJson,
     cache: &Cache,
     fs: &dyn FileSystem,
@@ -354,7 +349,7 @@ impl PackageJson {
         return is_source;
       }
 
-      if let Ok(realpath) = path.canonicalize(&cache, fs) {
+      if let Ok(realpath) = fs.canonicalize(path) {
         let is_src = !realpath.in_node_modules();
         is_source = Some(is_src);
         is_src
@@ -377,25 +372,17 @@ impl PackageJson {
     PackageJson {
       name: parsed.name,
       module_type: parsed.module_type,
-      main: parsed
-        .main
-        .map(|main| path.resolve(&main, cache).downgrade()),
-      module: parsed
-        .module
-        .map(|module| path.resolve(&module, cache).downgrade()),
-      tsconfig: parsed
-        .tsconfig
-        .map(|tsconfig| path.resolve(&tsconfig, cache).downgrade()),
-      types: parsed
-        .types
-        .map(|types| path.resolve(&types, cache).downgrade()),
+      main: parsed.main.map(|main| path.resolve(&main)),
+      module: parsed.module.map(|module| path.resolve(&module)),
+      tsconfig: parsed.tsconfig.map(|tsconfig| path.resolve(&tsconfig)),
+      types: parsed.types.map(|types| path.resolve(&types)),
       source: parsed.source,
       browser: parsed.browser,
       alias: parsed.alias,
       exports: parsed.exports,
       imports: parsed.imports,
       side_effects: parsed.side_effects,
-      path: path.downgrade(),
+      path: path,
       dependencies: parsed.dependencies,
       dev_dependencies: parsed.dev_dependencies,
       peer_dependencies: parsed.peer_dependencies,
@@ -411,17 +398,15 @@ impl PackageJson {
     }
   }
 
-  pub fn source(&self, cache: &Cache) -> Option<CachedPath> {
+  pub fn source(&self, cache: &Cache) -> Option<PathId> {
     match &self.source {
       SourceField::None | SourceField::Array(_) | SourceField::Bool(_) => None,
-      SourceField::String(source) => Some(self.path.upgrade().resolve(Path::new(source), cache)),
+      SourceField::String(source) => Some(self.path.resolve(Path::new(source))),
       SourceField::Map(map) => match map.get(&Specifier::Package(
         Cow::Borrowed(self.name.as_str()),
         Cow::Borrowed(""),
       )) {
-        Some(AliasValue::Specifier(Specifier::Relative(s))) => {
-          Some(self.path.upgrade().resolve(s, cache))
-        }
+        Some(AliasValue::Specifier(Specifier::Relative(s))) => Some(self.path.resolve(s)),
         _ => None,
       },
     }
@@ -437,7 +422,7 @@ impl PackageJson {
     conditions: ExportsCondition,
     custom_conditions: &[String],
     paths: &Cache,
-  ) -> Result<CachedPath, PackageJsonError> {
+  ) -> Result<PathId, PackageJsonError> {
     // If exports is an Object with both a key starting with "." and a key not starting with ".", throw an Invalid Package Configuration error.
     if let ExportsField::Map(map) = &self.exports {
       let mut has_conditions = false;
@@ -577,10 +562,10 @@ impl PackageJson {
           return Err(PackageJsonError::InvalidPackageTarget);
         }
 
-        let resolved_target = self.path.upgrade().resolve(&target_path, paths);
+        let resolved_target = self.path.resolve(&target_path);
         return Ok(ExportsResolution::Path(resolved_target));
       }
-      ExportsField::Path(target) => return Ok(ExportsResolution::Path(target.upgrade())),
+      ExportsField::Path(target) => return Ok(ExportsResolution::Path(*target)),
       ExportsField::Map(target) => {
         // We must iterate in object insertion order.
         for (key, value) in target {
@@ -849,7 +834,7 @@ impl PackageJson {
 
   pub fn has_side_effects(&self, path: &Path) -> bool {
     let path = path
-      .strip_prefix(self.path.upgrade().parent().unwrap().as_path())
+      .strip_prefix(self.path.parent().unwrap().to_path_buf())
       .ok()
       .and_then(|path| path.as_os_str().to_str());
 
@@ -964,7 +949,7 @@ pub struct EntryIter<'a> {
 }
 
 impl<'a> Iterator for EntryIter<'a> {
-  type Item = (CachedPath, &'static str);
+  type Item = (PathId, &'static str);
 
   fn next(&mut self) -> Option<Self::Item> {
     if self.fields.contains(Fields::SOURCE) {
@@ -977,7 +962,7 @@ impl<'a> Iterator for EntryIter<'a> {
     if self.fields.contains(Fields::TYPES) {
       self.fields.remove(Fields::TYPES);
       if let Some(types) = &self.package.types {
-        return Some((types.upgrade(), "types"));
+        return Some((*types, "types"));
       }
     }
 
@@ -986,24 +971,14 @@ impl<'a> Iterator for EntryIter<'a> {
       match &self.package.browser {
         BrowserField::None => {}
         BrowserField::String(browser) => {
-          return Some((
-            self
-              .package
-              .path
-              .upgrade()
-              .resolve(Path::new(browser), self.cache),
-            "browser",
-          ));
+          return Some((self.package.path.resolve(Path::new(browser)), "browser"));
         }
         BrowserField::Map(map) => {
           if let Some(AliasValue::Specifier(Specifier::Relative(s))) = map.get(&Specifier::Package(
             Cow::Borrowed(&self.package.name),
             Cow::Borrowed(""),
           )) {
-            return Some((
-              self.package.path.upgrade().resolve(s, self.cache),
-              "browser",
-            ));
+            return Some((self.package.path.resolve(s), "browser"));
           }
         }
       }
@@ -1012,21 +987,21 @@ impl<'a> Iterator for EntryIter<'a> {
     if self.fields.contains(Fields::MODULE) {
       self.fields.remove(Fields::MODULE);
       if let Some(module) = &self.package.module {
-        return Some((module.upgrade(), "module"));
+        return Some((*module, "module"));
       }
     }
 
     if self.fields.contains(Fields::MAIN) {
       self.fields.remove(Fields::MAIN);
       if let Some(main) = &self.package.main {
-        return Some((main.upgrade(), "main"));
+        return Some((*main, "main"));
       }
     }
 
     if self.fields.contains(Fields::TSCONFIG) {
       self.fields.remove(Fields::TSCONFIG);
       if let Some(tsconfig) = &self.package.tsconfig {
-        return Some((tsconfig.upgrade(), "tsconfig"));
+        return Some((*tsconfig, "tsconfig"));
       }
     }
 
@@ -1039,12 +1014,12 @@ mod tests {
   use super::*;
   use indexmap::indexmap;
 
-  fn make_pkg(
-    path: CachedPath,
-    serialized: SerializedPackageJson,
-    cache: &Cache,
-  ) -> PackageJson {
+  fn make_pkg(path: PathId, serialized: SerializedPackageJson, cache: &Cache) -> PackageJson {
     PackageJson::from_serialized(path, serialized, cache, &crate::OsFileSystem::default())
+  }
+
+  fn get_normalized<P: AsRef<Path>>(path: P) -> PathId {
+    PathId::new(&crate::cache::normalize_path(path.as_ref()))
   }
 
   // Based on https://github.com/lukeed/resolve.exports/blob/master/test/resolve.js,
@@ -1055,7 +1030,7 @@ mod tests {
   fn exports_string() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         exports: ExportsField::String("./exports.js".into()),
@@ -1068,17 +1043,17 @@ mod tests {
       pkg
         .resolve_package_exports("", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/exports.js")
+      get_normalized("/foo/exports.js")
     );
-    // assert_eq!(pkg.resolve_package_exports("./exports.js", &[]).unwrap(), cache.get_normalized("/foo/exports.js"), &cache);
-    // assert_eq!(pkg.resolve_package_exports("foobar", &[]).unwrap(), cache.get_normalized("/foo/exports.js"), &cache);
+    // assert_eq!(pkg.resolve_package_exports("./exports.js", &[]).unwrap(), get_normalized("/foo/exports.js"), &cache);
+    // assert_eq!(pkg.resolve_package_exports("foobar", &[]).unwrap(), get_normalized("/foo/exports.js"), &cache);
   }
 
   #[test]
   fn exports_dot() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         exports: ExportsField::Map(indexmap! {
@@ -1093,20 +1068,20 @@ mod tests {
       pkg
         .resolve_package_exports("", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/exports.js")
+      get_normalized("/foo/exports.js")
     );
     assert!(matches!(
       pkg.resolve_package_exports(".", ExportsCondition::empty(), &[], &cache),
       Err(PackageJsonError::PackagePathNotExported)
     ));
-    // assert_eq!(pkg.resolve_package_exports("foobar", &[]).unwrap(), cache.get_normalized("/foo/exports.js"), &cache);
+    // assert_eq!(pkg.resolve_package_exports("foobar", &[]).unwrap(), get_normalized("/foo/exports.js"), &cache);
   }
 
   #[test]
   fn exports_dot_conditions() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         exports: ExportsField::Map(indexmap! {
@@ -1129,13 +1104,13 @@ mod tests {
           &cache
         )
         .unwrap(),
-      cache.get_normalized("/foo/import.js")
+      get_normalized("/foo/import.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("", ExportsCondition::REQUIRE, &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/require.js")
+      get_normalized("/foo/require.js")
     );
     assert!(matches!(
       pkg.resolve_package_exports("", ExportsCondition::empty(), &[], &cache),
@@ -1151,7 +1126,7 @@ mod tests {
   fn exports_map_string() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         exports: ExportsField::Map(indexmap! {
@@ -1169,19 +1144,19 @@ mod tests {
       pkg
         .resolve_package_exports("foo", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/exports.js")
+      get_normalized("/foo/exports.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports(".invisible", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/.invisible.js")
+      get_normalized("/foo/.invisible.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("file", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/file.js")
+      get_normalized("/foo/file.js")
     );
   }
 
@@ -1189,7 +1164,7 @@ mod tests {
   fn exports_map_conditions() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         exports: ExportsField::Map(indexmap! {
@@ -1212,13 +1187,13 @@ mod tests {
           &cache
         )
         .unwrap(),
-      cache.get_normalized("/foo/import.js")
+      get_normalized("/foo/import.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("foo", ExportsCondition::REQUIRE, &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/require.js")
+      get_normalized("/foo/require.js")
     );
     assert!(matches!(
       pkg.resolve_package_exports("foo", ExportsCondition::empty(), &[], &cache),
@@ -1234,7 +1209,7 @@ mod tests {
   fn nested_conditions() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         exports: ExportsField::Map(indexmap! {
@@ -1258,7 +1233,7 @@ mod tests {
           &cache
         )
         .unwrap(),
-      cache.get_normalized("/foo/import.js")
+      get_normalized("/foo/import.js")
     );
     assert_eq!(
       pkg
@@ -1269,25 +1244,25 @@ mod tests {
           &cache
         )
         .unwrap(),
-      cache.get_normalized("/foo/require.js")
+      get_normalized("/foo/require.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("", ExportsCondition::IMPORT, &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/default.js")
+      get_normalized("/foo/default.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/default.js")
+      get_normalized("/foo/default.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("", ExportsCondition::NODE, &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/default.js")
+      get_normalized("/foo/default.js")
     );
   }
 
@@ -1295,7 +1270,7 @@ mod tests {
   fn custom_conditions() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         exports: ExportsField::Map(indexmap! {
@@ -1310,13 +1285,13 @@ mod tests {
       pkg
         .resolve_package_exports("", ExportsCondition::NODE, &["custom".into()], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/custom.js")
+      get_normalized("/foo/custom.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("", ExportsCondition::NODE, &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/default.js")
+      get_normalized("/foo/default.js")
     );
   }
 
@@ -1324,7 +1299,7 @@ mod tests {
   fn subpath_nested_conditions() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         exports: ExportsField::Map(indexmap! {
@@ -1353,7 +1328,7 @@ mod tests {
           &cache
         )
         .unwrap(),
-      cache.get_normalized("/foo/node_import.js")
+      get_normalized("/foo/node_import.js")
     );
     assert_eq!(
       pkg
@@ -1364,7 +1339,7 @@ mod tests {
           &cache
         )
         .unwrap(),
-      cache.get_normalized("/foo/node_require.js")
+      get_normalized("/foo/node_require.js")
     );
     assert_eq!(
       pkg
@@ -1375,7 +1350,7 @@ mod tests {
           &cache
         )
         .unwrap(),
-      cache.get_normalized("/foo/browser_import.js")
+      get_normalized("/foo/browser_import.js")
     );
     assert_eq!(
       pkg
@@ -1386,7 +1361,7 @@ mod tests {
           &cache
         )
         .unwrap(),
-      cache.get_normalized("/foo/browser_require.js")
+      get_normalized("/foo/browser_require.js")
     );
     assert!(matches!(
       pkg.resolve_package_exports("lite", ExportsCondition::empty(), &[], &cache),
@@ -1398,7 +1373,7 @@ mod tests {
   fn subpath_star() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         exports: ExportsField::Map(indexmap! {
@@ -1416,41 +1391,41 @@ mod tests {
       pkg
         .resolve_package_exports("hello", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/cheese/hello.mjs")
+      get_normalized("/foo/cheese/hello.mjs")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("hello/world", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/cheese/hello/world.mjs")
+      get_normalized("/foo/cheese/hello/world.mjs")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("hello.js", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/cheese/hello.js.mjs")
+      get_normalized("/foo/cheese/hello.js.mjs")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("pizza/test", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/pizza/test.mjs")
+      get_normalized("/foo/pizza/test.mjs")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("burritos/test", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/burritos/test/test.mjs")
+      get_normalized("/foo/burritos/test/test.mjs")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("literal", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/literal/*.js")
+      get_normalized("/foo/literal/*.js")
     );
 
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         exports: ExportsField::Map(indexmap! {
@@ -1466,7 +1441,7 @@ mod tests {
       pkg
         .resolve_package_exports("file", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/file.js")
+      get_normalized("/foo/file.js")
     );
     assert!(matches!(
       pkg.resolve_package_exports("file.js", ExportsCondition::empty(), &[], &cache),
@@ -1482,7 +1457,7 @@ mod tests {
   fn exports_null() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         exports: ExportsField::Map(indexmap! {
@@ -1498,7 +1473,7 @@ mod tests {
       pkg
         .resolve_package_exports("features/foo.js", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/src/features/foo.js")
+      get_normalized("/foo/src/features/foo.js")
     );
     assert_eq!(
       pkg
@@ -1509,7 +1484,7 @@ mod tests {
           &cache
         )
         .unwrap(),
-      cache.get_normalized("/foo/src/features/foo/bar.js")
+      get_normalized("/foo/src/features/foo/bar.js")
     );
     assert!(matches!(
       pkg.resolve_package_exports(
@@ -1526,7 +1501,7 @@ mod tests {
   fn exports_array() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         exports: ExportsField::Map(indexmap! {
@@ -1555,7 +1530,7 @@ mod tests {
           &cache
         )
         .unwrap(),
-      cache.get_normalized("/foo/index.js")
+      get_normalized("/foo/index.js")
     );
     assert_eq!(
       pkg
@@ -1566,19 +1541,19 @@ mod tests {
           &cache
         )
         .unwrap(),
-      cache.get_normalized("/foo/node/index.js")
+      get_normalized("/foo/node/index.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("test/index.js", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/bar/index.js")
+      get_normalized("/foo/bar/index.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("file", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/file.js")
+      get_normalized("/foo/file.js")
     );
     assert!(matches!(
       pkg.resolve_package_exports("utils/index.js", ExportsCondition::BROWSER, &[], &cache),
@@ -1590,7 +1565,7 @@ mod tests {
     ));
 
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         exports: ExportsField::Array(vec![
@@ -1608,13 +1583,13 @@ mod tests {
       pkg
         .resolve_package_exports("", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/b.js")
+      get_normalized("/foo/b.js")
     );
     assert_eq!(
       pkg
         .resolve_package_exports("", ExportsCondition::NODE, &[], &cache)
         .unwrap(),
-      cache.get_normalized("/foo/a.js")
+      get_normalized("/foo/a.js")
     );
   }
 
@@ -1622,7 +1597,7 @@ mod tests {
   fn exports_invalid() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         exports: ExportsField::Map(indexmap! {
@@ -1674,7 +1649,7 @@ mod tests {
     ));
 
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         exports: ExportsField::Map(indexmap! {
@@ -1700,7 +1675,7 @@ mod tests {
   fn imports() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         imports: indexmap! {
@@ -1717,13 +1692,13 @@ mod tests {
       pkg
         .resolve_package_imports("foo", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      ExportsResolution::Path(cache.get_normalized("/foo/foo.mjs"))
+      ExportsResolution::Path(get_normalized("/foo/foo.mjs"))
     );
     assert_eq!(
       pkg
         .resolve_package_imports("internal/foo", ExportsCondition::empty(), &[], &cache)
         .unwrap(),
-      ExportsResolution::Path(cache.get_normalized("/foo/src/internal/foo.mjs"))
+      ExportsResolution::Path(get_normalized("/foo/src/internal/foo.mjs"))
     );
     assert_eq!(
       pkg
@@ -1737,7 +1712,7 @@ mod tests {
   fn import_conditions() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         imports: indexmap! {
@@ -1754,13 +1729,13 @@ mod tests {
       pkg
         .resolve_package_imports("entry/foo", ExportsCondition::NODE, &[], &cache)
         .unwrap(),
-      ExportsResolution::Path(cache.get_normalized("/foo/node/foo.js"))
+      ExportsResolution::Path(get_normalized("/foo/node/foo.js"))
     );
     assert_eq!(
       pkg
         .resolve_package_imports("entry/foo", ExportsCondition::BROWSER, &[], &cache)
         .unwrap(),
-      ExportsResolution::Path(cache.get_normalized("/foo/browser/foo.js"))
+      ExportsResolution::Path(get_normalized("/foo/browser/foo.js"))
     );
     assert_eq!(
       pkg
@@ -1771,7 +1746,7 @@ mod tests {
           &cache
         )
         .unwrap(),
-      ExportsResolution::Path(cache.get_normalized("/foo/node/foo.js"))
+      ExportsResolution::Path(get_normalized("/foo/node/foo.js"))
     );
   }
 
@@ -1779,7 +1754,7 @@ mod tests {
   fn aliases() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         alias: indexmap! {
@@ -1894,7 +1869,7 @@ mod tests {
   fn side_effects_none() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         ..Default::default()
@@ -1911,7 +1886,7 @@ mod tests {
   fn side_effects_bool() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         side_effects: SideEffects::Boolean(false),
@@ -1938,7 +1913,7 @@ mod tests {
   fn side_effects_glob() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         side_effects: SideEffects::String("*.css".into()),
@@ -1983,7 +1958,7 @@ mod tests {
   fn side_effects_array() {
     let cache = Cache::default();
     let pkg = make_pkg(
-      cache.get_normalized("/foo/package.json"),
+      get_normalized("/foo/package.json"),
       SerializedPackageJson {
         name: "foobar".into(),
         side_effects: SideEffects::Array(vec!["*.css".into(), "*.html".into()]),

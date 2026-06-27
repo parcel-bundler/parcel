@@ -13,10 +13,18 @@ pub struct TailwindTransformer;
 const COMPILE_JS: &'static str = include_str!("compile.js");
 
 impl Transformer for TailwindTransformer {
-  fn transform(&self, mut asset: Asset, options: &ParcelOptions, fs: &std::sync::Arc<dyn parcel_core::FileSystem>) -> Result<Asset, DiagnosticList> {
+  fn transform(
+    &self,
+    mut asset: Asset,
+    options: &ParcelOptions,
+    fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+  ) -> Result<Asset, DiagnosticList> {
     let project_root_path = options.project_root.to_file_path(&options.project_root)?;
     let mut scanner = Scanner::new(vec![PublicSourceEntry {
-      base: project_root_path.to_string_lossy().into_owned(),
+      base: project_root_path
+        .to_path_buf()
+        .to_string_lossy()
+        .into_owned(),
       pattern: "**/*".into(),
       negated: false,
     }]);
@@ -27,87 +35,82 @@ impl Transformer for TailwindTransformer {
     // TODO: skip if tailwind is not present?
 
     let asset_path = asset.loc.url.to_file_path(&options.project_root)?;
-    let from = asset_path.to_string_lossy().into_owned();
+    let from = asset_path.to_path_buf().to_string_lossy().into_owned();
     let base = asset_path
       .parent()
-      .map(|p| p.to_string_lossy().into_owned())
+      .map(|p| p.to_path_buf().to_string_lossy().into_owned())
       .unwrap_or_default();
 
-    let resolver = Resolver::node(&project_root_path, Cache::new());
+    let resolver = Resolver::node(project_root_path, Cache::new());
     let resolver_fs = fs.clone();
 
-    let result_css = with_js_env(
-      fs.clone(),
-      &options.env,
-      &options.cwd,
-      move |ctx| {
-        let module = require_source(ctx, "tailwind", COMPILE_JS)?;
-        let func: Function = module
-          .as_object()
-          .ok_or(rquickjs::Error::Unknown)?
-          .get("compileTailwind")?;
+    let result_css = with_js_env(fs.clone(), &options.env, &options.cwd, move |ctx| {
+      let module = require_source(ctx, "tailwind", COMPILE_JS)?;
+      let func: Function = module
+        .as_object()
+        .ok_or(rquickjs::Error::Unknown)?
+        .get("compileTailwind")?;
 
-        let js_candidates = Array::new(ctx.clone())?;
-        for (i, candidate) in candidates.iter().enumerate() {
-          js_candidates.set(i, candidate.as_str())?;
-        }
+      let js_candidates = Array::new(ctx.clone())?;
+      for (i, candidate) in candidates.iter().enumerate() {
+        js_candidates.set(i, candidate.as_str())?;
+      }
 
-        let resolve_fn =
-          move |ctx: Ctx, specifier: String, from: String, kind: u32| -> rquickjs::Result<String> {
-            let from_path = Path::new(&from);
-            let result = if kind == 1 {
-              resolver.resolve_with_options(
-                &specifier,
-                from_path,
-                SpecifierType::Cjs,
-                &*resolver_fs,
-                ResolveOptions {
-                  conditions: ExportsCondition::STYLE,
-                  ..Default::default()
-                },
-              )
-            } else {
-              resolver.resolve_with_options(
-                &specifier,
-                from_path,
-                SpecifierType::Cjs,
-                &*resolver_fs,
-                Default::default(),
-              )
-            };
-
-            match result {
-              Ok(r) => match r.resolution {
-                Resolution::Path(p) => Ok(p.to_string_lossy().into_owned()),
-                _ => Err(rquickjs::Exception::throw_message(
-                  &ctx,
-                  &format!("Cannot resolve '{}': not a file path", specifier),
-                )),
+      let resolve_fn =
+        move |ctx: Ctx, specifier: String, from: String, kind: u32| -> rquickjs::Result<String> {
+          let from_path = parcel_core::PathId::new(Path::new(&from));
+          let result = if kind == 1 {
+            resolver.resolve_with_options(
+              &specifier,
+              from_path,
+              SpecifierType::Cjs,
+              &*resolver_fs,
+              ResolveOptions {
+                conditions: ExportsCondition::STYLE,
+                ..Default::default()
               },
-              Err(e) => Err(rquickjs::Exception::throw_message(
-                &ctx,
-                &format!("Failed to resolve '{}' from '{}': {}", specifier, from, e),
-              )),
-            }
+            )
+          } else {
+            resolver.resolve_with_options(
+              &specifier,
+              from_path,
+              SpecifierType::Cjs,
+              &*resolver_fs,
+              Default::default(),
+            )
           };
 
-        let resolve = Function::new(ctx.clone(), resolve_fn)?;
+          match result {
+            Ok(r) => match r.resolution {
+              Resolution::Path(p) => Ok(p.to_path_buf().to_string_lossy().into_owned()),
+              _ => Err(rquickjs::Exception::throw_message(
+                &ctx,
+                &format!("Cannot resolve '{}': not a file path", specifier),
+              )),
+            },
+            Err(e) => Err(rquickjs::Exception::throw_message(
+              &ctx,
+              &format!("Failed to resolve '{}' from '{}': {}", specifier, from, e),
+            )),
+          }
+        };
 
-        let promise: Value = func.call((
-          resolve,
-          from.as_str(),
-          base.as_str(),
-          css.as_str(),
-          js_candidates,
-        ))?;
+      let resolve = Function::new(ctx.clone(), resolve_fn)?;
 
-        let result = await_promise(ctx, promise)?;
-        result
-          .as_string()
-          .ok_or(rquickjs::Error::Unknown)?
-          .to_string()
-      },
-    )?;
+      let promise: Value = func.call((
+        resolve,
+        from.as_str(),
+        base.as_str(),
+        css.as_str(),
+        js_candidates,
+      ))?;
+
+      let result = await_promise(ctx, promise)?;
+      result
+        .as_string()
+        .ok_or(rquickjs::Error::Unknown)?
+        .to_string()
+    })?;
 
     asset.content = Arc::new(BufferContent::new(result_css.into_bytes()));
     Ok(asset)

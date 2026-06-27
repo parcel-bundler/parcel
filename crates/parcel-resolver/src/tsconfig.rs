@@ -3,17 +3,12 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use crate::{cache::WeakPath, json_comments_rs::strip_comments_in_place};
+use crate::json_comments_rs::strip_comments_in_place;
 use indexmap::IndexMap;
 use itertools::Either;
-use parcel_core::FileSystem;
+use parcel_core::{FileSystem, PathId};
 
-use crate::{
-  ResolverError,
-  cache::{Cache, CachedPath},
-  error::JsonError,
-  specifier::Specifier,
-};
+use crate::{ResolverError, cache::Cache, error::JsonError, specifier::Specifier};
 
 #[derive(serde::Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
@@ -34,10 +29,10 @@ struct SerializedTsConfig {
 }
 
 pub struct TsConfig {
-  pub path: WeakPath,
-  base_url: Option<WeakPath>,
+  pub path: PathId,
+  base_url: Option<PathId>,
   paths: Option<IndexMap<Specifier<'static>, Vec<String>>>,
-  paths_base: WeakPath,
+  paths_base: PathId,
   pub module_suffixes: Option<Vec<String>>,
   pub jsx_factory: Option<String>,
   pub jsx_fragment_factory: Option<String>,
@@ -93,20 +88,20 @@ pub struct TsConfigWrapper {
 
 impl TsConfig {
   pub fn read<F: FnOnce(&mut TsConfigWrapper) -> Result<(), ResolverError>>(
-    path: &CachedPath,
+    path: &PathId,
     process: F,
     cache: &Cache,
     fs: &dyn FileSystem,
   ) -> Result<TsConfigWrapper, ResolverError> {
-    let data = fs.read_to_string(path.as_path())?;
+    let data = fs.read_to_string(*path)?;
     let mut tsconfig = TsConfig::parse(path.clone(), data, &cache)
-      .map_err(|e| JsonError::new(path.as_path().to_owned(), e))?;
+      .map_err(|e| JsonError::new(path.to_path_buf().to_owned(), e))?;
     process(&mut tsconfig)?;
     Ok(tsconfig)
   }
 
   pub fn parse(
-    path: CachedPath,
+    path: PathId,
     mut data: String,
     cache: &Cache,
   ) -> serde_json::Result<TsConfigWrapper> {
@@ -118,20 +113,16 @@ impl TsConfig {
     })
   }
 
-  fn from_serialized(path: CachedPath, serialized: SerializedTsConfig, cache: &Cache) -> TsConfig {
-    let base_url = serialized
-      .base_url
-      .map(|base_url| path.resolve(&base_url, cache).downgrade());
+  fn from_serialized(path: PathId, serialized: SerializedTsConfig, cache: &Cache) -> TsConfig {
+    let base_url = serialized.base_url.map(|base_url| path.resolve(&base_url));
 
     TsConfig {
       paths_base: if serialized.paths.is_some() {
-        base_url
-          .clone()
-          .unwrap_or_else(|| path.parent().unwrap().downgrade())
+        base_url.clone().unwrap_or_else(|| path.parent().unwrap())
       } else {
-        cache.get(Path::new("")).downgrade()
+        PathId::new(Path::new(""))
       },
-      path: path.downgrade(),
+      path: path,
       base_url,
       paths: serialized.paths,
       module_suffixes: serialized.module_suffixes,
@@ -164,14 +155,14 @@ impl TsConfig {
     &'a self,
     specifier: &'a Specifier,
     cache: &'a Cache,
-  ) -> impl Iterator<Item = CachedPath> + 'a {
+  ) -> impl Iterator<Item = PathId> + 'a {
     if !matches!(specifier, Specifier::Package(..) | Specifier::Builtin(..)) {
       return Either::Right(Either::Right(std::iter::empty()));
     }
 
     // If there is a base url setting, resolve it relative to the tsconfig.json file.
     // Otherwise, the base for paths is implicitly the directory containing the tsconfig.
-    let base_url_iter = if let Some(base_url) = &self.base_url {
+    let base_url_iter = if let Some(base_url) = self.base_url {
       Either::Left(base_url_iter(base_url, specifier, cache))
     } else {
       Either::Right(std::iter::empty())
@@ -228,34 +219,39 @@ impl TsConfig {
 }
 
 fn join_paths<'a>(
-  base_url: &'a WeakPath,
+  base_url: &'a PathId,
   paths: &'a [String],
   replacement: Option<(Cow<'a, str>, usize, usize)>,
   cache: &'a Cache,
-) -> impl Iterator<Item = CachedPath> + 'a {
+) -> impl Iterator<Item = PathId> + 'a {
   paths
     .iter()
     .filter(|p| !p.ends_with(".d.ts"))
     .map(move |path| {
       if let Some((replacement, start, end)) = &replacement {
         let path = path.replace('*', &replacement[*start..replacement.len() - *end]);
-        base_url.upgrade().join(&path, cache)
+        base_url.join(Path::new(&path))
       } else {
-        base_url.upgrade().join(path, cache)
+        base_url.join(Path::new(path))
       }
     })
 }
 
 fn base_url_iter<'a>(
-  base_url: &'a WeakPath,
+  base_url: PathId,
   specifier: &'a Specifier,
   cache: &'a Cache,
-) -> impl Iterator<Item = CachedPath> + 'a {
+) -> impl Iterator<Item = PathId> + 'a {
   std::iter::once_with(move || {
     if let Specifier::Package(module, subpath) = specifier {
-      base_url.upgrade().join_package(module, subpath, cache)
+      // `module` may be a scoped package name (e.g. `@scope/name`) containing a separator, so
+      // join it as a path (splitting into segments) rather than `child` (a single literal segment),
+      // otherwise the resulting `PathId` would differ from the same path interned normally.
+      base_url
+        .join(Path::new(module.as_ref()))
+        .join(Path::new(subpath.as_ref()))
     } else {
-      base_url.upgrade()
+      base_url
     }
   })
 }
@@ -265,11 +261,15 @@ mod tests {
   use super::*;
   use indexmap::indexmap;
 
+  fn get_normalized<P: AsRef<Path>>(path: P) -> PathId {
+    PathId::new(&crate::cache::normalize_path(path.as_ref()))
+  }
+
   #[test]
   fn test_paths() {
     let cache = Cache::default();
     let tsconfig = TsConfig::from_serialized(
-      cache.get_normalized("/foo/tsconfig.json"),
+      get_normalized("/foo/tsconfig.json"),
       SerializedTsConfig {
         base_url: None,
         paths: Some(indexmap! {
@@ -295,37 +295,31 @@ mod tests {
     let test = |specifier: &str| {
       tsconfig
         .paths(&specifier.into(), &cache)
-        .collect::<Vec<CachedPath>>()
+        .collect::<Vec<PathId>>()
     };
 
     assert_eq!(
       test("jquery"),
-      vec![cache.get_normalized("/foo/node_modules/jquery/dist/jquery")]
+      vec![get_normalized("/foo/node_modules/jquery/dist/jquery")]
     );
-    assert_eq!(
-      test("test"),
-      vec![cache.get_normalized("/foo/generated/test")]
-    );
+    assert_eq!(test("test"), vec![get_normalized("/foo/generated/test")]);
     assert_eq!(
       test("test/hello"),
-      vec![cache.get_normalized("/foo/generated/test/hello")]
+      vec![get_normalized("/foo/generated/test/hello")]
     );
-    assert_eq!(test("bar/hi"), vec![cache.get_normalized("/foo/test/hi")]);
+    assert_eq!(test("bar/hi"), vec![get_normalized("/foo/test/hi")]);
     assert_eq!(
       test("bar/baz/hi"),
-      vec![
-        cache.get_normalized("/foo/baz/hi"),
-        cache.get_normalized("/foo/yo/hi")
-      ]
+      vec![get_normalized("/foo/baz/hi"), get_normalized("/foo/yo/hi")]
     );
     assert_eq!(
       test("@/components/button"),
-      vec![cache.get_normalized("/foo/components/button")]
+      vec![get_normalized("/foo/components/button")]
     );
-    assert_eq!(test("./jquery"), Vec::<CachedPath>::new());
+    assert_eq!(test("./jquery"), Vec::<PathId>::new());
     assert_eq!(
       test("url"),
-      vec![cache.get_normalized("/foo/node_modules/my-url")]
+      vec![get_normalized("/foo/node_modules/my-url")]
     );
   }
 
@@ -333,7 +327,7 @@ mod tests {
   fn test_base_url() {
     let cache = Cache::default();
     let tsconfig = TsConfig::from_serialized(
-      cache.get_normalized("/foo/tsconfig.json"),
+      get_normalized("/foo/tsconfig.json"),
       SerializedTsConfig {
         base_url: Some(PathBuf::from("src")),
         paths: None,
@@ -352,22 +346,22 @@ mod tests {
     let test = |specifier: &str| {
       tsconfig
         .paths(&specifier.into(), &cache)
-        .collect::<Vec<CachedPath>>()
+        .collect::<Vec<PathId>>()
     };
 
-    assert_eq!(test("foo"), vec![cache.get_normalized("/foo/src/foo/")]);
+    assert_eq!(test("foo"), vec![get_normalized("/foo/src/foo/")]);
     assert_eq!(
       test("components/button"),
-      vec![cache.get_normalized("/foo/src/components/button")]
+      vec![get_normalized("/foo/src/components/button")]
     );
-    assert_eq!(test("./jquery"), Vec::<CachedPath>::new());
+    assert_eq!(test("./jquery"), Vec::<PathId>::new());
   }
 
   #[test]
   fn test_paths_and_base_url() {
     let cache = Cache::default();
     let tsconfig = TsConfig::from_serialized(
-      cache.get_normalized("/foo/tsconfig.json"),
+      get_normalized("/foo/tsconfig.json"),
       SerializedTsConfig {
         base_url: Some(Path::new("src").into()),
         paths: Some(indexmap! {
@@ -391,45 +385,45 @@ mod tests {
     let test = |specifier: &str| {
       tsconfig
         .paths(&specifier.into(), &cache)
-        .collect::<Vec<CachedPath>>()
+        .collect::<Vec<PathId>>()
     };
 
     assert_eq!(
       test("test"),
       vec![
-        cache.get_normalized("/foo/src/generated/test"),
-        cache.get_normalized("/foo/src/test/")
+        get_normalized("/foo/src/generated/test"),
+        get_normalized("/foo/src/test/")
       ]
     );
     assert_eq!(
       test("test/hello"),
       vec![
-        cache.get_normalized("/foo/src/generated/test/hello"),
-        cache.get_normalized("/foo/src/test/hello")
+        get_normalized("/foo/src/generated/test/hello"),
+        get_normalized("/foo/src/test/hello")
       ]
     );
     assert_eq!(
       test("bar/hi"),
       vec![
-        cache.get_normalized("/foo/src/test/hi"),
-        cache.get_normalized("/foo/src/bar/hi")
+        get_normalized("/foo/src/test/hi"),
+        get_normalized("/foo/src/bar/hi")
       ]
     );
     assert_eq!(
       test("bar/baz/hi"),
       vec![
-        cache.get_normalized("/foo/src/baz/hi"),
-        cache.get_normalized("/foo/src/yo/hi"),
-        cache.get_normalized("/foo/src/bar/baz/hi")
+        get_normalized("/foo/src/baz/hi"),
+        get_normalized("/foo/src/yo/hi"),
+        get_normalized("/foo/src/bar/baz/hi")
       ]
     );
     assert_eq!(
       test("@/components/button"),
       vec![
-        cache.get_normalized("/foo/src/components/button"),
-        cache.get_normalized("/foo/src/@/components/button")
+        get_normalized("/foo/src/components/button"),
+        get_normalized("/foo/src/@/components/button")
       ]
     );
-    assert_eq!(test("./jquery"), Vec::<CachedPath>::new());
+    assert_eq!(test("./jquery"), Vec::<PathId>::new());
   }
 }

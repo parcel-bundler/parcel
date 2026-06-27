@@ -31,7 +31,7 @@ pub struct CjsLoader {
 impl CjsLoader {
   pub fn new(project_root: String, fs: Arc<dyn FileSystem>) -> Self {
     let mut resolver = parcel_resolver::Resolver::node(
-      Path::new(&project_root),
+      parcel_resolver::PathId::new(Path::new(&project_root)),
       parcel_resolver::Cache::new(),
     );
     resolver.flags |= parcel_resolver::Flags::TYPESCRIPT;
@@ -59,14 +59,14 @@ impl CjsLoader {
 
     let res = self.resolver.resolve(
       name,
-      Path::new(base),
+      parcel_resolver::PathId::new(Path::new(base)),
       parcel_resolver::SpecifierType::Cjs,
       &*self.fs,
     );
 
     match res {
       Ok(res) => match res.resolution {
-        parcel_resolver::Resolution::Path(p) => Ok(p.to_str().unwrap().to_owned()),
+        parcel_resolver::Resolution::Path(p) => Ok(p.to_path_buf().to_str().unwrap().to_owned()),
         parcel_resolver::Resolution::Builtin { module, .. } => {
           return self.resolve_builtin(ctx, &module, true);
         }
@@ -177,14 +177,20 @@ impl CjsLoader {
         Ok(module.into_value())
       }
       Ok(ModuleType::CommonJs) => {
-        let source = self.fs.read_to_string(Path::new(resolved)).unwrap();
+        let source = self
+          .fs
+          .read_to_string(parcel_resolver::PathId::new(Path::new(resolved)))
+          .unwrap();
         self.load_cjs(ctx, resolved, Cow::Owned(source), cache)
       }
       Ok(ModuleType::Json) => {
         let module = Object::new(ctx.clone())?;
         cache.set(resolved, module.clone())?;
 
-        let source = self.fs.read(Path::new(resolved)).unwrap();
+        let source = self
+          .fs
+          .read(parcel_resolver::PathId::new(Path::new(resolved)))
+          .unwrap();
         module.set("exports", ctx.json_parse(source)?)?;
 
         let exports: Value = module.get("exports")?;

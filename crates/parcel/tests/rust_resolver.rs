@@ -14,8 +14,7 @@ fn build_rust_resolver_plugin() -> std::path::PathBuf {
   let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
 
   let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-  let plugin_manifest = manifest_dir
-    .join("../../plugin-rs/examples/custom-resolver/Cargo.toml");
+  let plugin_manifest = manifest_dir.join("../../plugin-rs/examples/custom-resolver/Cargo.toml");
 
   let target_dir = std::env::temp_dir()
     .join("parcel-rust-resolver-test")
@@ -62,8 +61,7 @@ fn test_rust_resolver_plugin() {
   );
   std::fs::write(&parcelrc_path, &parcelrc).expect("write parcelrc");
 
-  let fixture_dir =
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/native-resolver");
+  let fixture_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/native-resolver");
   let output_fs = Arc::new(OverlayFileSystem::new());
 
   let bundle_graph = parcel::build(
@@ -87,9 +85,7 @@ fn test_rust_resolver_plugin() {
     .expect("no JS bundle in output");
 
   let dist_path = js_bundle.dist_path(&bundle_graph.project_root);
-  let content = output_fs
-    .read_to_string(&dist_path)
-    .expect("read dist file");
+  let content = output_fs.read_to_string(dist_path).expect("read dist file");
 
   assert!(
     content.contains("Hello from native resolver!"),

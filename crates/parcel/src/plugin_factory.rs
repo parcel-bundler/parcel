@@ -28,7 +28,10 @@ pub struct DefaultPluginFactory {
 impl DefaultPluginFactory {
   pub fn new(fs: Arc<dyn FileSystem>) -> Self {
     DefaultPluginFactory {
-      resolver: parcel_resolver::Resolver::node(Path::new("/"), parcel_resolver::Cache::new()),
+      resolver: parcel_resolver::Resolver::node(
+        parcel_resolver::PathId::root(),
+        parcel_resolver::Cache::new(),
+      ),
       fs,
     }
   }
@@ -82,18 +85,23 @@ impl PluginFactory for DefaultPluginFactory {
       }
       _ => {
         // TODO: possibly support exports conditions for platform (e.g. darwin, linux, x64, arm64, etc.)
-        let resolved =
-          self
-            .resolver
-            .resolve(name, from, parcel_resolver::SpecifierType::Esm, &*self.fs);
+        let resolved = self.resolver.resolve(
+          name,
+          parcel_resolver::PathId::new(from),
+          parcel_resolver::SpecifierType::Esm,
+          &*self.fs,
+        );
         match resolved {
           Ok(resolution) => match resolution.resolution {
-            Resolution::Path(path) => match path.extension().map(|s| s.as_encoded_bytes()) {
+            Resolution::Path(path) => match path.extension().map(|s| s.as_bytes()) {
               Some(b"so" | b"dylib" | b"dll") => {
-                return Ok(Arc::new(CPlugin::new(&path, config.as_ref())?));
+                return Ok(Arc::new(CPlugin::new(
+                  &path.to_path_buf(),
+                  config.as_ref(),
+                )?));
               }
               _ => {
-                return Ok(Arc::new(JsPlugin::new(&path)));
+                return Ok(Arc::new(JsPlugin::new(&path.to_path_buf())));
               }
             },
             _ => {}
@@ -172,19 +180,24 @@ impl PluginFactory for DefaultPluginFactory {
         return Err(Diagnostic::from_message(format!("Could not find resolver {}", name)).into());
       }
       _ => {
-        let resolved =
-          self
-            .resolver
-            .resolve(name, from, parcel_resolver::SpecifierType::Esm, &*self.fs);
+        let resolved = self.resolver.resolve(
+          name,
+          parcel_resolver::PathId::new(from),
+          parcel_resolver::SpecifierType::Esm,
+          &*self.fs,
+        );
         match resolved {
           Ok(resolution) => match resolution.resolution {
             parcel_resolver::Resolution::Path(path)
               if matches!(
-                path.extension().map(|s| s.as_encoded_bytes()),
+                path.extension().map(|s| s.as_bytes()),
                 Some(b"so" | b"dylib" | b"dll")
               ) =>
             {
-              return Ok(Arc::new(CPlugin::new(&path, config.as_ref())?));
+              return Ok(Arc::new(CPlugin::new(
+                &path.to_path_buf(),
+                config.as_ref(),
+              )?));
             }
             _ => {}
           },
@@ -202,14 +215,14 @@ impl PluginFactory for DefaultPluginFactory {
 
     let resolved = self.resolver.resolve(
       specifier,
-      from,
+      parcel_resolver::PathId::new(from),
       parcel_resolver::SpecifierType::Esm,
       &*self.fs,
     );
     match resolved {
       Ok(resolution) => match resolution.resolution {
         Resolution::Path(path) => {
-          return ParcelConfig::read(&*self.fs, &path, self);
+          return ParcelConfig::read(&*self.fs, &path.to_path_buf(), self);
         }
         _ => {}
       },

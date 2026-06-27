@@ -5,8 +5,8 @@ use serde::Deserialize;
 use std::{ffi::OsStr, path::Path, sync::Arc};
 
 use crate::{
-  Diagnostic, DiagnosticList, FileSystem, bundler::Bundler, namer::Namer, optimizer::Optimizer,
-  resolver::Resolver, transformer::Transformer,
+  Diagnostic, DiagnosticList, FileSystem, PathId, bundler::Bundler, namer::Namer,
+  optimizer::Optimizer, resolver::Resolver, transformer::Transformer,
 };
 
 pub struct ParcelConfig {
@@ -27,7 +27,7 @@ impl ParcelConfig {
     path: &Path,
     factory: &dyn PluginFactory,
   ) -> Result<ParcelConfig, DiagnosticList> {
-    let content = fs.read(path)?;
+    let content = fs.read(PathId::new(path))?;
     Self::from_json(path, &content, factory)
   }
 

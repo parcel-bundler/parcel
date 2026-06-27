@@ -15,9 +15,9 @@ use parcel_core::{
   BundleBehavior as CoreBundleBehavior, CodeFrame, CodeHighlight, Dependency as CoreDependency,
   DependencyFlags as CoreDependencyFlags, DependencyResolution, Diagnostic as CoreDiagnostic,
   DiagnosticList, DiagnosticSeverity as CoreDiagnosticSeverity,
-  EnvironmentFlags as CoreEnvironmentFlags, ExportsCondition, FileContent,
-  LocalSymbol, Location, ParcelOptions, Priority as CorePriority, Resolver, SourceLocation,
-  SourceUrl, SpecifierType as CoreSpecifierType, SymbolName, Transformer,
+  EnvironmentFlags as CoreEnvironmentFlags, ExportsCondition, FileContent, LocalSymbol, Location,
+  ParcelOptions, PathId, Priority as CorePriority, Resolver, SourceLocation, SourceUrl,
+  SpecifierType as CoreSpecifierType, SymbolName, Transformer,
 };
 
 // ── Opaque handle type aliases ────────────────────────────────────────────────
@@ -393,7 +393,16 @@ pub extern "C" fn parcel_asset_get_file_path(buf: *mut Buffer, asset: Asset, opt
   let Ok(path) = asset.loc.url.to_file_path(&options.project_root) else {
     return;
   };
-  unsafe { write_buffer(buf, path.to_string_lossy().into_owned().into_bytes()) };
+  unsafe {
+    write_buffer(
+      buf,
+      path
+        .to_path_buf()
+        .to_string_lossy()
+        .into_owned()
+        .into_bytes(),
+    )
+  };
 }
 
 // ── Pipeline ──────────────────────────────────────────────────────────────────
@@ -576,7 +585,16 @@ pub extern "C" fn parcel_target_get_dist_dir(buf: *mut Buffer, target: Target, o
   let Ok(path) = target.dist_dir.to_file_path(&options.project_root) else {
     return;
   };
-  unsafe { write_buffer(buf, path.to_string_lossy().into_owned().into_bytes()) };
+  unsafe {
+    write_buffer(
+      buf,
+      path
+        .to_path_buf()
+        .to_string_lossy()
+        .into_owned()
+        .into_bytes(),
+    )
+  };
 }
 
 // ── Dependencies ──────────────────────────────────────────────────────────────
@@ -710,7 +728,16 @@ pub extern "C" fn parcel_dep_get_source_path(buf: *mut Buffer, dep: Dependency, 
   let Ok(path) = loc.url.to_file_path(&options.project_root) else {
     return;
   };
-  unsafe { write_buffer(buf, path.to_string_lossy().into_owned().into_bytes()) };
+  unsafe {
+    write_buffer(
+      buf,
+      path
+        .to_path_buf()
+        .to_string_lossy()
+        .into_owned()
+        .into_bytes(),
+    )
+  };
 }
 
 /// Returns the base path for resolving the specifier into `*buf`.
@@ -730,7 +757,16 @@ pub extern "C" fn parcel_dep_get_resolve_from(buf: *mut Buffer, dep: Dependency,
   let Ok(path) = url.to_file_path(&options.project_root) else {
     return;
   };
-  unsafe { write_buffer(buf, path.to_string_lossy().into_owned().into_bytes()) };
+  unsafe {
+    write_buffer(
+      buf,
+      path
+        .to_path_buf()
+        .to_string_lossy()
+        .into_owned()
+        .into_bytes(),
+    )
+  };
 }
 
 /// Returns an opaque `Target` handle for the dependency.
@@ -753,7 +789,16 @@ pub extern "C" fn parcel_options_get_project_root(buf: *mut Buffer, options: Opt
   let Ok(path) = options.project_root.to_file_path(&options.project_root) else {
     return;
   };
-  unsafe { write_buffer(buf, path.to_string_lossy().into_owned().into_bytes()) };
+  unsafe {
+    write_buffer(
+      buf,
+      path
+        .to_path_buf()
+        .to_string_lossy()
+        .into_owned()
+        .into_bytes(),
+    )
+  };
 }
 
 /// Looks up `key` in the build environment map.
@@ -1106,7 +1151,10 @@ impl Resolver for CPlugin {
           ty,
           pipeline: result_pipeline,
           target: dep.target.clone(),
-          content: Arc::new(FileContent::new(file_path, options.input_fs.clone())),
+          content: Arc::new(FileContent::new(
+            PathId::new(&file_path),
+            options.input_fs.clone(),
+          )),
           side_effects: true,
         })))
       }

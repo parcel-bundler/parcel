@@ -1,9 +1,9 @@
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
-use crate::{AssetType, SourceUrl, Target, impl_bitflags_serde};
+use crate::{AssetType, PathId, SourceUrl, Target, impl_bitflags_serde};
 
 #[derive(Debug)]
 pub struct Bundle {
@@ -60,7 +60,7 @@ impl Bundle {
     })
   }
 
-  pub fn dist_path(&self, project_root: &SourceUrl) -> PathBuf {
+  pub fn dist_path(&self, project_root: &SourceUrl) -> PathId {
     self.dist_url().to_file_path(project_root).unwrap()
   }
 

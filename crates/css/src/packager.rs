@@ -176,7 +176,7 @@ impl CssContent {
         if matches!(source_map.get_source_content(source_index as u32), Ok(s) if s.len() == 0) {
           let path = source_map.get_source(source_index as u32).unwrap();
           if let Ok(code) = options.input_fs.read_to_string(
-            &options
+            options
               .project_root
               .join(path)
               .to_file_path(&options.project_root)?,

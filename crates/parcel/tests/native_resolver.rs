@@ -64,8 +64,7 @@ fn test_go_resolver_plugin() {
   );
   std::fs::write(&parcelrc_path, &parcelrc).expect("write parcelrc");
 
-  let fixture_dir =
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/native-resolver");
+  let fixture_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/native-resolver");
   let output_fs = Arc::new(OverlayFileSystem::new());
 
   let bundle_graph = parcel::build(
@@ -89,9 +88,7 @@ fn test_go_resolver_plugin() {
     .expect("no JS bundle in output");
 
   let dist_path = js_bundle.dist_path(&bundle_graph.project_root);
-  let content = output_fs
-    .read_to_string(&dist_path)
-    .expect("read dist file");
+  let content = output_fs.read_to_string(dist_path).expect("read dist file");
 
   assert!(
     content.contains("Hello from native resolver!"),

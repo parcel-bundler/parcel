@@ -1,7 +1,8 @@
 use criterion::{Criterion, criterion_group, criterion_main};
+use parcel_core::PathId;
 use std::{hint::black_box, path::Path, sync::Arc};
 
-fn parcel(from: &Path, resolver: &parcel_resolver::Resolver, fs: &dyn parcel_core::FileSystem) {
+fn parcel(from: PathId, resolver: &parcel_resolver::Resolver, fs: &dyn parcel_core::FileSystem) {
   for specifier in &[
     "./nested/index.js",
     "@parcel/core",
@@ -10,7 +11,7 @@ fn parcel(from: &Path, resolver: &parcel_resolver::Resolver, fs: &dyn parcel_cor
   ] {
     let _ = black_box(resolver.resolve(
       black_box(specifier),
-      &from,
+      from,
       parcel_resolver::SpecifierType::Esm,
       fs,
     ));
@@ -18,13 +19,15 @@ fn parcel(from: &Path, resolver: &parcel_resolver::Resolver, fs: &dyn parcel_cor
 }
 
 fn bench_uncached(c: &mut Criterion) {
-  let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-    .parent()
-    .unwrap()
-    .parent()
-    .unwrap()
-    .join("packages/utils/node-resolver-core/test/fixture");
-  let from = root.join("foo.js");
+  let root = PathId::new(
+    &Path::new(env!("CARGO_MANIFEST_DIR"))
+      .parent()
+      .unwrap()
+      .parent()
+      .unwrap()
+      .join("packages/utils/node-resolver-core/test/fixture"),
+  );
+  let from = root.child("foo.js");
   let os: Arc<dyn parcel_resolver::FileSystem> = Arc::new(parcel_resolver::OsFileSystem::default());
   c.bench_function("uncached/parcel_resolver", |b| {
     b.iter(|| {
@@ -33,28 +36,30 @@ fn bench_uncached(c: &mut Criterion) {
       // lookups and package.json reads within a single resolve are still deduped.
       let fs = parcel_core::CachedFileSystem::new(Arc::clone(&os));
       let cache = parcel_resolver::Cache::new();
-      let resolver = parcel_resolver::Resolver::node_esm(&root, &cache);
-      parcel(&from, &resolver, &fs)
+      let resolver = parcel_resolver::Resolver::node_esm(root, &cache);
+      parcel(from, &resolver, &fs)
     })
   });
 }
 
 fn bench_cached(c: &mut Criterion) {
-  let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-    .parent()
-    .unwrap()
-    .parent()
-    .unwrap()
-    .join("packages/utils/node-resolver-core/test/fixture");
-  let from = root.join("foo.js");
+  let root = PathId::new(
+    &Path::new(env!("CARGO_MANIFEST_DIR"))
+      .parent()
+      .unwrap()
+      .parent()
+      .unwrap()
+      .join("packages/utils/node-resolver-core/test/fixture"),
+  );
+  let from = root.child("foo.js");
   // Wrap the OS file system in a CachedFileSystem so metadata lookups and parsed package.json /
   // tsconfig artifacts are memoized (and shared) across resolutions, the way they will be in a
   // real build. The cache, like the resolver, is created once and reused across iterations.
   let fs = parcel_core::CachedFileSystem::new(Arc::new(parcel_resolver::OsFileSystem::default()));
   let cache = parcel_resolver::Cache::new();
-  let resolver = parcel_resolver::Resolver::node_esm(&root, &cache);
+  let resolver = parcel_resolver::Resolver::node_esm(root, &cache);
   c.bench_function("cached/parcel_resolver", |b| {
-    b.iter(|| parcel(&from, &resolver, &fs))
+    b.iter(|| parcel(from, &resolver, &fs))
   });
 }
 

@@ -401,7 +401,8 @@ impl CodeFrame {
           .as_ref()
           .unwrap()
           .to_file_path(project_root)
-          .unwrap(),
+          .unwrap()
+          .to_path_buf(),
       )
       .unwrap()
     });

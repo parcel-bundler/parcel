@@ -11,7 +11,7 @@ use napi::{
 };
 use napi_derive::napi;
 
-use parcel_core::{ExportsCondition, IncludeNodeModules};
+use parcel_core::{ExportsCondition, IncludeNodeModules, PathId};
 #[cfg(not(target_arch = "wasm32"))]
 use parcel_resolver::OsFileSystem;
 use parcel_resolver::{
@@ -77,10 +77,11 @@ pub struct JsFileSystem {
 }
 
 impl FileSystem for JsFileSystem {
-  fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
+  fn read_to_string(&self, path: PathId) -> std::io::Result<String> {
+    // Materialize the interned path to a string once at this JS boundary.
+    let path_str = path.with_path(|p| p.to_string_lossy().into_owned());
     let read = || -> napi::Result<_> {
-      let path = path.to_string_lossy();
-      let path = self.read.env.create_string(path.as_ref())?;
+      let path = self.read.env.create_string(&path_str)?;
       let res: JsBuffer = self.read.get()?.call(None, &[path])?.try_into()?;
       let value = res.into_value()?;
       Ok(unsafe { String::from_utf8_unchecked(value.to_vec()) })
@@ -89,10 +90,10 @@ impl FileSystem for JsFileSystem {
     read().map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
   }
 
-  fn kind(&self, path: &Path) -> FileKind {
+  fn kind(&self, path: PathId) -> FileKind {
+    let path_str = path.with_path(|p| p.to_string_lossy().into_owned());
     let kind = || -> napi::Result<u32> {
-      let path = path.to_string_lossy();
-      let p = self.kind.env.create_string(path.as_ref())?;
+      let p = self.kind.env.create_string(&path_str)?;
       let res: JsNumber = self.kind.get()?.call(None, &[p])?.try_into()?;
       res.get_uint32()
     };
@@ -103,43 +104,45 @@ impl FileSystem for JsFileSystem {
     }
   }
 
-  fn read_link(&self, path: &Path) -> std::io::Result<PathBuf> {
-    let canonicalize = || -> napi::Result<_> {
-      let path = path.to_string_lossy();
-      let path = self.read_link.env.create_string(path.as_ref())?;
+  fn read_link(&self, path: PathId) -> std::io::Result<PathId> {
+    let path_str = path.with_path(|p| p.to_string_lossy().into_owned());
+    let canonicalize = || -> napi::Result<PathBuf> {
+      let path = self.read_link.env.create_string(&path_str)?;
       let res: JsString = self.read_link.get()?.call(None, &[path])?.try_into()?;
       let utf8 = res.into_utf8()?;
       Ok(utf8.into_owned()?.into())
     };
 
-    canonicalize().map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
+    canonicalize()
+      .map(|p| PathId::new(&p))
+      .map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
   }
 
-  fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+  fn read(&self, path: PathId) -> std::io::Result<Vec<u8>> {
     todo!()
   }
 
-  fn stat(&self, path: &Path) -> Option<parcel_core::FileStat> {
+  fn stat(&self, path: PathId) -> Option<parcel_core::FileStat> {
     todo!()
   }
 
-  fn lstat(&self, path: &Path) -> Option<parcel_core::FileStat> {
+  fn lstat(&self, path: PathId) -> Option<parcel_core::FileStat> {
     todo!()
   }
 
-  fn write(&self, path: &Path, contents: &Vec<u8>) -> std::io::Result<()> {
+  fn write(&self, path: PathId, contents: &Vec<u8>) -> std::io::Result<()> {
     todo!()
   }
 
-  fn remove_file(&self, path: &Path) -> std::io::Result<()> {
+  fn remove_file(&self, path: PathId) -> std::io::Result<()> {
     todo!()
   }
 
-  fn read_dir(&self, path: &Path) -> std::io::Result<Vec<parcel_core::DirEntry>> {
+  fn read_dir(&self, path: PathId) -> std::io::Result<Vec<parcel_core::DirEntry>> {
     todo!()
   }
 
-  fn create_dir_all(&self, path: &Path) -> std::io::Result<()> {
+  fn create_dir_all(&self, path: PathId) -> std::io::Result<()> {
     todo!()
   }
 }
@@ -226,13 +229,10 @@ impl Resolver {
       })
     };
 
+    let project_root_id = PathId::new(Path::new(&project_root));
     let mut resolver = match options.mode {
-      1 => {
-        parcel_resolver::Resolver::parcel(Path::new(&project_root), parcel_resolver::Cache::new())
-      }
-      2 => {
-        parcel_resolver::Resolver::node(Path::new(&project_root), parcel_resolver::Cache::new())
-      }
+      1 => parcel_resolver::Resolver::parcel(project_root_id, parcel_resolver::Cache::new()),
+      2 => parcel_resolver::Resolver::node(project_root_id, parcel_resolver::Cache::new()),
       _ => return Err(napi::Error::new(napi::Status::InvalidArg, "Invalid mode")),
     };
 
@@ -346,7 +346,7 @@ impl Resolver {
     let path = Path::new(&path);
     match parcel_dev_dep_resolver::build_esm_graph(
       path,
-      &self.resolver.project_root.as_path(),
+      &self.resolver.project_root.to_path_buf(),
       self.resolver.cache(),
       &self.invalidations_cache,
       &*self.fs,
@@ -386,7 +386,7 @@ fn resolve_internal(
 
   let mut res = resolver.resolve_with_options(
     &options.filename,
-    Path::new(&options.parent),
+    PathId::new(Path::new(&options.parent)),
     match options.specifier_type.as_ref() {
       "esm" => SpecifierType::Esm,
       "commonjs" => SpecifierType::Cjs,
@@ -417,7 +417,7 @@ fn resolve_internal(
     ..
   }) = &res
   {
-    match resolver.resolve_side_effects(p, &fs) {
+    match p.with_path(|p| resolver.resolve_side_effects(p, &fs)) {
       Ok(side_effects) => side_effects,
       Err(err) => {
         res = Err(err);
@@ -436,7 +436,7 @@ fn resolve_internal(
       ..
     }) = &res
     {
-      module_type = match resolver.resolve_module_type(p, &fs) {
+      module_type = match p.with_path(|p| resolver.resolve_module_type(p, &fs)) {
         Ok(t) => match t {
           ModuleType::CommonJs | ModuleType::Json => 1,
           ModuleType::Module => 2,

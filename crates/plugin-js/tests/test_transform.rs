@@ -2,19 +2,18 @@ use std::{path::Path, sync::Arc};
 
 use parcel_core::{
   Asset, AssetFlags, AssetType, BufferContent, BundleBehavior, DiagnosticList, FileSystem,
-  OverlayFileSystem, ParcelOptions, SourceLocation, SourceUrl, Transformer,
+  OverlayFileSystem, ParcelOptions, PathId, SourceLocation, SourceUrl, Transformer,
 };
 use parcel_plugin_js::JsPlugin;
 
 fn run(name: &str, code: &str, asset: Asset) -> Result<Asset, DiagnosticList> {
   let fs = Arc::new(OverlayFileSystem::new());
-  let root = env!("CARGO_MANIFEST_DIR");
-  let plugin_path = Path::new(root).join(name);
-  fs.create_dir_all(Path::new(root))
-    .expect("Error creating dir");
-  fs.write(&plugin_path, &code.as_bytes().to_owned())
+  let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
+  let plugin_path = root.join(Path::new(name));
+  fs.create_dir_all(root).expect("Error creating dir");
+  fs.write(plugin_path, &code.as_bytes().to_owned())
     .expect("Error writing file");
-  let plugin = JsPlugin::new(&plugin_path);
+  let plugin = JsPlugin::new(&plugin_path.to_path_buf());
   let dyn_fs: Arc<dyn FileSystem> = fs.clone();
   plugin.transform(
     asset,

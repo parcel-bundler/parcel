@@ -14,6 +14,7 @@ mod location;
 mod namer;
 mod optimizer;
 mod options;
+mod path;
 mod request;
 mod resolver;
 mod target;
@@ -43,6 +44,7 @@ pub use location::*;
 pub use namer::*;
 pub use optimizer::Optimizer;
 pub use options::*;
+pub use path::PathId;
 pub use resolver::Resolver;
 pub use target::*;
 pub use transformer::Transformer;
@@ -64,7 +66,7 @@ pub struct Parcel {
   cached_fs: Arc<CachedFileSystem>,
   /// Metadata from the previous bundle pass used to detect which bundles need re-packaging.
   /// Keyed by bundle name; value is (sorted asset indices, dist path).
-  prev_bundles: HashMap<String, (Vec<usize>, PathBuf)>,
+  prev_bundles: HashMap<String, (Vec<usize>, PathId)>,
   /// Original constructor inputs, retained so the build can be recreated from scratch when a
   /// configuration file changes.
   entries: Vec<String>,
@@ -127,7 +129,7 @@ impl Parcel {
     let config = Arc::new(
       if options
         .input_fs
-        .kind(&config_file)
+        .kind(PathId::new(&config_file))
         .contains(FileKind::IS_FILE)
       {
         ParcelConfig::read(&*options.input_fs, &config_file, factory)?
@@ -161,7 +163,11 @@ impl Parcel {
     });
 
     Ok(Parcel {
-      asset_graph_builder: AssetGraphBuilder::new(resolved_entries, config.clone(), options.clone()),
+      asset_graph_builder: AssetGraphBuilder::new(
+        resolved_entries,
+        config.clone(),
+        options.clone(),
+      ),
       config,
       options,
       cached_fs,
@@ -205,13 +211,14 @@ impl Parcel {
     }
 
     // Drop stale entries from the shared file-system cache before re-resolving/re-transforming, so
-    // the resolver and transformers see the changed files.
-    let paths: Vec<PathBuf> = changed
+    // the resolver and transformers see the changed files. Intern each changed/created path to a
+    // `PathId` at this boundary (SourceUrl-based invalidation is a deferred migration).
+    let paths: Vec<PathId> = changed
       .iter()
       .chain(created)
       .filter_map(|url| url.to_file_path(&self.options.project_root).ok())
       .collect();
-    self.cached_fs.invalidate(&paths);
+    self.cached_fs.invalidate(paths);
 
     let affected = self.asset_graph_builder.invalidate(changed, created);
     Ok(InvalidateResult {
@@ -249,7 +256,7 @@ impl Parcel {
     // A bundle is dirty if it's new, its asset composition changed, or any of its assets
     // were re-transformed this build.
     let changed = &self.asset_graph_builder.changed_assets;
-    let mut new_prev: HashMap<String, (Vec<usize>, PathBuf)> = HashMap::new();
+    let mut new_prev: HashMap<String, (Vec<usize>, PathId)> = HashMap::new();
     let mut dirty: HashSet<usize> = HashSet::new();
 
     for (bundle_index, bundle) in bundle_graph.bundles.iter().enumerate() {
@@ -280,7 +287,7 @@ impl Parcel {
     // Delete output files for bundles that no longer exist.
     for (name, (_, dist_path)) in &self.prev_bundles {
       if !new_prev.contains_key(name) {
-        self.options.output_fs.remove_file(dist_path).ok();
+        self.options.output_fs.remove_file(*dist_path).ok();
       }
     }
 
@@ -297,7 +304,7 @@ impl Parcel {
           let path = bundle.dist_path(&opts.project_root);
           let parent = path.parent().unwrap();
           opts.output_fs.create_dir_all(parent).ok();
-          content.write(&*opts.output_fs, &path).ok();
+          content.write(&*opts.output_fs, path).ok();
         }
       });
 
@@ -386,9 +393,9 @@ fn load_dotenv(
 ) -> Result<(), DiagnosticList> {
   if let Some(node_env) = env.get("NODE_ENV").cloned() {
     for file in ["", ".local"] {
-      let path = project_root.join(format!(".env.{}{}", node_env, file));
-      if fs.kind(&path) == FileKind::IS_FILE {
-        let content = fs.read(&path)?;
+      let path = PathId::new(&project_root.join(format!(".env.{}{}", node_env, file)));
+      if fs.kind(path) == FileKind::IS_FILE {
+        let content = fs.read(path)?;
         let iter = dotenvy::from_read_iter(std::io::BufReader::new(std::io::Cursor::new(content)));
         for item in iter {
           if let Ok((key, value)) = item {
@@ -400,9 +407,9 @@ fn load_dotenv(
   }
 
   for file in [".env", ".env.local"] {
-    let path = project_root.join(file);
-    if fs.kind(&path) == FileKind::IS_FILE {
-      let content = fs.read(&path)?;
+    let path = PathId::new(&project_root.join(file));
+    if fs.kind(path) == FileKind::IS_FILE {
+      let content = fs.read(path)?;
       let iter = dotenvy::from_read_iter(std::io::BufReader::new(std::io::Cursor::new(content)));
       for item in iter {
         if let Ok((key, value)) = item {

@@ -12,12 +12,11 @@ use std::{
 };
 
 use parcel_core::{
-  Asset, AssetGraph, AssetNode, AssetRequest, AssetType, Bundle, BundleBehavior, BundleFlags,
-  BundleGraph, Bundler, BuildMode, BuildOptions, BufferContent, Content, Dependency,
-  DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList, DirEntry, ExportsCondition,
-  FileKind, FileStat, FileSystem, LogLevel, MemoryFileSystem, Namer, Optimizer, ParcelConfig,
-  ParcelOptions, PluginFactory, Priority, Resolver, SourceLocation, SourceUrl, SpecifierType,
-  Transformer,
+  Asset, AssetGraph, AssetNode, AssetRequest, AssetType, BufferContent, BuildMode, BuildOptions,
+  Bundle, BundleBehavior, BundleFlags, BundleGraph, Bundler, Content, Dependency, DependencyFlags,
+  DependencyResolution, Diagnostic, DiagnosticList, DirEntry, ExportsCondition, FileKind, FileStat,
+  FileSystem, LogLevel, MemoryFileSystem, Namer, Optimizer, ParcelConfig, ParcelOptions, PathId,
+  PluginFactory, Priority, Resolver, SourceLocation, SourceUrl, SpecifierType, Transformer,
 };
 
 // ===========================================================================
@@ -28,9 +27,10 @@ use parcel_core::{
 pub fn write_file(fs: &MemoryFileSystem, path: &str, contents: &str) {
   let path = Path::new(path);
   if let Some(parent) = path.parent() {
-    fs.create_dir_all(parent).unwrap();
+    fs.create_dir_all(PathId::new(parent)).unwrap();
   }
-  fs.write(path, &contents.as_bytes().to_vec()).unwrap();
+  fs.write(PathId::new(path), &contents.as_bytes().to_vec())
+    .unwrap();
 }
 
 /// Builds `BuildOptions` rooted at `/project` backed by the given file systems.
@@ -86,41 +86,41 @@ impl RecordingFileSystem {
 }
 
 impl FileSystem for RecordingFileSystem {
-  fn read(&self, path: &Path) -> IoResult<Vec<u8>> {
+  fn read(&self, path: PathId) -> IoResult<Vec<u8>> {
     self.inner.read(path)
   }
 
-  fn kind(&self, path: &Path) -> FileKind {
+  fn kind(&self, path: PathId) -> FileKind {
     self.inner.kind(path)
   }
 
-  fn stat(&self, path: &Path) -> Option<FileStat> {
+  fn stat(&self, path: PathId) -> Option<FileStat> {
     self.inner.stat(path)
   }
 
-  fn lstat(&self, path: &Path) -> Option<FileStat> {
+  fn lstat(&self, path: PathId) -> Option<FileStat> {
     self.inner.lstat(path)
   }
 
-  fn read_link(&self, path: &Path) -> IoResult<PathBuf> {
+  fn read_link(&self, path: PathId) -> IoResult<PathId> {
     self.inner.read_link(path)
   }
 
-  fn write(&self, path: &Path, contents: &Vec<u8>) -> IoResult<()> {
+  fn write(&self, path: PathId, contents: &Vec<u8>) -> IoResult<()> {
     self.writes.lock().unwrap().push(path.to_path_buf());
     self.inner.write(path, contents)
   }
 
-  fn remove_file(&self, path: &Path) -> IoResult<()> {
+  fn remove_file(&self, path: PathId) -> IoResult<()> {
     self.removes.lock().unwrap().push(path.to_path_buf());
     self.inner.remove_file(path)
   }
 
-  fn read_dir(&self, path: &Path) -> IoResult<Vec<DirEntry>> {
+  fn read_dir(&self, path: PathId) -> IoResult<Vec<DirEntry>> {
     self.inner.read_dir(path)
   }
 
-  fn create_dir_all(&self, path: &Path) -> IoResult<()> {
+  fn create_dir_all(&self, path: PathId) -> IoResult<()> {
     self.inner.create_dir_all(path)
   }
 }
@@ -204,7 +204,7 @@ impl Transformer for MockTransformer {
           .join(path.trim())
           .to_file_path(&options.project_root)
           .map_err(Diagnostic::from)?;
-        let bytes = fs.read(&config_path).map_err(Diagnostic::from)?;
+        let bytes = fs.read(config_path).map_err(Diagnostic::from)?;
         code.push_str(std::str::from_utf8(&bytes).map_err(Diagnostic::from)?);
         code.push('\n');
       } else if let Some(spec) = trimmed.strip_prefix("@async ") {
@@ -281,7 +281,7 @@ impl Resolver for MockResolver {
       // system) automatically records a dependency on it, so editing it re-resolves the importer.
       let config_url = alias_config_url();
       let config_path = config_url.to_file_path(&options.project_root)?;
-      let bytes = fs.read(&config_path).map_err(Diagnostic::from)?;
+      let bytes = fs.read(config_path).map_err(Diagnostic::from)?;
       let aliases: serde_json::Map<String, serde_json::Value> =
         serde_json::from_slice(&bytes).map_err(Diagnostic::from)?;
 
@@ -304,8 +304,10 @@ impl Resolver for MockResolver {
     let file_path = resolved.to_file_path(&options.project_root)?;
 
     let ty = AssetType::from_url(&resolved);
-    let content: Arc<dyn Content> =
-      Arc::new(parcel_core::FileContent::new(file_path, options.input_fs.clone()));
+    let content: Arc<dyn Content> = Arc::new(parcel_core::FileContent::new(
+      file_path,
+      options.input_fs.clone(),
+    ));
 
     Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
       loc: SourceLocation {
@@ -355,7 +357,13 @@ impl Bundler for MockBundler {
       let mut assets = Vec::new();
       let mut visited = HashSet::new();
       let mut async_targets = Vec::new();
-      collect_sync(&asset_graph, root, &mut visited, &mut assets, &mut async_targets);
+      collect_sync(
+        &asset_graph,
+        root,
+        &mut visited,
+        &mut assets,
+        &mut async_targets,
+      );
 
       for target in async_targets {
         if seen_roots.insert(target) {
@@ -434,7 +442,9 @@ impl Namer for MockNamer {
     bundle: &Bundle,
     _options: &ParcelOptions,
   ) -> Result<Option<String>, DiagnosticList> {
-    let main = bundle.main_entry_asset.expect("bundle has no main entry asset");
+    let main = bundle
+      .main_entry_asset
+      .expect("bundle has no main entry asset");
 
     if let Some(entry) = bundle_graph
       .asset_graph

@@ -11,6 +11,8 @@ use std::{
 
 use rustc_hash::FxHasher;
 
+use crate::PathId;
+
 use super::{DirEntry, FileKind, FileStat, FileSystem, normalize_path, resolve_path};
 
 /// A cache that associates arbitrary, lazily-computed objects with a path, sharing the lifetime and
@@ -26,7 +28,7 @@ pub trait ObjectCache {
   /// `compute` if absent. The computation runs at most once per `(path, type)`.
   fn object(
     &self,
-    path: &Path,
+    path: PathId,
     type_id: TypeId,
     compute: &mut dyn FnMut() -> Arc<dyn Any + Send + Sync>,
   ) -> Arc<dyn Any + Send + Sync>;
@@ -36,7 +38,7 @@ impl dyn ObjectCache + '_ {
   /// Returns the `T` associated with `path`, computing and caching it with `f` if absent.
   pub fn get_or_compute<T: Any + Send + Sync>(
     &self,
-    path: &Path,
+    path: PathId,
     f: impl FnOnce() -> Arc<T>,
   ) -> Arc<T> {
     let mut f = Some(f);
@@ -64,7 +66,7 @@ impl dyn ObjectCache + '_ {
 /// `tsconfig` structures and node_modules bookkeeping it doesn't need here.
 pub struct CachedFileSystem {
   inner: Arc<dyn FileSystem>,
-  paths: papaya::HashSet<PathEntry, BuildHasherDefault<IdentityHasher>>,
+  paths: papaya::HashMap<PathId, PathEntry>,
 }
 
 /// A lazily-computed, type-erased value derived from a path (e.g. a parsed `package.json`).
@@ -73,14 +75,12 @@ type CachedObject = Arc<OnceLock<Arc<dyn Any + Send + Sync>>>;
 /// Cached metadata for a single path. Each field is computed at most once; `Result`-returning
 /// operations are only cached on success (errors are rare and re-tried against the inner fs).
 struct CacheEntry {
-  hash: u64,
-  path: PathBuf,
   kind: OnceLock<FileKind>,
   stat: OnceLock<Option<FileStat>>,
   lstat: OnceLock<Option<FileStat>>,
   read_dir: OnceLock<Arc<Vec<DirEntry>>>,
-  read_link: OnceLock<PathBuf>,
-  canonical: OnceLock<PathBuf>,
+  read_link: OnceLock<PathId>,
+  canonical: OnceLock<PathId>,
   /// The id of the thread currently canonicalizing this path (0 if none), used to detect circular
   /// symlinks: re-entering canonicalization of the same path on the same thread is a cycle.
   canonicalizing: AtomicU64,
@@ -94,37 +94,6 @@ struct CacheEntry {
 /// can borrow a `&Path` without allocating (see [`BorrowedPathEntry`]).
 struct PathEntry(Arc<CacheEntry>);
 
-impl Hash for PathEntry {
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    self.0.hash.hash(state);
-  }
-}
-
-impl PartialEq for PathEntry {
-  fn eq(&self, other: &Self) -> bool {
-    self.0.path == other.0.path
-  }
-}
-
-impl Eq for PathEntry {}
-
-struct BorrowedPathEntry<'a> {
-  hash: u64,
-  path: &'a Path,
-}
-
-impl papaya::Equivalent<PathEntry> for BorrowedPathEntry<'_> {
-  fn equivalent(&self, key: &PathEntry) -> bool {
-    self.path == key.0.path
-  }
-}
-
-impl Hash for BorrowedPathEntry<'_> {
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    self.hash.hash(state);
-  }
-}
-
 #[cfg(not(target_arch = "wasm32"))]
 impl Default for CachedFileSystem {
   fn default() -> Self {
@@ -137,7 +106,7 @@ impl CachedFileSystem {
   pub fn new(inner: Arc<dyn FileSystem>) -> CachedFileSystem {
     CachedFileSystem {
       inner,
-      paths: papaya::HashSet::default(),
+      paths: papaya::HashMap::default(),
     }
   }
 
@@ -146,23 +115,14 @@ impl CachedFileSystem {
     &self.inner
   }
 
-  fn hash_path(path: &Path) -> u64 {
-    let mut hasher = FxHasher::default();
-    path.as_os_str().hash(&mut hasher);
-    hasher.finish()
-  }
-
   /// Returns the cache entry for `path`, creating it if necessary.
-  fn entry(&self, path: &Path) -> Arc<CacheEntry> {
-    let hash = Self::hash_path(path);
+  fn entry(&self, path: PathId) -> Arc<CacheEntry> {
     let paths = self.paths.pin();
-    if let Some(PathEntry(entry)) = paths.get(&BorrowedPathEntry { hash, path }) {
+    if let Some(PathEntry(entry)) = paths.get(&path) {
       return entry.clone();
     }
 
     let entry = Arc::new(CacheEntry {
-      hash,
-      path: path.to_path_buf(),
       kind: OnceLock::new(),
       stat: OnceLock::new(),
       lstat: OnceLock::new(),
@@ -174,26 +134,19 @@ impl CachedFileSystem {
     });
     // A concurrent insert of the same path is harmless: `insert` keeps the existing entry and this
     // caller simply uses its own (which won't be shared), recomputing at most once.
-    paths.insert(PathEntry(entry.clone()));
+    paths.insert(path, PathEntry(entry.clone()));
     entry
   }
 
   /// Drops cached metadata for the given paths (e.g. when files change). For each path, the entry
   /// itself and its parent directory's entry are removed — the latter because a created or deleted
   /// child changes the parent's `read_dir` result.
-  pub fn invalidate<P: AsRef<Path>>(&self, paths: impl IntoIterator<Item = P>) {
+  pub fn invalidate(&self, paths: impl IntoIterator<Item = PathId>) {
     let entries = self.paths.pin();
     for path in paths {
-      let path = path.as_ref();
-      entries.remove(&BorrowedPathEntry {
-        hash: Self::hash_path(path),
-        path,
-      });
+      entries.remove(&path);
       if let Some(parent) = path.parent() {
-        entries.remove(&BorrowedPathEntry {
-          hash: Self::hash_path(parent),
-          path: parent,
-        });
+        entries.remove(&parent);
       }
     }
   }
@@ -205,16 +158,16 @@ impl CachedFileSystem {
 }
 
 impl FileSystem for CachedFileSystem {
-  fn read(&self, path: &Path) -> Result<Vec<u8>> {
+  fn read(&self, path: PathId) -> Result<Vec<u8>> {
     // Contents are not cached (would duplicate every source file in memory).
     self.inner.read(path)
   }
 
-  fn kind(&self, path: &Path) -> FileKind {
+  fn kind(&self, path: PathId) -> FileKind {
     *self.entry(path).kind.get_or_init(|| self.inner.kind(path))
   }
 
-  fn stat(&self, path: &Path) -> Option<FileStat> {
+  fn stat(&self, path: PathId) -> Option<FileStat> {
     self
       .entry(path)
       .stat
@@ -222,7 +175,7 @@ impl FileSystem for CachedFileSystem {
       .clone()
   }
 
-  fn lstat(&self, path: &Path) -> Option<FileStat> {
+  fn lstat(&self, path: PathId) -> Option<FileStat> {
     self
       .entry(path)
       .lstat
@@ -230,17 +183,17 @@ impl FileSystem for CachedFileSystem {
       .clone()
   }
 
-  fn read_link(&self, path: &Path) -> Result<PathBuf> {
+  fn read_link(&self, path: PathId) -> Result<PathId> {
     let entry = self.entry(path);
     if let Some(link) = entry.read_link.get() {
-      return Ok(link.clone());
+      return Ok(*link);
     }
     let result = self.inner.read_link(path)?;
-    let _ = entry.read_link.set(result.clone());
+    let _ = entry.read_link.set(result);
     Ok(result)
   }
 
-  fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>> {
+  fn read_dir(&self, path: PathId) -> Result<Vec<DirEntry>> {
     let entry = self.entry(path);
     if let Some(entries) = entry.read_dir.get() {
       return Ok((**entries).clone());
@@ -250,14 +203,14 @@ impl FileSystem for CachedFileSystem {
     Ok(result)
   }
 
-  fn canonicalize(&self, path: &Path) -> Result<PathBuf> {
+  fn canonicalize(&self, path: PathId) -> Result<PathId> {
     // Resolve symlinks one level at a time, caching the canonical path of each ancestor. Sibling
     // paths under a common directory then share that directory's cached canonical result instead of
     // re-resolving the whole prefix every time (which is what delegating to a single OS
     // `canonicalize` call would do).
     let entry = self.entry(path);
     if let Some(canonical) = entry.canonical.get() {
-      return Ok(canonical.clone());
+      return Ok(*canonical);
     }
 
     // Detect circular symlinks: if this thread is already canonicalizing this entry, it's a cycle.
@@ -270,25 +223,20 @@ impl FileSystem for CachedFileSystem {
     let result = (|| {
       let Some(parent) = path.parent() else {
         // Root has no parent; it is its own canonical path.
-        return Ok(path.to_path_buf());
+        return Ok(path);
       };
       let parent_canonical = self.canonicalize(parent)?;
-      let suffix = path
-        .strip_prefix(parent)
-        .map_err(|_| Error::new(ErrorKind::InvalidInput, "failed to strip path prefix"))?;
-      let resolved = parent_canonical.join(suffix);
+      // Since `parent` is `path`'s parent, the suffix is exactly `path`'s final segment — append it
+      // to the canonicalized parent. No prefix stripping needed.
+      let resolved = parent_canonical.child(path.file_name());
 
       if entry
         .kind
         .get_or_init(|| self.inner.kind(path))
         .contains(FileKind::IS_SYMLINK)
       {
-        let link = self.read_link(&resolved)?;
-        if link.is_absolute() {
-          self.canonicalize(&normalize_path(&link))
-        } else {
-          self.canonicalize(&resolve_path(&resolved, &link))
-        }
+        // `read_link` returns the already-absolute target, so just canonicalize it.
+        self.canonicalize(self.read_link(resolved)?)
       } else {
         Ok(resolved)
       }
@@ -296,24 +244,24 @@ impl FileSystem for CachedFileSystem {
 
     entry.canonicalizing.store(0, Ordering::Release);
     if let Ok(canonical) = &result {
-      let _ = entry.canonical.set(canonical.clone());
+      let _ = entry.canonical.set(*canonical);
     }
     result
   }
 
-  fn write(&self, path: &Path, contents: &Vec<u8>) -> Result<()> {
+  fn write(&self, path: PathId, contents: &Vec<u8>) -> Result<()> {
     self.inner.write(path, contents)?;
     self.invalidate([path]);
     Ok(())
   }
 
-  fn remove_file(&self, path: &Path) -> Result<()> {
+  fn remove_file(&self, path: PathId) -> Result<()> {
     self.inner.remove_file(path)?;
     self.invalidate([path]);
     Ok(())
   }
 
-  fn create_dir_all(&self, path: &Path) -> Result<()> {
+  fn create_dir_all(&self, path: PathId) -> Result<()> {
     self.inner.create_dir_all(path)?;
     self.invalidate([path]);
     Ok(())
@@ -327,7 +275,7 @@ impl FileSystem for CachedFileSystem {
 impl ObjectCache for CachedFileSystem {
   fn object(
     &self,
-    path: &Path,
+    path: PathId,
     type_id: TypeId,
     compute: &mut dyn FnMut() -> Arc<dyn Any + Send + Sync>,
   ) -> Arc<dyn Any + Send + Sync> {
@@ -397,51 +345,56 @@ mod tests {
   }
 
   impl FileSystem for CountingFileSystem {
-    fn read(&self, path: &Path) -> Result<Vec<u8>> {
+    fn read(&self, path: PathId) -> Result<Vec<u8>> {
       self.read_calls.fetch_add(1, Ordering::Relaxed);
       self.inner.read(path)
     }
-    fn kind(&self, path: &Path) -> FileKind {
+    fn kind(&self, path: PathId) -> FileKind {
       self.kind_calls.fetch_add(1, Ordering::Relaxed);
       self.inner.kind(path)
     }
-    fn stat(&self, path: &Path) -> Option<FileStat> {
+    fn stat(&self, path: PathId) -> Option<FileStat> {
       self.inner.stat(path)
     }
-    fn lstat(&self, path: &Path) -> Option<FileStat> {
+    fn lstat(&self, path: PathId) -> Option<FileStat> {
       self.inner.lstat(path)
     }
-    fn read_link(&self, path: &Path) -> Result<PathBuf> {
+    fn read_link(&self, path: PathId) -> Result<PathId> {
       self.inner.read_link(path)
     }
-    fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>> {
+    fn read_dir(&self, path: PathId) -> Result<Vec<DirEntry>> {
       self.read_dir_calls.fetch_add(1, Ordering::Relaxed);
       self.inner.read_dir(path)
     }
-    fn write(&self, path: &Path, contents: &Vec<u8>) -> Result<()> {
+    fn write(&self, path: PathId, contents: &Vec<u8>) -> Result<()> {
       self.inner.write(path, contents)
     }
-    fn remove_file(&self, path: &Path) -> Result<()> {
+    fn remove_file(&self, path: PathId) -> Result<()> {
       self.inner.remove_file(path)
     }
-    fn create_dir_all(&self, path: &Path) -> Result<()> {
+    fn create_dir_all(&self, path: PathId) -> Result<()> {
       self.inner.create_dir_all(path)
     }
+  }
+
+  /// Interns a path string for use in tests.
+  fn pid(s: &str) -> PathId {
+    PathId::new(Path::new(s))
   }
 
   fn setup() -> (Arc<CountingFileSystem>, CachedFileSystem) {
     let counting = Arc::new(CountingFileSystem::new());
     let fs = CachedFileSystem::new(counting.clone());
-    fs.create_dir_all(Path::new("/dir")).unwrap();
-    fs.write(Path::new("/dir/a.js"), &b"a".to_vec()).unwrap();
-    fs.write(Path::new("/dir/b.js"), &b"b".to_vec()).unwrap();
+    fs.create_dir_all(pid("/dir")).unwrap();
+    fs.write(pid("/dir/a.js"), &b"a".to_vec()).unwrap();
+    fs.write(pid("/dir/b.js"), &b"b".to_vec()).unwrap();
     (counting, fs)
   }
 
   #[test]
   fn caches_kind_until_invalidated() {
     let (counting, fs) = setup();
-    let path = Path::new("/dir/a.js");
+    let path = pid("/dir/a.js");
 
     assert!(fs.kind(path).contains(FileKind::IS_FILE));
     assert!(fs.kind(path).contains(FileKind::IS_FILE));
@@ -463,7 +416,7 @@ mod tests {
   #[test]
   fn caches_read_dir() {
     let (counting, fs) = setup();
-    let dir = Path::new("/dir");
+    let dir = pid("/dir");
 
     assert_eq!(fs.read_dir(dir).unwrap().len(), 2);
     assert_eq!(fs.read_dir(dir).unwrap().len(), 2);
@@ -473,12 +426,12 @@ mod tests {
   #[test]
   fn creating_a_file_invalidates_parent_listing() {
     let (counting, fs) = setup();
-    let dir = Path::new("/dir");
+    let dir = pid("/dir");
 
     assert_eq!(fs.read_dir(dir).unwrap().len(), 2);
 
     // Writing a new file goes through the cache, which invalidates the parent directory's listing.
-    fs.write(Path::new("/dir/c.js"), &b"c".to_vec()).unwrap();
+    fs.write(pid("/dir/c.js"), &b"c".to_vec()).unwrap();
     assert_eq!(fs.read_dir(dir).unwrap().len(), 3);
     assert_eq!(counting.read_dir_calls.load(Ordering::Relaxed), 2);
   }
@@ -486,7 +439,7 @@ mod tests {
   #[test]
   fn caches_objects_until_invalidated() {
     let (_counting, fs) = setup();
-    let path = Path::new("/dir/a.js");
+    let path = pid("/dir/a.js");
     let cache = fs
       .as_object_cache()
       .expect("CachedFileSystem provides an object cache");
@@ -523,7 +476,7 @@ mod tests {
   #[test]
   fn caches_objects_per_type() {
     let (_counting, fs) = setup();
-    let path = Path::new("/dir/a.js");
+    let path = pid("/dir/a.js");
     let cache = fs.as_object_cache().unwrap();
 
     let s = cache.get_or_compute::<String>(path, || Arc::new("text".to_string()));
@@ -538,7 +491,7 @@ mod tests {
   #[test]
   fn does_not_cache_read() {
     let (counting, fs) = setup();
-    let path = Path::new("/dir/a.js");
+    let path = pid("/dir/a.js");
 
     assert_eq!(fs.read(path).unwrap(), b"a");
     assert_eq!(fs.read(path).unwrap(), b"a");
@@ -557,40 +510,50 @@ mod tests {
   }
 
   impl FileSystem for SymlinkFileSystem {
-    fn read(&self, _path: &Path) -> Result<Vec<u8>> {
+    fn read(&self, _path: PathId) -> Result<Vec<u8>> {
       Err(Error::new(ErrorKind::NotFound, "unsupported"))
     }
-    fn kind(&self, path: &Path) -> FileKind {
-      if self.links.contains_key(path) {
-        FileKind::IS_FILE | FileKind::IS_SYMLINK
-      } else {
-        FileKind::IS_DIR
-      }
+    fn kind(&self, path: PathId) -> FileKind {
+      path.with_path(|path| {
+        if self.links.contains_key(path) {
+          FileKind::IS_FILE | FileKind::IS_SYMLINK
+        } else {
+          FileKind::IS_DIR
+        }
+      })
     }
-    fn stat(&self, _path: &Path) -> Option<FileStat> {
+    fn stat(&self, _path: PathId) -> Option<FileStat> {
       None
     }
-    fn lstat(&self, _path: &Path) -> Option<FileStat> {
+    fn lstat(&self, _path: PathId) -> Option<FileStat> {
       None
     }
-    fn read_link(&self, path: &Path) -> Result<PathBuf> {
+    fn read_link(&self, path: PathId) -> Result<PathId> {
       self.read_link_calls.fetch_add(1, Ordering::Relaxed);
-      self
-        .links
-        .get(path)
-        .cloned()
-        .ok_or_else(|| Error::new(ErrorKind::NotFound, "not a symlink"))
+      path.with_path(|path| {
+        let target = self
+          .links
+          .get(path)
+          .ok_or_else(|| Error::new(ErrorKind::NotFound, "not a symlink"))?;
+        // Resolve relative link targets against the link's directory, matching `OsFileSystem`.
+        let resolved = if target.is_absolute() {
+          normalize_path(target)
+        } else {
+          resolve_path(path, target)
+        };
+        Ok(PathId::new(&resolved))
+      })
     }
-    fn read_dir(&self, _path: &Path) -> Result<Vec<DirEntry>> {
+    fn read_dir(&self, _path: PathId) -> Result<Vec<DirEntry>> {
       Ok(Vec::new())
     }
-    fn write(&self, _path: &Path, _contents: &Vec<u8>) -> Result<()> {
+    fn write(&self, _path: PathId, _contents: &Vec<u8>) -> Result<()> {
       Ok(())
     }
-    fn remove_file(&self, _path: &Path) -> Result<()> {
+    fn remove_file(&self, _path: PathId) -> Result<()> {
       Ok(())
     }
-    fn create_dir_all(&self, _path: &Path) -> Result<()> {
+    fn create_dir_all(&self, _path: PathId) -> Result<()> {
       Ok(())
     }
   }
@@ -611,32 +574,20 @@ mod tests {
   #[test]
   fn canonicalize_resolves_absolute_symlink() {
     let (_inner, fs) = symlink_fs(&[("/link_dir", "/real_dir")]);
-    assert_eq!(
-      fs.canonicalize(Path::new("/link_dir/a")).unwrap(),
-      PathBuf::from("/real_dir/a")
-    );
+    assert_eq!(fs.canonicalize(pid("/link_dir/a")).unwrap(), pid("/real_dir/a"));
   }
 
   #[test]
   fn canonicalize_resolves_relative_symlink() {
     let (_inner, fs) = symlink_fs(&[("/dir/link", "../target")]);
-    assert_eq!(
-      fs.canonicalize(Path::new("/dir/link")).unwrap(),
-      PathBuf::from("/target")
-    );
+    assert_eq!(fs.canonicalize(pid("/dir/link")).unwrap(), pid("/target"));
   }
 
   #[test]
   fn canonicalize_reuses_cached_parent() {
     let (inner, fs) = symlink_fs(&[("/link_dir", "/real_dir")]);
-    assert_eq!(
-      fs.canonicalize(Path::new("/link_dir/a")).unwrap(),
-      PathBuf::from("/real_dir/a")
-    );
-    assert_eq!(
-      fs.canonicalize(Path::new("/link_dir/b")).unwrap(),
-      PathBuf::from("/real_dir/b")
-    );
+    assert_eq!(fs.canonicalize(pid("/link_dir/a")).unwrap(), pid("/real_dir/a"));
+    assert_eq!(fs.canonicalize(pid("/link_dir/b")).unwrap(), pid("/real_dir/b"));
     // The shared parent symlink is resolved once; the second call reuses its cached canonical path.
     assert_eq!(inner.read_link_calls.load(Ordering::Relaxed), 1);
   }
@@ -645,7 +596,7 @@ mod tests {
   fn canonicalize_detects_circular_symlinks() {
     let (_inner, fs) = symlink_fs(&[("/a", "/b"), ("/b", "/a")]);
     assert!(
-      fs.canonicalize(Path::new("/a")).is_err(),
+      fs.canonicalize(pid("/a")).is_err(),
       "a circular symlink must error rather than loop forever"
     );
   }

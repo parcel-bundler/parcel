@@ -68,14 +68,14 @@ impl Resolver for DefaultResolver {
     // existence checks, ...) is recorded as an invalidation of this asset. The interning cache is
     // per-resolve; the underlying metadata/parse caching is shared via the wrapped CachedFileSystem.
     let mut resolver = parcel_resolver::Resolver::parcel(
-      &options.project_root.to_file_path(&options.project_root)?,
+      options.project_root.to_file_path(&options.project_root)?,
       &self.cache,
     );
     resolver.include_node_modules = Cow::Borrowed(&dep.target.include_node_modules);
 
     let mut res = resolver.resolve_with_options(
       specifier,
-      &resolve_from.to_file_path(&options.project_root)?,
+      resolve_from.to_file_path(&options.project_root)?,
       match dep.specifier_type {
         SpecifierType::Esm => parcel_resolver::SpecifierType::Esm,
         SpecifierType::Commonjs => parcel_resolver::SpecifierType::Cjs,
@@ -94,7 +94,7 @@ impl Resolver for DefaultResolver {
       ..
     }) = &res
     {
-      match resolver.resolve_side_effects(p, &**fs) {
+      match p.with_path(|p| resolver.resolve_side_effects(p, &**fs)) {
         Ok(side_effects) => side_effects,
         Err(err) => {
           res = Err(err);
@@ -109,7 +109,7 @@ impl Resolver for DefaultResolver {
       Ok(res) => match res.resolution {
         Resolution::Path(path) => {
           let url = SourceUrl::from_path_and_query(
-            &path,
+            &path.to_path_buf(),
             res.query.as_ref().map(|s| &s[1..]),
             &options.project_root,
           )?;

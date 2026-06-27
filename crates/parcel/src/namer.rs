@@ -43,7 +43,8 @@ impl Namer for DefaultNamer {
               .dist_dir
               .to_file_path(&options.project_root)?
               .parent()
-              .unwrap(),
+              .unwrap()
+              .to_path_buf(),
             &options.project_root,
           )?
           .with_extension("");
@@ -72,6 +73,7 @@ impl Namer for DefaultNamer {
                     .url
                     .to_file_path(&options.project_root)
                     .unwrap()
+                    .to_path_buf()
                 }),
             );
             if let Some(entry_root) = entry_root {
@@ -88,7 +90,7 @@ impl Namer for DefaultNamer {
           }
 
           let file_path = asset.loc.url.to_file_path(&options.project_root)?;
-          let name = file_path.file_prefix().unwrap().to_str().unwrap();
+          let name = file_path.file_prefix().unwrap();
           return Ok(Some(format_name(
             &bundle_graph.asset_graph,
             bundle,
@@ -126,7 +128,7 @@ fn relative_path(
 ) -> Result<PathBuf, Diagnostic> {
   let path = asset.loc.url.to_file_path(project_root)?;
   Ok(
-    pathdiff::diff_paths(path, from)
+    pathdiff::diff_paths(path.to_path_buf(), from)
       .unwrap()
       .components()
       .map(|c| match c {

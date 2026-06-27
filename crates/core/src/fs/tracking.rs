@@ -1,8 +1,10 @@
 use std::{
   io::{ErrorKind, Result},
-  path::{Path, PathBuf},
+  path::Path,
   sync::Mutex,
 };
+
+use crate::PathId;
 
 use super::{DirEntry, FileKind, FileStat, FileSystem, is_glob};
 
@@ -67,8 +69,8 @@ impl TrackingFileSystem {
     }
   }
 
-  fn record_read(&self, path: &Path) {
-    if let Some(url) = self.to_url(path) {
+  fn record_read(&self, path: PathId) {
+    if let Some(url) = path.with_path(|p| self.to_url(p)) {
       self
         .invalidations
         .lock()
@@ -78,8 +80,8 @@ impl TrackingFileSystem {
     }
   }
 
-  fn record_missing(&self, path: &Path) {
-    if let Some(url) = self.to_url(path) {
+  fn record_missing(&self, path: PathId) {
+    if let Some(url) = path.with_path(|p| self.to_url(p)) {
       self
         .invalidations
         .lock()
@@ -96,7 +98,7 @@ impl TrackingFileSystem {
 }
 
 impl FileSystem for TrackingFileSystem {
-  fn read(&self, path: &Path) -> Result<Vec<u8>> {
+  fn read(&self, path: PathId) -> Result<Vec<u8>> {
     let result = self.inner.read(path);
     if matches!(&result, Err(e) if e.kind() == ErrorKind::NotFound) {
       self.record_missing(path);
@@ -106,7 +108,7 @@ impl FileSystem for TrackingFileSystem {
     result
   }
 
-  fn kind(&self, path: &Path) -> FileKind {
+  fn kind(&self, path: PathId) -> FileKind {
     let kind = self.inner.kind(path);
     if kind.is_empty() {
       self.record_missing(path);
@@ -116,7 +118,7 @@ impl FileSystem for TrackingFileSystem {
     kind
   }
 
-  fn stat(&self, path: &Path) -> Option<FileStat> {
+  fn stat(&self, path: PathId) -> Option<FileStat> {
     let stat = self.inner.stat(path);
     if stat.is_some() {
       self.record_read(path);
@@ -126,7 +128,7 @@ impl FileSystem for TrackingFileSystem {
     stat
   }
 
-  fn lstat(&self, path: &Path) -> Option<FileStat> {
+  fn lstat(&self, path: PathId) -> Option<FileStat> {
     let stat = self.inner.lstat(path);
     if stat.is_some() {
       self.record_read(path);
@@ -136,29 +138,29 @@ impl FileSystem for TrackingFileSystem {
     stat
   }
 
-  fn read_link(&self, path: &Path) -> Result<PathBuf> {
+  fn read_link(&self, path: PathId) -> Result<PathId> {
     self.record_read(path);
     self.inner.read_link(path)
   }
 
-  fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>> {
+  fn read_dir(&self, path: PathId) -> Result<Vec<DirEntry>> {
     self.record_read(path);
     self.inner.read_dir(path)
   }
 
-  fn write(&self, path: &Path, contents: &Vec<u8>) -> Result<()> {
+  fn write(&self, path: PathId, contents: &Vec<u8>) -> Result<()> {
     self.inner.write(path, contents)
   }
 
-  fn remove_file(&self, path: &Path) -> Result<()> {
+  fn remove_file(&self, path: PathId) -> Result<()> {
     self.inner.remove_file(path)
   }
 
-  fn create_dir_all(&self, path: &Path) -> Result<()> {
+  fn create_dir_all(&self, path: PathId) -> Result<()> {
     self.inner.create_dir_all(path)
   }
 
-  fn glob(&self, pattern: &str, cwd: &Path) -> Vec<PathBuf> {
+  fn glob(&self, pattern: &str, cwd: PathId) -> Vec<PathId> {
     // Record a create-glob invalidation so that a new file matching the pattern triggers a
     // rebuild (e.g. a new entry appearing for a glob entry). The pattern is absolutized so it
     // matches the absolute paths checked during invalidation.
@@ -166,7 +168,7 @@ impl FileSystem for TrackingFileSystem {
       let absolute = if Path::new(pattern).is_absolute() {
         pattern.to_string()
       } else {
-        cwd.join(pattern).to_string_lossy().into_owned()
+        cwd.with_path(|c| c.join(pattern).to_string_lossy().into_owned())
       };
       self
         .invalidations
@@ -180,32 +182,34 @@ impl FileSystem for TrackingFileSystem {
     self.inner.glob(pattern, cwd)
   }
 
-  fn find_ancestor_file(&self, from: &Path, file_name: &str) -> Option<PathBuf> {
-    let mut found = None;
-    let mut found_dir = None;
-    for dir in from.ancestors() {
-      let candidate = dir.join(file_name);
-      if self.inner.kind(&candidate).contains(FileKind::IS_FILE) {
-        self.record_read(&candidate);
-        found_dir = Some(dir.to_path_buf());
-        found = Some(candidate);
-        break;
-      }
+  fn find_ancestor(
+    &self,
+    from: PathId,
+    file_name: &Path,
+    kind: FileKind,
+    root: PathId,
+  ) -> Option<PathId> {
+    let found = self.inner.find_ancestor(from, file_name, kind, root);
+    if let Some(result) = found {
+      self.record_read(result);
     }
 
     // Record a `file_create_above` invalidation: a file named `file_name` created anywhere within
     // `above` (the directory where it was found, or the root if it wasn't) would change resolution
     // and should trigger a rebuild. Using the found directory as the boundary captures any closer
     // file appearing between `from` and the match.
-    let above = found_dir.unwrap_or_else(|| PathBuf::from("/"));
-    if let Some(above) = self.to_dir_url(&above) {
+    let above = found
+      .as_ref()
+      .and_then(|f| f.parent())
+      .unwrap_or_else(|| PathId::root());
+    if let Some(above) = above.with_path(|p| self.to_dir_url(p)) {
       self
         .invalidations
         .lock()
         .unwrap()
         .invalidate_on_file_create
         .push(crate::FileCreateInvalidation::FileName {
-          file_name: file_name.to_string(),
+          file_name: file_name.to_string_lossy().to_string(),
           above,
         });
     }
