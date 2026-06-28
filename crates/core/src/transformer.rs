@@ -2,7 +2,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, DependencyFlags, DependencyResolution,
-  DiagnosticList, FileSystem, Invalidations, ParcelOptions, Pipeline, SourceUrl,
+  DiagnosticList, FileSystem, Invalidations, ParcelOptions, PathId, Pipeline, SourceUrl,
   TrackingFileSystem,
   config::{ParcelConfig, PipelineMap},
   resolver::resolve,
@@ -42,14 +42,9 @@ impl TransformRequest {
     let mut invalidations = Invalidations::default();
 
     // Add the source file itself as an invalidation so changes to it trigger re-transformation.
-    invalidations.invalidate_on_file_change.push(
-      self
-        .req
-        .loc
-        .url
-        .to_file_path(&self.options.project_root)
-        .unwrap(),
-    );
+    invalidations
+      .invalidate_on_file_change
+      .push(self.req.loc.url.to_file_path().unwrap());
 
     let result = self.transform(&mut invalidations);
 
@@ -89,12 +84,9 @@ impl TransformRequest {
     };
 
     // Per-request tracker: files read by transformer plugins *and resolvers* through `fs` become
-    // invalidations automatically. It wraps the shared cached input file system and records
-    // `project://` URLs so they match the asset graph's invalidation map.
-    let tracker = Arc::new(TrackingFileSystem::with_project_root(
-      self.options.input_fs.clone(),
-      self.options.project_root.clone(),
-    ));
+    // invalidations automatically. It wraps the shared cached input file system and records the
+    // file paths consulted while processing this request.
+    let tracker = Arc::new(TrackingFileSystem::new(self.options.input_fs.clone()));
     let fs: Arc<dyn FileSystem> = tracker.clone();
 
     let result = {
@@ -162,16 +154,20 @@ pub fn transform(
   Ok(input)
 }
 
-fn relative_path<'a>(url: &'a SourceUrl, project_root: &SourceUrl, ty: &AssetType) -> Cow<'a, str> {
-  let mut relative_path = Cow::Borrowed(if url.url().scheme() == "project" {
-    // project:// URLs are already relative to project root; strip the leading '/'
-    url.path().trim_start_matches('/')
-  } else {
-    url
-      .path()
-      .strip_prefix(project_root.path())
-      .unwrap_or(url.path())
-  });
+fn relative_path<'a>(url: &'a SourceUrl, project_root: &PathId, ty: &AssetType) -> Cow<'a, str> {
+  let path = url.to_file_path().ok();
+  let project_root = project_root.to_path_buf();
+  let relative_path = path
+    .as_ref()
+    .and_then(|path| {
+      path
+        .to_path_buf()
+        .strip_prefix(&project_root)
+        .ok()
+        .map(|p| p.to_string_lossy().into_owned())
+    })
+    .unwrap_or_else(|| url.path().trim_start_matches('/').to_owned());
+  let mut relative_path: Cow<'a, str> = Cow::Owned(relative_path);
   let (base, ext) = relative_path
     .rsplit_once('.')
     .unwrap_or((relative_path.as_ref(), ""));

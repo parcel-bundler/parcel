@@ -1,6 +1,6 @@
-use std::{collections::BTreeMap, num::NonZeroU16, str::FromStr, sync::Arc};
+use std::{collections::BTreeMap, hash::Hash, num::NonZeroU16, str::FromStr, sync::Arc};
 
-use crate::{AssetType, Diagnostic, SourceLocation, SourceUrl, impl_bitflags_serde};
+use crate::{AssetType, Diagnostic, PathId, SourceLocation, SourceUrl, impl_bitflags_serde};
 use bitflags::bitflags;
 use browserslist::Distrib;
 use serde::{Deserialize, Serialize};
@@ -44,6 +44,23 @@ impl Target {
     } else {
       target.clone()
     }
+  }
+
+  pub fn stable_hash<H: std::hash::Hasher>(&self, project_root: &PathId, state: &mut H) {
+    self.environment.hash(state);
+    self.output_format.hash(state);
+    self.source_type.hash(state);
+    self.flags.hash(state);
+    self.source_map.hash(state);
+    std::mem::discriminant(&self.loc).hash(state);
+    match &self.loc {
+      Some(loc) => loc.stable_hash(project_root, state),
+      None => {}
+    }
+    self.include_node_modules.hash(state);
+    self.engines.hash(state);
+    self.dist_dir.stable_hash(project_root, state);
+    self.public_url.hash(state);
   }
 }
 

@@ -60,8 +60,8 @@ impl Bundle {
     })
   }
 
-  pub fn dist_path(&self, project_root: &SourceUrl) -> PathId {
-    self.dist_url().to_file_path(project_root).unwrap()
+  pub fn dist_path(&self) -> PathId {
+    self.dist_url().to_file_path().unwrap()
   }
 
   pub fn dist_url(&self) -> SourceUrl {

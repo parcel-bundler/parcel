@@ -230,7 +230,7 @@ fn error_to_diagnostic<'js>(e: Value<'js>) -> Diagnostic {
     code_frames: if let (Some(file), Some(line), Some(column)) = (file, line_number, column_number)
     {
       vec![CodeFrame {
-        url: SourceUrl::from_absolute_path(Path::new(&file)).ok(),
+        url: SourceUrl::from_path(&PathId::new(Path::new(&file))).ok(),
         code: None,
         language: None,
         code_highlights: vec![CodeHighlight {

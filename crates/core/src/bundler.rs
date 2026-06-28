@@ -31,7 +31,7 @@ pub fn bundle(
 
     let bundle = &bundle_graph.bundles[i];
     if bundle.bundle_behavior != BundleBehavior::Inline {
-      let full_url = bundle.dist_url();
+      let full_url = bundle.dist_path();
       if seen_bundles.contains(&full_url) {
         duplicate_bundles.insert(full_url);
       } else {
@@ -43,7 +43,7 @@ pub fn bundle(
   if !duplicate_bundles.is_empty() {
     let mut duplicates = duplicate_bundles
       .into_iter()
-      .map(|p| p.path().to_string())
+      .map(|p| p.to_path_buf().to_string_lossy().into_owned())
       .collect::<Vec<_>>();
     duplicates.sort();
 

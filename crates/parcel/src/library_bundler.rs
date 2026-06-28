@@ -2,7 +2,7 @@ use std::{any::TypeId, collections::HashMap, hash::Hash};
 
 use parcel_core::{
   AssetGraph, AssetNode, Bundle, BundleFlags, BundleGraph, Bundler, DependencyResolution,
-  DiagnosticList, SourceUrl, Target,
+  DiagnosticList, PathId, SourceUrl, Target,
 };
 
 pub struct LibraryBundler {}
@@ -76,7 +76,7 @@ impl Bundler for LibraryBundler {
     Ok(BundleGraph {
       asset_graph,
       bundles,
-      project_root: SourceUrl::default(),
+      project_root: PathId::root(),
     })
   }
 }

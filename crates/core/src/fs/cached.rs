@@ -574,7 +574,10 @@ mod tests {
   #[test]
   fn canonicalize_resolves_absolute_symlink() {
     let (_inner, fs) = symlink_fs(&[("/link_dir", "/real_dir")]);
-    assert_eq!(fs.canonicalize(pid("/link_dir/a")).unwrap(), pid("/real_dir/a"));
+    assert_eq!(
+      fs.canonicalize(pid("/link_dir/a")).unwrap(),
+      pid("/real_dir/a")
+    );
   }
 
   #[test]
@@ -586,8 +589,14 @@ mod tests {
   #[test]
   fn canonicalize_reuses_cached_parent() {
     let (inner, fs) = symlink_fs(&[("/link_dir", "/real_dir")]);
-    assert_eq!(fs.canonicalize(pid("/link_dir/a")).unwrap(), pid("/real_dir/a"));
-    assert_eq!(fs.canonicalize(pid("/link_dir/b")).unwrap(), pid("/real_dir/b"));
+    assert_eq!(
+      fs.canonicalize(pid("/link_dir/a")).unwrap(),
+      pid("/real_dir/a")
+    );
+    assert_eq!(
+      fs.canonicalize(pid("/link_dir/b")).unwrap(),
+      pid("/real_dir/b")
+    );
     // The shared parent symlink is resolved once; the second call reuses its cached canonical path.
     assert_eq!(inner.read_link_calls.load(Ordering::Relaxed), 1);
   }

@@ -1,12 +1,11 @@
 use std::{
   ffi::OsStr,
-  hash::Hash,
   path::{Component, Path, PathBuf},
 };
 
 use parcel_core::{
   Asset, AssetGraph, AssetNode, AssetType, Bundle, BundleFlags, BundleGraph, Diagnostic,
-  DiagnosticList, EnvironmentFlags, Namer, OutputFormat, SourceUrl,
+  DiagnosticList, EnvironmentFlags, Namer, OutputFormat, PathId,
 };
 use xxhash_rust::xxh3::Xxh3Default;
 
@@ -41,11 +40,10 @@ impl Namer for DefaultNamer {
             &bundle
               .target
               .dist_dir
-              .to_file_path(&options.project_root)?
+              .to_file_path()?
               .parent()
               .unwrap()
               .to_path_buf(),
-            &options.project_root,
           )?
           .with_extension("");
           let name = relative.to_str().unwrap();
@@ -54,6 +52,7 @@ impl Namer for DefaultNamer {
             bundle,
             name,
             ext,
+            &options.project_root,
           )));
         } else {
           if bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME) {
@@ -71,31 +70,32 @@ impl Namer for DefaultNamer {
                     .expect_asset()
                     .loc
                     .url
-                    .to_file_path(&options.project_root)
+                    .to_file_path()
                     .unwrap()
                     .to_path_buf()
                 }),
             );
             if let Some(entry_root) = entry_root {
-              let relative =
-                relative_path(asset, &entry_root, &options.project_root)?.with_extension("");
+              let relative = relative_path(asset, &entry_root)?.with_extension("");
               let name = relative.to_str().unwrap();
               return Ok(Some(format_name(
                 &bundle_graph.asset_graph,
                 bundle,
                 name,
                 ext,
+                &options.project_root,
               )));
             }
           }
 
-          let file_path = asset.loc.url.to_file_path(&options.project_root)?;
+          let file_path = asset.loc.url.to_file_path()?;
           let name = file_path.file_prefix().unwrap();
           return Ok(Some(format_name(
             &bundle_graph.asset_graph,
             bundle,
             name,
             ext,
+            &options.project_root,
           )));
         }
       }
@@ -103,30 +103,26 @@ impl Namer for DefaultNamer {
 
     Ok(Some(format!(
       "{:016x}.{}",
-      hash_bundle(&bundle_graph.asset_graph, bundle),
+      hash_bundle(&bundle_graph.asset_graph, bundle, &options.project_root),
       ext
     )))
   }
 }
 
-fn hash_bundle(asset_graph: &AssetGraph, bundle: &Bundle) -> u64 {
+fn hash_bundle(asset_graph: &AssetGraph, bundle: &Bundle, project_root: &PathId) -> u64 {
   let mut hash = Xxh3Default::new();
   for asset in &bundle.assets {
     if let AssetNode::Asset(asset) = &asset_graph.assets[*asset] {
-      asset.loc.hash(&mut hash);
-      asset.target.hash(&mut hash);
+      asset.loc.stable_hash(project_root, &mut hash);
+      asset.target.stable_hash(project_root, &mut hash);
     }
   }
 
   hash.digest()
 }
 
-fn relative_path(
-  asset: &Asset,
-  from: &Path,
-  project_root: &SourceUrl,
-) -> Result<PathBuf, Diagnostic> {
-  let path = asset.loc.url.to_file_path(project_root)?;
+fn relative_path(asset: &Asset, from: &Path) -> Result<PathBuf, Diagnostic> {
+  let path = asset.loc.url.to_file_path()?;
   Ok(
     pathdiff::diff_paths(path.to_path_buf(), from)
       .unwrap()
@@ -139,11 +135,22 @@ fn relative_path(
   )
 }
 
-fn format_name(asset_graph: &AssetGraph, bundle: &Bundle, name: &str, ext: &str) -> String {
+fn format_name(
+  asset_graph: &AssetGraph,
+  bundle: &Bundle,
+  name: &str,
+  ext: &str,
+  project_root: &PathId,
+) -> String {
   if bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME) {
     format!("{}.{}", name, ext)
   } else {
-    format!("{}-{:016x}.{}", name, hash_bundle(asset_graph, bundle), ext)
+    format!(
+      "{}-{:016x}.{}",
+      name,
+      hash_bundle(asset_graph, bundle, project_root),
+      ext
+    )
   }
 }
 

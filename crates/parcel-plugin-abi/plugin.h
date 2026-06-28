@@ -349,7 +349,7 @@ void parcel_asset_set_type(Asset asset, const uint8_t *ty, uintptr_t ty_len);
  * `options` is the handle received from `parcel_plugin_transform()`.
  * Caller must `parcel_free_buffer(buf)`.
  */
-void parcel_asset_get_file_path(struct Buffer *buf, Asset asset, Options options);
+void parcel_asset_get_file_path(struct Buffer *buf, Asset asset, Options _options);
 
 /**
  * Returns the named pipeline into `*buf`, or leaves `buf->data == NULL` if none is set.
@@ -428,7 +428,7 @@ void parcel_target_get_public_url(struct Buffer *buf, Target target);
  * `options` is the handle received from `parcel_plugin_transform()`.
  * Caller must `parcel_free_buffer(buf)`.
  */
-void parcel_target_get_dist_dir(struct Buffer *buf, Target target, Options options);
+void parcel_target_get_dist_dir(struct Buffer *buf, Target target, Options _options);
 
 /**
  * Appends a dependency to the asset. The new dependency inherits the asset's target.
@@ -468,13 +468,13 @@ DependencyFlags parcel_dep_get_flags(Dependency dep);
 /**
  * Returns the absolute path of the file containing this import into `*buf`.
  */
-void parcel_dep_get_source_path(struct Buffer *buf, Dependency dep, Options options);
+void parcel_dep_get_source_path(struct Buffer *buf, Dependency dep, Options _options);
 
 /**
  * Returns the base path for resolving the specifier into `*buf`.
  * Falls back to the source file path when `resolve_from` is not set.
  */
-void parcel_dep_get_resolve_from(struct Buffer *buf, Dependency dep, Options options);
+void parcel_dep_get_resolve_from(struct Buffer *buf, Dependency dep, Options _options);
 
 /**
  * Returns an opaque `Target` handle for the dependency.

@@ -64,6 +64,7 @@ impl JsContent {
           bundle,
           &mut synthetic_assets,
           get_inline_bundle_content,
+          &options.project_root,
         )?;
 
         if !first {
@@ -110,7 +111,7 @@ impl JsContent {
           write!(
             res,
             "'{}':[function(require,module,exports) {{\n{}\n}}]",
-            asset.id(),
+            asset.id(&options.project_root),
             String::from_utf8_lossy(&code),
           )?;
         } else {
@@ -119,7 +120,7 @@ impl JsContent {
           write!(
             res,
             "'{}':[function(require,module,exports) {{\n{}\n}}, {}]",
-            asset.id(),
+            asset.id(&options.project_root),
             String::from_utf8_lossy(&code),
             deps
           )?;
@@ -135,7 +136,13 @@ impl JsContent {
 
       synthetic_asset.write_id(&mut res)?;
       write!(res, ":[function(require,module,exports) {{\n")?;
-      synthetic_asset.write_content(&mut res, bundle_graph, bundle, get_inline_bundle_content)?;
+      synthetic_asset.write_content(
+        &mut res,
+        bundle_graph,
+        bundle,
+        get_inline_bundle_content,
+        &options.project_root,
+      )?;
       write!(res, "\n}},{{}}]")?;
     }
 
@@ -148,13 +155,13 @@ var entries = ["#,
     )?;
     for entry in &bundle.entry_assets {
       let asset = &bundle_graph.asset_graph.assets[*entry].expect_asset();
-      write!(res, "'{}'", asset.id())?;
+      write!(res, "'{}'", asset.id(&options.project_root))?;
     }
 
     write!(res, "];\nvar mainEntry = ")?;
     if let Some(main) = &bundle.main_entry_asset {
       let asset = &bundle_graph.asset_graph.assets[*main].expect_asset();
-      write!(res, "'{}';\n", asset.id())?;
+      write!(res, "'{}';\n", asset.id(&options.project_root))?;
     } else {
       write!(res, "null;\n")?;
     }
@@ -184,6 +191,7 @@ pub fn asset_dependencies<'a>(
   bundle: &'a Bundle,
   additional_assets: &mut IndexSet<SyntheticAsset>,
   get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+  project_root: &PathId,
 ) -> Result<IndexMap<String, Resolution<'a>>, DiagnosticList> {
   let mut dependencies = IndexMap::new();
 
@@ -199,8 +207,9 @@ pub fn asset_dependencies<'a>(
           if resolved_asset.ty != AssetType::Js {
             if resolved_asset.symbols.exports.iter().any(|e| e.requested) {
               let asset = &bundle_graph.asset_graph.assets[*resolved as usize].expect_asset();
-              dependencies.insert(placeholder.as_str().into(), Resolution::Asset(asset.id()));
-              additional_assets.insert(SyntheticAsset::Asset(asset.id(), *resolved));
+              let id = asset.id(project_root);
+              dependencies.insert(placeholder.as_str().into(), Resolution::Asset(id.clone()));
+              additional_assets.insert(SyntheticAsset::Asset(id, *resolved));
               continue;
             }
             dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
@@ -227,7 +236,11 @@ pub fn asset_dependencies<'a>(
                 } => {
                   let asset = bundle_graph.asset_graph.assets[*asset_index as usize].expect_asset();
                   let export = &asset.symbols.exports[*export_index as usize];
-                  resolutions.push((import.symbol.as_str(), asset.id(), export.exported.as_str()));
+                  resolutions.push((
+                    import.symbol.as_str(),
+                    asset.id(project_root),
+                    export.exported.as_str(),
+                  ));
                   if first_asset.is_none() {
                     first_asset = Some(*asset_index);
                   }
@@ -238,7 +251,11 @@ pub fn asset_dependencies<'a>(
                 SymbolResolution::Runtime { asset_index, name } => {
                   let asset =
                     &bundle_graph.asset_graph.assets[*asset_index as usize].expect_asset();
-                  resolutions.push((import.symbol.as_str(), asset.id(), name.as_str()));
+                  resolutions.push((
+                    import.symbol.as_str(),
+                    asset.id(project_root),
+                    name.as_str(),
+                  ));
                   if first_asset.is_none() {
                     first_asset = Some(*asset_index);
                   }
@@ -249,7 +266,7 @@ pub fn asset_dependencies<'a>(
                 SymbolResolution::Namespace { asset_index } => {
                   let asset =
                     &bundle_graph.asset_graph.assets[*asset_index as usize].expect_asset();
-                  resolutions.push((import.symbol.as_str(), asset.id(), "*"));
+                  resolutions.push((import.symbol.as_str(), asset.id(project_root), "*"));
                   if first_asset.is_none() {
                     first_asset = Some(*asset_index);
                   }
@@ -268,7 +285,10 @@ pub fn asset_dependencies<'a>(
         if !resolutions.is_empty() {
           if all_assets_match && let Some(res) = first_asset {
             let asset = &bundle_graph.asset_graph.assets[res as usize].expect_asset();
-            dependencies.insert(placeholder.as_str().into(), Resolution::Asset(asset.id()));
+            dependencies.insert(
+              placeholder.as_str().into(),
+              Resolution::Asset(asset.id(project_root)),
+            );
           } else {
             dependencies.insert(
               placeholder.as_str().into(),
@@ -283,7 +303,10 @@ pub fn asset_dependencies<'a>(
           dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
         } else {
           let asset = &bundle_graph.asset_graph.assets[*resolved as usize].expect_asset();
-          dependencies.insert(placeholder.as_str().into(), Resolution::Asset(asset.id()));
+          dependencies.insert(
+            placeholder.as_str().into(),
+            Resolution::Asset(asset.id(project_root)),
+          );
         }
       }
       DependencyResolution::None | DependencyResolution::Excluded => {}
@@ -417,6 +440,7 @@ impl SyntheticAsset {
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+    project_root: &PathId,
   ) -> Result<(), DiagnosticList> {
     match self {
       SyntheticAsset::Asset(_id, asset_index) => {
@@ -449,7 +473,7 @@ impl SyntheticAsset {
         // ) {
         //   load_bundles_rsc(bundle_graph, resolved_bundle, dest)?;
         // } else {
-        load_bundles(bundle_graph, bundle, resolved_bundle, dest)?;
+        load_bundles(bundle_graph, bundle, resolved_bundle, dest, project_root)?;
         // }
       }
       SyntheticAsset::AsyncInterop(bundle_index) => {
@@ -486,6 +510,7 @@ fn load_bundles<W: std::fmt::Write>(
   from: &Bundle,
   bundle: &Bundle,
   res: &mut W,
+  project_root: &PathId,
 ) -> core::fmt::Result {
   let main_entry_id = bundle.main_entry_asset.unwrap();
   let asset = &bundle_graph.asset_graph.assets[main_entry_id].expect_asset();
@@ -499,11 +524,11 @@ fn load_bundles<W: std::fmt::Write>(
     }
 
     load_bundle(bundle, from, res)?;
-    write!(res, "]).then(() => require('{}'));", asset.id())?;
+    write!(res, "]).then(() => require('{}'));", asset.id(project_root))?;
   } else {
     write!(res, "module.exports=")?;
     load_bundle(bundle, from, res)?;
-    write!(res, ".then(() => require('{}'));", asset.id())?;
+    write!(res, ".then(() => require('{}'));", asset.id(project_root))?;
   }
 
   Ok(())

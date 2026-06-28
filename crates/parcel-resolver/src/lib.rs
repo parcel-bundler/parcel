@@ -939,8 +939,6 @@ impl<'a> ResolveRequest<'a> {
       && self.specifier_type != SpecifierType::Url
     {
       if let Some(ext) = path.extension() {
-        // TODO: would be nice if there was a way to do this without cloning
-        // but OsStr doesn't let you create a slice.
         let without_extension = path.with_extension("");
         let extensions: Option<&[&str]> = if ext == "js" || ext == "jsx" {
           // TSC always prioritizes .ts over .tsx, even when the original extension was .jsx.

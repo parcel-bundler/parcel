@@ -13,7 +13,7 @@ fn run(name: &str, code: &str, asset: Asset) -> Result<Asset, DiagnosticList> {
   fs.create_dir_all(root).expect("Error creating dir");
   fs.write(plugin_path, &code.as_bytes().to_owned())
     .expect("Error writing file");
-  let plugin = JsPlugin::new(&plugin_path.to_path_buf());
+  let plugin = JsPlugin::new(plugin_path);
   let dyn_fs: Arc<dyn FileSystem> = fs.clone();
   plugin.transform(
     asset,
@@ -28,7 +28,7 @@ fn run(name: &str, code: &str, asset: Asset) -> Result<Asset, DiagnosticList> {
 fn test_asset() -> Asset {
   Asset {
     loc: SourceLocation {
-      url: SourceUrl::parse("project:///foo/bar.js").unwrap(),
+      url: SourceUrl::parse("file:///foo/bar.js").unwrap(),
       start: Default::default(),
       end: Default::default(),
     },
@@ -58,7 +58,7 @@ fn test_transform_esm() {
       let code = asset.getCode();
       assert.equal(code, 'hello');
       assert.equal(asset.type, 'js');
-      assert.equal(asset.url, 'project:///foo/bar.js');
+      assert.equal(asset.url, 'file:///foo/bar.js');
       assert.equal(asset.bundleBehavior, null);
       assert.equal(asset.sideEffects, true);
       assert.equal(asset.isSource, false);
@@ -104,7 +104,7 @@ fn test_transform_cjs() {
       let code = asset.getCode();
       assert.equal(code, 'hello');
       assert.equal(asset.type, 'js');
-      assert.equal(asset.url, 'project:///foo/bar.js');
+      assert.equal(asset.url, 'file:///foo/bar.js');
       assert.equal(asset.bundleBehavior, null);
       assert.equal(asset.sideEffects, true);
       assert.equal(asset.isSource, false);

@@ -136,7 +136,7 @@ impl AssetGraphBuilder {
           },
           ty: AssetType::from_url(&entry.url),
           content: Arc::new(FileContent::new(
-            entry.url.to_file_path(&self.options.project_root)?,
+            entry.url.to_file_path()?,
             self.options.input_fs.clone(),
           )),
           target: entry.target.clone(),

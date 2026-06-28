@@ -37,18 +37,6 @@ impl TrackingFileSystem {
     }
   }
 
-  /// Creates a tracker that records `project://` URLs (relative to `project_root`), matching the
-  /// URLs used by the asset graph. Used for per-request tracking of files read by transformers.
-  pub fn with_project_root(
-    inner: std::sync::Arc<dyn FileSystem>,
-    _project_root: crate::SourceUrl,
-  ) -> Self {
-    TrackingFileSystem {
-      inner,
-      invalidations: Mutex::new(crate::Invalidations::default()),
-    }
-  }
-
   fn record_read(&self, path: PathId) {
     self
       .invalidations

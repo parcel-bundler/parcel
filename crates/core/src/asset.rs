@@ -4,8 +4,8 @@ use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-  BundleBehavior, Content, Dependency, DependencyFlags, DependencyResolution, SourceLocation,
-  SourceUrl, Target, impl_bitflags_serde,
+  BundleBehavior, Content, Dependency, DependencyFlags, DependencyResolution, PathId,
+  SourceLocation, SourceUrl, Target, impl_bitflags_serde,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -25,11 +25,11 @@ pub struct Asset {
 }
 
 impl Asset {
-  pub fn id(&self) -> String {
+  pub fn id(&self, project_root: &PathId) -> String {
     let mut hasher = xxhash_rust::xxh3::Xxh3Default::new();
-    self.loc.hash(&mut hasher);
+    self.loc.stable_hash(project_root, &mut hasher);
     self.ty.hash(&mut hasher);
-    self.target.hash(&mut hasher);
+    self.target.stable_hash(project_root, &mut hasher);
     self.pipeline.hash(&mut hasher);
     self.bundle_behavior.hash(&mut hasher);
     self.flags.hash(&mut hasher);

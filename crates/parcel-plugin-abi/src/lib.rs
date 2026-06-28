@@ -384,13 +384,12 @@ pub extern "C" fn parcel_asset_set_type(asset: Asset, ty: *const u8, ty_len: usi
 /// `options` is the handle received from `parcel_plugin_transform()`.
 /// Caller must `parcel_free_buffer(buf)`.
 #[unsafe(no_mangle)]
-pub extern "C" fn parcel_asset_get_file_path(buf: *mut Buffer, asset: Asset, options: Options) {
+pub extern "C" fn parcel_asset_get_file_path(buf: *mut Buffer, asset: Asset, _options: Options) {
   if buf.is_null() {
     return;
   }
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
-  let options: &ParcelOptions = unsafe { &*(options as *const ParcelOptions) };
-  let Ok(path) = asset.loc.url.to_file_path(&options.project_root) else {
+  let Ok(path) = asset.loc.url.to_file_path() else {
     return;
   };
   unsafe {
@@ -576,13 +575,12 @@ pub extern "C" fn parcel_target_get_public_url(buf: *mut Buffer, target: Target)
 /// `options` is the handle received from `parcel_plugin_transform()`.
 /// Caller must `parcel_free_buffer(buf)`.
 #[unsafe(no_mangle)]
-pub extern "C" fn parcel_target_get_dist_dir(buf: *mut Buffer, target: Target, options: Options) {
+pub extern "C" fn parcel_target_get_dist_dir(buf: *mut Buffer, target: Target, _options: Options) {
   if buf.is_null() {
     return;
   }
   let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };
-  let options: &ParcelOptions = unsafe { &*(options as *const ParcelOptions) };
-  let Ok(path) = target.dist_dir.to_file_path(&options.project_root) else {
+  let Ok(path) = target.dist_dir.to_file_path() else {
     return;
   };
   unsafe {
@@ -718,14 +716,13 @@ pub extern "C" fn parcel_dep_get_flags(dep: Dependency) -> DependencyFlags {
 
 /// Returns the absolute path of the file containing this import into `*buf`.
 #[unsafe(no_mangle)]
-pub extern "C" fn parcel_dep_get_source_path(buf: *mut Buffer, dep: Dependency, options: Options) {
+pub extern "C" fn parcel_dep_get_source_path(buf: *mut Buffer, dep: Dependency, _options: Options) {
   if buf.is_null() {
     return;
   }
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
-  let options: &ParcelOptions = unsafe { &*(options as *const ParcelOptions) };
   let Some(loc) = &dep.loc else { return };
-  let Ok(path) = loc.url.to_file_path(&options.project_root) else {
+  let Ok(path) = loc.url.to_file_path() else {
     return;
   };
   unsafe {
@@ -743,18 +740,21 @@ pub extern "C" fn parcel_dep_get_source_path(buf: *mut Buffer, dep: Dependency, 
 /// Returns the base path for resolving the specifier into `*buf`.
 /// Falls back to the source file path when `resolve_from` is not set.
 #[unsafe(no_mangle)]
-pub extern "C" fn parcel_dep_get_resolve_from(buf: *mut Buffer, dep: Dependency, options: Options) {
+pub extern "C" fn parcel_dep_get_resolve_from(
+  buf: *mut Buffer,
+  dep: Dependency,
+  _options: Options,
+) {
   if buf.is_null() {
     return;
   }
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
-  let options: &ParcelOptions = unsafe { &*(options as *const ParcelOptions) };
   let url = dep
     .resolve_from
     .as_ref()
     .or_else(|| dep.loc.as_ref().map(|loc| &loc.url));
   let Some(url) = url else { return };
-  let Ok(path) = url.to_file_path(&options.project_root) else {
+  let Ok(path) = url.to_file_path() else {
     return;
   };
   unsafe {
@@ -786,13 +786,11 @@ pub extern "C" fn parcel_options_get_project_root(buf: *mut Buffer, options: Opt
     return;
   }
   let options: &ParcelOptions = unsafe { &*(options as *const ParcelOptions) };
-  let Ok(path) = options.project_root.to_file_path(&options.project_root) else {
-    return;
-  };
   unsafe {
     write_buffer(
       buf,
-      path
+      options
+        .project_root
         .to_path_buf()
         .to_string_lossy()
         .into_owned()
@@ -825,7 +823,7 @@ pub extern "C" fn parcel_options_get_env(
 
 fn read_cdiagnostic(
   diag: &mut Diagnostic,
-  project_root: Option<&SourceUrl>,
+  project_root: Option<&PathId>,
 ) -> Option<CoreDiagnostic> {
   if diag.message.data.is_null() {
     return None;
@@ -851,8 +849,8 @@ fn read_cdiagnostic(
 
   let code_frames = if !diag.file_path.data.is_null() {
     let path_str = read_buf(&mut diag.file_path);
-    if let Some(project_root) = project_root {
-      let url = SourceUrl::from_path(Path::new(&path_str), project_root).ok();
+    if project_root.is_some() {
+      let url = SourceUrl::from_path(&PathId::new(Path::new(&path_str))).ok();
       let code_highlights = if diag.line > 0 {
         vec![CodeHighlight {
           start: Location {
@@ -1139,8 +1137,8 @@ impl Resolver for CPlugin {
           atom
         };
 
-        let url = SourceUrl::from_path(&file_path, &options.project_root)
-          .map_err(|e| DiagnosticList(vec![e]))?;
+        let url =
+          SourceUrl::from_path(&PathId::new(&file_path)).map_err(|e| DiagnosticList(vec![e]))?;
         let ty =
           AssetType::from_extension(file_path.extension().and_then(|e| e.to_str()).unwrap_or(""));
 

@@ -25,12 +25,11 @@ impl Transformer for JsTransformer {
     fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
   ) -> Result<Asset, DiagnosticList> {
     let config = config(&mut asset, options, fs)?;
-    let resolver =
-      parcel_resolver::Resolver::parcel(options.project_root.to_file_path(&options.project_root)?);
+    let resolver = parcel_resolver::Resolver::parcel(options.project_root);
 
     let url = asset.loc.url.clone();
     let env = asset.target.clone();
-    let resolve_from = asset.loc.url.to_file_path(&options.project_root)?;
+    let resolve_from = asset.loc.url.to_file_path()?;
     let macro_deps = Arc::new(RefCell::new(Vec::new()));
     let macro_deps_cloned = macro_deps.clone();
     let fs_cloned = fs.clone();
@@ -279,7 +278,7 @@ impl Transformer for JsTransformer {
         placeholder: dep.placeholder,
         resolve_from: if is_helper {
           // TODO
-          Some(options.project_root.clone())
+          Some(SourceUrl::from_directory_path(&options.project_root).unwrap())
         } else {
           Some(asset.loc.url.clone())
         },
@@ -365,7 +364,7 @@ impl Transformer for JsTransformer {
         }),
         loc: None,
         placeholder: None,
-        resolve_from: Some(options.project_root.clone()), // TODO
+        resolve_from: Some(SourceUrl::from_directory_path(&options.project_root).unwrap()), // TODO
         range: None,
         conditions: ExportsCondition::empty(),
         resolution: DependencyResolution::None,
@@ -520,10 +519,9 @@ fn config(
     }
   }
 
-  let resolver =
-    parcel_resolver::Resolver::parcel(options.project_root.to_file_path(&options.project_root)?);
+  let resolver = parcel_resolver::Resolver::parcel(options.project_root);
 
-  let pkg = resolver.find_package(asset.loc.url.to_file_path(&options.project_root)?, &**fs);
+  let pkg = resolver.find_package(asset.loc.url.to_file_path()?, &**fs);
   let mut react_refresh = false;
   let mut jsx_pragma = None;
   let mut jsx_pragma_frag = None;
@@ -558,9 +556,7 @@ fn config(
     let mut tsconfig_jsx = None;
     let mut tsconfig_jsx_import_source = None;
     let mut tsconfig_jsx_factory = None;
-    if let Some(tsconfig) =
-      resolver.find_tsconfig(asset.loc.url.to_file_path(&options.project_root)?, &**fs)
-    {
+    if let Some(tsconfig) = resolver.find_tsconfig(asset.loc.url.to_file_path()?, &**fs) {
       if let Ok(tsconfig) = &*tsconfig {
         jsx_pragma = tsconfig.compiler_options.jsx_factory.clone();
         jsx_pragma_frag = tsconfig.compiler_options.jsx_fragment_factory.clone();
@@ -679,10 +675,7 @@ fn config(
 
   let mut inline_constants = false;
   let mut inline_env = InlineEnvironment::default();
-  if let Some(root_pkg) = resolver.find_package(
-    options.project_root.to_file_path(&options.project_root)?,
-    &**fs,
-  ) {
+  if let Some(root_pkg) = resolver.find_package(options.project_root, &**fs) {
     if let Ok(root_pkg) = &*root_pkg {
       if let Some(config) = &root_pkg.js_transformer_config {
         if let Some(inline_environment) = &config.inline_environment {
@@ -725,15 +718,14 @@ fn config(
     filename: asset
       .loc
       .url
-      .to_file_path(&options.project_root)?
+      .to_file_path()?
       .to_path_buf()
       .to_string_lossy()
       .into_owned(),
     code: asset.content.read()?,
-    module_id: asset.id(),
+    module_id: asset.id(&options.project_root),
     project_root: options
       .project_root
-      .to_file_path(&options.project_root)?
       .to_path_buf()
       .to_string_lossy()
       .into_owned(),

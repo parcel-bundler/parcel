@@ -78,13 +78,18 @@ impl<'de> serde::Deserialize<'de> for CssTransformer {
 }
 
 impl Transformer for CssTransformer {
-  fn transform(&self, mut asset: Asset, options: &ParcelOptions, _fs: &std::sync::Arc<dyn parcel_core::FileSystem>) -> Result<Asset, DiagnosticList> {
+  fn transform(
+    &self,
+    mut asset: Asset,
+    options: &ParcelOptions,
+    _fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+  ) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let code = std::str::from_utf8(&code)?;
     let mut stylesheet = StyleSheet::parse(
       code,
       ParserOptions {
-        filename: asset.loc.url.to_string(),
+        filename: asset.loc.url.stable_id(&options.project_root),
         css_modules: self.css_modules.clone(),
         ..Default::default()
       },
@@ -206,7 +211,7 @@ impl Transformer for CssTransformer {
       let stylesheet = StyleSheet::parse(
         &res.code,
         ParserOptions {
-          filename: asset.loc.url.to_string(),
+          filename: asset.loc.url.stable_id(&options.project_root),
           ..Default::default()
         },
       )
@@ -233,7 +238,7 @@ struct DependencyCollector<'a> {
   dependencies: &'a mut Vec<Dependency>,
   target: Arc<Target>,
   url: SourceUrl,
-  project_root: SourceUrl,
+  project_root: PathId,
   in_custom_property: bool,
 }
 
@@ -316,11 +321,20 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
           }],
         }],
         documentation_url: Some("https://parceljs.org/languages/css/#url()".into()),
-        hints: if let Some(url) = self.url.join(&url.url).relative(&self.project_root) {
-          vec![format!("Replace with: url(/{})", url)]
-        } else {
-          Vec::new()
-        },
+        hints: self
+          .url
+          .join(&url.url)
+          .to_file_path()
+          .ok()
+          .and_then(|path| {
+            path
+              .to_path_buf()
+              .strip_prefix(self.project_root.to_path_buf())
+              .ok()
+              .map(|p| p.to_string_lossy().into_owned())
+          })
+          .map(|url| vec![format!("Replace with: url(/{})", url)])
+          .unwrap_or_default(),
         severity: DiagnosticSeverity::Error,
       });
     }
@@ -357,13 +371,18 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
 pub struct StyleAttrTransformer {}
 
 impl Transformer for StyleAttrTransformer {
-  fn transform(&self, mut asset: Asset, options: &ParcelOptions, _fs: &std::sync::Arc<dyn parcel_core::FileSystem>) -> Result<Asset, DiagnosticList> {
+  fn transform(
+    &self,
+    mut asset: Asset,
+    options: &ParcelOptions,
+    _fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+  ) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let code = std::str::from_utf8(&code)?;
     let mut attr = StyleAttribute::parse(
       code,
       ParserOptions {
-        filename: asset.loc.url.to_string(),
+        filename: asset.loc.url.stable_id(&options.project_root),
         ..Default::default()
       },
     )

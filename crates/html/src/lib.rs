@@ -224,6 +224,8 @@ pub struct OptimizeHtmlOptions {
   #[serde(default, deserialize_with = "ok_or_default")]
   pub config: optimize::OptimizeOptions,
   pub url: SourceUrl,
+  #[serde(default)]
+  pub project_root: Option<PathId>,
 }
 
 fn ok_or_default<'de, T, D>(deserializer: D) -> Result<T, D::Error>
@@ -246,7 +248,11 @@ pub fn optimize_html(options: OptimizeHtmlOptions) -> Result<PackageResult, ()> 
       .one(options.code.as_slice())
   };
 
-  optimize(&arena, dom, options.config, options.url.as_str());
+  let url = options
+    .project_root
+    .map(|project_root| options.url.stable_id(&project_root))
+    .unwrap_or_else(|| options.url.as_str().to_owned());
+  optimize(&arena, dom, options.config, &url);
 
   let mut vec: Vec<u8> = Vec::new();
   if options.xml {
@@ -267,6 +273,8 @@ pub struct OptimizeSvgOptions {
   #[serde(default, deserialize_with = "ok_or_default")]
   pub config: oxvg::OxvgConfig,
   pub url: SourceUrl,
+  #[serde(default)]
+  pub project_root: Option<PathId>,
 }
 
 pub fn optimize_svg(options: OptimizeSvgOptions) -> Result<PackageResult, ()> {
@@ -276,7 +284,11 @@ pub fn optimize_svg(options: OptimizeSvgOptions) -> Result<PackageResult, ()> {
       .from_utf8()
       .one(options.code.as_slice());
 
-  optimize::optimize_svg(&arena, dom, &options.config, options.url.as_str());
+  let url = options
+    .project_root
+    .map(|project_root| options.url.stable_id(&project_root))
+    .unwrap_or_else(|| options.url.as_str().to_owned());
+  optimize::optimize_svg(&arena, dom, &options.config, &url);
 
   let mut vec = Vec::new();
   serialize_xml::serialize(&mut vec, dom).map_err(|_| ())?;
@@ -291,6 +303,8 @@ pub struct SvgReactOptions {
   pub code: Vec<u8>,
   pub config: JsxOptions,
   pub url: SourceUrl,
+  #[serde(default)]
+  pub project_root: Option<PathId>,
 }
 
 pub fn svg_react(mut options: SvgReactOptions) -> Result<PackageResult, ()> {
@@ -305,12 +319,11 @@ pub fn svg_react(mut options: SvgReactOptions) -> Result<PackageResult, ()> {
       options.config.svgo_config.remove_view_box = ConfigItem::Bool(false);
     }
 
-    optimize::optimize_svg(
-      &arena,
-      dom,
-      &options.config.svgo_config,
-      options.url.as_str(),
-    );
+    let url = options
+      .project_root
+      .map(|project_root| options.url.stable_id(&project_root))
+      .unwrap_or_else(|| options.url.as_str().to_owned());
+    optimize::optimize_svg(&arena, dom, &options.config.svgo_config, &url);
   }
 
   swc_core::common::GLOBALS.set(&swc_core::common::Globals::new(), || {
@@ -326,7 +339,12 @@ pub fn svg_react(mut options: SvgReactOptions) -> Result<PackageResult, ()> {
 pub struct HtmlTransformer {}
 
 impl Transformer for HtmlTransformer {
-  fn transform(&self, mut asset: Asset, options: &ParcelOptions, _fs: &std::sync::Arc<dyn parcel_core::FileSystem>) -> Result<Asset, DiagnosticList> {
+  fn transform(
+    &self,
+    mut asset: Asset,
+    options: &ParcelOptions,
+    _fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+  ) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let res = transform_html(TransformOptions {
       code,
@@ -367,7 +385,7 @@ impl Content for HtmlContent {
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
-    _options: &ParcelOptions,
+    options: &ParcelOptions,
   ) -> Result<std::sync::Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
@@ -393,6 +411,7 @@ impl Content for HtmlContent {
         xml: bundle.ty == AssetType::Xhtml,
         config: Default::default(), // TODO
         url: self.url.clone(),
+        project_root: Some(options.project_root),
       })
       .unwrap()
       .code
@@ -492,7 +511,12 @@ impl Default for SvgTransformer {
 }
 
 impl Transformer for SvgTransformer {
-  fn transform(&self, mut asset: Asset, _options: &ParcelOptions, _fs: &std::sync::Arc<dyn parcel_core::FileSystem>) -> Result<Asset, DiagnosticList> {
+  fn transform(
+    &self,
+    mut asset: Asset,
+    options: &ParcelOptions,
+    _fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+  ) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let res = transform_svg(TransformOptions {
       code,
@@ -519,7 +543,12 @@ pub struct SvgToJsxTransformer {
 }
 
 impl Transformer for SvgToJsxTransformer {
-  fn transform(&self, mut asset: Asset, _options: &ParcelOptions, _fs: &std::sync::Arc<dyn parcel_core::FileSystem>) -> Result<Asset, DiagnosticList> {
+  fn transform(
+    &self,
+    mut asset: Asset,
+    options: &ParcelOptions,
+    _fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+  ) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let mut config = self.config.clone();
     if matches!(config.svgo_config.prefix_ids, ConfigItem::None) {
@@ -530,6 +559,7 @@ impl Transformer for SvgToJsxTransformer {
       code,
       config,
       url: asset.loc.url.clone(),
+      project_root: Some(options.project_root),
     })
     .unwrap();
     // TODO: avoid re-parse by storing JS ast.
@@ -556,7 +586,7 @@ impl Content for SvgContent {
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
-    _options: &ParcelOptions,
+    options: &ParcelOptions,
   ) -> Result<std::sync::Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
@@ -581,6 +611,7 @@ impl Content for SvgContent {
         code: res.code,
         config: self.config.clone(),
         url: self.url.clone(),
+        project_root: Some(options.project_root),
       })
       .unwrap()
       .code
@@ -598,7 +629,7 @@ mod tests {
 
   #[test]
   fn test_transform() {
-    let url = parcel_core::SourceUrl::parse("project:///foo.html").unwrap();
+    let url = parcel_core::SourceUrl::parse("file:///foo.html").unwrap();
     let res = transform_html(crate::TransformOptions {
       code: "<html><body><template><div>test</div><span>hi</span></template></body></html>".into(),
       url: url.clone(),

@@ -3,7 +3,7 @@ use std::{io::Write, string::FromUtf8Error};
 use anstyle::{Ansi256Color, AnsiColor, Color, Style};
 use serde::{Deserialize, Serialize};
 
-use crate::{AssetType, Location, SourceLocation, SourceUrl};
+use crate::{AssetType, Location, PathId, SourceLocation, SourceUrl};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Hash, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -283,17 +283,17 @@ impl<T: Into<Diagnostic>> From<T> for DiagnosticList {
 // pub(crate) use json_key;
 //
 impl DiagnosticList {
-  pub fn report<W: Write>(&self, dest: &mut W, project_root: &SourceUrl) -> std::io::Result<()> {
+  pub fn report<W: Write>(&self, dest: &mut W) -> std::io::Result<()> {
     for diagnostic in &self.0 {
       writeln!(dest)?;
-      diagnostic.report(dest, project_root)?;
+      diagnostic.report(dest)?;
     }
     Ok(())
   }
 }
 
 impl Diagnostic {
-  pub fn report<W: Write>(&self, dest: &mut W, project_root: &SourceUrl) -> std::io::Result<()> {
+  pub fn report<W: Write>(&self, dest: &mut W) -> std::io::Result<()> {
     let style = Style::new()
       .fg_color(Some(Color::Ansi(AnsiColor::Red)))
       .bold();
@@ -319,7 +319,7 @@ impl Diagnostic {
         write!(dest, "\n\n")?;
         first = true;
       }
-      frame.report(dest, project_root)?;
+      frame.report(dest)?;
     }
 
     if !self.hints.is_empty() || self.documentation_url.is_some() {
@@ -344,17 +344,17 @@ const PADDING_AFTER: u32 = 2;
 const MAX_LINES: u32 = 12;
 
 impl CodeFrame {
-  pub fn report<W: Write>(&self, dest: &mut W, project_root: &SourceUrl) -> std::io::Result<()> {
+  pub fn report<W: Write>(&self, dest: &mut W) -> std::io::Result<()> {
     if let Some(url) = &self.url {
       let style = Style::new()
         .fg_color(Some(Color::Ansi(AnsiColor::BrightBlack)))
         .underline();
 
       let cwd =
-        SourceUrl::from_absolute_directory_path(&std::env::current_dir().unwrap_or_default())
+        SourceUrl::from_directory_path(&PathId::new(&std::env::current_dir().unwrap_or_default()))
           .unwrap();
       let relative = url
-        .to_file_url(project_root)
+        .to_file_url()
         .unwrap()
         .relative(&cwd)
         .unwrap_or_else(|| url.as_str().to_owned());
@@ -400,7 +400,7 @@ impl CodeFrame {
           .url
           .as_ref()
           .unwrap()
-          .to_file_path(project_root)
+          .to_file_path()
           .unwrap()
           .to_path_buf(),
       )

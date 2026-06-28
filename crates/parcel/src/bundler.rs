@@ -8,7 +8,7 @@ use glob_match::glob_match;
 use parcel_core::{
   Asset, AssetGraph, AssetNode, AssetType, Bundle, BundleBehavior, BundleFlags, BundleGraph,
   Bundler, DependencyFlags, DependencyResolution, DiagnosticList, Environment, EnvironmentFlags,
-  Priority, SourceUrl, SpecifierType,
+  PathId, Priority, SourceUrl, SpecifierType,
 };
 
 use crate::library_bundler::LibraryBundler;
@@ -296,7 +296,7 @@ impl Bundler for DefaultBundler {
     Ok(BundleGraph {
       asset_graph,
       bundles,
-      project_root: SourceUrl::default(),
+      project_root: PathId::root(),
     })
   }
 }

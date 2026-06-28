@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc, sync::Arc};
 use indexmap::IndexMap;
 use parcel_core::{
   AssetRequest, AssetType, BufferContent, BundleBehavior, Dependency, DependencyFlags,
-  DependencyResolution, ExportsCondition, FileSystem, Location, ParcelOptions, Priority,
+  DependencyResolution, ExportsCondition, FileSystem, Location, ParcelOptions, PathId, Priority,
   SourceLocation, SourceUrl, SpecifierType, Target,
 };
 use parcel_macros::{JsValue, MacroError};
@@ -24,7 +24,7 @@ pub struct MacroContext {
   target: Arc<Target>,
   loc: parcel_macros::Location,
   dependencies: Rc<RefCell<Vec<Dependency>>>,
-  project_root: SourceUrl,
+  project_root: PathId,
 }
 
 impl<'js> Trace<'js> for MacroContext {
@@ -38,19 +38,11 @@ impl MacroContext {
     let ty: String = asset.get("type").unwrap();
     let ty = AssetType::from_extension(&ty);
     let mut content: String = asset.get("content").unwrap();
-    let mut source_map = SourceMap::new(
-      self
-        .project_root
-        .to_file_path(&self.project_root)
-        .unwrap()
-        .to_path_buf()
-        .to_str()
-        .unwrap(),
-    );
+    let mut source_map = SourceMap::new(self.project_root.to_path_buf().to_str().unwrap());
     source_map.add_source(
       self
         .url
-        .to_file_path(&self.project_root)
+        .to_file_path()
         .unwrap()
         .to_path_buf()
         .to_str()

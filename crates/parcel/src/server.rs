@@ -134,6 +134,7 @@ impl DevServer {
         &bundle_graph.bundles[0], // TODO
         &mut synthetic_assets,
         &|_| todo!(),
+        &bundle_graph.project_root,
       )
       .unwrap();
       let mut deps_by_bundle = HashMap::new();
@@ -143,13 +144,13 @@ impl DevServer {
       if asset.ty == AssetType::Js {
         output = format!(
           "parcelHotUpdate['{}'] = function (require, module, exports) {{{}}}",
-          asset.id(),
+          asset.id(&bundle_graph.project_root),
           String::from_utf8(asset.content.read().unwrap()).unwrap()
         );
       }
 
       assets.push(HmrAsset {
-        id: Id::Asset(asset.id()),
+        id: Id::Asset(asset.id(&bundle_graph.project_root)),
         ty: asset.ty.clone(),
         output,
         env_hash: "TODO".into(),
@@ -175,6 +176,7 @@ impl DevServer {
         bundle_graph,
         &bundle_graph.bundles[0], // TODO
         &|_| todo!(),
+        &bundle_graph.project_root,
       );
       write!(&mut output, "}}");
 

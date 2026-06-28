@@ -138,15 +138,13 @@ impl Parcel {
       },
     );
 
-    let project_root = project_root.with_path(|p| SourceUrl::from_absolute_directory_path(p))?;
-
     // The tracker accumulated the files read while loading configuration. Fold them into a map
     // keyed by a single sentinel index. Entry source files are stat'd while resolving entries, but
     // editing one should trigger an incremental rebuild, not a full one — so drop them.
     let mut config_invalidations = InvalidationMap::default();
     config_invalidations.add(0, tracker.take());
     for entry in &resolved_entries {
-      if let Ok(url) = entry.url.to_file_path(&project_root) {
+      if let Ok(url) = entry.url.to_file_path() {
         config_invalidations.on_file_change.remove(&url);
         config_invalidations.on_file_create_path.remove(&url);
       }
@@ -179,8 +177,8 @@ impl Parcel {
     })
   }
 
-  pub fn project_root(&self) -> &SourceUrl {
-    &self.options.project_root
+  pub fn project_root(&self) -> PathId {
+    self.options.project_root
   }
 
   /// Marks files as changed ahead of the next `build()`.
@@ -250,7 +248,7 @@ impl Parcel {
       }
 
       let name = bundle.name.as_ref().unwrap();
-      let dist_path = bundle.dist_path(&self.options.project_root);
+      let dist_path = bundle.dist_path();
 
       let mut sorted_assets = bundle.assets.clone();
       sorted_assets.sort_unstable();
@@ -286,7 +284,7 @@ impl Parcel {
       .for_each(|(bundle_index, bundle)| {
         if dirty.contains(&bundle_index) {
           let content = get_bundle_content(&self.config, &bundle_graph, bundle, opts).unwrap();
-          let path = bundle.dist_path(&opts.project_root);
+          let path = bundle.dist_path();
           let parent = path.parent().unwrap();
           opts.output_fs.create_dir_all(parent).ok();
           content.write(&*opts.output_fs, path).ok();

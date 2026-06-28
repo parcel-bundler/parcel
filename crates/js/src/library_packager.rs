@@ -19,7 +19,7 @@ impl JsContent {
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
-    _options: &ParcelOptions,
+    options: &ParcelOptions,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
@@ -31,6 +31,7 @@ impl JsContent {
       bundle,
       &mut synthetic_assets,
       get_inline_bundle_content,
+      &options.project_root,
     )?;
 
     let (code, map) = if let Some(content) = asset.content.downcast_ref::<JsContent>() {

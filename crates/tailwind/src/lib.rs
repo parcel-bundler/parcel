@@ -19,7 +19,7 @@ impl Transformer for TailwindTransformer {
     options: &ParcelOptions,
     fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
   ) -> Result<Asset, DiagnosticList> {
-    let project_root_path = options.project_root.to_file_path(&options.project_root)?;
+    let project_root_path = options.project_root;
     let mut scanner = Scanner::new(vec![PublicSourceEntry {
       base: project_root_path
         .to_path_buf()
@@ -34,7 +34,7 @@ impl Transformer for TailwindTransformer {
     let css = String::from_utf8(css_bytes).map_err(Diagnostic::from)?;
     // TODO: skip if tailwind is not present?
 
-    let asset_path = asset.loc.url.to_file_path(&options.project_root)?;
+    let asset_path = asset.loc.url.to_file_path()?;
     let from = asset_path.to_path_buf().to_string_lossy().into_owned();
     let base = asset_path
       .parent()

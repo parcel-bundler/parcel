@@ -1,4 +1,4 @@
-use parcel_core::{BuildOptions, OsFileSystem, PathId, SourceUrl};
+use parcel_core::{BuildOptions, OsFileSystem, PathId};
 use std::process::ExitCode;
 use std::{collections::HashMap, sync::Arc};
 
@@ -77,21 +77,8 @@ pub fn main() -> ExitCode {
   match res {
     Ok(_) => {}
     Err(err) => {
-      let mut paths = Vec::new();
-      let cwd = parcel_core::PathId::new(&std::env::current_dir().unwrap());
-      let fs = OsFileSystem {};
-      for entry in entries {
-        for path in parcel_core::glob(&fs, &entry, cwd) {
-          paths.push(path);
-        }
-      }
-      let project_root = SourceUrl::from_absolute_directory_path(
-        &parcel_core::find_project_root(&fs, &paths, cwd).to_path_buf(),
-      )
-      .unwrap();
-
       let mut stderr = std::io::stderr();
-      err.report(&mut stderr, &project_root).unwrap();
+      err.report(&mut stderr).unwrap();
       return ExitCode::from(1);
     }
   }

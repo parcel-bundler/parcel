@@ -43,15 +43,12 @@ pub fn build(entries: &Vec<String>, options: BuildOptions) -> Result<BundleGraph
 
 pub fn watch(entries: &Vec<String>, options: BuildOptions) -> Result<(), DiagnosticList> {
   let mut parcel = make_parcel(entries, options)?;
-  let project_root = parcel
-    .project_root()
-    .to_file_path(parcel.project_root())
-    .unwrap();
+  let project_root = parcel.project_root();
 
   let start = std::time::Instant::now();
   match parcel.build() {
     Ok(_) => println!("Built in {:?}", start.elapsed()),
-    Err(e) => print_diagnostics(&e, parcel.project_root()),
+    Err(e) => print_diagnostics(&e),
   }
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
@@ -61,7 +58,7 @@ pub fn watch(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
     let result = match parcel.invalidate(&changed_paths, &created_paths) {
       Ok(result) => result,
       Err(e) => {
-        print_diagnostics(&e, parcel.project_root());
+        print_diagnostics(&e);
         continue;
       }
     };
@@ -72,7 +69,7 @@ pub fn watch(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
     let start = std::time::Instant::now();
     match parcel.build() {
       Ok(_) => println!("Rebuilt in {:?}", start.elapsed()),
-      Err(e) => print_diagnostics(&e, parcel.project_root()),
+      Err(e) => print_diagnostics(&e),
     }
   }
 
@@ -81,10 +78,7 @@ pub fn watch(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
 
 pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), DiagnosticList> {
   let mut parcel = make_parcel(entries, options)?;
-  let project_root = parcel
-    .project_root()
-    .to_file_path(parcel.project_root())
-    .unwrap();
+  let project_root = parcel.project_root();
 
   let start = std::time::Instant::now();
   let graph = parcel.build()?;
@@ -94,7 +88,7 @@ pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
     &graph.asset_graph.entries[0]
       .target
       .dist_dir
-      .to_file_path(&graph.project_root)?
+      .to_file_path()?
       .to_path_buf(),
   );
 
@@ -105,7 +99,7 @@ pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
     let result = match parcel.invalidate(&changed_paths, &created_paths) {
       Ok(result) => result,
       Err(e) => {
-        print_diagnostics(&e, parcel.project_root());
+        print_diagnostics(&e);
         continue;
       }
     };
@@ -141,16 +135,16 @@ pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
           server.emit_hmr_update(changed_assets, &graph);
         }
       }
-      Err(e) => print_diagnostics(&e, parcel.project_root()),
+      Err(e) => print_diagnostics(&e),
     }
   }
 
   Ok(())
 }
 
-fn print_diagnostics(diagnostics: &DiagnosticList, project_root: &SourceUrl) {
+fn print_diagnostics(diagnostics: &DiagnosticList) {
   let mut stderr = std::io::stderr();
-  diagnostics.report(&mut stderr, project_root).unwrap();
+  diagnostics.report(&mut stderr).unwrap();
 }
 
 /// Splits watcher events into `(changed, created)` URL lists. Modified and deleted files are

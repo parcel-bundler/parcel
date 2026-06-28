@@ -3,8 +3,8 @@ use std::{borrow::Cow, sync::Arc};
 use parcel_core::{
   AssetRequest, AssetType, BufferContent, BuildMode, CodeFrame, CodeHighlight, Dependency,
   DependencyResolution, Diagnostic, DiagnosticList, Environment, EnvironmentFlags,
-  ExportsCondition, FileContent, FileSystem, Location, ParcelOptions, Resolver, SourceLocation,
-  SourceUrl, SpecifierType, Target,
+  ExportsCondition, FileContent, FileSystem, Location, ParcelOptions, PathId, Resolver,
+  SourceLocation, SourceUrl, SpecifierType, Target,
 };
 use parcel_resolver::{
   Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
@@ -63,13 +63,12 @@ impl Resolver for DefaultResolver {
     // Resolve through the per-request tracking file system so every file consulted (package.json,
     // existence checks, ...) is recorded as an invalidation of this asset. The interning cache is
     // per-resolve; the underlying metadata/parse caching is shared via the wrapped CachedFileSystem.
-    let mut resolver =
-      parcel_resolver::Resolver::parcel(options.project_root.to_file_path(&options.project_root)?);
+    let mut resolver = parcel_resolver::Resolver::parcel(options.project_root);
     resolver.include_node_modules = Cow::Borrowed(&dep.target.include_node_modules);
 
     let mut res = resolver.resolve_with_options(
       specifier,
-      resolve_from.to_file_path(&options.project_root)?,
+      resolve_from.to_file_path()?,
       match dep.specifier_type {
         SpecifierType::Esm => parcel_resolver::SpecifierType::Esm,
         SpecifierType::Commonjs => parcel_resolver::SpecifierType::Cjs,
@@ -102,11 +101,7 @@ impl Resolver for DefaultResolver {
     match res {
       Ok(res) => match res.resolution {
         Resolution::Path(path) => {
-          let url = SourceUrl::from_path_and_query(
-            &path.to_path_buf(),
-            res.query.as_ref().map(|s| &s[1..]),
-            &options.project_root,
-          )?;
+          let url = SourceUrl::from_path_and_query(&path, res.query.as_ref().map(|s| &s[1..]))?;
           let ty = AssetType::from_url(&url);
           Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
             loc: SourceLocation {
@@ -232,7 +227,7 @@ impl Resolver for DefaultResolver {
               ),
               origin: Some("@parcel/resolver-default".into()),
               code_frames: vec![CodeFrame {
-                url: Some(SourceUrl::from_path(&package_path, &options.project_root)?),
+                url: Some(SourceUrl::from_path(&PathId::new(&package_path))?),
                 code: None,
                 language: Some(AssetType::Json),
                 code_highlights: vec![
@@ -261,7 +256,7 @@ impl Resolver for DefaultResolver {
             message: format!("Error parsing JSON"),
             origin: Some("@parcel/resolver-default".into()),
             code_frames: vec![CodeFrame {
-              url: Some(SourceUrl::from_path(&e.path, &options.project_root)?),
+              url: Some(SourceUrl::from_path(&PathId::new(&e.path))?),
               code: None,
               language: Some(AssetType::Json),
               code_highlights: vec![CodeHighlight {

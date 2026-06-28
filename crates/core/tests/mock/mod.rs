@@ -194,11 +194,7 @@ impl Transformer for MockTransformer {
       } else if let Some(path) = trimmed.strip_prefix("@config ") {
         // Read a config file through the tracking fs. Its absolute path is derived from the
         // project root so the test can edit it via the input file system.
-        let config_path = options
-          .project_root
-          .join(path.trim())
-          .to_file_path(&options.project_root)
-          .map_err(Diagnostic::from)?;
+        let config_path = options.project_root.join(Path::new(path.trim()));
         let bytes = fs.read(config_path).map_err(Diagnostic::from)?;
         code.push_str(std::str::from_utf8(&bytes).map_err(Diagnostic::from)?);
         code.push('\n');
@@ -257,9 +253,8 @@ fn make_dep(
 /// configuration file (tsconfig, package.json aliases, etc.).
 struct MockResolver;
 
-/// The project-relative URL of the alias config file consulted by `MockResolver`.
 fn alias_config_url() -> SourceUrl {
-  SourceUrl::parse("project:///aliases.json").unwrap()
+  SourceUrl::from_path(&PathId::new(std::path::Path::new("/aliases.json"))).unwrap()
 }
 
 impl Resolver for MockResolver {
@@ -275,7 +270,7 @@ impl Resolver for MockResolver {
       // Alias specifier: look it up in the config file. Reading it through `fs` (the tracking file
       // system) automatically records a dependency on it, so editing it re-resolves the importer.
       let config_url = alias_config_url();
-      let config_path = config_url.to_file_path(&options.project_root)?;
+      let config_path = config_url.to_file_path()?;
       let bytes = fs.read(config_path).map_err(Diagnostic::from)?;
       let aliases: serde_json::Map<String, serde_json::Value> =
         serde_json::from_slice(&bytes).map_err(Diagnostic::from)?;
@@ -296,7 +291,7 @@ impl Resolver for MockResolver {
       base.join(specifier)
     };
 
-    let file_path = resolved.to_file_path(&options.project_root)?;
+    let file_path = resolved.to_file_path()?;
 
     let ty = AssetType::from_url(&resolved);
     let content: Arc<dyn Content> = Arc::new(parcel_core::FileContent::new(
@@ -388,7 +383,7 @@ impl Bundler for MockBundler {
     Ok(BundleGraph {
       asset_graph,
       bundles,
-      project_root: SourceUrl::default(),
+      project_root: PathId::root(),
     })
   }
 }
