@@ -28,10 +28,7 @@ pub struct DefaultPluginFactory {
 impl DefaultPluginFactory {
   pub fn new(fs: Arc<dyn FileSystem>) -> Self {
     DefaultPluginFactory {
-      resolver: parcel_resolver::Resolver::node(
-        parcel_resolver::PathId::root(),
-        parcel_resolver::Cache::new(),
-      ),
+      resolver: parcel_resolver::Resolver::node(parcel_resolver::PathId::root()),
       fs,
     }
   }

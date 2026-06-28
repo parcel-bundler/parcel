@@ -10,15 +10,11 @@ use parcel_resolver::{
   Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
 };
 
-pub struct DefaultResolver {
-  cache: parcel_resolver::Cache,
-}
+pub struct DefaultResolver;
 
 impl DefaultResolver {
   pub fn new(_project_root: String) -> Self {
-    DefaultResolver {
-      cache: parcel_resolver::Cache::new(),
-    }
+    DefaultResolver
   }
 }
 
@@ -67,10 +63,8 @@ impl Resolver for DefaultResolver {
     // Resolve through the per-request tracking file system so every file consulted (package.json,
     // existence checks, ...) is recorded as an invalidation of this asset. The interning cache is
     // per-resolve; the underlying metadata/parse caching is shared via the wrapped CachedFileSystem.
-    let mut resolver = parcel_resolver::Resolver::parcel(
-      options.project_root.to_file_path(&options.project_root)?,
-      &self.cache,
-    );
+    let mut resolver =
+      parcel_resolver::Resolver::parcel(options.project_root.to_file_path(&options.project_root)?);
     resolver.include_node_modules = Cow::Borrowed(&dep.target.include_node_modules);
 
     let mut res = resolver.resolve_with_options(

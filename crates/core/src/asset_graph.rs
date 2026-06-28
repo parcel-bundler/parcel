@@ -7,8 +7,8 @@ use fixedbitset::FixedBitSet;
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetType, DependencyResolution, DiagnosticList, Entry,
-  EnvironmentFlags, FileContent, InvalidationMap, ParcelOptions, Priority, SourceLocation,
-  SourceUrl, SymbolName, SymbolResolution,
+  EnvironmentFlags, FileContent, InvalidationMap, ParcelOptions, PathId, Priority, SourceLocation,
+  SymbolName, SymbolResolution,
   config::ParcelConfig,
   request::{RequestResult, TransformQueue},
 };
@@ -80,7 +80,7 @@ impl AssetGraphBuilder {
   /// Marks assets as needing re-transformation based on changed/created file URLs.
   /// `changed` are modified or deleted files; `created` are newly created files.
   /// Call before `build()` to trigger an incremental rebuild.
-  pub fn invalidate(&mut self, changed: &[SourceUrl], created: &[SourceUrl]) -> HashSet<usize> {
+  pub fn invalidate(&mut self, changed: &[PathId], created: &[PathId]) -> HashSet<usize> {
     let affected = self.invalidation_map.invalidate(changed, created);
 
     for index in &affected {

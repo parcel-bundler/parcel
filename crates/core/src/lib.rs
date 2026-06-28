@@ -146,7 +146,7 @@ impl Parcel {
     let mut config_invalidations = InvalidationMap::default();
     config_invalidations.add(0, tracker.take());
     for entry in &resolved_entries {
-      if let Ok(url) = entry.url.to_file_url(&project_root) {
+      if let Ok(url) = entry.url.to_file_path(&project_root) {
         config_invalidations.on_file_change.remove(&url);
         config_invalidations.on_file_create_path.remove(&url);
       }
@@ -192,8 +192,8 @@ impl Parcel {
   /// are invalidated for an incremental rebuild.
   pub fn invalidate(
     &mut self,
-    changed: &[SourceUrl],
-    created: &[SourceUrl],
+    changed: &[PathId],
+    created: &[PathId],
   ) -> Result<InvalidateResult, DiagnosticList> {
     if self.is_config_change(changed, created) {
       // Recreate first; on failure (e.g. an invalid config edit) leave `self` untouched so the
@@ -210,14 +210,7 @@ impl Parcel {
       });
     }
 
-    // Drop stale entries from the shared file-system cache before re-resolving/re-transforming, so
-    // the resolver and transformers see the changed files. Intern each changed/created path to a
-    // `PathId` at this boundary (SourceUrl-based invalidation is a deferred migration).
-    let paths: Vec<PathId> = changed
-      .iter()
-      .chain(created)
-      .filter_map(|url| url.to_file_path(&self.options.project_root).ok())
-      .collect();
+    let paths: Vec<PathId> = changed.iter().chain(created).copied().collect();
     self.cached_fs.invalidate(paths);
 
     let affected = self.asset_graph_builder.invalidate(changed, created);
@@ -228,18 +221,10 @@ impl Parcel {
   }
 
   /// Returns true if any of the changed/created files was read while loading configuration.
-  pub fn is_config_change(&self, changed: &[SourceUrl], created: &[SourceUrl]) -> bool {
-    // The tracker recorded config files as absolute `file://` URLs; normalize the event URLs
-    // (which may be `project://`) to match.
-    let to_file = |urls: &[SourceUrl]| -> Vec<SourceUrl> {
-      urls
-        .iter()
-        .filter_map(|url| url.to_file_url(&self.options.project_root).ok())
-        .collect()
-    };
+  pub fn is_config_change(&self, changed: &[PathId], created: &[PathId]) -> bool {
     !self
       .config_invalidations
-      .invalidate(&to_file(changed), &to_file(created))
+      .invalidate(changed, created)
       .is_empty()
   }
 

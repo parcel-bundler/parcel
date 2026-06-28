@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use parcel_core::{AssetNode, BuildOptions, BundleGraph, DiagnosticList, PluginFactory, SourceUrl};
+use parcel_core::{
+  AssetNode, BuildOptions, BundleGraph, DiagnosticList, PathId, PluginFactory, SourceUrl,
+};
 
 use crate::plugin_factory::DefaultPluginFactory;
 
@@ -54,9 +56,9 @@ pub fn watch(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {
-    let (changed_urls, created_urls) = split_events(&events, parcel.project_root());
+    let (changed_paths, created_paths) = split_events(&events);
 
-    let result = match parcel.invalidate(&changed_urls, &created_urls) {
+    let result = match parcel.invalidate(&changed_paths, &created_paths) {
       Ok(result) => result,
       Err(e) => {
         print_diagnostics(&e, parcel.project_root());
@@ -98,9 +100,9 @@ pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {
-    let (changed_urls, created_urls) = split_events(&events, parcel.project_root());
+    let (changed_paths, created_paths) = split_events(&events);
 
-    let result = match parcel.invalidate(&changed_urls, &created_urls) {
+    let result = match parcel.invalidate(&changed_paths, &created_paths) {
       Ok(result) => result,
       Err(e) => {
         print_diagnostics(&e, parcel.project_root());
@@ -153,20 +155,14 @@ fn print_diagnostics(diagnostics: &DiagnosticList, project_root: &SourceUrl) {
 
 /// Splits watcher events into `(changed, created)` URL lists. Modified and deleted files are
 /// treated as changes; only newly created files count as creations.
-fn split_events(
-  events: &[parcel_watcher::Event],
-  project_root: &SourceUrl,
-) -> (Vec<SourceUrl>, Vec<SourceUrl>) {
+fn split_events(events: &[parcel_watcher::Event]) -> (Vec<PathId>, Vec<PathId>) {
   let mut changed = Vec::new();
   let mut created = Vec::new();
   for event in events {
-    if let Ok(url) = SourceUrl::from_path(event.path.as_path(), project_root) {
-      match event.ty {
-        parcel_watcher::EventType::Created => created.push(url),
-        parcel_watcher::EventType::Updated | parcel_watcher::EventType::Deleted => {
-          changed.push(url)
-        }
-      }
+    let path = PathId::new(&event.path);
+    match event.ty {
+      parcel_watcher::EventType::Created => created.push(path),
+      parcel_watcher::EventType::Updated | parcel_watcher::EventType::Deleted => changed.push(path),
     }
   }
   (changed, created)

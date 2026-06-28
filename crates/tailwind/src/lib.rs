@@ -4,7 +4,7 @@ use parcel_core::{
   Asset, BufferContent, Diagnostic, DiagnosticList, ExportsCondition, ParcelOptions, Transformer,
 };
 use parcel_plugin_js::{await_promise, require_source, with_js_env};
-use parcel_resolver::{Cache, Resolution, ResolveOptions, Resolver, SpecifierType};
+use parcel_resolver::{Resolution, ResolveOptions, Resolver, SpecifierType};
 use rquickjs::{Array, Ctx, Function, Value};
 use tailwindcss_oxide::{PublicSourceEntry, Scanner};
 
@@ -41,7 +41,7 @@ impl Transformer for TailwindTransformer {
       .map(|p| p.to_path_buf().to_string_lossy().into_owned())
       .unwrap_or_default();
 
-    let resolver = Resolver::node(project_root_path, Cache::new());
+    let resolver = Resolver::node(project_root_path);
     let resolver_fs = fs.clone();
 
     let result_css = with_js_env(fs.clone(), &options.env, options.cwd, move |ctx| {

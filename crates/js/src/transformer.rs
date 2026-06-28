@@ -25,10 +25,8 @@ impl Transformer for JsTransformer {
     fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
   ) -> Result<Asset, DiagnosticList> {
     let config = config(&mut asset, options, fs)?;
-    let resolver = parcel_resolver::Resolver::parcel(
-      options.project_root.to_file_path(&options.project_root)?,
-      parcel_resolver::Cache::new(),
-    );
+    let resolver =
+      parcel_resolver::Resolver::parcel(options.project_root.to_file_path(&options.project_root)?);
 
     let url = asset.loc.url.clone();
     let env = asset.target.clone();
@@ -522,10 +520,8 @@ fn config(
     }
   }
 
-  let resolver = parcel_resolver::Resolver::parcel(
-    options.project_root.to_file_path(&options.project_root)?,
-    parcel_resolver::Cache::new(),
-  );
+  let resolver =
+    parcel_resolver::Resolver::parcel(options.project_root.to_file_path(&options.project_root)?);
 
   let pkg = resolver.find_package(asset.loc.url.to_file_path(&options.project_root)?, &**fs);
   let mut react_refresh = false;

@@ -5,6 +5,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+parcel-core = { path = "../core" }
 parcel-resolver = { path = "../parcel-resolver" }
 es-module-lexer = { git = "https://github.com/devongovett/es-module-lexer" }
 serde_json = "1.0.91"

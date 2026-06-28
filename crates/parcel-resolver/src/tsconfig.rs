@@ -8,7 +8,7 @@ use indexmap::IndexMap;
 use itertools::Either;
 use parcel_core::{FileSystem, PathId};
 
-use crate::{ResolverError, cache::Cache, error::JsonError, specifier::Specifier};
+use crate::{ResolverError, error::JsonError, specifier::Specifier};
 
 #[derive(serde::Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
@@ -90,30 +90,25 @@ impl TsConfig {
   pub fn read<F: FnOnce(&mut TsConfigWrapper) -> Result<(), ResolverError>>(
     path: &PathId,
     process: F,
-    cache: &Cache,
     fs: &dyn FileSystem,
   ) -> Result<TsConfigWrapper, ResolverError> {
     let data = fs.read_to_string(*path)?;
-    let mut tsconfig = TsConfig::parse(path.clone(), data, &cache)
+    let mut tsconfig = TsConfig::parse(path.clone(), data)
       .map_err(|e| JsonError::new(path.to_path_buf().to_owned(), e))?;
     process(&mut tsconfig)?;
     Ok(tsconfig)
   }
 
-  pub fn parse(
-    path: PathId,
-    mut data: String,
-    cache: &Cache,
-  ) -> serde_json::Result<TsConfigWrapper> {
+  pub fn parse(path: PathId, mut data: String) -> serde_json::Result<TsConfigWrapper> {
     let _ = strip_comments_in_place(data.as_mut_str(), Default::default(), true);
     let wrapper: SerializedTsConfigWrapper = serde_json::from_str(&data)?;
     Ok(TsConfigWrapper {
       extends: wrapper.extends,
-      compiler_options: TsConfig::from_serialized(path, wrapper.compiler_options, cache),
+      compiler_options: TsConfig::from_serialized(path, wrapper.compiler_options),
     })
   }
 
-  fn from_serialized(path: PathId, serialized: SerializedTsConfig, cache: &Cache) -> TsConfig {
+  fn from_serialized(path: PathId, serialized: SerializedTsConfig) -> TsConfig {
     let base_url = serialized.base_url.map(|base_url| path.resolve(&base_url));
 
     TsConfig {
@@ -151,11 +146,7 @@ impl TsConfig {
     }
   }
 
-  pub fn paths<'a>(
-    &'a self,
-    specifier: &'a Specifier,
-    cache: &'a Cache,
-  ) -> impl Iterator<Item = PathId> + 'a {
+  pub fn paths<'a>(&'a self, specifier: &'a Specifier) -> impl Iterator<Item = PathId> + 'a {
     if !matches!(specifier, Specifier::Package(..) | Specifier::Builtin(..)) {
       return Either::Right(Either::Right(std::iter::empty()));
     }
@@ -163,7 +154,7 @@ impl TsConfig {
     // If there is a base url setting, resolve it relative to the tsconfig.json file.
     // Otherwise, the base for paths is implicitly the directory containing the tsconfig.
     let base_url_iter = if let Some(base_url) = self.base_url {
-      Either::Left(base_url_iter(base_url, specifier, cache))
+      Either::Left(base_url_iter(base_url, specifier))
     } else {
       Either::Right(std::iter::empty())
     };
@@ -171,7 +162,7 @@ impl TsConfig {
     if let Some(paths) = &self.paths {
       // Check exact match first.
       if let Some(paths) = paths.get(specifier) {
-        return Either::Left(join_paths(&self.paths_base, paths, None, cache).chain(base_url_iter));
+        return Either::Left(join_paths(&self.paths_base, paths, None).chain(base_url_iter));
       }
 
       // Check patterns
@@ -201,7 +192,6 @@ impl TsConfig {
             &self.paths_base,
             paths,
             Some((full_specifier, longest_prefix_length, longest_suffix_length)),
-            cache,
           )
           .chain(base_url_iter),
         );
@@ -222,7 +212,6 @@ fn join_paths<'a>(
   base_url: &'a PathId,
   paths: &'a [String],
   replacement: Option<(Cow<'a, str>, usize, usize)>,
-  cache: &'a Cache,
 ) -> impl Iterator<Item = PathId> + 'a {
   paths
     .iter()
@@ -240,7 +229,6 @@ fn join_paths<'a>(
 fn base_url_iter<'a>(
   base_url: PathId,
   specifier: &'a Specifier,
-  cache: &'a Cache,
 ) -> impl Iterator<Item = PathId> + 'a {
   std::iter::once_with(move || {
     if let Specifier::Package(module, subpath) = specifier {
@@ -262,12 +250,11 @@ mod tests {
   use indexmap::indexmap;
 
   fn get_normalized<P: AsRef<Path>>(path: P) -> PathId {
-    PathId::new(&crate::cache::normalize_path(path.as_ref()))
+    PathId::new(path.as_ref())
   }
 
   #[test]
   fn test_paths() {
-    let cache = Cache::default();
     let tsconfig = TsConfig::from_serialized(
       get_normalized("/foo/tsconfig.json"),
       SerializedTsConfig {
@@ -289,14 +276,9 @@ mod tests {
         use_define_for_class_fields: None,
         target: None,
       },
-      &cache,
     );
 
-    let test = |specifier: &str| {
-      tsconfig
-        .paths(&specifier.into(), &cache)
-        .collect::<Vec<PathId>>()
-    };
+    let test = |specifier: &str| tsconfig.paths(&specifier.into()).collect::<Vec<PathId>>();
 
     assert_eq!(
       test("jquery"),
@@ -325,7 +307,6 @@ mod tests {
 
   #[test]
   fn test_base_url() {
-    let cache = Cache::default();
     let tsconfig = TsConfig::from_serialized(
       get_normalized("/foo/tsconfig.json"),
       SerializedTsConfig {
@@ -340,14 +321,9 @@ mod tests {
         use_define_for_class_fields: None,
         target: None,
       },
-      &cache,
     );
 
-    let test = |specifier: &str| {
-      tsconfig
-        .paths(&specifier.into(), &cache)
-        .collect::<Vec<PathId>>()
-    };
+    let test = |specifier: &str| tsconfig.paths(&specifier.into()).collect::<Vec<PathId>>();
 
     assert_eq!(test("foo"), vec![get_normalized("/foo/src/foo/")]);
     assert_eq!(
@@ -359,7 +335,6 @@ mod tests {
 
   #[test]
   fn test_paths_and_base_url() {
-    let cache = Cache::default();
     let tsconfig = TsConfig::from_serialized(
       get_normalized("/foo/tsconfig.json"),
       SerializedTsConfig {
@@ -379,14 +354,9 @@ mod tests {
         use_define_for_class_fields: None,
         target: None,
       },
-      &cache,
     );
 
-    let test = |specifier: &str| {
-      tsconfig
-        .paths(&specifier.into(), &cache)
-        .collect::<Vec<PathId>>()
-    };
+    let test = |specifier: &str| tsconfig.paths(&specifier.into()).collect::<Vec<PathId>>();
 
     assert_eq!(
       test("test"),

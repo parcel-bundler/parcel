@@ -3075,6 +3075,7 @@ dependencies = [
  "dashmap 6.1.0",
  "es-module-lexer",
  "glob",
+ "parcel-core",
  "parcel-resolver",
  "rayon",
  "serde_json",

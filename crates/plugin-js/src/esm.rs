@@ -46,8 +46,7 @@ pub struct ModuleResolver {
 
 impl ModuleResolver {
   pub fn new(project_root: PathId, fs: Arc<dyn FileSystem>) -> Self {
-    let mut resolver =
-      parcel_resolver::Resolver::node_esm(project_root, parcel_resolver::Cache::new());
+    let mut resolver = parcel_resolver::Resolver::node_esm(project_root);
     resolver.flags |= parcel_resolver::Flags::TYPESCRIPT;
 
     ModuleResolver {

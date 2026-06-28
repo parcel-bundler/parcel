@@ -1,13 +1,15 @@
 use std::{
   borrow::Cow,
   path::{Component, Path, PathBuf},
+  sync::{Arc, Mutex},
 };
 
 use dashmap::{DashMap, DashSet};
 use es_module_lexer::{ImportKind, lex};
+use parcel_core::{FileSystem, Invalidations, PathId, TrackingFileSystem};
 use parcel_resolver::{
-  FileSystem, Invalidations, ModuleType, PathId, Resolution, ResolutionAndQuery, ResolveOptions,
-  Resolver, ResolverError, Specifier, SpecifierError, SpecifierType,
+  ModuleType, Resolution, ResolutionAndQuery, ResolveOptions, Resolver, ResolverError, Specifier,
+  SpecifierError, SpecifierType,
 };
 // use rayon::prelude::{ParallelBridge, ParallelIterator};
 
@@ -66,11 +68,11 @@ pub struct Cache {
 struct EsmGraphBuilder<'a> {
   visited: DashSet<PathBuf>,
   visited_globs: DashSet<PathBuf>,
-  invalidations: Invalidations,
+  invalidations: Mutex<Invalidations>,
   cjs_resolver: Resolver<'a>,
   esm_resolver: Resolver<'a>,
   cache: &'a Cache,
-  fs: &'a dyn FileSystem,
+  fs: Arc<dyn FileSystem>,
 }
 
 impl<'a> EsmGraphBuilder<'a> {
@@ -89,20 +91,21 @@ impl<'a> EsmGraphBuilder<'a> {
     }
 
     if let Some(invalidations) = self.cache.entries.get(file) {
-      self.invalidations.extend(&invalidations);
-      for p in invalidations.invalidate_on_file_change.borrow().iter() {
-        self.build(p.as_path())?;
+      self.invalidations.lock().unwrap().extend(&invalidations);
+      for p in invalidations.invalidate_on_file_change.iter() {
+        self.build(&p.to_path_buf())?;
       }
       return Ok(());
     }
 
-    let invalidations = Invalidations::default();
-    let module_type = self.esm_resolver.resolve_module_type(file, self.fs)?;
+    let tracking_fs = TrackingFileSystem::new(self.fs.clone());
+    let mut invalidations = Invalidations::default();
+    let module_type = self.esm_resolver.resolve_module_type(file, &tracking_fs)?;
     let resolver = match module_type {
       ModuleType::CommonJs | ModuleType::Json => &self.cjs_resolver,
       ModuleType::Module => &self.esm_resolver,
     };
-    let contents = self.fs.read_to_string(PathId::new(file))?;
+    let contents = tracking_fs.read_to_string(PathId::new(file))?;
     let module = lex(&contents)?;
     #[allow(clippy::map_collect_result_unit)]
     module
@@ -113,7 +116,7 @@ impl<'a> EsmGraphBuilder<'a> {
           ImportKind::DynamicExpression => {
             if let Some(glob) = specifier_to_glob(&import.specifier()) {
               // println!("GLOB {:?} {:?}", import.specifier(), glob);
-              self.expand_glob(&glob, file, resolver, &invalidations)?;
+              self.expand_glob(&glob, file, resolver, &tracking_fs, &mut invalidations)?;
             } else {
               // println!("DYNAMIC: {} {:?}", import.specifier(), file);
               invalidations.invalidate_on_startup();
@@ -132,7 +135,7 @@ impl<'a> EsmGraphBuilder<'a> {
               &import.specifier(),
               PathId::new(file),
               SpecifierType::Esm,
-              self.fs,
+              &tracking_fs,
               ResolveOptions::default(),
             ) {
               // println!(
@@ -143,7 +146,7 @@ impl<'a> EsmGraphBuilder<'a> {
               //   p
               // );
               let p = p.to_path_buf();
-              invalidations.invalidate_on_file_change(resolver.cache().get(&p));
+              invalidations.invalidate_on_file_change(PathId::new(&p));
               self.build(&p)?;
             } else {
               // Ignore dependencies that don't resolve to anything.
@@ -157,7 +160,8 @@ impl<'a> EsmGraphBuilder<'a> {
       })
       .collect::<Result<(), _>>()?;
 
-    self.invalidations.extend(&invalidations);
+    invalidations.extend(&tracking_fs.take());
+    self.invalidations.lock().unwrap().extend(&invalidations);
     self.cache.entries.insert(file.to_owned(), invalidations);
     Ok(())
   }
@@ -167,7 +171,8 @@ impl<'a> EsmGraphBuilder<'a> {
     pattern: &str,
     from: &Path,
     resolver: &Resolver<'a>,
-    invalidations: &Invalidations,
+    fs: &dyn FileSystem,
+    invalidations: &mut Invalidations,
   ) -> Result<(), EsmGraphBuilderError> {
     // Parse the specifier. If it is a bare specifier, resolve the package first
     // and append the subpath back on to generate the final glob. Otherwise, convert
@@ -184,7 +189,7 @@ impl<'a> EsmGraphBuilder<'a> {
           &package,
           PathId::new(from),
           SpecifierType::Esm,
-          self.fs,
+          fs,
           ResolveOptions::default(),
         ) {
           Ok(ResolutionAndQuery {
@@ -208,7 +213,7 @@ impl<'a> EsmGraphBuilder<'a> {
 
     for path in glob::glob(pattern.to_string_lossy().as_ref())? {
       let path = path?;
-      invalidations.invalidate_on_file_change(resolver.cache().get(&path));
+      invalidations.invalidate_on_file_change(PathId::new(&path));
       self.build(&path)?;
     }
 
@@ -489,22 +494,21 @@ pub fn resolve_path<A: AsRef<Path>, B: AsRef<Path>>(base: A, subpath: B) -> Path
 pub fn build_esm_graph<'a>(
   file: &Path,
   project_root: &Path,
-  resolver_cache: &'a parcel_resolver::Cache,
   cache: &'a Cache,
-  fs: &'a dyn FileSystem,
+  fs: Arc<dyn FileSystem>,
 ) -> Result<Invalidations, EsmGraphBuilderError> {
   let visitor = EsmGraphBuilder {
     visited: DashSet::new(),
     visited_globs: DashSet::new(),
-    invalidations: Invalidations::default(),
-    cjs_resolver: Resolver::node(PathId::new(project_root), resolver_cache),
-    esm_resolver: Resolver::node_esm(PathId::new(project_root), resolver_cache),
+    invalidations: Mutex::new(Invalidations::default()),
+    cjs_resolver: Resolver::node(PathId::new(project_root)),
+    esm_resolver: Resolver::node_esm(PathId::new(project_root)),
     cache,
     fs,
   };
 
   visitor.build(file)?;
-  Ok(visitor.invalidations)
+  Ok(visitor.invalidations.into_inner().unwrap())
 }
 
 #[cfg(test)]

@@ -9,11 +9,7 @@
 //!
 //! # Example
 //!
-//! To create a resolver, first create a [Cache]. This stores information about the files
-//! in a [FileSystem], and can be reused between multiple resolvers. A fresh cache
-//! should generally be created once per build to ensure information is up to date.
-//!
-//! Next, create a [Resolver] using one of the constructors. For example, `Resolver::node`
+//! Create a [Resolver] using one of the constructors. For example, `Resolver::node`
 //! creates a Node.js compatible CommonJS resolver, `Resolver::node_esm` creates an ESM resolver,
 //! and `Resolver::parcel` creates a Parcel-compatible resolver. From there you can customize individual
 //! features such as extensions or index files by setting properties on the resolver.
@@ -23,11 +19,10 @@
 //! rather than returned by the resolver.
 //!
 //! ```
-//! use parcel_resolver::{Cache, Resolver, SpecifierType, ResolutionAndQuery, OsFileSystem, PathId};
+//! use parcel_resolver::{Resolver, SpecifierType, ResolutionAndQuery, OsFileSystem, PathId};
 //! use std::path::Path;
 //!
-//! let cache = Cache::default();
-//! let resolver = Resolver::node_esm(PathId::new(Path::new("/path/to/project-root")), &cache);
+//! let resolver = Resolver::node_esm(PathId::new(Path::new("/path/to/project-root")));
 //! let fs = OsFileSystem::default();
 //!
 //! let res = resolver.resolve(
@@ -51,10 +46,7 @@ use std::{
 
 use bitflags::bitflags;
 
-pub use cache::Cache;
-use cache::private::CacheCow;
 pub use error::ResolverError;
-pub use invalidations::*;
 pub use package_json::{
   AliasValue, BrowserField, ExportsResolution, Fields, InlineEnvironment, ModuleType, PackageJson,
   PackageJsonError,
@@ -67,9 +59,7 @@ use specifier::{parse_package_specifier, parse_scheme};
 pub use tsconfig::{Jsx, TsConfig, TsConfigWrapper};
 
 mod builtins;
-mod cache;
 mod error;
-mod invalidations;
 mod json_comments_rs;
 mod package_json;
 mod specifier;
@@ -150,7 +140,6 @@ pub struct Resolver<'a> {
   pub conditions: ExportsCondition,
   /// A custom module directory resolution function, e.g. Yarn PnP.
   pub module_dir_resolver: Option<Arc<ResolveModuleDir>>,
-  cache: CacheCow<'a>,
 }
 
 /// A list of file extensions to try when resolving.
@@ -202,25 +191,15 @@ pub struct ResolutionAndQuery {
   pub query: Option<String>,
 }
 
-/// The result of a resolution request, and list of files that should invalidate the cache.
-pub struct ResolveResult {
-  /// The resolution result.
-  pub result: Result<ResolutionAndQuery, ResolverError>,
-  /// List of files that should invalidate the cache.
-  pub invalidations: Invalidations,
-}
-
 impl<'a> Resolver<'a> {
   /// Creates a resolver with Node.js CommonJS settings.
-  pub fn node<C: Into<CacheCow<'a>>>(project_root: PathId, cache: C) -> Self {
-    let cache: CacheCow = cache.into();
+  pub fn node(project_root: PathId) -> Self {
     Self {
       project_root,
       extensions: Extensions::Borrowed(&["js", "json", "node"]),
       index_file: "index",
       entries: Fields::MAIN,
       flags: Flags::NODE_CJS,
-      cache,
       include_node_modules: Cow::Owned(IncludeNodeModules::default()),
       conditions: ExportsCondition::NODE,
       module_dir_resolver: None,
@@ -228,15 +207,13 @@ impl<'a> Resolver<'a> {
   }
 
   /// Creates a resolver with Node.js ESM settings.
-  pub fn node_esm<C: Into<CacheCow<'a>>>(project_root: PathId, cache: C) -> Self {
-    let cache: CacheCow = cache.into();
+  pub fn node_esm(project_root: PathId) -> Self {
     Self {
       project_root,
       extensions: Extensions::Borrowed(&[]),
       index_file: "index",
       entries: Fields::MAIN,
       flags: Flags::NODE_ESM,
-      cache,
       include_node_modules: Cow::Owned(IncludeNodeModules::default()),
       conditions: ExportsCondition::NODE,
       module_dir_resolver: None,
@@ -244,15 +221,13 @@ impl<'a> Resolver<'a> {
   }
 
   /// Creates a resolver with Parcel settings.
-  pub fn parcel<C: Into<CacheCow<'a>>>(project_root: PathId, cache: C) -> Self {
-    let cache: CacheCow = cache.into();
+  pub fn parcel(project_root: PathId) -> Self {
     Self {
       project_root,
       extensions: Extensions::Borrowed(&["mjs", "js", "jsx", "cjs", "json"]),
       index_file: "index",
       entries: Fields::MAIN | Fields::SOURCE | Fields::BROWSER | Fields::MODULE,
       flags: Flags::all(),
-      cache,
       include_node_modules: Cow::Owned(IncludeNodeModules::default()),
       conditions: ExportsCondition::empty(),
       module_dir_resolver: None,
@@ -364,9 +339,9 @@ impl<'a> Resolver<'a> {
       // On a cache hit (the common case) the compute closure doesn't run, so no reentrancy; on a
       // miss `PackageJson::read` may re-enter `with_path`, which transparently falls back to a heap
       // path.
-      objects.get_or_compute(path, || Arc::new(PackageJson::read(&path, &self.cache, fs)))
+      objects.get_or_compute(path, || Arc::new(PackageJson::read(&path, fs)))
     } else {
-      Arc::new(PackageJson::read(&path, &self.cache, fs))
+      Arc::new(PackageJson::read(&path, fs))
     }
   }
 
@@ -408,11 +383,6 @@ impl<'a> Resolver<'a> {
       FileKind::IS_FILE,
       self.project_root,
     )
-  }
-
-  /// Returns the resolution cache.
-  pub fn cache(&self) -> &Cache {
-    &self.cache
   }
 }
 
@@ -588,12 +558,7 @@ impl<'a> ResolveRequest<'a> {
           if let Some(package) = package {
             let package = unwrap_arc(&package)?;
             let res = package
-              .resolve_package_imports(
-                hash,
-                self.conditions,
-                self.custom_conditions,
-                &self.resolver.cache,
-              )
+              .resolve_package_imports(hash, self.conditions, self.custom_conditions)
               .map_err(|error| ResolverError::PackageJsonError {
                 error,
                 module: package.name.to_owned(),
@@ -818,7 +783,7 @@ impl<'a> ResolveRequest<'a> {
 
     // Try the "source" field first, if present.
     if self.resolver.entries.contains(Fields::SOURCE) && subpath.is_empty() {
-      if let Some(source) = package.source(&self.resolver.cache) {
+      if let Some(source) = package.source() {
         if let Some(res) = self.load_path(&source, Some(&*package))? {
           return Ok(res);
         }
@@ -872,12 +837,7 @@ impl<'a> ResolveRequest<'a> {
     subpath: &str,
   ) -> Result<Resolution, ResolverError> {
     let path = package
-      .resolve_package_exports(
-        subpath,
-        self.conditions,
-        self.custom_conditions,
-        &self.resolver.cache,
-      )
+      .resolve_package_exports(subpath, self.conditions, self.custom_conditions)
       .map_err(|e| ResolverError::PackageJsonError {
         module: package.name.to_owned(),
         path: package.path.to_path_buf(),
@@ -912,10 +872,7 @@ impl<'a> ResolveRequest<'a> {
     package: &PackageJson,
   ) -> Result<Option<Resolution>, ResolverError> {
     // Try all entry fields.
-    if let Some((entry, field)) = package
-      .entries(self.resolver.entries, &self.resolver.cache)
-      .next()
-    {
+    if let Some((entry, field)) = package.entries(self.resolver.entries).next() {
       if let Some(res) = self.load_path(&entry, Some(package))? {
         return Ok(Some(res));
       } else {
@@ -1232,10 +1189,7 @@ impl<'a> ResolveRequest<'a> {
 
   fn resolve_tsconfig_paths(&self) -> Result<Option<Resolution>, ResolverError> {
     if let Some(tsconfig) = self.tsconfig() {
-      for path in unwrap_arc(tsconfig)?
-        .compiler_options
-        .paths(self.specifier, &self.resolver.cache)
-      {
+      for path in unwrap_arc(tsconfig)?.compiler_options.paths(self.specifier) {
         // TODO: should aliases apply to tsconfig paths??
         if let Some(res) = self.load_path(&path, None)? {
           return Ok(Some(res));
@@ -1312,7 +1266,6 @@ impl<'a> ResolveRequest<'a> {
               index_file: "tsconfig.json",
               entries: Fields::TSCONFIG,
               flags: Flags::NODE_CJS,
-              cache: CacheCow::Borrowed(&self.resolver.cache),
               include_node_modules: Cow::Owned(IncludeNodeModules::default()),
               conditions: ExportsCondition::TYPES,
               module_dir_resolver: self.resolver.module_dir_resolver.clone(),
@@ -1359,21 +1312,9 @@ impl<'a> ResolveRequest<'a> {
     };
 
     if let Some(objects) = self.fs.as_object_cache() {
-      objects.get_or_compute(path, || {
-        Arc::new(TsConfig::read(
-          &path,
-          process,
-          &self.resolver.cache,
-          self.fs,
-        ))
-      })
+      objects.get_or_compute(path, || Arc::new(TsConfig::read(&path, process, self.fs)))
     } else {
-      Arc::new(TsConfig::read(
-        &path,
-        process,
-        &self.resolver.cache,
-        self.fs,
-      ))
+      Arc::new(TsConfig::read(&path, process, self.fs))
     }
   }
 }
@@ -1387,33 +1328,9 @@ fn unwrap_arc<T, E: Clone>(arc: &Arc<Result<T, E>>) -> Result<&T, E> {
 
 #[cfg(test)]
 mod tests {
-  use std::collections::{BTreeMap, HashSet};
+  use std::collections::BTreeMap;
 
   use super::*;
-
-  #[derive(PartialEq, Eq, Hash, Debug, Clone)]
-  pub enum UncachedFileCreateInvalidation {
-    Path(PathBuf),
-    FileName { file_name: String, above: PathBuf },
-    Glob(String),
-  }
-
-  impl From<FileCreateInvalidation> for UncachedFileCreateInvalidation {
-    fn from(value: FileCreateInvalidation) -> Self {
-      match value {
-        FileCreateInvalidation::Path(cached_path) => {
-          UncachedFileCreateInvalidation::Path(cached_path.as_path().to_owned())
-        }
-        FileCreateInvalidation::FileName { file_name, above } => {
-          UncachedFileCreateInvalidation::FileName {
-            file_name,
-            above: above.as_path().to_owned(),
-          }
-        }
-        FileCreateInvalidation::Glob(glob) => UncachedFileCreateInvalidation::Glob(glob),
-      }
-    }
-  }
 
   fn root() -> PathId {
     PathId::new(
@@ -1426,8 +1343,8 @@ mod tests {
     )
   }
 
-  /// A test wrapper that supplies a default file system to each resolve call (resolution no longer
-  /// stores the fs in the cache) and keeps the old `.result` shape so the tests read unchanged.
+  /// A test wrapper that supplies a default file system to each resolve call and keeps the old
+  /// `.result` shape so the tests read unchanged.
   struct TestResolver<'a> {
     resolver: Resolver<'a>,
     fs: OsFileSystem,
@@ -1453,14 +1370,14 @@ mod tests {
 
   fn test_resolver<'a>() -> TestResolver<'a> {
     TestResolver {
-      resolver: Resolver::parcel(root(), Cache::default()),
+      resolver: Resolver::parcel(root()),
       fs: OsFileSystem::default(),
     }
   }
 
   fn node_resolver<'a>() -> TestResolver<'a> {
     TestResolver {
-      resolver: Resolver::node(root(), Cache::default()),
+      resolver: Resolver::node(root()),
       fs: OsFileSystem::default(),
     }
   }

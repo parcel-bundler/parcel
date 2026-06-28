@@ -51,11 +51,6 @@ pub fn build_options(
   }
 }
 
-/// Computes the project-relative `SourceUrl` for an absolute path, matching the URLs assets use.
-pub fn source_url(project_root: &SourceUrl, path: &str) -> SourceUrl {
-  SourceUrl::from_path(Path::new(path), project_root).unwrap()
-}
-
 /// A `FileSystem` wrapper that records every `write` and `remove_file` call, delegating all
 /// operations to an inner `MemoryFileSystem`. Used to assert exactly which bundle outputs were
 /// (re)written during a build.

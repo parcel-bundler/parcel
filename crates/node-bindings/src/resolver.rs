@@ -15,8 +15,8 @@ use parcel_core::{ExportsCondition, IncludeNodeModules, PathId};
 #[cfg(not(target_arch = "wasm32"))]
 use parcel_resolver::OsFileSystem;
 use parcel_resolver::{
-  Extensions, Fields, FileCreateInvalidation, FileKind, FileSystem, Flags, Invalidations,
-  ModuleType, Resolution, ResolutionAndQuery, ResolverError, SpecifierType,
+  Extensions, Fields, FileKind, FileSystem, Flags, ModuleType, Resolution, ResolutionAndQuery,
+  ResolverError, SpecifierType,
 };
 
 type NapiSideEffectsVariants = Either3<bool, Vec<String>, BTreeMap<String, bool>>;
@@ -231,8 +231,8 @@ impl Resolver {
 
     let project_root_id = PathId::new(Path::new(&project_root));
     let mut resolver = match options.mode {
-      1 => parcel_resolver::Resolver::parcel(project_root_id, parcel_resolver::Cache::new()),
-      2 => parcel_resolver::Resolver::node(project_root_id, parcel_resolver::Cache::new()),
+      1 => parcel_resolver::Resolver::parcel(project_root_id),
+      2 => parcel_resolver::Resolver::node(project_root_id),
       _ => return Err(napi::Error::new(napi::Status::InvalidArg, "Invalid mode")),
     };
 
@@ -347,14 +347,13 @@ impl Resolver {
     match parcel_dev_dep_resolver::build_esm_graph(
       path,
       &self.resolver.project_root.to_path_buf(),
-      self.resolver.cache(),
       &self.invalidations_cache,
-      &*self.fs,
+      self.fs.clone(),
     ) {
       Ok(invalidations) => {
-        let invalidate_on_startup = invalidations.invalidate_on_startup.get();
+        let invalidate_on_startup = invalidations.invalidate_on_startup;
         let (invalidate_on_file_change, invalidate_on_file_create) =
-          convert_invalidations(invalidations);
+          convert_core_invalidations(invalidations);
         Ok(JsInvalidations {
           invalidate_on_file_change,
           invalidate_on_file_create,
@@ -457,42 +456,34 @@ fn resolve_internal(
   ))
 }
 
-/// Converts the invalidations recorded by a [`parcel_core::TrackingFileSystem`] (absolute `file://`
-/// URLs) into the path-string form returned to JS.
-fn convert_core_invalidations(
-  invalidations: parcel_core::Invalidations,
-) -> ConvertedInvalidations {
-  fn to_path(url: &parcel_core::SourceUrl) -> Option<String> {
-    url
-      .url()
-      .to_file_path()
-      .ok()
-      .map(|p| p.to_string_lossy().into_owned())
+/// Converts the invalidations recorded by a [`parcel_core::TrackingFileSystem`] into the
+/// path-string form returned to JS.
+fn convert_core_invalidations(invalidations: parcel_core::Invalidations) -> ConvertedInvalidations {
+  fn to_path(path: &PathId) -> String {
+    path.to_path_buf().to_string_lossy().into_owned()
   }
 
   let invalidate_on_file_change = invalidations
     .invalidate_on_file_change
     .iter()
-    .filter_map(to_path)
+    .map(to_path)
     .collect();
 
   let invalidate_on_file_create = invalidations
     .invalidate_on_file_create
     .iter()
-    .filter_map(|inv| match inv {
-      parcel_core::FileCreateInvalidation::Path(p) => {
-        to_path(p).map(|file_path| Either3::A(FilePathCreateInvalidation { file_path }))
-      }
+    .map(|inv| match inv {
+      parcel_core::FileCreateInvalidation::Path(p) => Either3::A(FilePathCreateInvalidation {
+        file_path: to_path(p),
+      }),
       parcel_core::FileCreateInvalidation::FileName { file_name, above } => {
-        to_path(above).map(|above_file_path| {
-          Either3::B(FileNameCreateInvalidation {
-            file_name: file_name.clone(),
-            above_file_path,
-          })
+        Either3::B(FileNameCreateInvalidation {
+          file_name: file_name.clone(),
+          above_file_path: to_path(above),
         })
       }
       parcel_core::FileCreateInvalidation::Glob(glob) => {
-        Some(Either3::C(GlobCreateInvalidation { glob: glob.clone() }))
+        Either3::C(GlobCreateInvalidation { glob: glob.clone() })
       }
     })
     .collect();
@@ -535,35 +526,6 @@ type ConvertedInvalidations = (
   Vec<String>,
   Vec<Either3<FilePathCreateInvalidation, FileNameCreateInvalidation, GlobCreateInvalidation>>,
 );
-
-fn convert_invalidations(invalidations: Invalidations) -> ConvertedInvalidations {
-  let invalidate_on_file_change = invalidations
-    .invalidate_on_file_change
-    .borrow()
-    .iter()
-    .map(|p| p.as_path().to_string_lossy().into_owned())
-    .collect();
-  let invalidate_on_file_create = invalidations
-    .invalidate_on_file_create
-    .borrow()
-    .iter()
-    .map(|i| match i {
-      FileCreateInvalidation::Path(p) => Either3::A(FilePathCreateInvalidation {
-        file_path: p.as_path().to_string_lossy().into_owned(),
-      }),
-      FileCreateInvalidation::FileName { file_name, above } => {
-        Either3::B(FileNameCreateInvalidation {
-          file_name: file_name.clone(),
-          above_file_path: above.as_path().to_string_lossy().into_owned(),
-        })
-      }
-      FileCreateInvalidation::Glob(glob) => {
-        Either3::C(GlobCreateInvalidation { glob: glob.clone() })
-      }
-    })
-    .collect();
-  (invalidate_on_file_change, invalidate_on_file_create)
-}
 
 fn get_resolve_options(mut custom_conditions: Vec<String>) -> parcel_resolver::ResolveOptions {
   let mut conditions = ExportsCondition::empty();

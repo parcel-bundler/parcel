@@ -42,9 +42,14 @@ impl TransformRequest {
     let mut invalidations = Invalidations::default();
 
     // Add the source file itself as an invalidation so changes to it trigger re-transformation.
-    invalidations
-      .invalidate_on_file_change
-      .push(self.req.loc.url.clone());
+    invalidations.invalidate_on_file_change.push(
+      self
+        .req
+        .loc
+        .url
+        .to_file_path(&self.options.project_root)
+        .unwrap(),
+    );
 
     let result = self.transform(&mut invalidations);
 
