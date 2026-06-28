@@ -1,6 +1,6 @@
 use std::{
   ffi::OsStr,
-  path::{Component, Path, PathBuf},
+  path::{Component, PathBuf},
 };
 
 use parcel_core::{
@@ -37,13 +37,7 @@ impl Namer for DefaultNamer {
         if bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
           let relative = relative_path(
             asset,
-            &bundle
-              .target
-              .dist_dir
-              .to_file_path()?
-              .parent()
-              .unwrap()
-              .to_path_buf(),
+            &bundle.target.dist_dir.to_file_path()?.parent().unwrap(),
           )?
           .with_extension("");
           let name = relative.to_str().unwrap();
@@ -72,7 +66,6 @@ impl Namer for DefaultNamer {
                     .url
                     .to_file_path()
                     .unwrap()
-                    .to_path_buf()
                 }),
             );
             if let Some(entry_root) = entry_root {
@@ -121,11 +114,11 @@ fn hash_bundle(asset_graph: &AssetGraph, bundle: &Bundle, project_root: &PathId)
   hash.digest()
 }
 
-fn relative_path(asset: &Asset, from: &Path) -> Result<PathBuf, Diagnostic> {
+fn relative_path(asset: &Asset, from: &PathId) -> Result<PathBuf, Diagnostic> {
   let path = asset.loc.url.to_file_path()?;
   Ok(
-    pathdiff::diff_paths(path.to_path_buf(), from)
-      .unwrap()
+    path
+      .relative(from)
       .components()
       .map(|c| match c {
         Component::ParentDir => Component::Normal(OsStr::new("up")),
@@ -154,26 +147,88 @@ fn format_name(
   }
 }
 
-fn common_root_path(paths: impl IntoIterator<Item = PathBuf>) -> Option<PathBuf> {
+fn common_root_path(paths: impl IntoIterator<Item = PathId>) -> Option<PathId> {
   let mut path_iter = paths.into_iter();
-  let mut root = path_iter.next()?.parent()?.to_path_buf();
+  let mut root = path_iter.next()?.parent()?;
 
   for path in path_iter {
-    let mut new_root = PathBuf::new();
-    let mut found = false;
-    for (a, b) in root.components().zip(path.parent()?.components()) {
-      if a == b {
-        found = true;
-        new_root.push(a);
-      } else {
-        break;
-      }
-    }
-    root = new_root;
-    if !found {
-      return None;
+    let path = path.parent()?;
+    while !path.ancestors().any(|ancestor| ancestor == root) {
+      root = root.parent()?;
     }
   }
 
   Some(root)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::path::Path;
+
+  fn path(path: &str) -> PathId {
+    PathId::new(Path::new(path))
+  }
+
+  fn common(paths: &[&str]) -> Option<PathBuf> {
+    common_root_path(paths.iter().map(|path| self::path(path))).map(|path| path.to_path_buf())
+  }
+
+  #[test]
+  fn common_root_path_returns_parent_for_single_path() {
+    assert_eq!(
+      common(&["/project/src/index.js"]),
+      Some(PathBuf::from("/project/src"))
+    );
+  }
+
+  #[test]
+  fn common_root_path_returns_shared_directory_for_siblings() {
+    assert_eq!(
+      common(&["/project/src/index.js", "/project/src/app.js"]),
+      Some(PathBuf::from("/project/src"))
+    );
+  }
+
+  #[test]
+  fn common_root_path_returns_deepest_shared_parent() {
+    assert_eq!(
+      common(&[
+        "/project/src/routes/home/index.js",
+        "/project/src/routes/about/index.js",
+        "/project/src/routes/contact/form.js"
+      ]),
+      Some(PathBuf::from("/project/src/routes"))
+    );
+  }
+
+  #[test]
+  fn common_root_path_walks_up_to_project_root() {
+    assert_eq!(
+      common(&[
+        "/project/src/index.js",
+        "/project/assets/logo.svg",
+        "/project/package.json"
+      ]),
+      Some(PathBuf::from("/project"))
+    );
+  }
+
+  #[test]
+  fn common_root_path_returns_filesystem_root_for_unrelated_paths() {
+    assert_eq!(
+      common(&["/project/src/index.js", "/vendor/lib/index.js"]),
+      Some(PathBuf::from("/"))
+    );
+  }
+
+  #[test]
+  fn common_root_path_returns_none_for_empty_input() {
+    assert_eq!(common(&[]), None);
+  }
+
+  #[test]
+  fn common_root_path_returns_none_for_root_input() {
+    assert_eq!(common(&["/"]), None);
+  }
 }

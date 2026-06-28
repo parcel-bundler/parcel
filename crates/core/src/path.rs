@@ -128,6 +128,11 @@ impl PathId {
     GLOBAL_INTERNER.with_path(*self, f)
   }
 
+  /// Returns the relative path from `from` to this path.
+  pub fn relative(&self, from: &PathId) -> PathBuf {
+    GLOBAL_INTERNER.relative(*self, *from)
+  }
+
   pub fn in_node_modules(&self) -> bool {
     self.ancestors().any(|a| a.file_name() == "node_modules")
   }
@@ -319,6 +324,57 @@ impl PathInterner {
     })
   }
 
+  /// Returns the relative path from `from` to `id`.
+  pub fn relative(&self, id: PathId, from: PathId) -> PathBuf {
+    let mut path = id;
+    let mut base = from;
+    let mut path_depth = self.depth(path);
+    let mut base_depth = self.depth(base);
+    let mut parent_dirs = 0;
+
+    while base_depth > path_depth {
+      let Some(parent) = self.parent(base) else {
+        return self.to_path_buf(id);
+      };
+      base = parent;
+      base_depth -= 1;
+      parent_dirs += 1;
+    }
+
+    while path_depth > base_depth {
+      let Some(parent) = self.parent(path) else {
+        return self.to_path_buf(id);
+      };
+      path = parent;
+      path_depth -= 1;
+    }
+
+    while path != base {
+      let (Some(path_parent), Some(base_parent)) = (self.parent(path), self.parent(base)) else {
+        return self.to_path_buf(id);
+      };
+      path = path_parent;
+      base = base_parent;
+      parent_dirs += 1;
+    }
+
+    let mut res = PathBuf::new();
+    for _ in 0..parent_dirs {
+      res.push(Component::ParentDir);
+    }
+    self.push_segments_after(&mut res, id, path);
+    res
+  }
+
+  fn depth(&self, mut id: PathId) -> usize {
+    let mut depth = 1;
+    while let Some(parent) = self.parent(id) {
+      id = parent;
+      depth += 1;
+    }
+    depth
+  }
+
   /// Appends `id`'s segments to `buf` in root-to-leaf order. Recurses to the parent first so the
   /// segments land in the correct order; `PathBuf::push` handles separators (and the `/` root).
   fn push_segments(&self, buf: &mut PathBuf, id: PathId) {
@@ -327,6 +383,17 @@ impl PathInterner {
       self.push_segments(buf, parent);
     }
     buf.push(self.segments[node.segment as usize].as_ref());
+  }
+
+  fn push_segments_after(&self, buf: &mut PathBuf, id: PathId, ancestor: PathId) {
+    if id == ancestor {
+      return;
+    }
+    let parent = self
+      .parent(id)
+      .expect("ancestor should be in id's parent chain");
+    self.push_segments_after(buf, parent, ancestor);
+    buf.push(self.file_name(id));
   }
 
   /// Renders `id` as a normalized, `/`-separated string (stable across platforms).
@@ -500,5 +567,70 @@ mod tests {
       // After the nested call returns, the outer borrow must still be intact.
       assert_eq!(pa, Path::new("/a/b/c.js"));
     });
+  }
+
+  #[test]
+  fn relative_path_to_child() {
+    let interner = PathInterner::new();
+    let from = interner.intern(Path::new("/project/src"));
+    let path = interner.intern(Path::new("/project/src/foo.js"));
+    assert_eq!(interner.relative(path, from), PathBuf::from("foo.js"));
+
+    let from = PathId::new(Path::new("/project/src"));
+    let path = PathId::new(Path::new("/project/src/foo.js"));
+    assert_eq!(path.relative(&from), PathBuf::from("foo.js"));
+  }
+
+  #[test]
+  fn relative_path_to_sibling() {
+    let interner = PathInterner::new();
+    let from = interner.intern(Path::new("/project/src/foo.js"));
+    let path = interner.intern(Path::new("/project/src/bar.js"));
+    assert_eq!(interner.relative(path, from), PathBuf::from("../bar.js"));
+  }
+
+  #[test]
+  fn relative_path_to_parent() {
+    let interner = PathInterner::new();
+    let from = interner.intern(Path::new("/project/src/components"));
+    let path = interner.intern(Path::new("/project/src"));
+    assert_eq!(interner.relative(path, from), PathBuf::from(".."));
+  }
+
+  #[test]
+  fn relative_path_to_divergent_path() {
+    let interner = PathInterner::new();
+    let from = interner.intern(Path::new("/project/src/components"));
+    let path = interner.intern(Path::new("/project/assets/logo.svg"));
+    assert_eq!(
+      interner.relative(path, from),
+      PathBuf::from("../../assets/logo.svg")
+    );
+  }
+
+  #[test]
+  fn relative_path_to_same_path() {
+    let interner = PathInterner::new();
+    let path = interner.intern(Path::new("/project/src/foo.js"));
+    assert_eq!(interner.relative(path, path), PathBuf::new());
+  }
+
+  #[test]
+  fn relative_path_from_root() {
+    let interner = PathInterner::new();
+    let from = interner.intern(Path::new("/"));
+    let path = interner.intern(Path::new("/project/src/foo.js"));
+    assert_eq!(
+      interner.relative(path, from),
+      PathBuf::from("project/src/foo.js")
+    );
+  }
+
+  #[test]
+  fn relative_path_to_root() {
+    let interner = PathInterner::new();
+    let from = interner.intern(Path::new("/project/src"));
+    let path = interner.intern(Path::new("/"));
+    assert_eq!(interner.relative(path, from), PathBuf::from("../.."));
   }
 }

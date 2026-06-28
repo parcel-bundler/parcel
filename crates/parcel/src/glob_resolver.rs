@@ -29,7 +29,7 @@ impl Resolver for GlobResolver {
     let files: Vec<_> = fs
       .glob(specifier, dir)
       .into_iter()
-      .filter_map(|path| pathdiff::diff_paths(path.to_path_buf(), dir.to_path_buf()))
+      .map(|path| path.relative(&dir))
       .collect();
 
     // Build the nested object tree from all wildcard captures.
