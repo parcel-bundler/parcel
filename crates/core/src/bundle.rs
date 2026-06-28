@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
@@ -61,10 +61,13 @@ impl Bundle {
   }
 
   pub fn dist_path(&self) -> PathId {
-    self.dist_url().to_file_path().unwrap()
+    self
+      .target
+      .dist_dir
+      .join(Path::new(self.name.as_ref().unwrap()))
   }
 
   pub fn dist_url(&self) -> SourceUrl {
-    self.target.dist_dir.join(self.name.as_ref().unwrap())
+    SourceUrl::from_path(&self.dist_path()).unwrap()
   }
 }

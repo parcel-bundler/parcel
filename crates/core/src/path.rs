@@ -138,6 +138,12 @@ impl PathId {
   }
 }
 
+impl Default for PathId {
+  fn default() -> Self {
+    Self::root()
+  }
+}
+
 impl std::fmt::Debug for PathId {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     self.to_path_buf().fmt(f)

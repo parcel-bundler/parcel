@@ -1,8 +1,8 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use serde::Deserialize;
 
-use crate::{OsFileSystem, PathId, SourceUrl, fs::FileSystem};
+use crate::{OsFileSystem, PathId, fs::FileSystem};
 
 #[derive(Clone)]
 pub struct BuildOptions {

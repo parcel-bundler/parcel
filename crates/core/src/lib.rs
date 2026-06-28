@@ -22,7 +22,7 @@ mod transformer;
 
 use std::{
   collections::{HashMap, HashSet},
-  path::{Path, PathBuf},
+  path::Path,
   sync::Arc,
 };
 

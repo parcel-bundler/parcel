@@ -580,13 +580,11 @@ pub extern "C" fn parcel_target_get_dist_dir(buf: *mut Buffer, target: Target, _
     return;
   }
   let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };
-  let Ok(path) = target.dist_dir.to_file_path() else {
-    return;
-  };
   unsafe {
     write_buffer(
       buf,
-      path
+      target
+        .dist_dir
         .to_path_buf()
         .to_string_lossy()
         .into_owned()

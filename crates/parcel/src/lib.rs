@@ -84,13 +84,7 @@ pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
   let graph = parcel.build()?;
   println!("Built in {:?}", start.elapsed());
 
-  let server = server::serve_dir(
-    &graph.asset_graph.entries[0]
-      .target
-      .dist_dir
-      .to_file_path()?
-      .to_path_buf(),
-  );
+  let server = server::serve_dir(&graph.asset_graph.entries[0].target.dist_dir.to_path_buf());
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {

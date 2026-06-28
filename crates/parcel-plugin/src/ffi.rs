@@ -348,7 +348,7 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
   #[doc = " Returns the absolute filesystem path of the source asset into `*buf`.\n `options` is the handle received from `parcel_plugin_transform()`.\n Caller must `parcel_free_buffer(buf)`."]
-  pub fn parcel_asset_get_file_path(buf: *mut Buffer, asset: Asset, options: Options);
+  pub fn parcel_asset_get_file_path(buf: *mut Buffer, asset: Asset, _options: Options);
 }
 unsafe extern "C" {
   #[doc = " Returns the named pipeline into `*buf`, or leaves `buf->data == NULL` if none is set.\n Caller must `parcel_free_buffer(buf)` when `data != NULL`."]
@@ -408,7 +408,7 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
   #[doc = " Returns the absolute path of the dist directory into `*buf`.\n `options` is the handle received from `parcel_plugin_transform()`.\n Caller must `parcel_free_buffer(buf)`."]
-  pub fn parcel_target_get_dist_dir(buf: *mut Buffer, target: Target, options: Options);
+  pub fn parcel_target_get_dist_dir(buf: *mut Buffer, target: Target, _options: Options);
 }
 unsafe extern "C" {
   #[doc = " Appends a dependency to the asset. The new dependency inherits the asset's target."]
@@ -440,11 +440,11 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
   #[doc = " Returns the absolute path of the file containing this import into `*buf`."]
-  pub fn parcel_dep_get_source_path(buf: *mut Buffer, dep: Dependency, options: Options);
+  pub fn parcel_dep_get_source_path(buf: *mut Buffer, dep: Dependency, _options: Options);
 }
 unsafe extern "C" {
   #[doc = " Returns the base path for resolving the specifier into `*buf`.\n Falls back to the source file path when `resolve_from` is not set."]
-  pub fn parcel_dep_get_resolve_from(buf: *mut Buffer, dep: Dependency, options: Options);
+  pub fn parcel_dep_get_resolve_from(buf: *mut Buffer, dep: Dependency, _options: Options);
 }
 unsafe extern "C" {
   #[doc = " Returns an opaque `Target` handle for the dependency."]

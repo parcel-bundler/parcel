@@ -79,7 +79,7 @@ pub fn resolve_entries(
         engines,
         flags,
         output_format,
-        dist_dir: SourceUrl::from_directory_path(&project_root.child("dist"))?,
+        dist_dir: project_root.child("dist"),
         ..Default::default()
       });
 
@@ -185,7 +185,7 @@ impl EntryResolver {
           self.add_entry(Entry {
             url: SourceUrl::from_path(&source)?,
             target: Arc::new(Target {
-              dist_dir: SourceUrl::from_directory_path(&dir)?,
+              dist_dir: dir,
               ..Default::default()
             }),
             dist_entry: None,
@@ -434,7 +434,7 @@ impl<'a> ExportsContext<'a> {
       loc: None,
       include_node_modules,
       engines: package_engines(pkg, self.engines, context, output_format),
-      dist_dir: SourceUrl::from_directory_path(dir)?,
+      dist_dir: *dir,
       public_url: String::new(),
     })
   }
@@ -600,7 +600,7 @@ mod tests {
             output_format: crate::OutputFormat::Esmodule,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Array(vec!["foo".into()]),
-            dist_dir: SourceUrl::parse("file:///root/").unwrap(),
+            dist_dir: PathId::new(Path::new("/root")),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
@@ -614,7 +614,7 @@ mod tests {
             output_format: crate::OutputFormat::Commonjs,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Array(vec!["foo".into()]),
-            dist_dir: SourceUrl::parse("file:///root/").unwrap(),
+            dist_dir: PathId::new(Path::new("/root")),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
@@ -642,7 +642,7 @@ mod tests {
             output_format: crate::OutputFormat::Commonjs,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             flags: EnvironmentFlags::IS_LIBRARY,
-            dist_dir: SourceUrl::parse("file:///root/").unwrap(),
+            dist_dir: PathId::new(Path::new("/root")),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
@@ -657,7 +657,7 @@ mod tests {
             output_format: crate::OutputFormat::Commonjs,
             flags: EnvironmentFlags::IS_LIBRARY,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: SourceUrl::parse("file:///root/").unwrap(),
+            dist_dir: PathId::new(Path::new("/root")),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
@@ -692,7 +692,7 @@ mod tests {
             output_format: crate::OutputFormat::Esmodule,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
-            dist_dir: SourceUrl::parse("file:///root/").unwrap(),
+            dist_dir: PathId::new(Path::new("/root")),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
@@ -707,7 +707,7 @@ mod tests {
             output_format: crate::OutputFormat::Commonjs,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
-            dist_dir: SourceUrl::parse("file:///root/").unwrap(),
+            dist_dir: PathId::new(Path::new("/root")),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
@@ -721,7 +721,7 @@ mod tests {
             output_format: crate::OutputFormat::Esmodule,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: SourceUrl::parse("file:///root/").unwrap(),
+            dist_dir: PathId::new(Path::new("/root")),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
@@ -735,7 +735,7 @@ mod tests {
             output_format: crate::OutputFormat::Commonjs,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: SourceUrl::parse("file:///root/").unwrap(),
+            dist_dir: PathId::new(Path::new("/root")),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
@@ -769,7 +769,7 @@ mod tests {
             output_format: crate::OutputFormat::Esmodule,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: SourceUrl::parse("file:///root/").unwrap(),
+            dist_dir: PathId::new(Path::new("/root")),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
@@ -784,7 +784,7 @@ mod tests {
             output_format: crate::OutputFormat::Commonjs,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: SourceUrl::parse("file:///root/").unwrap(),
+            dist_dir: PathId::new(Path::new("/root")),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
@@ -798,7 +798,7 @@ mod tests {
             output_format: crate::OutputFormat::Esmodule,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: SourceUrl::parse("file:///root/").unwrap(),
+            dist_dir: PathId::new(Path::new("/root")),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
@@ -812,7 +812,7 @@ mod tests {
             output_format: crate::OutputFormat::Commonjs,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: SourceUrl::parse("file:///root/").unwrap(),
+            dist_dir: PathId::new(Path::new("/root")),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
@@ -845,7 +845,7 @@ mod tests {
             node: Some(Version::new(NonZero::new(20).unwrap(), 0)),
             ..Default::default()
           },
-          dist_dir: SourceUrl::parse("file:///root/").unwrap(),
+          dist_dir: PathId::new(Path::new("/root")),
           source_map: Some(Default::default()),
           ..Default::default()
         }),
@@ -880,7 +880,7 @@ mod tests {
             },
             ..Default::default()
           },
-          dist_dir: SourceUrl::parse("file:///root/").unwrap(),
+          dist_dir: PathId::new(Path::new("/root")),
           source_map: Some(Default::default()),
           ..Default::default()
         }),
@@ -913,7 +913,7 @@ mod tests {
               },
               ..Default::default()
             },
-            dist_dir: SourceUrl::parse("file:///root/").unwrap(),
+            dist_dir: PathId::new(Path::new("/root")),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
@@ -935,7 +935,7 @@ mod tests {
               },
               ..Default::default()
             },
-            dist_dir: SourceUrl::parse("file:///root/").unwrap(),
+            dist_dir: PathId::new(Path::new("/root")),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
@@ -968,7 +968,7 @@ mod tests {
             output_format: crate::OutputFormat::Esmodule,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: SourceUrl::parse("file:///root/").unwrap(),
+            dist_dir: PathId::new(Path::new("/root")),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
@@ -983,7 +983,7 @@ mod tests {
             output_format: crate::OutputFormat::Esmodule,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: SourceUrl::parse("file:///root/").unwrap(),
+            dist_dir: PathId::new(Path::new("/root")),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
@@ -1010,7 +1010,7 @@ mod tests {
             output_format: crate::OutputFormat::Esmodule,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: SourceUrl::parse("file:///root/dist/").unwrap(),
+            dist_dir: PathId::new(Path::new("/root/dist")),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
@@ -1025,7 +1025,7 @@ mod tests {
             output_format: crate::OutputFormat::Esmodule,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: SourceUrl::parse("file:///root/dist/").unwrap(),
+            dist_dir: PathId::new(Path::new("/root/dist")),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
@@ -1066,7 +1066,7 @@ mod tests {
             },
             ..Default::default()
           },
-          dist_dir: SourceUrl::parse("file:///root/dist/").unwrap(),
+          dist_dir: PathId::new(Path::new("/root/dist")),
           source_map: Some(Default::default()),
           ..Default::default()
         }),
@@ -1110,7 +1110,7 @@ mod tests {
             },
             ..Default::default()
           },
-          dist_dir: SourceUrl::parse("file:///root/dist/").unwrap(),
+          dist_dir: PathId::new(Path::new("/root/dist")),
           source_map: Some(Default::default()),
           ..Default::default()
         }),
@@ -1135,7 +1135,7 @@ mod tests {
           output_format: crate::OutputFormat::Esmodule,
           flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
           include_node_modules: crate::IncludeNodeModules::Bool(false),
-          dist_dir: SourceUrl::parse("file:///root/style/dist/").unwrap(),
+          dist_dir: PathId::new(Path::new("/root/style/dist")),
           source_map: Some(Default::default()),
           ..Default::default()
         }),

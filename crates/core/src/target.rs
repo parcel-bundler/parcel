@@ -16,7 +16,7 @@ pub struct Target {
   pub loc: Option<SourceLocation>,
   pub include_node_modules: IncludeNodeModules,
   pub engines: Engines,
-  pub dist_dir: SourceUrl,
+  pub dist_dir: PathId,
   pub public_url: String,
 }
 
@@ -59,7 +59,9 @@ impl Target {
     }
     self.include_node_modules.hash(state);
     self.engines.hash(state);
-    self.dist_dir.stable_hash(project_root, state);
+    SourceUrl::from_directory_path(&self.dist_dir)
+      .unwrap()
+      .stable_hash(project_root, state);
     self.public_url.hash(state);
   }
 }

@@ -35,11 +35,8 @@ impl Namer for DefaultNamer {
     if let Some(entry) = bundle.main_entry_asset {
       if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[entry] {
         if bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
-          let relative = relative_path(
-            asset,
-            &bundle.target.dist_dir.to_file_path()?.parent().unwrap(),
-          )?
-          .with_extension("");
+          let relative =
+            relative_path(asset, &bundle.target.dist_dir.parent().unwrap())?.with_extension("");
           let name = relative.to_str().unwrap();
           return Ok(Some(format_name(
             &bundle_graph.asset_graph,
