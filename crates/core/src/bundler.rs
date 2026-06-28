@@ -6,7 +6,11 @@ use crate::{
 };
 
 pub trait Bundler: Send + Sync {
-  fn bundle(&self, asset_graph: AssetGraph) -> Result<BundleGraph, DiagnosticList>;
+  fn bundle(
+    &self,
+    asset_graph: AssetGraph,
+    options: &ParcelOptions,
+  ) -> Result<BundleGraph, DiagnosticList>;
 }
 
 pub fn bundle(
@@ -14,7 +18,7 @@ pub fn bundle(
   config: &ParcelConfig,
   options: &ParcelOptions,
 ) -> Result<BundleGraph, DiagnosticList> {
-  let mut bundle_graph = config.bundler.bundle(asset_graph)?;
+  let mut bundle_graph = config.bundler.bundle(asset_graph, options)?;
   bundle_graph.project_root = options.project_root.clone();
 
   let mut seen_bundles = HashSet::new();

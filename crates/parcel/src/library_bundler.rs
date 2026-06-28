@@ -2,13 +2,17 @@ use std::{any::TypeId, collections::HashMap, hash::Hash};
 
 use parcel_core::{
   AssetGraph, AssetNode, Bundle, BundleFlags, BundleGraph, Bundler, DependencyResolution,
-  DiagnosticList, PathId, SourceUrl, Target,
+  DiagnosticList, ParcelOptions, PathId, SourceUrl, Target,
 };
 
 pub struct LibraryBundler {}
 
 impl Bundler for LibraryBundler {
-  fn bundle(&self, mut asset_graph: AssetGraph) -> Result<BundleGraph, DiagnosticList> {
+  fn bundle(
+    &self,
+    mut asset_graph: AssetGraph,
+    _options: &ParcelOptions,
+  ) -> Result<BundleGraph, DiagnosticList> {
     #[derive(Hash, PartialEq, Eq)]
     struct BundleKey<'a> {
       url: &'a SourceUrl,

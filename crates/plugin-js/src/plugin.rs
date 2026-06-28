@@ -77,11 +77,11 @@ impl<'js> Trace<'js> for JsAsset {
 #[methods(rename_all = "camelCase")]
 impl JsAsset {
   #[qjs(get)]
-  fn url(&self) -> &str {
+  fn url(&self) -> String {
     let Some(asset) = &self.asset else {
       unreachable!()
     };
-    asset.loc.url.as_str()
+    asset.loc.url.to_string()
   }
 
   #[qjs(get, rename = "type")]

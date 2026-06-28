@@ -251,7 +251,7 @@ pub fn optimize_html(options: OptimizeHtmlOptions) -> Result<PackageResult, ()> 
   let url = options
     .project_root
     .map(|project_root| options.url.stable_id(&project_root))
-    .unwrap_or_else(|| options.url.as_str().to_owned());
+    .unwrap_or_else(|| options.url.to_string());
   optimize(&arena, dom, options.config, &url);
 
   let mut vec: Vec<u8> = Vec::new();
@@ -287,7 +287,7 @@ pub fn optimize_svg(options: OptimizeSvgOptions) -> Result<PackageResult, ()> {
   let url = options
     .project_root
     .map(|project_root| options.url.stable_id(&project_root))
-    .unwrap_or_else(|| options.url.as_str().to_owned());
+    .unwrap_or_else(|| options.url.to_string());
   optimize::optimize_svg(&arena, dom, &options.config, &url);
 
   let mut vec = Vec::new();
@@ -322,7 +322,7 @@ pub fn svg_react(mut options: SvgReactOptions) -> Result<PackageResult, ()> {
     let url = options
       .project_root
       .map(|project_root| options.url.stable_id(&project_root))
-      .unwrap_or_else(|| options.url.as_str().to_owned());
+      .unwrap_or_else(|| options.url.to_string());
     optimize::optimize_svg(&arena, dom, &options.config.svgo_config, &url);
   }
 

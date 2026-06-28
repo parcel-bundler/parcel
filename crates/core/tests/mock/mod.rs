@@ -253,8 +253,8 @@ fn make_dep(
 /// configuration file (tsconfig, package.json aliases, etc.).
 struct MockResolver;
 
-fn alias_config_url() -> SourceUrl {
-  SourceUrl::from_path(&PathId::new(std::path::Path::new("/aliases.json"))).unwrap()
+fn alias_config_url(options: &ParcelOptions) -> SourceUrl {
+  SourceUrl::from_path(&options.project_root.child("aliases.json")).unwrap()
 }
 
 impl Resolver for MockResolver {
@@ -269,7 +269,7 @@ impl Resolver for MockResolver {
     let resolved = if specifier.starts_with('#') {
       // Alias specifier: look it up in the config file. Reading it through `fs` (the tracking file
       // system) automatically records a dependency on it, so editing it re-resolves the importer.
-      let config_url = alias_config_url();
+      let config_url = alias_config_url(options);
       let config_path = config_url.to_file_path()?;
       let bytes = fs.read(config_path).map_err(Diagnostic::from)?;
       let aliases: serde_json::Map<String, serde_json::Value> =
@@ -325,7 +325,11 @@ impl Resolver for MockResolver {
 struct MockBundler;
 
 impl Bundler for MockBundler {
-  fn bundle(&self, asset_graph: AssetGraph) -> Result<BundleGraph, DiagnosticList> {
+  fn bundle(
+    &self,
+    asset_graph: AssetGraph,
+    _options: &ParcelOptions,
+  ) -> Result<BundleGraph, DiagnosticList> {
     // Bundle roots: start with the entries (in order), then async targets discovered while
     // walking each bundle's synchronous subgraph.
     let mut roots: Vec<(usize, bool)> = Vec::new();
@@ -448,8 +452,8 @@ impl Namer for MockNamer {
     }
 
     let asset = bundle_graph.asset_graph.assets[main].expect_asset();
-    let path = asset.loc.url.path();
-    let file = path.rsplit('/').next().unwrap_or(path);
+    let path = asset.loc.url.to_file_path().unwrap();
+    let file = path.file_name();
     let stem = file.rsplit_once('.').map(|(s, _)| s).unwrap_or(file);
     Ok(Some(format!("{}.{}", stem, bundle.ty.extension())))
   }

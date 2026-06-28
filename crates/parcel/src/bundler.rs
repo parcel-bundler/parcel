@@ -8,7 +8,7 @@ use glob_match::glob_match;
 use parcel_core::{
   Asset, AssetGraph, AssetNode, AssetType, Bundle, BundleBehavior, BundleFlags, BundleGraph,
   Bundler, DependencyFlags, DependencyResolution, DiagnosticList, Environment, EnvironmentFlags,
-  PathId, Priority, SourceUrl, SpecifierType,
+  ParcelOptions, PathId, Priority, SpecifierType,
 };
 
 use crate::library_bundler::LibraryBundler;
@@ -28,20 +28,34 @@ pub struct DefaultBundler {
 }
 
 impl DefaultBundler {
-  fn manual_shared_bundle(&self, asset: &Asset) -> Option<usize> {
-    let path = &asset.loc.url.path()[1..];
-    return self.manual_shared_bundles.iter().position(|b| {
+  fn manual_shared_bundle(&self, asset: &Asset, options: &ParcelOptions) -> Option<usize> {
+    let path = asset
+      .loc
+      .url
+      .to_file_path()
+      .ok()
+      .map(|path| path.relative(&options.project_root));
+    let Some(path) = path else {
+      return None;
+    };
+    let path = path.to_string_lossy();
+
+    self.manual_shared_bundles.iter().position(|b| {
       if b.types.is_empty() || b.types.contains(&asset.ty) {
-        return b.assets.iter().any(|a| glob_match(a, path));
+        return b.assets.iter().any(|a| glob_match(a, &path));
       }
 
       false
-    });
+    })
   }
 }
 
 impl Bundler for DefaultBundler {
-  fn bundle(&self, mut asset_graph: AssetGraph) -> Result<BundleGraph, DiagnosticList> {
+  fn bundle(
+    &self,
+    mut asset_graph: AssetGraph,
+    options: &ParcelOptions,
+  ) -> Result<BundleGraph, DiagnosticList> {
     if asset_graph.entries.iter().all(|e| {
       asset_graph.assets[e.asset.unwrap()]
         .expect_asset()
@@ -49,7 +63,7 @@ impl Bundler for DefaultBundler {
         .flags
         .contains(EnvironmentFlags::IS_LIBRARY)
     }) {
-      return LibraryBundler {}.bundle(asset_graph);
+      return LibraryBundler {}.bundle(asset_graph, options);
     }
 
     let mut bundles = Vec::<Bundle>::new();
@@ -153,7 +167,7 @@ impl Bundler for DefaultBundler {
           referenced_bundles: Vec::new(),
         };
 
-        let key = if let Some(index) = self.manual_shared_bundle(asset) {
+        let key = if let Some(index) = self.manual_shared_bundle(asset, options) {
           BundleKey::Manual {
             index,
             packager: asset.content.type_id(),
@@ -180,7 +194,7 @@ impl Bundler for DefaultBundler {
         continue;
       }
 
-      let key = if let Some(index) = self.manual_shared_bundle(asset) {
+      let key = if let Some(index) = self.manual_shared_bundle(asset, options) {
         BundleKey::Manual {
           index,
           packager: asset.content.type_id(),

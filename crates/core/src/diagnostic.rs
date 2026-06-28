@@ -350,16 +350,10 @@ impl CodeFrame {
         .fg_color(Some(Color::Ansi(AnsiColor::BrightBlack)))
         .underline();
 
-      let cwd =
-        SourceUrl::from_directory_path(&PathId::new(&std::env::current_dir().unwrap_or_default()))
-          .unwrap();
-      let relative = url
-        .to_file_url()
-        .unwrap()
-        .relative(&cwd)
-        .unwrap_or_else(|| url.as_str().to_owned());
+      let cwd = PathId::new(&std::env::current_dir().unwrap_or_default());
+      let relative = url.to_file_path().unwrap().relative(&cwd);
 
-      write!(dest, "{style}{}", relative)?;
+      write!(dest, "{style}{}", relative.to_string_lossy())?;
       if let Some(highlight) = self.code_highlights.first() {
         write!(dest, ":{}:{}", highlight.start.line, highlight.start.column)?;
       }

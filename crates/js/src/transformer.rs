@@ -775,7 +775,9 @@ fn config(
     is_library: asset.target.flags.contains(EnvironmentFlags::IS_LIBRARY),
     is_esm_output: asset.target.output_format == OutputFormat::Esmodule,
     trace_bailouts: options.log_level == LogLevel::Verbose,
-    is_swc_helpers: asset.loc.url.as_str().contains("@swc/helpers"),
+    is_swc_helpers: asset.loc.url.to_file_path()?.ancestors().any(|p| {
+      p.file_name() == "helpers" && p.parent().map(|p| p.file_name() == "@swc") == Some(true)
+    }),
     standalone: asset
       .loc
       .url

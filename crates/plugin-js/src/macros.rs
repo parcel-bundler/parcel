@@ -103,7 +103,8 @@ impl MacroContext {
   #[qjs(get)]
   fn loc<'js>(&self, ctx: Ctx<'js>) -> rquickjs::Result<Object<'js>> {
     let res = Object::new(ctx)?;
-    res.set("filePath", self.url.as_str())?;
+    let path = self.url.to_file_path().unwrap().to_path_buf();
+    res.set("filePath", path.to_string_lossy().as_ref())?;
     res.set("line", self.loc.line)?;
     res.set("col", self.loc.col)?;
     Ok(res)
@@ -138,7 +139,7 @@ pub fn call_macro(
         &format!(
           "Macro export {} in {} is not a function",
           export,
-          url.as_str()
+          url.to_string()
         ),
       ));
     };

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, DependencyFlags, DependencyResolution,
@@ -67,7 +67,12 @@ impl TransformRequest {
     flags.set(AssetFlags::SIDE_EFFECTS, req.side_effects);
     flags.set(
       AssetFlags::IS_SOURCE,
-      !req.loc.url.as_str().contains("/node_modules/"), // TODO: symlinks
+      !req
+        .loc
+        .url
+        .to_file_path()?
+        .ancestors()
+        .any(|a| a.file_name() == "node_modules"), // TODO: symlinks
     );
 
     let asset = Asset {
@@ -154,27 +159,11 @@ pub fn transform(
   Ok(input)
 }
 
-fn relative_path<'a>(url: &'a SourceUrl, project_root: &PathId, ty: &AssetType) -> Cow<'a, str> {
-  let path = url.to_file_path().ok();
-  let project_root = project_root.to_path_buf();
-  let relative_path = path
-    .as_ref()
-    .and_then(|path| {
-      path
-        .to_path_buf()
-        .strip_prefix(&project_root)
-        .ok()
-        .map(|p| p.to_string_lossy().into_owned())
-    })
-    .unwrap_or_else(|| url.path().trim_start_matches('/').to_owned());
-  let mut relative_path: Cow<'a, str> = Cow::Owned(relative_path);
-  let (base, ext) = relative_path
-    .rsplit_once('.')
-    .unwrap_or((relative_path.as_ref(), ""));
-  if ty.extension() != ext {
-    *relative_path.to_mut() = format!("{}.{}", base, ty.extension());
-  }
-  relative_path
+fn relative_path<'a>(url: &'a SourceUrl, project_root: &PathId, ty: &AssetType) -> String {
+  let path = url.to_file_path().unwrap();
+  let mut relative_path = path.relative(project_root);
+  relative_path.set_extension(ty.extension());
+  relative_path.to_string_lossy().into_owned()
 }
 
 // #[cfg(test)]
