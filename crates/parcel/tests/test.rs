@@ -9,6 +9,7 @@ use parcel_core::{
   AssetType, BuildOptions, BundleBehavior, BundleFlags, BundleGraph, CodeFrame, CodeHighlight,
   DependencyResolution, Diagnostic, DiagnosticList, DiagnosticSeverity, Environment,
   EnvironmentFlags, FileSystem, MemoryFileSystem, OsFileSystem, OutputFormat, OverlayFileSystem,
+  PathId,
 };
 use parcel_plugin_js::{create_runtime, require_module};
 use pretty_assertions::assert_eq;
@@ -24,7 +25,7 @@ fn run(
 ) -> (serde_json::Value, Vec<serde_json::Value>) {
   let mut env = HashMap::new();
   env.insert("NODE_ENV".into(), "test".into());
-  let ctx = create_runtime(fs.clone(), &env, cwd, environment).unwrap();
+  let ctx = create_runtime(fs.clone(), &env, PathId::new(cwd), environment).unwrap();
   let res = ctx.with(|ctx| {
     let globals = ctx.globals();
     let side_effects = Arc::new(RefCell::new(Vec::<serde_json::Value>::new()));
@@ -139,7 +140,7 @@ fn bundle_with_options(
     output_fs: output_fs.clone(),
     log_level: parcel_core::LogLevel::Verbose,
     config: None,
-    cwd: cwd.to_owned(),
+    cwd: PathId::new(cwd),
   };
 
   parcel::build(&entries, options)

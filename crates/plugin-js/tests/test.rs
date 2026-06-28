@@ -20,7 +20,7 @@ fn run(code: &str) {
   let ctx = create_runtime(
     fs,
     &HashMap::new(),
-    &std::env::current_dir().unwrap(),
+    PathId::new(&std::env::current_dir().unwrap()),
     parcel_core::Environment::Node,
   )
   .unwrap();

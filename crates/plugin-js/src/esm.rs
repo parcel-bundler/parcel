@@ -4,7 +4,7 @@ use std::{
   sync::Arc,
 };
 
-use parcel_core::{Environment, FileSystem};
+use parcel_core::{Environment, FileSystem, PathId};
 use parcel_resolver::ModuleType;
 use rquickjs::{
   Ctx, Module,
@@ -23,7 +23,7 @@ use crate::{
 };
 
 pub fn create_esm_loader(
-  project_root: String,
+  project_root: PathId,
   fs: Arc<dyn FileSystem>,
   environment: Environment,
 ) -> (ModuleResolver, ModuleLoader) {
@@ -45,11 +45,9 @@ pub struct ModuleResolver {
 }
 
 impl ModuleResolver {
-  pub fn new(project_root: String, fs: Arc<dyn FileSystem>) -> Self {
-    let mut resolver = parcel_resolver::Resolver::node_esm(
-      parcel_resolver::PathId::new(Path::new(&project_root)),
-      parcel_resolver::Cache::new(),
-    );
+  pub fn new(project_root: PathId, fs: Arc<dyn FileSystem>) -> Self {
+    let mut resolver =
+      parcel_resolver::Resolver::node_esm(project_root, parcel_resolver::Cache::new());
     resolver.flags |= parcel_resolver::Flags::TYPESCRIPT;
 
     ModuleResolver {
@@ -153,14 +151,13 @@ impl Loader for ModuleLoader {
         if name.ends_with(".css") {
           Module::declare(ctx.clone(), name, "")?
         } else {
-          let mut source =
-            self
-              .fs
-              .read_to_string(parcel_core::PathId::new(Path::new(name)))
-              .map_err(|e| rquickjs::Error::Loading {
-                name: name.into(),
-                message: Some(e.to_string()),
-              })?;
+          let mut source = self
+            .fs
+            .read_to_string(parcel_core::PathId::new(Path::new(name)))
+            .map_err(|e| rquickjs::Error::Loading {
+              name: name.into(),
+              message: Some(e.to_string()),
+            })?;
 
           if name.ends_with(".ts") || name.ends_with(".tsx") {
             let cm = Arc::<swc_core::common::SourceMap>::default();
@@ -193,14 +190,13 @@ impl Loader for ModuleLoader {
       }
       ModuleType::CommonJs => self.load_cjs(ctx, name)?,
       ModuleType::Json => {
-        let source =
-          self
-            .fs
-            .read_to_string(parcel_core::PathId::new(Path::new(name)))
-            .map_err(|e| rquickjs::Error::Loading {
-              name: name.into(),
-              message: Some(e.to_string()),
-            })?;
+        let source = self
+          .fs
+          .read_to_string(parcel_core::PathId::new(Path::new(name)))
+          .map_err(|e| rquickjs::Error::Loading {
+            name: name.into(),
+            message: Some(e.to_string()),
+          })?;
         let source = format!("export default {};\n", source);
         Module::declare(ctx.clone(), name, source)?
       }

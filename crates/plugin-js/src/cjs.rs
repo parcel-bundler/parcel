@@ -4,7 +4,7 @@ use std::{
   sync::Arc,
 };
 
-use parcel_core::{FileSystem, resolve_path};
+use parcel_core::{FileSystem, PathId, resolve_path};
 use parcel_resolver::ModuleType;
 use rquickjs::{
   Ctx, Function, IntoJs, JsLifetime, Module, Object, Value, context::EvalOptions, function,
@@ -29,11 +29,8 @@ pub struct CjsLoader {
 }
 
 impl CjsLoader {
-  pub fn new(project_root: String, fs: Arc<dyn FileSystem>) -> Self {
-    let mut resolver = parcel_resolver::Resolver::node(
-      parcel_resolver::PathId::new(Path::new(&project_root)),
-      parcel_resolver::Cache::new(),
-    );
+  pub fn new(project_root: PathId, fs: Arc<dyn FileSystem>) -> Self {
+    let mut resolver = parcel_resolver::Resolver::node(project_root, parcel_resolver::Cache::new());
     resolver.flags |= parcel_resolver::Flags::TYPESCRIPT;
     resolver.entries |= parcel_resolver::Fields::BROWSER;
     CjsLoader { resolver, fs }

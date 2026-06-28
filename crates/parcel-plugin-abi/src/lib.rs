@@ -911,8 +911,9 @@ unsafe impl Send for CPlugin {}
 unsafe impl Sync for CPlugin {}
 
 impl CPlugin {
-  pub fn new(path: &Path, config: Option<&serde_json::Value>) -> Result<CPlugin, DiagnosticList> {
-    let lib = unsafe { Library::new(path) }
+  pub fn new(path: PathId, config: Option<&serde_json::Value>) -> Result<CPlugin, DiagnosticList> {
+    let lib = path
+      .with_path(|path| unsafe { Library::new(path) })
       .map_err(|e| DiagnosticList(vec![CoreDiagnostic::from_message(e.to_string())]))?;
     let state = Self::call_init(&lib, config)?;
     Ok(CPlugin {

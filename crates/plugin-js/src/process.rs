@@ -1,5 +1,6 @@
 use std::{collections::HashMap, path::Path};
 
+use parcel_core::PathId;
 use rquickjs::{
   Ctx, JsLifetime, Object, Value,
   class::Trace,
@@ -20,7 +21,7 @@ impl<'js> Process<'js> {
   pub fn new(
     ctx: Ctx<'js>,
     env: &HashMap<String, String>,
-    cwd: &Path,
+    cwd: PathId,
   ) -> rquickjs::Result<Process<'js>> {
     let obj = Object::new(ctx)?;
     for (k, v) in env {
@@ -28,7 +29,7 @@ impl<'js> Process<'js> {
     }
     Ok(Process {
       env: obj,
-      cwd: cwd.to_string_lossy().to_string(),
+      cwd: cwd.with_path(|cwd| cwd.to_string_lossy().to_string()),
     })
   }
 }

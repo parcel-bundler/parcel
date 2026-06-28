@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use serde::Deserialize;
 
-use crate::{OsFileSystem, SourceUrl, fs::FileSystem};
+use crate::{OsFileSystem, PathId, SourceUrl, fs::FileSystem};
 
 #[derive(Clone)]
 pub struct BuildOptions {
@@ -12,7 +12,7 @@ pub struct BuildOptions {
   pub input_fs: Arc<dyn FileSystem>,
   pub output_fs: Arc<dyn FileSystem>,
   pub config: Option<String>,
-  pub cwd: PathBuf,
+  pub cwd: PathId,
 }
 
 pub struct ParcelOptions {
@@ -22,7 +22,7 @@ pub struct ParcelOptions {
   pub project_root: SourceUrl,
   pub input_fs: Arc<dyn FileSystem>,
   pub output_fs: Arc<dyn FileSystem>,
-  pub cwd: PathBuf,
+  pub cwd: PathId,
 }
 
 impl Default for ParcelOptions {
@@ -34,7 +34,7 @@ impl Default for ParcelOptions {
       project_root: Default::default(),
       input_fs: Arc::new(OsFileSystem {}),
       output_fs: Arc::new(OsFileSystem {}),
-      cwd: std::env::current_dir().unwrap(),
+      cwd: PathId::new(&std::env::current_dir().unwrap()),
     }
   }
 }

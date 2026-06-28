@@ -1,6 +1,6 @@
 use std::{path::Path, sync::Arc};
 
-use parcel_core::{BuildOptions, FileSystem, LogLevel, OsFileSystem, OverlayFileSystem};
+use parcel_core::{BuildOptions, FileSystem, LogLevel, OsFileSystem, OverlayFileSystem, PathId};
 
 #[cfg(target_os = "macos")]
 const LIB_EXT: &str = "dylib";
@@ -71,7 +71,7 @@ fn test_rust_transformer_plugin() {
   let bundle_graph = parcel::build(
     &vec!["index.js".into()],
     BuildOptions {
-      cwd: fixture_dir.clone(),
+      cwd: PathId::new(&fixture_dir),
       config: Some(parcelrc_path.to_str().unwrap().to_owned()),
       input_fs: Arc::new(OsFileSystem {}),
       output_fs: output_fs.clone(),

@@ -87,7 +87,6 @@ impl PathId {
     if ext.is_empty() {
       self.parent().unwrap().child(name)
     } else {
-      // self.parent().unwrap().child(&format!("{}.{}", name, ext))
       SCRATCH_NAME.with(|scratch| {
         let scratch = unsafe { &mut *scratch.get() };
         scratch.clear();

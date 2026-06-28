@@ -1,7 +1,7 @@
 use std::{path::Path, sync::Arc};
 
 use parcel_core::{
-  Diagnostic, DiagnosticList, FileSystem, Namer, Optimizer, ParcelConfig, PluginFactory,
+  Diagnostic, DiagnosticList, FileSystem, Namer, Optimizer, ParcelConfig, PathId, PluginFactory,
   Transformer,
 };
 use parcel_css::{CssTransformer, StyleAttrTransformer};
@@ -42,7 +42,7 @@ impl PluginFactory for DefaultPluginFactory {
     &self,
     name: &str,
     config: Option<serde_json::Value>,
-    from: &Path,
+    from: PathId,
   ) -> Result<Arc<dyn Transformer>, DiagnosticList> {
     Ok(match name {
       "@parcel/transformer-js" => Arc::new(JsTransformer {}),
@@ -76,7 +76,10 @@ impl PluginFactory for DefaultPluginFactory {
       "@parcel/transformer-native" => {
         if let Some(config) = config {
           if let Some(serde_json::Value::String(lib)) = config.get("lib") {
-            return Ok(Arc::new(CPlugin::new(Path::new(lib), Some(&config))?));
+            return Ok(Arc::new(CPlugin::new(
+              PathId::new(Path::new(lib)),
+              Some(&config),
+            )?));
           }
         }
         return Err(
@@ -85,23 +88,18 @@ impl PluginFactory for DefaultPluginFactory {
       }
       _ => {
         // TODO: possibly support exports conditions for platform (e.g. darwin, linux, x64, arm64, etc.)
-        let resolved = self.resolver.resolve(
-          name,
-          parcel_resolver::PathId::new(from),
-          parcel_resolver::SpecifierType::Esm,
-          &*self.fs,
-        );
+        let resolved =
+          self
+            .resolver
+            .resolve(name, from, parcel_resolver::SpecifierType::Esm, &*self.fs);
         match resolved {
           Ok(resolution) => match resolution.resolution {
             Resolution::Path(path) => match path.extension().map(|s| s.as_bytes()) {
               Some(b"so" | b"dylib" | b"dll") => {
-                return Ok(Arc::new(CPlugin::new(
-                  &path.to_path_buf(),
-                  config.as_ref(),
-                )?));
+                return Ok(Arc::new(CPlugin::new(path, config.as_ref())?));
               }
               _ => {
-                return Ok(Arc::new(JsPlugin::new(&path.to_path_buf())));
+                return Ok(Arc::new(JsPlugin::new(path)));
               }
             },
             _ => {}
@@ -120,7 +118,7 @@ impl PluginFactory for DefaultPluginFactory {
     &self,
     name: &str,
     config: Option<serde_json::Value>,
-    _from: &Path,
+    _from: PathId,
   ) -> Result<Arc<dyn parcel_core::Bundler>, DiagnosticList> {
     if name == "@parcel/bundler-default" {
       Ok(Arc::new(if let Some(config) = config {
@@ -139,7 +137,7 @@ impl PluginFactory for DefaultPluginFactory {
     &self,
     name: &str,
     _config: Option<serde_json::Value>,
-    _from: &Path,
+    _from: PathId,
   ) -> Result<Arc<dyn Namer>, DiagnosticList> {
     if name == "@parcel/namer-default" {
       Ok(Arc::new(DefaultNamer {}))
@@ -152,7 +150,7 @@ impl PluginFactory for DefaultPluginFactory {
     &self,
     name: &str,
     _config: Option<serde_json::Value>,
-    _from: &Path,
+    _from: PathId,
   ) -> Result<Arc<dyn Optimizer>, DiagnosticList> {
     match name {
       "@parcel/optimizer-data-url" => Ok(Arc::new(DataUrlOptimizer {})),
@@ -166,7 +164,7 @@ impl PluginFactory for DefaultPluginFactory {
     &self,
     name: &str,
     config: Option<serde_json::Value>,
-    from: &Path,
+    from: PathId,
   ) -> Result<Arc<dyn parcel_core::Resolver>, DiagnosticList> {
     Ok(match name {
       "@parcel/resolver-default" => Arc::new(DefaultResolver::new("/".into())),
@@ -174,18 +172,19 @@ impl PluginFactory for DefaultPluginFactory {
       "@parcel/resolver-native" => {
         if let Some(config) = config {
           if let Some(serde_json::Value::String(lib)) = config.get("lib") {
-            return Ok(Arc::new(CPlugin::new(Path::new(lib), Some(&config))?));
+            return Ok(Arc::new(CPlugin::new(
+              PathId::new(Path::new(lib)),
+              Some(&config),
+            )?));
           }
         }
         return Err(Diagnostic::from_message(format!("Could not find resolver {}", name)).into());
       }
       _ => {
-        let resolved = self.resolver.resolve(
-          name,
-          parcel_resolver::PathId::new(from),
-          parcel_resolver::SpecifierType::Esm,
-          &*self.fs,
-        );
+        let resolved =
+          self
+            .resolver
+            .resolve(name, from, parcel_resolver::SpecifierType::Esm, &*self.fs);
         match resolved {
           Ok(resolution) => match resolution.resolution {
             parcel_resolver::Resolution::Path(path)
@@ -194,10 +193,7 @@ impl PluginFactory for DefaultPluginFactory {
                 Some(b"so" | b"dylib" | b"dll")
               ) =>
             {
-              return Ok(Arc::new(CPlugin::new(
-                &path.to_path_buf(),
-                config.as_ref(),
-              )?));
+              return Ok(Arc::new(CPlugin::new(path, config.as_ref())?));
             }
             _ => {}
           },
@@ -208,21 +204,21 @@ impl PluginFactory for DefaultPluginFactory {
     })
   }
 
-  fn config(&self, specifier: &str, from: &Path) -> Result<ParcelConfig, DiagnosticList> {
+  fn config(&self, specifier: &str, from: PathId) -> Result<ParcelConfig, DiagnosticList> {
     if specifier == "@parcel/config-default" {
-      return ParcelConfig::from_json(Path::new(""), include_bytes!("default-config.json"), self);
+      return ParcelConfig::from_json(PathId::root(), include_bytes!("default-config.json"), self);
     }
 
     let resolved = self.resolver.resolve(
       specifier,
-      parcel_resolver::PathId::new(from),
+      from,
       parcel_resolver::SpecifierType::Esm,
       &*self.fs,
     );
     match resolved {
       Ok(resolution) => match resolution.resolution {
         Resolution::Path(path) => {
-          return ParcelConfig::read(&*self.fs, &path.to_path_buf(), self);
+          return ParcelConfig::read(&*self.fs, path, self);
         }
         _ => {}
       },

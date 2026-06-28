@@ -408,7 +408,6 @@ impl<'a> Resolver<'a> {
       FileKind::IS_FILE,
       self.project_root,
     )
-    // None
   }
 
   /// Returns the resolution cache.

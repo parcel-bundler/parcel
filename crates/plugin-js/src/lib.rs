@@ -8,7 +8,7 @@ use std::{
 };
 
 use parcel_core::{
-  CodeFrame, CodeHighlight, Diagnostic, DiagnosticList, Environment, FileSystem, Location,
+  CodeFrame, CodeHighlight, Diagnostic, DiagnosticList, Environment, FileSystem, Location, PathId,
   SourceUrl,
 };
 use rquickjs::{
@@ -44,7 +44,7 @@ thread_local! {
 pub fn with_js_env<F, R>(
   fs: Arc<dyn FileSystem>,
   env_vars: &HashMap<String, String>,
-  cwd: &PathBuf,
+  cwd: PathId,
   f: F,
 ) -> Result<R, DiagnosticList>
 where
@@ -110,7 +110,7 @@ impl Drop for JsEnv {
 pub fn create_runtime(
   fs: Arc<dyn FileSystem>,
   env_vars: &HashMap<String, String>,
-  cwd: &Path,
+  cwd: PathId,
   environment: Environment,
 ) -> rquickjs::Result<JsEnv> {
   let runtime = Runtime::new()?;
@@ -121,7 +121,7 @@ pub fn create_runtime(
     rejected_promises: rejected_promises.clone(),
   };
 
-  let (resolver, loader) = create_esm_loader("/".into(), fs.clone(), environment);
+  let (resolver, loader) = create_esm_loader(PathId::root(), fs.clone(), environment);
   runtime.set_loader(resolver, loader);
   runtime.set_max_stack_size(10 * 1024 * 1024); // 10 MB
   runtime.set_host_promise_rejection_tracker(Some(Box::new(
@@ -141,7 +141,7 @@ pub fn create_runtime(
   )));
 
   env.context.with(|ctx| -> rquickjs::Result<()> {
-    ctx.store_userdata(CjsLoader::new("/".into(), fs.clone()))?;
+    ctx.store_userdata(CjsLoader::new(PathId::root(), fs.clone()))?;
     ctx.store_userdata(FileSystemData(fs))?;
 
     let global = ctx.globals();

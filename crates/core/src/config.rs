@@ -24,15 +24,15 @@ pub struct ParcelConfig {
 impl ParcelConfig {
   pub fn read(
     fs: &dyn FileSystem,
-    path: &Path,
+    path: PathId,
     factory: &dyn PluginFactory,
   ) -> Result<ParcelConfig, DiagnosticList> {
-    let content = fs.read(PathId::new(path))?;
+    let content = fs.read(path)?;
     Self::from_json(path, &content, factory)
   }
 
   pub fn from_json(
-    path: &Path,
+    path: PathId,
     json: &[u8],
     factory: &dyn PluginFactory,
   ) -> Result<ParcelConfig, DiagnosticList> {
@@ -265,36 +265,36 @@ struct RawPipeline(Vec<PluginWithConfig>);
 struct RawPipelineMap(IndexMap<String, RawPipeline>);
 
 pub trait PluginFactory {
-  fn config(&self, specifier: &str, from: &Path) -> Result<ParcelConfig, DiagnosticList>;
+  fn config(&self, specifier: &str, from: PathId) -> Result<ParcelConfig, DiagnosticList>;
   fn resolver(
     &self,
     name: &str,
     config: Option<serde_json::Value>,
-    from: &Path,
+    from: PathId,
   ) -> Result<Arc<dyn Resolver>, DiagnosticList>;
   fn transformer(
     &self,
     name: &str,
     config: Option<serde_json::Value>,
-    from: &Path,
+    from: PathId,
   ) -> Result<Arc<dyn Transformer>, DiagnosticList>;
   fn bundler(
     &self,
     name: &str,
     config: Option<serde_json::Value>,
-    from: &Path,
+    from: PathId,
   ) -> Result<Arc<dyn Bundler>, DiagnosticList>;
   fn namer(
     &self,
     name: &str,
     config: Option<serde_json::Value>,
-    from: &Path,
+    from: PathId,
   ) -> Result<Arc<dyn Namer>, DiagnosticList>;
   fn optimizer(
     &self,
     name: &str,
     config: Option<serde_json::Value>,
-    from: &Path,
+    from: PathId,
   ) -> Result<Arc<dyn Optimizer>, DiagnosticList>;
 }
 
@@ -302,7 +302,7 @@ impl RawParcelConfig {
   fn resolve(
     self,
     factory: &dyn PluginFactory,
-    from: &Path,
+    from: PathId,
   ) -> Result<ParcelConfig, DiagnosticList> {
     let extends = match self.extends {
       None => Vec::new(),

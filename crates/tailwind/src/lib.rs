@@ -44,7 +44,7 @@ impl Transformer for TailwindTransformer {
     let resolver = Resolver::node(project_root_path, Cache::new());
     let resolver_fs = fs.clone();
 
-    let result_css = with_js_env(fs.clone(), &options.env, &options.cwd, move |ctx| {
+    let result_css = with_js_env(fs.clone(), &options.env, options.cwd, move |ctx| {
       let module = require_source(ctx, "tailwind", COMPILE_JS)?;
       let func: Function = module
         .as_object()

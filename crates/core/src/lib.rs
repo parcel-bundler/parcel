@@ -120,25 +120,25 @@ impl Parcel {
     let (resolved_entries, project_root) = resolve_entries(entries, &options)?;
 
     let mut env = options.env;
-    load_dotenv(&project_root, &*options.input_fs, &mut env)?;
+    load_dotenv(project_root, &*options.input_fs, &mut env)?;
 
     let config_file = options
       .config
-      .map(|c| options.cwd.join(c))
-      .unwrap_or_else(|| project_root.join(".parcelrc"));
+      .map(|c| options.cwd.join(Path::new(&c)))
+      .unwrap_or_else(|| project_root.child(".parcelrc"));
     let config = Arc::new(
       if options
         .input_fs
-        .kind(PathId::new(&config_file))
+        .kind(config_file)
         .contains(FileKind::IS_FILE)
       {
-        ParcelConfig::read(&*options.input_fs, &config_file, factory)?
+        ParcelConfig::read(&*options.input_fs, config_file, factory)?
       } else {
-        factory.config("@parcel/config-default", &config_file)?
+        factory.config("@parcel/config-default", config_file)?
       },
     );
 
-    let project_root = SourceUrl::from_absolute_directory_path(&project_root)?;
+    let project_root = project_root.with_path(|p| SourceUrl::from_absolute_directory_path(p))?;
 
     // The tracker accumulated the files read while loading configuration. Fold them into a map
     // keyed by a single sentinel index. Entry source files are stat'd while resolving entries, but
@@ -387,13 +387,13 @@ macro_rules! impl_bitflags_serde {
 pub(crate) use impl_bitflags_serde;
 
 fn load_dotenv(
-  project_root: &Path,
+  project_root: PathId,
   fs: &dyn FileSystem,
   env: &mut HashMap<String, String>,
 ) -> Result<(), DiagnosticList> {
   if let Some(node_env) = env.get("NODE_ENV").cloned() {
     for file in ["", ".local"] {
-      let path = PathId::new(&project_root.join(format!(".env.{}{}", node_env, file)));
+      let path = project_root.child(&format!(".env.{}{}", node_env, file));
       if fs.kind(path) == FileKind::IS_FILE {
         let content = fs.read(path)?;
         let iter = dotenvy::from_read_iter(std::io::BufReader::new(std::io::Cursor::new(content)));
@@ -407,7 +407,7 @@ fn load_dotenv(
   }
 
   for file in [".env", ".env.local"] {
-    let path = PathId::new(&project_root.join(file));
+    let path = project_root.child(file);
     if fs.kind(path) == FileKind::IS_FILE {
       let content = fs.read(path)?;
       let iter = dotenvy::from_read_iter(std::io::BufReader::new(std::io::Cursor::new(content)));

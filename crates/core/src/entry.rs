@@ -24,12 +24,10 @@ pub struct Entry {
 pub fn resolve_entries(
   entries: &Vec<String>,
   options: &BuildOptions,
-) -> Result<(Vec<Entry>, PathBuf), Diagnostic> {
-  let cwd = PathId::new(&options.cwd);
+) -> Result<(Vec<Entry>, PathId), Diagnostic> {
+  let cwd = options.cwd;
   let mut paths = Vec::new();
   for entry in entries {
-    // `glob` yields interned `PathId`s; entry resolution below works in `PathBuf`/`SourceUrl` terms
-    // (a deferred migration), so materialize here at the boundary. This runs once at startup.
     for path in options.input_fs.glob(entry, cwd) {
       paths.push(path);
     }
@@ -99,7 +97,7 @@ pub fn resolve_entries(
     }
   }
 
-  Ok((entries.entries, project_root.to_path_buf()))
+  Ok((entries.entries, project_root))
 }
 
 struct EntryResolver {
@@ -150,15 +148,7 @@ impl EntryResolver {
     };
 
     if let Some(exports) = json.get("exports") {
-      self.extract_exports(
-        fs,
-        &dir.to_path_buf(),
-        &json,
-        exports,
-        Vec::new(),
-        &context,
-        project_root,
-      )?;
+      self.extract_exports(fs, dir, &json, exports, Vec::new(), &context, project_root)?;
     }
 
     if let Some(Value::String(source)) = json.get("source") {
@@ -174,8 +164,8 @@ impl EntryResolver {
           }
 
           if let Some(child) = context.child(&json, field) {
-            let source_path = dir.join(Path::new(source)).to_path_buf();
-            let (dist_dir, dist_entry) = dist_dir_entry(&dir.to_path_buf(), main, &source_path);
+            let source_path = dir.join(Path::new(source));
+            let (dist_dir, dist_entry) = dist_dir_entry(dir, main, source_path);
             let mut env = child.to_env(&json, &dist_dir, &dist_entry, project_root)?;
             if *cond == ExportsCondition::MODULE {
               env.output_format = OutputFormat::Esmodule;
@@ -184,7 +174,7 @@ impl EntryResolver {
             let env = self.target(env);
 
             self.add_entry(Entry {
-              url: SourceUrl::from_path(&source_path, project_root)?,
+              url: source_path.with_path(|p| SourceUrl::from_path(p, project_root))?,
               target: env,
               dist_entry: Some(dist_entry),
               asset: None,
@@ -217,10 +207,10 @@ impl EntryResolver {
   fn extract_exports(
     &mut self,
     fs: &dyn FileSystem,
-    dir: &Path,
+    dir: PathId,
     pkg: &Value,
     value: &Value,
-    source: Vec<(PathBuf, Option<String>)>,
+    source: Vec<(PathId, Option<String>)>,
     context: &ExportsContext,
     project_root: &SourceUrl,
   ) -> Result<(), Diagnostic> {
@@ -229,7 +219,7 @@ impl EntryResolver {
         if source.contains('*') {
           // Normalize so the `*`-match byte offsets below align with the glob results, which are
           // interned `PathId`s and therefore normalized (e.g. `./` segments removed).
-          let source_path = crate::normalize_path(&dir.join(source));
+          let source_path = dir.join(Path::new(source)).to_path_buf();
           let source_bytes = source_path.to_str().unwrap().as_bytes();
           let start = source_bytes.iter().position(|b| *b == b'*').unwrap();
           let end = source_bytes.len() - start;
@@ -240,20 +230,20 @@ impl EntryResolver {
             source.clone()
           };
 
-          fs.glob(&source_glob, PathId::new(dir))
+          fs.glob(&source_glob, dir)
             .into_iter()
             .map(|path| {
-              let path = path.to_path_buf();
               // Find the part of the path that matched the "*".
               // This will be replaced in the target dist entry.
-              let dest_bytes = path.to_str().unwrap().as_bytes();
-              let matched =
-                String::from_utf8(dest_bytes[start..=dest_bytes.len() - end].to_vec()).unwrap();
+              let matched = path.with_path(|p| {
+                let dest_bytes = p.to_str().unwrap().as_bytes();
+                String::from_utf8(dest_bytes[start..=dest_bytes.len() - end].to_vec()).unwrap()
+              });
               (path, Some(matched))
             })
             .collect()
         } else {
-          vec![(dir.join(source), None)]
+          vec![(dir.join(Path::new(source)), None)]
         }
       } else {
         source
@@ -281,11 +271,11 @@ impl EntryResolver {
             value.clone()
           };
 
-          let (dist_dir, dist_entry) = dist_dir_entry(dir, &dist_entry, &source);
+          let (dist_dir, dist_entry) = dist_dir_entry(dir, &dist_entry, source);
           let env = self.target(context.to_env(pkg, &dist_dir, &dist_entry, project_root)?);
 
           self.add_entry(Entry {
-            url: SourceUrl::from_path(&source, project_root)?,
+            url: SourceUrl::from_path(&source.to_path_buf(), project_root)?,
             target: env,
             dist_entry: Some(dist_entry),
             asset: None,
@@ -299,10 +289,11 @@ impl EntryResolver {
   }
 }
 
-fn dist_dir_entry(dir: &Path, dist_entry: &str, source: &Path) -> (PathBuf, String) {
+fn dist_dir_entry(dir: PathId, dist_entry: &str, source: PathId) -> (PathBuf, String) {
   let dist_entry_path = Path::new(&dist_entry);
   let mut dist_dir = dir.to_path_buf();
-  let mut source_components = source.strip_prefix(dir).unwrap().components();
+  let source = source.to_path_buf();
+  let mut source_components = source.strip_prefix(&dist_dir).unwrap().components();
   let mut dist_components = dist_entry_path.components();
   let mut source = source_components.next();
   let mut dist = dist_components.next();
@@ -592,7 +583,7 @@ mod tests {
         log_level: crate::LogLevel::Error,
         mode: crate::BuildMode::Development,
         config: None,
-        cwd: std::env::current_dir().unwrap(),
+        cwd: PathId::new(&std::env::current_dir().unwrap()),
       },
     )
     .unwrap();

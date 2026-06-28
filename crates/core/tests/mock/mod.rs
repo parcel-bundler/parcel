@@ -47,7 +47,7 @@ pub fn build_options(
     config: None,
     // Setting cwd to the project directory makes `find_project_root` (which falls back to cwd
     // when no lockfile is found on disk) deterministically resolve the project root to /project.
-    cwd: PathBuf::from("/project"),
+    cwd: PathId::new(Path::new("/project")),
   }
 }
 
@@ -482,7 +482,7 @@ pub const MOCK_CONFIG: &str = r#"{
 }"#;
 
 impl PluginFactory for MockPluginFactory {
-  fn config(&self, _specifier: &str, from: &Path) -> Result<ParcelConfig, DiagnosticList> {
+  fn config(&self, _specifier: &str, from: PathId) -> Result<ParcelConfig, DiagnosticList> {
     ParcelConfig::from_json(from, MOCK_CONFIG.as_bytes(), self)
   }
 
@@ -490,7 +490,7 @@ impl PluginFactory for MockPluginFactory {
     &self,
     _name: &str,
     _config: Option<serde_json::Value>,
-    _from: &Path,
+    _from: PathId,
   ) -> Result<Arc<dyn Resolver>, DiagnosticList> {
     Ok(Arc::new(MockResolver))
   }
@@ -499,7 +499,7 @@ impl PluginFactory for MockPluginFactory {
     &self,
     _name: &str,
     _config: Option<serde_json::Value>,
-    _from: &Path,
+    _from: PathId,
   ) -> Result<Arc<dyn Transformer>, DiagnosticList> {
     Ok(Arc::new(MockTransformer))
   }
@@ -508,7 +508,7 @@ impl PluginFactory for MockPluginFactory {
     &self,
     _name: &str,
     _config: Option<serde_json::Value>,
-    _from: &Path,
+    _from: PathId,
   ) -> Result<Arc<dyn Bundler>, DiagnosticList> {
     Ok(Arc::new(MockBundler::default()))
   }
@@ -517,7 +517,7 @@ impl PluginFactory for MockPluginFactory {
     &self,
     _name: &str,
     _config: Option<serde_json::Value>,
-    _from: &Path,
+    _from: PathId,
   ) -> Result<Arc<dyn Namer>, DiagnosticList> {
     Ok(Arc::new(MockNamer))
   }
@@ -526,7 +526,7 @@ impl PluginFactory for MockPluginFactory {
     &self,
     name: &str,
     _config: Option<serde_json::Value>,
-    _from: &Path,
+    _from: PathId,
   ) -> Result<Arc<dyn Optimizer>, DiagnosticList> {
     Err(Diagnostic::from_message(format!("no mock optimizer named {}", name)).into())
   }

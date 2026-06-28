@@ -1,4 +1,4 @@
-use parcel_core::{BuildOptions, OsFileSystem, SourceUrl};
+use parcel_core::{BuildOptions, OsFileSystem, PathId, SourceUrl};
 use std::process::ExitCode;
 use std::{collections::HashMap, sync::Arc};
 
@@ -60,7 +60,7 @@ pub fn main() -> ExitCode {
     log_level: parcel_core::LogLevel::Verbose,
     mode,
     config,
-    cwd: std::env::current_dir().unwrap(),
+    cwd: PathId::new(&std::env::current_dir().unwrap()),
   };
 
   let res = match cmd {
