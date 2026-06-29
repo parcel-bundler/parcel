@@ -29,7 +29,7 @@ impl JsContent {
       bundle.main_entry_asset.unwrap(),
       asset,
       bundle_graph,
-      bundle,
+      Some(bundle),
       &mut synthetic_assets,
       get_inline_bundle_content,
       &options.project_root,

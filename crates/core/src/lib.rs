@@ -59,8 +59,8 @@ pub type FactoryBuilder = dyn Fn(Arc<dyn FileSystem>) -> Box<dyn PluginFactory>;
 
 pub struct Parcel {
   asset_graph_builder: AssetGraphBuilder,
-  config: Arc<ParcelConfig>,
-  options: Arc<ParcelOptions>,
+  pub config: Arc<ParcelConfig>,
+  pub options: Arc<ParcelOptions>,
   /// The shared file-system cache used as `options.input_fs`. Stale entries are dropped from it in
   /// `invalidate` so the resolver, transformers, and JS environment all see fresh data on rebuild.
   cached_fs: Arc<CachedFileSystem>,
@@ -339,7 +339,7 @@ pub fn build(
   parcel.build_owned()
 }
 
-fn get_bundle_content(
+pub fn get_bundle_content(
   config: &ParcelConfig,
   bundle_graph: &BundleGraph,
   bundle: &Bundle,

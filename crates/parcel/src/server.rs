@@ -1,5 +1,7 @@
 use indexmap::{IndexMap, IndexSet};
-use parcel_core::{Asset, AssetType, BundleGraph, OutputFormat};
+use parcel_core::{
+  Asset, AssetType, BundleGraph, OutputFormat, ParcelConfig, ParcelOptions, get_bundle_content,
+};
 use parcel_js::packager::{Resolution, SyntheticAsset, asset_dependencies};
 use std::{
   collections::HashMap,
@@ -124,7 +126,13 @@ fn is_websocket_upgrade(request: &tiny_http::Request) -> bool {
 }
 
 impl DevServer {
-  pub fn emit_hmr_update(&self, changed_assets: Vec<(u32, &Asset)>, bundle_graph: &BundleGraph) {
+  pub fn emit_hmr_update(
+    &self,
+    changed_assets: Vec<(u32, &Asset)>,
+    bundle_graph: &BundleGraph,
+    config: &ParcelConfig,
+    options: &ParcelOptions,
+  ) {
     let mut synthetic_assets = IndexSet::new();
     let mut assets = Vec::with_capacity(changed_assets.len());
     for (id, asset) in changed_assets {
@@ -132,12 +140,22 @@ impl DevServer {
         id as usize,
         asset,
         bundle_graph,
-        &bundle_graph.bundles[0], // TODO
+        None,
         &mut synthetic_assets,
-        &|_| todo!(),
+        &|bundle_index| {
+          get_bundle_content(
+            config,
+            bundle_graph,
+            &bundle_graph.bundles[bundle_index],
+            options,
+          )
+        },
         &bundle_graph.project_root,
       )
       .unwrap();
+
+      // TODO: I think we don't need this anymore. Was added in https://github.com/parcel-bundler/parcel/pull/4311
+      // due to runtimes producing different dependencies per bundle.
       let mut deps_by_bundle = HashMap::new();
       deps_by_bundle.insert("TODO".into(), dependencies);
 
@@ -154,6 +172,7 @@ impl DevServer {
         id: Id::Asset(asset.id(&bundle_graph.project_root)),
         ty: asset.ty.clone(),
         output,
+        // TODO: needed to filter out assets that come from a different target, preventing page reload.
         env_hash: "TODO".into(),
         output_format: asset.target.output_format.clone(),
         deps_by_bundle,
@@ -176,7 +195,14 @@ impl DevServer {
         &mut output,
         bundle_graph,
         &bundle_graph.bundles[0], // TODO
-        &|_| todo!(),
+        &|bundle_index| {
+          get_bundle_content(
+            config,
+            bundle_graph,
+            &bundle_graph.bundles[bundle_index],
+            options,
+          )
+        },
         &bundle_graph.project_root,
       );
       write!(&mut output, "}}");

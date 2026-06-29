@@ -108,6 +108,8 @@ pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
     let affected_indices = result.affected;
 
     let start = std::time::Instant::now();
+    let config = parcel.config.clone();
+    let options = parcel.options.clone();
     match parcel.build() {
       Ok(graph) => {
         println!("Rebuilt in {:?}", start.elapsed());
@@ -129,7 +131,7 @@ pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
           .collect();
 
         if !changed_assets.is_empty() {
-          server.emit_hmr_update(changed_assets, &graph);
+          server.emit_hmr_update(changed_assets, &graph, &*config, &*options);
         }
       }
       Err(e) => print_diagnostics(&e),

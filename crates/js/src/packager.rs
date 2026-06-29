@@ -62,7 +62,7 @@ impl JsContent {
           *asset_index,
           asset,
           bundle_graph,
-          bundle,
+          Some(bundle),
           &mut synthetic_assets,
           get_inline_bundle_content,
           &options.project_root,
@@ -190,7 +190,7 @@ pub fn asset_dependencies<'a>(
   asset_index: usize,
   asset: &'a Asset,
   bundle_graph: &'a BundleGraph,
-  bundle: &'a Bundle,
+  bundle: Option<&'a Bundle>,
   additional_assets: &mut IndexSet<SyntheticAsset>,
   get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
   project_root: &PathId,
@@ -228,7 +228,7 @@ pub fn asset_dependencies<'a>(
         let mut resolutions = Vec::new();
         let mut first_asset = None;
         let mut all_assets_match = true;
-        if !bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+        if !asset.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
           for import in &asset.symbols.imports {
             if import.dep_index == dep_index as u32 {
               match &import.resolved {
@@ -328,7 +328,8 @@ pub fn asset_dependencies<'a>(
       BundleGraphDependencyResolution::Bundle(bundle_index) => {
         let resolved_bundle = &bundle_graph.bundles[bundle_index as usize];
 
-        if bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+        if asset.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+          let bundle = bundle.expect("Bundle must be provided for library builds");
           if dep.bundle_behavior == BundleBehavior::Inline
             || resolved_bundle.bundle_behavior == BundleBehavior::Inline
           {
