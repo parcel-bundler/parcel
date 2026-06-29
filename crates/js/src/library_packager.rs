@@ -95,7 +95,7 @@ impl JsContent {
       let dirname = asset
         .loc
         .url
-        .relative(&SourceUrl::from_directory_path(&bundle.target.dist_dir).unwrap())
+        .relative(&SourceUrl::from_directory_path(&bundle.target.dist_dir))
         .unwrap_or_else(|| asset.loc.url.to_string())
         .into();
       // println!("{:?} {:?} {:?}", asset.loc.url, used_symbols, dependencies);

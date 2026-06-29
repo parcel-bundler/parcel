@@ -69,7 +69,7 @@ impl Resolver for GlobResolver {
     let hash = format!("glob-{:016x}.js", xxh3_64(specifier.as_bytes()));
     Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
       loc: SourceLocation {
-        url: SourceUrl::from_path(&dir.child(&hash))?,
+        url: SourceUrl::from_path(&dir.child(&hash)),
         ..Default::default()
       },
       ty: AssetType::Js,

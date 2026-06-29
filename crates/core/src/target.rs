@@ -59,9 +59,7 @@ impl Target {
     }
     self.include_node_modules.hash(state);
     self.engines.hash(state);
-    SourceUrl::from_directory_path(&self.dist_dir)
-      .unwrap()
-      .stable_hash(project_root, state);
+    SourceUrl::from_directory_path(&self.dist_dir).stable_hash(project_root, state);
     self.public_url.hash(state);
   }
 }

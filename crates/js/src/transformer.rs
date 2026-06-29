@@ -278,7 +278,7 @@ impl Transformer for JsTransformer {
         placeholder: dep.placeholder,
         resolve_from: if is_helper {
           // TODO
-          Some(SourceUrl::from_directory_path(&options.project_root).unwrap())
+          Some(SourceUrl::from_directory_path(&options.project_root))
         } else {
           Some(asset.loc.url.clone())
         },
@@ -364,7 +364,7 @@ impl Transformer for JsTransformer {
         }),
         loc: None,
         placeholder: None,
-        resolve_from: Some(SourceUrl::from_directory_path(&options.project_root).unwrap()), // TODO
+        resolve_from: Some(SourceUrl::from_directory_path(&options.project_root)), // TODO
         range: None,
         conditions: ExportsCondition::empty(),
         resolution: DependencyResolution::None,

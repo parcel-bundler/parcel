@@ -848,7 +848,7 @@ fn read_cdiagnostic(
   let code_frames = if !diag.file_path.data.is_null() {
     let path_str = read_buf(&mut diag.file_path);
     if project_root.is_some() {
-      let url = SourceUrl::from_path(&PathId::new(Path::new(&path_str))).ok();
+      let url = Some(SourceUrl::from_path(&PathId::new(Path::new(&path_str))));
       let code_highlights = if diag.line > 0 {
         vec![CodeHighlight {
           start: Location {
@@ -1135,8 +1135,7 @@ impl Resolver for CPlugin {
           atom
         };
 
-        let url =
-          SourceUrl::from_path(&PathId::new(&file_path)).map_err(|e| DiagnosticList(vec![e]))?;
+        let url = SourceUrl::from_path(&PathId::new(&file_path));
         let ty =
           AssetType::from_extension(file_path.extension().and_then(|e| e.to_str()).unwrap_or(""));
 

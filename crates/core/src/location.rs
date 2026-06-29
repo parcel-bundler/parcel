@@ -41,38 +41,13 @@ pub struct Location {
 /// File-backed source URLs keep the original path internally. Portable project-relative URLs are
 /// derived on demand for stable hashes and other output-facing identities.
 #[derive(PartialEq, Eq, Clone, Hash)]
-enum SourceUrlKind {
+pub enum SourceUrl {
   Path {
     path: PathId,
     query: Option<Arc<str>>,
     is_directory: bool,
   },
   Url(Arc<Url>),
-}
-
-#[derive(Eq)]
-pub struct SourceUrl {
-  kind: SourceUrlKind,
-}
-
-impl Clone for SourceUrl {
-  fn clone(&self) -> Self {
-    SourceUrl {
-      kind: self.kind.clone(),
-    }
-  }
-}
-
-impl PartialEq for SourceUrl {
-  fn eq(&self, other: &Self) -> bool {
-    self.kind == other.kind
-  }
-}
-
-impl Hash for SourceUrl {
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    self.kind.hash(state);
-  }
 }
 
 impl serde::Serialize for SourceUrl {
@@ -96,15 +71,11 @@ impl<'de> serde::Deserialize<'de> for SourceUrl {
 
 impl Default for SourceUrl {
   fn default() -> Self {
-    SourceUrl::from_path(&PathId::new(Path::new("/default"))).unwrap()
+    SourceUrl::from_path(&PathId::new(Path::new("/default")))
   }
 }
 
 impl SourceUrl {
-  fn new(kind: SourceUrlKind) -> SourceUrl {
-    SourceUrl { kind }
-  }
-
   pub fn parse(url: &str) -> Result<SourceUrl, Diagnostic> {
     let parsed = Url::parse(url).map_err(|err| {
       Diagnostic::from_message(format!("Could not parse url {:?} {}", url, err.to_string()))
@@ -112,18 +83,12 @@ impl SourceUrl {
     let is_directory = parsed.path().ends_with('/');
     let query = parsed.query().map(Arc::from);
     match parsed.scheme() {
-      "project" => Err(Diagnostic::from_message(
-        "project:// URLs are derived for stable identities and cannot be stored as SourceUrl"
-          .to_owned(),
-      )),
       "file" => parsed
         .to_file_path()
-        .map(|path| {
-          SourceUrl::new(SourceUrlKind::Path {
-            path: PathId::new(&path),
-            query,
-            is_directory,
-          })
+        .map(|path| SourceUrl::Path {
+          path: PathId::new(&path),
+          query,
+          is_directory,
         })
         .map_err(|_| {
           Diagnostic::from_message(format!(
@@ -131,36 +96,36 @@ impl SourceUrl {
             parsed.as_str()
           ))
         }),
-      _ => Ok(SourceUrl::new(SourceUrlKind::Url(Arc::new(parsed)))),
+      _ => Ok(SourceUrl::Url(Arc::new(parsed))),
     }
   }
 
   /// Creates a file-backed `SourceUrl` from a file path.
-  pub fn from_path(path: &PathId) -> Result<SourceUrl, Diagnostic> {
-    Ok(SourceUrl::new(SourceUrlKind::Path {
+  pub fn from_path(path: &PathId) -> SourceUrl {
+    SourceUrl::Path {
       path: *path,
       query: None,
       is_directory: false,
-    }))
+    }
   }
 
   /// Creates a `SourceUrl` from a directory path (URL will have a trailing slash).
-  pub fn from_directory_path(path: &PathId) -> Result<SourceUrl, Diagnostic> {
-    Ok(SourceUrl::new(SourceUrlKind::Path {
+  pub fn from_directory_path(path: &PathId) -> SourceUrl {
+    SourceUrl::Path {
       path: *path,
       query: None,
       is_directory: true,
-    }))
+    }
   }
 
   fn project_relative_path(&self, project_root: &PathId) -> Option<PathBuf> {
-    match &self.kind {
-      SourceUrlKind::Path { path, .. } => {
+    match self {
+      SourceUrl::Path { path, .. } => {
         let path = path.to_path_buf();
         let root = project_root.to_path_buf();
         path.strip_prefix(root).ok().map(|p| p.to_path_buf())
       }
-      SourceUrlKind::Url(_) => None,
+      SourceUrl::Url(_) => None,
     }
   }
 
@@ -195,37 +160,37 @@ impl SourceUrl {
   }
 
   /// Creates a file-backed `SourceUrl` from an absolute file path and optional query string.
-  pub fn from_path_and_query(path: &PathId, query: Option<&str>) -> Result<SourceUrl, Diagnostic> {
-    let base = SourceUrl::from_path(path)?;
+  pub fn from_path_and_query(path: &PathId, query: Option<&str>) -> SourceUrl {
+    let base = SourceUrl::from_path(path);
     if query.is_none() {
-      return Ok(base);
+      return base;
     }
-    Ok(base.with_query(query))
+    base.with_query(query)
   }
 
   fn with_query(&self, query: Option<&str>) -> SourceUrl {
     let query = query.map(Arc::from);
-    match &self.kind {
-      SourceUrlKind::Path {
+    match self {
+      SourceUrl::Path {
         path, is_directory, ..
-      } => SourceUrl::new(SourceUrlKind::Path {
+      } => SourceUrl::Path {
         path: *path,
         query,
         is_directory: *is_directory,
-      }),
-      SourceUrlKind::Url(url) => {
+      },
+      SourceUrl::Url(url) => {
         let mut url = (**url).clone();
         url.set_query(query.as_deref());
-        SourceUrl::new(SourceUrlKind::Url(Arc::new(url)))
+        SourceUrl::Url(Arc::new(url))
       }
     }
   }
 
   /// Converts the source URL to a file system path. Fallback non-file URLs cannot be converted.
   pub fn to_file_path(&self) -> Result<PathId, Diagnostic> {
-    match &self.kind {
-      SourceUrlKind::Path { path, .. } => Ok(*path),
-      SourceUrlKind::Url(url) => url.to_file_path().map(|p| PathId::new(&p)).map_err(|_| {
+    match self {
+      SourceUrl::Path { path, .. } => Ok(*path),
+      SourceUrl::Url(url) => url.to_file_path().map(|p| PathId::new(&p)).map_err(|_| {
         Diagnostic::from_message(format!(
           "Could not convert SourceUrl to file path: {:?}",
           url.as_str()
@@ -234,13 +199,9 @@ impl SourceUrl {
     }
   }
 
-  pub fn to_file_url(&self) -> Result<SourceUrl, Diagnostic> {
-    Ok(self.clone())
-  }
-
   pub fn to_string(&self) -> String {
-    match &self.kind {
-      SourceUrlKind::Path {
+    match self {
+      SourceUrl::Path {
         path,
         query,
         is_directory,
@@ -253,14 +214,14 @@ impl SourceUrl {
         url.set_query(query.as_deref());
         url.to_string()
       }
-      SourceUrlKind::Url(url) => url.to_string(),
+      SourceUrl::Url(url) => url.to_string(),
     }
   }
 
   pub fn extension(&self) -> &str {
-    match &self.kind {
-      SourceUrlKind::Path { path, .. } => path.extension().unwrap_or(""),
-      SourceUrlKind::Url(url) => {
+    match self {
+      SourceUrl::Path { path, .. } => path.extension().unwrap_or(""),
+      SourceUrl::Url(url) => {
         let path = url.path();
         let (_, ext) = path.rsplit_once('.').unwrap_or((path, ""));
         ext
@@ -269,25 +230,25 @@ impl SourceUrl {
   }
 
   pub fn query(&self) -> Option<&str> {
-    match &self.kind {
-      SourceUrlKind::Path { query, .. } => query.as_deref(),
-      SourceUrlKind::Url(url) => url.query(),
+    match self {
+      SourceUrl::Path { query, .. } => query.as_deref(),
+      SourceUrl::Url(url) => url.query(),
     }
   }
 
   pub fn query_pairs(&self) -> Box<dyn Iterator<Item = (Cow<'_, str>, Cow<'_, str>)> + '_> {
-    match &self.kind {
-      SourceUrlKind::Path { query, .. } => Box::new(url::form_urlencoded::parse(
+    match self {
+      SourceUrl::Path { query, .. } => Box::new(url::form_urlencoded::parse(
         query.as_deref().unwrap_or("").as_bytes(),
       )),
-      SourceUrlKind::Url(url) => Box::new(url.query_pairs()),
+      SourceUrl::Url(url) => Box::new(url.query_pairs()),
     }
   }
 
   fn is_directory(&self) -> bool {
-    match &self.kind {
-      SourceUrlKind::Path { is_directory, .. } => *is_directory,
-      SourceUrlKind::Url(url) => url.path().ends_with('/'),
+    match self {
+      SourceUrl::Path { is_directory, .. } => *is_directory,
+      SourceUrl::Url(url) => url.path().ends_with('/'),
     }
   }
 
@@ -340,37 +301,37 @@ mod tests {
 
   #[test]
   fn test_from_path_within_project() {
-    let url = SourceUrl::from_path(&make_path("/home/user/project/src/foo.js")).unwrap();
+    let url = SourceUrl::from_path(&make_path("/home/user/project/src/foo.js"));
     assert_eq!(url.to_string(), "file:///home/user/project/src/foo.js");
   }
 
   #[test]
   fn test_from_path_outside_project() {
-    let url = SourceUrl::from_path(&make_path("/usr/lib/node_modules/foo.js")).unwrap();
+    let url = SourceUrl::from_path(&make_path("/usr/lib/node_modules/foo.js"));
     assert_eq!(url.to_string(), "file:///usr/lib/node_modules/foo.js");
   }
 
   #[test]
   fn test_from_path_is_project_root() {
-    let url = SourceUrl::from_path(&make_path("/home/user/project")).unwrap();
+    let url = SourceUrl::from_path(&make_path("/home/user/project"));
     assert_eq!(url.to_string(), "file:///home/user/project");
   }
 
   #[test]
   fn test_from_directory_path_within_project() {
-    let url = SourceUrl::from_directory_path(&make_path("/home/user/project/src")).unwrap();
+    let url = SourceUrl::from_directory_path(&make_path("/home/user/project/src"));
     assert_eq!(url.to_string(), "file:///home/user/project/src/");
   }
 
   #[test]
   fn test_from_directory_path_is_project_root() {
-    let url = SourceUrl::from_directory_path(&make_path("/home/user/project")).unwrap();
+    let url = SourceUrl::from_directory_path(&make_path("/home/user/project"));
     assert_eq!(url.to_string(), "file:///home/user/project/");
   }
 
   #[test]
   fn test_from_directory_path_outside_project() {
-    let url = SourceUrl::from_directory_path(&make_path("/usr/lib")).unwrap();
+    let url = SourceUrl::from_directory_path(&make_path("/usr/lib"));
     assert_eq!(url.to_string(), "file:///usr/lib/");
   }
 
@@ -384,7 +345,7 @@ mod tests {
   #[test]
   fn test_roundtrip_within_project() {
     let original = Path::new("/home/user/project/src/foo.js");
-    let url = SourceUrl::from_path(&PathId::new(original)).unwrap();
+    let url = SourceUrl::from_path(&PathId::new(original));
     let path = url.to_file_path().unwrap();
     assert_eq!(path.to_path_buf(), original);
   }
@@ -392,7 +353,7 @@ mod tests {
   #[test]
   fn test_roundtrip_outside_project() {
     let original = Path::new("/usr/lib/node_modules/foo.js");
-    let url = SourceUrl::from_path(&PathId::new(original)).unwrap();
+    let url = SourceUrl::from_path(&PathId::new(original));
     let path = url.to_file_path().unwrap();
     assert_eq!(path.to_path_buf(), original);
   }
@@ -403,9 +364,8 @@ mod tests {
     let root1 = make_root("/home/user1/project");
     let root2 = make_root("/home/user2/different_project");
 
-    let url1 = SourceUrl::from_path(&make_path("/home/user1/project/src/foo.js")).unwrap();
-    let url2 =
-      SourceUrl::from_path(&make_path("/home/user2/different_project/src/foo.js")).unwrap();
+    let url1 = SourceUrl::from_path(&make_path("/home/user1/project/src/foo.js"));
+    let url2 = SourceUrl::from_path(&make_path("/home/user2/different_project/src/foo.js"));
 
     let mut h1 = DefaultHasher::new();
     let mut h2 = DefaultHasher::new();
@@ -419,8 +379,7 @@ mod tests {
     let url = SourceUrl::from_path_and_query(
       &make_path("/home/user/project/src/foo.js"),
       Some("transform=true"),
-    )
-    .unwrap();
+    );
     assert_eq!(
       url.to_string(),
       "file:///home/user/project/src/foo.js?transform=true"
@@ -433,8 +392,7 @@ mod tests {
     let url = SourceUrl::from_path_and_query(
       &make_path("/home/user/project/src/foo.js"),
       Some("transform=true"),
-    )
-    .unwrap();
+    );
     let path = url.to_file_path().unwrap();
     assert_eq!(
       path.to_path_buf(),
@@ -444,7 +402,7 @@ mod tests {
 
   #[test]
   fn test_with_percent_encoded_path() {
-    let url = SourceUrl::from_path(&make_path("/home/user/project/src/foo bar.js")).unwrap();
+    let url = SourceUrl::from_path(&make_path("/home/user/project/src/foo bar.js"));
     // URL should be percent-encoded
     assert!(url.to_string().contains("foo%20bar") || url.to_string().contains("foo bar"));
     let path = url.to_file_path().unwrap();
@@ -456,7 +414,7 @@ mod tests {
 
   #[test]
   fn test_extension() {
-    let url = SourceUrl::from_path(&make_path("/home/user/project/src/foo.js")).unwrap();
+    let url = SourceUrl::from_path(&make_path("/home/user/project/src/foo.js"));
     assert_eq!(url.extension(), "js");
   }
 }

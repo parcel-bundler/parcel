@@ -101,7 +101,7 @@ impl Resolver for DefaultResolver {
     match res {
       Ok(res) => match res.resolution {
         Resolution::Path(path) => {
-          let url = SourceUrl::from_path_and_query(&path, res.query.as_ref().map(|s| &s[1..]))?;
+          let url = SourceUrl::from_path_and_query(&path, res.query.as_ref().map(|s| &s[1..]));
           let ty = AssetType::from_url(&url);
           Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
             loc: SourceLocation {
@@ -227,7 +227,7 @@ impl Resolver for DefaultResolver {
               ),
               origin: Some("@parcel/resolver-default".into()),
               code_frames: vec![CodeFrame {
-                url: Some(SourceUrl::from_path(&PathId::new(&package_path))?),
+                url: Some(SourceUrl::from_path(&PathId::new(&package_path))),
                 code: None,
                 language: Some(AssetType::Json),
                 code_highlights: vec![
@@ -256,7 +256,7 @@ impl Resolver for DefaultResolver {
             message: format!("Error parsing JSON"),
             origin: Some("@parcel/resolver-default".into()),
             code_frames: vec![CodeFrame {
-              url: Some(SourceUrl::from_path(&PathId::new(&e.path))?),
+              url: Some(SourceUrl::from_path(&PathId::new(&e.path))),
               code: None,
               language: Some(AssetType::Json),
               code_highlights: vec![CodeHighlight {

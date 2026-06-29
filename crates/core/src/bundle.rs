@@ -68,6 +68,6 @@ impl Bundle {
   }
 
   pub fn dist_url(&self) -> SourceUrl {
-    SourceUrl::from_path(&self.dist_path()).unwrap()
+    SourceUrl::from_path(&self.dist_path())
   }
 }

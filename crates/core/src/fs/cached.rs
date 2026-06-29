@@ -1,8 +1,7 @@
 use std::{
   any::{Any, TypeId},
-  hash::{BuildHasherDefault, Hash, Hasher},
+  hash::BuildHasherDefault,
   io::{Error, ErrorKind, Result},
-  path::{Path, PathBuf},
   sync::{
     Arc, OnceLock,
     atomic::{AtomicU64, Ordering},
@@ -13,7 +12,7 @@ use rustc_hash::FxHasher;
 
 use crate::PathId;
 
-use super::{DirEntry, FileKind, FileStat, FileSystem, normalize_path, resolve_path};
+use super::{DirEntry, FileKind, FileStat, FileSystem};
 
 /// A cache that associates arbitrary, lazily-computed objects with a path, sharing the lifetime and
 /// invalidation of the underlying [`CachedFileSystem`]. Used to cache parsed artifacts derived from
@@ -296,34 +295,14 @@ thread_local! {
   static THREAD_ID: u64 = THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
 }
 
-/// A hasher that passes through a value that is already a hash. Used so the path set can be keyed
-/// directly by the precomputed path hash without re-hashing.
-#[derive(Default)]
-pub struct IdentityHasher {
-  hash: u64,
-}
-
-impl Hasher for IdentityHasher {
-  fn write(&mut self, bytes: &[u8]) {
-    if bytes.len() == 8 {
-      self.hash = u64::from_ne_bytes([
-        bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
-      ])
-    } else {
-      unreachable!()
-    }
-  }
-
-  fn finish(&self) -> u64 {
-    self.hash
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::MemoryFileSystem;
-  use std::sync::atomic::{AtomicUsize, Ordering};
+  use crate::{MemoryFileSystem, normalize_path, resolve_path};
+  use std::{
+    path::{Path, PathBuf},
+    sync::atomic::{AtomicUsize, Ordering},
+  };
 
   /// An inner file system that counts how many times each cached operation reaches it.
   struct CountingFileSystem {

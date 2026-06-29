@@ -254,7 +254,7 @@ fn make_dep(
 struct MockResolver;
 
 fn alias_config_url(options: &ParcelOptions) -> SourceUrl {
-  SourceUrl::from_path(&options.project_root.child("aliases.json")).unwrap()
+  SourceUrl::from_path(&options.project_root.child("aliases.json"))
 }
 
 impl Resolver for MockResolver {

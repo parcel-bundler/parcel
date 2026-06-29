@@ -321,20 +321,15 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
           }],
         }],
         documentation_url: Some("https://parceljs.org/languages/css/#url()".into()),
-        hints: self
+        hints: if let Some(url) = self
           .url
           .join(&url.url)
-          .to_file_path()
-          .ok()
-          .and_then(|path| {
-            path
-              .to_path_buf()
-              .strip_prefix(self.project_root.to_path_buf())
-              .ok()
-              .map(|p| p.to_string_lossy().into_owned())
-          })
-          .map(|url| vec![format!("Replace with: url(/{})", url)])
-          .unwrap_or_default(),
+          .relative(&SourceUrl::from_directory_path(&self.project_root))
+        {
+          vec![format!("Replace with: url(/{})", url)]
+        } else {
+          Vec::new()
+        },
         severity: DiagnosticSeverity::Error,
       });
     }

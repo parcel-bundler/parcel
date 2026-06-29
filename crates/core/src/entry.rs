@@ -84,7 +84,7 @@ pub fn resolve_entries(
       });
 
       entries.add_entry(Entry {
-        url: SourceUrl::from_path(&path)?,
+        url: SourceUrl::from_path(&path),
         target: env,
         dist_entry: None,
         loc: None,
@@ -170,7 +170,7 @@ impl EntryResolver {
             let env = self.target(env);
 
             self.add_entry(Entry {
-              url: SourceUrl::from_path(&source_path)?,
+              url: SourceUrl::from_path(&source_path),
               target: env,
               dist_entry: Some(dist_entry),
               asset: None,
@@ -183,7 +183,7 @@ impl EntryResolver {
       if self.entries.is_empty() {
         for source in fs.glob(source, dir) {
           self.add_entry(Entry {
-            url: SourceUrl::from_path(&source)?,
+            url: SourceUrl::from_path(&source),
             target: Arc::new(Target {
               dist_dir: dir,
               ..Default::default()
@@ -270,7 +270,7 @@ impl EntryResolver {
           let env = self.target(context.to_env(pkg, &dist_dir, &dist_entry)?);
 
           self.add_entry(Entry {
-            url: SourceUrl::from_path(&source)?,
+            url: SourceUrl::from_path(&source),
             target: env,
             dist_entry: Some(dist_entry),
             asset: None,
