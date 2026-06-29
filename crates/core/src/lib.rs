@@ -67,10 +67,6 @@ pub struct Parcel {
   /// Metadata from the previous bundle pass used to detect which bundles need re-packaging.
   /// Keyed by bundle name; value is (sorted asset indices, dist path).
   prev_bundles: HashMap<String, (Vec<usize>, PathId)>,
-  /// Asset indices invalidated by the most recent `invalidate()` call.
-  /// Persists until the next `invalidate()` so `Parcel::bundle()` can determine
-  /// which bundles need re-packaging.
-  changed_assets: HashSet<usize>,
   /// Original constructor inputs, retained so the build can be recreated from scratch when a
   /// configuration file changes.
   entries: Vec<String>,
@@ -79,6 +75,12 @@ pub struct Parcel {
   /// Files read while loading configuration during `Parcel::new`. A change to any of them
   /// requires a full rebuild rather than an incremental one.
   config_invalidations: InvalidationMap,
+}
+
+#[derive(Debug)]
+pub struct BuildResult<'a> {
+  pub bundle_graph: BundleGraph<'a>,
+  pub changed_assets: HashSet<usize>,
 }
 
 /// The outcome of [`Parcel::invalidate`].
@@ -174,7 +176,6 @@ impl Parcel {
       options,
       cached_fs,
       prev_bundles: HashMap::new(),
-      changed_assets: HashSet::new(),
       entries: entries.clone(),
       build_options,
       make_factory,
@@ -217,7 +218,6 @@ impl Parcel {
     self.cached_fs.invalidate(paths);
 
     let affected = self.asset_graph_builder.invalidate(changed, created);
-    self.changed_assets = affected.clone();
     Ok(InvalidateResult {
       affected,
       config_changed: false,
@@ -233,14 +233,24 @@ impl Parcel {
   }
 
   pub fn build(&mut self) -> Result<BundleGraph<'_>, DiagnosticList> {
-    let asset_graph = self.asset_graph_builder.build()?;
-    bundle_and_package(
-      asset_graph,
+    Ok(self.build_with_changes()?.bundle_graph)
+  }
+
+  pub fn build_with_changes(&mut self) -> Result<BuildResult<'_>, DiagnosticList> {
+    let result = self.asset_graph_builder.build_with_changes()?;
+    let changed_assets = result.changed_assets;
+    let bundle_graph = bundle_and_package(
+      result.asset_graph,
       &self.config,
       &self.options,
-      &self.changed_assets,
+      &changed_assets,
       &mut self.prev_bundles,
-    )
+    )?;
+
+    Ok(BuildResult {
+      bundle_graph,
+      changed_assets,
+    })
   }
 
   pub fn build_owned(self) -> Result<BundleGraph<'static>, DiagnosticList> {
@@ -249,15 +259,14 @@ impl Parcel {
       config,
       options,
       mut prev_bundles,
-      changed_assets,
       ..
     } = self;
-    let asset_graph = asset_graph_builder.build_owned()?;
+    let result = asset_graph_builder.build_owned_with_changes()?;
     bundle_and_package(
-      asset_graph,
+      result.asset_graph,
       &config,
       &options,
-      &changed_assets,
+      &result.changed_assets,
       &mut prev_bundles,
     )
   }

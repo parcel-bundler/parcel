@@ -39,6 +39,12 @@ pub struct AssetGraph<'a> {
   pub entries: Cow<'a, [Entry]>,
 }
 
+#[derive(Debug, Clone)]
+pub struct AssetGraphBuildResult<'a> {
+  pub asset_graph: AssetGraph<'a>,
+  pub changed_assets: HashSet<usize>,
+}
+
 /// Stateful builder for the asset graph, enabling incremental rebuilds.
 ///
 /// The builder owns the persistent asset graph state across builds. After calling
@@ -104,7 +110,13 @@ impl AssetGraphBuilder {
   ///
   /// Returns a borrowed `AssetGraph` view suitable for bundling.
   pub fn build(&mut self) -> Result<AssetGraph<'_>, DiagnosticList> {
+    Ok(self.build_with_changes()?.asset_graph)
+  }
+
+  /// Builds the asset graph and reports every asset transformed during this build.
+  pub fn build_with_changes(&mut self) -> Result<AssetGraphBuildResult<'_>, DiagnosticList> {
     let mut queue = &mut self.queue;
+    let mut changed_assets = HashSet::new();
 
     // Queue entry assets. On the first build, allocate new slots.
     // On subsequent builds, entries already have slots; re-queue if Deferred.
@@ -173,6 +185,8 @@ impl AssetGraphBuilder {
     while let Some(result) = queue.receive() {
       match result {
         RequestResult::Transform(res) => {
+          changed_assets.insert(res.index);
+
           // Always record invalidations, even when the transform errored.
           self.invalidation_map.add(res.index, res.invalidations);
 
@@ -304,9 +318,12 @@ impl AssetGraphBuilder {
       }
     }
 
-    Ok(AssetGraph {
-      assets: Cow::Borrowed(&self.assets),
-      entries: Cow::Borrowed(&self.entries),
+    Ok(AssetGraphBuildResult {
+      asset_graph: AssetGraph {
+        assets: Cow::Borrowed(&self.assets),
+        entries: Cow::Borrowed(&self.entries),
+      },
+      changed_assets,
     })
   }
 
@@ -314,11 +331,21 @@ impl AssetGraphBuilder {
   ///
   /// This is useful for one-shot builds where the builder will be dropped immediately after
   /// building, so its retained assets and entries can be moved instead of cloned.
-  pub fn build_owned(mut self) -> Result<AssetGraph<'static>, DiagnosticList> {
-    self.build()?;
-    Ok(AssetGraph {
-      assets: Cow::Owned(self.assets),
-      entries: Cow::Owned(self.entries),
+  pub fn build_owned(self) -> Result<AssetGraph<'static>, DiagnosticList> {
+    Ok(self.build_owned_with_changes()?.asset_graph)
+  }
+
+  /// Builds the asset graph, reports transformed assets, and returns owned graph storage.
+  pub fn build_owned_with_changes(
+    mut self,
+  ) -> Result<AssetGraphBuildResult<'static>, DiagnosticList> {
+    let changed_assets = self.build_with_changes()?.changed_assets;
+    Ok(AssetGraphBuildResult {
+      asset_graph: AssetGraph {
+        assets: Cow::Owned(self.assets),
+        entries: Cow::Owned(self.entries),
+      },
+      changed_assets,
     })
   }
 }

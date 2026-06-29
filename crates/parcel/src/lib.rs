@@ -103,18 +103,18 @@ pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
     if !result.needs_rebuild() {
       continue;
     }
-    // On a config change the Parcel was rebuilt from scratch; there are no specific changed asset
-    // indices, so HMR is skipped in favour of the full rebuild's output.
-    let affected_indices = result.affected;
+    let config_changed = result.config_changed;
 
     let start = std::time::Instant::now();
     let config = parcel.config.clone();
     let options = parcel.options.clone();
-    match parcel.build() {
-      Ok(graph) => {
+    match parcel.build_with_changes() {
+      Ok(result) => {
         println!("Rebuilt in {:?}", start.elapsed());
+        let graph = result.bundle_graph;
 
-        let changed_assets: Vec<(u32, &AssetNode)> = affected_indices
+        let changed_assets: Vec<(u32, &AssetNode)> = result
+          .changed_assets
           .iter()
           .map(|&index| (index as u32, &graph.asset_graph.assets[index]))
           .collect();
@@ -130,7 +130,9 @@ pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
           })
           .collect();
 
-        if !changed_assets.is_empty() {
+        // On a config change the Parcel was rebuilt from scratch, so HMR is skipped in favour of
+        // the full rebuild's output.
+        if !config_changed && !changed_assets.is_empty() {
           server.emit_hmr_update(changed_assets, &graph, &*config, &*options);
         }
       }

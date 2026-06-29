@@ -133,65 +133,85 @@ impl DevServer {
     config: &ParcelConfig,
     options: &ParcelOptions,
   ) {
-    let mut synthetic_assets = IndexSet::new();
-    let mut assets = Vec::with_capacity(changed_assets.len());
-    for (id, asset) in changed_assets {
-      let dependencies = asset_dependencies(
-        id as usize,
-        asset,
-        bundle_graph,
-        None,
-        &mut synthetic_assets,
-        &|bundle_index| {
-          get_bundle_content(
-            config,
-            bundle_graph,
-            &bundle_graph.bundles[bundle_index],
-            options,
-          )
-        },
-        &bundle_graph.project_root,
-      )
-      .unwrap();
+    let update = get_hmr_update(changed_assets, bundle_graph, config, options);
+    let serialized = serde_json::to_string(&update).unwrap();
 
-      // TODO: I think we don't need this anymore. Was added in https://github.com/parcel-bundler/parcel/pull/4311
-      // due to runtimes producing different dependencies per bundle.
-      let mut deps_by_bundle = HashMap::new();
-      deps_by_bundle.insert("TODO".into(), dependencies);
-
-      let mut output = String::new();
-      if asset.ty == AssetType::Js {
-        output = format!(
-          "parcelHotUpdate['{}'] = function (require, module, exports) {{{}}}",
-          asset.id(&bundle_graph.project_root),
-          String::from_utf8(asset.content.read().unwrap()).unwrap()
-        );
+    let mut sockets = self.sockets.lock().unwrap();
+    sockets.retain_mut(|ws| {
+      match ws.send(Message::Text(serialized.clone().into())) {
+        Ok(_) => true,   // Keep the client
+        Err(_) => false, // Drop the client (they disconnected)
       }
+    });
+  }
+}
 
-      assets.push(HmrAsset {
-        id: Id::Asset(asset.id(&bundle_graph.project_root)),
-        ty: asset.ty.clone(),
-        output,
-        // TODO: needed to filter out assets that come from a different target, preventing page reload.
-        env_hash: "TODO".into(),
-        output_format: asset.target.output_format.clone(),
-        deps_by_bundle,
-      });
+pub(crate) fn get_hmr_update<'a>(
+  changed_assets: Vec<(u32, &'a Asset)>,
+  bundle_graph: &'a BundleGraph,
+  config: &'a ParcelConfig,
+  options: &'a ParcelOptions,
+) -> HmrUpdate<'a> {
+  let mut synthetic_assets = IndexSet::new();
+  let mut assets = Vec::with_capacity(changed_assets.len());
+  for (id, asset) in changed_assets {
+    let dependencies = asset_dependencies(
+      id as usize,
+      asset,
+      bundle_graph,
+      None,
+      &mut synthetic_assets,
+      &|bundle_index| {
+        get_bundle_content(
+          config,
+          bundle_graph,
+          &bundle_graph.bundles[bundle_index],
+          options,
+        )
+      },
+      &bundle_graph.project_root,
+    )
+    .unwrap();
+
+    // TODO: I think we don't need this anymore. Was added in https://github.com/parcel-bundler/parcel/pull/4311
+    // due to runtimes producing different dependencies per bundle.
+    let mut deps_by_bundle = HashMap::new();
+    deps_by_bundle.insert("TODO".into(), dependencies);
+
+    let mut output = String::new();
+    if asset.ty == AssetType::Js {
+      output = format!(
+        "parcelHotUpdate['{}'] = function (require, module, exports) {{{}}}",
+        asset.id(&bundle_graph.project_root),
+        String::from_utf8(asset.content.read().unwrap()).unwrap()
+      );
     }
 
-    // TODO: only changed ones??
-    for synthetic_asset in synthetic_assets {
-      let id = if let SyntheticAsset::Asset(id, _) = &synthetic_asset {
-        Id::Asset(id.clone())
-      } else {
-        Id::Bundle(synthetic_asset.id())
-      };
+    assets.push(HmrAsset {
+      id: Id::Asset(asset.id(&bundle_graph.project_root)),
+      ty: asset.ty.clone(),
+      output,
+      // TODO: needed to filter out assets that come from a different target, preventing page reload.
+      env_hash: "TODO".into(),
+      output_format: asset.target.output_format.clone(),
+      deps_by_bundle,
+    });
+  }
 
-      let mut output = String::new();
-      write!(&mut output, "parcelHotUpdate[",);
-      synthetic_asset.write_id(&mut output);
-      write!(&mut output, "] = function (require, module, exports) {{");
-      synthetic_asset.write_content(
+  // TODO: only changed ones??
+  for synthetic_asset in synthetic_assets {
+    let id = if let SyntheticAsset::Asset(id, _) = &synthetic_asset {
+      Id::Asset(id.clone())
+    } else {
+      Id::Bundle(synthetic_asset.id())
+    };
+
+    let mut output = String::new();
+    write!(&mut output, "parcelHotUpdate[").unwrap();
+    synthetic_asset.write_id(&mut output).unwrap();
+    write!(&mut output, "] = function (require, module, exports) {{").unwrap();
+    synthetic_asset
+      .write_content(
         &mut output,
         bundle_graph,
         &bundle_graph.bundles[0], // TODO
@@ -204,28 +224,183 @@ impl DevServer {
           )
         },
         &bundle_graph.project_root,
-      );
-      write!(&mut output, "}}");
+      )
+      .unwrap();
+    write!(&mut output, "}}").unwrap();
 
-      assets.push(HmrAsset {
-        id,
-        ty: AssetType::Js,
-        output,
-        env_hash: "TODO".into(),
-        output_format: OutputFormat::Esmodule,
-        deps_by_bundle: HashMap::new(),
-      });
+    assets.push(HmrAsset {
+      id,
+      ty: AssetType::Js,
+      output,
+      env_hash: "TODO".into(),
+      output_format: OutputFormat::Esmodule,
+      deps_by_bundle: HashMap::new(),
+    });
+  }
+
+  HmrUpdate::Update { assets }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use parcel_core::{
+    AssetNode, BuildMode, BuildOptions, FileSystem, LogLevel, MemoryFileSystem, Parcel, PathId,
+  };
+  use std::{collections::HashMap, path::Path, sync::Arc};
+
+  fn write_file(fs: &MemoryFileSystem, path: &str, contents: &str) {
+    let path = Path::new(path);
+    if let Some(parent) = path.parent() {
+      fs.create_dir_all(PathId::new(parent)).unwrap();
+    }
+    fs.write(PathId::new(path), &contents.as_bytes().to_vec())
+      .unwrap();
+  }
+
+  fn setup(files: &[(&str, &str)]) -> (Parcel, Arc<MemoryFileSystem>) {
+    let input_fs = Arc::new(MemoryFileSystem::new());
+    let output_fs = Arc::new(MemoryFileSystem::new());
+    for (path, contents) in files {
+      write_file(&input_fs, path, contents);
     }
 
-    let update = HmrUpdate::Update { assets };
-    let serialized = serde_json::to_string(&update).unwrap();
+    let options = BuildOptions {
+      mode: BuildMode::Development,
+      env: HashMap::new(),
+      log_level: LogLevel::Error,
+      input_fs: input_fs.clone(),
+      output_fs,
+      config: None,
+      cwd: PathId::new(Path::new("/project")),
+    };
 
-    let mut sockets = self.sockets.lock().unwrap();
-    sockets.retain_mut(|ws| {
-      match ws.send(Message::Text(serialized.clone().into())) {
-        Ok(_) => true,   // Keep the client
-        Err(_) => false, // Drop the client (they disconnected)
-      }
-    });
+    let entries = vec!["/project/index.js".to_string()];
+    let mut parcel = crate::make_parcel(&entries, options).expect("Parcel::new failed");
+    parcel.build().expect("initial build failed");
+    (parcel, input_fs)
+  }
+
+  fn hmr_update_after_change(
+    parcel: &mut Parcel,
+    input_fs: &MemoryFileSystem,
+    path: &str,
+    contents: &str,
+  ) -> (serde_json::Value, usize, usize) {
+    write_file(input_fs, path, contents);
+    let path_id = PathId::new(Path::new(path));
+    let invalidate_result = parcel
+      .invalidate(&[path_id], &[])
+      .expect("invalidate failed");
+    assert!(!invalidate_result.config_changed);
+    assert!(!invalidate_result.affected.is_empty());
+
+    let affected_count = invalidate_result.affected.len();
+    let config = parcel.config.clone();
+    let options = parcel.options.clone();
+    let build_result = parcel
+      .build_with_changes()
+      .expect("incremental build failed");
+    let changed_count = build_result.changed_assets.len();
+    let graph = build_result.bundle_graph;
+    let changed_assets = build_result
+      .changed_assets
+      .iter()
+      .filter_map(|&index| {
+        if let AssetNode::Asset(asset) = &graph.asset_graph.assets[index] {
+          Some((index as u32, asset))
+        } else {
+          None
+        }
+      })
+      .collect();
+
+    let update = get_hmr_update(changed_assets, &graph, &config, &options);
+    (
+      serde_json::to_value(update).unwrap(),
+      affected_count,
+      changed_count,
+    )
+  }
+
+  #[test]
+  fn hmr_update_payload_contains_incrementally_changed_js_asset() {
+    let (mut parcel, input_fs) = setup(&[
+      (
+        "/project/index.js",
+        "import './foo.js';\nconsole.log('index');",
+      ),
+      ("/project/foo.js", "console.log('foo v1');"),
+    ]);
+
+    let (json, _affected_count, changed_count) = hmr_update_after_change(
+      &mut parcel,
+      &input_fs,
+      "/project/foo.js",
+      "console.log('foo v2');",
+    );
+
+    let assets = json["assets"].as_array().unwrap();
+    assert_eq!(json["type"], "update");
+    assert_eq!(assets.len(), changed_count);
+    assert!(assets.iter().all(|asset| asset["type"] == "js"));
+    assert!(assets.iter().all(|asset| {
+      asset["output"]
+        .as_str()
+        .unwrap()
+        .contains("parcelHotUpdate")
+    }));
+    assert!(
+      assets
+        .iter()
+        .any(|asset| asset["output"].as_str().unwrap().contains("foo v2"))
+    );
+    assert!(
+      assets
+        .iter()
+        .all(|asset| !asset["output"].as_str().unwrap().contains("foo v1"))
+    );
+  }
+
+  #[test]
+  fn hmr_update_includes_new_dependency_added_by_changed_asset() {
+    let (mut parcel, input_fs) = setup(&[
+      (
+        "/project/index.js",
+        "import './foo.js';\nconsole.log('index');",
+      ),
+      ("/project/foo.js", "console.log('foo v1');"),
+      ("/project/bar.js", "console.log('bar');"),
+    ]);
+
+    let (json, affected_count, changed_count) = hmr_update_after_change(
+      &mut parcel,
+      &input_fs,
+      "/project/foo.js",
+      "import './bar.js';\nconsole.log('foo v2');",
+    );
+
+    let assets = json["assets"].as_array().unwrap();
+    assert_eq!(json["type"], "update");
+    assert_eq!(assets.len(), changed_count);
+    assert!(
+      changed_count > affected_count,
+      "newly imported assets should be reported after the rebuild"
+    );
+    assert!(
+      assets
+        .iter()
+        .any(|asset| asset["output"].as_str().unwrap().contains("foo v2"))
+    );
+    assert!(
+      assets
+        .iter()
+        .any(|asset| asset["output"].as_str().unwrap().contains("bar"))
+    );
+    assert!(
+      assets
+        .iter()
+        .all(|asset| !asset["output"].as_str().unwrap().contains("foo v1"))
+    );
   }
 }
