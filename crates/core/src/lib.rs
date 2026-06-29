@@ -67,6 +67,10 @@ pub struct Parcel {
   /// Metadata from the previous bundle pass used to detect which bundles need re-packaging.
   /// Keyed by bundle name; value is (sorted asset indices, dist path).
   prev_bundles: HashMap<String, (Vec<usize>, PathId)>,
+  /// Asset indices invalidated by the most recent `invalidate()` call.
+  /// Persists until the next `invalidate()` so `Parcel::bundle()` can determine
+  /// which bundles need re-packaging.
+  changed_assets: HashSet<usize>,
   /// Original constructor inputs, retained so the build can be recreated from scratch when a
   /// configuration file changes.
   entries: Vec<String>,
@@ -170,6 +174,7 @@ impl Parcel {
       options,
       cached_fs,
       prev_bundles: HashMap::new(),
+      changed_assets: HashSet::new(),
       entries: entries.clone(),
       build_options,
       make_factory,
@@ -212,6 +217,7 @@ impl Parcel {
     self.cached_fs.invalidate(paths);
 
     let affected = self.asset_graph_builder.invalidate(changed, created);
+    self.changed_assets = affected.clone();
     Ok(InvalidateResult {
       affected,
       config_changed: false,
@@ -226,82 +232,111 @@ impl Parcel {
       .is_empty()
   }
 
-  pub fn build(&mut self) -> Result<BundleGraph, DiagnosticList> {
+  pub fn build(&mut self) -> Result<BundleGraph<'_>, DiagnosticList> {
     let asset_graph = self.asset_graph_builder.build()?;
-    self.bundle(asset_graph)
+    bundle_and_package(
+      asset_graph,
+      &self.config,
+      &self.options,
+      &self.changed_assets,
+      &mut self.prev_bundles,
+    )
   }
 
-  pub fn bundle(&mut self, asset_graph: AssetGraph) -> Result<BundleGraph, DiagnosticList> {
-    // Group assets into bundles.
-    let bundle_graph = bundle(asset_graph, &self.config, &*self.options)?;
-
-    // Diff the new bundle graph against the previous build's metadata to find dirty bundles.
-    // A bundle is dirty if it's new, its asset composition changed, or any of its assets
-    // were re-transformed this build.
-    let changed = &self.asset_graph_builder.changed_assets;
-    let mut new_prev: HashMap<String, (Vec<usize>, PathId)> = HashMap::new();
-    let mut dirty: HashSet<usize> = HashSet::new();
-
-    for (bundle_index, bundle) in bundle_graph.bundles.iter().enumerate() {
-      if bundle.bundle_behavior == BundleBehavior::Inline {
-        continue;
-      }
-
-      let name = bundle.name.as_ref().unwrap();
-      let dist_path = bundle.dist_path();
-
-      let mut sorted_assets = bundle.assets.clone();
-      sorted_assets.sort_unstable();
-
-      let is_dirty = match self.prev_bundles.get(name) {
-        None => true,
-        Some((prev_assets, _)) => {
-          *prev_assets != sorted_assets || bundle.assets.iter().any(|i| changed.contains(i))
-        }
-      };
-
-      if is_dirty {
-        dirty.insert(bundle_index);
-      }
-
-      new_prev.insert(name.clone(), (sorted_assets, dist_path));
-    }
-
-    // Delete output files for bundles that no longer exist.
-    for (name, (_, dist_path)) in &self.prev_bundles {
-      if !new_prev.contains_key(name) {
-        self.options.output_fs.remove_file(*dist_path).ok();
-      }
-    }
-
-    self.prev_bundles = new_prev;
-
-    let opts = &*self.options;
-    bundle_graph
-      .bundles
-      .par_iter()
-      .enumerate()
-      .for_each(|(bundle_index, bundle)| {
-        if dirty.contains(&bundle_index) {
-          let content = get_bundle_content(&self.config, &bundle_graph, bundle, opts).unwrap();
-          let path = bundle.dist_path();
-          let parent = path.parent().unwrap();
-          opts.output_fs.create_dir_all(parent).ok();
-          content.write(&*opts.output_fs, path).ok();
-        }
-      });
-
-    Ok(bundle_graph)
+  pub fn build_owned(self) -> Result<BundleGraph<'static>, DiagnosticList> {
+    let Parcel {
+      asset_graph_builder,
+      config,
+      options,
+      mut prev_bundles,
+      changed_assets,
+      ..
+    } = self;
+    let asset_graph = asset_graph_builder.build_owned()?;
+    bundle_and_package(
+      asset_graph,
+      &config,
+      &options,
+      &changed_assets,
+      &mut prev_bundles,
+    )
   }
+}
+
+fn bundle_and_package<'a>(
+  asset_graph: AssetGraph<'a>,
+  config: &ParcelConfig,
+  options: &ParcelOptions,
+  changed_assets: &HashSet<usize>,
+  prev_bundles: &mut HashMap<String, (Vec<usize>, PathId)>,
+) -> Result<BundleGraph<'a>, DiagnosticList> {
+  // Group assets into bundles.
+  let bundle_graph = bundle(asset_graph, config, options)?;
+
+  // Diff the new bundle graph against the previous build's metadata to find dirty bundles.
+  // A bundle is dirty if it's new, its asset composition changed, or any of its assets
+  // were re-transformed this build.
+  let mut new_prev: HashMap<String, (Vec<usize>, PathId)> = HashMap::new();
+  let mut dirty: HashSet<usize> = HashSet::new();
+
+  for (bundle_index, bundle) in bundle_graph.bundles.iter().enumerate() {
+    if bundle.bundle_behavior == BundleBehavior::Inline {
+      continue;
+    }
+
+    let name = bundle.name.as_ref().unwrap();
+    let dist_path = bundle.dist_path();
+
+    let mut sorted_assets = bundle.assets.clone();
+    sorted_assets.sort_unstable();
+
+    let is_dirty = match prev_bundles.get(name) {
+      None => true,
+      Some((prev_assets, _)) => {
+        *prev_assets != sorted_assets || bundle.assets.iter().any(|i| changed_assets.contains(i))
+      }
+    };
+
+    if is_dirty {
+      dirty.insert(bundle_index);
+    }
+
+    new_prev.insert(name.clone(), (sorted_assets, dist_path));
+  }
+
+  // Delete output files for bundles that no longer exist.
+  for (name, (_, dist_path)) in prev_bundles.iter() {
+    if !new_prev.contains_key(name) {
+      options.output_fs.remove_file(*dist_path).ok();
+    }
+  }
+
+  *prev_bundles = new_prev;
+
+  bundle_graph
+    .bundles
+    .par_iter()
+    .enumerate()
+    .for_each(|(bundle_index, bundle)| {
+      if dirty.contains(&bundle_index) {
+        let content = get_bundle_content(config, &bundle_graph, bundle, options).unwrap();
+        let path = bundle.dist_path();
+        let parent = path.parent().unwrap();
+        options.output_fs.create_dir_all(parent).ok();
+        content.write(&*options.output_fs, path).ok();
+      }
+    });
+
+  Ok(bundle_graph)
 }
 
 pub fn build(
   entries: &Vec<String>,
   options: BuildOptions,
   make_factory: Arc<FactoryBuilder>,
-) -> Result<BundleGraph, DiagnosticList> {
-  let mut parcel = Parcel::new(entries, options, make_factory)?;
-  parcel.build()
+) -> Result<BundleGraph<'static>, DiagnosticList> {
+  let parcel = Parcel::new(entries, options, make_factory)?;
+  parcel.build_owned()
 }
 
 fn get_bundle_content(

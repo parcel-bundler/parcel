@@ -6,18 +6,18 @@ use crate::{
 };
 
 pub trait Bundler: Send + Sync {
-  fn bundle(
+  fn bundle<'a>(
     &self,
-    asset_graph: AssetGraph,
+    asset_graph: AssetGraph<'a>,
     options: &ParcelOptions,
-  ) -> Result<BundleGraph, DiagnosticList>;
+  ) -> Result<BundleGraph<'a>, DiagnosticList>;
 }
 
-pub fn bundle(
-  asset_graph: AssetGraph,
+pub fn bundle<'a>(
+  asset_graph: AssetGraph<'a>,
   config: &ParcelConfig,
   options: &ParcelOptions,
-) -> Result<BundleGraph, DiagnosticList> {
+) -> Result<BundleGraph<'a>, DiagnosticList> {
   let mut bundle_graph = config.bundler.bundle(asset_graph, options)?;
   bundle_graph.project_root = options.project_root.clone();
 

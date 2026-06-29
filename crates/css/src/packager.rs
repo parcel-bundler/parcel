@@ -198,7 +198,7 @@ impl CssContent {
 }
 
 fn collect(
-  assets: &Vec<AssetNode>,
+  assets: &[AssetNode],
   asset_index_to_stylesheet_index: &HashMap<u32, usize>,
   stylesheets: &mut Vec<StyleSheetWrapper>,
   state: State,

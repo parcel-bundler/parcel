@@ -8,11 +8,11 @@ use parcel_core::{
 pub struct LibraryBundler {}
 
 impl Bundler for LibraryBundler {
-  fn bundle(
+  fn bundle<'a>(
     &self,
-    asset_graph: AssetGraph,
+    asset_graph: AssetGraph<'a>,
     _options: &ParcelOptions,
-  ) -> Result<BundleGraph, DiagnosticList> {
+  ) -> Result<BundleGraph<'a>, DiagnosticList> {
     #[derive(Hash, PartialEq, Eq)]
     struct BundleKey<'a> {
       url: &'a SourceUrl,
@@ -76,7 +76,7 @@ impl Bundler for LibraryBundler {
       }
     }
 
-    for entry in &asset_graph.entries {
+    for entry in asset_graph.entries.iter() {
       if let Some(asset_index) = entry.asset {
         if let Some(bundle) = asset_to_bundle.get(&(asset_index as u32)) {
           bundles[*bundle].flags |= BundleFlags::ENTRY;
@@ -84,11 +84,11 @@ impl Bundler for LibraryBundler {
       }
     }
 
-    Ok(BundleGraph {
+    Ok(BundleGraph::new(
       asset_graph,
       bundles,
       dependency_resolutions,
-      project_root: PathId::root(),
-    })
+      PathId::root(),
+    ))
   }
 }

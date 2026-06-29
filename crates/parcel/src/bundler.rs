@@ -51,11 +51,11 @@ impl DefaultBundler {
 }
 
 impl Bundler for DefaultBundler {
-  fn bundle(
+  fn bundle<'a>(
     &self,
-    asset_graph: AssetGraph,
+    asset_graph: AssetGraph<'a>,
     options: &ParcelOptions,
-  ) -> Result<BundleGraph, DiagnosticList> {
+  ) -> Result<BundleGraph<'a>, DiagnosticList> {
     if asset_graph.entries.iter().all(|e| {
       asset_graph.assets[e.asset.unwrap()]
         .expect_asset()
@@ -83,7 +83,7 @@ impl Bundler for DefaultBundler {
     // A bundle root is created for entries, and lazy, parallel, isolated, or inline dependencies.
     let mut bundle_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
     let mut entry_bundle_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
-    for entry in &asset_graph.entries {
+    for entry in asset_graph.entries.iter() {
       if let Some(asset) = entry.asset {
         bundle_roots.insert(asset);
         entry_bundle_roots.insert(asset);
@@ -326,11 +326,11 @@ impl Bundler for DefaultBundler {
     }
 
     // println!("{:?}", bundles);
-    Ok(BundleGraph {
+    Ok(BundleGraph::new(
       asset_graph,
       bundles,
       dependency_resolutions,
-      project_root: PathId::root(),
-    })
+      PathId::root(),
+    ))
   }
 }

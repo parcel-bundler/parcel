@@ -325,16 +325,16 @@ impl Resolver for MockResolver {
 struct MockBundler;
 
 impl Bundler for MockBundler {
-  fn bundle(
+  fn bundle<'a>(
     &self,
-    asset_graph: AssetGraph,
+    asset_graph: AssetGraph<'a>,
     _options: &ParcelOptions,
-  ) -> Result<BundleGraph, DiagnosticList> {
+  ) -> Result<BundleGraph<'a>, DiagnosticList> {
     // Bundle roots: start with the entries (in order), then async targets discovered while
     // walking each bundle's synchronous subgraph.
     let mut roots: Vec<(usize, bool)> = Vec::new();
     let mut seen_roots: HashSet<usize> = HashSet::new();
-    for entry in &asset_graph.entries {
+    for entry in asset_graph.entries.iter() {
       if let Some(index) = entry.asset {
         if seen_roots.insert(index) {
           roots.push((index, true));
@@ -384,12 +384,12 @@ impl Bundler for MockBundler {
       });
     }
 
-    Ok(BundleGraph {
+    Ok(BundleGraph::new(
       asset_graph,
       bundles,
-      dependency_resolutions: HashMap::new(),
-      project_root: PathId::root(),
-    })
+      HashMap::new(),
+      PathId::root(),
+    ))
   }
 }
 

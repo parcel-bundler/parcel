@@ -128,7 +128,7 @@ fn bundle_with_options(
   entries: Vec<String>,
   output_fs: Arc<dyn FileSystem>,
   options: TestOptions,
-) -> Result<BundleGraph, DiagnosticList> {
+) -> Result<BundleGraph<'static>, DiagnosticList> {
   let mut env = options.env;
   if !env.contains_key("NODE_ENV") {
     env.insert("NODE_ENV".into(), "test".into());

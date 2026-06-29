@@ -36,7 +36,7 @@ impl Content for CssContent {
 }
 
 pub fn resolve_css_module_export(
-  assets: &Vec<AssetNode>,
+  assets: &[AssetNode],
   asset_index: usize,
   name: &str,
 ) -> Option<String> {

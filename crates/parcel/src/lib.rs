@@ -29,10 +29,13 @@ fn make_parcel(
   parcel_core::Parcel::new(entries, options, make_factory)
 }
 
-pub fn build(entries: &Vec<String>, options: BuildOptions) -> Result<BundleGraph, DiagnosticList> {
+pub fn build(
+  entries: &Vec<String>,
+  options: BuildOptions,
+) -> Result<BundleGraph<'static>, DiagnosticList> {
   let start = std::time::Instant::now();
-  let mut parcel = make_parcel(entries, options)?;
-  match parcel.build() {
+  let parcel = make_parcel(entries, options)?;
+  match parcel.build_owned() {
     Ok(g) => {
       println!("Built in {:?}", start.elapsed());
       Ok(g)

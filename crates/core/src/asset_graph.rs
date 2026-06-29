@@ -1,4 +1,5 @@
 use std::{
+  borrow::Cow,
   collections::{HashMap, HashSet},
   sync::Arc,
 };
@@ -33,15 +34,15 @@ impl AssetNode {
 }
 
 #[derive(Debug, Clone)]
-pub struct AssetGraph {
-  pub assets: Vec<AssetNode>,
-  pub entries: Vec<Entry>,
+pub struct AssetGraph<'a> {
+  pub assets: Cow<'a, [AssetNode]>,
+  pub entries: Cow<'a, [Entry]>,
 }
 
 /// Stateful builder for the asset graph, enabling incremental rebuilds.
 ///
 /// The builder owns the persistent asset graph state across builds. After calling
-/// `invalidate()` with the set of changed file URLs, the next call to `build()`
+/// `invalidate()` with the set of changed file paths, the next call to `build()`
 /// re-transforms only the affected assets and their transitive dependents.
 pub struct AssetGraphBuilder {
   /// The asset graph nodes, monotonically growing across builds.
@@ -53,10 +54,6 @@ pub struct AssetGraphBuilder {
   requests: Vec<Arc<AssetRequest>>,
   /// Reverse invalidation map: which assets to re-transform when a file changes.
   invalidation_map: InvalidationMap,
-  /// Asset indices invalidated by the most recent `invalidate()` call.
-  /// Persists until the next `invalidate()` so `Parcel::bundle()` can determine
-  /// which bundles need re-packaging.
-  pub changed_assets: HashSet<usize>,
   /// Entry points. `entry.asset` is set after the first build.
   entries: Vec<Entry>,
   options: Arc<ParcelOptions>,
@@ -70,7 +67,6 @@ impl AssetGraphBuilder {
       asset_requests: HashMap::new(),
       requests: Vec::new(),
       invalidation_map: InvalidationMap::default(),
-      changed_assets: HashSet::new(),
       entries,
       queue: TransformQueue::new(config, options.clone()),
       options,
@@ -87,7 +83,6 @@ impl AssetGraphBuilder {
       self.reset_asset(*index);
     }
 
-    self.changed_assets = affected.clone();
     affected
   }
 
@@ -107,10 +102,8 @@ impl AssetGraphBuilder {
   /// On the first call, performs a full build starting from entries.
   /// On subsequent calls after `invalidate()`, re-transforms only the affected assets.
   ///
-  /// Returns a cloned snapshot of the `AssetGraph` suitable for bundling.
-  /// The clone is shallow (Arcs are shared) so it is cheap; bundler mutations to
-  /// `bundle_behavior` fields do not affect the builder's persistent state.
-  pub fn build(&mut self) -> Result<AssetGraph, DiagnosticList> {
+  /// Returns a borrowed `AssetGraph` view suitable for bundling.
+  pub fn build(&mut self) -> Result<AssetGraph<'_>, DiagnosticList> {
     let mut queue = &mut self.queue;
 
     // Queue entry assets. On the first build, allocate new slots.
@@ -312,8 +305,20 @@ impl AssetGraphBuilder {
     }
 
     Ok(AssetGraph {
-      assets: self.assets.clone(),
-      entries: self.entries.clone(),
+      assets: Cow::Borrowed(&self.assets),
+      entries: Cow::Borrowed(&self.entries),
+    })
+  }
+
+  /// Builds the asset graph and returns owned graph storage.
+  ///
+  /// This is useful for one-shot builds where the builder will be dropped immediately after
+  /// building, so its retained assets and entries can be moved instead of cloned.
+  pub fn build_owned(mut self) -> Result<AssetGraph<'static>, DiagnosticList> {
+    self.build()?;
+    Ok(AssetGraph {
+      assets: Cow::Owned(self.assets),
+      entries: Cow::Owned(self.entries),
     })
   }
 }
@@ -498,9 +503,9 @@ fn request_all(assets: &mut Vec<AssetNode>, asset_index: u32, queue: &mut Transf
   }
 }
 
-impl AssetGraph {
+impl<'a> AssetGraph<'a> {
   /// Visits all assets in depth-first order starting from each entry.
-  pub fn dfs<'a>(&'a self) -> impl Iterator<Item = (usize, &'a Asset, Option<String>)> {
+  pub fn dfs<'b>(&'b self) -> impl Iterator<Item = (usize, &'b Asset, Option<String>)> {
     let mut stack = Vec::new();
     let mut visited = FixedBitSet::with_capacity(self.assets.len());
     let mut entries = self.entries.iter();

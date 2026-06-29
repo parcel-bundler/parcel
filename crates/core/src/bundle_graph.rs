@@ -19,14 +19,28 @@ pub enum BundleGraphDependencyResolution {
 }
 
 #[derive(Debug)]
-pub struct BundleGraph {
-  pub asset_graph: AssetGraph,
+pub struct BundleGraph<'a> {
+  pub asset_graph: AssetGraph<'a>,
   pub bundles: Vec<Bundle>,
   dependency_resolutions: HashMap<DependencyId, u32>,
   pub project_root: PathId,
 }
 
-impl BundleGraph {
+impl<'a> BundleGraph<'a> {
+  pub fn new(
+    asset_graph: AssetGraph<'a>,
+    bundles: Vec<Bundle>,
+    dependency_resolutions: HashMap<DependencyId, u32>,
+    project_root: PathId,
+  ) -> Self {
+    BundleGraph {
+      asset_graph,
+      bundles,
+      dependency_resolutions,
+      project_root,
+    }
+  }
+
   pub fn dependency_resolution(
     &self,
     asset_index: usize,
