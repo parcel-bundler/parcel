@@ -2,9 +2,11 @@ use std::{borrow::Cow, collections::HashSet};
 
 use indexmap::IndexMap;
 use swc_core::{
-  common::{DUMMY_SP, Mark},
+  common::{util::take::Take, DUMMY_SP, Mark},
   ecma::{
     ast::*,
+    minifier::option::{CompressOptions, MangleOptions, TopLevelOptions},
+    transforms::base::fixer::fixer,
     atoms::Atom as JsWord,
     visit::{VisitMut, VisitMutWith},
   },
@@ -71,10 +73,10 @@ pub fn tree_shake<'a>(
   used_symbols: HashSet<JsWord>,
   resolutions: IndexMap<String, Resolution<'a>>,
   dirname: JsWord,
-  _minify: bool,
+  minify: bool,
 ) {
   swc_core::common::GLOBALS.set(&*ast.globals, || {
-    // let global_mark = Mark::fresh(Mark::root());
+    let global_mark = Mark::fresh(Mark::root());
     let unresolved_mark = Mark::fresh(Mark::root());
     let mut shake = TreeShake {
       used_symbols,
@@ -86,35 +88,35 @@ pub fn tree_shake<'a>(
 
     ast.program.visit_mut_with(&mut shake);
 
-    // if minify {
-    //   let module = std::mem::take(&mut ast.program);
-    //   let mut program = swc_core::ecma::minifier::optimize(
-    //     Program::Module(module),
-    //     ast.source_map.clone(),
-    //     Some(&ast.comments),
-    //     None,
-    //     &swc_core::ecma::minifier::option::MinifyOptions {
-    //       rename: true,
-    //       compress: Some(CompressOptions {
-    //         top_level: Some(TopLevelOptions { functions: true }),
-    //         ..Default::default()
-    //       }),
-    //       mangle: Some(MangleOptions {
-    //         top_level: Some(true),
-    //         ..Default::default()
-    //       }),
-    //       ..Default::default()
-    //     },
-    //     &swc_core::ecma::minifier::option::ExtraOptions {
-    //       mangle_name_cache: None,
-    //       top_level_mark: global_mark,
-    //       unresolved_mark,
-    //     },
-    //   );
+    if minify {
+      let module = std::mem::take(&mut ast.program);
+      let mut program = swc_core::ecma::minifier::optimize(
+        Program::Module(module),
+        ast.source_map.clone(),
+        Some(&ast.comments),
+        None,
+        &swc_core::ecma::minifier::option::MinifyOptions {
+          rename: true,
+          compress: Some(CompressOptions {
+            top_level: Some(TopLevelOptions { functions: true }),
+            ..Default::default()
+          }),
+          mangle: Some(MangleOptions {
+            top_level: Some(true),
+            ..Default::default()
+          }),
+          ..Default::default()
+        },
+        &swc_core::ecma::minifier::option::ExtraOptions {
+          mangle_name_cache: None,
+          top_level_mark: global_mark,
+          unresolved_mark,
+        },
+      );
 
-    //   program.mutate(&mut fixer(Some(&ast.comments)));
-    //   ast.program = program.expect_module();
-    // }
+      program.mutate(&mut fixer(Some(&ast.comments)));
+      ast.program = program.expect_module();
+    }
   })
 }
 
@@ -160,12 +162,11 @@ impl<'a> VisitMut for TreeShake<'a> {
             _ => return,
           };
 
-          // if !self.used_symbols.contains(&name) {
-          //   println!("TREE SHAKE {}", name);
-          //   stmt.expr = assign.right.take();
-          //   self.mutated = true;
-          //   return;
-          // }
+          if !self.used_symbols.contains(&name) {
+            stmt.expr = assign.right.take();
+            self.mutated = true;
+            return;
+          }
         }
       }
       Expr::Call(call) => {
@@ -176,8 +177,7 @@ impl<'a> VisitMut for TreeShake<'a> {
           return;
         };
 
-        if !(matches!(&*member.obj, Expr::Ident(id) if id.sym == "parcelHelpers")
-          && matches!(match_property_name(&member), Some((name, _)) if name == "export"))
+        if !matches!(match_property_name(&member), Some((name, _)) if name == "export")
         {
           return;
         }
@@ -190,11 +190,10 @@ impl<'a> VisitMut for TreeShake<'a> {
           return;
         };
 
-        // if !self.used_symbols.contains(&name.value) {
-        //   println!("TREE SHAKE {}", name.value);
-        //   *node = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
-        //   self.mutated = true;
-        // }
+        if !self.used_symbols.contains(&name.value) {
+          *node = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
+          self.mutated = true;
+        }
       }
       _ => {}
     }

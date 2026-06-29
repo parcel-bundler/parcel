@@ -8,6 +8,13 @@
     "description": "ESM: tree-shake - only foo is imported; bar/baz should not appear in production bundle",
     "input": "index.js",
     "options": {"mode": "production"},
-    "output": 2
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["dep.js", "esmodule-helpers.js", "index.js"],
+        "contains": ["foo"],
+        "notContains": ["bar", "baz"]
+      }
+    ]
   }
 ]

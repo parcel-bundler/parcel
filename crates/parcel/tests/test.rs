@@ -205,6 +205,18 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
           );
         }
       }
+      if !found.not_contains.is_empty() {
+        let contents = output_fs.read_to_string(bundle.dist_path()).unwrap();
+        for substring in &found.not_contains {
+          assert!(
+            !contents.contains(substring),
+            "Bundle {:?} contained unexpected substring {:?}\n\nBundle contents: {}",
+            bundle.name.as_ref().unwrap(),
+            substring,
+            contents
+          );
+        }
+      }
     }
   }
 
@@ -506,6 +518,8 @@ struct TestBundle {
   ty: Option<AssetType>,
   #[serde(default)]
   contains: Vec<String>,
+  #[serde(default)]
+  not_contains: Vec<String>,
 }
 
 #[derive(serde::Deserialize, Default)]
