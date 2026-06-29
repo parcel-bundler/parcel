@@ -3047,6 +3047,7 @@ dependencies = [
  "serde-value",
  "serde_bytes",
  "serde_json",
+ "smallvec",
  "tree-sitter",
  "tree-sitter-css",
  "tree-sitter-highlight",

@@ -136,6 +136,17 @@ impl PathId {
   pub fn in_node_modules(&self) -> bool {
     self.ancestors().any(|a| a.file_name() == "node_modules")
   }
+
+  pub fn is_inside(&self, parent: PathId) -> bool {
+    self.ancestors().any(|a| a == parent)
+  }
+
+  pub fn ends_with(&self, subpath: &SubPath) -> bool {
+    self
+      .ancestors()
+      .zip(subpath.0.iter().rev())
+      .all(|(a, b)| GLOBAL_INTERNER.node(a).segment == *b)
+  }
 }
 
 impl Default for PathId {
@@ -166,7 +177,39 @@ impl<'de> serde::Deserialize<'de> for PathId {
 }
 
 /// Index into the interner's segment table.
-type SegmentId = u32;
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct SegmentId(u32);
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct SubPath(smallvec::SmallVec<[SegmentId; 1]>);
+
+impl SubPath {
+  pub fn new(path: &Path) -> SubPath {
+    SubPath(
+      path
+        .components()
+        .map(|c| {
+          let segment = c.as_os_str().to_string_lossy();
+          GLOBAL_INTERNER.intern_segment(&segment)
+        })
+        .collect(),
+    )
+  }
+
+  pub fn to_path_buf(&self) -> PathBuf {
+    let mut buf = PathBuf::new();
+    for segment in &self.0 {
+      buf.push(&*GLOBAL_INTERNER.segments[segment.0 as usize]);
+    }
+    buf
+  }
+}
+
+impl std::fmt::Debug for SubPath {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    self.to_path_buf().fmt(f)
+  }
+}
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 struct Node {
@@ -268,7 +311,7 @@ impl PathInterner {
   /// The final segment of `id` (e.g. the file name).
   pub fn file_name(&self, id: PathId) -> &str {
     let seg = self.node(id).segment;
-    &self.segments[seg as usize]
+    &self.segments[seg.0 as usize]
   }
 
   /// Iterates over `id` and each of its ancestors, ending at the top-level segment.
@@ -286,7 +329,7 @@ impl PathInterner {
     let mut cur = Some(id);
     while let Some(c) = cur {
       let node = &self.nodes[c.index()];
-      parts.push(&self.segments[node.segment as usize]);
+      parts.push(&self.segments[node.segment.0 as usize]);
       cur = node.parent;
     }
 
@@ -388,7 +431,7 @@ impl PathInterner {
     if let Some(parent) = node.parent {
       self.push_segments(buf, parent);
     }
-    buf.push(self.segments[node.segment as usize].as_ref());
+    buf.push(self.segments[node.segment.0 as usize].as_ref());
   }
 
   fn push_segments_after(&self, buf: &mut PathBuf, id: PathId, ancestor: PathId) {
@@ -408,7 +451,7 @@ impl PathInterner {
     let mut cur = Some(id);
     while let Some(c) = cur {
       let node = &self.nodes[c.index()];
-      parts.push(&self.segments[node.segment as usize]);
+      parts.push(&self.segments[node.segment.0 as usize]);
       cur = node.parent;
     }
 
@@ -440,7 +483,9 @@ impl PathInterner {
     // its id to every caller. A loser may still push an (orphaned) slot to `segments`, but never
     // observes its own index, so the same string always maps to one `SegmentId`.
     let arc: Arc<str> = Arc::from(segment);
-    *segment_ids.get_or_insert_with(arc.clone(), || self.segments.push(arc.clone()) as SegmentId)
+    *segment_ids.get_or_insert_with(arc.clone(), || {
+      SegmentId(self.segments.push(arc.clone()) as u32)
+    })
   }
 
   fn intern_edge(&self, parent: Option<PathId>, segment: &str) -> PathId {

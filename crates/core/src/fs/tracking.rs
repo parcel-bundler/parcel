@@ -4,7 +4,7 @@ use std::{
   sync::Mutex,
 };
 
-use crate::PathId;
+use crate::{PathId, path::SubPath};
 
 use super::{DirEntry, FileKind, FileStat, FileSystem, is_glob};
 
@@ -159,21 +159,16 @@ impl FileSystem for TrackingFileSystem {
     }
 
     // Record a `file_create_above` invalidation: a file named `file_name` created anywhere within
-    // `above` (the directory where it was found, or the root if it wasn't) would change resolution
-    // and should trigger a rebuild. Using the found directory as the boundary captures any closer
-    // file appearing between `from` and the match.
-    let above = found
-      .as_ref()
-      .and_then(|f| f.parent())
-      .unwrap_or_else(|| PathId::root());
+    // `from` would change resolution and should trigger a rebuild. Using the found directory as
+    // the boundary captures any closer file appearing between `from` and the match.
     self
       .invalidations
       .lock()
       .unwrap()
       .invalidate_on_file_create
       .push(crate::FileCreateInvalidation::FileName {
-        file_name: file_name.to_string_lossy().to_string(),
-        above,
+        file_name: SubPath::new(file_name),
+        above: from,
       });
 
     found

@@ -587,6 +587,16 @@ fn incremental_rebuild_when_resolver_config_is_created_above_importer() {
 
   write_file(
     &input,
+    "/project/src/bar/baz/aliases.json",
+    r##"{"#dep": "./bar.js"}"##,
+  );
+  let result = parcel
+    .invalidate(&[], &[path_id("/project/src/bar/baz/aliases.json")])
+    .unwrap();
+  assert!(!result.needs_rebuild());
+
+  write_file(
+    &input,
     "/project/src/aliases.json",
     r##"{"#dep": "./bar.js"}"##,
   );
