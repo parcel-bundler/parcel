@@ -26,6 +26,7 @@ impl JsContent {
     let asset = bundle_graph.asset_graph.assets[bundle.main_entry_asset.unwrap()].expect_asset();
     let mut synthetic_assets = IndexSet::new();
     let dependencies = asset_dependencies(
+      bundle.main_entry_asset.unwrap(),
       asset,
       bundle_graph,
       bundle,
@@ -42,15 +43,17 @@ impl JsContent {
 
       let mut macro_imports = Vec::new();
       let mut imported_bundles = FixedBitSet::with_capacity(bundle_graph.bundles.len());
-      for dep in &asset.dependencies {
+      for (dep_index, dep) in asset.dependencies.iter().enumerate() {
         if dep.flags.contains(DependencyFlags::MACRO) {
-          if let DependencyResolution::Bundle(bundle_index) = &dep.resolution {
-            if imported_bundles.contains(*bundle_index as usize) {
+          if let BundleGraphDependencyResolution::Bundle(bundle_index) =
+            bundle_graph.dependency_resolution(bundle.main_entry_asset.unwrap(), dep_index)
+          {
+            if imported_bundles.contains(bundle_index as usize) {
               continue;
             }
-            imported_bundles.insert(*bundle_index as usize);
+            imported_bundles.insert(bundle_index as usize);
 
-            let resolved_bundle = &bundle_graph.bundles[*bundle_index as usize];
+            let resolved_bundle = &bundle_graph.bundles[bundle_index as usize];
             if let Some(url) = resolved_bundle.relative_specifier(bundle) {
               if bundle.target.output_format == OutputFormat::Esmodule {
                 macro_imports.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {

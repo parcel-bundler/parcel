@@ -59,6 +59,7 @@ impl JsContent {
     for asset_index in &bundle.assets {
       if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[*asset_index] {
         let dependencies = asset_dependencies(
+          *asset_index,
           asset,
           bundle_graph,
           bundle,
@@ -186,6 +187,7 @@ pub enum SyntheticAsset {
 }
 
 pub fn asset_dependencies<'a>(
+  asset_index: usize,
   asset: &'a Asset,
   bundle_graph: &'a BundleGraph,
   bundle: &'a Bundle,
@@ -199,17 +201,17 @@ pub fn asset_dependencies<'a>(
 
   for (dep_index, dep) in asset.dependencies.iter().enumerate() {
     let placeholder = dep.placeholder.as_ref().unwrap_or(&dep.specifier);
-    match &dep.resolution {
-      DependencyResolution::Asset(resolved) => {
+    match bundle_graph.dependency_resolution(asset_index, dep_index) {
+      BundleGraphDependencyResolution::Asset(resolved) => {
         if let AssetNode::Asset(resolved_asset) =
-          &bundle_graph.asset_graph.assets[*resolved as usize]
+          &bundle_graph.asset_graph.assets[resolved as usize]
         {
           if resolved_asset.ty != AssetType::Js {
             if resolved_asset.symbols.exports.iter().any(|e| e.requested) {
-              let asset = &bundle_graph.asset_graph.assets[*resolved as usize].expect_asset();
+              let asset = &bundle_graph.asset_graph.assets[resolved as usize].expect_asset();
               let id = asset.id(project_root);
               dependencies.insert(placeholder.as_str().into(), Resolution::Asset(id.clone()));
-              additional_assets.insert(SyntheticAsset::Asset(id, *resolved));
+              additional_assets.insert(SyntheticAsset::Asset(id, resolved));
               continue;
             }
             dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
@@ -296,24 +298,24 @@ pub fn asset_dependencies<'a>(
             );
           }
         } else if matches!(
-          bundle_graph.asset_graph.assets[*resolved as usize],
+          bundle_graph.asset_graph.assets[resolved as usize],
           AssetNode::Deferred { .. }
-        ) || !used_deps.contains(resolved)
+        ) || !used_deps.contains(&resolved)
         {
           dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
         } else {
-          let asset = &bundle_graph.asset_graph.assets[*resolved as usize].expect_asset();
+          let asset = &bundle_graph.asset_graph.assets[resolved as usize].expect_asset();
           dependencies.insert(
             placeholder.as_str().into(),
             Resolution::Asset(asset.id(project_root)),
           );
         }
       }
-      DependencyResolution::None | DependencyResolution::Excluded => {}
-      DependencyResolution::Deferred(_) => {
+      BundleGraphDependencyResolution::None | BundleGraphDependencyResolution::Excluded => {}
+      BundleGraphDependencyResolution::Deferred => {
         dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
       }
-      DependencyResolution::External => {
+      BundleGraphDependencyResolution::External => {
         if dep.specifier_type == SpecifierType::Url {
           dependencies.insert(placeholder.as_str().into(), Resolution::Unresolved);
         } else {
@@ -323,14 +325,14 @@ pub fn asset_dependencies<'a>(
           );
         }
       }
-      DependencyResolution::Bundle(bundle_index) => {
-        let resolved_bundle = &bundle_graph.bundles[*bundle_index as usize];
+      BundleGraphDependencyResolution::Bundle(bundle_index) => {
+        let resolved_bundle = &bundle_graph.bundles[bundle_index as usize];
 
         if bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
           if dep.bundle_behavior == BundleBehavior::Inline
             || resolved_bundle.bundle_behavior == BundleBehavior::Inline
           {
-            let content = get_inline_bundle_content(*bundle_index as usize)
+            let content = get_inline_bundle_content(bundle_index as usize)
               .unwrap()
               .read()?;
             dependencies.insert(
@@ -389,20 +391,20 @@ pub fn asset_dependencies<'a>(
             is_lazy_dynamic_import && !is_inline && asset.flags.contains(AssetFlags::IS_ESM);
 
           if is_inline {
-            additional_assets.insert(SyntheticAsset::Inline(*bundle_index));
+            additional_assets.insert(SyntheticAsset::Inline(bundle_index));
           } else if is_lazy_dynamic_import {
-            additional_assets.insert(SyntheticAsset::Async(*bundle_index));
+            additional_assets.insert(SyntheticAsset::Async(bundle_index));
             if needs_esm_interop {
-              additional_assets.insert(SyntheticAsset::AsyncInterop(*bundle_index));
+              additional_assets.insert(SyntheticAsset::AsyncInterop(bundle_index));
             }
           } else {
-            additional_assets.insert(SyntheticAsset::Url(*bundle_index));
+            additional_assets.insert(SyntheticAsset::Url(bundle_index));
           };
 
           let resolution = if needs_esm_interop {
-            Resolution::BundleInterop(*bundle_index)
+            Resolution::BundleInterop(bundle_index)
           } else {
-            Resolution::Bundle(*bundle_index)
+            Resolution::Bundle(bundle_index)
           };
           dependencies.insert(placeholder.as_str().into(), resolution);
         }

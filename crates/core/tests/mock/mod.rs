@@ -4,7 +4,7 @@
 //! own test binary; it is included via `mod mock;` from the test files that need it.
 
 use std::{
-  collections::HashSet,
+  collections::{HashMap, HashSet},
   hash::{Hash, Hasher},
   io::Result as IoResult,
   path::{Path, PathBuf},
@@ -387,6 +387,7 @@ impl Bundler for MockBundler {
     Ok(BundleGraph {
       asset_graph,
       bundles,
+      dependency_resolutions: HashMap::new(),
       project_root: PathId::root(),
     })
   }

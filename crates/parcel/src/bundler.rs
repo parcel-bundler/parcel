@@ -7,8 +7,8 @@ use fixedbitset::FixedBitSet;
 use glob_match::glob_match;
 use parcel_core::{
   Asset, AssetGraph, AssetNode, AssetType, Bundle, BundleBehavior, BundleFlags, BundleGraph,
-  Bundler, DependencyFlags, DependencyResolution, DiagnosticList, Environment, EnvironmentFlags,
-  ParcelOptions, PathId, Priority, SpecifierType,
+  Bundler, DependencyFlags, DependencyId, DependencyResolution, DiagnosticList, Environment,
+  EnvironmentFlags, ParcelOptions, PathId, Priority, SpecifierType,
 };
 
 use crate::library_bundler::LibraryBundler;
@@ -53,7 +53,7 @@ impl DefaultBundler {
 impl Bundler for DefaultBundler {
   fn bundle(
     &self,
-    mut asset_graph: AssetGraph,
+    asset_graph: AssetGraph,
     options: &ParcelOptions,
   ) -> Result<BundleGraph, DiagnosticList> {
     if asset_graph.entries.iter().all(|e| {
@@ -67,6 +67,17 @@ impl Bundler for DefaultBundler {
     }
 
     let mut bundles = Vec::<Bundle>::new();
+    let mut dependency_resolutions = HashMap::new();
+
+    // TODO: does this use too much memory?
+    let mut bundle_behaviors = asset_graph
+      .assets
+      .iter()
+      .map(|node| match node {
+        AssetNode::Asset(asset) => asset.bundle_behavior,
+        AssetNode::Deferred { .. } => BundleBehavior::None,
+      })
+      .collect::<Vec<_>>();
 
     // Step 1: Traverse the asset graph and find bundle roots.
     // A bundle root is created for entries, and lazy, parallel, isolated, or inline dependencies.
@@ -81,7 +92,7 @@ impl Bundler for DefaultBundler {
 
     for asset_index in 0..asset_graph.assets.len() {
       if let AssetNode::Asset(asset) = &asset_graph.assets[asset_index] {
-        if asset.bundle_behavior != BundleBehavior::None {
+        if bundle_behaviors[asset_index] != BundleBehavior::None {
           bundle_roots.insert(asset_index);
         }
 
@@ -90,14 +101,16 @@ impl Bundler for DefaultBundler {
           if dep.bundle_behavior != BundleBehavior::None || dep.priority != Priority::Sync {
             if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
               let bundle_behavior = dep.bundle_behavior;
-              if let AssetNode::Asset(target_asset) =
-                &mut asset_graph.assets[resolved_asset_index as usize]
-              {
+              if matches!(
+                &asset_graph.assets[resolved_asset_index as usize],
+                AssetNode::Asset(_)
+              ) {
                 bundle_roots.insert(resolved_asset_index as usize);
+                let target_bundle_behavior = &mut bundle_behaviors[resolved_asset_index as usize];
                 if bundle_behavior != BundleBehavior::None
-                  && target_asset.bundle_behavior == BundleBehavior::None
+                  && *target_bundle_behavior == BundleBehavior::None
                 {
-                  target_asset.bundle_behavior = bundle_behavior;
+                  *target_bundle_behavior = bundle_behavior;
                 }
               }
             }
@@ -154,7 +167,7 @@ impl Bundler for DefaultBundler {
         let bundle = Bundle {
           ty: asset.ty.clone(),
           target: asset.target.clone(),
-          bundle_behavior: asset.bundle_behavior,
+          bundle_behavior: bundle_behaviors[bundle_root_asset_index],
           flags: if entry_bundle_roots.contains(bundle_root_asset_index) {
             BundleFlags::ENTRY | BundleFlags::NEEDS_STABLE_NAME
           } else {
@@ -214,7 +227,7 @@ impl Bundler for DefaultBundler {
         let bundle = Bundle {
           ty: asset.ty.clone(),
           target: asset.target.clone(),
-          bundle_behavior: asset.bundle_behavior,
+          bundle_behavior: bundle_behaviors[asset_index],
           flags: if entry_bundle_roots.contains(asset_index) {
             BundleFlags::ENTRY | BundleFlags::NEEDS_STABLE_NAME
           } else {
@@ -264,10 +277,10 @@ impl Bundler for DefaultBundler {
       }
     }
 
-    for (asset_index, asset) in asset_graph.assets.iter_mut().enumerate() {
-      if let AssetNode::Asset(asset) = asset {
+    for (asset_index, node) in asset_graph.assets.iter().enumerate() {
+      if let AssetNode::Asset(asset) = node {
         let source_bundle_index = asset_to_bundle.get(&asset_index).copied();
-        for dep in &mut asset.dependencies {
+        for (dep_index, dep) in asset.dependencies.iter().enumerate() {
           if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
             if let Some(&bundle_index) =
               asset_index_to_bundle_index.get(&(resolved_asset_index as usize))
@@ -295,7 +308,13 @@ impl Bundler for DefaultBundler {
                   }
                 }
               } else {
-                dep.resolution = DependencyResolution::Bundle(bundle_index as u32);
+                dependency_resolutions.insert(
+                  DependencyId {
+                    asset: asset_index,
+                    dependency: dep_index,
+                  },
+                  bundle_index as u32,
+                );
                 if dep.flags.contains(DependencyFlags::NEEDS_STABLE_NAME) {
                   bundles[bundle_index].flags |= BundleFlags::NEEDS_STABLE_NAME;
                 }
@@ -310,6 +329,7 @@ impl Bundler for DefaultBundler {
     Ok(BundleGraph {
       asset_graph,
       bundles,
+      dependency_resolutions,
       project_root: PathId::root(),
     })
   }

@@ -129,6 +129,7 @@ impl DevServer {
     let mut assets = Vec::with_capacity(changed_assets.len());
     for (id, asset) in changed_assets {
       let dependencies = asset_dependencies(
+        id as usize,
         asset,
         bundle_graph,
         &bundle_graph.bundles[0], // TODO

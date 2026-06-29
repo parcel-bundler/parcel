@@ -161,7 +161,6 @@ pub enum DependencyResolution {
   External,
   Excluded,
   Asset(u32),
-  Bundle(u32),
 }
 
 #[derive(Debug, Clone, Serialize)]

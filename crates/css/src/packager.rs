@@ -343,9 +343,10 @@ fn inline(
   visited: &mut Vec<bool>,
   dest: &mut Vec<CssRule<'static>>,
 ) -> Result<(), DiagnosticList> {
+  let asset_index = stylesheets[stylesheet_index as usize].asset_index;
   let stylesheet = &mut stylesheets[stylesheet_index as usize];
   let loc = stylesheet.loc.clone();
-  let asset = bundle_graph.asset_graph.assets[stylesheet.asset_index].expect_asset();
+  let asset = bundle_graph.asset_graph.assets[asset_index].expect_asset();
   let mut rules = std::mem::take(&mut stylesheet.stylesheet.rules.0);
 
   // Hoist css modules deps
@@ -379,8 +380,8 @@ fn inline(
     match rule {
       CssRule::Import(import) => {
         let dep = &asset.dependencies[dep_index];
-        match dep.resolution {
-          DependencyResolution::Asset(asset_index) => {
+        match bundle_graph.dependency_resolution(asset_index, dep_index) {
+          BundleGraphDependencyResolution::Asset(asset_index) => {
             let dep_source_index = asset_index_to_stylesheet_index[&asset_index];
             let resolved = &stylesheets[dep_source_index];
 
@@ -403,7 +404,7 @@ fn inline(
             *rule = CssRule::Ignored;
             has_bundled_import = true;
           }
-          DependencyResolution::Bundle(bundle_index) => {
+          BundleGraphDependencyResolution::Bundle(bundle_index) => {
             let referenced_bundle = &bundle_graph.bundles[bundle_index as usize];
             if dep.bundle_behavior == BundleBehavior::Inline
               || referenced_bundle.bundle_behavior == BundleBehavior::Inline
@@ -467,8 +468,8 @@ fn inline(
 
   // Replace URL references.
   let mut replacer = ReferenceReplacer::new(
-    &asset.dependencies,
-    &bundle_graph.bundles,
+    bundle_graph,
+    asset_index,
     bundle,
     loc,
     references,
@@ -529,18 +530,23 @@ struct ReferenceReplacer {
 
 impl ReferenceReplacer {
   fn new(
-    dependencies: &Vec<Dependency>,
-    bundles: &Vec<Bundle>,
+    bundle_graph: &BundleGraph,
+    asset_index: usize,
     bundle: &Bundle,
     loc: lightningcss::rules::Location,
     css_modules: HashMap<String, String>,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
   ) -> Result<ReferenceReplacer, DiagnosticList> {
     let mut urls = HashMap::new();
-    for dep in dependencies {
+    let dependencies = &bundle_graph.asset_graph.assets[asset_index]
+      .expect_asset()
+      .dependencies;
+    for (dep_index, dep) in dependencies.iter().enumerate() {
       if dep.priority == Priority::Lazy && dep.specifier_type == SpecifierType::Url {
-        if let DependencyResolution::Bundle(bundle_index) = dep.resolution {
-          let referenced_bundle = &bundles[bundle_index as usize];
+        if let BundleGraphDependencyResolution::Bundle(bundle_index) =
+          bundle_graph.dependency_resolution(asset_index, dep_index)
+        {
+          let referenced_bundle = &bundle_graph.bundles[bundle_index as usize];
           if dep.bundle_behavior == BundleBehavior::Inline
             || referenced_bundle.bundle_behavior == BundleBehavior::Inline
           {
@@ -712,8 +718,8 @@ impl StyleAttrContent {
     let content = asset.content.downcast_ref::<StyleAttrContent>().unwrap();
     let mut decls = content.attr.declarations.clone(); // TODO: avoid clone?
     let mut replacer = ReferenceReplacer::new(
-      &asset.dependencies,
-      &bundle_graph.bundles,
+      bundle_graph,
+      bundle.assets[0],
       bundle,
       lightningcss::rules::Location {
         source_index: 0,

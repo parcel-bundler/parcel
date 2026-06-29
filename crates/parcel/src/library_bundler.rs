@@ -1,8 +1,8 @@
 use std::{any::TypeId, collections::HashMap, hash::Hash};
 
 use parcel_core::{
-  AssetGraph, AssetNode, Bundle, BundleFlags, BundleGraph, Bundler, DependencyResolution,
-  DiagnosticList, ParcelOptions, PathId, SourceUrl, Target,
+  AssetGraph, AssetNode, Bundle, BundleFlags, BundleGraph, Bundler, DependencyId,
+  DependencyResolution, DiagnosticList, ParcelOptions, PathId, SourceUrl, Target,
 };
 
 pub struct LibraryBundler {}
@@ -10,7 +10,7 @@ pub struct LibraryBundler {}
 impl Bundler for LibraryBundler {
   fn bundle(
     &self,
-    mut asset_graph: AssetGraph,
+    asset_graph: AssetGraph,
     _options: &ParcelOptions,
   ) -> Result<BundleGraph, DiagnosticList> {
     #[derive(Hash, PartialEq, Eq)]
@@ -23,6 +23,7 @@ impl Bundler for LibraryBundler {
     let mut bundles = Vec::<Bundle>::new();
     let mut bundles_by_path = HashMap::<BundleKey, usize>::new();
     let mut asset_to_bundle = HashMap::new();
+    let mut dependency_resolutions = HashMap::new();
 
     for (id, asset, name) in asset_graph.dfs() {
       let key = BundleKey {
@@ -57,12 +58,18 @@ impl Bundler for LibraryBundler {
       asset_to_bundle.insert(id as u32, bundle_index);
     }
 
-    for (_id, asset) in asset_graph.assets.iter_mut().enumerate() {
-      if let AssetNode::Asset(asset) = asset {
-        for dep in &mut asset.dependencies {
+    for (id, node) in asset_graph.assets.iter().enumerate() {
+      if let AssetNode::Asset(asset) = node {
+        for (dep_index, dep) in asset.dependencies.iter().enumerate() {
           if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
             if let Some(bundle) = asset_to_bundle.get(&resolved_asset_index) {
-              dep.resolution = DependencyResolution::Bundle(*bundle as u32);
+              dependency_resolutions.insert(
+                DependencyId {
+                  asset: id,
+                  dependency: dep_index,
+                },
+                *bundle as u32,
+              );
             }
           }
         }
@@ -80,6 +87,7 @@ impl Bundler for LibraryBundler {
     Ok(BundleGraph {
       asset_graph,
       bundles,
+      dependency_resolutions,
       project_root: PathId::root(),
     })
   }
