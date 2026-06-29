@@ -246,16 +246,14 @@ fn make_dep(
 /// `side_effects: true` so it is always transformed (this keeps the mock graph simple and
 /// independent of symbol-level tree shaking).
 ///
-/// Specifiers beginning with `#` are *aliases* resolved through a project-level config file
-/// (`aliases.json`). When an alias is used, the config file is recorded as an
-/// `invalidate_on_file_change` dependency of the importing asset, so editing the config
-/// re-resolves and rebuilds the affected assets — mirroring a real resolver that depends on a
-/// configuration file (tsconfig, package.json aliases, etc.).
+/// Specifiers beginning with `#` are *aliases* resolved through the nearest `aliases.json`
+/// ancestor. When an alias is used, the config file is recorded as an `invalidate_on_file_change`
+/// dependency of the importing asset, and closer `aliases.json` files are recorded as
+/// create-above invalidations.
+///
+/// Specifiers beginning with `glob:` resolve to the first file matching the pattern, recording a
+/// create-glob invalidation so new matching files can re-resolve the importer.
 struct MockResolver;
-
-fn alias_config_url(options: &ParcelOptions) -> SourceUrl {
-  SourceUrl::from_path(&options.project_root.child("aliases.json"))
-}
 
 impl Resolver for MockResolver {
   fn resolve(
@@ -266,11 +264,27 @@ impl Resolver for MockResolver {
     options: &ParcelOptions,
     fs: &Arc<dyn FileSystem>,
   ) -> Result<DependencyResolution, DiagnosticList> {
+    let base = dep
+      .resolve_from
+      .clone()
+      .or_else(|| dep.loc.as_ref().map(|loc| loc.url.clone()))
+      .ok_or_else(|| Diagnostic::from_message("dependency has no base to resolve from".into()))?;
+
     let resolved = if specifier.starts_with('#') {
-      // Alias specifier: look it up in the config file. Reading it through `fs` (the tracking file
-      // system) automatically records a dependency on it, so editing it re-resolves the importer.
-      let config_url = alias_config_url(options);
-      let config_path = config_url.to_file_path()?;
+      // Alias specifier: look it up in the nearest aliases.json. Both the ancestor search and
+      // config read go through `fs`, so the tracking filesystem records create-above and change
+      // invalidations for the importer.
+      let base_path = base.to_file_path()?;
+      let from_dir = base_path.parent().unwrap_or(options.project_root);
+      let config_path = fs
+        .find_ancestor(
+          from_dir,
+          Path::new("aliases.json"),
+          FileKind::IS_FILE,
+          options.project_root,
+        )
+        .ok_or_else(|| Diagnostic::from_message(format!("no aliases.json for {}", specifier)))?;
+      let config_url = SourceUrl::from_path(&config_path);
       let bytes = fs.read(config_path).map_err(Diagnostic::from)?;
       let aliases: serde_json::Map<String, serde_json::Value> =
         serde_json::from_slice(&bytes).map_err(Diagnostic::from)?;
@@ -280,14 +294,15 @@ impl Resolver for MockResolver {
         .and_then(|v| v.as_str())
         .ok_or_else(|| Diagnostic::from_message(format!("no alias for {}", specifier)))?;
 
-      // Alias targets are relative to the config file (the project root).
+      // Alias targets are relative to the config file.
       config_url.join(target)
+    } else if let Some(pattern) = specifier.strip_prefix("glob:") {
+      let matches = fs.glob(pattern, options.project_root);
+      let file_path = matches
+        .first()
+        .ok_or_else(|| Diagnostic::from_message(format!("no files matched {}", pattern)))?;
+      SourceUrl::from_path(file_path)
     } else {
-      let base = dep
-        .resolve_from
-        .clone()
-        .or_else(|| dep.loc.as_ref().map(|loc| loc.url.clone()))
-        .ok_or_else(|| Diagnostic::from_message("dependency has no base to resolve from".into()))?;
       base.join(specifier)
     };
 

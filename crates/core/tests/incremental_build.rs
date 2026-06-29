@@ -563,6 +563,98 @@ fn incremental_rebuild_when_resolver_config_changes() {
 }
 
 #[test]
+fn incremental_rebuild_when_resolver_config_is_created_above_importer() {
+  // The resolver searches upward for the nearest aliases.json through the tracking fs. Creating a
+  // closer aliases.json should invalidate only the importer and re-resolve the alias.
+  let (mut parcel, input, output) = setup(
+    &[
+      ("/project/aliases.json", r##"{"#dep": "./foo.js"}"##),
+      (
+        "/project/src/index.js",
+        "@import #dep\nconsole.log('index')",
+      ),
+      ("/project/foo.js", "console.log('foo')"),
+      ("/project/src/bar.js", "console.log('bar')"),
+    ],
+    &["/project/src/index.js"],
+  );
+
+  parcel.build().expect("initial build failed");
+  let out = read_dist(&output, "index.js");
+  assert!(out.contains("console.log('foo')"), "got: {out}");
+  assert!(!out.contains("console.log('bar')"), "got: {out}");
+  let _ = written_names(&output);
+
+  write_file(
+    &input,
+    "/project/src/aliases.json",
+    r##"{"#dep": "./bar.js"}"##,
+  );
+  let result = parcel
+    .invalidate(&[], &[path_id("/project/src/aliases.json")])
+    .unwrap();
+  assert!(
+    !result.config_changed,
+    "resolver create-above invalidations are per-asset, not config changes"
+  );
+  assert_eq!(
+    result.affected.len(),
+    1,
+    "creating a closer resolver config should invalidate the importer"
+  );
+
+  parcel.build().expect("incremental build failed");
+
+  assert_eq!(written_names(&output), vec!["index.js"]);
+  let out = read_dist(&output, "index.js");
+  assert!(out.contains("console.log('bar')"), "got: {out}");
+  assert!(!out.contains("console.log('foo')"), "got: {out}");
+}
+
+#[test]
+fn incremental_rebuild_when_resolver_glob_match_is_created() {
+  // The resolver's `glob:` specifier resolves to the first matching file through the tracking fs.
+  // Creating a new matching file should invalidate only the importer and re-resolve the glob.
+  let (mut parcel, input, output) = setup(
+    &[
+      (
+        "/project/index.js",
+        "@import glob:features/*.js\nconsole.log('index')",
+      ),
+      ("/project/features/b.js", "console.log('b')"),
+    ],
+    &["/project/index.js"],
+  );
+
+  parcel.build().expect("initial build failed");
+  let out = read_dist(&output, "index.js");
+  assert!(out.contains("console.log('b')"), "got: {out}");
+  assert!(!out.contains("console.log('a')"), "got: {out}");
+  let _ = written_names(&output);
+
+  write_file(&input, "/project/features/a.js", "console.log('a')");
+  let result = parcel
+    .invalidate(&[], &[path_id("/project/features/a.js")])
+    .unwrap();
+  assert!(
+    !result.config_changed,
+    "resolver glob invalidations are per-asset, not config changes"
+  );
+  assert_eq!(
+    result.affected.len(),
+    1,
+    "creating a matching glob file should invalidate the importer"
+  );
+
+  parcel.build().expect("incremental build failed");
+
+  assert_eq!(written_names(&output), vec!["index.js"]);
+  let out = read_dist(&output, "index.js");
+  assert!(out.contains("console.log('a')"), "got: {out}");
+  assert!(!out.contains("console.log('b')"), "got: {out}");
+}
+
+#[test]
 fn incremental_rebuild_removing_async_bundle_deletes_output() {
   let (mut parcel, input, output) = setup(
     &[
