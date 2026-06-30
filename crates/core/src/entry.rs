@@ -9,7 +9,7 @@ use serde_json::Value;
 use crate::{
   BuildMode, BuildOptions, Diagnostic, Engines, Environment, EnvironmentFlags, ExportsCondition,
   FileKind, FileSystem, IncludeNodeModules, OutputFormat, PathId, SourceLocation, SourceType,
-  SourceUrl, Target, TargetSourceMapOptions, Version, is_glob,
+  SourceUrl, SubPath, Target, TargetSourceMapOptions, Version, is_glob,
 };
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -532,7 +532,7 @@ fn common_root_path<'a>(paths: impl IntoIterator<Item = &'a PathId>) -> Option<P
 fn find_package(path: PathId, fs: &dyn FileSystem) -> Option<serde_json::Value> {
   let pkg = fs.find_ancestor(
     path,
-    Path::new("package.json"),
+    SubPath::package_json(),
     FileKind::IS_FILE,
     PathId::root(),
   )?;

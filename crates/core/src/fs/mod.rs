@@ -24,7 +24,7 @@ mod overlay;
 #[cfg(not(target_arch = "wasm32"))]
 pub use overlay::*;
 
-use crate::PathId;
+use crate::{PathId, path::SubPath};
 
 bitflags! {
   /// Bitflags that describe path metadata.
@@ -180,7 +180,7 @@ pub trait FileSystem: Send + Sync {
   fn find_ancestor(
     &self,
     from: PathId,
-    file_name: &Path,
+    file_name: &SubPath,
     kind: FileKind,
     root: PathId,
   ) -> Option<PathId> {
@@ -192,7 +192,7 @@ pub trait FileSystem: Send + Sync {
       //   }
       // }
 
-      let candidate = dir.join(file_name);
+      let candidate = dir.join_subpath(file_name);
       if self.kind(candidate).contains(kind) {
         return Some(candidate);
       }

@@ -150,7 +150,7 @@ impl FileSystem for TrackingFileSystem {
   fn find_ancestor(
     &self,
     from: PathId,
-    file_name: &Path,
+    file_name: &SubPath,
     kind: FileKind,
     root: PathId,
   ) -> Option<PathId> {
@@ -169,7 +169,7 @@ impl FileSystem for TrackingFileSystem {
       .unwrap()
       .invalidate_on_file_create
       .push(crate::FileCreateInvalidation::FileName {
-        file_name: SubPath::new(file_name),
+        file_name: file_name.clone(),
         above: from,
       });
 

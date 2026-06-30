@@ -16,7 +16,8 @@ use parcel_core::{
   Bundle, BundleBehavior, BundleFlags, BundleGraph, Bundler, Content, Dependency, DependencyFlags,
   DependencyResolution, Diagnostic, DiagnosticList, DirEntry, ExportsCondition, FileKind, FileStat,
   FileSystem, LogLevel, MemoryFileSystem, Namer, Optimizer, ParcelConfig, ParcelOptions, PathId,
-  PluginFactory, Priority, Resolver, SourceLocation, SourceUrl, SpecifierType, Transformer,
+  PluginFactory, Priority, Resolver, SourceLocation, SourceUrl, SpecifierType, SubPath,
+  Transformer,
 };
 
 // ===========================================================================
@@ -279,7 +280,7 @@ impl Resolver for MockResolver {
       let config_path = fs
         .find_ancestor(
           from_dir,
-          Path::new("aliases.json"),
+          &SubPath::file("aliases.json"),
           FileKind::IS_FILE,
           options.project_root,
         )

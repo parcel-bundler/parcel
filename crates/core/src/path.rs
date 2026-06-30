@@ -43,6 +43,10 @@ impl PathId {
     GLOBAL_INTERNER.join(*self, subpath)
   }
 
+  pub fn join_subpath(&self, subpath: &SubPath) -> PathId {
+    GLOBAL_INTERNER.join_subpath(*self, subpath)
+  }
+
   pub fn resolve(&self, subpath: &Path) -> PathId {
     GLOBAL_INTERNER.resolve(*self, subpath)
   }
@@ -181,7 +185,7 @@ impl<'de> serde::Deserialize<'de> for PathId {
 pub struct SegmentId(u32);
 
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub struct SubPath(smallvec::SmallVec<[SegmentId; 1]>);
+pub struct SubPath(smallvec::SmallVec<[SegmentId; 4]>);
 
 impl SubPath {
   pub fn new(path: &Path) -> SubPath {
@@ -202,6 +206,29 @@ impl SubPath {
       buf.push(&*GLOBAL_INTERNER.segments[segment.0 as usize]);
     }
     buf
+  }
+
+  pub fn package_json() -> &'static SubPath {
+    static PACKAGE_JSON: LazyLock<SubPath> = LazyLock::new(|| SubPath::file("package.json"));
+    &*PACKAGE_JSON
+  }
+
+  pub fn tsconfig_json() -> &'static SubPath {
+    static TSCONFIG_JSON: LazyLock<SubPath> = LazyLock::new(|| SubPath::file("tsconfig.json"));
+    &*TSCONFIG_JSON
+  }
+
+  pub fn module(name: &str) -> SubPath {
+    static NODE_MODULES: LazyLock<SegmentId> =
+      LazyLock::new(|| GLOBAL_INTERNER.intern_segment("node_modules"));
+    SubPath(smallvec::smallvec![
+      *NODE_MODULES,
+      GLOBAL_INTERNER.intern_segment(name)
+    ])
+  }
+
+  pub fn file(name: &str) -> SubPath {
+    SubPath(smallvec::smallvec![GLOBAL_INTERNER.intern_segment(name)])
   }
 }
 
@@ -300,6 +327,14 @@ impl PathInterner {
 
   pub fn join_module(&self, parent: PathId, module: &str) -> PathId {
     self.child(self.child(parent, "node_modules"), module)
+  }
+
+  pub fn join_subpath(&self, parent: PathId, subpath: &SubPath) -> PathId {
+    let mut cur = parent;
+    for segment in subpath.0.iter() {
+      cur = self.intern_node(Some(cur), *segment);
+    }
+    cur
   }
 
   /// The parent of `id`, or `None` if `id` is a top-level segment.
@@ -490,11 +525,11 @@ impl PathInterner {
 
   fn intern_edge(&self, parent: Option<PathId>, segment: &str) -> PathId {
     let seg = self.intern_segment(segment);
-    let node = Node {
-      parent,
-      segment: seg,
-    };
+    self.intern_node(parent, seg)
+  }
 
+  fn intern_node(&self, parent: Option<PathId>, segment: SegmentId) -> PathId {
+    let node = Node { parent, segment };
     let edge_ids = self.edge_ids.pin();
     *edge_ids.get_or_insert_with(node, || PathId::from_index(self.nodes.push(node)))
   }

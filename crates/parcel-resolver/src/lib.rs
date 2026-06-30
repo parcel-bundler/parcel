@@ -51,7 +51,7 @@ pub use package_json::{
   AliasValue, BrowserField, ExportsResolution, Fields, InlineEnvironment, ModuleType, PackageJson,
   PackageJsonError,
 };
-use parcel_core::{ExportsCondition, IncludeNodeModules};
+use parcel_core::{ExportsCondition, IncludeNodeModules, SubPath};
 #[cfg(not(target_arch = "wasm32"))]
 pub use parcel_core::{FileKind, FileSystem, OsFileSystem, PathId};
 pub use specifier::{Specifier, SpecifierError, SpecifierType};
@@ -322,7 +322,7 @@ impl<'a> Resolver<'a> {
     from: PathId,
     fs: &dyn FileSystem,
   ) -> Option<Arc<Result<PackageJson, ResolverError>>> {
-    if let Some(path) = self.find_ancestor_file(from, "package.json", fs) {
+    if let Some(path) = self.find_ancestor_file(from, SubPath::package_json(), fs) {
       let package = self.package_json(path, fs);
       return Some(package);
     }
@@ -357,7 +357,7 @@ impl<'a> Resolver<'a> {
   fn find_ancestor_file(
     &self,
     from: PathId,
-    filename: &str,
+    filename: &SubPath,
     fs: &dyn FileSystem,
   ) -> Option<PathId> {
     // // TODO: use the fs find_ancestor_file so we get file_create_above invalidation
@@ -377,12 +377,7 @@ impl<'a> Resolver<'a> {
     // }
     //
 
-    fs.find_ancestor(
-      from,
-      Path::new(filename),
-      FileKind::IS_FILE,
-      self.project_root,
-    )
+    fs.find_ancestor(from, filename, FileKind::IS_FILE, self.project_root)
   }
 }
 
@@ -522,7 +517,7 @@ impl<'a> ResolveRequest<'a> {
       Specifier::Tilde(specifier) if self.resolver.flags.contains(Flags::TILDE_SPECIFIERS) => {
         // Tilde path. Resolve relative to nearest node_modules directory,
         // the nearest directory with package.json or the project root - whichever comes first.
-        if let Some(p) = self.find_ancestor_file(*self.from, "package.json") {
+        if let Some(p) = self.find_ancestor_file(*self.from, SubPath::package_json()) {
           return self.resolve_relative(specifier, p);
         }
 
@@ -614,7 +609,7 @@ impl<'a> ResolveRequest<'a> {
     }
   }
 
-  fn find_ancestor_file(&self, from: PathId, filename: &str) -> Option<PathId> {
+  fn find_ancestor_file(&self, from: PathId, filename: &SubPath) -> Option<PathId> {
     let from = from.parent().unwrap();
     self.resolver.find_ancestor_file(from, filename, self.fs)
   }
@@ -737,10 +732,9 @@ impl<'a> ResolveRequest<'a> {
       //     return self.resolve_package(package_dir, module, subpath);
       //   }
       // }
-      let name = format!("node_modules/{}", module);
       if let Some(package_dir) = self.fs.find_ancestor(
         *self.from,
-        Path::new(&name),
+        &SubPath::module(module),
         FileKind::IS_DIR,
         PathId::root(),
       ) {
@@ -1206,7 +1200,7 @@ impl<'a> ResolveRequest<'a> {
       && !self.flags.contains(RequestFlags::IN_NODE_MODULES)
     {
       self.tsconfig.get_or_init(|| {
-        if let Some(path) = self.find_ancestor_file(*self.from, "tsconfig.json") {
+        if let Some(path) = self.find_ancestor_file(*self.from, SubPath::tsconfig_json()) {
           return Some(self.read_tsconfig(path));
         }
 

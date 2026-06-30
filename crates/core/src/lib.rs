@@ -44,7 +44,7 @@ pub use location::*;
 pub use namer::*;
 pub use optimizer::Optimizer;
 pub use options::*;
-pub use path::PathId;
+pub use path::{PathId, SubPath};
 pub use resolver::Resolver;
 pub use target::*;
 pub use transformer::Transformer;
