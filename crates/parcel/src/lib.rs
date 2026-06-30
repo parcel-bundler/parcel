@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use parcel_core::{
-  AssetNode, BuildOptions, BundleGraph, DiagnosticList, PathId, PluginFactory, SourceUrl,
-};
+use parcel_core::{AssetNode, BuildOptions, BundleGraph, DiagnosticList, PathId, PluginFactory};
 
 use crate::plugin_factory::DefaultPluginFactory;
 
@@ -20,7 +18,7 @@ mod server;
 mod toml;
 mod yaml;
 
-fn make_parcel(
+pub fn make_parcel(
   entries: &Vec<String>,
   options: BuildOptions,
 ) -> Result<parcel_core::Parcel, DiagnosticList> {

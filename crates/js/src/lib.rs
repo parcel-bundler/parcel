@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use parcel_core::*;
 use parcel_js_swc_core::Ast;
 
+pub mod hmr;
 mod library_packager;
 pub mod packager;
 mod transformer;
