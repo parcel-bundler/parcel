@@ -221,10 +221,13 @@ impl SubPath {
   pub fn module(name: &str) -> SubPath {
     static NODE_MODULES: LazyLock<SegmentId> =
       LazyLock::new(|| GLOBAL_INTERNER.intern_segment("node_modules"));
-    SubPath(smallvec::smallvec![
-      *NODE_MODULES,
-      GLOBAL_INTERNER.intern_segment(name)
-    ])
+    let mut path = smallvec::smallvec![*NODE_MODULES];
+    path.extend(
+      name
+        .split('/')
+        .map(|segment| GLOBAL_INTERNER.intern_segment(segment)),
+    );
+    SubPath(path)
   }
 
   pub fn file(name: &str) -> SubPath {
@@ -326,7 +329,11 @@ impl PathInterner {
   }
 
   pub fn join_module(&self, parent: PathId, module: &str) -> PathId {
-    self.child(self.child(parent, "node_modules"), module)
+    let mut cur = self.child(parent, "node_modules");
+    for segment in module.split('/') {
+      cur = self.child(cur, segment);
+    }
+    cur
   }
 
   pub fn join_subpath(&self, parent: PathId, subpath: &SubPath) -> PathId {
@@ -625,6 +632,18 @@ mod tests {
     let viachild = interner.child(dir, "c.js");
     let viaintern = interner.intern(Path::new("/a/b/c.js"));
     assert_eq!(viachild, viaintern);
+  }
+
+  #[test]
+  fn module_subpath_supports_scoped_packages() {
+    let dir = PathId::new(Path::new("/a/b"));
+    let via_subpath = dir.join_subpath(&SubPath::module("@scope/pkg"));
+    let via_module = dir.join_module("@scope/pkg");
+    assert_eq!(via_subpath, via_module);
+    assert_eq!(
+      via_subpath.to_path_buf(),
+      Path::new("/a/b/node_modules/@scope/pkg")
+    );
   }
 
   #[test]
