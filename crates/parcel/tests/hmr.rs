@@ -1,7 +1,6 @@
 use parcel::make_parcel;
 use parcel_core::{
-  AssetNode, BuildMode, BuildOptions, Environment, FileSystem, LogLevel, MemoryFileSystem, Parcel,
-  PathId,
+  BuildMode, BuildOptions, Environment, FileSystem, LogLevel, MemoryFileSystem, Parcel, PathId,
 };
 use parcel_js::hmr::get_hmr_update;
 use parcel_plugin_js::create_runtime;
@@ -65,20 +64,10 @@ fn hmr_update_after_change(
     .build_with_changes()
     .expect("incremental build failed");
   let changed_count = build_result.changed_assets.len();
-  let graph = build_result.bundle_graph;
-  let changed_assets = build_result
-    .changed_assets
-    .iter()
-    .filter_map(|&index| {
-      if let AssetNode::Asset(asset) = &graph.asset_graph.assets[index] {
-        Some((index as u32, asset))
-      } else {
-        None
-      }
-    })
-    .collect();
+  let graph = &build_result.bundle_graph;
+  let changed_assets = build_result.changed_assets();
+  let update = get_hmr_update(changed_assets, graph, &config, &options);
 
-  let update = get_hmr_update(changed_assets, &graph, &config, &options);
   (
     serde_json::to_value(update).unwrap(),
     affected_count,
@@ -193,20 +182,10 @@ impl HmrRuntimeTest {
       .parcel
       .build_with_changes()
       .expect("incremental build failed");
-    let graph = build_result.bundle_graph;
-    let changed_assets = build_result
-      .changed_assets
-      .iter()
-      .filter_map(|&index| {
-        if let AssetNode::Asset(asset) = &graph.asset_graph.assets[index] {
-          Some((index as u32, asset))
-        } else {
-          None
-        }
-      })
-      .collect();
+    let graph = &build_result.bundle_graph;
+    let changed_assets = build_result.changed_assets();
 
-    let update = get_hmr_update(changed_assets, &graph, &config, &options);
+    let update = get_hmr_update(changed_assets, graph, &config, &options);
     let update_result = self.js_env.context.with(|ctx| -> rquickjs::Result<()> {
       let update = serde_json::to_string(&update).unwrap();
       let _: Value = ctx.eval(format!(

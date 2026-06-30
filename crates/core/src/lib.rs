@@ -83,6 +83,22 @@ pub struct BuildResult<'a> {
   pub changed_assets: Vec<usize>,
 }
 
+impl<'a> BuildResult<'a> {
+  pub fn changed_assets(&'a self) -> Vec<(u32, &'a Asset)> {
+    self
+      .changed_assets
+      .iter()
+      .filter_map(|index| {
+        if let AssetNode::Asset(a) = &self.bundle_graph.asset_graph.assets[*index] {
+          Some((*index as u32, a))
+        } else {
+          None
+        }
+      })
+      .collect()
+  }
+}
+
 /// The outcome of [`Parcel::invalidate`].
 #[derive(Debug, Default)]
 pub struct InvalidateResult {

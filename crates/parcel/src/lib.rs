@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use parcel_core::{AssetNode, BuildOptions, BundleGraph, DiagnosticList, PathId, PluginFactory};
+use parcel_core::{BuildOptions, BundleGraph, DiagnosticList, PathId, PluginFactory};
 
 use crate::plugin_factory::DefaultPluginFactory;
 
@@ -109,29 +109,13 @@ pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
     match parcel.build_with_changes() {
       Ok(result) => {
         println!("Rebuilt in {:?}", start.elapsed());
-        let graph = result.bundle_graph;
-
-        let changed_assets: Vec<(u32, &AssetNode)> = result
-          .changed_assets
-          .iter()
-          .map(|&index| (index as u32, &graph.asset_graph.assets[index]))
-          .collect();
-
-        let changed_assets: Vec<(u32, &parcel_core::Asset)> = changed_assets
-          .iter()
-          .filter_map(|(index, node)| {
-            if let AssetNode::Asset(a) = node {
-              Some((*index, a))
-            } else {
-              None
-            }
-          })
-          .collect();
+        let graph = &result.bundle_graph;
+        let changed_assets = result.changed_assets();
 
         // On a config change the Parcel was rebuilt from scratch, so HMR is skipped in favour of
         // the full rebuild's output.
         if !config_changed && !changed_assets.is_empty() {
-          server.emit_hmr_update(changed_assets, &graph, &*config, &*options);
+          server.emit_hmr_update(changed_assets, graph, &*config, &*options);
         }
       }
       Err(e) => print_diagnostics(&e),
