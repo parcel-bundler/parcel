@@ -3,6 +3,7 @@
   "input": "index.js",
   "options": {
     "mode": "production",
+    "minify": false,
     "defaultTargetOptions": {
       "shouldScopeHoist": false
     }

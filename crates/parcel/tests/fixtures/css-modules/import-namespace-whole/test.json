@@ -1,7 +1,7 @@
 {
   "description": "should support importing css modules with a non-static namespace import",
   "input": "index.js",
-  "options": {"mode": "production"},
+  "options": {"mode": "production", "minify": false},
   "bundles": [
     {"assets": ["index.js"]},
     {"assets": ["global.css", "style.module.css"]}

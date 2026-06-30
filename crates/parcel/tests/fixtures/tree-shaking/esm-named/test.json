@@ -1,0 +1,13 @@
+{
+  "description": "tree shaking: ESM named import removes unused named export",
+  "input": "named.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["dep-named.js", "esmodule-helpers.js", "named.js"],
+      "contains": ["used-named"],
+      "notContains": ["unused-named-sentinel"]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "description": "should support transforming SVGs to react components",
   "input": "react.js",
-  "options": {"mode": "production"},
+  "options": {"mode": "production", "minify": false},
   "bundles": [
     {"assets": ["esmodule-helpers.js", "icon.svg", "react.js"], "contains": ["function SvgComponent", "createElement(\"svg", "id: \"8b76cf__circle"]}
   ]

@@ -1,0 +1,13 @@
+{
+  "description": "tree shaking: ESM default import removes unused named export",
+  "input": "default.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["dep-default.js", "default.js", "esmodule-helpers.js"],
+      "contains": ["used-default"],
+      "notContains": ["unused-default-sentinel"]
+    }
+  ]
+}

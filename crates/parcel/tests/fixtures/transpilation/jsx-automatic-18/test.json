@@ -1,7 +1,7 @@
 {
   "description": "should support the automatic JSX runtime with React 18 prereleases",
   "input": "index.js",
-  "options": {"mode": "production"},
+  "options": {"mode": "production", "minify": false},
   "bundles": [
     {"assets": ["index.js", "jsx-runtime.js"], "contains": ["_jsxRuntime.jsx"]}
   ]

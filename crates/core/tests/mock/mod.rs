@@ -41,6 +41,7 @@ pub fn build_options(
 ) -> BuildOptions {
   BuildOptions {
     mode: BuildMode::Development,
+    minify: None,
     env: Default::default(),
     log_level: LogLevel::Error,
     input_fs,

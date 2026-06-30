@@ -1,7 +1,7 @@
 {
   "description": "should support transforming SVGs to typescript react components",
   "input": "react.ts",
-  "options": {"mode": "production"},
+  "options": {"mode": "production", "minify": false},
   "bundles": [
     {"assets": ["esmodule-helpers.js", "icon.svg", "react.ts"], "contains": ["function SvgComponent", "createElement(\"svg"]}
   ]

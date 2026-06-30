@@ -76,6 +76,7 @@ fn test_rust_transformer_plugin() {
       input_fs: Arc::new(OsFileSystem {}),
       output_fs: output_fs.clone(),
       mode: parcel_core::BuildMode::Development,
+      minify: None,
       env: Default::default(),
       log_level: LogLevel::Verbose,
     },

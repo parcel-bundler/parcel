@@ -7,6 +7,7 @@ use crate::{OsFileSystem, PathId, fs::FileSystem};
 #[derive(Clone)]
 pub struct BuildOptions {
   pub mode: BuildMode,
+  pub minify: Option<bool>,
   pub env: HashMap<String, String>,
   pub log_level: LogLevel,
   pub input_fs: Arc<dyn FileSystem>,

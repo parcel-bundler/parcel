@@ -1,0 +1,13 @@
+{
+  "description": "tree shaking: named re-export removes unused re-exported symbol",
+  "input": "reexport-named.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["dep-reexport.js", "esmodule-helpers.js", "reexport-barrel.js", "reexport-named.js"],
+      "contains": ["used-reexport"],
+      "notContains": ["unused-reexport-sentinel"]
+    }
+  ]
+}

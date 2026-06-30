@@ -1,0 +1,17 @@
+{
+  "description": "tree shaking: dynamic import keeps unused async export conservatively",
+  "input": "dynamic.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["dynamic.js"],
+      "notContains": ["unused-dynamic-sentinel"]
+    },
+    {
+      "type": "js",
+      "assets": ["async-dep.js", "esmodule-helpers.js"],
+      "contains": ["used-dynamic", "unused-dynamic-sentinel"]
+    }
+  ]
+}

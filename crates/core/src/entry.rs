@@ -34,17 +34,17 @@ pub fn resolve_entries(
   }
 
   let project_root = find_project_root(&*options.input_fs, &paths, cwd);
+  let should_optimize = options
+    .minify
+    .unwrap_or(options.mode == BuildMode::Production);
 
-  let mut entries = EntryResolver::new();
+  let mut entries = EntryResolver::new(should_optimize);
   for path in paths {
     if options.input_fs.kind(path).contains(FileKind::IS_DIR) {
       entries.resolve_package_entries(&*options.input_fs, path, &project_root)?;
     } else {
       let mut flags = EnvironmentFlags::empty();
-      flags.set(
-        EnvironmentFlags::SHOULD_OPTIMIZE,
-        options.mode == BuildMode::Production,
-      );
+      flags.set(EnvironmentFlags::SHOULD_OPTIMIZE, should_optimize);
 
       let mut output_format = OutputFormat::default();
       if let Some(ext) = path.extension() {
@@ -99,13 +99,15 @@ pub fn resolve_entries(
 struct EntryResolver {
   entries: Vec<Entry>,
   targets: HashSet<Arc<Target>>,
+  should_optimize: bool,
 }
 
 impl EntryResolver {
-  fn new() -> Self {
+  fn new(should_optimize: bool) -> Self {
     EntryResolver {
       entries: Vec::new(),
       targets: HashSet::new(),
+      should_optimize,
     }
   }
 
@@ -137,6 +139,7 @@ impl EntryResolver {
     let json: Value = serde_json::from_slice(&contents)?;
     let context = ExportsContext {
       condition: ExportsCondition::empty(),
+      should_optimize: self.should_optimize,
       engines: json.get("engines"),
       context: None,
       output_format: None,
@@ -186,6 +189,11 @@ impl EntryResolver {
             url: SourceUrl::from_path(&source),
             target: Arc::new(Target {
               dist_dir: dir,
+              flags: if self.should_optimize {
+                EnvironmentFlags::SHOULD_OPTIMIZE
+              } else {
+                EnvironmentFlags::empty()
+              },
               ..Default::default()
             }),
             dist_entry: None,
@@ -332,6 +340,7 @@ fn dist_dir_entry(dir: PathId, dist_entry: &str, source: PathId) -> (PathId, Str
 
 struct ExportsContext<'a> {
   condition: ExportsCondition,
+  should_optimize: bool,
   engines: Option<&'a Value>,
   context: Option<&'a Value>,
   output_format: Option<&'a Value>,
@@ -350,6 +359,7 @@ impl<'a> ExportsContext<'a> {
     Some(ExportsContext {
       condition: self.condition
         | ExportsCondition::try_from(condition).unwrap_or(ExportsCondition::empty()),
+      should_optimize: self.should_optimize,
       engines: target
         .and_then(|t| t.get("engines"))
         .or(self.engines.clone()),
@@ -422,8 +432,8 @@ impl<'a> ExportsContext<'a> {
     );
     flags.set(
       EnvironmentFlags::SHOULD_OPTIMIZE,
-      self.condition.contains(ExportsCondition::PRODUCTION),
-    ); // ??
+      self.should_optimize && self.condition.contains(ExportsCondition::PRODUCTION), // ??
+    );
 
     Ok(Target {
       environment: context,
@@ -571,6 +581,7 @@ mod tests {
         env: HashMap::new(),
         log_level: crate::LogLevel::Error,
         mode: crate::BuildMode::Development,
+        minify: None,
         config: None,
         cwd: PathId::new(&std::env::current_dir().unwrap()),
       },

@@ -1,0 +1,13 @@
+{
+  "description": "tree shaking: default re-export as named removes other unused exports",
+  "input": "reexport-default.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["dep-default-reexport.js", "esmodule-helpers.js", "reexport-default-barrel.js", "reexport-default.js"],
+      "contains": ["used-default-reexport"],
+      "notContains": ["unused-default-reexport-sentinel"]
+    }
+  ]
+}

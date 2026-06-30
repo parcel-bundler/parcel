@@ -1,0 +1,12 @@
+{
+  "description": "tree shaking: namespace import keeps unused namespace export conservatively",
+  "input": "namespace.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["dep-namespace.js", "esmodule-helpers.js", "namespace.js"],
+      "contains": ["used-namespace", "unused-namespace-sentinel"]
+    }
+  ]
+}

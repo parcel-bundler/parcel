@@ -135,6 +135,7 @@ fn bundle_with_options(
   }
   let options = BuildOptions {
     mode: options.mode,
+    minify: options.minify,
     env,
     input_fs: Arc::new(OsFileSystem {}),
     output_fs: output_fs.clone(),
@@ -199,6 +200,18 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
           assert!(
             contents.contains(substring),
             "Bundle {:?} did not contain expected substring {:?}\n\nBundle contents: {}",
+            bundle.name.as_ref().unwrap(),
+            substring,
+            contents
+          );
+        }
+      }
+      if !found.not_contains.is_empty() {
+        let contents = output_fs.read_to_string(bundle.dist_path()).unwrap();
+        for substring in &found.not_contains {
+          assert!(
+            !contents.contains(substring),
+            "Bundle {:?} contained unexpected substring {:?}\n\nBundle contents: {}",
             bundle.name.as_ref().unwrap(),
             substring,
             contents
@@ -506,12 +519,15 @@ struct TestBundle {
   ty: Option<AssetType>,
   #[serde(default)]
   contains: Vec<String>,
+  #[serde(default)]
+  not_contains: Vec<String>,
 }
 
 #[derive(serde::Deserialize, Default)]
 struct TestOptions {
   #[serde(default)]
   mode: parcel_core::BuildMode,
+  minify: Option<bool>,
   #[serde(default)]
   env: HashMap<String, String>,
   cwd: Option<String>,

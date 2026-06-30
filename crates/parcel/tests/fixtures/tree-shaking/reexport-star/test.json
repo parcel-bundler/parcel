@@ -1,0 +1,12 @@
+{
+  "description": "tree shaking: star re-export keeps unused re-exported symbol conservatively",
+  "input": "reexport-star.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["dep-star.js", "esmodule-helpers.js", "reexport-star-barrel.js", "reexport-star.js"],
+      "contains": ["used-star", "unused-star-sentinel"]
+    }
+  ]
+}

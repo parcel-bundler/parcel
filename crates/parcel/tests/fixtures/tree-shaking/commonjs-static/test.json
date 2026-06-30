@@ -1,0 +1,12 @@
+{
+  "description": "tree shaking: statically analyzable CommonJS keeps unused export conservatively",
+  "input": "commonjs.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["commonjs-dep.js", "commonjs.js"],
+      "contains": ["used-commonjs", "unused-commonjs-sentinel"]
+    }
+  ]
+}
