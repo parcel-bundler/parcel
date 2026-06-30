@@ -196,6 +196,9 @@ function parcelLoadCSS(bundleId) {
   });
 }
 
+parcelRequire.loadJS = parcelLoadJS;
+parcelRequire.loadCSS = parcelLoadCSS;
+
 if (entries) {
   for (var i = 0; i < entries.length; i++) {
     parcelRequire(entries[i]);
@@ -293,6 +296,15 @@ var protocol =
 
 // eslint-disable-next-line no-redeclare
 var parent = parcelRequire.parent;
+// Safari doesn't support sourceURL in error stacks.
+// eval may also be disabled via CSP, so do a quick check.
+var supportsSourceURL = true; // TODO
+// try {
+//   (0, eval)('throw new Error("test"); //# sourceURL=test.js');
+// } catch (err) {
+//   supportsSourceURL = err.stack.includes('test.js');
+// }
+
 if (!parent || !parent.isParcelRequire) {
   // Web extension context
   var extCtx =
@@ -301,15 +313,6 @@ if (!parent || !parent.isParcelRequire) {
         ? null
         : chrome
       : browser;
-
-  // Safari doesn't support sourceURL in error stacks.
-  // eval may also be disabled via CSP, so do a quick check.
-  var supportsSourceURL = true; // TODO
-  // try {
-  //   (0, eval)('throw new Error("test"); //# sourceURL=test.js');
-  // } catch (err) {
-  //   supportsSourceURL = err.stack.includes('test.js');
-  // }
 
   var ws;
   if (HMR_USE_SSE) {
@@ -470,6 +473,11 @@ async function handleMessage(data /*: HMRMessage */) {
       document.body.appendChild(overlay);
     }
   }
+}
+
+if (globalThis.__parcel_hmr_test__) {
+  globalThis.__parcel_hmr_test__.handleMessage = handleMessage;
+  globalThis.__parcel_hmr_test__.parcelRequire = parcelRequire;
 }
 
 function removeErrorOverlay() {

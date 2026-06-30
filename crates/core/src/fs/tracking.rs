@@ -77,7 +77,8 @@ impl FileSystem for TrackingFileSystem {
     if kind.is_empty() {
       self.record_missing(path);
     } else {
-      self.record_read(path);
+      // Do NOT track file change here. We only care if the file exists, not what's inside it.
+      // TODO: track delete only.
     }
     kind
   }
@@ -155,6 +156,7 @@ impl FileSystem for TrackingFileSystem {
   ) -> Option<PathId> {
     let found = self.inner.find_ancestor(from, file_name, kind, root);
     if let Some(result) = found {
+      // TODO: is this needed?
       self.record_read(result);
     }
 

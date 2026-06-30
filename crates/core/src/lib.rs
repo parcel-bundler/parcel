@@ -80,7 +80,7 @@ pub struct Parcel {
 #[derive(Debug)]
 pub struct BuildResult<'a> {
   pub bundle_graph: BundleGraph<'a>,
-  pub changed_assets: HashSet<usize>,
+  pub changed_assets: Vec<usize>,
 }
 
 /// The outcome of [`Parcel::invalidate`].
@@ -276,7 +276,7 @@ fn bundle_and_package<'a>(
   asset_graph: AssetGraph<'a>,
   config: &ParcelConfig,
   options: &ParcelOptions,
-  changed_assets: &HashSet<usize>,
+  changed_assets: &Vec<usize>,
   prev_bundles: &mut HashMap<String, (Vec<usize>, PathId)>,
 ) -> Result<BundleGraph<'a>, DiagnosticList> {
   // Group assets into bundles.

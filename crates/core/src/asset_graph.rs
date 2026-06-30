@@ -42,7 +42,7 @@ pub struct AssetGraph<'a> {
 #[derive(Debug, Clone)]
 pub struct AssetGraphBuildResult<'a> {
   pub asset_graph: AssetGraph<'a>,
-  pub changed_assets: HashSet<usize>,
+  pub changed_assets: Vec<usize>,
 }
 
 /// Stateful builder for the asset graph, enabling incremental rebuilds.
@@ -116,7 +116,7 @@ impl AssetGraphBuilder {
   /// Builds the asset graph and reports every asset transformed during this build.
   pub fn build_with_changes(&mut self) -> Result<AssetGraphBuildResult<'_>, DiagnosticList> {
     let mut queue = &mut self.queue;
-    let mut changed_assets = HashSet::new();
+    let mut changed_assets = Vec::new();
 
     // Queue entry assets. On the first build, allocate new slots.
     // On subsequent builds, entries already have slots; re-queue if Deferred.
@@ -185,7 +185,7 @@ impl AssetGraphBuilder {
     while let Some(result) = queue.receive() {
       match result {
         RequestResult::Transform(res) => {
-          changed_assets.insert(res.index);
+          changed_assets.push(res.index);
 
           // Always record invalidations, even when the transform errored.
           self.invalidation_map.add(res.index, res.invalidations);

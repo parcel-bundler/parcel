@@ -202,6 +202,9 @@ function parcelLoadCSS(bundleId) {
   });
 }
 
+parcelRequire.loadJS = parcelLoadJS;
+parcelRequire.loadCSS = parcelLoadCSS;
+
 if (entries) {
   for (var i = 0; i < entries.length; i++) {
     parcelRequire(entries[i]);

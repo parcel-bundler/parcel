@@ -144,7 +144,9 @@ impl JsContent {
         get_inline_bundle_content,
         &options.project_root,
       )?;
-      write!(res, "\n}},{{}}]")?;
+      let deps =
+        serde_json::to_string(&synthetic_asset.dependencies(bundle_graph, &options.project_root))?;
+      write!(res, "\n}},{}]", deps)?;
     }
 
     write!(res, "}};\n\n")?;
@@ -419,12 +421,38 @@ pub fn asset_dependencies<'a>(
 impl SyntheticAsset {
   pub fn id(&self) -> String {
     match self {
-      SyntheticAsset::Asset(id, _) => format!("'{}'", id),
-      SyntheticAsset::Async(id) => format!("'b{}'", id),
-      SyntheticAsset::AsyncInterop(id) => format!("'b{}i'", id),
-      SyntheticAsset::Url(id) => format!("'b{}'", id),
-      SyntheticAsset::Inline(id) => format!("'b{}'", id),
+      SyntheticAsset::Asset(id, _) => id.clone(),
+      SyntheticAsset::Async(id) => format!("b{}", id),
+      SyntheticAsset::AsyncInterop(id) => format!("b{}i", id),
+      SyntheticAsset::Url(id) => format!("b{}", id),
+      SyntheticAsset::Inline(id) => format!("b{}", id),
     }
+  }
+
+  pub fn dependencies<'a>(
+    &self,
+    bundle_graph: &'a BundleGraph,
+    project_root: &PathId,
+  ) -> IndexMap<String, Resolution<'a>> {
+    let mut dependencies = IndexMap::new();
+    match self {
+      SyntheticAsset::Async(bundle_index) => {
+        let resolved_bundle = &bundle_graph.bundles[*bundle_index as usize];
+        if let Some(main_entry_asset) = resolved_bundle.main_entry_asset {
+          let asset = bundle_graph.asset_graph.assets[main_entry_asset].expect_asset();
+          dependencies.insert("bundle".into(), Resolution::Asset(asset.id(project_root)));
+        }
+      }
+      SyntheticAsset::AsyncInterop(bundle_index) => {
+        dependencies.insert(
+          "bundle".into(),
+          Resolution::Asset(format!("b{}", bundle_index)),
+        );
+      }
+      _ => {}
+    }
+
+    dependencies
   }
 
   pub fn write_id<W: std::fmt::Write>(&self, dest: &mut W) -> std::fmt::Result {
@@ -545,10 +573,10 @@ fn load_bundle<W: std::fmt::Write>(
   let name = bundle.relative_url(from).unwrap();
   match &bundle.ty {
     AssetType::Js => {
-      write!(res, "parcelLoadJS('./{}')", name)
+      write!(res, "module.bundle.loadJS('./{}')", name)
     }
     AssetType::Css => {
-      write!(res, "parcelLoadCSS('./{}')", name)
+      write!(res, "module.bundle.loadCSS('./{}')", name)
     }
     _ => Ok(()),
   }
