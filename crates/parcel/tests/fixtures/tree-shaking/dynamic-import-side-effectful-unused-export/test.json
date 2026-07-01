@@ -1,0 +1,26 @@
+{
+  "description": "tree shaking: dynamic import unused export keeps initializer side effects",
+  "input": "dynamic-side-effectful-unused-export.js",
+  "options": {"mode": "production"},
+  "output": "used-dynamic-side-effectful-export",
+  "sideEffects": [
+    "unused-dynamic-side-effectful-export",
+    "used-dynamic-side-effectful-export"
+  ],
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["dynamic-side-effectful-unused-export.js"],
+      "notContains": ["unused-dynamic-pure-export-sentinel"]
+    },
+    {
+      "type": "js",
+      "assets": ["async-side-effectful-unused-export.js", "esmodule-helpers.js"],
+      "contains": [
+        "used-dynamic-side-effectful-export",
+        "unused-dynamic-side-effectful-export"
+      ],
+      "notContains": ["unused-dynamic-pure-export-sentinel"]
+    }
+  ]
+}

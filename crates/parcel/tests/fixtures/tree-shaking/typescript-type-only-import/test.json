@@ -1,0 +1,14 @@
+{
+  "description": "tree shaking: TypeScript type-only import does not keep runtime module",
+  "input": "type-only-import.ts",
+  "options": {"mode": "production"},
+  "output": "type-only-import-done",
+  "sideEffects": [],
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["esmodule-helpers.js", "type-only-import.ts"],
+      "notContains": ["type-only-import-module-sentinel"]
+    }
+  ]
+}

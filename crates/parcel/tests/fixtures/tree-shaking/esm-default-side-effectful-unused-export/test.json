@@ -1,0 +1,24 @@
+{
+  "description": "tree shaking: ESM unused default export keeps expression side effects",
+  "input": "default-side-effectful-unused-export.js",
+  "options": {"mode": "production"},
+  "sideEffects": [
+    "unused-default-side-effectful-export",
+    "used-default-side-effectful-export"
+  ],
+  "bundles": [
+    {
+      "type": "js",
+      "assets": [
+        "default-side-effectful-unused-export.js",
+        "dep-default-side-effectful-unused-export.js",
+        "esmodule-helpers.js"
+      ],
+      "contains": [
+        "used-default-side-effectful-export",
+        "unused-default-side-effectful-export"
+      ],
+      "notContains": ["unused-default-pure-export-sentinel"]
+    }
+  ]
+}

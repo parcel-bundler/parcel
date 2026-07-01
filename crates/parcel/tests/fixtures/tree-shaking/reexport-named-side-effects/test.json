@@ -1,0 +1,25 @@
+{
+  "description": "tree shaking: named re-export preserves source module side effects",
+  "input": "reexport-named-side-effects.js",
+  "options": {"mode": "production"},
+  "sideEffects": [
+    "named-reexport-module-side-effect",
+    "used-named-reexport-side-effect"
+  ],
+  "bundles": [
+    {
+      "type": "js",
+      "assets": [
+        "dep-reexport-named-side-effects.js",
+        "esmodule-helpers.js",
+        "reexport-named-side-effects-barrel.js",
+        "reexport-named-side-effects.js"
+      ],
+      "contains": [
+        "named-reexport-module-side-effect",
+        "used-named-reexport-side-effect"
+      ],
+      "notContains": ["unused-named-reexport-side-effect-sentinel"]
+    }
+  ]
+}

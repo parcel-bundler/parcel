@@ -1,0 +1,14 @@
+{
+  "description": "tree shaking: ESM unused class export keeps computed key side effect",
+  "input": "class-export.js",
+  "options": {"mode": "production"},
+  "sideEffects": ["unused-class-computed-key", "used-class-export"],
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["class-export.js", "dep-class-export.js", "esmodule-helpers.js"],
+      "contains": ["used-class-export", "unused-class-computed-key"],
+      "notContains": ["unused-function-declaration-sentinel"]
+    }
+  ]
+}

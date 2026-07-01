@@ -1,0 +1,23 @@
+{
+  "description": "tree shaking: CommonJS unused export assignment keeps RHS side effects",
+  "input": "commonjs-side-effectful-unused-export.js",
+  "options": {"mode": "production"},
+  "sideEffects": [
+    "unused-commonjs-side-effectful-export",
+    "used-commonjs-side-effectful-export"
+  ],
+  "bundles": [
+    {
+      "type": "js",
+      "assets": [
+        "commonjs-side-effectful-unused-export.js",
+        "dep-commonjs-side-effectful-unused-export.js"
+      ],
+      "contains": [
+        "used-commonjs-side-effectful-export",
+        "unused-commonjs-side-effectful-export"
+      ],
+      "notContains": ["unused-commonjs-pure-export-sentinel"]
+    }
+  ]
+}

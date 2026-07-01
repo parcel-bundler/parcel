@@ -1,0 +1,23 @@
+{
+  "description": "tree shaking: sideEffects false still preserves side effects in used modules",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "sideEffects": [
+    "unused-package-export-side-effect",
+    "used-package-side-effect-free"
+  ],
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["esmodule-helpers.js", "index.js", "used.js"],
+      "contains": [
+        "used-package-side-effect-free",
+        "unused-package-export-side-effect"
+      ],
+      "notContains": [
+        "unused-package-pure-export-sentinel",
+        "dropped-package-module-sentinel"
+      ]
+    }
+  ]
+}

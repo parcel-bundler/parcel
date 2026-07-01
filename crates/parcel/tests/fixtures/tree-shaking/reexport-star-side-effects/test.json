@@ -1,0 +1,25 @@
+{
+  "description": "tree shaking: star re-export preserves source module side effects",
+  "input": "reexport-star-side-effects.js",
+  "options": {"mode": "production"},
+  "sideEffects": [
+    "star-reexport-module-side-effect",
+    "used-star-reexport-side-effect"
+  ],
+  "bundles": [
+    {
+      "type": "js",
+      "assets": [
+        "dep-reexport-star-side-effects.js",
+        "esmodule-helpers.js",
+        "reexport-star-side-effects-barrel.js",
+        "reexport-star-side-effects.js"
+      ],
+      "contains": [
+        "star-reexport-module-side-effect",
+        "used-star-reexport-side-effect"
+      ],
+      "notContains": ["unused-star-reexport-side-effect-sentinel"]
+    }
+  ]
+}

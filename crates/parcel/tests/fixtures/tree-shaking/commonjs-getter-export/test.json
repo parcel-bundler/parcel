@@ -1,0 +1,17 @@
+{
+  "description": "tree shaking: CommonJS getter export runs only when the getter is read",
+  "input": "commonjs-getter-export.js",
+  "options": {"mode": "production"},
+  "sideEffects": [
+    "used-commonjs-getter-export",
+    "commonjs-getter-read",
+    "unused-commonjs-getter-value"
+  ],
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["commonjs-getter-export.js", "dep-commonjs-getter-export.js"],
+      "contains": ["used-commonjs-getter-export", "commonjs-getter-read", "commonjs-never-read-getter-sentinel"]
+    }
+  ]
+}

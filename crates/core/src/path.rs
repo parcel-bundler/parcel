@@ -10,6 +10,8 @@ use papaya::HashMap;
 use rustc_hash::FxHasher;
 
 static GLOBAL_INTERNER: LazyLock<PathInterner> = LazyLock::new(|| PathInterner::new());
+static NODE_MODULES: LazyLock<SegmentId> =
+  LazyLock::new(|| GLOBAL_INTERNER.intern_segment("node_modules"));
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PathId(NonZeroU32);
@@ -138,7 +140,9 @@ impl PathId {
   }
 
   pub fn in_node_modules(&self) -> bool {
-    self.ancestors().any(|a| a.file_name() == "node_modules")
+    self
+      .ancestors()
+      .any(|a| GLOBAL_INTERNER.node(a).segment == *NODE_MODULES)
   }
 
   pub fn is_inside(&self, parent: PathId) -> bool {
@@ -219,8 +223,6 @@ impl SubPath {
   }
 
   pub fn module(name: &str) -> SubPath {
-    static NODE_MODULES: LazyLock<SegmentId> =
-      LazyLock::new(|| GLOBAL_INTERNER.intern_segment("node_modules"));
     let mut path = smallvec::smallvec![*NODE_MODULES];
     path.extend(
       name

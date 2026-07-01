@@ -1,0 +1,18 @@
+{
+  "description": "tree shaking: bare ESM side-effect import keeps imported module execution",
+  "input": "side-effect-import.js",
+  "options": {"mode": "production"},
+  "output": "side-effect-import-done",
+  "sideEffects": ["bare-side-effect-import-ran"],
+  "bundles": [
+    {
+      "type": "js",
+      "assets": [
+        "dep-side-effect-import.js",
+        "esmodule-helpers.js",
+        "side-effect-import.js"
+      ],
+      "contains": ["bare-side-effect-import-ran"]
+    }
+  ]
+}

@@ -67,12 +67,7 @@ impl TransformRequest {
     flags.set(AssetFlags::SIDE_EFFECTS, req.side_effects);
     flags.set(
       AssetFlags::IS_SOURCE,
-      !req
-        .loc
-        .url
-        .to_file_path()?
-        .ancestors()
-        .any(|a| a.file_name() == "node_modules"), // TODO: symlinks
+      !req.loc.url.to_file_path()?.in_node_modules(), // TODO: symlinks
     );
 
     let asset = Asset {

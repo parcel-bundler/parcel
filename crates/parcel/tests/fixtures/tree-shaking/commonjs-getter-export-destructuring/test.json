@@ -1,0 +1,24 @@
+{
+  "description": "tree shaking: CommonJS destructured getter export keeps getter read side effects",
+  "input": "commonjs-getter-export-destructuring.js",
+  "options": {"mode": "production"},
+  "sideEffects": [
+    "commonjs-destructured-getter-read",
+    "used-commonjs-getter-destructuring",
+    "commonjs-destructured-getter-value"
+  ],
+  "bundles": [
+    {
+      "type": "js",
+      "assets": [
+        "commonjs-getter-export-destructuring.js",
+        "dep-commonjs-getter-export-destructuring.js"
+      ],
+      "contains": [
+        "used-commonjs-getter-destructuring",
+        "commonjs-destructured-getter-read",
+        "commonjs-destructured-unused-getter-sentinel"
+      ]
+    }
+  ]
+}
