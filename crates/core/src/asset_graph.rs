@@ -376,7 +376,7 @@ fn request_symbol(
         *requested = true;
         queue.transform(asset_index as usize, request.clone());
       }
-      return SymbolResolution::None;
+      return SymbolResolution::Ambiguous;
     }
   };
 
@@ -429,7 +429,6 @@ fn request_symbol(
 
         match res {
           SymbolResolution::None => continue,
-          SymbolResolution::Ambiguous => return res,
           SymbolResolution::Runtime { .. } => {
             request_all(assets, asset_index, queue);
             return SymbolResolution::Runtime { asset_index, name };
@@ -438,7 +437,7 @@ fn request_symbol(
             if star_resolution == SymbolResolution::None {
               star_resolution = res;
             } else if star_resolution != res {
-              return SymbolResolution::Ambiguous;
+              star_resolution = SymbolResolution::Ambiguous;
             }
           }
         }

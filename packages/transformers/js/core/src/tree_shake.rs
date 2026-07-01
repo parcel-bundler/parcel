@@ -76,12 +76,10 @@ pub fn tree_shake<'a>(
   minify: bool,
 ) {
   swc_core::common::GLOBALS.set(&*ast.globals, || {
-    let global_mark = Mark::fresh(Mark::root());
-    let unresolved_mark = Mark::fresh(Mark::root());
     let mut shake = TreeShake {
       used_symbols,
       resolutions,
-      unresolved_mark,
+      unresolved_mark: ast.unresolved_mark,
       dirname,
       mutated: false,
     };
@@ -109,8 +107,8 @@ pub fn tree_shake<'a>(
         },
         &swc_core::ecma::minifier::option::ExtraOptions {
           mangle_name_cache: None,
-          top_level_mark: global_mark,
-          unresolved_mark,
+          top_level_mark: ast.global_mark,
+          unresolved_mark: ast.unresolved_mark,
         },
       );
 
@@ -397,7 +395,7 @@ impl<'a> VisitMut for TreeShake<'a> {
                 export.src.value = resolution.as_ref().into();
                 export.src.raw = None;
               }
-              Resolution::String(string) => {
+              Resolution::String(_string) => {
                 // TODO
               }
               _ => {}
@@ -412,7 +410,7 @@ impl<'a> VisitMut for TreeShake<'a> {
                   src.value = resolution.as_ref().into();
                   src.raw = None;
                 }
-                Resolution::String(string) => {
+                Resolution::String(_string) => {
                   // TODO
                 }
                 _ => {}

@@ -304,11 +304,15 @@ fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Vers
 
 impl Ast {
   pub fn to_code(
-    &self,
+    &mut self,
     source_maps: bool,
     minify: bool,
   ) -> Result<(Vec<u8>, Option<String>), std::io::Error> {
     swc_core::common::GLOBALS.set(&*self.globals, || {
+      self
+        .program
+        .visit_mut_with(&mut (reserved_words(), hygiene(), fixer(Some(&self.comments))));
+
       let mut map_buf = Vec::new();
       let (buf, src_map_buf) = emit(
         self.source_map.clone(),
@@ -338,7 +342,7 @@ pub fn transform(
   call_macro: Option<MacroCallback>,
 ) -> Result<TransformResult, std::io::Error> {
   let source_maps = config.source_maps;
-  let res = transform_to_ast(config, call_macro)?;
+  let mut res = transform_to_ast(config, call_macro)?;
   let (code, map) = res.ast.to_code(source_maps, false)?;
 
   Ok(TransformResult {
@@ -498,8 +502,8 @@ pub fn transform_to_ast(
             };
           }
 
-          let global_mark = Mark::fresh(Mark::root());
-          let unresolved_mark = Mark::fresh(Mark::root());
+          let global_mark = result.ast.global_mark;
+          let unresolved_mark = result.ast.unresolved_mark;
           module.mutate(&mut (
             resolver(unresolved_mark, global_mark, config.is_type_script()),
             // Decorators can use type information, so must run before the TypeScript pass.
@@ -766,8 +770,6 @@ pub fn transform_to_ast(
               module
             }
           };
-
-          module.visit_mut_with(&mut (reserved_words(), hygiene(), fixer(Some(&comments))));
 
           result.dependencies.extend(global_deps);
           result.dependencies.extend(fs_deps);

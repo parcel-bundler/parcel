@@ -79,6 +79,7 @@ impl JsContent {
           .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
           && let Some(content) = asset.content.downcast_ref::<JsContent>()
         {
+          // TODO: this mutates the ast stored in the asset, which will break incremental rebuilds.
           let mut ast = content.ast.lock().unwrap();
           let used_symbols = asset
             .symbols
