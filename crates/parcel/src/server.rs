@@ -1,5 +1,5 @@
-use parcel_core::{Asset, AssetType, BundleGraph, ParcelConfig, ParcelOptions};
-use parcel_js::hmr::get_hmr_update;
+use parcel_core::{Asset, AssetType, BundleGraph, DiagnosticList, ParcelConfig, ParcelOptions};
+use parcel_js::hmr::{HmrUpdate, get_hmr_update};
 use std::{
   fs::File,
   path::Path,
@@ -105,10 +105,21 @@ impl DevServer {
   ) {
     let update = get_hmr_update(changed_assets, bundle_graph, config, options);
     let serialized = serde_json::to_string(&update).unwrap();
+    self.broadcast(serialized);
+  }
 
+  pub fn emit_hmr_error(&self, diagnostics: &DiagnosticList) {
+    let message = HmrUpdate::Error {
+      diagnostics: diagnostics.render_for_browser(),
+    };
+    let serialized = serde_json::to_string(&message).unwrap();
+    self.broadcast(serialized);
+  }
+
+  fn broadcast(&self, message: String) {
     let mut sockets = self.sockets.lock().unwrap();
     sockets.retain_mut(|ws| {
-      match ws.send(Message::Text(serialized.clone().into())) {
+      match ws.send(Message::Text(message.clone().into())) {
         Ok(_) => true,   // Keep the client
         Err(_) => false, // Drop the client (they disconnected)
       }

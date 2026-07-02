@@ -1,4 +1,4 @@
-use std::{io::Write, string::FromUtf8Error};
+use std::{borrow::Cow, io::Write, string::FromUtf8Error};
 
 use anstyle::{Ansi256Color, AnsiColor, Color, Style};
 use serde::{Deserialize, Serialize};
@@ -197,6 +197,35 @@ impl From<Diagnostic> for Vec<Diagnostic> {
 #[serde(transparent)]
 pub struct DiagnosticList(pub Vec<Diagnostic>);
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub struct RenderedDiagnostics {
+  pub ansi: Vec<RenderedAnsiDiagnostic>,
+  pub html: Vec<RenderedHtmlDiagnostic>,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub struct RenderedAnsiDiagnostic {
+  pub message: String,
+  pub codeframe: Option<String>,
+  pub stack: Option<String>,
+  pub hints: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub struct RenderedHtmlDiagnostic {
+  pub message: String,
+  pub stack: Option<String>,
+  pub frames: Vec<RenderedHtmlFrame>,
+  pub hints: Vec<String>,
+  pub documentation: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub struct RenderedHtmlFrame {
+  pub location: String,
+  pub code: String,
+}
+
 impl<T: Into<Diagnostic>> From<T> for DiagnosticList {
   fn from(value: T) -> Self {
     DiagnosticList(vec![value.into()])
@@ -290,9 +319,58 @@ impl DiagnosticList {
     }
     Ok(())
   }
+
+  pub fn render_for_browser(&self) -> RenderedDiagnostics {
+    RenderedDiagnostics {
+      ansi: self.0.iter().map(Diagnostic::render_ansi).collect(),
+      html: self.0.iter().map(Diagnostic::render_html).collect(),
+    }
+  }
 }
 
 impl Diagnostic {
+  fn render_ansi(&self) -> RenderedAnsiDiagnostic {
+    let mut codeframe = Vec::new();
+    for (index, frame) in self.code_frames.iter().enumerate() {
+      if index > 0 {
+        write!(&mut codeframe, "\n\n").unwrap();
+      }
+      frame.report(&mut codeframe).unwrap();
+    }
+
+    RenderedAnsiDiagnostic {
+      message: self.message.clone(),
+      codeframe: if codeframe.is_empty() {
+        None
+      } else {
+        Some(String::from_utf8(codeframe).unwrap())
+      },
+      stack: None,
+      hints: self.hints.clone(),
+    }
+  }
+
+  fn render_html(&self) -> RenderedHtmlDiagnostic {
+    RenderedHtmlDiagnostic {
+      message: escape_html(&self.message).into_owned(),
+      stack: None,
+      frames: self
+        .code_frames
+        .iter()
+        .map(CodeFrame::render_html)
+        .collect(),
+      hints: self
+        .hints
+        .iter()
+        .map(|hint| escape_html(hint).into_owned())
+        .collect(),
+      documentation: self
+        .documentation_url
+        .as_ref()
+        .map(|url| escape_html(url).into_owned()),
+    }
+  }
+
   pub fn report<W: Write>(&self, dest: &mut W) -> std::io::Result<()> {
     let style = Style::new()
       .fg_color(Some(Color::Ansi(AnsiColor::Red)))
@@ -344,24 +422,36 @@ const PADDING_AFTER: u32 = 2;
 const MAX_LINES: u32 = 12;
 
 impl CodeFrame {
-  pub fn report<W: Write>(&self, dest: &mut W) -> std::io::Result<()> {
-    if let Some(url) = &self.url {
-      let style = Style::new()
-        .fg_color(Some(Color::Ansi(AnsiColor::BrightBlack)))
-        .underline();
+  fn render_html(&self) -> RenderedHtmlFrame {
+    RenderedHtmlFrame {
+      location: escape_html(&self.location()).into_owned(),
+      code: self.render_code(&HtmlRenderer),
+    }
+  }
 
+  fn location(&self) -> String {
+    let mut location = String::new();
+    if let Some(url) = &self.url {
       let cwd = PathId::new(&std::env::current_dir().unwrap_or_default());
       let relative = url.to_file_path().unwrap().relative(&cwd);
-
-      write!(dest, "{style}{}", relative.to_string_lossy())?;
+      location.push_str(&relative.to_string_lossy());
       if let Some(highlight) = self.code_highlights.first() {
-        write!(dest, ":{}:{}", highlight.start.line, highlight.start.column)?;
+        use std::fmt::Write;
+        write!(
+          &mut location,
+          ":{}:{}",
+          highlight.start.line, highlight.start.column
+        )
+        .unwrap();
       }
-      write!(dest, "{style:#}\n")?;
     }
 
+    location
+  }
+
+  fn line_window(&self) -> Option<(u32, u32)> {
     if self.code_highlights.is_empty() {
-      return Ok(());
+      return None;
     }
 
     let first_highlight = self
@@ -387,40 +477,35 @@ impl CodeFrame {
       // TODO
     }
 
+    Some((start_line, end_line))
+  }
+
+  fn code(&self) -> Option<String> {
+    if let Some(code) = &self.code {
+      return Some(code.clone());
+    }
+
+    Some(std::fs::read_to_string(self.url.as_ref()?.to_file_path().ok()?.to_path_buf()).ok()?)
+  }
+
+  fn render_code<R: CodeFrameRenderer>(&self, renderer: &R) -> String {
+    let Some((start_line, end_line)) = self.line_window() else {
+      return String::new();
+    };
+
     let line_number_length = (end_line + 1).to_string().len();
-    let code = self.code.clone().unwrap_or_else(|| {
-      std::fs::read_to_string(
-        self
-          .url
-          .as_ref()
-          .unwrap()
-          .to_file_path()
-          .unwrap()
-          .to_path_buf(),
-      )
-      .unwrap()
-    });
+    let Some(code) = self.code() else {
+      return String::new();
+    };
 
     let lines = code
       .lines()
       .skip(start_line as usize - 1)
       .take(end_line as usize - start_line as usize + 1);
 
-    let mut joined = String::new();
-    for line in lines {
-      joined.push_str(line);
-      joined.push('\n');
-    }
-
-    let highlighted = highlight(&joined, self.language.clone().unwrap_or(AssetType::Js));
-    let mut lines = highlighted.lines();
-
-    let highlight_style = Style::new()
-      .fg_color(Some(Color::Ansi(AnsiColor::Red)))
-      .bold();
-
-    let mut line_number = start_line;
-    while let Some(line) = lines.next() {
+    let mut res = String::new();
+    for (line_offset, line) in lines.enumerate() {
+      let line_number = start_line + line_offset as u32;
       let line_highlights = self
         .code_highlights
         .iter()
@@ -432,37 +517,45 @@ impl CodeFrame {
           .iter()
           .any(|h| h.start.line < line_number && h.end.line > line_number);
 
-      // TODO: Split the line into line parts that will fit the provided terminal width
-
+      use std::fmt::Write;
       write!(
-        dest,
-        "{highlight_style}{}{highlight_style:#} {:width$} | ",
-        if !line_highlights.is_empty() {
+        &mut res,
+        "{} {:width$} | {}\n",
+        renderer.error(if !line_highlights.is_empty() {
           ">"
         } else {
           " "
-        },
+        }),
         line_number + 1,
+        render_highlighted(
+          line,
+          self.language.clone().unwrap_or(AssetType::Js),
+          renderer
+        ),
         width = line_number_length
-      )?;
-      writeln!(dest, "{}", line)?;
+      )
+      .unwrap();
 
       if is_whole_line {
         writeln!(
-          dest,
-          "{highlight_style}>{highlight_style:#} {} | {highlight_style}{}{highlight_style:#}",
+          &mut res,
+          "{} {} | {}",
+          renderer.error(">"),
           " ".repeat(line_number_length),
-          "^".repeat(line.len())
-        )?;
+          renderer.error(&"^".repeat(line.chars().count()))
+        )
+        .unwrap();
       } else if !line_highlights.is_empty() {
         let mut last_col = 0;
         let mut highlight_has_ended = false;
 
         write!(
-          dest,
-          "{highlight_style}>{highlight_style:#} {} | ",
+          &mut res,
+          "{} {} | ",
+          renderer.error(">"),
           " ".repeat(line_number_length)
-        )?;
+        )
+        .unwrap();
 
         for highlight in &line_highlights {
           let start_col = highlight.start.column.saturating_sub(1) as usize;
@@ -479,7 +572,7 @@ impl CodeFrame {
             let mut characters = end_col - start_col + 1;
             if start_col > last_col {
               // start_col is before last_col, so add spaces as padding before the highlight indicators
-              write!(dest, "{}", " ".repeat(start_col - last_col))?;
+              write!(&mut res, "{}", " ".repeat(start_col - last_col)).unwrap();
             } else if last_col > start_col {
               // If last column is larger than the start, there's overlap in highlights
               // This line adjusts the characters count to ensure we don't add too many characters
@@ -487,11 +580,7 @@ impl CodeFrame {
             }
 
             characters = characters.max(1);
-            write!(
-              dest,
-              "{highlight_style}{}{highlight_style:#}",
-              "^".repeat(characters)
-            )?;
+            write!(&mut res, "{}", renderer.error(&"^".repeat(characters))).unwrap();
 
             last_col = end_col + 1;
           }
@@ -501,20 +590,257 @@ impl CodeFrame {
           && let Some(highlight) = line_highlights.last()
           && let Some(message) = &highlight.message
         {
-          write!(dest, " {}", message)?;
+          write!(&mut res, " {}", renderer.plain(message)).unwrap();
         }
 
-        write!(dest, "\n")?;
+        res.push('\n');
       }
-
-      line_number += 1;
     }
+
+    res
+  }
+
+  pub fn report<W: Write>(&self, dest: &mut W) -> std::io::Result<()> {
+    if let Some(url) = &self.url {
+      let style = Style::new()
+        .fg_color(Some(Color::Ansi(AnsiColor::BrightBlack)))
+        .underline();
+
+      let cwd = PathId::new(&std::env::current_dir().unwrap_or_default());
+      let relative = url.to_file_path().unwrap().relative(&cwd);
+
+      write!(dest, "{style}{}", relative.to_string_lossy())?;
+      if let Some(highlight) = self.code_highlights.first() {
+        write!(dest, ":{}:{}", highlight.start.line, highlight.start.column)?;
+      }
+      write!(dest, "{style:#}\n")?;
+    }
+
+    write!(dest, "{}", self.render_code(&AnsiRenderer))?;
 
     Ok(())
   }
 }
 
-fn highlight(code: &str, lang: AssetType) -> String {
+#[derive(Clone, Copy)]
+struct SyntaxStyle {
+  ansi_color: u8,
+  html_color: &'static str,
+  bold: bool,
+  italic: bool,
+  underline: bool,
+}
+
+impl SyntaxStyle {
+  fn ansi(self) -> Style {
+    let mut style = Style::new().fg_color(Some(Color::Ansi256(Ansi256Color(self.ansi_color))));
+    if self.bold {
+      style = style.bold();
+    }
+    if self.italic {
+      style = style.italic();
+    }
+    if self.underline {
+      style = style.underline();
+    }
+    style
+  }
+
+  fn ansi_open(self) -> String {
+    self.ansi().to_string()
+  }
+
+  fn ansi_close(self) -> String {
+    format!("{:#}", self.ansi())
+  }
+
+  fn html_style(self) -> String {
+    let mut style = format!("color:{}", self.html_color);
+    if self.bold {
+      style.push_str(";font-weight:700");
+    }
+    if self.italic {
+      style.push_str(";font-style:italic");
+    }
+    if self.underline {
+      style.push_str(";text-decoration:underline");
+    }
+    style
+  }
+
+  fn html_open(self) -> String {
+    format!("<span style=\"{}\">", self.html_style())
+  }
+
+  fn html_close(self) -> &'static str {
+    "</span>"
+  }
+}
+
+struct HighlightToken<'a> {
+  style: Option<usize>,
+  text: &'a str,
+}
+
+const HIGHLIGHT_NAMES: &[&str] = &[
+  "attribute",
+  "comment",
+  "constant",
+  "constant.builtin",
+  "constructor",
+  "function",
+  "function.builtin",
+  "keyword",
+  "module",
+  "number",
+  "boolean",
+  "operator",
+  "title",
+  "label",
+  "name",
+  "property",
+  "property.builtin",
+  "punctuation",
+  "string",
+  "string.special",
+  "tag",
+  "type",
+  "type.builtin",
+  "variable",
+  "variable.builtin",
+  "variable.parameter",
+];
+
+macro_rules! syntax_style {
+  ($ansi: literal, $html: literal) => {
+    SyntaxStyle {
+      ansi_color: $ansi,
+      html_color: $html,
+      bold: false,
+      italic: false,
+      underline: false,
+    }
+  };
+  ($ansi: literal, $html: literal, italic) => {
+    SyntaxStyle {
+      ansi_color: $ansi,
+      html_color: $html,
+      bold: false,
+      italic: true,
+      underline: false,
+    }
+  };
+  ($ansi: literal, $html: literal, bold) => {
+    SyntaxStyle {
+      ansi_color: $ansi,
+      html_color: $html,
+      bold: true,
+      italic: false,
+      underline: false,
+    }
+  };
+  ($ansi: literal, $html: literal, underline) => {
+    SyntaxStyle {
+      ansi_color: $ansi,
+      html_color: $html,
+      bold: false,
+      italic: false,
+      underline: true,
+    }
+  };
+}
+
+const HIGHLIGHT_STYLES: &[SyntaxStyle] = &[
+  syntax_style!(124, "#dc2626", italic),    // attribute
+  syntax_style!(245, "#a1a1aa", italic),    // comment
+  syntax_style!(94, "#a16207"),             // constant
+  syntax_style!(94, "#a16207", bold),       // constant.builtin
+  syntax_style!(136, "#ca8a04"),            // constructor
+  syntax_style!(26, "#2563eb"),             // function
+  syntax_style!(26, "#2563eb", bold),       // function.builtin
+  syntax_style!(202, "#ea580c"),            // keyword
+  syntax_style!(136, "#ca8a04"),            // module
+  syntax_style!(94, "#a16207", bold),       // number
+  syntax_style!(94, "#a16207", bold),       // boolean
+  syntax_style!(239, "#71717a", bold),      // operator
+  syntax_style!(124, "#dc2626"),            // title
+  syntax_style!(124, "#dc2626"),            // label
+  syntax_style!(124, "#dc2626"),            // name
+  syntax_style!(124, "#dc2626"),            // property
+  syntax_style!(124, "#dc2626", bold),      // property.builtin
+  syntax_style!(239, "#71717a"),            // punctuation
+  syntax_style!(28, "#16a34a"),             // string
+  syntax_style!(30, "#0d9488"),             // string.special
+  syntax_style!(18, "#1e40af"),             // tag
+  syntax_style!(23, "#0f766e"),             // type
+  syntax_style!(23, "#0f766e", bold),       // type.builtin
+  syntax_style!(252, "#e4e4e7"),            // variable
+  syntax_style!(252, "#e4e4e7", bold),      // variable.builtin
+  syntax_style!(252, "#e4e4e7", underline), // variable.parameter
+];
+
+trait CodeFrameRenderer {
+  fn plain(&self, text: &str) -> String;
+  fn error(&self, text: &str) -> String;
+  fn syntax(&self, style: SyntaxStyle, text: &str) -> String;
+}
+
+struct AnsiRenderer;
+struct HtmlRenderer;
+
+impl CodeFrameRenderer for AnsiRenderer {
+  fn plain(&self, text: &str) -> String {
+    text.to_string()
+  }
+
+  fn error(&self, text: &str) -> String {
+    let style = Style::new()
+      .fg_color(Some(Color::Ansi(AnsiColor::Red)))
+      .bold();
+    format!("{style}{text}{style:#}")
+  }
+
+  fn syntax(&self, style: SyntaxStyle, text: &str) -> String {
+    format!("{}{}{}", style.ansi_open(), text, style.ansi_close())
+  }
+}
+
+impl CodeFrameRenderer for HtmlRenderer {
+  fn plain(&self, text: &str) -> String {
+    escape_html(text).into_owned()
+  }
+
+  fn error(&self, text: &str) -> String {
+    format!(
+      "<span style=\"color:#f87171;font-weight:700\">{}</span>",
+      escape_html(text)
+    )
+  }
+
+  fn syntax(&self, style: SyntaxStyle, text: &str) -> String {
+    format!(
+      "{}{}{}",
+      style.html_open(),
+      escape_html(text),
+      style.html_close()
+    )
+  }
+}
+
+fn render_highlighted<R: CodeFrameRenderer>(code: &str, lang: AssetType, renderer: &R) -> String {
+  let tokens = highlight_tokens(code, lang);
+  let mut res = String::new();
+  for token in tokens {
+    if let Some(style) = token.style {
+      res.push_str(&renderer.syntax(HIGHLIGHT_STYLES[style], token.text));
+    } else {
+      res.push_str(&renderer.plain(token.text));
+    }
+  }
+  res
+}
+
+fn highlight_tokens(code: &str, lang: AssetType) -> Vec<HighlightToken<'_>> {
   use tree_sitter_highlight::{HighlightConfiguration, HighlightEvent, Highlighter};
 
   let mut config = match lang {
@@ -595,109 +921,116 @@ fn highlight(code: &str, lang: AssetType) -> String {
       "",
     )
     .unwrap(),
-    _ => return code.to_string(),
+    _ => {
+      return vec![HighlightToken {
+        style: None,
+        text: code,
+      }];
+    }
   };
 
-  config.configure(&[
-    "attribute",
-    "comment",
-    "constant",
-    "constant.builtin",
-    "constructor",
-    "function",
-    "function.builtin",
-    "keyword",
-    "module",
-    "number",
-    "boolean",
-    "operator",
-    "title",
-    "label",
-    "name",
-    "property",
-    "property.builtin",
-    "punctuation",
-    "string",
-    "string.special",
-    "tag",
-    "type",
-    "type.builtin",
-    "variable",
-    "variable.builtin",
-    "variable.parameter",
-  ]);
-
-  macro_rules! style {
-    ($color: literal) => {
-      Style::new().fg_color(Some(Color::Ansi256(Ansi256Color($color))))
-    };
-    ($color: literal, italic) => {
-      Style::new()
-        .fg_color(Some(Color::Ansi256(Ansi256Color($color))))
-        .italic()
-    };
-    ($color: literal, bold) => {
-      Style::new()
-        .fg_color(Some(Color::Ansi256(Ansi256Color($color))))
-        .bold()
-    };
-    ($color: literal, underline) => {
-      Style::new()
-        .fg_color(Some(Color::Ansi256(Ansi256Color($color))))
-        .underline()
-    };
-  }
-
-  let styles = &[
-    style!(124, italic),    // attribute
-    style!(245, italic),    // comment
-    style!(94),             // constant
-    style!(94, bold),       // constant.builtin
-    style!(136),            // constructor
-    style!(26),             // function
-    style!(26, bold),       // function.builtin
-    style!(202),            // keyword
-    style!(136),            // module
-    style!(94, bold),       // number
-    style!(94, bold),       // boolean
-    style!(239, bold),      // operator
-    style!(124),            // title
-    style!(124),            // label
-    style!(124),            // name
-    style!(124),            // property
-    style!(124, bold),      // property.builtin
-    style!(239),            // punctuation
-    style!(28),             // string
-    style!(30),             // string.special
-    style!(18),             // tag
-    style!(23),             // type
-    style!(23, bold),       // type.builtin
-    style!(252),            // variable
-    style!(252, bold),      // variable.builtin
-    style!(252, underline), // variable.parameter
-  ];
+  config.configure(HIGHLIGHT_NAMES);
 
   let mut highlighter = Highlighter::new();
-  let highlights = highlighter
-    .highlight(&config, code.as_bytes(), None, |_lang| None)
-    .unwrap();
+  let Ok(highlights) = highlighter.highlight(&config, code.as_bytes(), None, |_lang| None) else {
+    return vec![HighlightToken {
+      style: None,
+      text: code,
+    }];
+  };
 
-  let mut res = String::new();
-  let mut style_stack = vec![Style::default()];
+  let mut tokens = Vec::new();
+  let mut style_stack = vec![None];
   for event in highlights {
     match event {
-      Ok(HighlightEvent::HighlightStart(highlight)) => style_stack.push(styles[highlight.0]),
+      Ok(HighlightEvent::HighlightStart(highlight)) => {
+        style_stack.push((highlight.0 < HIGHLIGHT_STYLES.len()).then_some(highlight.0))
+      }
       Ok(HighlightEvent::HighlightEnd) => {
         style_stack.pop();
       }
       Ok(HighlightEvent::Source { start, end }) => {
-        use std::fmt::Write;
-        let style = style_stack.last().unwrap();
-        write!(&mut res, "{style}{}{style:#}", &code[start..end]).unwrap();
+        tokens.push(HighlightToken {
+          style: *style_stack.last().unwrap_or(&None),
+          text: &code[start..end],
+        });
       }
       Err(_) => {}
     }
   }
 
-  res
+  tokens
+}
+
+fn escape_html(value: &str) -> Cow<'_, str> {
+  if !value
+    .as_bytes()
+    .iter()
+    .any(|b| matches!(b, b'&' | b'<' | b'>' | b'"' | b'\''))
+  {
+    return Cow::Borrowed(value);
+  }
+
+  let mut result = String::with_capacity(value.len());
+  for ch in value.chars() {
+    match ch {
+      '&' => result.push_str("&amp;"),
+      '<' => result.push_str("&lt;"),
+      '>' => result.push_str("&gt;"),
+      '"' => result.push_str("&quot;"),
+      '\'' => result.push_str("&#39;"),
+      _ => result.push(ch),
+    }
+  }
+
+  Cow::Owned(result)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn renders_browser_diagnostics_with_escaped_html_codeframes() {
+    let diagnostics = DiagnosticList(vec![Diagnostic {
+      message: "Unexpected <token>".into(),
+      origin: Some("test".into()),
+      code_frames: vec![CodeFrame {
+        code: Some("let value = foo < bar;\n".into()),
+        url: None,
+        language: Some(AssetType::Js),
+        code_highlights: vec![CodeHighlight {
+          message: Some("escape <this>".into()),
+          start: Location {
+            line: 1,
+            column: 13,
+          },
+          end: Location {
+            line: 1,
+            column: 15,
+          },
+        }],
+      }],
+      hints: vec!["Use > instead".into()],
+      severity: DiagnosticSeverity::Error,
+      documentation_url: Some("https://example.com?a=<b>".into()),
+    }]);
+
+    let rendered = diagnostics.render_for_browser();
+    assert_eq!(rendered.html[0].message, "Unexpected &lt;token&gt;");
+    assert_eq!(rendered.html[0].hints, vec!["Use &gt; instead"]);
+    assert_eq!(
+      rendered.html[0].documentation,
+      Some("https://example.com?a=&lt;b&gt;".into())
+    );
+    assert!(rendered.html[0].frames[0].code.contains("foo"));
+    assert!(rendered.html[0].frames[0].code.contains("&lt;"));
+    assert!(rendered.html[0].frames[0].code.contains("bar"));
+    assert!(
+      rendered.html[0].frames[0]
+        .code
+        .contains("escape &lt;this&gt;")
+    );
+    assert!(rendered.ansi[0].codeframe.is_some());
+  }
 }

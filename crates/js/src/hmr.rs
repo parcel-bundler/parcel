@@ -10,7 +10,12 @@ use crate::packager::{Resolution, SyntheticAsset, asset_dependencies};
 #[derive(serde::Serialize, Debug)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum HmrUpdate<'a> {
-  Update { assets: Vec<HmrAsset<'a>> },
+  Update {
+    assets: Vec<HmrAsset<'a>>,
+  },
+  Error {
+    diagnostics: parcel_core::RenderedDiagnostics,
+  },
 }
 
 #[derive(Debug, serde::Serialize)]

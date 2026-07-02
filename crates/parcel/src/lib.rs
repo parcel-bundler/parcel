@@ -118,7 +118,10 @@ pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
           server.emit_hmr_update(changed_assets, graph, &*config, &*options);
         }
       }
-      Err(e) => print_diagnostics(&e),
+      Err(e) => {
+        print_diagnostics(&e);
+        server.emit_hmr_error(&e);
+      }
     }
   }
 

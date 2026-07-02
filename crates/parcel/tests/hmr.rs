@@ -1,9 +1,11 @@
 use parcel::make_parcel;
 use parcel_core::{
-  BuildMode, BuildOptions, Environment, FileSystem, LogLevel, MemoryFileSystem, Parcel, PathId,
+  AssetType, BuildMode, BuildOptions, CodeFrame, CodeHighlight, Diagnostic, DiagnosticList,
+  DiagnosticSeverity, Environment, FileSystem, Location, LogLevel, MemoryFileSystem, Parcel,
+  PathId,
 };
 use parcel_js::hmr::get_hmr_update;
-use parcel_plugin_js::create_runtime;
+use parcel_plugin_js::{await_promise, create_runtime};
 use rquickjs::{Function, Module, Object, Value};
 use std::{
   collections::HashMap,
@@ -107,6 +109,7 @@ impl HmrRuntimeTest {
       let globals = ctx.globals();
       let console: Object = globals.get("console")?;
       console.set("clear", Function::new(ctx.clone(), || {})?)?;
+      console.set("error", Function::new(ctx.clone(), || {})?)?;
 
       let output_values = outputs.clone();
       globals.set(
@@ -135,6 +138,19 @@ impl HmrRuntimeTest {
         })?,
       )?;
       globals.set("location", location)?;
+
+      ctx.eval::<(), _>(
+        "globalThis.document = {
+          createElement() { return {}; },
+          getElementById() { return null; },
+          body: {
+            appendChild(element) {
+              globalThis.__parcel_overlay_html__ = element.innerHTML;
+            }
+          }
+        };",
+      )?;
+
       globals.set("__parcel_hmr_test__", Object::new(ctx.clone())?)?;
 
       Module::import(&ctx, initial_bundle_path.to_string_lossy().into_owned())?
@@ -189,10 +205,11 @@ impl HmrRuntimeTest {
     let update = get_hmr_update(changed_assets, graph, &config, &options);
     let update_result = self.js_env.context.with(|ctx| -> rquickjs::Result<()> {
       let update = serde_json::to_string(&update).unwrap();
-      let _: Value = ctx.eval(format!(
+      let res: Value = ctx.eval(format!(
         "globalThis.__parcel_hmr_test__.handleMessage({})",
         update
       ))?;
+      await_promise(&ctx, res)?;
       while ctx.execute_pending_job() {}
       Ok(())
     });
@@ -213,6 +230,36 @@ impl HmrRuntimeTest {
 
   fn reloaded(&self) -> bool {
     *self.reloaded.lock().unwrap()
+  }
+
+  fn handle_message(&self, message: serde_json::Value) {
+    let update_result = self.js_env.context.with(|ctx| -> rquickjs::Result<()> {
+      let message = serde_json::to_string(&message).unwrap();
+      let res: Value = ctx.eval(format!(
+        "globalThis.__parcel_hmr_test__.handleMessage({})",
+        message
+      ))?;
+      await_promise(&ctx, res)?;
+      while ctx.execute_pending_job() {}
+      Ok(())
+    });
+    if let Err(err) = update_result {
+      self.js_env.context.with(|ctx| {
+        panic!(
+          "runtime hmr message failed: {:?}, exception: {:?}",
+          err,
+          ctx.catch(),
+        );
+      });
+    }
+  }
+
+  fn overlay_html(&self) -> Option<String> {
+    self
+      .js_env
+      .context
+      .with(|ctx| ctx.eval("globalThis.__parcel_overlay_html__ || null"))
+      .unwrap()
   }
 }
 
@@ -292,6 +339,53 @@ fn hmr_update_includes_new_dependency_added_by_changed_asset() {
       .iter()
       .all(|asset| !asset["output"].as_str().unwrap().contains("foo v1"))
   );
+}
+
+#[test]
+fn hmr_runtime_displays_build_errors() {
+  let hmr = HmrRuntimeTest::new(&[(
+    "/project/index.js",
+    "output('initial'); if (module.hot) module.hot.accept();",
+  )]);
+
+  let diagnostics = DiagnosticList(vec![Diagnostic {
+    message: "Unexpected <token>".into(),
+    origin: Some("@parcel/test".into()),
+    code_frames: vec![CodeFrame {
+      code: Some("let value = foo < bar;\n".into()),
+      url: None,
+      language: Some(AssetType::Js),
+      code_highlights: vec![CodeHighlight {
+        message: Some("escape <this>".into()),
+        start: Location {
+          line: 1,
+          column: 13,
+        },
+        end: Location {
+          line: 1,
+          column: 15,
+        },
+      }],
+    }],
+    hints: vec!["Use > instead".into()],
+    severity: DiagnosticSeverity::Error,
+    documentation_url: Some("https://example.com?a=<b>".into()),
+  }]);
+
+  hmr.handle_message(serde_json::json!({
+    "type": "error",
+    "diagnostics": diagnostics.render_for_browser(),
+  }));
+
+  let overlay = hmr.overlay_html().expect("overlay should be appended");
+  assert!(overlay.contains("Unexpected &lt;token&gt;"));
+  assert!(overlay.contains("foo"));
+  assert!(overlay.contains("&lt;"));
+  assert!(overlay.contains("bar"));
+  assert!(overlay.contains("escape &lt;this&gt;"));
+  assert!(overlay.contains("Use &gt; instead"));
+  assert!(overlay.contains("https://example.com?a=&lt;b&gt;"));
+  assert!(!hmr.reloaded());
 }
 
 #[test]
