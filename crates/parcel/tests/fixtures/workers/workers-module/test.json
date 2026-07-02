@@ -7,7 +7,7 @@
       {
         "name": "index.js",
         "assets": ["index.js"],
-        "contains": ["type: 'module'"]
+        "contains": ["type:\"module\""]
       },
       {
         "assets": ["dedicated-worker.js"]

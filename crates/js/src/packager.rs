@@ -106,18 +106,9 @@ impl JsContent {
             .relative(&SourceUrl::from_directory_path(&bundle.target.dist_dir))
             .unwrap_or_else(|| asset.loc.url.to_string())
             .into();
-          // println!("{:?} {:?} {:?}", asset.loc.url, used_symbols, dependencies);
-          tree_shake(
-            &mut ast,
-            used_symbols,
-            dependencies,
-            dirname,
-            bundle
-              .target
-              .flags
-              .contains(EnvironmentFlags::SHOULD_OPTIMIZE),
           );
-          let (code, _map) = ast.to_code(false, false)?;
+          tree_shake(&mut ast, used_symbols, dependencies, dirname, true);
+          let (code, _map) = ast.to_code(false, true)?;
 
           write!(
             res,
