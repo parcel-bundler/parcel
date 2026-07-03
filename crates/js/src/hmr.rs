@@ -72,7 +72,7 @@ pub fn get_hmr_update<'a>(
     let mut output = String::new();
     if asset.ty == AssetType::Js {
       output = format!(
-        "parcelHotUpdate['{}'] = function (require, module, exports) {{{}}}",
+        "parcelHotUpdate['{}'] = function (module, exports, require) {{{}}}",
         asset.id(&bundle_graph.project_root),
         String::from_utf8(asset.content.read().unwrap()).unwrap()
       );
@@ -99,8 +99,8 @@ pub fn get_hmr_update<'a>(
 
     let mut output = String::new();
     write!(&mut output, "parcelHotUpdate[").unwrap();
-    synthetic_asset.write_id(&mut output).unwrap();
-    write!(&mut output, "] = function (require, module, exports) {{").unwrap();
+    write!(&mut output, "'{}'", synthetic_asset.id()).unwrap();
+    write!(&mut output, "] = function (module, exports, require) {{").unwrap();
     synthetic_asset
       .write_content(
         &mut output,

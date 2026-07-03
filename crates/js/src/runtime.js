@@ -16,7 +16,7 @@ var nodeRequire =
   typeof module.require === 'function' &&
   module.require.bind(module);
 
-function parcelRequire(name, jumped) {
+function require(name, jumped) {
   if (!cache[name]) {
     if (!modules[name]) {
       if (externals[name]) {
@@ -50,113 +50,44 @@ function parcelRequire(name, jumped) {
       throw err;
     }
 
-    localRequire.resolve = resolve;
-    localRequire.cache = {};
-
-    var module = (cache[name] = new parcelRequire.Module(name));
-    module.require = localRequire;
+    var module = (cache[name] = new require.Module(name));
 
     modules[name][0].call(
       module.exports,
-      localRequire,
       module,
       module.exports,
+      require,
       globalThis
     );
   }
 
   return cache[name].exports;
-
-  function localRequire(x) {
-    var res = localRequire.resolve(x);
-    if (res === false) {
-      return {};
-    }
-
-    if (res === true) {
-      return x;
-    }
-
-    if (Array.isArray(res)) {
-      var m = {__esModule: true};
-      res.forEach(function (v) {
-        var key = v[0];
-        var id = v[1];
-        var exp = v[2] || v[0];
-        var x = parcelRequire(id);
-        if (key === '*') {
-          Object.keys(x).forEach(function (key) {
-            if (
-              key === 'default' ||
-              key === '__esModule' ||
-              Object.prototype.hasOwnProperty.call(m, key)
-            ) {
-              return;
-            }
-
-            Object.defineProperty(m, key, {
-              enumerable: true,
-              configurable: true,
-              get: function () {
-                return x[key];
-              },
-            });
-          });
-        } else if (exp === '*') {
-          Object.defineProperty(m, key, {
-            enumerable: true,
-            configurable: true,
-            value: x,
-          });
-        } else {
-          Object.defineProperty(m, key, {
-            enumerable: true,
-            configurable: true,
-            get: function () {
-              if (exp === 'default') {
-                return x.__esModule ? x.default : x;
-              }
-              return x[exp];
-            },
-          });
-        }
-      });
-      return m;
-    }
-
-    return parcelRequire(res);
-  }
-
-  function resolve(x) {
-    var id = modules[name][1][x];
-    return id != null ? id : x;
-  }
 }
 
 function Module(moduleName) {
   this.id = moduleName;
-  this.bundle = parcelRequire;
-  this.require = nodeRequire;
+  this.bundle = require;
+  this.require = require;
   this.exports = {};
 }
 
-parcelRequire.isParcelRequire = true;
-parcelRequire.Module = Module;
-parcelRequire.modules = modules;
-parcelRequire.cache = cache;
-parcelRequire.parent = previousRequire;
+require.isParcelRequire = true;
+require.Module = Module;
+require.modules = modules;
+require.cache = cache;
+require.parent = previousRequire;
 // parcelRequire.distDir = distDir;
 // parcelRequire.publicUrl = publicUrl;
 // parcelRequire.devServer = devServer;
-parcelRequire.i = importMap;
+require.i = importMap;
 
-Object.defineProperty(parcelRequire, 'root', {
+Object.defineProperty(require, 'root', {
   get: function () {
     return globalThis[parcelRequireName];
   },
 });
 
-globalThis[parcelRequireName] = parcelRequire;
+globalThis[parcelRequireName] = require;
 
 function parcelLoadJS(bundleId) {
   let url = importMap[bundleId] || bundleId;
@@ -202,19 +133,19 @@ function parcelLoadCSS(bundleId) {
   });
 }
 
-parcelRequire.loadJS = parcelLoadJS;
-parcelRequire.loadCSS = parcelLoadCSS;
+require.loadJS = parcelLoadJS;
+require.loadCSS = parcelLoadCSS;
 
 if (entries) {
   for (var i = 0; i < entries.length; i++) {
-    parcelRequire(entries[i]);
+    require(entries[i]);
   }
 }
 
 if (mainEntry) {
   // Expose entry point to Node, AMD or browser globals
   // Based on https://github.com/ForbesLindesay/umd/blob/master/template.js
-  var mainExports = parcelRequire(mainEntry);
+  var mainExports = require(mainEntry);
 
   // CommonJS
   if (typeof exports === 'object' && typeof module !== 'undefined') {

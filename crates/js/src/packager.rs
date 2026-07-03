@@ -45,6 +45,11 @@ impl JsContent {
     }
 
     let should_build_source_map = bundle.target.source_map.is_some();
+    let should_optimize = bundle
+      .target
+      .flags
+      .contains(EnvironmentFlags::SHOULD_OPTIMIZE);
+
     let mut printer = Printer::new(should_build_source_map);
     if let Some(main) = bundle.main_entry_asset {
       if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[main] {
@@ -91,12 +96,7 @@ impl JsContent {
         }
         first = false;
 
-        if bundle
-          .target
-          .flags
-          .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
-          && let Some(content) = asset.content.downcast_ref::<JsContent>()
-        {
+        if should_optimize && let Some(content) = asset.content.downcast_ref::<JsContent>() {
           // TODO: this mutates the ast stored in the asset, which will break incremental rebuilds.
           let mut ast = content.ast.lock().unwrap();
           let used_symbols = asset
@@ -124,14 +124,10 @@ impl JsContent {
             .relative(&SourceUrl::from_directory_path(&bundle.target.dist_dir))
             .unwrap_or_else(|| asset.loc.url.to_string())
             .into();
-          tree_shake(&mut ast, used_symbols, dependencies, dirname, true);
+          tree_shake(&mut ast, used_symbols, dependencies, dirname, true, false);
           let (code, map) = ast.to_code(should_build_source_map, true)?;
 
-          writeln!(
-            printer,
-            "'{}':[function(require,module,exports) {{",
-            asset.id(&options.project_root)
-          )?;
+          printer.write_module_header(asset.id(&options.project_root), true)?;
           printer.add_source_map(map)?;
           std::io::Write::write_all(&mut printer, &code)?;
           printer.write_str("\n}]")?;
@@ -147,11 +143,7 @@ impl JsContent {
           };
           let deps = serde_json::to_string(&dependencies)?;
 
-          writeln!(
-            printer,
-            "'{}':[function(require,module,exports) {{",
-            asset.id(&options.project_root)
-          )?;
+          printer.write_module_header(asset.id(&options.project_root), false)?;
           printer.add_source_map(map)?;
           write!(printer, "{}", String::from_utf8_lossy(&code))?;
           write!(printer, "\n}}, {}]", deps)?;
@@ -165,8 +157,7 @@ impl JsContent {
       }
       first = false;
 
-      synthetic_asset.write_id(&mut printer)?;
-      write!(printer, ":[function(require,module,exports) {{\n")?;
+      printer.write_module_header(synthetic_asset.id(), should_optimize)?;
       synthetic_asset.write_content(
         &mut printer,
         bundle_graph,
@@ -199,11 +190,17 @@ var entries = ["#,
       write!(printer, "null;\n")?;
     }
 
-    printer.write_str(if options.mode == BuildMode::Development {
-      DEV_RUNTIME
-    } else {
-      RUNTIME
-    })?;
+    printer.write_str(
+      if bundle
+        .target
+        .flags
+        .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+      {
+        RUNTIME
+      } else {
+        DEV_RUNTIME
+      },
+    )?;
 
     let (res, source_map_sections) = printer.into_parts();
 
@@ -244,6 +241,14 @@ impl Printer {
     }
 
     Ok(())
+  }
+
+  fn write_module_header(&mut self, id: String, should_optimize: bool) -> std::fmt::Result {
+    if should_optimize {
+      writeln!(self, "'{}':[function(module,exports) {{", id)
+    } else {
+      writeln!(self, "'{}':[function(module,exports,require) {{", id)
+    }
   }
 
   fn into_parts(self) -> (String, Option<Vec<SourceMapSection>>) {
@@ -581,16 +586,6 @@ impl SyntheticAsset {
     }
 
     dependencies
-  }
-
-  pub fn write_id<W: std::fmt::Write>(&self, dest: &mut W) -> std::fmt::Result {
-    match self {
-      SyntheticAsset::Asset(id, _) => write!(dest, "'{}'", id),
-      SyntheticAsset::Async(id) => write!(dest, "'b{}'", id),
-      SyntheticAsset::AsyncInterop(id) => write!(dest, "'b{}i'", id),
-      SyntheticAsset::Url(id) => write!(dest, "'b{}'", id),
-      SyntheticAsset::Inline(id) => write!(dest, "'b{}'", id),
-    }
   }
 
   pub fn write_content<W: std::fmt::Write>(

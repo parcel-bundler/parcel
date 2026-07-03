@@ -58,9 +58,9 @@ function parcelRequire(name, jumped) {
 
     modules[name][0].call(
       module.exports,
-      localRequire,
       module,
       module.exports,
+      localRequire,
       globalThis
     );
   }

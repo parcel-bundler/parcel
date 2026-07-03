@@ -74,6 +74,7 @@ pub fn tree_shake<'a>(
   resolutions: IndexMap<String, Resolution<'a>>,
   dirname: JsWord,
   minify: bool,
+  is_library: bool,
 ) {
   swc_core::common::GLOBALS.set(&*ast.globals, || {
     let mut shake = TreeShake {
@@ -82,6 +83,7 @@ pub fn tree_shake<'a>(
       unresolved_mark: ast.unresolved_mark,
       dirname,
       mutated: false,
+      is_library,
     };
 
     ast.program.visit_mut_with(&mut shake);
@@ -124,6 +126,7 @@ struct TreeShake<'a> {
   unresolved_mark: Mark,
   dirname: JsWord,
   mutated: bool,
+  is_library: bool,
 }
 
 impl<'a> VisitMut for TreeShake<'a> {
@@ -232,15 +235,12 @@ impl<'a> VisitMut for TreeShake<'a> {
               *expr = specifier.clone().into();
             }
             Resolution::Asset(resolution) => {
-              call.callee = Callee::Expr(Box::new(Expr::Ident("parcelRequire".into())));
               **expr = resolution.clone().into();
             }
             Resolution::Bundle(resolution) => {
-              call.callee = Callee::Expr(Box::new(Expr::Ident("parcelRequire".into())));
               **expr = format!("b{}", *resolution).into();
             }
             Resolution::BundleInterop(resolution) => {
-              call.callee = Callee::Expr(Box::new(Expr::Ident("parcelRequire".into())));
               **expr = format!("b{}i", *resolution).into();
             }
             Resolution::External(specifier) => {
@@ -261,7 +261,7 @@ impl<'a> VisitMut for TreeShake<'a> {
                       Prop::KeyValue(KeyValueProp {
                         key: PropName::Str((*key).into()),
                         value: Box::new(
-                          quote!("parcelRequire($id)" as Expr, id: Expr = id.clone().into()),
+                          quote!("require($id)" as Expr, id: Expr = id.clone().into()),
                         ),
                       })
                     } else {
@@ -273,14 +273,14 @@ impl<'a> VisitMut for TreeShake<'a> {
                           stmts: if *exp == "default" {
                             vec![
                               quote!(
-                                "var m = parcelRequire($id);" as Stmt,
+                                "var m = require($id);" as Stmt,
                                 id: Expr = id.clone().into(),
                               ),
                               quote!("return m.__esModule ? m.default : m;" as Stmt),
                             ]
                           } else {
                             vec![quote!(
-                              "return parcelRequire($id)[$exp];" as Stmt,
+                              "return require($id)[$exp];" as Stmt,
                               id: Expr = id.clone().into(),
                               exp: Expr = (*exp).into()
                             )]
@@ -296,29 +296,31 @@ impl<'a> VisitMut for TreeShake<'a> {
               });
             }
             Resolution::CssModule(specifier, object) => {
-              **expr = specifier.as_str().into();
-              *node = Expr::Paren(ParenExpr {
+              let obj = Expr::Object(ObjectLit {
                 span: DUMMY_SP,
-                expr: Box::new(Expr::Seq(SeqExpr {
-                  span: DUMMY_SP,
-                  exprs: vec![
-                    Box::new(node.clone()),
-                    Box::new(Expr::Object(ObjectLit {
-                      span: DUMMY_SP,
-                      props: object
-                        .iter()
-                        .map(|(key, value)| {
-                          let prop = Prop::KeyValue(KeyValueProp {
-                            key: PropName::Str((*key).into()),
-                            value: value.clone().into(),
-                          });
-                          PropOrSpread::Prop(Box::new(prop))
-                        })
-                        .collect(),
-                    })),
-                  ],
-                })),
+                props: object
+                  .iter()
+                  .map(|(key, value)| {
+                    let prop = Prop::KeyValue(KeyValueProp {
+                      key: PropName::Str((*key).into()),
+                      value: value.clone().into(),
+                    });
+                    PropOrSpread::Prop(Box::new(prop))
+                  })
+                  .collect(),
               });
+              if self.is_library {
+                **expr = specifier.as_str().into();
+                *node = Expr::Paren(ParenExpr {
+                  span: DUMMY_SP,
+                  expr: Box::new(Expr::Seq(SeqExpr {
+                    span: DUMMY_SP,
+                    exprs: vec![Box::new(node.clone()), Box::new(obj)],
+                  })),
+                });
+              } else {
+                *node = obj;
+              }
             }
           }
 
