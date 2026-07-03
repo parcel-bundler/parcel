@@ -1,8 +1,14 @@
-use std::{borrow::Cow, fmt::Write, sync::Arc};
+use std::{
+  borrow::Cow,
+  fmt::{self, Write},
+  sync::Arc,
+};
 
 use indexmap::{IndexMap, IndexSet};
 use parcel_core::*;
 use parcel_js_swc_core::tree_shake::tree_shake;
+use serde::Serialize;
+use serde_json::value::RawValue;
 
 use parcel_css::resolve_css_module_export;
 
@@ -24,15 +30,27 @@ impl JsContent {
     if bundle.target.source_type == SourceType::Script {
       assert_eq!(bundle.assets.len(), 1);
       let asset = bundle_graph.asset_graph.assets[bundle.main_entry_asset.unwrap()].expect_asset();
+      if bundle.target.source_map.is_some()
+        && let Some(content) = asset.content.downcast_ref::<JsContent>()
+      {
+        let (code, map) = content.ast.lock().unwrap().to_code(true, false)?;
+        if let Some(map) = map {
+          return Ok(Arc::new(ContentWithSourceMap::new(code, map.into_bytes())));
+        }
+
+        return Ok(Arc::new(BufferContent::new(code)));
+      }
+
       return Ok(asset.content.clone());
     }
 
-    let mut res = String::new();
+    let should_build_source_map = bundle.target.source_map.is_some();
+    let mut printer = Printer::new(should_build_source_map);
     if let Some(main) = bundle.main_entry_asset {
       if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[main] {
         if let Some(content) = asset.content.downcast_ref::<JsContent>() {
           if let Some(shebang) = &content.shebang {
-            write!(res, "#!{}\n", shebang)?;
+            write!(printer, "#!{}\n", shebang)?;
           }
         }
       }
@@ -45,13 +63,13 @@ impl JsContent {
       }
 
       write!(
-        res,
+        printer,
         "import '{}';\n",
         referenced.relative_specifier(&bundle).unwrap()
       )?;
     }
 
-    write!(res, "var modules = {{\n")?;
+    write!(printer, "var modules = {{\n")?;
 
     let mut first: bool = true;
     let mut synthetic_assets = IndexSet::new();
@@ -69,7 +87,7 @@ impl JsContent {
         )?;
 
         if !first {
-          res.push(',');
+          printer.write_char(',')?;
         }
         first = false;
 
@@ -106,40 +124,51 @@ impl JsContent {
             .relative(&SourceUrl::from_directory_path(&bundle.target.dist_dir))
             .unwrap_or_else(|| asset.loc.url.to_string())
             .into();
-          );
           tree_shake(&mut ast, used_symbols, dependencies, dirname, true);
-          let (code, _map) = ast.to_code(false, true)?;
+          let (code, map) = ast.to_code(should_build_source_map, true)?;
 
-          write!(
-            res,
-            "'{}':[function(require,module,exports) {{\n{}\n}}]",
-            asset.id(&options.project_root),
-            String::from_utf8_lossy(&code),
+          writeln!(
+            printer,
+            "'{}':[function(require,module,exports) {{",
+            asset.id(&options.project_root)
           )?;
+          printer.add_source_map(map)?;
+          std::io::Write::write_all(&mut printer, &code)?;
+          printer.write_str("\n}]")?;
         } else {
-          let code = asset.content.read()?;
+          let (code, map) = if should_build_source_map {
+            if let Some(content) = asset.content.downcast_ref::<JsContent>() {
+              content.ast.lock().unwrap().to_code(true, false)?
+            } else {
+              (asset.content.read()?, None)
+            }
+          } else {
+            (asset.content.read()?, None)
+          };
           let deps = serde_json::to_string(&dependencies)?;
-          write!(
-            res,
-            "'{}':[function(require,module,exports) {{\n{}\n}}, {}]",
-            asset.id(&options.project_root),
-            String::from_utf8_lossy(&code),
-            deps
+
+          writeln!(
+            printer,
+            "'{}':[function(require,module,exports) {{",
+            asset.id(&options.project_root)
           )?;
+          printer.add_source_map(map)?;
+          write!(printer, "{}", String::from_utf8_lossy(&code))?;
+          write!(printer, "\n}}, {}]", deps)?;
         }
       }
     }
 
     for synthetic_asset in synthetic_assets {
       if !first {
-        res.push(',');
+        printer.write_char(',')?;
       }
       first = false;
 
-      synthetic_asset.write_id(&mut res)?;
-      write!(res, ":[function(require,module,exports) {{\n")?;
+      synthetic_asset.write_id(&mut printer)?;
+      write!(printer, ":[function(require,module,exports) {{\n")?;
       synthetic_asset.write_content(
-        &mut res,
+        &mut printer,
         bundle_graph,
         bundle,
         get_inline_bundle_content,
@@ -147,37 +176,135 @@ impl JsContent {
       )?;
       let deps =
         serde_json::to_string(&synthetic_asset.dependencies(bundle_graph, &options.project_root))?;
-      write!(res, "\n}},{}]", deps)?;
+      write!(printer, "\n}},{}]", deps)?;
     }
 
-    write!(res, "}};\n\n")?;
+    write!(printer, "}};\n\n")?;
     write!(
-      res,
+      printer,
       r#"var parcelRequireName = 'parcelRequire';
 var externals = {{}};
 var entries = ["#,
     )?;
     for entry in &bundle.entry_assets {
       let asset = &bundle_graph.asset_graph.assets[*entry].expect_asset();
-      write!(res, "'{}'", asset.id(&options.project_root))?;
+      write!(printer, "'{}'", asset.id(&options.project_root))?;
     }
 
-    write!(res, "];\nvar mainEntry = ")?;
+    write!(printer, "];\nvar mainEntry = ")?;
     if let Some(main) = &bundle.main_entry_asset {
       let asset = &bundle_graph.asset_graph.assets[*main].expect_asset();
-      write!(res, "'{}';\n", asset.id(&options.project_root))?;
+      write!(printer, "'{}';\n", asset.id(&options.project_root))?;
     } else {
-      write!(res, "null;\n")?;
+      write!(printer, "null;\n")?;
     }
 
-    res.push_str(if options.mode == BuildMode::Development {
+    printer.write_str(if options.mode == BuildMode::Development {
       DEV_RUNTIME
     } else {
       RUNTIME
-    });
+    })?;
 
-    Ok(Arc::new(BufferContent::new(res.into_bytes())))
+    let (res, source_map_sections) = printer.into_parts();
+
+    if let Some(source_map_sections) = source_map_sections
+      && !source_map_sections.is_empty()
+    {
+      let map = serde_json::to_vec(&SourceMapIndex {
+        version: 3,
+        sections: source_map_sections,
+      })?;
+      Ok(Arc::new(ContentWithSourceMap::new(res.into_bytes(), map)))
+    } else {
+      Ok(Arc::new(BufferContent::new(res.into_bytes())))
+    }
   }
+}
+
+struct Printer {
+  output: String,
+  line: u32,
+  source_map_sections: Option<Vec<SourceMapSection>>,
+}
+
+impl Printer {
+  fn new(source_maps: bool) -> Self {
+    Printer {
+      output: String::new(),
+      line: 0,
+      source_map_sections: source_maps.then(Vec::new),
+    }
+  }
+
+  fn add_source_map(&mut self, map: Option<String>) -> Result<(), DiagnosticList> {
+    if let Some(source_map_sections) = &mut self.source_map_sections
+      && let Some(map) = map
+    {
+      source_map_sections.push(SourceMapSection::new(self.line, map)?);
+    }
+
+    Ok(())
+  }
+
+  fn into_parts(self) -> (String, Option<Vec<SourceMapSection>>) {
+    (self.output, self.source_map_sections)
+  }
+}
+
+impl std::fmt::Write for Printer {
+  fn write_str(&mut self, s: &str) -> fmt::Result {
+    if self.source_map_sections.is_some() {
+      self.line += count_newlines(s);
+    }
+    self.output.push_str(s);
+    Ok(())
+  }
+}
+
+impl std::io::Write for Printer {
+  fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+    let s = std::str::from_utf8(buf).map_err(std::io::Error::other)?;
+    if self.source_map_sections.is_some() {
+      self.line += count_newlines(s);
+    }
+    self.output.push_str(s);
+    Ok(buf.len())
+  }
+
+  fn flush(&mut self) -> std::io::Result<()> {
+    Ok(())
+  }
+}
+
+fn count_newlines(s: &str) -> u32 {
+  s.as_bytes().iter().filter(|b| **b == b'\n').count() as u32
+}
+
+#[derive(Serialize)]
+struct SourceMapIndex {
+  version: u8,
+  sections: Vec<SourceMapSection>,
+}
+
+#[derive(Serialize)]
+struct SourceMapSection {
+  offset: SourceMapSectionOffset,
+  map: Box<RawValue>,
+}
+
+impl SourceMapSection {
+  fn new(line: u32, map: String) -> Result<Self, DiagnosticList> {
+    Ok(SourceMapSection {
+      offset: SourceMapSectionOffset { line, column: 0 },
+      map: RawValue::from_string(map)?,
+    })
+  }
+}
+
+#[derive(Serialize)]
+struct SourceMapSectionOffset {
+  line: u32,
+  column: u32,
 }
 
 #[derive(PartialEq, Eq, Hash)]
