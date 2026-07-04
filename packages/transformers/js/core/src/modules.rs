@@ -6,6 +6,7 @@ use swc_core::{
   ecma::{
     ast::*,
     atoms::Atom as JsWord,
+    parser::Syntax,
     preset_env::{Feature, Versions},
     utils::stack_size::maybe_grow_default,
     visit::{Fold, FoldWith},
@@ -30,6 +31,7 @@ pub fn esm2cjs(node: Module, unresolved_mark: Mark, versions: Option<Versions>) 
     in_function_scope: false,
     mark: Mark::fresh(Mark::root()),
     unresolved_mark,
+    unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
     versions,
     is_esm: false,
   };
@@ -54,6 +56,7 @@ struct ESMFold {
   in_function_scope: bool,
   mark: Mark,
   unresolved_mark: Mark,
+  unresolved_ctxt: SyntaxContext,
   versions: Option<Versions>,
   is_esm: bool,
 }
@@ -178,7 +181,7 @@ impl ESMFold {
     let export = self.call_helper(
       "export".into(),
       vec![
-        Expr::Ident(Ident::new_no_ctxt("exports".into(), DUMMY_SP)),
+        Expr::Ident(Ident::new("exports".into(), DUMMY_SP, self.unresolved_ctxt)),
         Expr::Lit(Lit::Str(exported.into())),
         if matches!(self.versions, Some(versions) if Feature::ArrowFunctions.should_enable(&versions, true, false)) {
           Expr::Fn(FnExpr {
@@ -227,7 +230,11 @@ impl ESMFold {
       expr: Box::new(Expr::Assign(AssignExpr {
         op: AssignOp::Assign,
         left: AssignTarget::Simple(SimpleAssignTarget::Member(MemberExpr {
-          obj: Box::new(Expr::Ident(Ident::new_no_ctxt("exports".into(), DUMMY_SP))),
+          obj: Box::new(Expr::Ident(Ident::new(
+            "exports".into(),
+            DUMMY_SP,
+            self.unresolved_ctxt,
+          ))),
           prop: MemberProp::Ident(IdentName::new(name, DUMMY_SP)),
           span: DUMMY_SP,
         })),
@@ -386,7 +393,7 @@ impl Fold for ESMFold {
               "exportAll".into(),
               vec![
                 Expr::Ident(require_name),
-                Expr::Ident(Ident::new_no_ctxt("exports".into(), DUMMY_SP)),
+                Expr::Ident(Ident::new("exports".into(), DUMMY_SP, self.unresolved_ctxt)),
               ],
               export.span,
             );
@@ -549,7 +556,11 @@ impl Fold for ESMFold {
     if needs_interop_flag {
       let helper = self.call_helper(
         "defineInteropFlag".into(),
-        vec![Expr::Ident(Ident::new_no_ctxt("exports".into(), DUMMY_SP))],
+        vec![Expr::Ident(Ident::new(
+          "exports".into(),
+          DUMMY_SP,
+          self.unresolved_ctxt,
+        ))],
         DUMMY_SP,
       );
       self.exports.insert(0, helper);

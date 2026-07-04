@@ -129,8 +129,7 @@ impl JsContent {
 
           printer.write_module_header(asset.id(&options.project_root), true)?;
           printer.add_source_map(map)?;
-          std::io::Write::write_all(&mut printer, &code)?;
-          printer.write_str("\n}]")?;
+          printer.write_expression_code(&code)?;
         } else {
           let (code, map) = if should_build_source_map {
             if let Some(content) = asset.content.downcast_ref::<JsContent>() {
@@ -146,7 +145,7 @@ impl JsContent {
           printer.write_module_header(asset.id(&options.project_root), false)?;
           printer.add_source_map(map)?;
           write!(printer, "{}", String::from_utf8_lossy(&code))?;
-          write!(printer, "\n}}, {}]", deps)?;
+          printer.write_module_trailer(deps)?;
         }
       }
     }
@@ -157,7 +156,15 @@ impl JsContent {
       }
       first = false;
 
-      printer.write_module_header(synthetic_asset.id(), should_optimize)?;
+      if should_optimize {
+        writeln!(
+          printer,
+          "'{}':function(module,exports){{",
+          synthetic_asset.id()
+        )?;
+      } else {
+        printer.write_module_header(synthetic_asset.id(), false)?;
+      }
       synthetic_asset.write_content(
         &mut printer,
         bundle_graph,
@@ -167,7 +174,11 @@ impl JsContent {
       )?;
       let deps =
         serde_json::to_string(&synthetic_asset.dependencies(bundle_graph, &options.project_root))?;
-      write!(printer, "\n}},{}]", deps)?;
+      if !should_optimize {
+        printer.write_module_trailer(deps)?;
+      } else {
+        printer.write_char('}')?;
+      }
     }
 
     write!(printer, "}};\n\n")?;
@@ -245,9 +256,27 @@ impl Printer {
 
   fn write_module_header(&mut self, id: String, should_optimize: bool) -> std::fmt::Result {
     if should_optimize {
-      writeln!(self, "'{}':[function(module,exports) {{", id)
+      write!(self, "'{}':", id)
     } else {
       writeln!(self, "'{}':[function(module,exports,require) {{", id)
+    }
+  }
+
+  fn write_module_trailer(&mut self, deps: String) -> std::fmt::Result {
+    write!(self, "\n}}, {}]", deps)
+  }
+
+  fn write_expression_code(&mut self, code: &[u8]) -> std::io::Result<()> {
+    let mut end = code.len();
+    while end > 0 && code[end - 1].is_ascii_whitespace() {
+      end -= 1;
+    }
+
+    if end > 0 && code[end - 1] == b';' {
+      std::io::Write::write_all(self, &code[..end - 1])?;
+      std::io::Write::write_all(self, &code[end..])
+    } else {
+      std::io::Write::write_all(self, code)
     }
   }
 
@@ -609,12 +638,7 @@ impl SyntheticAsset {
               *asset_index as usize,
               exp.exported.as_str(),
             ) {
-              write!(
-                dest,
-                "exports[{:?}] = '{}';\n",
-                exp.exported.as_str(),
-                value
-              )?;
+              write!(dest, "exports[{:?}]='{}';\n", exp.exported.as_str(), value)?;
             }
           }
         }
@@ -633,7 +657,7 @@ impl SyntheticAsset {
       SyntheticAsset::AsyncInterop(bundle_index) => {
         write!(
           dest,
-          "module.exports=require(\"b{}\").then(function(m){{return m&&m.__esModule?m:{{default:m}};}});",
+          "module.exports=require(\"b{}\").then(m=>m&&m.__esModule?m:{{default:m}})",
           bundle_index
         )?;
       }
@@ -641,7 +665,7 @@ impl SyntheticAsset {
         let content = get_inline_bundle_content(*bundle_index as usize)?.read()?;
         write!(
           dest,
-          "module.exports={:?};",
+          "module.exports={:?}",
           String::from_utf8_lossy(&content)
         )?;
       }
@@ -649,7 +673,7 @@ impl SyntheticAsset {
         let resolved_bundle = &bundle_graph.bundles[*bundle_index as usize];
         write!(
           dest,
-          "module.exports=new URL({:?}, import.meta.url).toString();",
+          "module.exports=''+new URL({:?},import.meta.url)",
           resolved_bundle.relative_url(&bundle).unwrap()
         )?;
       }

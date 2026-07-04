@@ -52,12 +52,10 @@ function require(name, jumped) {
 
     var module = (cache[name] = new require.Module(name));
 
-    modules[name][0].call(
+    modules[name].call(
       module.exports,
       module,
       module.exports,
-      require,
-      globalThis
     );
   }
 
