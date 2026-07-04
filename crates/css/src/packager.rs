@@ -73,7 +73,7 @@ impl CssContent {
           loc: lightningcss::rules::Location {
             source_index,
             line: asset.loc.start.line,
-            column: asset.loc.start.column,
+            column: asset.loc.start.column + 1,
           },
         });
       } else {
@@ -724,7 +724,7 @@ impl StyleAttrContent {
       lightningcss::rules::Location {
         source_index: 0,
         line: 0,
-        column: 0,
+        column: 1,
       },
       HashMap::new(),
       get_inline_bundle_content,
