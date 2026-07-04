@@ -18,3 +18,6 @@ node-semver = "2.2.0"
 glob-match = "*"
 swc_core = { version = "66", features = ["ecma_ast", "ecma_quote"] }
 fixedbitset = "0.5.7"
+
+[build-dependencies]
+swc_core = { version = "66", features = ["common", "ecma_ast", "ecma_codegen", "ecma_minifier", "ecma_parser", "ecma_transforms", "ecma_visit"] }

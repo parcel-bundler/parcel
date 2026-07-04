@@ -74,6 +74,7 @@ pub fn tree_shake<'a>(
   dirname: JsWord,
   minify: bool,
   is_library: bool,
+  require_name: JsWord,
 ) {
   swc_core::common::GLOBALS.set(&*ast.globals, || {
     let wrapper_mark = Mark::new();
@@ -87,6 +88,7 @@ pub fn tree_shake<'a>(
       dirname,
       mutated: false,
       is_library,
+      require_name,
     };
 
     if !minify {
@@ -176,6 +178,17 @@ struct TreeShake<'a> {
   dirname: JsWord,
   mutated: bool,
   is_library: bool,
+  require_name: JsWord,
+}
+
+impl<'a> TreeShake<'a> {
+  fn require_ident(&self) -> Ident {
+    Ident::new(
+      self.require_name.clone(),
+      DUMMY_SP,
+      SyntaxContext::empty().apply_mark(self.unresolved_mark),
+    )
+  }
 }
 
 impl<'a> VisitMut for TreeShake<'a> {
@@ -260,7 +273,8 @@ impl<'a> VisitMut for TreeShake<'a> {
       Expr::Call(call) => {
         match &call.callee {
           Callee::Import(_) => {}
-          Callee::Expr(expr) if matches!(&**expr, Expr::Ident(id) if id.sym == "require") => {} // && is_unresolved(&id, self.unresolved_mark)
+          Callee::Expr(expr) if matches!(&**expr, Expr::Ident(id) if id.sym == self.require_name && is_unresolved(&id, self.unresolved_mark)) =>
+            {}
           _ => return,
         };
 
@@ -309,9 +323,11 @@ impl<'a> VisitMut for TreeShake<'a> {
                     } else if *exp == "*" {
                       Prop::KeyValue(KeyValueProp {
                         key: PropName::Str((*key).into()),
-                        value: Box::new(
-                          quote!("require($id)" as Expr, id: Expr = id.clone().into()),
-                        ),
+                        value: Box::new(quote!(
+                          "$require($id)" as Expr,
+                          require: Ident = self.require_ident(),
+                          id: Expr = id.clone().into()
+                        )),
                       })
                     } else {
                       Prop::Getter(GetterProp {
@@ -322,14 +338,16 @@ impl<'a> VisitMut for TreeShake<'a> {
                           stmts: if *exp == "default" {
                             vec![
                               quote!(
-                                "var m = require($id);" as Stmt,
+                                "var m = $require($id);" as Stmt,
+                                require: Ident = self.require_ident(),
                                 id: Expr = id.clone().into(),
                               ),
                               quote!("return m.__esModule ? m.default : m;" as Stmt),
                             ]
                           } else {
                             vec![quote!(
-                              "return require($id)[$exp];" as Stmt,
+                              "return $require($id)[$exp];" as Stmt,
+                              require: Ident = self.require_ident(),
                               id: Expr = id.clone().into(),
                               exp: Expr = (*exp).into()
                             )]
@@ -485,6 +503,10 @@ impl<'a> VisitMut for TreeShake<'a> {
     if (node.sym == "exports" || node.sym == "module") && is_unresolved(node, self.unresolved_mark)
     {
       node.ctxt = self.wrapper_ctxt;
+    }
+
+    if node.sym == "require" && is_unresolved(node, self.unresolved_mark) {
+      node.sym = self.require_name.clone();
     }
   }
 }

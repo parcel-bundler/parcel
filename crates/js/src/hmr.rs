@@ -104,6 +104,7 @@ pub fn get_hmr_update<'a>(
     synthetic_asset
       .write_content(
         &mut output,
+        false,
         bundle_graph,
         &bundle_graph.bundles[0], // TODO
         &|bundle_index| {

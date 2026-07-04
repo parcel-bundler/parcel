@@ -635,7 +635,8 @@ impl Fold for ESMFold {
       Expr::Call(call) => {
         if call.callee.is_import() {
           quote!(
-            "Promise.resolve(require($specifier))" as Expr,
+            "Promise.resolve($require($specifier))" as Expr,
+            require: Ident = Ident::new("require".into(), DUMMY_SP, SyntaxContext::empty().apply_mark(self.unresolved_mark)),
             specifier: Expr = *call.args[0].expr.clone()
           )
         } else {

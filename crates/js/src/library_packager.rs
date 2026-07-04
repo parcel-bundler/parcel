@@ -102,7 +102,15 @@ impl JsContent {
         .unwrap_or_else(|| asset.loc.url.to_string())
         .into();
       // println!("{:?} {:?} {:?}", asset.loc.url, used_symbols, dependencies);
-      tree_shake(&mut ast, used_symbols, dependencies, dirname, false, true);
+      tree_shake(
+        &mut ast,
+        used_symbols,
+        dependencies,
+        dirname,
+        false,
+        true,
+        "require".into(),
+      );
       ast.to_code(bundle.target.source_map.is_some(), false)?
     } else {
       (asset.content.read()?, None)

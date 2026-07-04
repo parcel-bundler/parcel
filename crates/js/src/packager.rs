@@ -16,6 +16,25 @@ pub use parcel_js_swc_core::tree_shake::Resolution;
 
 use crate::JsContent;
 
+const RUNTIME_MODULES: &str = "m";
+const RUNTIME_PARCEL_REQUIRE_NAME: &str = "p";
+const RUNTIME_EXTERNALS: &str = "x";
+const RUNTIME_ENTRIES: &str = "e";
+const RUNTIME_MAIN_ENTRY: &str = "n";
+const RUNTIME_REQUIRE: &str = "r";
+
+fn runtime_name(
+  should_optimize: bool,
+  dev_name: &'static str,
+  optimized_name: &'static str,
+) -> &'static str {
+  if should_optimize {
+    optimized_name
+  } else {
+    dev_name
+  }
+}
+
 impl JsContent {
   pub(crate) fn package_app(
     &self,
@@ -24,7 +43,7 @@ impl JsContent {
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
     options: &ParcelOptions,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
-    const RUNTIME: &str = include_str!("runtime.js");
+    const RUNTIME: &str = include_str!(concat!(env!("OUT_DIR"), "/runtime.min.js"));
     const DEV_RUNTIME: &str = include_str!("dev-runtime.js");
 
     if bundle.target.source_type == SourceType::Script {
@@ -50,7 +69,7 @@ impl JsContent {
       .flags
       .contains(EnvironmentFlags::SHOULD_OPTIMIZE);
 
-    let mut printer = Printer::new(should_build_source_map);
+    let mut printer = Printer::new(should_build_source_map, should_optimize);
     if let Some(main) = bundle.main_entry_asset {
       if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[main] {
         if let Some(content) = asset.content.downcast_ref::<JsContent>() {
@@ -69,12 +88,23 @@ impl JsContent {
 
       write!(
         printer,
-        "import '{}';\n",
+        "import '{}';",
         referenced.relative_specifier(&bundle).unwrap()
       )?;
+      printer.newline()?;
     }
 
-    write!(printer, "var modules = {{\n")?;
+    let runtime_modules = runtime_name(should_optimize, "modules", RUNTIME_MODULES);
+    let runtime_parcel_require_name = runtime_name(
+      should_optimize,
+      "parcelRequireName",
+      RUNTIME_PARCEL_REQUIRE_NAME,
+    );
+    let runtime_externals = runtime_name(should_optimize, "externals", RUNTIME_EXTERNALS);
+    let runtime_entries = runtime_name(should_optimize, "entries", RUNTIME_ENTRIES);
+    let runtime_main_entry = runtime_name(should_optimize, "mainEntry", RUNTIME_MAIN_ENTRY);
+
+    printer.write_var(runtime_modules, "{", false)?;
 
     let mut first: bool = true;
     let mut synthetic_assets = IndexSet::new();
@@ -124,10 +154,18 @@ impl JsContent {
             .relative(&SourceUrl::from_directory_path(&bundle.target.dist_dir))
             .unwrap_or_else(|| asset.loc.url.to_string())
             .into();
-          tree_shake(&mut ast, used_symbols, dependencies, dirname, true, false);
+          tree_shake(
+            &mut ast,
+            used_symbols,
+            dependencies,
+            dirname,
+            true,
+            false,
+            RUNTIME_REQUIRE.into(),
+          );
           let (code, map) = ast.to_code(should_build_source_map, true)?;
 
-          printer.write_module_header(asset.id(&options.project_root), true)?;
+          printer.write_module_header(asset.id(&options.project_root))?;
           printer.add_source_map(map)?;
           printer.write_expression_code(&code)?;
         } else {
@@ -142,9 +180,9 @@ impl JsContent {
           };
           let deps = serde_json::to_string(&dependencies)?;
 
-          printer.write_module_header(asset.id(&options.project_root), false)?;
+          printer.write_module_header(asset.id(&options.project_root))?;
           printer.add_source_map(map)?;
-          write!(printer, "{}", String::from_utf8_lossy(&code))?;
+          printer.write_str(std::str::from_utf8(&code).unwrap())?;
           printer.write_module_trailer(deps)?;
         }
       }
@@ -157,16 +195,17 @@ impl JsContent {
       first = false;
 
       if should_optimize {
-        writeln!(
+        write!(
           printer,
           "'{}':function(module,exports){{",
           synthetic_asset.id()
         )?;
       } else {
-        printer.write_module_header(synthetic_asset.id(), false)?;
+        printer.write_module_header(synthetic_asset.id())?;
       }
       synthetic_asset.write_content(
         &mut printer,
+        should_optimize,
         bundle_graph,
         bundle,
         get_inline_bundle_content,
@@ -181,24 +220,28 @@ impl JsContent {
       }
     }
 
-    write!(printer, "}};\n\n")?;
-    write!(
-      printer,
-      r#"var parcelRequireName = 'parcelRequire';
-var externals = {{}};
-var entries = ["#,
-    )?;
+    printer.write_str("};")?;
+    printer.newline()?;
+    printer.newline()?;
+    printer.write_var(runtime_parcel_require_name, "'parcelRequire'", true)?;
+    printer.write_var(runtime_externals, "{}", true)?;
+    printer.write_var(runtime_entries, "[", false)?;
     for entry in &bundle.entry_assets {
       let asset = &bundle_graph.asset_graph.assets[*entry].expect_asset();
       write!(printer, "'{}'", asset.id(&options.project_root))?;
     }
 
-    write!(printer, "];\nvar mainEntry = ")?;
+    printer.write_str("];")?;
+    printer.newline()?;
     if let Some(main) = &bundle.main_entry_asset {
       let asset = &bundle_graph.asset_graph.assets[*main].expect_asset();
-      write!(printer, "'{}';\n", asset.id(&options.project_root))?;
+      printer.write_var(
+        runtime_main_entry,
+        &format!("'{}'", asset.id(&options.project_root)),
+        true,
+      )?;
     } else {
-      write!(printer, "null;\n")?;
+      printer.write_var(runtime_main_entry, "null", true)?;
     }
 
     printer.write_str(
@@ -234,15 +277,17 @@ struct Printer {
   line: u32,
   column: u32,
   source_map_sections: Option<Vec<SourceMapSection>>,
+  should_optimize: bool,
 }
 
 impl Printer {
-  fn new(source_maps: bool) -> Self {
+  fn new(source_maps: bool, should_optimize: bool) -> Self {
     Printer {
       output: String::new(),
       line: 0,
       column: 0,
       source_map_sections: source_maps.then(Vec::new),
+      should_optimize,
     }
   }
 
@@ -256,8 +301,8 @@ impl Printer {
     Ok(())
   }
 
-  fn write_module_header(&mut self, id: String, should_optimize: bool) -> std::fmt::Result {
-    if should_optimize {
+  fn write_module_header(&mut self, id: String) -> std::fmt::Result {
+    if self.should_optimize {
       write!(self, "'{}':", id)
     } else {
       writeln!(self, "'{}':[function(module,exports,require) {{", id)
@@ -280,6 +325,26 @@ impl Printer {
     } else {
       std::io::Write::write_all(self, code)
     }
+  }
+
+  fn newline(&mut self) -> std::fmt::Result {
+    if !self.should_optimize {
+      writeln!(self)
+    } else {
+      Ok(())
+    }
+  }
+
+  fn write_var(&mut self, name: &str, value: &str, semi: bool) -> std::fmt::Result {
+    if self.should_optimize {
+      write!(self, "var {name}={value}")?;
+    } else {
+      write!(self, "var {name} = {value}")?;
+    }
+    if semi {
+      self.write_char(';')?;
+    }
+    self.newline()
   }
 
   fn into_parts(self) -> (String, Option<Vec<SourceMapSection>>) {
@@ -629,6 +694,7 @@ impl SyntheticAsset {
   pub fn write_content<W: std::fmt::Write>(
     &self,
     dest: &mut W,
+    should_optimize: bool,
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
@@ -660,14 +726,22 @@ impl SyntheticAsset {
         // ) {
         //   load_bundles_rsc(bundle_graph, resolved_bundle, dest)?;
         // } else {
-        load_bundles(bundle_graph, bundle, resolved_bundle, dest, project_root)?;
+        load_bundles(
+          bundle_graph,
+          bundle,
+          resolved_bundle,
+          dest,
+          project_root,
+          runtime_name(should_optimize, "require", RUNTIME_REQUIRE),
+        )?;
         // }
       }
       SyntheticAsset::AsyncInterop(bundle_index) => {
         write!(
           dest,
-          "module.exports=require(\"b{}\").then(m=>m&&m.__esModule?m:{{default:m}})",
-          bundle_index
+          "module.exports={}(\"b{}\").then(m=>m&&m.__esModule?m:{{default:m}})",
+          runtime_name(should_optimize, "require", RUNTIME_REQUIRE),
+          bundle_index,
         )?;
       }
       SyntheticAsset::Inline(bundle_index) => {
@@ -698,6 +772,7 @@ fn load_bundles<W: std::fmt::Write>(
   bundle: &Bundle,
   res: &mut W,
   project_root: &PathId,
+  require_name: &str,
 ) -> core::fmt::Result {
   let main_entry_id = bundle.main_entry_asset.unwrap();
   let asset = &bundle_graph.asset_graph.assets[main_entry_id].expect_asset();
@@ -711,11 +786,21 @@ fn load_bundles<W: std::fmt::Write>(
     }
 
     load_bundle(bundle, from, res)?;
-    write!(res, "]).then(() => require('{}'));", asset.id(project_root))?;
+    write!(
+      res,
+      "]).then(() => {}('{}'));",
+      require_name,
+      asset.id(project_root)
+    )?;
   } else {
     write!(res, "module.exports=")?;
     load_bundle(bundle, from, res)?;
-    write!(res, ".then(() => require('{}'));", asset.id(project_root))?;
+    write!(
+      res,
+      ".then(() => {}('{}'));",
+      require_name,
+      asset.id(project_root)
+    )?;
   }
 
   Ok(())
