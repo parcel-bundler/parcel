@@ -301,6 +301,7 @@ impl Printer {
     Ok(())
   }
 
+  #[inline]
   fn write_module_header(&mut self, id: String) -> std::fmt::Result {
     if self.should_optimize {
       write!(self, "'{}':", id)
@@ -309,10 +310,12 @@ impl Printer {
     }
   }
 
+  #[inline]
   fn write_module_trailer(&mut self, deps: String) -> std::fmt::Result {
     write!(self, "\n}}, {}]", deps)
   }
 
+  #[inline]
   fn write_expression_code(&mut self, code: &[u8]) -> std::io::Result<()> {
     let mut end = code.len();
     while end > 0 && code[end - 1].is_ascii_whitespace() {
@@ -327,6 +330,7 @@ impl Printer {
     }
   }
 
+  #[inline]
   fn newline(&mut self) -> std::fmt::Result {
     if !self.should_optimize {
       writeln!(self)
@@ -335,6 +339,7 @@ impl Printer {
     }
   }
 
+  #[inline]
   fn write_var(&mut self, name: &str, value: &str, semi: bool) -> std::fmt::Result {
     if self.should_optimize {
       write!(self, "var {name}={value}")?;
