@@ -232,6 +232,7 @@ var entries = ["#,
 struct Printer {
   output: String,
   line: u32,
+  column: u32,
   source_map_sections: Option<Vec<SourceMapSection>>,
 }
 
@@ -240,6 +241,7 @@ impl Printer {
     Printer {
       output: String::new(),
       line: 0,
+      column: 0,
       source_map_sections: source_maps.then(Vec::new),
     }
   }
@@ -248,7 +250,7 @@ impl Printer {
     if let Some(source_map_sections) = &mut self.source_map_sections
       && let Some(map) = map
     {
-      source_map_sections.push(SourceMapSection::new(self.line, map)?);
+      source_map_sections.push(SourceMapSection::new(self.line, self.column, map)?);
     }
 
     Ok(())
@@ -288,7 +290,7 @@ impl Printer {
 impl std::fmt::Write for Printer {
   fn write_str(&mut self, s: &str) -> fmt::Result {
     if self.source_map_sections.is_some() {
-      self.line += count_newlines(s);
+      update_position(s, &mut self.line, &mut self.column);
     }
     self.output.push_str(s);
     Ok(())
@@ -299,7 +301,7 @@ impl std::io::Write for Printer {
   fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
     let s = std::str::from_utf8(buf).map_err(std::io::Error::other)?;
     if self.source_map_sections.is_some() {
-      self.line += count_newlines(s);
+      update_position(s, &mut self.line, &mut self.column);
     }
     self.output.push_str(s);
     Ok(buf.len())
@@ -310,8 +312,15 @@ impl std::io::Write for Printer {
   }
 }
 
-fn count_newlines(s: &str) -> u32 {
-  s.as_bytes().iter().filter(|b| **b == b'\n').count() as u32
+fn update_position(s: &str, line: &mut u32, column: &mut u32) {
+  for segment in s.split_inclusive('\n') {
+    if segment.ends_with('\n') {
+      *line += 1;
+      *column = 0;
+    } else {
+      *column += segment.len() as u32;
+    }
+  }
 }
 
 #[derive(Serialize)]
@@ -327,9 +336,9 @@ struct SourceMapSection {
 }
 
 impl SourceMapSection {
-  fn new(line: u32, map: String) -> Result<Self, DiagnosticList> {
+  fn new(line: u32, column: u32, map: String) -> Result<Self, DiagnosticList> {
     Ok(SourceMapSection {
-      offset: SourceMapSectionOffset { line, column: 0 },
+      offset: SourceMapSectionOffset { line, column },
       map: RawValue::from_string(map)?,
     })
   }

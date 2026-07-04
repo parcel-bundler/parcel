@@ -80,6 +80,7 @@ pub fn resolve_entries(
         flags,
         output_format,
         dist_dir: project_root.child("dist"),
+        source_map: Some(TargetSourceMapOptions::default()),
         ..Default::default()
       });
 
@@ -194,6 +195,7 @@ impl EntryResolver {
               } else {
                 EnvironmentFlags::empty()
               },
+              source_map: Some(TargetSourceMapOptions::default()),
               ..Default::default()
             }),
             dist_entry: None,

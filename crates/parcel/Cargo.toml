@@ -32,6 +32,7 @@ fixedbitset = "0.5.7"
 percent-encoding = "2.2.0"
 
 [dev-dependencies]
+parcel_sourcemap = { version = "*", features = ["json"] }
 rquickjs = { version = "0.11.0", features = ["full"] }
 rquickjs-serde = "0.4.0"
 testing_macros = "1.0.1"

@@ -3005,6 +3005,7 @@ dependencies = [
  "parcel-resolver",
  "parcel-tailwind",
  "parcel-watcher",
+ "parcel_sourcemap",
  "pathdiff",
  "percent-encoding",
  "pretty_assertions",
