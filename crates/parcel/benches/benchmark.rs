@@ -2,6 +2,9 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use parcel_core::PathId;
 use std::{path::Path, sync::Arc};
 
+#[global_allocator]
+static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 fn bench_dev(c: &mut Criterion) {
   let os: Arc<dyn parcel_resolver::FileSystem> = Arc::new(parcel_resolver::OsFileSystem::default());
   c.bench_function("dev", |b| {

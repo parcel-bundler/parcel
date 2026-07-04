@@ -116,7 +116,7 @@ impl Transformer for JsTransformer {
     let is_mdx = asset.ty == AssetType::Mdx;
     asset.ty = AssetType::Js;
     asset.content = Arc::new(JsContent {
-      ast: Mutex::new(res.ast),
+      ast: res.ast,
       shebang: res.shebang,
       directives: res.directives.into_iter().map(|d| d.to_string()).collect(),
     });

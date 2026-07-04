@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use parcel_core::*;
 use parcel_js_swc_core::Ast;
@@ -11,7 +11,7 @@ mod transformer;
 pub use transformer::JsTransformer;
 
 struct JsContent {
-  ast: Mutex<Ast>,
+  ast: Ast,
   shebang: Option<String>,
   directives: Vec<String>,
 }
@@ -24,7 +24,7 @@ impl std::fmt::Debug for JsContent {
 
 impl Content for JsContent {
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
-    let (code, _) = self.ast.lock().unwrap().to_code(false, false)?;
+    let (code, _) = self.ast.to_code(false, false)?;
     Ok(code)
   }
 

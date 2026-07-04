@@ -303,16 +303,20 @@ fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Vers
 }
 
 impl Ast {
-  pub fn to_code(
-    &mut self,
-    source_maps: bool,
-    minify: bool,
-  ) -> Result<(Vec<u8>, Option<String>), std::io::Error> {
+  pub fn finalize(&mut self) {
     swc_core::common::GLOBALS.set(&*self.globals, || {
       self
         .program
         .visit_mut_with(&mut (reserved_words(), hygiene(), fixer(Some(&self.comments))));
+    });
+  }
 
+  pub fn to_code(
+    &self,
+    source_maps: bool,
+    minify: bool,
+  ) -> Result<(Vec<u8>, Option<String>), std::io::Error> {
+    swc_core::common::GLOBALS.set(&*self.globals, || {
       let mut map_buf = Vec::new();
       let (buf, src_map_buf) = emit(
         self.source_map.clone(),
@@ -827,6 +831,9 @@ pub fn transform_to_ast(
           }
 
           result.ast.program = module;
+          if config.is_development {
+            result.ast.finalize();
+          }
           Ok(result)
         },
       )

@@ -52,7 +52,7 @@ impl JsContent {
       if bundle.target.source_map.is_some()
         && let Some(content) = asset.content.downcast_ref::<JsContent>()
       {
-        let (code, map) = content.ast.lock().unwrap().to_code(true, false)?;
+        let (code, map) = content.ast.to_code(true, false)?;
         if let Some(map) = map {
           return Ok(Arc::new(ContentWithSourceMap::new(code, map.into_bytes())));
         }
@@ -127,8 +127,7 @@ impl JsContent {
         first = false;
 
         if should_optimize && let Some(content) = asset.content.downcast_ref::<JsContent>() {
-          // TODO: this mutates the ast stored in the asset, which will break incremental rebuilds.
-          let mut ast = content.ast.lock().unwrap();
+          let mut ast = content.ast.clone();
           let used_symbols = asset
             .symbols
             .exports
@@ -163,6 +162,7 @@ impl JsContent {
             false,
             RUNTIME_REQUIRE.into(),
           );
+          ast.finalize();
           let (code, map) = ast.to_code(should_build_source_map, true)?;
 
           printer.write_module_header(asset.id(&options.project_root))?;
@@ -171,7 +171,7 @@ impl JsContent {
         } else {
           let (code, map) = if should_build_source_map {
             if let Some(content) = asset.content.downcast_ref::<JsContent>() {
-              content.ast.lock().unwrap().to_code(true, false)?
+              content.ast.to_code(true, false)?
             } else {
               (asset.content.read()?, None)
             }
