@@ -143,7 +143,7 @@ pub trait FileSystem: Send + Sync {
       return Ok(path);
     };
     let parent_canonical = self.canonicalize(parent)?;
-    let resolved = parent_canonical.child(path.file_name());
+    let resolved = parent_canonical.child_segment(path.segment());
 
     if self.kind(path).contains(FileKind::IS_SYMLINK) {
       self.canonicalize(self.read_link(resolved)?)

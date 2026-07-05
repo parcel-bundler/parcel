@@ -41,6 +41,10 @@ impl PathId {
     GLOBAL_INTERNER.child(*self, segment)
   }
 
+  pub fn child_segment(&self, segment: SegmentId) -> PathId {
+    GLOBAL_INTERNER.intern_node(Some(*self), segment)
+  }
+
   pub fn join(&self, subpath: &Path) -> PathId {
     GLOBAL_INTERNER.join(*self, subpath)
   }
@@ -64,6 +68,10 @@ impl PathId {
 
   pub fn file_name(&self) -> &str {
     GLOBAL_INTERNER.file_name(*self)
+  }
+
+  pub fn segment(&self) -> SegmentId {
+    GLOBAL_INTERNER.node(*self).segment
   }
 
   pub fn file_prefix(&self) -> Option<&str> {
