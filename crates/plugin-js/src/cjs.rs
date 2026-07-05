@@ -6,9 +6,7 @@ use std::{
 
 use parcel_core::{FileSystem, PathId, resolve_path};
 use parcel_resolver::ModuleType;
-use rquickjs::{
-  Ctx, Function, IntoJs, JsLifetime, Module, Object, Value, context::EvalOptions, function,
-};
+use rquickjs::{Ctx, Function, FromJs, IntoJs, JsLifetime, Module, Object, Value, function};
 use rust_embed::Embed;
 use swc::config::ModuleConfig;
 use swc_core::{
@@ -16,7 +14,10 @@ use swc_core::{
   ecma::parser::{Syntax, TsSyntax},
 };
 
-use crate::fs::{Fs, FsPromises};
+use crate::{
+  bytecode,
+  fs::{Fs, FsPromises},
+};
 
 #[derive(Embed)]
 #[folder = "builtins/"]
@@ -230,11 +231,16 @@ impl CjsLoader {
     module.set("require", Function::new(ctx.clone(), require)?)?;
     cache.set(resolved, module.clone())?;
 
-    let mut options = EvalOptions::default();
-    options.strict = false;
-    options.filename = Some(resolved.into());
-
     if resolved.ends_with(".css") {
+      return module.get("exports");
+    }
+
+    // Another thread may already have compiled this module (including any TypeScript
+    // transpilation); if so, skip straight to executing its bytecode.
+    let source_hash = bytecode::source_hash(&source);
+    if let Some(f) = bytecode::load_script(ctx, resolved, source_hash) {
+      let f = Function::from_js(ctx, f?)?;
+      f.call::<_, ()>((module.clone(), module.get::<_, Value>("exports")?))?;
       return module.get("exports");
     }
 
@@ -271,7 +277,10 @@ impl CjsLoader {
     code.push_str("(function (module, exports) {");
     code.push_str(&source);
     code.push_str("\n})");
-    let f: Function = ctx.eval_with_options(code, options)?;
+    let f = Function::from_js(
+      ctx,
+      bytecode::compile_script(ctx, resolved, source_hash, &code)?,
+    )?;
     f.call::<_, ()>((module.clone(), module.get::<_, Value>("exports")?))?;
 
     let exports: Value = module.get("exports")?;

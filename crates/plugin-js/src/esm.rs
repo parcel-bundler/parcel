@@ -9,6 +9,7 @@ use parcel_resolver::ModuleType;
 use rquickjs::{
   Ctx, Module,
   loader::{Loader, Resolver},
+  module::WriteOptions,
 };
 use swc_core::{
   common::FileName,
@@ -16,7 +17,7 @@ use swc_core::{
 };
 
 use crate::{
-  CjsLoader,
+  CjsLoader, bytecode,
   console::Console,
   fs::{Fs, FsPromises},
   process::Process,
@@ -158,33 +159,48 @@ impl Loader for ModuleLoader {
               message: Some(e.to_string()),
             })?;
 
-          if name.ends_with(".ts") || name.ends_with(".tsx") {
-            let cm = Arc::<swc_core::common::SourceMap>::default();
-            let compiler = swc::Compiler::new(cm.clone());
-            source = swc::try_with_handler(cm.clone(), Default::default(), |handler| {
-              let filename = Arc::new(FileName::Real(PathBuf::from(name)));
-              let file = cm.new_source_file(filename, source);
-              let result = compiler.process_js_file(
-                file,
-                handler,
-                &swc::config::Options {
-                  swcrc: false,
-                  config: swc::config::Config {
-                    jsc: swc::config::JscConfig {
-                      syntax: Some(Syntax::Typescript(TsSyntax::default())),
+          // Another thread may already have compiled this module (including any TypeScript
+          // transpilation); if so, deserialize its bytecode instead of re-parsing.
+          let source_hash = bytecode::source_hash(&source);
+          if let Some(bytes) = bytecode::get(bytecode::Kind::Module, name, source_hash) {
+            // SAFETY: the bytes were produced by `Module::write` below for this same source.
+            unsafe { Module::load(ctx.clone(), &bytes)? }
+          } else {
+            if name.ends_with(".ts") || name.ends_with(".tsx") {
+              let cm = Arc::<swc_core::common::SourceMap>::default();
+              let compiler = swc::Compiler::new(cm.clone());
+              source = swc::try_with_handler(cm.clone(), Default::default(), |handler| {
+                let filename = Arc::new(FileName::Real(PathBuf::from(name)));
+                let file = cm.new_source_file(filename, source);
+                let result = compiler.process_js_file(
+                  file,
+                  handler,
+                  &swc::config::Options {
+                    swcrc: false,
+                    config: swc::config::Config {
+                      jsc: swc::config::JscConfig {
+                        syntax: Some(Syntax::Typescript(TsSyntax::default())),
+                        ..Default::default()
+                      },
                       ..Default::default()
                     },
                     ..Default::default()
                   },
-                  ..Default::default()
-                },
-              )?;
-              Ok(result.code)
-            })
-            .unwrap();
-          }
+                )?;
+                Ok(result.code)
+              })
+              .unwrap();
+            }
 
-          Module::declare(ctx.clone(), name, source)?
+            let module = Module::declare(ctx.clone(), name, source)?;
+            bytecode::insert(
+              bytecode::Kind::Module,
+              name,
+              source_hash,
+              module.write(WriteOptions::default())?.into(),
+            );
+            module
+          }
         }
       }
       ModuleType::CommonJs => self.load_cjs(ctx, name)?,
