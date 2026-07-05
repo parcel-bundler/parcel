@@ -393,7 +393,7 @@ impl Bundler for MockBundler {
         target: root_asset.target.clone(),
         bundle_behavior: BundleBehavior::None,
         flags,
-        name: None,
+        dist_path: None,
         assets,
         entry_assets: vec![root],
         main_entry_asset: Some(root),
@@ -453,7 +453,7 @@ impl Namer for MockNamer {
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
     _options: &ParcelOptions,
-  ) -> Result<Option<String>, DiagnosticList> {
+  ) -> Result<Option<PathId>, DiagnosticList> {
     let main = bundle
       .main_entry_asset
       .expect("bundle has no main entry asset");
@@ -464,8 +464,8 @@ impl Namer for MockNamer {
       .iter()
       .find(|e| e.asset == Some(main))
     {
-      if let Some(dist_entry) = &entry.dist_entry {
-        return Ok(Some(dist_entry.clone()));
+      if let Some(dist_entry) = entry.dist_entry {
+        return Ok(Some(dist_entry));
       }
     }
 
@@ -473,7 +473,11 @@ impl Namer for MockNamer {
     let path = asset.loc.url.to_file_path().unwrap();
     let file = path.file_name();
     let stem = file.rsplit_once('.').map(|(s, _)| s).unwrap_or(file);
-    Ok(Some(format!("{}.{}", stem, bundle.ty.extension())))
+    Ok(Some(bundle.target.dist_dir.child(&format!(
+      "{}.{}",
+      stem,
+      bundle.ty.extension()
+    ))))
   }
 }
 

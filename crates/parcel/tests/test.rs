@@ -185,13 +185,15 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
       let found = test.bundles.iter().find(|b| {
         b.assets == names
           && (b.ty.is_none() || b.ty.as_ref().unwrap() == &bundle.ty)
-          && (b.name.is_none() || b.name.as_ref().unwrap() == bundle.name.as_ref().unwrap())
+          && (b.name.is_none()
+            || Path::new(b.name.as_ref().unwrap())
+              == bundle.dist_path().relative(&bundle.target.dist_dir))
       });
       assert!(
         found.is_some(),
         "Could not find bundle with expected assets. Actual assets: {:?}, name: {:?}",
         names,
-        bundle.name
+        bundle.dist_path
       );
       let found = found.unwrap();
       if !found.contains.is_empty() {
@@ -200,7 +202,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
           assert!(
             contents.contains(substring),
             "Bundle {:?} did not contain expected substring {:?}\n\nBundle contents: {}",
-            bundle.name.as_ref().unwrap(),
+            bundle.dist_path.as_ref().unwrap(),
             substring,
             contents
           );
@@ -212,7 +214,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
           assert!(
             !contents.contains(substring),
             "Bundle {:?} contained unexpected substring {:?}\n\nBundle contents: {}",
-            bundle.name.as_ref().unwrap(),
+            bundle.dist_path.as_ref().unwrap(),
             substring,
             contents
           );

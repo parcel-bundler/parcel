@@ -13,6 +13,20 @@ static GLOBAL_INTERNER: LazyLock<PathInterner> = LazyLock::new(|| PathInterner::
 static NODE_MODULES: LazyLock<SegmentId> =
   LazyLock::new(|| GLOBAL_INTERNER.intern_segment("node_modules"));
 
+/// The `url` crate's percent-encode set for URL paths (`url::parser::PATH`), so URLs produced by
+/// [`PathInterner::relative_url`] are byte-identical to ones serialized by the `url` crate.
+/// Non-ASCII bytes are always encoded in addition to this set.
+const URL_PATH: &percent_encoding::AsciiSet = &percent_encoding::CONTROLS
+  .add(b' ')
+  .add(b'"')
+  .add(b'<')
+  .add(b'>')
+  .add(b'`')
+  .add(b'#')
+  .add(b'?')
+  .add(b'{')
+  .add(b'}');
+
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PathId(NonZeroU32);
 
@@ -145,6 +159,12 @@ impl PathId {
   /// Returns the relative path from `from` to this path.
   pub fn relative(&self, from: &PathId) -> PathBuf {
     GLOBAL_INTERNER.relative(*self, *from)
+  }
+
+  /// Returns the relative URL from `from` to this path: the string a browser resolves against
+  /// `from` to reach `self`. See [`PathInterner::relative_url`].
+  pub fn relative_url(&self, from: &PathId) -> String {
+    GLOBAL_INTERNER.relative_url(*self, *from)
   }
 
   pub fn in_node_modules(&self) -> bool {
@@ -427,44 +447,81 @@ impl PathInterner {
 
   /// Returns the relative path from `from` to `id`.
   pub fn relative(&self, id: PathId, from: PathId) -> PathBuf {
-    let mut path = id;
-    let mut base = from;
-    let mut path_depth = self.depth(path);
-    let mut base_depth = self.depth(base);
-    let mut parent_dirs = 0;
-
-    while base_depth > path_depth {
-      let Some(parent) = self.parent(base) else {
-        return self.to_path_buf(id);
-      };
-      base = parent;
-      base_depth -= 1;
-      parent_dirs += 1;
-    }
-
-    while path_depth > base_depth {
-      let Some(parent) = self.parent(path) else {
-        return self.to_path_buf(id);
-      };
-      path = parent;
-      path_depth -= 1;
-    }
-
-    while path != base {
-      let (Some(path_parent), Some(base_parent)) = (self.parent(path), self.parent(base)) else {
-        return self.to_path_buf(id);
-      };
-      path = path_parent;
-      base = base_parent;
-      parent_dirs += 1;
-    }
+    let (parent_dirs, dir) = self.common_ancestor(Some(from), Some(id));
 
     let mut res = PathBuf::new();
     for _ in 0..parent_dirs {
       res.push(Component::ParentDir);
     }
-    self.push_segments_after(&mut res, id, path);
+
+    self.push_segments_after(&mut res, id, dir);
     res
+  }
+
+  /// Returns the relative URL from `from` to `id`: the string a browser resolves against `from`'s
+  /// URL to reach `id`'s.
+  ///
+  /// Follows URL semantics, which differ from [`relative`](Self::relative) in two ways: the
+  /// result is resolved against `from`'s *directory* (a relative URL drops the base's final
+  /// segment, so a sibling is `"b.js"`, not `"../b.js"`), and `id == from` yields `""`. Segments
+  /// are `/`-joined and percent-encoded.
+  pub fn relative_url(&self, id: PathId, from: PathId) -> String {
+    let mut out = String::new();
+    if id == from {
+      return out;
+    }
+
+    // Resolve against `from`'s directory. If `from` is the root itself, it is its own directory.
+    let base = self.parent(from).or(Some(from));
+    // `id`'s final segment is the URL "filename": never part of the ancestor walk, always emitted.
+    let dir = self.parent(id);
+
+    // Fast path: if `id` and `from` have the same parent, just return `id`'s file name.
+    if base == dir {
+      return percent_encoding::utf8_percent_encode(self.file_name(id), URL_PATH).to_string();
+    }
+
+    let (parent_dirs, dir) = self.common_ancestor(base, dir);
+    for _ in 0..parent_dirs {
+      if !out.is_empty() {
+        out.push('/');
+      }
+      out.push_str("..");
+    }
+
+    self.push_url_segments_after(&mut out, id, dir);
+    out
+  }
+
+  fn common_ancestor(
+    &self,
+    mut base: Option<PathId>,
+    mut dir: Option<PathId>,
+  ) -> (usize, Option<PathId>) {
+    // Find the common ancestor of `dir` and `base`, counting the `..` levels needed to climb from
+    // `base` up to it. `None` acts as the implicit ancestor of every top-level node.
+    let mut base_depth = base.map_or(0, |b| self.depth(b));
+    let mut dir_depth = dir.map_or(0, |d| self.depth(d));
+    let mut parent_dirs = 0;
+    while base_depth > dir_depth {
+      base = self.parent(base.unwrap());
+      base_depth -= 1;
+      parent_dirs += 1;
+    }
+
+    while dir_depth > base_depth {
+      dir = self.parent(dir.unwrap());
+      dir_depth -= 1;
+    }
+
+    while dir != base {
+      // Depths are equal, so both are `Some` (they become `None` together, and would be equal).
+      dir = self.parent(dir.unwrap());
+      base = self.parent(base.unwrap());
+      parent_dirs += 1;
+    }
+
+    (parent_dirs, dir)
   }
 
   fn depth(&self, mut id: PathId) -> usize {
@@ -486,8 +543,8 @@ impl PathInterner {
     buf.push(self.segments[node.segment.0 as usize].as_ref());
   }
 
-  fn push_segments_after(&self, buf: &mut PathBuf, id: PathId, ancestor: PathId) {
-    if id == ancestor {
+  fn push_segments_after(&self, buf: &mut PathBuf, id: PathId, ancestor: Option<PathId>) {
+    if Some(id) == ancestor {
       return;
     }
     let parent = self
@@ -495,6 +552,22 @@ impl PathInterner {
       .expect("ancestor should be in id's parent chain");
     self.push_segments_after(buf, parent, ancestor);
     buf.push(self.file_name(id));
+  }
+
+  /// Appends the `/`-joined, percent-encoded segments of `id` below `ancestor` to `out`.
+  fn push_url_segments_after(&self, out: &mut String, id: PathId, ancestor: Option<PathId>) {
+    let node = self.node(id);
+    if node.parent != ancestor {
+      let parent = node
+        .parent
+        .expect("ancestor should be in id's parent chain");
+      self.push_url_segments_after(out, parent, ancestor);
+    }
+    if !out.is_empty() {
+      out.push('/');
+    }
+    let segment = &self.segments[node.segment.0 as usize];
+    out.extend(percent_encoding::utf8_percent_encode(segment, URL_PATH));
   }
 
   /// Renders `id` as a normalized, `/`-separated string (stable across platforms).
@@ -747,5 +820,121 @@ mod tests {
     let from = interner.intern(Path::new("/project/src"));
     let path = interner.intern(Path::new("/"));
     assert_eq!(interner.relative(path, from), PathBuf::from("../.."));
+  }
+
+  /// `interner.relative_url(to, from)` on interned versions of the given paths.
+  fn rel_url(interner: &PathInterner, to: &str, from: &str) -> String {
+    let to = interner.intern(Path::new(to));
+    let from = interner.intern(Path::new(from));
+    interner.relative_url(to, from)
+  }
+
+  #[test]
+  fn relative_url_resolves_against_base_directory() {
+    let interner = PathInterner::new();
+    // URL semantics: the base's final segment is dropped, so a sibling needs no "..".
+    assert_eq!(rel_url(&interner, "/dist/a.js", "/dist/b.js"), "a.js");
+    // ...unlike `relative`, which treats `from` as the base directory itself.
+    assert_eq!(
+      interner.relative(
+        interner.intern(Path::new("/dist/a.js")),
+        interner.intern(Path::new("/dist/b.js"))
+      ),
+      PathBuf::from("../a.js")
+    );
+  }
+
+  #[test]
+  fn relative_url_same_path_is_empty() {
+    let interner = PathInterner::new();
+    assert_eq!(rel_url(&interner, "/dist/a.js", "/dist/a.js"), "");
+  }
+
+  #[test]
+  fn relative_url_to_subdirectory() {
+    let interner = PathInterner::new();
+    assert_eq!(
+      rel_url(&interner, "/dist/icons/a.js", "/dist/b.js"),
+      "icons/a.js"
+    );
+  }
+
+  #[test]
+  fn relative_url_to_parent_directory() {
+    let interner = PathInterner::new();
+    assert_eq!(
+      rel_url(&interner, "/dist/a.js", "/dist/icons/b.js"),
+      "../a.js"
+    );
+    assert_eq!(
+      rel_url(&interner, "/dist/x/a.js", "/dist/y/z/b.js"),
+      "../../x/a.js"
+    );
+  }
+
+  #[test]
+  fn relative_url_to_ancestor_file() {
+    let interner = PathInterner::new();
+    // The target's final segment is a URL "filename": climbing to it still re-emits it, exactly
+    // as `url::Url::make_relative` does ("../" alone would resolve to the directory instead).
+    assert_eq!(rel_url(&interner, "/a", "/a/b/c.js"), "../../a");
+  }
+
+  #[test]
+  fn relative_url_from_root() {
+    let interner = PathInterner::new();
+    assert_eq!(rel_url(&interner, "/dist/a.js", "/"), "dist/a.js");
+  }
+
+  #[test]
+  fn relative_url_percent_encodes_segments() {
+    let interner = PathInterner::new();
+    assert_eq!(
+      rel_url(&interner, "/dist/Workflow Icons-abc.js", "/dist/b.js"),
+      "Workflow%20Icons-abc.js"
+    );
+    // Non-ASCII is always encoded (as UTF-8 bytes), matching the url crate.
+    assert_eq!(
+      rel_url(&interner, "/dist/日本語.js", "/dist/b.js"),
+      "%E6%97%A5%E6%9C%AC%E8%AA%9E.js"
+    );
+    // Directory segments are encoded too.
+    assert_eq!(
+      rel_url(&interner, "/dist/my icons/a.js", "/dist/b.js"),
+      "my%20icons/a.js"
+    );
+  }
+
+  #[test]
+  fn relative_url_encodes_url_syntax_characters() {
+    let interner = PathInterner::new();
+    // '#' and '?' are encoded so the browser requests the actual file name. (The url crate would
+    // instead treat them as fragment/query delimiters — see `PathInterner::relative_url` docs.)
+    assert_eq!(rel_url(&interner, "/d/a#b.js", "/d/x.js"), "a%23b.js");
+    assert_eq!(rel_url(&interner, "/d/a?b.js", "/d/x.js"), "a%3Fb.js");
+    assert_eq!(
+      rel_url(&interner, "/d/a\"b`c<d>e{f}g.js", "/d/x.js"),
+      "a%22b%60c%3Cd%3Ee%7Bf%7Dg.js"
+    );
+  }
+
+  #[test]
+  fn relative_url_leaves_safe_characters_alone() {
+    let interner = PathInterner::new();
+    // '%' is not re-encoded (parity with the url crate, which passes path '%' through), and the
+    // usual name characters survive untouched.
+    assert_eq!(rel_url(&interner, "/d/100%.js", "/d/x.js"), "100%.js");
+    assert_eq!(
+      rel_url(&interner, "/d/a-b_c.d~e@f+g,h;i=j(k)l&m.js", "/d/x.js"),
+      "a-b_c.d~e@f+g,h;i=j(k)l&m.js"
+    );
+  }
+
+  #[test]
+  fn relative_url_via_path_id() {
+    let a = PathId::new(Path::new("/dist/deep/a.js"));
+    let b = PathId::new(Path::new("/dist/b.js"));
+    assert_eq!(a.relative_url(&b), "deep/a.js");
+    assert_eq!(b.relative_url(&a), "../b.js");
   }
 }

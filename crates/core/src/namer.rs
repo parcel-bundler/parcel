@@ -1,12 +1,16 @@
-use crate::{Bundle, BundleGraph, Diagnostic, DiagnosticList, ParcelOptions, config::ParcelConfig};
+use crate::{
+  Bundle, BundleGraph, Diagnostic, DiagnosticList, ParcelOptions, PathId, config::ParcelConfig,
+};
 
 pub trait Namer: Send + Sync {
+  /// Returns the bundle's full dist path: the chosen name (which may include subdirectories)
+  /// joined onto the bundle target's dist dir and interned.
   fn name(
     &self,
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
     options: &ParcelOptions,
-  ) -> Result<Option<String>, DiagnosticList>;
+  ) -> Result<Option<PathId>, DiagnosticList>;
 }
 
 pub fn name(
@@ -14,7 +18,7 @@ pub fn name(
   bundle: &Bundle,
   config: &ParcelConfig,
   options: &ParcelOptions,
-) -> Result<String, DiagnosticList> {
+) -> Result<PathId, DiagnosticList> {
   for namer in &config.namers {
     if let Some(name) = namer.name(bundle_graph, bundle, options)? {
       return Ok(name);

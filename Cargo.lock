@@ -3041,6 +3041,7 @@ dependencies = [
  "node-semver",
  "papaya",
  "parcel_sourcemap",
+ "percent-encoding",
  "petgraph",
  "pretty_assertions",
  "rayon",

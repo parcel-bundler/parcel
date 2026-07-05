@@ -90,7 +90,8 @@ fn full_build_single_bundle() {
 
   // The bundle contains the entry plus both of its synchronous dependencies.
   let bundle = &bundle_graph.bundles[0];
-  assert_eq!(bundle.name.as_deref(), Some("index.js"));
+  let name = bundle.dist_path.unwrap();
+  assert_eq!(name.file_name(), "index.js");
   assert_eq!(bundle.assets.len(), 3);
 
   // The packaged output concatenates each asset's transformed code (directives stripped).

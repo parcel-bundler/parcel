@@ -173,7 +173,7 @@ impl Bundler for DefaultBundler {
           } else {
             BundleFlags::empty()
           },
-          name: None,
+          dist_path: None,
           assets: Vec::new(),
           entry_assets: vec![bundle_root_asset_index],
           main_entry_asset: Some(bundle_root_asset_index),
@@ -233,7 +233,7 @@ impl Bundler for DefaultBundler {
           } else {
             BundleFlags::empty()
           },
-          name,
+          dist_path: name,
           assets: vec![asset_index],
           entry_assets: if is_bundle_root {
             vec![asset_index]

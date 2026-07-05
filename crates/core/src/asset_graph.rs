@@ -530,8 +530,9 @@ fn request_all(assets: &mut Vec<AssetNode>, asset_index: u32, queue: &mut Transf
 }
 
 impl<'a> AssetGraph<'a> {
-  /// Visits all assets in depth-first order starting from each entry.
-  pub fn dfs<'b>(&'b self) -> impl Iterator<Item = (usize, &'b Asset, Option<String>)> {
+  /// Visits all assets in depth-first order starting from each entry. The third element is the
+  /// entry's requested dist path, for the entry asset of each entry that has one.
+  pub fn dfs<'b>(&'b self) -> impl Iterator<Item = (usize, &'b Asset, Option<PathId>)> {
     let mut stack = Vec::new();
     let mut visited = FixedBitSet::with_capacity(self.assets.len());
     let mut entries = self.entries.iter();

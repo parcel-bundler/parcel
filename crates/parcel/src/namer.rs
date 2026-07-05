@@ -1,6 +1,6 @@
 use std::{
   ffi::OsStr,
-  path::{Component, PathBuf},
+  path::{Component, Path, PathBuf},
 };
 
 use parcel_core::{
@@ -17,7 +17,7 @@ impl Namer for DefaultNamer {
     bundle_graph: &BundleGraph,
     bundle: &parcel_core::Bundle,
     options: &parcel_core::ParcelOptions,
-  ) -> Result<Option<String>, DiagnosticList> {
+  ) -> Result<Option<PathId>, DiagnosticList> {
     let mut ext = bundle.ty.extension();
     if bundle.ty == AssetType::Js
       && bundle
@@ -91,11 +91,11 @@ impl Namer for DefaultNamer {
       }
     }
 
-    Ok(Some(format!(
+    Ok(Some(bundle.target.dist_dir.child(&format!(
       "{:016x}.{}",
       hash_bundle(&bundle_graph.asset_graph, bundle, &options.project_root),
       ext
-    )))
+    ))))
   }
 }
 
@@ -125,14 +125,16 @@ fn relative_path(asset: &Asset, from: &PathId) -> Result<PathBuf, Diagnostic> {
   )
 }
 
+/// Formats the final bundle name and joins it onto the target's dist dir. `name` may contain
+/// subdirectories (from relative entry paths), so it is joined as a path, not a single segment.
 fn format_name(
   asset_graph: &AssetGraph,
   bundle: &Bundle,
   name: &str,
   ext: &str,
   project_root: &PathId,
-) -> String {
-  if bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME) {
+) -> PathId {
+  let name = if bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME) {
     format!("{}.{}", name, ext)
   } else {
     format!(
@@ -141,7 +143,8 @@ fn format_name(
       hash_bundle(asset_graph, bundle, project_root),
       ext
     )
-  }
+  };
+  bundle.target.dist_dir.join(Path::new(&name))
 }
 
 fn common_root_path(paths: impl IntoIterator<Item = PathId>) -> Option<PathId> {

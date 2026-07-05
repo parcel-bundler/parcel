@@ -24,8 +24,8 @@ pub fn bundle<'a>(
   let mut seen_bundles = HashSet::new();
   let mut duplicate_bundles = HashSet::new();
   for i in 0..bundle_graph.bundles.len() {
-    if bundle_graph.bundles[i].name.is_none() {
-      bundle_graph.bundles[i].name = Some(name(
+    if bundle_graph.bundles[i].dist_path.is_none() {
+      bundle_graph.bundles[i].dist_path = Some(name(
         &bundle_graph,
         &bundle_graph.bundles[i],
         config,

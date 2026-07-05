@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ pub struct Bundle {
   pub target: Arc<Target>,
   pub bundle_behavior: BundleBehavior,
   pub flags: BundleFlags,
-  pub name: Option<String>,
+  pub dist_path: Option<PathId>,
   pub assets: Vec<usize>,
   pub entry_assets: Vec<usize>,
   pub main_entry_asset: Option<usize>,
@@ -41,14 +41,7 @@ pub enum BundleBehavior {
 
 impl Bundle {
   pub fn relative_url(&self, from: &Bundle) -> Option<String> {
-    if let (Some(this), Some(from)) = (&self.name, &from.name) {
-      let root = url::Url::parse("file:///").unwrap();
-      let this = root.join(this).ok()?;
-      let from = root.join(from).ok()?;
-      from.make_relative(&this)
-    } else {
-      None
-    }
+    Some(self.dist_path?.relative_url(&from.dist_path?))
   }
 
   pub fn relative_specifier(&self, from: &Bundle) -> Option<String> {
@@ -61,10 +54,7 @@ impl Bundle {
   }
 
   pub fn dist_path(&self) -> PathId {
-    self
-      .target
-      .dist_dir
-      .join(Path::new(self.name.as_ref().unwrap()))
+    self.dist_path.unwrap()
   }
 
   pub fn dist_url(&self) -> SourceUrl {

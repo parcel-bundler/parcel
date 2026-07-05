@@ -17,6 +17,7 @@ glob-match = "*"
 petgraph = "*"
 fixedbitset = "0.5.7"
 url = "*"
+percent-encoding = "2.2.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 rustc-hash = "2.0.0"
 parcel_sourcemap = "*"

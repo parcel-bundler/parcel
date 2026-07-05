@@ -16,7 +16,9 @@ use crate::{
 pub struct Entry {
   pub url: SourceUrl,
   pub target: Arc<Target>,
-  pub dist_entry: Option<String>,
+  /// The full dist path requested for this entry's bundle (e.g. from a package.json `main`
+  /// field), used in place of a namer-generated name.
+  pub dist_entry: Option<PathId>,
   pub asset: Option<usize>,
   pub loc: Option<SourceLocation>,
 }
@@ -166,7 +168,7 @@ impl EntryResolver {
           if let Some(child) = context.child(&json, field) {
             let source_path = dir.join(Path::new(source));
             let (dist_dir, dist_entry) = dist_dir_entry(dir, main, source_path);
-            let mut env = child.to_env(&json, &dist_dir, &dist_entry)?;
+            let mut env = child.to_env(&json, dist_dir, dist_entry)?;
             if *cond == ExportsCondition::MODULE {
               env.output_format = OutputFormat::Esmodule;
             }
@@ -277,7 +279,7 @@ impl EntryResolver {
           };
 
           let (dist_dir, dist_entry) = dist_dir_entry(dir, &dist_entry, source);
-          let env = self.target(context.to_env(pkg, &dist_dir, &dist_entry)?);
+          let env = self.target(context.to_env(pkg, dist_dir, dist_entry)?);
 
           self.add_entry(Entry {
             url: SourceUrl::from_path(&source),
@@ -294,15 +296,15 @@ impl EntryResolver {
   }
 }
 
-fn dist_dir_entry(dir: PathId, dist_entry: &str, source: PathId) -> (PathId, String) {
+fn dist_dir_entry(dir: PathId, dist_entry: &str, source: PathId) -> (PathId, PathId) {
   let dist_entry_path = Path::new(&dist_entry);
+  let dist_entry = dir.join(dist_entry_path);
   let mut dist_dir = dir.to_path_buf();
   let source = source.to_path_buf();
   let mut source_components = source.strip_prefix(&dist_dir).unwrap().components();
   let mut dist_components = dist_entry_path.components();
   let mut source = source_components.next();
   let mut dist = dist_components.next();
-  let mut dist_entry = PathBuf::new();
 
   // Add components from dist_entry to dist_dir while they match the source path.
   while let (Some(a), Some(b)) = (source, dist) {
@@ -322,13 +324,9 @@ fn dist_dir_entry(dir: PathId, dist_entry: &str, source: PathId) -> (PathId, Str
     } else {
       // If there is more than one component remaining, add the root dist directory to the dist_dir.
       // This is where non-entry bundles in this target will be placed.
-      if let Some(next) = dist_components.next() {
+      if dist_components.next().is_some() {
         dist_dir.push(b);
-        dist_entry.push(next);
-      } else {
-        dist_entry.push(b);
       }
-      dist_entry.extend(dist_components);
       break;
     }
 
@@ -336,8 +334,8 @@ fn dist_dir_entry(dir: PathId, dist_entry: &str, source: PathId) -> (PathId, Str
     dist = dist_components.next();
   }
 
-  let dist_entry = dist_entry.to_str().unwrap().to_owned();
-  (PathId::new(&dist_dir), dist_entry)
+  let dist_dir = PathId::new(&dist_dir);
+  (dist_dir, dist_entry)
 }
 
 struct ExportsContext<'a> {
@@ -377,7 +375,7 @@ impl<'a> ExportsContext<'a> {
     })
   }
 
-  fn to_env(&self, pkg: &Value, dir: &PathId, entry: &str) -> Result<Target, Diagnostic> {
+  fn to_env(&self, pkg: &Value, dir: PathId, entry: PathId) -> Result<Target, Diagnostic> {
     let context = if let Some(Value::String(context)) = self.context {
       Environment::try_from(context.as_str())?
     } else if self.condition.contains(ExportsCondition::REACT_SERVER) {
@@ -404,9 +402,9 @@ impl<'a> ExportsContext<'a> {
 
     let output_format = if let Some(Value::String(format)) = self.output_format {
       OutputFormat::try_from(format.as_str())?
-    } else if entry.ends_with(".mjs") {
+    } else if entry.extension() == Some("mjs") {
       OutputFormat::Esmodule
-    } else if entry.ends_with(".cjs") {
+    } else if entry.extension() == Some("cjs") {
       OutputFormat::Commonjs
     } else if let Some(Value::String(ty)) = pkg.get("type") {
       if ty == "module" {
@@ -430,7 +428,7 @@ impl<'a> ExportsContext<'a> {
     let mut flags = EnvironmentFlags::IS_LIBRARY;
     flags.set(
       EnvironmentFlags::MODULE_TYPE_EXTENSION,
-      entry.ends_with(".mjs") || entry.ends_with(".cjs"),
+      matches!(entry.extension(), Some("mjs" | "cjs")),
     );
     flags.set(
       EnvironmentFlags::SHOULD_OPTIMIZE,
@@ -446,7 +444,7 @@ impl<'a> ExportsContext<'a> {
       loc: None,
       include_node_modules,
       engines: package_engines(pkg, self.engines, context, output_format),
-      dist_dir: *dir,
+      dist_dir: dir,
       public_url: String::new(),
     })
   }
@@ -617,7 +615,7 @@ mod tests {
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some("import.mjs".into()),
+          dist_entry: Some(PathId::new(Path::new("/root/import.mjs"))),
           asset: None,
           loc: None,
         },
@@ -631,7 +629,7 @@ mod tests {
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some("require.cjs".into()),
+          dist_entry: Some(PathId::new(Path::new("/root/require.cjs"))),
           asset: None,
           loc: None,
         },
@@ -659,7 +657,7 @@ mod tests {
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some("node.js".into()),
+          dist_entry: Some(PathId::new(Path::new("/root/node.js"))),
           asset: None,
           loc: None,
         },
@@ -674,7 +672,7 @@ mod tests {
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some("browser.js".into()),
+          dist_entry: Some(PathId::new(Path::new("/root/browser.js"))),
           asset: None,
           loc: None,
         },
@@ -709,7 +707,7 @@ mod tests {
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some("node.mjs".into()),
+          dist_entry: Some(PathId::new(Path::new("/root/node.mjs"))),
           asset: None,
           loc: None,
         },
@@ -724,7 +722,7 @@ mod tests {
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some("node.cjs".into()),
+          dist_entry: Some(PathId::new(Path::new("/root/node.cjs"))),
           asset: None,
           loc: None,
         },
@@ -738,7 +736,7 @@ mod tests {
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some("browser.mjs".into()),
+          dist_entry: Some(PathId::new(Path::new("/root/browser.mjs"))),
           asset: None,
           loc: None,
         },
@@ -752,7 +750,7 @@ mod tests {
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some("browser.cjs".into()),
+          dist_entry: Some(PathId::new(Path::new("/root/browser.cjs"))),
           asset: None,
           loc: None,
         },
@@ -786,7 +784,7 @@ mod tests {
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some("node.mjs".into()),
+          dist_entry: Some(PathId::new(Path::new("/root/node.mjs"))),
           asset: None,
           loc: None,
         },
@@ -801,7 +799,7 @@ mod tests {
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some("node.cjs".into()),
+          dist_entry: Some(PathId::new(Path::new("/root/node.cjs"))),
           asset: None,
           loc: None,
         },
@@ -815,7 +813,7 @@ mod tests {
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some("browser.mjs".into()),
+          dist_entry: Some(PathId::new(Path::new("/root/browser.mjs"))),
           asset: None,
           loc: None,
         },
@@ -829,7 +827,7 @@ mod tests {
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some("browser.cjs".into()),
+          dist_entry: Some(PathId::new(Path::new("/root/browser.cjs"))),
           asset: None,
           loc: None,
         },
@@ -862,7 +860,7 @@ mod tests {
           source_map: Some(Default::default()),
           ..Default::default()
         }),
-        dist_entry: Some("dist.js".into()),
+        dist_entry: Some(PathId::new(Path::new("/root/dist.js"))),
         asset: None,
         loc: None,
       }],
@@ -897,7 +895,7 @@ mod tests {
           source_map: Some(Default::default()),
           ..Default::default()
         }),
-        dist_entry: Some("dist.js".into()),
+        dist_entry: Some(PathId::new(Path::new("/root/dist.js"))),
         asset: None,
         loc: None,
       }],
@@ -930,7 +928,7 @@ mod tests {
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some("dist.js".into()),
+          dist_entry: Some(PathId::new(Path::new("/root/dist.js"))),
           asset: None,
           loc: None,
         },
@@ -952,7 +950,7 @@ mod tests {
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some("module.js".into()),
+          dist_entry: Some(PathId::new(Path::new("/root/module.js"))),
           asset: None,
           loc: None,
         },
@@ -985,7 +983,7 @@ mod tests {
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some("foo.mjs".into()),
+          dist_entry: Some(PathId::new(Path::new("/root/foo.mjs"))),
           asset: None,
           loc: None,
         },
@@ -1000,7 +998,7 @@ mod tests {
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some("bar.mjs".into()),
+          dist_entry: Some(PathId::new(Path::new("/root/bar.mjs"))),
           asset: None,
           loc: None,
         },
@@ -1027,7 +1025,7 @@ mod tests {
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some("bar.mjs".into()),
+          dist_entry: Some(PathId::new(Path::new("/root/dist/bar.mjs"))),
           asset: None,
           loc: None,
         },
@@ -1042,7 +1040,7 @@ mod tests {
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some("foo.mjs".into()),
+          dist_entry: Some(PathId::new(Path::new("/root/dist/foo.mjs"))),
           asset: None,
           loc: None,
         },
@@ -1083,7 +1081,7 @@ mod tests {
           source_map: Some(Default::default()),
           ..Default::default()
         }),
-        dist_entry: Some("index.js".into()),
+        dist_entry: Some(PathId::new(Path::new("/root/dist/index.js"))),
         asset: None,
         loc: None,
       }],
@@ -1127,7 +1125,7 @@ mod tests {
           source_map: Some(Default::default()),
           ..Default::default()
         }),
-        dist_entry: Some("index.js".into()),
+        dist_entry: Some(PathId::new(Path::new("/root/dist/index.js"))),
         asset: None,
         loc: None,
       }],
@@ -1152,7 +1150,7 @@ mod tests {
           source_map: Some(Default::default()),
           ..Default::default()
         }),
-        dist_entry: Some("index.mjs".into()),
+        dist_entry: Some(PathId::new(Path::new("/root/style/dist/index.mjs"))),
         asset: None,
         loc: None,
       }],

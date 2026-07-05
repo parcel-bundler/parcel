@@ -49,7 +49,7 @@ impl Bundler for LibraryBundler {
             BundleFlags::empty()
           },
           main_entry_asset: Some(id),
-          name,
+          dist_path: name,
           referenced_bundles: Vec::new(),
         });
         bundles_by_path.insert(key, bundle_index);

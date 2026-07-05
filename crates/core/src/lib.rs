@@ -65,8 +65,8 @@ pub struct Parcel {
   /// `invalidate` so the resolver, transformers, and JS environment all see fresh data on rebuild.
   cached_fs: Arc<CachedFileSystem>,
   /// Metadata from the previous bundle pass used to detect which bundles need re-packaging.
-  /// Keyed by bundle name; value is (sorted asset indices, dist path).
-  prev_bundles: HashMap<String, (Vec<usize>, PathId)>,
+  /// Keyed by bundle dist path; value is the bundle's sorted asset indices.
+  prev_bundles: HashMap<PathId, Vec<usize>>,
   /// Original constructor inputs, retained so the build can be recreated from scratch when a
   /// configuration file changes.
   entries: Vec<String>,
@@ -293,7 +293,7 @@ fn bundle_and_package<'a>(
   config: &ParcelConfig,
   options: &ParcelOptions,
   changed_assets: &Vec<usize>,
-  prev_bundles: &mut HashMap<String, (Vec<usize>, PathId)>,
+  prev_bundles: &mut HashMap<PathId, Vec<usize>>,
 ) -> Result<BundleGraph<'a>, DiagnosticList> {
   // Group assets into bundles.
   let bundle_graph = bundle(asset_graph, config, options)?;
@@ -301,7 +301,7 @@ fn bundle_and_package<'a>(
   // Diff the new bundle graph against the previous build's metadata to find dirty bundles.
   // A bundle is dirty if it's new, its asset composition changed, or any of its assets
   // were re-transformed this build.
-  let mut new_prev: HashMap<String, (Vec<usize>, PathId)> = HashMap::new();
+  let mut new_prev: HashMap<PathId, Vec<usize>> = HashMap::new();
   let mut dirty: HashSet<usize> = HashSet::new();
 
   for (bundle_index, bundle) in bundle_graph.bundles.iter().enumerate() {
@@ -309,15 +309,14 @@ fn bundle_and_package<'a>(
       continue;
     }
 
-    let name = bundle.name.as_ref().unwrap();
     let dist_path = bundle.dist_path();
 
     let mut sorted_assets = bundle.assets.clone();
     sorted_assets.sort_unstable();
 
-    let is_dirty = match prev_bundles.get(name) {
+    let is_dirty = match prev_bundles.get(&dist_path) {
       None => true,
-      Some((prev_assets, _)) => {
+      Some(prev_assets) => {
         *prev_assets != sorted_assets || bundle.assets.iter().any(|i| changed_assets.contains(i))
       }
     };
@@ -326,12 +325,12 @@ fn bundle_and_package<'a>(
       dirty.insert(bundle_index);
     }
 
-    new_prev.insert(name.clone(), (sorted_assets, dist_path));
+    new_prev.insert(dist_path, sorted_assets);
   }
 
   // Delete output files for bundles that no longer exist.
-  for (name, (_, dist_path)) in prev_bundles.iter() {
-    if !new_prev.contains_key(name) {
+  for dist_path in prev_bundles.keys() {
+    if !new_prev.contains_key(dist_path) {
       options.output_fs.remove_file(*dist_path).ok();
     }
   }
@@ -392,9 +391,12 @@ pub fn get_bundle_content(
       .pipeline
       .clone();
   }
+  // Match optimizer globs against the dist-relative name, as they were written for bundle names
+  // (e.g. "*.js"), not absolute dist paths.
+  let name = bundle.dist_path().relative(&bundle.target.dist_dir);
   let optimizers = config
     .optimizers
-    .get(bundle.name.as_ref().unwrap(), &pipeline, false);
+    .get(name.to_str().unwrap(), &pipeline, false);
 
   for optimizer in optimizers.0 {
     content = optimizer.optimize(&bundle_graph, &bundle, content)?;
