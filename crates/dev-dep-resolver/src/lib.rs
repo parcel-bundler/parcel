@@ -100,12 +100,15 @@ impl<'a> EsmGraphBuilder<'a> {
 
     let tracking_fs = TrackingFileSystem::new(self.fs.clone());
     let mut invalidations = Invalidations::default();
-    let module_type = self.esm_resolver.resolve_module_type(file, &tracking_fs)?;
+    let pathid = PathId::new(file);
+    let module_type = self
+      .esm_resolver
+      .resolve_module_type(pathid, &tracking_fs)?;
     let resolver = match module_type {
       ModuleType::CommonJs | ModuleType::Json => &self.cjs_resolver,
       ModuleType::Module => &self.esm_resolver,
     };
-    let contents = tracking_fs.read_to_string(PathId::new(file))?;
+    let contents = tracking_fs.read_to_string(pathid)?;
     let module = lex(&contents)?;
     #[allow(clippy::map_collect_result_unit)]
     module

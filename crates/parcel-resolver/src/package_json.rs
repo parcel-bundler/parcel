@@ -795,39 +795,41 @@ impl PackageJson {
     None
   }
 
-  pub fn has_side_effects(&self, path: &Path) -> bool {
-    let path = path
-      .strip_prefix(self.path.parent().unwrap().to_path_buf())
-      .ok()
-      .and_then(|path| path.as_os_str().to_str());
+  pub fn has_side_effects(&self, path: PathId) -> bool {
+    path.with_path(|path| {
+      let path = path
+        .strip_prefix(self.path.parent().unwrap().to_path_buf())
+        .ok()
+        .and_then(|path| path.as_os_str().to_str());
 
-    let path = match path {
-      Some(p) => p,
-      None => return true,
-    };
-
-    fn side_effects_glob_matches(glob: &str, path: &str) -> bool {
-      // Trim leading "./"
-      let glob = glob.strip_prefix("./").unwrap_or(glob);
-
-      // If the glob does not contain any '/' characters, prefix with "**/" to match webpack.
-      let glob = if !glob.contains('/') {
-        Cow::Owned(format!("**/{}", glob))
-      } else {
-        Cow::Borrowed(glob)
+      let path = match path {
+        Some(p) => p,
+        None => return true,
       };
 
-      glob_match(glob.as_ref(), path)
-    }
+      fn side_effects_glob_matches(glob: &str, path: &str) -> bool {
+        // Trim leading "./"
+        let glob = glob.strip_prefix("./").unwrap_or(glob);
 
-    match &self.side_effects {
-      SideEffects::None => true,
-      SideEffects::Boolean(b) => *b,
-      SideEffects::String(glob) => side_effects_glob_matches(glob, path),
-      SideEffects::Array(globs) => globs
-        .iter()
-        .any(|glob| side_effects_glob_matches(glob, path)),
-    }
+        // If the glob does not contain any '/' characters, prefix with "**/" to match webpack.
+        let glob = if !glob.contains('/') {
+          Cow::Owned(format!("**/{}", glob))
+        } else {
+          Cow::Borrowed(glob)
+        };
+
+        glob_match(glob.as_ref(), path)
+      }
+
+      match &self.side_effects {
+        SideEffects::None => true,
+        SideEffects::Boolean(b) => *b,
+        SideEffects::String(glob) => side_effects_glob_matches(glob, path),
+        SideEffects::Array(globs) => globs
+          .iter()
+          .any(|glob| side_effects_glob_matches(glob, path)),
+      }
+    })
   }
 
   pub fn has_dependency(&self, dep: &str) -> bool {
@@ -1779,9 +1781,9 @@ mod tests {
       },
     );
 
-    assert!(pkg.has_side_effects(Path::new("/foo/index.js")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/index.js")));
-    assert!(pkg.has_side_effects(Path::new("/index.js")));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/foo/index.js"))));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/foo/bar/index.js"))));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/index.js"))));
   }
 
   #[test]
@@ -1795,18 +1797,18 @@ mod tests {
       },
     );
 
-    assert!(!pkg.has_side_effects(Path::new("/foo/index.js")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/bar/index.js")));
-    assert!(pkg.has_side_effects(Path::new("/index.js")));
+    assert!(!pkg.has_side_effects(PathId::new(Path::new("/foo/index.js"))));
+    assert!(!pkg.has_side_effects(PathId::new(Path::new("/foo/bar/index.js"))));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/index.js"))));
 
     let pkg = PackageJson {
       side_effects: SideEffects::Boolean(true),
       ..pkg
     };
 
-    assert!(pkg.has_side_effects(Path::new("/foo/index.js")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/index.js")));
-    assert!(pkg.has_side_effects(Path::new("/index.js")));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/foo/index.js"))));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/foo/bar/index.js"))));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/index.js"))));
   }
 
   #[test]
@@ -1820,36 +1822,36 @@ mod tests {
       },
     );
 
-    assert!(pkg.has_side_effects(Path::new("/foo/a.css")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/baz.css")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/x/baz.css")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/a.js")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/bar/baz.js")));
-    assert!(pkg.has_side_effects(Path::new("/index.js")));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/foo/a.css"))));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/foo/bar/baz.css"))));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/foo/bar/x/baz.css"))));
+    assert!(!pkg.has_side_effects(PathId::new(Path::new("/foo/a.js"))));
+    assert!(!pkg.has_side_effects(PathId::new(Path::new("/foo/bar/baz.js"))));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/index.js"))));
 
     let pkg = PackageJson {
       side_effects: SideEffects::String("bar/*.css".into()),
       ..pkg
     };
 
-    assert!(!pkg.has_side_effects(Path::new("/foo/a.css")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/baz.css")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/bar/x/baz.css")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/a.js")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/bar/baz.js")));
-    assert!(pkg.has_side_effects(Path::new("/index.js")));
+    assert!(!pkg.has_side_effects(PathId::new(Path::new("/foo/a.css"))));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/foo/bar/baz.css"))));
+    assert!(!pkg.has_side_effects(PathId::new(Path::new("/foo/bar/x/baz.css"))));
+    assert!(!pkg.has_side_effects(PathId::new(Path::new("/foo/a.js"))));
+    assert!(!pkg.has_side_effects(PathId::new(Path::new("/foo/bar/baz.js"))));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/index.js"))));
 
     let pkg = PackageJson {
       side_effects: SideEffects::String("./bar/*.css".into()),
       ..pkg
     };
 
-    assert!(!pkg.has_side_effects(Path::new("/foo/a.css")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/baz.css")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/bar/x/baz.css")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/a.js")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/bar/baz.js")));
-    assert!(pkg.has_side_effects(Path::new("/index.js")));
+    assert!(!pkg.has_side_effects(PathId::new(Path::new("/foo/a.css"))));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/foo/bar/baz.css"))));
+    assert!(!pkg.has_side_effects(PathId::new(Path::new("/foo/bar/x/baz.css"))));
+    assert!(!pkg.has_side_effects(PathId::new(Path::new("/foo/a.js"))));
+    assert!(!pkg.has_side_effects(PathId::new(Path::new("/foo/bar/baz.js"))));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/index.js"))));
   }
 
   #[test]
@@ -1863,15 +1865,15 @@ mod tests {
       },
     );
 
-    assert!(pkg.has_side_effects(Path::new("/foo/a.css")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/baz.css")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/x/baz.css")));
-    assert!(pkg.has_side_effects(Path::new("/foo/a.html")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/baz.html")));
-    assert!(pkg.has_side_effects(Path::new("/foo/bar/x/baz.html")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/a.js")));
-    assert!(!pkg.has_side_effects(Path::new("/foo/bar/baz.js")));
-    assert!(pkg.has_side_effects(Path::new("/index.js")));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/foo/a.css"))));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/foo/bar/baz.css"))));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/foo/bar/x/baz.css"))));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/foo/a.html"))));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/foo/bar/baz.html"))));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/foo/bar/x/baz.html"))));
+    assert!(!pkg.has_side_effects(PathId::new(Path::new("/foo/a.js"))));
+    assert!(!pkg.has_side_effects(PathId::new(Path::new("/foo/bar/baz.js"))));
+    assert!(pkg.has_side_effects(PathId::new(Path::new("/index.js"))));
   }
 
   #[test]

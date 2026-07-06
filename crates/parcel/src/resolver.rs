@@ -87,7 +87,7 @@ impl Resolver for DefaultResolver {
       ..
     }) = &res
     {
-      match p.with_path(|p| resolver.resolve_side_effects(p, &**fs)) {
+      match resolver.resolve_side_effects(*p, &**fs) {
         Ok(side_effects) => side_effects,
         Err(err) => {
           res = Err(err);

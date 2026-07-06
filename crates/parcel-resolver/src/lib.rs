@@ -277,10 +277,10 @@ impl<'a> Resolver<'a> {
   /// Returns whether the given path has side effects, according to its parent package.json.
   pub fn resolve_side_effects(
     &self,
-    path: &Path,
+    path: PathId,
     fs: &dyn FileSystem,
   ) -> Result<bool, ResolverError> {
-    if let Some(package) = self.find_package(PathId::new(path.parent().unwrap()), fs) {
+    if let Some(package) = self.find_package(path.parent().unwrap(), fs) {
       Ok(unwrap_arc(&package)?.has_side_effects(path))
     } else {
       Ok(true)
@@ -291,7 +291,7 @@ impl<'a> Resolver<'a> {
   /// according to either its extension or the package.json `type` field.
   pub fn resolve_module_type(
     &self,
-    path: &Path,
+    path: PathId,
     fs: &dyn FileSystem,
   ) -> Result<ModuleType, ResolverError> {
     if let Some(ext) = path.extension() {
@@ -308,7 +308,7 @@ impl<'a> Resolver<'a> {
       }
 
       if ext == "js" {
-        if let Some(package) = self.find_package(PathId::new(path.parent().unwrap()), fs) {
+        if let Some(package) = self.find_package(path.parent().unwrap(), fs) {
           return Ok(unwrap_arc(&package)?.module_type);
         }
       }
@@ -1355,7 +1355,7 @@ mod tests {
       }
     }
 
-    fn resolve_side_effects(&self, path: &Path) -> Result<bool, ResolverError> {
+    fn resolve_side_effects(&self, path: PathId) -> Result<bool, ResolverError> {
       self.resolver.resolve_side_effects(path, &self.fs)
     }
   }
@@ -2907,9 +2907,7 @@ mod tests {
       .resolution;
 
     if let Resolution::Path(path) = resolved {
-      path
-        .with_path(|p| resolver.resolve_side_effects(p))
-        .unwrap()
+      resolver.resolve_side_effects(path).unwrap()
     } else {
       unreachable!()
     }

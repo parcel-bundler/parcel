@@ -139,7 +139,7 @@ impl Loader for ModuleLoader {
     } else {
       self
         .resolver
-        .resolve_module_type(Path::new(name), &*self.fs)
+        .resolve_module_type(PathId::new(Path::new(name)), &*self.fs)
         .map_err(|e| rquickjs::Error::Loading {
           name: name.into(),
           message: Some(e.to_string()),
@@ -153,7 +153,7 @@ impl Loader for ModuleLoader {
         } else {
           let mut source = self
             .fs
-            .read_to_string(parcel_core::PathId::new(Path::new(name)))
+            .read_to_string(PathId::new(Path::new(name)))
             .map_err(|e| rquickjs::Error::Loading {
               name: name.into(),
               message: Some(e.to_string()),

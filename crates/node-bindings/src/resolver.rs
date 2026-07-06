@@ -416,7 +416,7 @@ fn resolve_internal(
     ..
   }) = &res
   {
-    match p.with_path(|p| resolver.resolve_side_effects(p, &fs)) {
+    match resolver.resolve_side_effects(*p, &fs) {
       Ok(side_effects) => side_effects,
       Err(err) => {
         res = Err(err);
@@ -435,7 +435,7 @@ fn resolve_internal(
       ..
     }) = &res
     {
-      module_type = match p.with_path(|p| resolver.resolve_module_type(p, &fs)) {
+      module_type = match resolver.resolve_module_type(*p, &fs) {
         Ok(t) => match t {
           ModuleType::CommonJs | ModuleType::Json => 1,
           ModuleType::Module => 2,
@@ -478,7 +478,7 @@ fn convert_core_invalidations(invalidations: parcel_core::Invalidations) -> Conv
       }),
       parcel_core::FileCreateInvalidation::FileName { file_name, above } => {
         Either3::B(FileNameCreateInvalidation {
-          file_name: file_name.clone(),
+          file_name: file_name.to_path_buf().to_string_lossy().into_owned(),
           above_file_path: to_path(above),
         })
       }

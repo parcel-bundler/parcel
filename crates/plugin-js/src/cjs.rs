@@ -6,7 +6,7 @@ use std::{
 
 use parcel_core::{FileSystem, PathId, resolve_path};
 use parcel_resolver::ModuleType;
-use rquickjs::{Ctx, Function, FromJs, IntoJs, JsLifetime, Module, Object, Value, function};
+use rquickjs::{Ctx, FromJs, Function, IntoJs, JsLifetime, Module, Object, Value, function};
 use rust_embed::Embed;
 use swc::config::ModuleConfig;
 use swc_core::{
@@ -165,30 +165,22 @@ impl CjsLoader {
 
     // println!("require {}", resolved);
 
-    match self
-      .resolver
-      .resolve_module_type(Path::new(resolved), &*self.fs)
-    {
+    let pathid = PathId::new(Path::new(resolved));
+    match self.resolver.resolve_module_type(pathid, &*self.fs) {
       Ok(ModuleType::Module) => {
         let promise: rquickjs::Promise<'_> = Module::import(&ctx, resolved)?;
         let module: Object = promise.finish()?;
         Ok(module.into_value())
       }
       Ok(ModuleType::CommonJs) => {
-        let source = self
-          .fs
-          .read_to_string(parcel_resolver::PathId::new(Path::new(resolved)))
-          .unwrap();
+        let source = self.fs.read_to_string(pathid).unwrap();
         self.load_cjs(ctx, resolved, Cow::Owned(source), cache)
       }
       Ok(ModuleType::Json) => {
         let module = Object::new(ctx.clone())?;
         cache.set(resolved, module.clone())?;
 
-        let source = self
-          .fs
-          .read(parcel_resolver::PathId::new(Path::new(resolved)))
-          .unwrap();
+        let source = self.fs.read(pathid).unwrap();
         module.set("exports", ctx.json_parse(source)?)?;
 
         let exports: Value = module.get("exports")?;
