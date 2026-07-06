@@ -9,7 +9,7 @@ use serde_json::Value;
 use crate::{
   BuildMode, BuildOptions, Diagnostic, Engines, Environment, EnvironmentFlags, ExportsCondition,
   FileKind, FileSystem, IncludeNodeModules, OutputFormat, PathId, SourceLocation, SourceType,
-  SourceUrl, SubPath, Target, TargetSourceMapOptions, Version, is_glob,
+  SourceUrl, SubPath, Target, Version, is_glob,
 };
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -37,13 +37,13 @@ pub fn resolve_entries(
 
   let project_root = find_project_root(&*options.input_fs, &paths, cwd);
   let should_optimize = options
-    .minify
+    .optimize
     .unwrap_or(options.mode == BuildMode::Production);
 
   let mut entries = EntryResolver::new(should_optimize);
   for path in paths {
     if options.input_fs.kind(path).contains(FileKind::IS_DIR) {
-      entries.resolve_package_entries(&*options.input_fs, path, &project_root)?;
+      entries.resolve_package_entries(&*options.input_fs, path, &project_root, options)?;
     } else {
       let mut flags = EnvironmentFlags::empty();
       flags.set(EnvironmentFlags::SHOULD_OPTIMIZE, should_optimize);
@@ -81,8 +81,10 @@ pub fn resolve_entries(
         engines,
         flags,
         output_format,
-        dist_dir: project_root.child("dist"),
-        source_map: Some(TargetSourceMapOptions::default()),
+        dist_dir: options
+          .dist_dir
+          .unwrap_or_else(|| project_root.child("dist")),
+        source_map: options.source_map.clone(),
         ..Default::default()
       });
 
@@ -136,6 +138,7 @@ impl EntryResolver {
     fs: &dyn FileSystem,
     dir: PathId,
     project_root: &PathId,
+    options: &BuildOptions,
   ) -> Result<(), Diagnostic> {
     let pkg_path = dir.child("package.json");
     let contents = fs.read(pkg_path)?;
@@ -150,7 +153,16 @@ impl EntryResolver {
     };
 
     if let Some(exports) = json.get("exports") {
-      self.extract_exports(fs, dir, &json, exports, Vec::new(), &context, project_root)?;
+      self.extract_exports(
+        fs,
+        dir,
+        &json,
+        exports,
+        Vec::new(),
+        &context,
+        project_root,
+        options,
+      )?;
     }
 
     if let Some(Value::String(source)) = json.get("source") {
@@ -168,7 +180,7 @@ impl EntryResolver {
           if let Some(child) = context.child(&json, field) {
             let source_path = dir.join(Path::new(source));
             let (dist_dir, dist_entry) = dist_dir_entry(dir, main, source_path);
-            let mut env = child.to_env(&json, dist_dir, dist_entry)?;
+            let mut env = child.to_env(&json, dist_dir, dist_entry, options)?;
             if *cond == ExportsCondition::MODULE {
               env.output_format = OutputFormat::Esmodule;
             }
@@ -197,7 +209,8 @@ impl EntryResolver {
               } else {
                 EnvironmentFlags::empty()
               },
-              source_map: Some(TargetSourceMapOptions::default()),
+              source_map: options.source_map.clone(),
+              public_url: options.public_url.clone(),
               ..Default::default()
             }),
             dist_entry: None,
@@ -220,6 +233,7 @@ impl EntryResolver {
     source: Vec<(PathId, Option<String>)>,
     context: &ExportsContext,
     project_root: &PathId,
+    options: &BuildOptions,
   ) -> Result<(), Diagnostic> {
     if let Value::Object(exports) = value {
       let source = if let Some(Value::String(source)) = value.get("source") {
@@ -263,10 +277,28 @@ impl EntryResolver {
 
         if !key.starts_with('.') {
           if let Some(child) = context.child(pkg, key) {
-            self.extract_exports(fs, dir, pkg, value, source.clone(), &child, project_root)?;
+            self.extract_exports(
+              fs,
+              dir,
+              pkg,
+              value,
+              source.clone(),
+              &child,
+              project_root,
+              options,
+            )?;
           }
         } else {
-          self.extract_exports(fs, dir, pkg, value, source.clone(), context, project_root)?;
+          self.extract_exports(
+            fs,
+            dir,
+            pkg,
+            value,
+            source.clone(),
+            context,
+            project_root,
+            options,
+          )?;
         }
       }
     } else if let Value::String(value) = value {
@@ -279,7 +311,7 @@ impl EntryResolver {
           };
 
           let (dist_dir, dist_entry) = dist_dir_entry(dir, &dist_entry, source);
-          let env = self.target(context.to_env(pkg, dist_dir, dist_entry)?);
+          let env = self.target(context.to_env(pkg, dist_dir, dist_entry, options)?);
 
           self.add_entry(Entry {
             url: SourceUrl::from_path(&source),
@@ -375,7 +407,13 @@ impl<'a> ExportsContext<'a> {
     })
   }
 
-  fn to_env(&self, pkg: &Value, dir: PathId, entry: PathId) -> Result<Target, Diagnostic> {
+  fn to_env(
+    &self,
+    pkg: &Value,
+    dir: PathId,
+    entry: PathId,
+    options: &BuildOptions,
+  ) -> Result<Target, Diagnostic> {
     let context = if let Some(Value::String(context)) = self.context {
       Environment::try_from(context.as_str())?
     } else if self.condition.contains(ExportsCondition::REACT_SERVER) {
@@ -440,12 +478,12 @@ impl<'a> ExportsContext<'a> {
       output_format,
       source_type: SourceType::Module,
       flags,
-      source_map: Some(TargetSourceMapOptions::default()),
+      source_map: options.source_map.clone(),
       loc: None,
       include_node_modules,
       engines: package_engines(pkg, self.engines, context, output_format),
       dist_dir: dir,
-      public_url: String::new(),
+      public_url: options.public_url.clone(),
     })
   }
 }
@@ -581,9 +619,12 @@ mod tests {
         env: HashMap::new(),
         log_level: crate::LogLevel::Error,
         mode: crate::BuildMode::Development,
-        minify: None,
+        optimize: None,
         config: None,
         cwd: PathId::new(&std::env::current_dir().unwrap()),
+        source_map: Some(Default::default()),
+        dist_dir: None,
+        public_url: Default::default(),
       },
     )
     .unwrap();

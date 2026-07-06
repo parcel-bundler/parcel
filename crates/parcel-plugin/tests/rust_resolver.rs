@@ -72,9 +72,12 @@ fn test_rust_resolver_plugin() {
       input_fs: Arc::new(OsFileSystem {}),
       output_fs: output_fs.clone(),
       mode: parcel_core::BuildMode::Development,
-      minify: None,
+      optimize: None,
       env: Default::default(),
       log_level: LogLevel::Verbose,
+      source_map: Some(Default::default()),
+      dist_dir: None,
+      public_url: Default::default(),
     },
   )
   .unwrap_or_else(|e| panic!("parcel build failed: {:?}", e));

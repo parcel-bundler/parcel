@@ -41,7 +41,8 @@ pub fn build_options(
 ) -> BuildOptions {
   BuildOptions {
     mode: BuildMode::Development,
-    minify: None,
+    optimize: None,
+    source_map: Some(Default::default()),
     env: Default::default(),
     log_level: LogLevel::Error,
     input_fs,
@@ -50,6 +51,8 @@ pub fn build_options(
     // Setting cwd to the project directory makes `find_project_root` (which falls back to cwd
     // when no lockfile is found on disk) deterministically resolve the project root to /project.
     cwd: PathId::new(Path::new("/project")),
+    dist_dir: None,
+    public_url: Default::default(),
   }
 }
 

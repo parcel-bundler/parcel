@@ -135,13 +135,16 @@ fn bundle_with_options(
   }
   let options = BuildOptions {
     mode: options.mode,
-    minify: options.minify,
+    optimize: options.minify,
+    source_map: Some(Default::default()),
     env,
     input_fs: Arc::new(OsFileSystem {}),
     output_fs: output_fs.clone(),
     log_level: parcel_core::LogLevel::Verbose,
     config: None,
     cwd: PathId::new(cwd),
+    dist_dir: None,
+    public_url: Default::default(),
   };
 
   parcel::build(&entries, options)

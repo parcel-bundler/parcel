@@ -16,9 +16,12 @@ fn bench_dev(c: &mut Criterion) {
         output_fs: os.clone(),
         log_level: parcel_core::LogLevel::Verbose,
         mode: parcel_core::BuildMode::Development,
-        minify: None,
+        optimize: None,
+        source_map: Some(Default::default()),
         config: Some("/Users/devongovett/dev/react-spectrum/.storybook-s2/.parcelrc".into()),
         cwd: PathId::new(Path::new("/Users/devongovett/dev/react-spectrum")),
+        dist_dir: None,
+        public_url: Default::default(),
       }).expect("build failed");
     })
   });
@@ -35,9 +38,12 @@ fn bench_prod(c: &mut Criterion) {
         output_fs: os.clone(),
         log_level: parcel_core::LogLevel::Verbose,
         mode: parcel_core::BuildMode::Production,
-        minify: None,
+        optimize: None,
+        source_map: Some(Default::default()),
         config: Some("/Users/devongovett/dev/react-spectrum/.storybook-s2/.parcelrc".into()),
         cwd: PathId::new(Path::new("/Users/devongovett/dev/react-spectrum")),
+        dist_dir: None,
+        public_url: Default::default(),
       }).expect("build failed");
     })
   });

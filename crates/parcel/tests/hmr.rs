@@ -31,13 +31,16 @@ fn setup(files: &[(&str, &str)]) -> (Parcel, Arc<MemoryFileSystem>) {
 
   let options = BuildOptions {
     mode: BuildMode::Development,
-    minify: None,
+    optimize: None,
+    source_map: Some(Default::default()),
     env: HashMap::new(),
     log_level: LogLevel::Error,
     input_fs: input_fs.clone(),
     output_fs,
     config: None,
     cwd: PathId::new(Path::new("/project")),
+    dist_dir: None,
+    public_url: Default::default(),
   };
 
   let entries = vec!["/project/index.js".to_string()];

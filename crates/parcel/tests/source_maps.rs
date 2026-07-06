@@ -44,13 +44,16 @@ fn assert_bundle_source_maps(mode: BuildMode, minify: Option<bool>) {
     &vec!["index.html".into()],
     BuildOptions {
       mode,
-      minify,
+      optimize: minify,
+      source_map: Some(Default::default()),
       env: HashMap::from([("NODE_ENV".into(), "test".into())]),
       log_level: LogLevel::Verbose,
       input_fs,
       output_fs: output_fs.clone(),
       config: None,
       cwd,
+      dist_dir: None,
+      public_url: Default::default(),
     },
   )
   .unwrap();

@@ -4,6 +4,8 @@ use parcel_core::{BuildOptions, BundleGraph, DiagnosticList, PathId, PluginFacto
 
 use crate::plugin_factory::DefaultPluginFactory;
 
+pub use server::ServerOptions;
+
 mod bundler;
 mod data_url;
 mod glob_resolver;
@@ -77,7 +79,11 @@ pub fn watch(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
   Ok(())
 }
 
-pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), DiagnosticList> {
+pub fn serve(
+  entries: &Vec<String>,
+  options: BuildOptions,
+  server_options: ServerOptions,
+) -> Result<(), DiagnosticList> {
   let mut parcel = make_parcel(entries, options)?;
   let project_root = parcel.project_root();
 
@@ -85,7 +91,10 @@ pub fn serve(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
   let graph = parcel.build()?;
   println!("Built in {:?}", start.elapsed());
 
-  let server = server::serve_dir(&graph.asset_graph.entries[0].target.dist_dir.to_path_buf());
+  let server = server::serve_dir(
+    &graph.asset_graph.entries[0].target.dist_dir.to_path_buf(),
+    server_options,
+  );
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {

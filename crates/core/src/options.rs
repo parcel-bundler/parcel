@@ -2,18 +2,21 @@ use std::{collections::HashMap, sync::Arc};
 
 use serde::Deserialize;
 
-use crate::{OsFileSystem, PathId, fs::FileSystem};
+use crate::{OsFileSystem, PathId, TargetSourceMapOptions, fs::FileSystem};
 
 #[derive(Clone)]
 pub struct BuildOptions {
   pub mode: BuildMode,
-  pub minify: Option<bool>,
+  pub optimize: Option<bool>,
+  pub source_map: Option<TargetSourceMapOptions>,
   pub env: HashMap<String, String>,
   pub log_level: LogLevel,
   pub input_fs: Arc<dyn FileSystem>,
   pub output_fs: Arc<dyn FileSystem>,
   pub config: Option<String>,
   pub cwd: PathId,
+  pub dist_dir: Option<PathId>,
+  pub public_url: String,
 }
 
 pub struct ParcelOptions {

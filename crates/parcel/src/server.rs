@@ -1,6 +1,7 @@
 use parcel_core::{Asset, AssetType, BundleGraph, DiagnosticList, ParcelConfig, ParcelOptions};
 use parcel_js::hmr::{HmrUpdate, get_hmr_update};
 use std::{
+  borrow::Cow,
   fs::File,
   path::Path,
   sync::{Arc, Mutex},
@@ -10,16 +11,32 @@ use tiny_http::{Header, ReadWrite, Response, Server};
 use tungstenite::{Message, WebSocket};
 use url::Url;
 
+pub struct ServerOptions {
+  pub host: Cow<'static, str>,
+  pub port: u16,
+  pub hmr: bool,
+}
+
+impl Default for ServerOptions {
+  fn default() -> Self {
+    ServerOptions {
+      host: Cow::Borrowed("0.0.0.0"),
+      port: 1234,
+      hmr: true,
+    }
+  }
+}
+
 pub struct DevServer {
   sockets: Arc<Mutex<Vec<WebSocket<Box<dyn ReadWrite + Send>>>>>,
 }
 
-pub fn serve_dir(path: &Path) -> DevServer {
+pub fn serve_dir(path: &Path, options: ServerOptions) -> DevServer {
   let path = path.to_owned();
   let sockets = Arc::new(Mutex::new(Vec::new()));
   let sockets_clone = Arc::clone(&sockets);
   std::thread::spawn(move || {
-    let server = Server::http("127.0.0.1:1234").unwrap();
+    let server = Server::http((&*options.host, options.port)).unwrap();
     println!("Server listening on http://localhost:1234");
 
     for request in server.incoming_requests() {
