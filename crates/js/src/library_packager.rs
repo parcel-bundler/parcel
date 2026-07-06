@@ -111,6 +111,7 @@ impl JsContent {
         true,
         "require".into(),
       );
+      ast.finalize();
       ast.to_code(bundle.target.source_map.is_some(), false)?
     } else {
       (asset.content.read()?, None)

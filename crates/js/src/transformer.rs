@@ -764,6 +764,10 @@ fn config(
       .flags
       .contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
       && asset.target.source_type != SourceType::Script,
+    minify: asset
+      .target
+      .flags
+      .contains(EnvironmentFlags::SHOULD_OPTIMIZE),
     source_type: match asset.target.source_type {
       SourceType::Script => parcel_js_swc_core::SourceType::Script,
       _ => parcel_js_swc_core::SourceType::Module,

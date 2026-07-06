@@ -793,7 +793,7 @@ fn load_bundles<W: std::fmt::Write>(
     load_bundle(bundle, from, res)?;
     write!(
       res,
-      "]).then(() => {}('{}'));",
+      "]).then(()=>{}('{}'));",
       require_name,
       asset.id(project_root)
     )?;
@@ -802,7 +802,7 @@ fn load_bundles<W: std::fmt::Write>(
     load_bundle(bundle, from, res)?;
     write!(
       res,
-      ".then(() => {}('{}'));",
+      ".then(()=>{}('{}'));",
       require_name,
       asset.id(project_root)
     )?;

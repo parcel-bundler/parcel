@@ -105,6 +105,7 @@ pub struct Config {
   pub supports_module_workers: bool,
   pub is_library: bool,
   pub is_esm_output: bool,
+  pub minify: bool,
   pub trace_bailouts: bool,
   pub is_swc_helpers: bool,
   pub standalone: bool,
@@ -831,7 +832,7 @@ pub fn transform_to_ast(
           }
 
           result.ast.program = module;
-          if config.is_development {
+          if !config.minify && !config.is_library {
             result.ast.finalize();
           }
           Ok(result)
