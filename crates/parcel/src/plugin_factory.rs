@@ -134,11 +134,20 @@ impl PluginFactory for DefaultPluginFactory {
     &self,
     name: &str,
     _config: Option<serde_json::Value>,
-    _from: PathId,
+    from: PathId,
   ) -> Result<Arc<dyn Namer>, DiagnosticList> {
     if name == "@parcel/namer-default" {
       Ok(Arc::new(DefaultNamer {}))
     } else {
+      let resolved =
+        self
+          .resolver
+          .resolve(name, from, parcel_resolver::SpecifierType::Esm, &*self.fs);
+      if let Ok(resolution) = resolved {
+        if let Resolution::Path(path) = resolution.resolution {
+          return Ok(Arc::new(JsPlugin::new(path)));
+        }
+      }
       Err(Diagnostic::from_message(format!("Could not find namer {}", name)).into())
     }
   }

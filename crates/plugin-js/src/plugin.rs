@@ -1,10 +1,10 @@
 use std::{path::Path, sync::Arc};
 
 use parcel_core::{
-  Asset, AssetFlags, AssetRequest, AssetType, BufferContent, BundleBehavior, DependencyFlags,
-  DependencyResolution, Environment, EnvironmentFlags, ExportsCondition, FileContent, OutputFormat,
-  PathId, Priority, Resolver, SourceLocation, SourceType, SourceUrl, SpecifierType, Target,
-  Transformer,
+  Asset, AssetFlags, AssetNode, AssetRequest, AssetType, BufferContent, Bundle, BundleBehavior,
+  BundleFlags, BundleGraph, DependencyFlags, DependencyResolution, Environment, EnvironmentFlags,
+  ExportsCondition, FileContent, Namer, OutputFormat, PathId, Priority, Resolver, SourceLocation,
+  SourceType, SourceUrl, SpecifierType, Target, Transformer,
 };
 use rquickjs::{
   Class, Coerced, Ctx, FromJs, Function, IntoJs, JsLifetime, Object, Symbol, TypedArray,
@@ -85,7 +85,6 @@ impl Resolver for JsPlugin {
           .get::<_, Object>("default")
           .and_then(|o| o.get::<_, Object>(sym))
       })?;
-
       let resolve: Function = config.get("resolve")?;
       let js_dep = JsDependency { dep: dep.clone() };
       let opts = Object::new(ctx.clone())?;
@@ -150,6 +149,232 @@ impl Resolver for JsPlugin {
 
       Ok(DependencyResolution::None)
     })
+  }
+}
+
+impl Namer for JsPlugin {
+  fn name(
+    &self,
+    bundle_graph: &BundleGraph,
+    bundle: &Bundle,
+    options: &parcel_core::ParcelOptions,
+  ) -> Result<Option<PathId>, parcel_core::DiagnosticList> {
+    let bundle_index = bundle_graph
+      .bundles
+      .iter()
+      .position(|candidate| std::ptr::eq(candidate, bundle))
+      .expect("Bundle passed to namer must belong to the bundle graph");
+    let bundles = Arc::new(
+      bundle_graph
+        .bundles
+        .iter()
+        .map(|bundle| JsBundleData::new(bundle, bundle_graph))
+        .collect::<Vec<_>>(),
+    );
+
+    let name = with_js_env(options.input_fs.clone(), &options.env, options.cwd, |ctx| {
+      let module = load_module(&ctx, &self.path)?;
+      let symbol: Object = ctx.globals().get("Symbol")?;
+      let symbol_for: Function = symbol.get("for")?;
+      let sym: Symbol = symbol_for.call(("parcel-plugin-config",))?;
+      let config: Object = module.get::<_, Object>(sym.clone()).or_else(|_| {
+        module
+          .get::<_, Object>("default")
+          .and_then(|o| o.get::<_, Object>(sym))
+      })?;
+      let name: Function = config.get("name")?;
+      let args = Object::new(ctx.clone())?;
+      args.set(
+        "bundle",
+        JsBundle::new(bundles[bundle_index].clone(), bundles.clone()),
+      )?;
+      args.set("bundleGraph", JsBundleGraph::new(bundles.clone()))?;
+      let result: rquickjs::Value = name.call((args,))?;
+      let result = await_promise(&ctx, result)?;
+      Option::<String>::from_js(&ctx, result)
+    })?;
+
+    Ok(name.map(|name| bundle.target.dist_dir.join(Path::new(&name))))
+  }
+}
+
+#[derive(Clone)]
+struct JsBundleData {
+  ty: AssetType,
+  target: Arc<Target>,
+  bundle_behavior: BundleBehavior,
+  flags: BundleFlags,
+  entry_assets: Vec<Asset>,
+  main_entry_asset: Option<Asset>,
+  referenced_bundles: Vec<usize>,
+}
+
+impl JsBundleData {
+  fn new(bundle: &Bundle, bundle_graph: &BundleGraph) -> Self {
+    let asset = |index: usize| match &bundle_graph.asset_graph.assets[index] {
+      AssetNode::Asset(asset) => Some(asset.clone()),
+      AssetNode::Deferred { .. } => None,
+    };
+    Self {
+      ty: bundle.ty.clone(),
+      target: bundle.target.clone(),
+      bundle_behavior: bundle.bundle_behavior,
+      flags: bundle.flags,
+      entry_assets: bundle
+        .entry_assets
+        .iter()
+        .filter_map(|index| asset(*index))
+        .collect(),
+      main_entry_asset: bundle.main_entry_asset.and_then(asset),
+      referenced_bundles: bundle.referenced_bundles.clone(),
+    }
+  }
+}
+
+#[derive(JsLifetime)]
+#[rquickjs::class]
+struct JsBundle {
+  bundle: JsBundleData,
+  bundles: Arc<Vec<JsBundleData>>,
+}
+
+impl<'js> Trace<'js> for JsBundle {
+  fn trace<'a>(&self, _tracer: class::Tracer<'a, 'js>) {}
+}
+
+#[methods(rename_all = "camelCase")]
+impl JsBundle {
+  #[qjs(get, rename = "type")]
+  fn get_type(&self) -> &str {
+    self.bundle.ty.extension()
+  }
+
+  #[qjs(get)]
+  fn needs_stable_name(&self) -> bool {
+    self.bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME)
+  }
+
+  #[qjs(get)]
+  fn is_entry(&self) -> bool {
+    self.bundle.flags.contains(BundleFlags::ENTRY)
+  }
+
+  #[qjs(get)]
+  fn bundle_behavior(&self) -> Option<&str> {
+    match self.bundle.bundle_behavior {
+      BundleBehavior::None => None,
+      BundleBehavior::Inline => Some("inline"),
+      BundleBehavior::Isolated => Some("isolated"),
+    }
+  }
+
+  #[qjs(get)]
+  fn target(&self) -> JsTarget {
+    JsTarget {
+      target: self.bundle.target.clone(),
+    }
+  }
+
+  fn get_main_entry(&self) -> Option<JsAsset> {
+    self
+      .bundle
+      .main_entry_asset
+      .clone()
+      .map(|asset| JsAsset { asset: Some(asset) })
+  }
+
+  fn get_entry_assets(&self) -> Vec<JsAsset> {
+    self
+      .bundle
+      .entry_assets
+      .iter()
+      .cloned()
+      .map(|asset| JsAsset { asset: Some(asset) })
+      .collect()
+  }
+}
+
+impl JsBundle {
+  fn new(bundle: JsBundleData, bundles: Arc<Vec<JsBundleData>>) -> Self {
+    Self { bundle, bundles }
+  }
+}
+
+#[derive(JsLifetime)]
+#[rquickjs::class]
+struct JsBundleGraph {
+  bundles: Arc<Vec<JsBundleData>>,
+}
+
+impl<'js> Trace<'js> for JsBundleGraph {
+  fn trace<'a>(&self, _tracer: class::Tracer<'a, 'js>) {}
+}
+
+#[methods(rename_all = "camelCase")]
+impl JsBundleGraph {
+  fn get_bundles(&self) -> Vec<JsBundle> {
+    self
+      .bundles
+      .iter()
+      .cloned()
+      .map(|bundle| JsBundle::new(bundle, self.bundles.clone()))
+      .collect()
+  }
+
+  fn get_entry_bundles(&self) -> Vec<JsBundle> {
+    self
+      .bundles
+      .iter()
+      .filter(|bundle| bundle.flags.contains(BundleFlags::ENTRY))
+      .cloned()
+      .map(|bundle| JsBundle::new(bundle, self.bundles.clone()))
+      .collect()
+  }
+
+  fn get_referenced_bundles(
+    &self,
+    bundle: Class<'_, JsBundle>,
+    options: rquickjs::function::Opt<Object<'_>>,
+  ) -> rquickjs::Result<Vec<JsBundle>> {
+    let bundle = bundle.borrow();
+    if !Arc::ptr_eq(&self.bundles, &bundle.bundles) {
+      return Err(rquickjs::Error::new_from_js_message(
+        "Bundle",
+        "Bundle",
+        "Bundle belongs to a different BundleGraph",
+      ));
+    }
+    let recursive = options
+      .0
+      .map(|options| options.get::<_, Option<bool>>("recursive"))
+      .transpose()?
+      .flatten()
+      .unwrap_or(false);
+    let mut indices = bundle.bundle.referenced_bundles.clone();
+    if recursive {
+      let mut offset = 0;
+      while offset < indices.len() {
+        let index = indices[offset];
+        for referenced in &self.bundles[index].referenced_bundles {
+          if !indices.contains(referenced) {
+            indices.push(*referenced);
+          }
+        }
+        offset += 1;
+      }
+    }
+    Ok(
+      indices
+        .into_iter()
+        .map(|index| JsBundle::new(self.bundles[index].clone(), self.bundles.clone()))
+        .collect(),
+    )
+  }
+}
+
+impl JsBundleGraph {
+  fn new(bundles: Arc<Vec<JsBundleData>>) -> Self {
+    Self { bundles }
   }
 }
 
@@ -303,6 +528,19 @@ impl<'js> Trace<'js> for JsTarget {
 
 #[methods(rename_all = "camelCase")]
 impl JsTarget {
+  #[qjs(get)]
+  fn dist_dir(&self) -> String {
+    self
+      .target
+      .dist_dir
+      .with_path(|path| path.to_string_lossy().into_owned())
+  }
+
+  #[qjs(get)]
+  fn public_url(&self) -> &str {
+    &self.target.public_url
+  }
+
   #[qjs(get)]
   fn environment(&self) -> &str {
     match self.target.environment {
