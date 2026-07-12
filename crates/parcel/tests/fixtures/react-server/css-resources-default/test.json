@@ -1,0 +1,1 @@
+{"description":"should inject CSS resources with default exports","input":"index.jsx","skipNodeModules":true,"bundles":[{"assets":["index.jsx"],"contains":["createResourcesProxy","stylesheetResource"]},{"assets":["Page.jsx"]},{"assets":["server.css"],"type":"css"},{"assets":[]}]}

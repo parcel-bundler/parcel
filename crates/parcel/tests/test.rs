@@ -173,21 +173,25 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
       let mut names: Vec<String> = bundle
         .assets
         .iter()
-        .map(|a| {
-          bundle_graph.asset_graph.assets[*a]
+        .filter_map(|a| {
+          let path = bundle_graph.asset_graph.assets[*a]
             .expect_asset()
             .loc
             .url
             .to_file_path()
-            .unwrap()
-            .file_name()
-            .to_string()
+            .ok()?;
+          if test.skip_node_modules && !path.to_path_buf().starts_with(fixture_dir) {
+            return None;
+          }
+          Some(path.file_name().to_string())
         })
         .collect();
-      names.sort();
+      names.sort_unstable();
       let found = test.bundles.iter().find(|b| {
         b.assets == names
           && (b.ty.is_none() || b.ty.as_ref().unwrap() == &bundle.ty)
+          && (b.environment.is_none()
+            || b.environment.as_ref().unwrap() == &bundle.target.environment)
           && (b.name.is_none()
             || Path::new(b.name.as_ref().unwrap())
               == bundle.dist_path().relative(&bundle.target.dist_dir))
@@ -415,6 +419,10 @@ struct TestJson {
   bundles: Vec<TestBundle>,
   #[serde(default)]
   diagnostics: Vec<Diagnostic>,
+  /// Match only assets located in the fixture directory, like JS `assertBundles`'s
+  /// `skipNodeModules` option.
+  #[serde(default)]
+  skip_node_modules: bool,
 }
 
 fn assert_diagnostics(actual: &DiagnosticList, expected: &[Diagnostic]) {
@@ -518,6 +526,8 @@ fn assert_code_highlight_matches(actual: &CodeHighlight, expected: &CodeHighligh
 #[serde(rename_all = "camelCase")]
 struct TestBundle {
   name: Option<String>,
+  #[serde(alias = "context")]
+  environment: Option<Environment>,
   #[serde(default)]
   assets: Vec<String>,
   #[serde(rename = "type")]

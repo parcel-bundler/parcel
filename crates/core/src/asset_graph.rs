@@ -589,4 +589,146 @@ impl<'a> AssetGraph<'a> {
       }
     })
   }
+
+  // https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#sec-getexportednames
+  pub fn get_exports(&self, asset_index: u32) -> Vec<(SymbolName, SymbolResolution)> {
+    fn get_exports(
+      asset_graph: &AssetGraph,
+      asset_index: u32,
+      export_star_set: &mut HashSet<u32>,
+    ) -> Vec<(SymbolName, SymbolResolution)> {
+      if !export_star_set.insert(asset_index) {
+        // We've reached the starting point of an export * circularity.
+        return Vec::new();
+      }
+
+      let mut exported_names = Vec::new();
+      let AssetNode::Asset(asset) = &asset_graph.assets[asset_index as usize] else {
+        return Vec::new();
+      };
+
+      for (index, export) in asset.symbols.exports.iter().enumerate() {
+        exported_names.push((
+          export.exported.clone(),
+          SymbolResolution::Export {
+            asset_index,
+            export_index: index as u32,
+          },
+        ));
+      }
+
+      for export in &asset.symbols.indirect {
+        if let DependencyResolution::Asset(resolved) =
+          asset.dependencies[export.dep_index as usize].resolution
+        {
+          let resolved = asset_graph.resolve_export(resolved, export.imported.clone());
+          exported_names.push((export.exported.clone(), resolved));
+        }
+      }
+
+      for star in &asset.symbols.star {
+        if let DependencyResolution::Asset(resolved) =
+          asset.dependencies[star.dep_index as usize].resolution
+        {
+          let names = get_exports(asset_graph, resolved, export_star_set);
+          for name in names {
+            if name.0 != SymbolName::Default {
+              exported_names.push(name);
+            }
+          }
+        }
+      }
+
+      exported_names
+    }
+
+    get_exports(self, asset_index, &mut HashSet::new())
+  }
+
+  // https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#sec-resolveexport
+  pub fn resolve_export(&self, asset_index: u32, name: SymbolName) -> SymbolResolution {
+    fn resolve_export(
+      asset_graph: &AssetGraph,
+      asset_index: u32,
+      name: SymbolName,
+      resolve_set: &mut HashSet<(u32, SymbolName)>,
+    ) -> SymbolResolution {
+      if !resolve_set.insert((asset_index, name.clone())) {
+        // Circular.
+        return SymbolResolution::None;
+      }
+
+      let asset_node = &asset_graph.assets[asset_index as usize];
+      let asset = match asset_node {
+        AssetNode::Asset(asset) => asset,
+        _ => return SymbolResolution::None,
+      };
+
+      if name == SymbolName::Namespace {
+        return SymbolResolution::Namespace { asset_index };
+      }
+
+      for (export_index, export) in asset.symbols.exports.iter().enumerate() {
+        if export.exported == name {
+          return SymbolResolution::Export {
+            asset_index,
+            export_index: export_index as u32,
+          };
+        }
+      }
+
+      for export in &asset.symbols.indirect {
+        if export.exported == name {
+          let dep = &asset.dependencies[export.dep_index as usize];
+          if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
+            let imported = export.imported.clone();
+            return resolve_export(asset_graph, resolved_asset_index, imported, resolve_set);
+          } else {
+            return SymbolResolution::None;
+          }
+        }
+      }
+
+      let mut star_resolution = SymbolResolution::None;
+
+      // A default export cannot be provided by an export * from "mod" declaration.
+      if name != SymbolName::Default {
+        for i in 0..asset.symbols.star.len() {
+          let AssetNode::Asset(asset) = &asset_graph.assets[asset_index as usize] else {
+            continue;
+          };
+
+          let dep = &asset.dependencies[asset.symbols.star[i].dep_index as usize];
+          if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
+            let res = resolve_export(asset_graph, resolved_asset_index, name.clone(), resolve_set);
+
+            match res {
+              SymbolResolution::None => continue,
+              SymbolResolution::Runtime { .. } => {
+                return SymbolResolution::Runtime { asset_index, name };
+              }
+              _ => {
+                if star_resolution == SymbolResolution::None {
+                  star_resolution = res;
+                } else if star_resolution != res {
+                  star_resolution = SymbolResolution::Ambiguous;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // If the asset has side effects or non-static exports, resolve at runtime.
+      if star_resolution == SymbolResolution::None && asset.flags.contains(AssetFlags::SIDE_EFFECTS)
+        || !asset.flags.contains(AssetFlags::STATIC_EXPORTS)
+      {
+        return SymbolResolution::Runtime { asset_index, name };
+      }
+
+      star_resolution
+    }
+
+    resolve_export(self, asset_index, name, &mut HashSet::new())
+  }
 }

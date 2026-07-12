@@ -1,0 +1,12 @@
+{
+  "name": "react-server-client-references-test",
+  "private": true,
+  "dependencies": {
+    "react": "^19"
+  },
+  "targets": {
+    "default": {
+      "context": "react-server"
+    }
+  }
+}

@@ -7,9 +7,9 @@ use std::{
 use serde_json::Value;
 
 use crate::{
-  BuildMode, BuildOptions, Diagnostic, Engines, Environment, EnvironmentFlags, ExportsCondition,
-  FileKind, FileSystem, IncludeNodeModules, OutputFormat, PathId, SourceLocation, SourceType,
-  SourceUrl, SubPath, Target, Version, is_glob,
+  AssetType, BuildMode, BuildOptions, Diagnostic, Engines, Environment, EnvironmentFlags,
+  ExportsCondition, FileKind, FileSystem, IncludeNodeModules, OutputFormat, PathId, SourceLocation,
+  SourceType, SourceUrl, SubPath, Target, Version, is_glob,
 };
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -61,26 +61,59 @@ pub fn resolve_entries(
         }
       }
 
-      let (context, engines) = if let Some(pkg) = find_package(path, &*options.input_fs) {
-        let engines = pkg.get("engines");
-        let context = if engines.and_then(|e| e.get("electron")).is_some() {
-          Environment::ElectronMain
-        } else if engines.and_then(|e| e.get("node")).is_some() {
-          Environment::Node
+      let (context, engines, include_node_modules) =
+        if let Some(pkg) = find_package(path, &*options.input_fs) {
+          let engines = pkg.get("engines");
+          let default_target = pkg
+            .get("targets")
+            .and_then(|targets| targets.get("default"))
+            .and_then(Value::as_object);
+          let is_non_js = path
+            .extension()
+            .map(|ext| AssetType::from_extension(ext))
+            .is_some_and(|ty| !ty.is_js() || ty == AssetType::Svg);
+          let context = if let Some(Value::String(context)) =
+            default_target.and_then(|target| target.get("context"))
+          {
+            Environment::try_from(context.as_str())?
+          } else if engines.and_then(|e| e.get("electron")).is_some() {
+            if is_non_js {
+              Environment::ElectronRenderer
+            } else {
+              Environment::ElectronMain
+            }
+          } else if !is_non_js && engines.and_then(|e| e.get("node")).is_some() {
+            Environment::Node
+          } else {
+            Environment::Browser
+          };
+          if let Some(Value::String(format)) =
+            default_target.and_then(|target| target.get("outputFormat"))
+          {
+            output_format = OutputFormat::try_from(format.as_str())?;
+          } else if !matches!(path.extension(), Some("mjs" | "cjs")) {
+            output_format = match context {
+              Environment::ReactServer => OutputFormat::Commonjs,
+              Environment::ReactClient => OutputFormat::Esmodule,
+              _ => output_format,
+            };
+          }
+          let engines = package_engines(&pkg, engines, context, output_format);
+          let include_node_modules = default_target
+            .and_then(|t| t.get("includeNodeModules"))
+            .and_then(|t| serde_json::from_value(t.clone()).ok())
+            .unwrap_or_default();
+          (context, engines, include_node_modules)
         } else {
-          Environment::Browser
+          (Environment::Browser, Default::default(), Default::default())
         };
-        let engines = package_engines(&pkg, engines, context, output_format);
-        (context, engines)
-      } else {
-        (Environment::Browser, Default::default())
-      };
 
       let env = entries.target(Target {
         environment: context,
         engines,
         flags,
         output_format,
+        include_node_modules,
         dist_dir: options
           .dist_dir
           .unwrap_or_else(|| project_root.child("dist")),
@@ -475,6 +508,7 @@ impl<'a> ExportsContext<'a> {
 
     Ok(Target {
       environment: context,
+      rsc_server_target: None,
       output_format,
       source_type: SourceType::Module,
       flags,
@@ -1209,6 +1243,50 @@ mod tests {
       }
     }"#,
       vec![],
+    );
+  }
+
+  #[test]
+  fn test_default_target_context_for_file_entry() {
+    let fs = MemoryFileSystem::new();
+    fs.mkdir(Path::new("/root")).unwrap();
+    fs.write(
+      PathId::new(Path::new("/root/package.json")),
+      &br#"{"targets":{"default":{"context":"react-server"}}}"#.to_vec(),
+    )
+    .unwrap();
+    fs.write(PathId::new(Path::new("/root/index.jsx")), &Vec::new())
+      .unwrap();
+    let fs = Arc::new(fs);
+    let (entries, _) = resolve_entries(
+      &vec!["/root/index.jsx".into()],
+      &crate::BuildOptions {
+        input_fs: fs.clone(),
+        output_fs: fs,
+        env: HashMap::new(),
+        log_level: crate::LogLevel::Error,
+        mode: crate::BuildMode::Development,
+        optimize: None,
+        config: None,
+        cwd: PathId::new(Path::new("/root")),
+        source_map: None,
+        dist_dir: None,
+        public_url: Default::default(),
+      },
+    )
+    .unwrap();
+
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].target.environment, Environment::ReactServer);
+    assert_eq!(
+      entries[0].target.output_format,
+      crate::OutputFormat::Commonjs
+    );
+    assert!(
+      !entries[0]
+        .target
+        .flags
+        .contains(EnvironmentFlags::IS_LIBRARY)
     );
   }
 }

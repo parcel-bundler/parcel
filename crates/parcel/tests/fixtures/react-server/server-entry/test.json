@@ -1,0 +1,12 @@
+{
+  "description": "should support use server-entry",
+  "input": "index.jsx",
+  "skipNodeModules": true,
+  "bundles": [
+    {"assets":["index.jsx"]},
+    {"assets":["App.jsx"]},
+    {"assets":["client.jsx"]},
+    {"assets":[]},
+    {"assets":[]}
+  ]
+}

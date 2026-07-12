@@ -1,0 +1,13 @@
+{
+  "description": "should support passing server references to the client",
+  "input": "index.jsx",
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": ["actions.js", "index.jsx"],
+      "context": "react-server",
+      "contains": ["registerServerReference"]
+    },
+    {"assets": ["client.jsx"], "context": "react-client"}
+  ]
+}

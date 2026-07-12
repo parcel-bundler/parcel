@@ -1,16 +1,16 @@
-<?xml-stylesheet href="948043fe7d99ef3f.css"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 30 10">
+<?xml-stylesheet href="c00ae7c3f888ed05.css"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 30 10">
   <!-- This is a comment -->
   <circle id="circle" cx="5" cy="5" r="4" stroke="blue"/>
   <a href="other1.html">
     <use href="#circle" x="10" fill="blue"/>
   </a>
-  <use xlink:href="square-a6ddb41ba5daae80.svg" x="20" fill="white" stroke="red"/>
-  <circle cx="5" cy="5" r="4" fill="url(gradient-423b83eaee9956aa.svg)"/>
+  <use xlink:href="square-7a81bd92e1e99052.svg" x="20" fill="white" stroke="red"/>
+  <circle cx="5" cy="5" r="4" fill="url(gradient-5ab7771add355643.svg)"/>
   <text>
-    <textPath href="path-2f5f178e7a339f27.svg">
+    <textPath href="path-2d58ced60366676d.svg">
       Quick brown fox jumps over the lazy dog.
     </textPath>
   </text>
-  <script xlink:href="script-96323b4dfd613a6c.js"/>
-  <script href="module-669a7520101dd47a.js"/>
+  <script xlink:href="script-a129515953096b96.js"/>
+  <script href="module-d6ad2bb65fa6e0e8.js"/>
 </svg>

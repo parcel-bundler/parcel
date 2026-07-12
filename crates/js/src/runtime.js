@@ -88,7 +88,13 @@ Object.defineProperty(require, 'root', {
 globalThis[parcelRequireName] = require;
 
 function parcelLoadJS(bundleId) {
-  let url = importMap[bundleId] || bundleId;
+  let url =
+    importMap[bundleId] ||
+    (bundleId.startsWith('.') ||
+      bundleId.startsWith('/') ||
+    URL.canParse(bundleId)
+      ? bundleId
+      : './' + bundleId);
   return import(url);
 }
 
@@ -132,6 +138,7 @@ function parcelLoadCSS(bundleId) {
 }
 
 require.loadJS = parcelLoadJS;
+require.load = parcelLoadJS;
 require.loadCSS = parcelLoadCSS;
 
 if (entries) {

@@ -153,7 +153,13 @@ Object.defineProperty(parcelRequire, 'root', {
 globalThis[parcelRequireName] = parcelRequire;
 
 function parcelLoadJS(bundleId) {
-  let url = importMap[bundleId] || bundleId;
+  let url =
+    importMap[bundleId] ||
+    (bundleId.startsWith('.') ||
+    bundleId.startsWith('/') ||
+    URL.canParse(bundleId)
+      ? bundleId
+      : './' + bundleId);
   return import(url);
 }
 
@@ -197,6 +203,7 @@ function parcelLoadCSS(bundleId) {
 }
 
 parcelRequire.loadJS = parcelLoadJS;
+parcelRequire.load = parcelLoadJS;
 parcelRequire.loadCSS = parcelLoadCSS;
 
 if (entries) {

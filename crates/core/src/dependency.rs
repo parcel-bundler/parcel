@@ -70,6 +70,11 @@ bitflags! {
     const IS_WEBWORKER = 1 << 3;
     const SIDE_EFFECTS = 1 << 4;
     const MACRO = 1 << 5;
+    const REACT_LAZY = 1 << 6;
+    /// Resolve this dependency from node_modules even when the target normally externalizes it.
+    /// This only applies to the current dependency edge. The resolved asset retains the original
+    /// target so its dependencies continue to follow the target's normal externalization policy.
+    const FORCE_BUNDLE = 1 << 7;
   }
 }
 

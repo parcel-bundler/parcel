@@ -1,0 +1,11 @@
+{
+  "description":"should dynamically import a client component from a server component",
+  "input":"Page.jsx",
+  "skipNodeModules":true,
+  "bundles":[
+    {"assets":["Page.jsx"],"context":"react-server","contains":["createClientReference","wrapClientReferenceWithResources","stylesheetResource","Promise.resolve(exports)"]},
+    {"assets":["Client.jsx"],"context":"react-client"},
+    {"assets":["server.css"],"type":"css","context":"react-client"},
+    {"assets":["client.css"],"type":"css","context":"react-client"}
+  ]
+}

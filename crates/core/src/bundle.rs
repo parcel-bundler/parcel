@@ -60,4 +60,20 @@ impl Bundle {
   pub fn dist_url(&self) -> SourceUrl {
     SourceUrl::from_path(&self.dist_path())
   }
+
+  pub fn name(&self) -> String {
+    self
+      .dist_path()
+      .relative_url_from_dir(&self.target.dist_dir)
+  }
+
+  pub fn absolute_url(&self) -> String {
+    let name = self.name();
+    let public_url = self.target.public_url.trim_end_matches('/');
+    if public_url.is_empty() {
+      format!("/{}", name)
+    } else {
+      format!("{}/{}", public_url, name)
+    }
+  }
 }

@@ -4,7 +4,7 @@ use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-  BundleBehavior, Content, Dependency, DependencyFlags, DependencyResolution, PathId,
+  AssetGraph, BundleBehavior, Content, Dependency, DependencyFlags, DependencyResolution, PathId,
   SourceLocation, SourceUrl, Target, impl_bitflags_serde,
 };
 
@@ -341,7 +341,7 @@ pub struct ImportedSymbol {
   pub resolved: SymbolResolution,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub enum SymbolResolution {
   None,
   Ambiguous,
@@ -357,6 +357,22 @@ impl SymbolResolution {
       SymbolResolution::Export { asset_index, .. }
       | SymbolResolution::Namespace { asset_index }
       | SymbolResolution::Runtime { asset_index, .. } => Some(*asset_index),
+    }
+  }
+
+  pub fn name(&self, asset_graph: &AssetGraph) -> Option<SymbolName> {
+    match self {
+      SymbolResolution::None | SymbolResolution::Ambiguous => None,
+      SymbolResolution::Export {
+        asset_index,
+        export_index,
+      } => {
+        let asset = asset_graph.assets[*asset_index as usize].expect_asset();
+        let export = &asset.symbols.exports[*export_index as usize];
+        Some(export.exported.clone())
+      }
+      SymbolResolution::Namespace { .. } => Some(SymbolName::Namespace),
+      SymbolResolution::Runtime { name, .. } => Some(name.clone()),
     }
   }
 }

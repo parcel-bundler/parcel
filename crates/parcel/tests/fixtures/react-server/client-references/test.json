@@ -1,0 +1,16 @@
+{
+  "description": "should support client references",
+  "input": "index.jsx",
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": ["index.jsx"],
+      "context": "react-server",
+      "contains": ["createClientReference", "ensureAsyncLocalStorage"]
+    },
+    {
+      "assets": ["client.jsx"],
+      "context": "react-client"
+    }
+  ]
+}

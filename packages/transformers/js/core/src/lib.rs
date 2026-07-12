@@ -452,7 +452,11 @@ pub fn transform_to_ast(
     }
   }
 
-  if config.is_server() && !config.is_library && result.directives.contains(&"use client".into()) {
+  if config.is_server()
+    && !config.is_library
+    && (result.directives.contains(&"use client".into())
+      || result.directives.contains(&"use client-entry".into()))
+  {
     config.context = EnvContext::ReactClient;
     config.is_esm_output = true;
   } else if !config.is_server()

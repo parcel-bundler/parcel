@@ -1,0 +1,10 @@
+{
+  "description": "should support CSS imports in server and client components",
+  "input": "index.jsx",
+  "skipNodeModules": true,
+  "bundles": [
+    {"assets": ["index.jsx"], "context": "react-server"},
+    {"assets": ["client.jsx"], "context": "react-client"},
+    {"assets": ["client.css", "server.css"], "type": "css", "context": "react-client"}
+  ]
+}

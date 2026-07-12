@@ -14,6 +14,7 @@ struct JsContent {
   ast: Ast,
   shebang: Option<String>,
   directives: Vec<String>,
+  rsc_runtime_dep: Option<u32>,
 }
 
 impl std::fmt::Debug for JsContent {

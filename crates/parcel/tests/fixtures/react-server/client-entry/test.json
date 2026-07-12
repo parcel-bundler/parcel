@@ -1,0 +1,25 @@
+[
+  {
+    "description":"should isolate use client-entry from the server bundle",
+    "input":"index.jsx",
+    "skipNodeModules":true,
+    "bundles":[
+      {"assets":["index.jsx"],"contains":["$bootstrapScript","parcelRequire"]},
+      {"assets":["Page.jsx"],"notContains":["do stuff"]},
+      {"assets":["Client.jsx","client-entry.jsx"]},
+      {"assets":[]}
+    ]
+  },
+  {
+    "description":"should isolate use client-entry in optimized builds",
+    "input":"index.jsx",
+    "options":{"minify":true},
+    "skipNodeModules":true,
+    "bundles":[
+      {"assets":["index.jsx"],"contains":["$bootstrapScript","parcelRequire"]},
+      {"assets":["Page.jsx"],"notContains":["do stuff"]},
+      {"assets":["Client.jsx","client-entry.jsx"]},
+      {"assets":[]}
+    ]
+  }
+]

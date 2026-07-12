@@ -9,7 +9,7 @@ use parcel_core::*;
 use parcel_js_swc_core::{
   Config, DependencyKind, EnvContext, Type, Version, Versions, transform_to_ast,
 };
-use parcel_macros::MacroError;
+use parcel_macros::{JsValue, MacroError};
 use parcel_plugin_js::call_macro;
 use parcel_resolver::{AliasValue, BrowserField, InlineEnvironment, Specifier};
 
@@ -113,13 +113,46 @@ impl Transformer for JsTransformer {
       }
     }
 
+    let directives = res
+      .directives
+      .iter()
+      .map(|directive| directive.to_string())
+      .collect::<Vec<_>>();
+    let is_rsc_runtime = directives
+      .iter()
+      .any(|directive| directive == "use parcel-rsc-runtime");
+
+    if asset.target.environment == Environment::ReactServer
+      && !asset.target.flags.contains(EnvironmentFlags::IS_LIBRARY)
+      && directives
+        .iter()
+        .any(|d| d == "use client" || d == "use client-entry")
+    {
+      asset.target = react_target(&asset.target, Environment::ReactClient);
+    } else if asset.target.environment == Environment::ReactClient
+      && !asset.target.flags.contains(EnvironmentFlags::IS_LIBRARY)
+      && directives.iter().any(|d| d == "use server")
+    {
+      asset.target = react_target(&asset.target, Environment::ReactServer);
+    } else if directives.iter().any(|d| d == "use server-entry") {
+      if !matches!(
+        asset.target.environment,
+        Environment::Node | Environment::ReactServer
+      ) {
+        return Err(DiagnosticList(vec![Diagnostic {
+          origin: Some("@parcel/transformer-js".into()),
+          message: "use server-entry must be imported in a server environment".into(),
+          code_frames: vec![],
+          hints: vec![],
+          severity: parcel_core::DiagnosticSeverity::Error,
+          documentation_url: None,
+        }]));
+      }
+      asset.bundle_behavior = BundleBehavior::Isolated;
+    }
+
     let is_mdx = asset.ty == AssetType::Mdx;
     asset.ty = AssetType::Js;
-    asset.content = Arc::new(JsContent {
-      ast: res.ast,
-      shebang: res.shebang,
-      directives: res.directives.into_iter().map(|d| d.to_string()).collect(),
-    });
 
     let mut dep_map = HashMap::new();
     for dep in res.dependencies {
@@ -133,6 +166,13 @@ impl Transformer for JsTransformer {
         && dep.kind != DependencyKind::Url
         && !(dep.specifier.ends_with("/jsx-runtime")
           || dep.specifier.ends_with("/jsx-dev-runtime"));
+      let dependency_environment = dependency_environment(dep.attributes.as_ref());
+
+      if dependency_environment == Some(Environment::ReactClient) {
+        // Avoid unnecessary shared bundles between actual client code and server code that
+        // explicitly runs in the client environment (e.g. React during SSR).
+        asset.flags.remove(AssetFlags::IS_BUNDLE_SPLITTABLE);
+      }
 
       dep_map.insert(
         dep
@@ -181,95 +221,100 @@ impl Transformer for JsTransformer {
           if dep.kind == DependencyKind::WebWorker {
             flags |= DependencyFlags::IS_WEBWORKER;
           }
+          if dep
+            .flags
+            .contains(parcel_js_swc_core::DependencyFlags::REACT_LAZY)
+          {
+            flags |= DependencyFlags::REACT_LAZY;
+          }
+          if is_helper && !asset.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+            flags |= DependencyFlags::FORCE_BUNDLE;
+          }
           flags
         },
-        target: match dep.kind {
-          DependencyKind::WebWorker => {
-            // Use native ES module output if the worker was created with `type: 'module'` and all targets
-            // support native module workers. Only do this if parent asset output format is also esmodule so that
-            // assets can be shared between workers and the main thread in the global output format.
-            let mut output_format = asset.target.output_format;
-            if output_format == OutputFormat::Esmodule
-              && dep.source_type == Some(parcel_js_swc_core::SourceType::Module)
-              && asset
-                .target
-                .engines
-                .supports(EnvironmentFeature::WorkerModule)
-            {
-              output_format = OutputFormat::Esmodule;
-            } else if output_format != OutputFormat::Commonjs {
-              output_format = OutputFormat::Global;
-            }
+        target: if let Some(environment) = dependency_environment {
+          react_target(&asset.target, environment)
+        } else {
+          match dep.kind {
+            DependencyKind::WebWorker => {
+              // Use native ES module output if the worker was created with `type: 'module'` and all targets
+              // support native module workers. Only do this if parent asset output format is also esmodule so that
+              // assets can be shared between workers and the main thread in the global output format.
+              let mut output_format = asset.target.output_format;
+              if output_format == OutputFormat::Esmodule
+                && dep.source_type == Some(parcel_js_swc_core::SourceType::Module)
+                && asset
+                  .target
+                  .engines
+                  .supports(EnvironmentFeature::WorkerModule)
+              {
+                output_format = OutputFormat::Esmodule;
+              } else if output_format != OutputFormat::Commonjs {
+                output_format = OutputFormat::Global;
+              }
 
-            Arc::new(Target {
-              environment: Environment::WebWorker,
-              source_type: match dep.source_type {
-                Some(parcel_js_swc_core::SourceType::Module) => SourceType::Module,
-                _ => SourceType::Script,
-              },
-              output_format,
-              loc: Some(convert_loc(asset.loc.url.clone(), &dep.loc)),
-              ..(*asset.target).clone()
-            })
-          }
-          DependencyKind::ServiceWorker => Arc::new(Target {
-            environment: Environment::ServiceWorker,
-            source_type: match dep.source_type {
-              Some(parcel_js_swc_core::SourceType::Module) => SourceType::Module,
-              _ => SourceType::Script,
-            },
-            output_format: OutputFormat::Global,
-            loc: Some(convert_loc(asset.loc.url.clone(), &dep.loc)),
-            ..(*asset.target).clone()
-          }),
-          DependencyKind::Worklet => Arc::new(Target {
-            environment: Environment::Worklet,
-            source_type: SourceType::Module,
-            output_format: OutputFormat::Esmodule,
-            loc: Some(convert_loc(asset.loc.url.clone(), &dep.loc)),
-            ..(*asset.target).clone()
-          }),
-          DependencyKind::DynamicImport => {
-            // If all of the target engines support dynamic import natively,
-            // we can output native ESM if scope hoisting is enabled.
-            // Only do this for scripts, rather than modules in the global
-            // output format so that assets can be shared between the bundles.
-            let mut output_format = asset.target.output_format;
-            if asset.target.source_type == SourceType::Script
-              && asset
-                .target
-                .flags
-                .contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
-              && asset
-                .target
-                .engines
-                .supports(EnvironmentFeature::DynamicImport)
-            {
-              output_format = OutputFormat::Esmodule;
-            }
-
-            if asset.target.source_type != SourceType::Module
-              || asset.target.output_format != output_format
-            {
               Arc::new(Target {
-                source_type: SourceType::Module,
+                environment: Environment::WebWorker,
+                source_type: match dep.source_type {
+                  Some(parcel_js_swc_core::SourceType::Module) => SourceType::Module,
+                  _ => SourceType::Script,
+                },
                 output_format,
                 loc: Some(convert_loc(asset.loc.url.clone(), &dep.loc)),
                 ..(*asset.target).clone()
               })
-            } else {
-              asset.target.clone()
             }
-          }
-          DependencyKind::Url | DependencyKind::File | DependencyKind::Id => asset.target.clone(),
-          DependencyKind::Import | DependencyKind::Export | DependencyKind::Require => {
-            // Always bundle helpers, even with includeNodeModules: false, except if this is a library.
-            if is_helper && !asset.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
-              Arc::new(Target {
-                include_node_modules: IncludeNodeModules::Bool(true),
-                ..(*asset.target).clone()
-              })
-            } else {
+            DependencyKind::ServiceWorker => Arc::new(Target {
+              environment: Environment::ServiceWorker,
+              source_type: match dep.source_type {
+                Some(parcel_js_swc_core::SourceType::Module) => SourceType::Module,
+                _ => SourceType::Script,
+              },
+              output_format: OutputFormat::Global,
+              loc: Some(convert_loc(asset.loc.url.clone(), &dep.loc)),
+              ..(*asset.target).clone()
+            }),
+            DependencyKind::Worklet => Arc::new(Target {
+              environment: Environment::Worklet,
+              source_type: SourceType::Module,
+              output_format: OutputFormat::Esmodule,
+              loc: Some(convert_loc(asset.loc.url.clone(), &dep.loc)),
+              ..(*asset.target).clone()
+            }),
+            DependencyKind::DynamicImport => {
+              // If all of the target engines support dynamic import natively,
+              // we can output native ESM if scope hoisting is enabled.
+              // Only do this for scripts, rather than modules in the global
+              // output format so that assets can be shared between the bundles.
+              let mut output_format = asset.target.output_format;
+              if asset.target.source_type == SourceType::Script
+                && asset
+                  .target
+                  .flags
+                  .contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
+                && asset
+                  .target
+                  .engines
+                  .supports(EnvironmentFeature::DynamicImport)
+              {
+                output_format = OutputFormat::Esmodule;
+              }
+
+              if asset.target.source_type != SourceType::Module
+                || asset.target.output_format != output_format
+              {
+                Arc::new(Target {
+                  source_type: SourceType::Module,
+                  output_format,
+                  loc: Some(convert_loc(asset.loc.url.clone(), &dep.loc)),
+                  ..(*asset.target).clone()
+                })
+              } else {
+                asset.target.clone()
+              }
+            }
+            DependencyKind::Url | DependencyKind::File | DependencyKind::Id => asset.target.clone(),
+            DependencyKind::Import | DependencyKind::Export | DependencyKind::Require => {
               asset.target.clone()
             }
           }
@@ -357,11 +402,8 @@ impl Transformer for JsTransformer {
         specifier_type: SpecifierType::Esm,
         priority: Priority::Sync,
         bundle_behavior: BundleBehavior::None,
-        flags: DependencyFlags::empty(),
-        target: Arc::new(Target {
-          include_node_modules: IncludeNodeModules::Array(vec!["@parcel/transformer-js".into()]),
-          ..(*asset.target).clone()
-        }),
+        flags: DependencyFlags::FORCE_BUNDLE,
+        target: asset.target.clone(),
         loc: None,
         placeholder: None,
         resolve_from: Some(SourceUrl::from_directory_path(&options.project_root)), // TODO
@@ -443,11 +485,108 @@ impl Transformer for JsTransformer {
       }
     }
 
+    let rsc_runtime_dep = if !is_rsc_runtime {
+      let specifier = match asset.target.environment {
+        Environment::ReactServer => Some("@parcel/rsc/runtime/server"),
+        Environment::ReactClient => Some("@parcel/rsc/runtime/client"),
+        _ => None,
+      };
+
+      specifier.map(|specifier| {
+        let dep_index = asset.dependencies.len() as u32;
+        asset.dependencies.push(Dependency {
+          specifier: specifier.into(),
+          specifier_type: SpecifierType::Esm,
+          priority: Priority::Sync,
+          bundle_behavior: BundleBehavior::None,
+          flags: DependencyFlags::FORCE_BUNDLE,
+          target: asset.target.clone(),
+          loc: None,
+          placeholder: Some("__parcel_rsc_runtime__".into()),
+          resolve_from: Some(asset.loc.url.clone()),
+          range: None,
+          conditions: ExportsCondition::IMPORT,
+          resolution: DependencyResolution::None,
+        });
+        asset.symbols.imports.push(ImportedSymbol {
+          dep_index,
+          symbol: SymbolName::Namespace,
+          resolved: SymbolResolution::None,
+        });
+        asset
+          .symbols
+          .imports
+          .sort_by(|a, b| a.dep_index.cmp(&b.dep_index));
+        dep_index
+      })
+    } else {
+      None
+    };
+
     asset
       .dependencies
       .extend(std::mem::take(&mut *macro_deps.borrow_mut()));
+    asset.content = Arc::new(JsContent {
+      ast: res.ast,
+      shebang: res.shebang,
+      directives,
+      rsc_runtime_dep,
+    });
     Ok(asset)
   }
+}
+
+fn dependency_environment(attributes: Option<&JsValue>) -> Option<Environment> {
+  let JsValue::Object(attributes) = attributes? else {
+    return None;
+  };
+
+  let value = attributes.get("env").or_else(|| {
+    let JsValue::Object(with) = attributes.get("with")? else {
+      return None;
+    };
+    with.get("env")
+  });
+
+  match value {
+    Some(JsValue::String(value)) if value == "react-server" => Some(Environment::ReactServer),
+    Some(JsValue::String(value)) if value == "react-client" => Some(Environment::ReactClient),
+    _ => None,
+  }
+}
+
+fn react_target(target: &Arc<Target>, environment: Environment) -> Arc<Target> {
+  if target.environment == environment {
+    return target.clone();
+  }
+
+  if environment == Environment::ReactServer
+    && let Some(server_target) = &target.rsc_server_target
+  {
+    return server_target.clone();
+  }
+
+  let rsc_server_target = if environment == Environment::ReactClient {
+    match target.environment {
+      Environment::ReactServer => Some(target.clone()),
+      _ => target.rsc_server_target.clone(),
+    }
+  } else {
+    None
+  };
+
+  Arc::new(Target {
+    environment,
+    rsc_server_target,
+    source_type: SourceType::Module,
+    output_format: match environment {
+      Environment::ReactServer => OutputFormat::Commonjs,
+      Environment::ReactClient => OutputFormat::Esmodule,
+      _ => unreachable!(),
+    },
+    include_node_modules: IncludeNodeModules::Bool(true),
+    ..(**target).clone()
+  })
 }
 
 fn convert_loc(

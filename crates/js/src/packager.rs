@@ -86,11 +86,12 @@ impl JsContent {
         continue;
       }
 
-      write!(
-        printer,
-        "import '{}';",
-        referenced.relative_specifier(&bundle).unwrap()
-      )?;
+      let specifier = referenced.relative_specifier(bundle).unwrap();
+      if bundle.target.output_format == OutputFormat::Commonjs {
+        write!(printer, "require({});", serde_json::to_string(&specifier)?)?;
+      } else {
+        write!(printer, "import {};", serde_json::to_string(&specifier)?)?;
+      }
       printer.newline()?;
     }
 
@@ -188,6 +189,23 @@ impl JsContent {
       }
     }
 
+    let rsc_server_entry = if bundle.flags.contains(BundleFlags::ENTRY)
+      && bundle.target.environment == Environment::ReactServer
+      && let Some(entry) = bundle.main_entry_asset
+    {
+      let asset = bundle_graph.asset_graph.assets[entry].expect_asset();
+      let synthetic = SyntheticAsset::RscServerEntry {
+        entry: entry as u32,
+        runtime: rsc_runtime_asset(entry, asset, bundle_graph)?,
+        actions: server_actions(bundle_graph, &options.project_root),
+      };
+      let id = synthetic.id();
+      synthetic_assets.insert(synthetic);
+      Some(id)
+    } else {
+      None
+    };
+
     for synthetic_asset in synthetic_assets {
       if !first {
         printer.write_char(',')?;
@@ -226,6 +244,9 @@ impl JsContent {
     printer.write_var(runtime_parcel_require_name, "'parcelRequire'", true)?;
     printer.write_var(runtime_externals, "{}", true)?;
     printer.write_var(runtime_entries, "[", false)?;
+    if let Some(entry) = rsc_server_entry {
+      write!(printer, "'{}',", entry)?;
+    }
     for entry in &bundle.entry_assets {
       let asset = &bundle_graph.asset_graph.assets[*entry].expect_asset();
       write!(printer, "'{}'", asset.id(&options.project_root))?;
@@ -420,13 +441,88 @@ struct SourceMapSectionOffset {
   column: u32,
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RscServerAction {
+  asset_index: u32,
+  bundles: Vec<String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum RscResourceKind {
+  Stylesheet,
+  ModulePreload,
+  ScriptPreload,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct RscResource {
+  kind: RscResourceKind,
+  url: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RscResourcePlan {
+  original_asset: u32,
+  resources: Vec<RscResource>,
+  load_bundles: Vec<u32>,
+  client_css: Vec<String>,
+  client_entry: Option<u32>,
+  bootstrap_modules: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SyntheticAsset {
   Asset(String, u32),
   Async(u32),
   AsyncInterop(u32),
   Url(u32),
   Inline(u32),
+  RscEmpty {
+    importer: u32,
+    dependency: u32,
+  },
+  RscClientReference {
+    importer: u32,
+    dependency: u32,
+    runtime: u32,
+    exports: Vec<(SymbolName, SymbolResolution)>,
+    bundles: Vec<String>,
+    bundle: u32,
+    is_async: bool,
+  },
+  RscServerReference {
+    importer: u32,
+    dependency: u32,
+    runtime: u32,
+    original: u32,
+    exports: Vec<(SymbolName, SymbolResolution)>,
+    is_client: bool,
+    is_async: bool,
+  },
+  RscResources {
+    importer: u32,
+    dependency: u32,
+    runtime: u32,
+    bundle: u32,
+    plan: RscResourcePlan,
+    is_async: bool,
+  },
+  RscServerEntry {
+    entry: u32,
+    runtime: u32,
+    actions: Vec<RscServerAction>,
+  },
+}
+
+fn is_inline_bundle_dependency(dependency: &Dependency, bundle: &Bundle) -> bool {
+  dependency.bundle_behavior == BundleBehavior::Inline
+    || bundle.bundle_behavior == BundleBehavior::Inline
+}
+
+fn is_async_bundle_dependency(dependency: &Dependency, bundle: &Bundle) -> bool {
+  dependency.priority == Priority::Lazy
+    && dependency.specifier_type != SpecifierType::Url
+    && !is_inline_bundle_dependency(dependency, bundle)
 }
 
 pub fn asset_dependencies<'a>(
@@ -444,7 +540,34 @@ pub fn asset_dependencies<'a>(
 
   for (dep_index, dep) in asset.dependencies.iter().enumerate() {
     let placeholder = dep.placeholder.as_ref().unwrap_or(&dep.specifier);
-    match bundle_graph.dependency_resolution(asset_index, dep_index) {
+    let graph_resolution = bundle_graph.dependency_resolution(asset_index, dep_index);
+    let resolved = match graph_resolution {
+      BundleGraphDependencyResolution::Asset(asset_index) => Some((asset_index, None)),
+      BundleGraphDependencyResolution::Bundle(bundle_index) => bundle_graph.bundles
+        [bundle_index as usize]
+        .main_entry_asset
+        .map(|asset_index| (asset_index as u32, Some(bundle_index))),
+      _ => None,
+    };
+
+    if let Some((resolved_asset, bundle_index)) = resolved
+      && let Some(synthetic) = rsc_dependency_resolution(
+        asset_index,
+        dep_index,
+        asset,
+        dep,
+        resolved_asset,
+        bundle_index,
+        bundle_graph,
+      )?
+    {
+      let id = synthetic.id();
+      additional_assets.insert(synthetic);
+      dependencies.insert(placeholder.as_str().into(), Resolution::Asset(id));
+      continue;
+    }
+
+    match graph_resolution {
       BundleGraphDependencyResolution::Asset(resolved) => {
         if let AssetNode::Asset(resolved_asset) =
           &bundle_graph.asset_graph.assets[resolved as usize]
@@ -458,12 +581,6 @@ pub fn asset_dependencies<'a>(
               continue;
             }
             dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
-            continue;
-          }
-
-          if dep.target.environment == Environment::ReactServer
-            && resolved_asset.target.environment == Environment::ReactClient
-          {
             continue;
           }
         }
@@ -626,10 +743,8 @@ pub fn asset_dependencies<'a>(
             );
           }
         } else {
-          let is_lazy_dynamic_import =
-            dep.priority == Priority::Lazy && dep.specifier_type != SpecifierType::Url;
-          let is_inline = dep.bundle_behavior == BundleBehavior::Inline
-            || resolved_bundle.bundle_behavior == BundleBehavior::Inline;
+          let is_lazy_dynamic_import = is_async_bundle_dependency(dep, resolved_bundle);
+          let is_inline = is_inline_bundle_dependency(dep, resolved_bundle);
           // TODO: this is wrong. It should be if the _target_ module is CJS. But this breaks some dynamic_import tests. Would be a behavior change.
           let needs_esm_interop =
             is_lazy_dynamic_import && !is_inline && asset.flags.contains(AssetFlags::IS_ESM);
@@ -659,6 +774,279 @@ pub fn asset_dependencies<'a>(
   Ok(dependencies)
 }
 
+fn rsc_dependency_resolution(
+  importer_index: usize,
+  dependency_index: usize,
+  importer: &Asset,
+  dependency: &Dependency,
+  resolved_index: u32,
+  bundle_index: Option<u32>,
+  bundle_graph: &BundleGraph,
+) -> Result<Option<SyntheticAsset>, DiagnosticList> {
+  if importer.target.flags.contains(EnvironmentFlags::IS_LIBRARY)
+    || !matches!(
+      importer.target.environment,
+      Environment::ReactServer | Environment::ReactClient
+    )
+  {
+    return Ok(None);
+  }
+
+  let AssetNode::Asset(resolved) = &bundle_graph.asset_graph.assets[resolved_index as usize] else {
+    return Ok(None);
+  };
+  let directives = resolved
+    .content
+    .downcast_ref::<JsContent>()
+    .map(|content| content.directives.as_slice())
+    .unwrap_or_default();
+
+  if importer.target.environment == Environment::ReactServer
+    && directives
+      .iter()
+      .any(|directive| directive == "use client-entry")
+  {
+    return Ok(Some(SyntheticAsset::RscEmpty {
+      importer: importer_index as u32,
+      dependency: dependency_index as u32,
+    }));
+  }
+
+  if importer.target.environment == Environment::ReactServer
+    && resolved.target.environment == Environment::ReactClient
+    && directives.iter().any(|directive| directive == "use client")
+  {
+    let bundle_index = bundle_index
+      .or_else(|| {
+        bundle_graph
+          .bundles
+          .iter()
+          .position(|bundle| bundle.assets.contains(&(resolved_index as usize)))
+          .map(|bundle_index| bundle_index as u32)
+      })
+      .ok_or_else(|| {
+        DiagnosticList::from(Diagnostic::from_message(
+          "React client reference asset was not included in a bundle".into(),
+        ))
+      })?;
+    let runtime = rsc_runtime_asset(importer_index, importer, bundle_graph)?;
+    return Ok(Some(SyntheticAsset::RscClientReference {
+      importer: importer_index as u32,
+      dependency: dependency_index as u32,
+      runtime,
+      exports: bundle_graph.asset_graph.get_exports(resolved_index),
+      bundles: client_bundle_names(bundle_graph, bundle_index),
+      bundle: bundle_index,
+      is_async: dependency.priority == Priority::Lazy,
+    }));
+  }
+
+  if directives.iter().any(|directive| directive == "use server") {
+    let runtime = rsc_runtime_asset(importer_index, importer, bundle_graph)?;
+    return Ok(Some(SyntheticAsset::RscServerReference {
+      importer: importer_index as u32,
+      dependency: dependency_index as u32,
+      runtime,
+      original: resolved_index,
+      exports: if importer.target.environment == Environment::ReactClient {
+        bundle_graph.asset_graph.get_exports(resolved_index)
+      } else {
+        Vec::new()
+      },
+      is_client: importer.target.environment == Environment::ReactClient,
+      is_async: dependency.priority == Priority::Lazy,
+    }));
+  }
+
+  if let Some(bundle_index) = bundle_index {
+    let target_bundle = &bundle_graph.bundles[bundle_index as usize];
+    if dependency.specifier_type == SpecifierType::Url
+      || is_inline_bundle_dependency(dependency, target_bundle)
+    {
+      return Ok(None);
+    }
+
+    let plan = rsc_resource_plan(importer, resolved_index, bundle_index, bundle_graph);
+    let should_proxy = is_async_bundle_dependency(dependency, target_bundle)
+      || !plan.resources.is_empty()
+      || (dependency.priority != Priority::Lazy && plan.client_entry.is_some());
+    if !should_proxy {
+      return Ok(None);
+    }
+
+    let runtime = rsc_runtime_asset(importer_index, importer, bundle_graph)?;
+    return Ok(Some(SyntheticAsset::RscResources {
+      importer: importer_index as u32,
+      dependency: dependency_index as u32,
+      runtime,
+      bundle: bundle_index,
+      plan,
+      is_async: dependency.priority == Priority::Lazy,
+    }));
+  }
+
+  Ok(None)
+}
+
+fn rsc_resource_plan(
+  importer: &Asset,
+  original_asset: u32,
+  bundle_index: u32,
+  bundle_graph: &BundleGraph,
+) -> RscResourcePlan {
+  let mut plan = RscResourcePlan {
+    original_asset,
+    resources: Vec::new(),
+    load_bundles: Vec::new(),
+    client_css: Vec::new(),
+    client_entry: None,
+    bootstrap_modules: Vec::new(),
+  };
+
+  for bundle_index in bundle_graph.referenced_bundles(bundle_index as usize) {
+    let bundle = &bundle_graph.bundles[bundle_index];
+    if bundle.ty == AssetType::Css {
+      let url = bundle.absolute_url();
+      plan.resources.push(RscResource {
+        kind: RscResourceKind::Stylesheet,
+        url: url.clone(),
+      });
+      if importer.target.environment == Environment::ReactClient {
+        plan.client_css.push(url);
+      }
+    } else if bundle.ty == AssetType::Js {
+      if bundle.target.environment == importer.target.environment {
+        plan.load_bundles.push(bundle_index as u32);
+      }
+      if bundle.target.environment == Environment::ReactClient {
+        let url = bundle.absolute_url();
+        plan.bootstrap_modules.push(url.clone());
+        if importer.target.environment == Environment::ReactClient {
+          plan.resources.push(RscResource {
+            kind: if bundle.target.output_format == OutputFormat::Esmodule {
+              RscResourceKind::ModulePreload
+            } else {
+              RscResourceKind::ScriptPreload
+            },
+            url,
+          });
+        }
+      }
+    }
+
+    if plan.client_entry.is_none() {
+      plan.client_entry = bundle.assets.iter().find_map(|asset_index| {
+        let asset = bundle_graph.asset_graph.assets[*asset_index].expect_asset();
+        asset
+          .content
+          .downcast_ref::<JsContent>()
+          .is_some_and(|content| {
+            content
+              .directives
+              .iter()
+              .any(|directive| directive == "use client-entry")
+          })
+          .then_some(*asset_index as u32)
+      });
+    }
+  }
+
+  plan
+}
+
+fn rsc_runtime_asset(
+  importer_index: usize,
+  importer: &Asset,
+  bundle_graph: &BundleGraph,
+) -> Result<u32, DiagnosticList> {
+  let resolution = importer
+    .content
+    .downcast_ref::<JsContent>()
+    .and_then(|content| content.rsc_runtime_dep)
+    .map(|dependency_index| {
+      bundle_graph.dependency_resolution(importer_index, dependency_index as usize)
+    })
+    .unwrap_or(BundleGraphDependencyResolution::None);
+
+  match resolution {
+    BundleGraphDependencyResolution::Asset(asset_index) => Ok(asset_index),
+    BundleGraphDependencyResolution::Bundle(bundle_index) => bundle_graph.bundles
+      [bundle_index as usize]
+      .main_entry_asset
+      .map(|asset_index| asset_index as u32)
+      .ok_or_else(|| {
+        Diagnostic::from_message("RSC support bundle does not have a main entry asset".into())
+          .into()
+      }),
+    _ => Err(Diagnostic::from_message("Could not resolve RSC runtime asset".into()).into()),
+  }
+}
+
+fn client_bundle_names(bundle_graph: &BundleGraph, bundle_index: u32) -> Vec<String> {
+  bundle_graph
+    .referenced_bundles(bundle_index as usize)
+    .filter_map(|bundle_index| {
+      let bundle = &bundle_graph.bundles[bundle_index];
+      (bundle.ty == AssetType::Js && bundle.target.environment == Environment::ReactClient)
+        .then(|| bundle.name())
+    })
+    .collect()
+}
+
+fn server_actions(bundle_graph: &BundleGraph, project_root: &PathId) -> Vec<RscServerAction> {
+  let mut actions: IndexMap<String, RscServerAction> = IndexMap::new();
+  for (asset_index, node) in bundle_graph.asset_graph.assets.iter().enumerate() {
+    let AssetNode::Asset(asset) = node else {
+      continue;
+    };
+    let is_server_action = asset
+      .content
+      .downcast_ref::<JsContent>()
+      .is_some_and(|content| {
+        content
+          .directives
+          .iter()
+          .any(|directive| directive == "use server")
+      });
+    if !is_server_action {
+      continue;
+    }
+
+    let Some(bundle_index) = bundle_graph
+      .bundles
+      .iter()
+      .position(|bundle| bundle.assets.contains(&asset_index))
+    else {
+      continue;
+    };
+    let names = bundle_graph
+      .referenced_bundles(bundle_index)
+      .filter_map(|bundle_index| {
+        let bundle = &bundle_graph.bundles[bundle_index];
+        (bundle.ty == AssetType::Js && bundle.target.environment == Environment::ReactServer)
+          .then(|| bundle.name())
+      })
+      .collect::<Vec<_>>();
+    let id = asset.id(project_root);
+    if let Some(action) = actions.get_mut(&id) {
+      for name in names {
+        if !action.bundles.contains(&name) {
+          action.bundles.push(name);
+        }
+      }
+    } else {
+      actions.insert(
+        id,
+        RscServerAction {
+          asset_index: asset_index as u32,
+          bundles: names,
+        },
+      );
+    }
+  }
+  actions.into_values().collect()
+}
+
 impl SyntheticAsset {
   pub fn id(&self) -> String {
     match self {
@@ -667,6 +1055,32 @@ impl SyntheticAsset {
       SyntheticAsset::AsyncInterop(id) => format!("b{}i", id),
       SyntheticAsset::Url(id) => format!("b{}", id),
       SyntheticAsset::Inline(id) => format!("b{}", id),
+      SyntheticAsset::RscEmpty {
+        importer,
+        dependency,
+      } => format!("rsc_e_{}_{}", importer, dependency),
+      SyntheticAsset::RscClientReference {
+        importer,
+        dependency,
+        ..
+      } => format!("rsc_c_{}_{}", importer, dependency),
+      SyntheticAsset::RscServerReference {
+        importer,
+        dependency,
+        is_client,
+        ..
+      } => format!(
+        "rsc_s{}_{}_{}",
+        if *is_client { "c" } else { "s" },
+        importer,
+        dependency
+      ),
+      SyntheticAsset::RscResources {
+        importer,
+        dependency,
+        ..
+      } => format!("rsc_r_{}_{}", importer, dependency),
+      SyntheticAsset::RscServerEntry { entry, .. } => format!("rsc_entry_{}", entry),
     }
   }
 
@@ -690,6 +1104,11 @@ impl SyntheticAsset {
           Resolution::Asset(format!("b{}", bundle_index)),
         );
       }
+      SyntheticAsset::RscEmpty { .. }
+      | SyntheticAsset::RscClientReference { .. }
+      | SyntheticAsset::RscServerReference { .. }
+      | SyntheticAsset::RscResources { .. }
+      | SyntheticAsset::RscServerEntry { .. } => {}
       _ => {}
     }
 
@@ -765,6 +1184,287 @@ impl SyntheticAsset {
           resolved_bundle.relative_url(&bundle).unwrap()
         )?;
       }
+      SyntheticAsset::RscEmpty { .. } => {}
+      SyntheticAsset::RscClientReference {
+        runtime,
+        exports,
+        bundles,
+        bundle,
+        is_async,
+        ..
+      } => {
+        let require = runtime_name(should_optimize, "require", RUNTIME_REQUIRE);
+        let runtime_asset = bundle_graph.asset_graph.assets[*runtime as usize].expect_asset();
+        write!(
+          dest,
+          "let $rsc={}({});\n",
+          require,
+          serde_json::to_string(&runtime_asset.id(project_root))?
+        )?;
+        let bundles = serde_json::to_string(bundles)?;
+        let resources = if *is_async {
+          bundle_graph
+            .referenced_bundles(*bundle as usize)
+            .filter_map(|bundle_index| {
+              let bundle = &bundle_graph.bundles[bundle_index];
+              (bundle.ty == AssetType::Css).then(|| bundle.absolute_url())
+            })
+            .collect::<Vec<_>>()
+        } else {
+          Vec::new()
+        };
+        if !resources.is_empty() {
+          write!(dest, "let $resources=[")?;
+          for resource in &resources {
+            write!(
+              dest,
+              "$rsc.stylesheetResource({}),",
+              serde_json::to_string(resource)?
+            )?;
+          }
+          write!(dest, "];\n")?;
+        }
+        for (export_as, resolution) in exports {
+          let Some(asset_index) = resolution.asset_index() else {
+            continue;
+          };
+          let Some(export_name) = resolution.name(&bundle_graph.asset_graph) else {
+            continue;
+          };
+          let referenced_asset =
+            bundle_graph.asset_graph.assets[asset_index as usize].expect_asset();
+          let export_as = serde_json::to_string(export_as.as_str())?;
+          write!(dest, "exports[{}]=", export_as)?;
+          if !resources.is_empty() {
+            write!(dest, "$rsc.wrapClientReferenceWithResources(")?;
+          }
+          write!(
+            dest,
+            "$rsc.createClientReference({},{},{})",
+            serde_json::to_string(&referenced_asset.id(project_root))?,
+            serde_json::to_string(export_name.as_str())?,
+            bundles,
+          )?;
+          if !resources.is_empty() {
+            write!(dest, ",$resources)")?;
+          }
+          write!(dest, ";\n")?;
+        }
+        write!(dest, "exports.__esModule=true;\n")?;
+        if *is_async {
+          write!(dest, "module.exports=Promise.resolve(exports);\n")?;
+        }
+      }
+      SyntheticAsset::RscServerReference {
+        runtime,
+        original,
+        exports: referenced_exports,
+        is_client,
+        is_async,
+        ..
+      } => {
+        let require = runtime_name(should_optimize, "require", RUNTIME_REQUIRE);
+        let runtime_asset = bundle_graph.asset_graph.assets[*runtime as usize].expect_asset();
+        write!(
+          dest,
+          "let $rsc={}({});\n",
+          require,
+          serde_json::to_string(&runtime_asset.id(project_root))?
+        )?;
+        if *is_client {
+          for (export_as, resolution) in referenced_exports {
+            let Some(asset_index) = resolution.asset_index() else {
+              continue;
+            };
+            let Some(export_name) = resolution.name(&bundle_graph.asset_graph) else {
+              continue;
+            };
+            let referenced_asset =
+              bundle_graph.asset_graph.assets[asset_index as usize].expect_asset();
+            write!(
+              dest,
+              "exports[{}]=$rsc.createServerReference({},{});\n",
+              serde_json::to_string(export_as.as_str())?,
+              serde_json::to_string(&referenced_asset.id(project_root))?,
+              serde_json::to_string(export_name.as_str())?,
+            )?;
+          }
+        } else {
+          let original_asset = bundle_graph.asset_graph.assets[*original as usize].expect_asset();
+          let original_id = serde_json::to_string(&original_asset.id(project_root))?;
+          write!(dest, "let $original={}({});\n", require, original_id)?;
+          write!(dest, "for(let key in $original){{\n")?;
+          write!(
+            dest,
+            "Object.defineProperty(exports,key,{{enumerable:true,get:()=>{{\n"
+          )?;
+          write!(dest, "let value=$original[key];\n")?;
+          write!(
+            dest,
+            "if(typeof value==='function'&&!value.$$typeof){{$rsc.registerServerReference(value,{},key);}}\n",
+            original_id,
+          )?;
+          write!(dest, "return value;}}}});\n}}\n")?;
+        }
+        write!(dest, "exports.__esModule=true;\n")?;
+        if *is_async {
+          write!(dest, "module.exports=Promise.resolve(exports);\n")?;
+        }
+      }
+      SyntheticAsset::RscResources {
+        importer,
+        dependency,
+        runtime,
+        bundle: target_bundle_index,
+        plan,
+        is_async,
+      } => {
+        let require = runtime_name(should_optimize, "require", RUNTIME_REQUIRE);
+        let runtime_asset = bundle_graph.asset_graph.assets[*runtime as usize].expect_asset();
+        let importer_asset = bundle_graph.asset_graph.assets[*importer as usize].expect_asset();
+        let dependency = &importer_asset.dependencies[*dependency as usize];
+        let target_bundle = &bundle_graph.bundles[*target_bundle_index as usize];
+        let original_asset =
+          bundle_graph.asset_graph.assets[plan.original_asset as usize].expect_asset();
+        let original_id = serde_json::to_string(&original_asset.id(project_root))?;
+
+        write!(
+          dest,
+          "let $rsc={}({});\n",
+          require,
+          serde_json::to_string(&runtime_asset.id(project_root))?
+        )?;
+
+        write!(dest, "let $resources=[")?;
+        for resource in &plan.resources {
+          let helper = match resource.kind {
+            RscResourceKind::Stylesheet => "stylesheetResource",
+            RscResourceKind::ModulePreload => "modulePreloadResource",
+            RscResourceKind::ScriptPreload => "scriptPreloadResource",
+          };
+          write!(
+            dest,
+            "$rsc.{}({}),",
+            helper,
+            serde_json::to_string(&resource.url)?
+          )?;
+        }
+        write!(dest, "];\n")?;
+
+        let bootstrap_script = plan.client_entry.map(|client_entry| {
+          let imports = plan
+            .bootstrap_modules
+            .iter()
+            .map(|url| format!("import({})", serde_json::to_string(url).unwrap()))
+            .collect::<Vec<_>>()
+            .join(",");
+          let entry = bundle_graph.asset_graph.assets[client_entry as usize]
+            .expect_asset()
+            .id(project_root);
+          format!(
+            "Promise.all([{}]).then(()=>parcelRequire({}))",
+            imports,
+            serde_json::to_string(&entry).unwrap()
+          )
+        });
+        if let Some(bootstrap_script) = &bootstrap_script {
+          write!(
+            dest,
+            "let $bootstrapScript={};\n",
+            serde_json::to_string(bootstrap_script)?
+          )?;
+        }
+
+        if *is_async {
+          let mut loads = Vec::new();
+          let mut css = Vec::new();
+          for bundle_index in &plan.load_bundles {
+            let load_bundle = &bundle_graph.bundles[*bundle_index as usize];
+            let specifier = load_bundle.relative_specifier(bundle).unwrap();
+            loads.push(
+              if load_bundle.target.output_format == OutputFormat::Commonjs {
+                format!(
+                  "Promise.resolve({}({}))",
+                  require,
+                  serde_json::to_string(&specifier)?
+                )
+              } else {
+                format!(
+                  "module.bundle.loadJS({})",
+                  serde_json::to_string(&specifier)?
+                )
+              },
+            );
+          }
+          for url in &plan.client_css {
+            write!(
+              dest,
+              "$rsc.preinit({},{{as:'style',precedence:'default'}});\n",
+              serde_json::to_string(url)?
+            )?;
+            if !dependency.flags.contains(DependencyFlags::REACT_LAZY) {
+              css.push(format!("$rsc.waitForCSS({})", serde_json::to_string(url)?));
+            }
+          }
+          write!(dest, "let $promise=Promise.all([{}])", loads.join(","))?;
+          if !css.is_empty() {
+            write!(dest, ".then(()=>Promise.all([{}]))", css.join(","))?;
+          }
+          write!(
+            dest,
+            ".then(()=>{{let $original={}({});return $rsc.createResourcesProxy($original,{},$resources",
+            require,
+            original_id,
+            original_asset.flags.contains(AssetFlags::IS_ESM)
+          )?;
+          if bootstrap_script.is_some() {
+            write!(dest, ",$bootstrapScript")?;
+          }
+          write!(dest, ");}});\nmodule.exports=$promise;\n")?;
+        } else {
+          let original = if target_bundle.target.output_format == OutputFormat::Commonjs {
+            serde_json::to_string(&target_bundle.relative_specifier(bundle).unwrap())?
+          } else {
+            original_id
+          };
+          write!(
+            dest,
+            "let $original={}({});\nmodule.exports=$rsc.createResourcesProxy($original,{},$resources",
+            require,
+            original,
+            original_asset.flags.contains(AssetFlags::IS_ESM)
+          )?;
+          if bootstrap_script.is_some() {
+            write!(dest, ",$bootstrapScript")?;
+          }
+          write!(dest, ");\n")?;
+        }
+      }
+      SyntheticAsset::RscServerEntry {
+        runtime, actions, ..
+      } => {
+        let require = runtime_name(should_optimize, "require", RUNTIME_REQUIRE);
+        let runtime_asset = bundle_graph.asset_graph.assets[*runtime as usize].expect_asset();
+        write!(
+          dest,
+          "let $rsc={}({});\n$rsc.ensureAsyncLocalStorage();\n",
+          require,
+          serde_json::to_string(&runtime_asset.id(project_root))?
+        )?;
+        if !actions.is_empty() {
+          write!(dest, "$rsc.registerServerActions({{")?;
+          for action in actions {
+            let asset = bundle_graph.asset_graph.assets[action.asset_index as usize].expect_asset();
+            write!(
+              dest,
+              "{}:{},",
+              serde_json::to_string(&asset.id(project_root))?,
+              serde_json::to_string(&action.bundles)?
+            )?;
+          }
+          write!(dest, "}});\n")?;
+        }
+      }
     }
 
     Ok(())
@@ -826,86 +1526,4 @@ fn load_bundle<W: std::fmt::Write>(
     }
     _ => Ok(()),
   }
-}
-
-fn load_bundles_rsc<W: std::fmt::Write>(
-  bundle_graph: &BundleGraph,
-  from: &Bundle,
-  bundle: &Bundle,
-  res: &mut W,
-) -> core::fmt::Result {
-  let mut resources = Vec::new();
-  let mut promises = Vec::new();
-  for referenced_index in &bundle.referenced_bundles {
-    let referenced_bundle = &bundle_graph.bundles[*referenced_index];
-    load_bundle_rsc(referenced_bundle, from, res, &mut resources, &mut promises)?;
-  }
-
-  load_bundle_rsc(bundle, from, res, &mut resources, &mut promises)?;
-
-  write!(res, "module.exports=Promise.all([")?;
-  for p in promises {
-    write!(res, "{},", p)?;
-  }
-
-  write!(res, "])")?;
-  if !resources.is_empty() {
-    write!(
-      res,
-      ".then(()=>createResourcesProxy(require({}), resources))",
-      bundle.main_entry_asset.unwrap()
-    )?;
-  }
-
-  write!(res, ";\n")?;
-  Ok(())
-}
-
-fn load_bundle_rsc<W: std::fmt::Write>(
-  bundle: &Bundle,
-  from: &Bundle,
-  res: &mut W,
-  resources: &mut Vec<String>,
-  promises: &mut Vec<String>,
-) -> core::fmt::Result {
-  let name = bundle.relative_url(&from).unwrap();
-  match &bundle.ty {
-    AssetType::Js => {
-      if bundle.target.environment.is_browser() {
-        if bundle.target.environment.is_browser() {
-          if bundle.target.output_format == OutputFormat::Esmodule {
-            // TODO: how to import jsx runtime?
-            resources.push(format!("<link rel='modulepreload' href='{}' />", name));
-          } else {
-            resources.push(format!(
-              "<link rel='preload' as='script' href='{}' />",
-              name
-            ));
-          }
-        }
-      }
-
-      if bundle.target.environment == bundle.target.environment {
-        promises.push(format!("parcelLoadJS('./{}')", name));
-      }
-    }
-    AssetType::Css => {
-      resources.push(format!(
-        "<link rel='stylesheet' href='{}' precedence='default' />",
-        name
-      ));
-      if bundle.target.environment.is_browser() {
-        // TODO: only if not react lazy
-        promises.push(format!("waitForCSS('{}')", name));
-        write!(
-          res,
-          "preinit('{}', {{as: 'style', precedence: 'default'}});\n",
-          name
-        )?;
-      }
-    }
-    _ => {}
-  }
-
-  Ok(())
 }

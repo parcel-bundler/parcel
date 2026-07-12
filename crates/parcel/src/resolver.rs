@@ -2,9 +2,9 @@ use std::{borrow::Cow, sync::Arc};
 
 use parcel_core::{
   AssetRequest, AssetType, BufferContent, BuildMode, CodeFrame, CodeHighlight, Dependency,
-  DependencyResolution, Diagnostic, DiagnosticList, Environment, EnvironmentFlags,
-  ExportsCondition, FileContent, FileSystem, Location, ParcelOptions, PathId, Resolver,
-  SourceLocation, SourceUrl, SpecifierType, Target,
+  DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList, Environment, EnvironmentFlags,
+  ExportsCondition, FileContent, FileSystem, IncludeNodeModules, Location, ParcelOptions, PathId,
+  Resolver, SourceLocation, SourceUrl, SpecifierType, Target,
 };
 use parcel_resolver::{
   Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
@@ -64,7 +64,11 @@ impl Resolver for DefaultResolver {
     // existence checks, ...) is recorded as an invalidation of this asset. The interning cache is
     // per-resolve; the underlying metadata/parse caching is shared via the wrapped CachedFileSystem.
     let mut resolver = parcel_resolver::Resolver::parcel(options.project_root);
-    resolver.include_node_modules = Cow::Borrowed(&dep.target.include_node_modules);
+    resolver.include_node_modules = if dep.flags.contains(DependencyFlags::FORCE_BUNDLE) {
+      Cow::Owned(IncludeNodeModules::Bool(true))
+    } else {
+      Cow::Borrowed(&dep.target.include_node_modules)
+    };
 
     let mut res = resolver.resolve_with_options(
       specifier,

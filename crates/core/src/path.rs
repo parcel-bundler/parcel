@@ -167,6 +167,12 @@ impl PathId {
     GLOBAL_INTERNER.relative_url(*self, *from)
   }
 
+  /// Returns the URL for this path relative to the directory `from_dir` itself. See
+  /// [`PathInterner::relative_url_from_dir`].
+  pub fn relative_url_from_dir(&self, from_dir: &PathId) -> String {
+    GLOBAL_INTERNER.relative_url_from_dir(*self, *from_dir)
+  }
+
   pub fn in_node_modules(&self) -> bool {
     self
       .ancestors()
@@ -466,13 +472,24 @@ impl PathInterner {
   /// segment, so a sibling is `"b.js"`, not `"../b.js"`), and `id == from` yields `""`. Segments
   /// are `/`-joined and percent-encoded.
   pub fn relative_url(&self, id: PathId, from: PathId) -> String {
-    let mut out = String::new();
     if id == from {
-      return out;
+      return String::new();
     }
 
     // Resolve against `from`'s directory. If `from` is the root itself, it is its own directory.
-    let base = self.parent(from).or(Some(from));
+    self.relative_url_from_base(id, self.parent(from).or(Some(from)))
+  }
+
+  /// Returns the URL for `id` relative to the directory `from_dir` itself: the string a browser
+  /// resolves against `from_dir`'s URL (with a trailing slash) to reach `id`. Unlike
+  /// [`relative_url`](Self::relative_url), `from_dir` is the base directory, not a sibling file
+  /// whose final segment is dropped.
+  pub fn relative_url_from_dir(&self, id: PathId, from_dir: PathId) -> String {
+    self.relative_url_from_base(id, Some(from_dir))
+  }
+
+  fn relative_url_from_base(&self, id: PathId, base: Option<PathId>) -> String {
+    let mut out = String::new();
     // `id`'s final segment is the URL "filename": never part of the ancestor walk, always emitted.
     let dir = self.parent(id);
 
@@ -936,5 +953,26 @@ mod tests {
     let b = PathId::new(Path::new("/dist/b.js"));
     assert_eq!(a.relative_url(&b), "deep/a.js");
     assert_eq!(b.relative_url(&a), "../b.js");
+  }
+
+  #[test]
+  fn relative_url_from_dir_treats_base_as_directory() {
+    let interner = PathInterner::new();
+    let rel = |to: &str, dir: &str| {
+      interner.relative_url_from_dir(
+        interner.intern(Path::new(to)),
+        interner.intern(Path::new(dir)),
+      )
+    };
+    // The base directory's own segment is kept, unlike `relative_url` where a file base's final
+    // segment is dropped.
+    assert_eq!(rel("/proj/dist/a.js", "/proj/dist"), "a.js");
+    assert_eq!(rel("/proj/dist/icons/a.js", "/proj/dist"), "icons/a.js");
+    assert_eq!(rel("/proj/other/a.js", "/proj/dist"), "../other/a.js");
+    assert_eq!(
+      PathId::new(Path::new("/proj/dist/a.js"))
+        .relative_url_from_dir(&PathId::new(Path::new("/proj/dist"))),
+      "a.js"
+    );
   }
 }

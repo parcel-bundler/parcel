@@ -5,10 +5,13 @@ use bitflags::bitflags;
 use browserslist::Distrib;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Target {
   pub environment: Environment,
+  /// The server target that originated this React client environment. This allows modules with a
+  /// "use server" directive to restore the exact server target rather than reconstructing one.
+  pub rsc_server_target: Option<Arc<Target>>,
   pub output_format: OutputFormat,
   pub source_type: SourceType,
   pub flags: EnvironmentFlags,
@@ -20,21 +23,50 @@ pub struct Target {
   pub public_url: String,
 }
 
+impl Hash for Target {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    self.environment.hash(state);
+    if let Some(target) = &self.rsc_server_target {
+      target.hash(state);
+    }
+    self.output_format.hash(state);
+    self.source_type.hash(state);
+    self.flags.hash(state);
+    self.source_map.hash(state);
+    self.loc.hash(state);
+    self.include_node_modules.hash(state);
+    self.engines.hash(state);
+    self.dist_dir.hash(state);
+    self.public_url.hash(state);
+  }
+}
+
 impl Target {
   pub fn should_scope_hoist(&self) -> bool {
     self.flags.contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
   }
 
   pub fn normalize(target: &Arc<Target>, ty: &AssetType) -> Arc<Target> {
-    // The output format only applies to JavaScript-based languages.
+    // The output format + environment only applies to JavaScript-based languages.
     // Normalize the target for other asset types to avoid duplicating them.
     if !ty.is_js()
-      && matches!(
+      && (matches!(
         target.output_format,
         OutputFormat::Esmodule | OutputFormat::Commonjs
-      )
+      ) || !matches!(
+        target.environment,
+        Environment::Browser | Environment::ReactClient
+      ))
     {
       Arc::new(Target {
+        environment: if matches!(
+          target.environment,
+          Environment::ReactServer | Environment::ReactClient
+        ) {
+          Environment::ReactClient
+        } else {
+          Environment::Browser
+        },
         output_format: OutputFormat::Global,
         flags: target
           .flags
@@ -48,6 +80,9 @@ impl Target {
 
   pub fn stable_hash<H: std::hash::Hasher>(&self, project_root: &PathId, state: &mut H) {
     self.environment.hash(state);
+    if let Some(target) = &self.rsc_server_target {
+      target.stable_hash(project_root, state);
+    }
     self.output_format.hash(state);
     self.source_type.hash(state);
     self.flags.hash(state);
@@ -527,14 +562,14 @@ pub enum Environment {
 impl Environment {
   pub fn is_node(&self) -> bool {
     use Environment::*;
-    matches!(self, Node | ElectronMain | ElectronRenderer)
+    matches!(self, Node | ElectronMain | ElectronRenderer | ReactServer)
   }
 
   pub fn is_browser(&self) -> bool {
     use Environment::*;
     matches!(
       self,
-      Browser | WebWorker | ServiceWorker | Worklet | ElectronRenderer
+      Browser | WebWorker | ServiceWorker | Worklet | ElectronRenderer | ReactClient
     )
   }
 

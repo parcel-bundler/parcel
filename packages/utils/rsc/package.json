@@ -29,6 +29,14 @@
     "./node": {
       "types": "./lib/node.d.ts",
       "default": "./src/node.tsx"
+    },
+    "./runtime/server": {
+      "source": "./src/runtime-server.js",
+      "default": "./src/runtime-server.js"
+    },
+    "./runtime/client": {
+      "source": "./src/runtime-client.js",
+      "default": "./src/runtime-client.js"
     }
   },
   "dependencies": {

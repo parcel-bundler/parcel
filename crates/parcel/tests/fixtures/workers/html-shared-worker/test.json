@@ -1,5 +1,5 @@
 {
-  "description": "creates a shared bundle between browser and worker contexts",
+  "description": "duplicates modules between worker and browser contexts",
   "input": "index.html",
   "options": {"mode": "production"},
   "bundles": [
@@ -9,15 +9,11 @@
     },
     {
       "type": "js",
-      "assets": ["index.js"]
+      "assets": ["esmodule-helpers.js", "index.js", "index.js"]
     },
     {
       "type": "js",
-      "assets": ["esmodule-helpers.js", "index.js"]
-    },
-    {
-      "type": "js",
-      "assets": ["worker.js"]
+      "assets": ["esmodule-helpers.js", "index.js", "worker.js"]
     }
   ]
 }

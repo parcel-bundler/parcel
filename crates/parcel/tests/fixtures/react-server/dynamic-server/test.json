@@ -1,0 +1,1 @@
+{"description":"should dynamically import a server component","input":"Page.jsx","skipNodeModules":true,"bundles":[{"assets":["Page.jsx"],"contains":["createResourcesProxy","stylesheetResource"]},{"assets":["Dynamic.jsx"]},{"assets":["dynamic.css"],"type":"css"},{"assets":[]}]}

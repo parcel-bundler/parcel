@@ -1,0 +1,12 @@
+{
+  "description":"should share react between pages",
+  "input":"index.jsx",
+  "skipNodeModules":true,
+  "bundles":[
+    {"assets":["index.jsx"]},
+    {"assets":["Page1.jsx"]},
+    {"assets":["Page2.jsx"]},
+    {"assets":[]},
+    {"assets":["client.jsx"]}
+  ]
+}

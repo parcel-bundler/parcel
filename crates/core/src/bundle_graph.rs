@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{DependencyResolution, PathId, asset_graph::AssetGraph, bundle::Bundle};
 
@@ -63,5 +63,21 @@ impl<'a> BundleGraph<'a> {
       DependencyResolution::Excluded => BundleGraphDependencyResolution::Excluded,
       DependencyResolution::Asset(asset) => BundleGraphDependencyResolution::Asset(*asset),
     }
+  }
+
+  pub fn referenced_bundles(&self, bundle_index: usize) -> impl Iterator<Item = usize> + '_ {
+    let mut stack = vec![bundle_index];
+    let mut seen = HashSet::new();
+
+    std::iter::from_fn(move || {
+      while let Some(index) = stack.pop() {
+        if seen.insert(index) {
+          stack.extend(self.bundles[index].referenced_bundles.iter().copied());
+          return Some(index);
+        }
+      }
+
+      None
+    })
   }
 }

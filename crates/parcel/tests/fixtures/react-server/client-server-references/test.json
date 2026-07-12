@@ -1,0 +1,13 @@
+{
+  "description": "should support server references from client components",
+  "input": "index.jsx",
+  "skipNodeModules": true,
+  "bundles": [
+    {"assets": ["actions.js", "index.jsx"], "context": "react-server", "contains": ["registerServerActions", "ensureAsyncLocalStorage"]},
+    {
+      "assets": ["client.jsx"],
+      "context": "react-client",
+      "contains": ["createServerReference"]
+    }
+  ]
+}
