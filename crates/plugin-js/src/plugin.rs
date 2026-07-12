@@ -1,11 +1,13 @@
 use std::{path::Path, sync::Arc};
 
 use parcel_core::{
-  Asset, AssetFlags, AssetType, BufferContent, BundleBehavior, Environment, EnvironmentFlags,
-  OutputFormat, PathId, SourceType, Target, Transformer,
+  Asset, AssetFlags, AssetRequest, AssetType, BufferContent, BundleBehavior, DependencyFlags,
+  DependencyResolution, Environment, EnvironmentFlags, ExportsCondition, FileContent, OutputFormat,
+  PathId, Priority, Resolver, SourceLocation, SourceType, SourceUrl, SpecifierType, Target,
+  Transformer,
 };
 use rquickjs::{
-  Class, Ctx, FromJs, Function, IntoJs, JsLifetime, Object, Symbol, TypedArray,
+  Class, Coerced, Ctx, FromJs, Function, IntoJs, JsLifetime, Object, Symbol, TypedArray,
   class::{self, Trace},
   methods,
 };
@@ -61,6 +63,93 @@ impl Transformer for JsPlugin {
     })?;
 
     Ok(asset)
+  }
+}
+
+impl Resolver for JsPlugin {
+  fn resolve(
+    &self,
+    dep: &parcel_core::Dependency,
+    specifier: &str,
+    pipeline: Option<&str>,
+    options: &parcel_core::ParcelOptions,
+    fs: &Arc<dyn parcel_core::FileSystem>,
+  ) -> Result<parcel_core::DependencyResolution, parcel_core::DiagnosticList> {
+    with_js_env(fs.clone(), &options.env, options.cwd, |ctx| {
+      let module = load_module(&ctx, &self.path)?;
+      let symbol: Object = ctx.globals().get("Symbol")?;
+      let symbol_for: Function = symbol.get("for")?;
+      let sym: Symbol = symbol_for.call(("parcel-plugin-config",))?;
+      let config: Object = module.get::<_, Object>(sym.clone()).or_else(|_| {
+        module
+          .get::<_, Object>("default")
+          .and_then(|o| o.get::<_, Object>(sym))
+      })?;
+
+      let resolve: Function = config.get("resolve")?;
+      let js_dep = JsDependency { dep: dep.clone() };
+      let opts = Object::new(ctx.clone())?;
+      opts.set("dependency", js_dep)?;
+      opts.set("specifier", specifier)?;
+      opts.set("pipeline", pipeline)?;
+
+      let res: rquickjs::Value = resolve.call((opts,))?;
+      let res = await_promise(ctx, res)?;
+      if let Some(res) = res.as_object() {
+        // TODO: Support the remaining Resolver API surface: options/logger/tracer/config and
+        // loadConfig inputs, plus priority/meta/canDefer/diagnostics/invalidation result fields.
+        let is_excluded: Option<bool> = res.get("isExcluded")?;
+        if is_excluded == Some(true) {
+          return Ok(DependencyResolution::External);
+        }
+
+        let file_path: Option<String> = res.get("filePath")?;
+        if let Some(file_path) = file_path {
+          if !Path::new(&file_path).is_absolute() {
+            return Err(rquickjs::Exception::throw_type(
+              &ctx,
+              &format!("Resolvers must return an absolute path, returned: {file_path}"),
+            ));
+          }
+
+          let query_value: rquickjs::Value = res.get("query")?;
+          let query = if query_value.is_null() || query_value.is_undefined() {
+            None
+          } else {
+            Some(Coerced::<String>::from_js(&ctx, query_value)?.0)
+          };
+          let side_effects: Option<bool> = res.get("sideEffects")?;
+          let code: Option<String> = res.get("code")?;
+          let result_pipeline: rquickjs::Value = res.get("pipeline")?;
+          let path = PathId::new(Path::new(&file_path));
+          let url = SourceUrl::from_path_and_query(&path, query.as_ref().map(|s| s.as_str()));
+          let ty = AssetType::from_url(&url);
+          return Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
+            loc: SourceLocation {
+              url,
+              ..Default::default()
+            },
+            content: if let Some(code) = code {
+              Arc::new(BufferContent::new(code.into_bytes()))
+            } else {
+              Arc::new(FileContent::new(path, options.input_fs.clone()))
+            },
+            target: Target::normalize(&dep.target, &ty),
+            pipeline: if result_pipeline.is_undefined() {
+              pipeline.map(Into::into)
+            } else if result_pipeline.is_null() {
+              None
+            } else {
+              Some(String::from_js(&ctx, result_pipeline)?.into())
+            },
+            ty,
+            side_effects: side_effects.unwrap_or(true),
+          })));
+        }
+      }
+
+      Ok(DependencyResolution::None)
+    })
   }
 }
 
@@ -274,4 +363,139 @@ impl JsTarget {
   fn is_worker(&self) -> bool {
     self.target.environment.is_worker()
   }
+}
+
+#[derive(JsLifetime)]
+#[rquickjs::class]
+pub struct JsDependency {
+  dep: parcel_core::Dependency,
+}
+
+impl<'js> Trace<'js> for JsDependency {
+  fn trace<'a>(&self, _tracer: class::Tracer<'a, 'js>) {}
+}
+
+#[methods(rename_all = "camelCase")]
+impl JsDependency {
+  #[qjs(get)]
+  pub fn specifier(&self) -> &str {
+    &self.dep.specifier
+  }
+
+  #[qjs(get)]
+  pub fn specifier_type(&self) -> &str {
+    match self.dep.specifier_type {
+      SpecifierType::Commonjs => "commonjs",
+      SpecifierType::Esm => "esm",
+      SpecifierType::Url => "url",
+      SpecifierType::Custom => "custom",
+    }
+  }
+
+  #[qjs(get)]
+  pub fn priority(&self) -> &str {
+    match self.dep.priority {
+      Priority::Sync => "sync",
+      Priority::Parallel => "parallel",
+      Priority::Lazy => "lazy",
+    }
+  }
+
+  #[qjs(get)]
+  pub fn bundle_behavior(&self) -> Option<&str> {
+    match self.dep.bundle_behavior {
+      BundleBehavior::None => None,
+      BundleBehavior::Inline => Some("inline"),
+      BundleBehavior::Isolated => Some("isolated"),
+    }
+  }
+
+  #[qjs(get)]
+  pub fn is_entry(&self) -> bool {
+    self.dep.flags.contains(DependencyFlags::ENTRY)
+  }
+
+  #[qjs(get)]
+  pub fn is_optional(&self) -> bool {
+    self.dep.flags.contains(DependencyFlags::OPTIONAL)
+  }
+
+  #[qjs(get)]
+  pub fn needs_stable_name(&self) -> bool {
+    self.dep.flags.contains(DependencyFlags::NEEDS_STABLE_NAME)
+  }
+
+  #[qjs(get)]
+  pub fn target(&self) -> JsTarget {
+    JsTarget {
+      target: self.dep.target.clone(),
+    }
+  }
+
+  #[qjs(get)]
+  pub fn resolve_from(&self) -> Option<String> {
+    self.dep.resolve_from.as_ref().map(|s| s.to_string())
+  }
+
+  #[qjs(get)]
+  pub fn loc<'js>(&self, ctx: Ctx<'js>) -> rquickjs::Result<Option<Object<'js>>> {
+    let Some(loc) = &self.dep.loc else {
+      return Ok(None);
+    };
+    let result = Object::new(ctx.clone())?;
+    result.set(
+      "filePath",
+      loc
+        .url
+        .to_file_path()
+        .map(|path| path.to_path_buf().to_string_lossy().into_owned())
+        .unwrap_or_else(|_| loc.url.to_string()),
+    )?;
+    result.set(
+      "start",
+      js_location(&ctx, loc.start.line, loc.start.column)?,
+    )?;
+    result.set("end", js_location(&ctx, loc.end.line, loc.end.column)?)?;
+    Ok(Some(result))
+  }
+
+  #[qjs(get)]
+  pub fn package_conditions(&self) -> Vec<&'static str> {
+    let conditions = self.dep.conditions;
+    [
+      (ExportsCondition::IMPORT, "import"),
+      (ExportsCondition::REQUIRE, "require"),
+      (ExportsCondition::MODULE, "module"),
+      (ExportsCondition::NODE, "node"),
+      (ExportsCondition::BROWSER, "browser"),
+      (ExportsCondition::WORKER, "worker"),
+      (ExportsCondition::WORKLET, "worklet"),
+      (ExportsCondition::ELECTRON, "electron"),
+      (ExportsCondition::DEVELOPMENT, "development"),
+      (ExportsCondition::PRODUCTION, "production"),
+      (ExportsCondition::TYPES, "types"),
+      (ExportsCondition::DEFAULT, "default"),
+      (ExportsCondition::STYLE, "style"),
+      (ExportsCondition::SASS, "sass"),
+      (ExportsCondition::LESS, "less"),
+      (ExportsCondition::STYLUS, "stylus"),
+      (ExportsCondition::REACT_SERVER, "react-server"),
+      (ExportsCondition::SOURCE, "source"),
+    ]
+    .into_iter()
+    .filter_map(|(flag, name)| conditions.contains(flag).then_some(name))
+    .collect()
+  }
+
+  #[qjs(get)]
+  pub fn range(&self) -> Option<&str> {
+    self.dep.range.as_deref()
+  }
+}
+
+fn js_location<'js>(ctx: &Ctx<'js>, line: u32, column: u32) -> rquickjs::Result<Object<'js>> {
+  let location = Object::new(ctx.clone())?;
+  location.set("line", line)?;
+  location.set("column", column)?;
+  Ok(location)
 }
