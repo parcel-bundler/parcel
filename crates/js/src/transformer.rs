@@ -503,7 +503,7 @@ impl Transformer for JsTransformer {
           target: asset.target.clone(),
           loc: None,
           placeholder: Some("__parcel_rsc_runtime__".into()),
-          resolve_from: Some(asset.loc.url.clone()),
+          resolve_from: Some(SourceUrl::from_directory_path(&options.project_root)),
           range: None,
           conditions: ExportsCondition::IMPORT,
           resolution: DependencyResolution::None,

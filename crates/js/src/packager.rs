@@ -820,6 +820,17 @@ fn rsc_dependency_resolution(
     return Ok(None);
   }
 
+  // URL and inline dependencies resolve to a URL string or embedded content,
+  // so they must never be replaced with a synthetic RSC reference module.
+  if dependency.specifier_type == SpecifierType::Url
+    || dependency.bundle_behavior == BundleBehavior::Inline
+    || bundle_index.is_some_and(|bundle_index| {
+      bundle_graph.bundles[bundle_index as usize].bundle_behavior == BundleBehavior::Inline
+    })
+  {
+    return Ok(None);
+  }
+
   let AssetNode::Asset(resolved) = &bundle_graph.asset_graph.assets[resolved_index as usize] else {
     return Ok(None);
   };
@@ -892,12 +903,6 @@ fn rsc_dependency_resolution(
 
   if let Some(bundle_index) = bundle_index {
     let target_bundle = &bundle_graph.bundles[bundle_index as usize];
-    if dependency.specifier_type == SpecifierType::Url
-      || is_inline_bundle_dependency(dependency, target_bundle)
-    {
-      return Ok(None);
-    }
-
     let plan = rsc_resource_plan(importer, resolved_index, bundle_index, bundle_graph);
     let should_proxy = is_async_bundle_dependency(dependency, target_bundle)
       || !plan.resources.is_empty()
@@ -1225,14 +1230,7 @@ impl SyntheticAsset {
         is_async,
         ..
       } => {
-        let require = runtime_name(should_optimize, "require", RUNTIME_REQUIRE);
-        let runtime_asset = bundle_graph.asset_graph.assets[*runtime as usize].expect_asset();
-        write!(
-          dest,
-          "let $rsc={}({});\n",
-          require,
-          serde_json::to_string(&runtime_asset.id(project_root))?
-        )?;
+        write_rsc_preamble(dest, should_optimize, bundle_graph, project_root, *runtime)?;
         let bundles = serde_json::to_string(bundles)?;
         let resources = if *is_async {
           bundle_graph
@@ -1256,15 +1254,7 @@ impl SyntheticAsset {
           }
           write!(dest, "];\n")?;
         }
-        for (export_as, resolution) in exports {
-          let Some(asset_index) = resolution.asset_index() else {
-            continue;
-          };
-          let Some(export_name) = resolution.name(&bundle_graph.asset_graph) else {
-            continue;
-          };
-          let referenced_asset =
-            bundle_graph.asset_graph.assets[asset_index as usize].expect_asset();
+        for (export_as, referenced_asset, export_name) in resolved_exports(exports, bundle_graph) {
           let export_as = serde_json::to_string(export_as.as_str())?;
           write!(dest, "exports[{}]=", export_as)?;
           if !resources.is_empty() {
@@ -1295,24 +1285,12 @@ impl SyntheticAsset {
         is_async,
         ..
       } => {
-        let require = runtime_name(should_optimize, "require", RUNTIME_REQUIRE);
-        let runtime_asset = bundle_graph.asset_graph.assets[*runtime as usize].expect_asset();
-        write!(
-          dest,
-          "let $rsc={}({});\n",
-          require,
-          serde_json::to_string(&runtime_asset.id(project_root))?
-        )?;
+        let require =
+          write_rsc_preamble(dest, should_optimize, bundle_graph, project_root, *runtime)?;
         if *is_client {
-          for (export_as, resolution) in referenced_exports {
-            let Some(asset_index) = resolution.asset_index() else {
-              continue;
-            };
-            let Some(export_name) = resolution.name(&bundle_graph.asset_graph) else {
-              continue;
-            };
-            let referenced_asset =
-              bundle_graph.asset_graph.assets[asset_index as usize].expect_asset();
+          for (export_as, referenced_asset, export_name) in
+            resolved_exports(referenced_exports, bundle_graph)
+          {
             write!(
               dest,
               "exports[{}]=$rsc.createServerReference({},{});\n",
@@ -1351,8 +1329,6 @@ impl SyntheticAsset {
         plan,
         is_async,
       } => {
-        let require = runtime_name(should_optimize, "require", RUNTIME_REQUIRE);
-        let runtime_asset = bundle_graph.asset_graph.assets[*runtime as usize].expect_asset();
         let importer_asset = bundle_graph.asset_graph.assets[*importer as usize].expect_asset();
         let dependency = &importer_asset.dependencies[*dependency as usize];
         let target_bundle = &bundle_graph.bundles[*target_bundle_index as usize];
@@ -1360,12 +1336,8 @@ impl SyntheticAsset {
           bundle_graph.asset_graph.assets[plan.original_asset as usize].expect_asset();
         let original_id = serde_json::to_string(&original_asset.id(project_root))?;
 
-        write!(
-          dest,
-          "let $rsc={}({});\n",
-          require,
-          serde_json::to_string(&runtime_asset.id(project_root))?
-        )?;
+        let require =
+          write_rsc_preamble(dest, should_optimize, bundle_graph, project_root, *runtime)?;
 
         write!(dest, "let $resources=[")?;
         for resource in &plan.resources {
@@ -1412,20 +1384,7 @@ impl SyntheticAsset {
           let mut css = Vec::new();
           for bundle_index in &plan.load_bundles {
             let load_bundle = &bundle_graph.bundles[*bundle_index as usize];
-            loads.push(
-              if load_bundle.target.output_format == OutputFormat::Commonjs {
-                format!(
-                  "Promise.resolve({}({}))",
-                  require,
-                  serde_json::to_string(&load_bundle.relative_specifier(bundle).unwrap())?
-                )
-              } else {
-                format!(
-                  "module.bundle.loadJS({})",
-                  serde_json::to_string(&load_bundle.name())?
-                )
-              },
-            );
+            loads.push(js_bundle_load_expression(load_bundle, bundle, require));
           }
           for url in &plan.client_css {
             write!(
@@ -1474,14 +1433,8 @@ impl SyntheticAsset {
       SyntheticAsset::RscServerEntry {
         runtime, actions, ..
       } => {
-        let require = runtime_name(should_optimize, "require", RUNTIME_REQUIRE);
-        let runtime_asset = bundle_graph.asset_graph.assets[*runtime as usize].expect_asset();
-        write!(
-          dest,
-          "let $rsc={}({});\n$rsc.ensureAsyncLocalStorage();\n",
-          require,
-          serde_json::to_string(&runtime_asset.id(project_root))?
-        )?;
+        write_rsc_preamble(dest, should_optimize, bundle_graph, project_root, *runtime)?;
+        write!(dest, "$rsc.ensureAsyncLocalStorage();\n")?;
         if !actions.is_empty() {
           write!(dest, "$rsc.registerServerActions({{")?;
           for action in actions {
@@ -1502,6 +1455,55 @@ impl SyntheticAsset {
   }
 }
 
+fn write_rsc_preamble<W: std::fmt::Write>(
+  dest: &mut W,
+  should_optimize: bool,
+  bundle_graph: &BundleGraph,
+  project_root: &PathId,
+  runtime: u32,
+) -> Result<&'static str, DiagnosticList> {
+  let require = runtime_name(should_optimize, "require", RUNTIME_REQUIRE);
+  let runtime_asset = bundle_graph.asset_graph.assets[runtime as usize].expect_asset();
+  write!(
+    dest,
+    "let $rsc={}({});\n",
+    require,
+    serde_json::to_string(&runtime_asset.id(project_root))?
+  )?;
+  Ok(require)
+}
+
+fn resolved_exports<'a>(
+  exports: &'a [(SymbolName, SymbolResolution)],
+  bundle_graph: &'a BundleGraph,
+) -> impl Iterator<Item = (&'a SymbolName, &'a Asset, SymbolName)> {
+  exports.iter().filter_map(|(export_as, resolution)| {
+    let asset_index = resolution.asset_index()?;
+    let export_name = resolution.name(&bundle_graph.asset_graph)?;
+    Some((
+      export_as,
+      bundle_graph.asset_graph.assets[asset_index as usize].expect_asset(),
+      export_name,
+    ))
+  })
+}
+
+fn js_bundle_load_expression(bundle: &Bundle, from: &Bundle, require_name: &str) -> String {
+  if bundle.target.output_format == OutputFormat::Commonjs {
+    format!(
+      "Promise.resolve({}({}))",
+      require_name,
+      serde_json::to_string(&bundle.relative_specifier(from).unwrap()).unwrap()
+    )
+  } else {
+    // parcelLoadJS resolves dist-root-relative names against the runtime's distDir prefix.
+    format!(
+      "module.bundle.loadJS({})",
+      serde_json::to_string(&bundle.name()).unwrap()
+    )
+  }
+}
+
 fn load_bundles<W: std::fmt::Write>(
   bundle_graph: &BundleGraph,
   from: &Bundle,
@@ -1517,11 +1519,11 @@ fn load_bundles<W: std::fmt::Write>(
     write!(res, "module.exports=Promise.all([")?;
     // TODO: recursive
     for referenced_index in &bundle.referenced_bundles {
-      load_bundle(&bundle_graph.bundles[*referenced_index], from, res)?;
+      load_bundle(&bundle_graph.bundles[*referenced_index], from, res, require_name)?;
       write!(res, ", ")?;
     }
 
-    load_bundle(bundle, from, res)?;
+    load_bundle(bundle, from, res, require_name)?;
     write!(
       res,
       "]).then(()=>{}('{}'));",
@@ -1530,7 +1532,7 @@ fn load_bundles<W: std::fmt::Write>(
     )?;
   } else {
     write!(res, "module.exports=")?;
-    load_bundle(bundle, from, res)?;
+    load_bundle(bundle, from, res, require_name)?;
     write!(
       res,
       ".then(()=>{}('{}'));",
@@ -1546,11 +1548,11 @@ fn load_bundle<W: std::fmt::Write>(
   bundle: &Bundle,
   from: &Bundle,
   res: &mut W,
+  require_name: &str,
 ) -> core::fmt::Result {
   match &bundle.ty {
     AssetType::Js => {
-      // parcelLoadJS resolves dist-root-relative names against the runtime's distDir prefix.
-      write!(res, "module.bundle.loadJS('{}')", bundle.name())
+      write!(res, "{}", js_bundle_load_expression(bundle, from, require_name))
     }
     AssetType::Css => {
       write!(

@@ -6,10 +6,10 @@ use std::{
 };
 
 use parcel_core::{
-  AssetType, BuildOptions, BundleBehavior, BundleFlags, BundleGraph, CodeFrame, CodeHighlight,
-  DependencyResolution, Diagnostic, DiagnosticList, DiagnosticSeverity, Environment,
+  AssetNode, AssetType, BuildOptions, BundleBehavior, BundleFlags, BundleGraph, CodeFrame,
+  CodeHighlight, DependencyResolution, Diagnostic, DiagnosticList, DiagnosticSeverity, Environment,
   EnvironmentFlags, FileSystem, MemoryFileSystem, OsFileSystem, OutputFormat, OverlayFileSystem,
-  PathId,
+  PathId, SymbolResolution,
 };
 use parcel_plugin_js::{create_runtime, require_module};
 use pretty_assertions::assert_eq;
@@ -584,4 +584,76 @@ fn run_test_json_test(path: &Path, test: serde_json::Value) {
 #[testing_macros::fixture("../../crates/parcel/tests/fixtures/**/test.json")]
 fn test(file: PathBuf) {
   run_test_json(&file);
+}
+
+/// GetExportedNames: local exports must shadow `export *`, and a name provided by two
+/// different `export *` sources is ambiguous.
+#[test]
+fn get_exports_star_dedupe() {
+  let fixture_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+    .join("tests/fixtures/react-server/client-star-exports");
+  let output_fs = Arc::new(MemoryFileSystem::new());
+  let bundle_graph = bundle_with_options(
+    &fixture_dir,
+    vec!["index.jsx".into()],
+    output_fs,
+    TestOptions::default(),
+  )
+  .unwrap();
+
+  let find = |file_name: &str| -> u32 {
+    bundle_graph
+      .asset_graph
+      .assets
+      .iter()
+      .position(|node| match node {
+        AssetNode::Asset(asset) => asset
+          .loc
+          .url
+          .to_file_path()
+          .is_ok_and(|path| path.file_name().to_string() == file_name),
+        _ => false,
+      })
+      .unwrap_or_else(|| panic!("could not find asset {file_name}")) as u32
+  };
+
+  let client_index = find("client.jsx");
+  let extras_index = find("extras.js");
+
+  // Across an environment boundary each name must appear exactly once,
+  // with the local export winning over `export *`.
+  let exports = bundle_graph
+    .asset_graph
+    .get_exports(client_index, Environment::ReactServer);
+  for name in ["Client", "Extra", "Both", "Extra2"] {
+    assert_eq!(
+      exports.iter().filter(|(n, _)| n.as_str() == name).count(),
+      1,
+      "expected exactly one export named {name}: {exports:?}"
+    );
+  }
+  let client = &exports.iter().find(|(n, _)| n.as_str() == "Client").unwrap().1;
+  assert!(
+    matches!(client, SymbolResolution::Export { asset_index, .. } if *asset_index == client_index),
+    "local export must win over export *: {client:?}"
+  );
+
+  // Without a boundary, star resolutions are not wrapped: the local export still wins,
+  // a name from a single star source resolves to that source, and a name provided by
+  // two different star sources is ambiguous.
+  let exports = bundle_graph
+    .asset_graph
+    .get_exports(client_index, Environment::ReactClient);
+  let client = &exports.iter().find(|(n, _)| n.as_str() == "Client").unwrap().1;
+  assert!(
+    matches!(client, SymbolResolution::Export { asset_index, .. } if *asset_index == client_index),
+    "local export must win over export *: {client:?}"
+  );
+  let extra = &exports.iter().find(|(n, _)| n.as_str() == "Extra").unwrap().1;
+  assert!(
+    matches!(extra, SymbolResolution::Export { asset_index, .. } if *asset_index == extras_index),
+    "star export must resolve to its source: {extra:?}"
+  );
+  let both = &exports.iter().find(|(n, _)| n.as_str() == "Both").unwrap().1;
+  assert_eq!(*both, SymbolResolution::Ambiguous);
 }

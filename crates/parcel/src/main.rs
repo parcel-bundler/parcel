@@ -90,7 +90,7 @@ pub fn main() -> ExitCode {
           options.source_map = None;
         }
         "--dist-dir" => {
-          options.dist_dir = args.next().map(|p| PathId::new(Path::new(&p)));
+          options.dist_dir = args.next().map(|p| options.cwd.join(Path::new(&p)));
         }
         "--public-url" => {
           options.public_url = args.next().unwrap_or_default();

@@ -179,7 +179,9 @@ impl Collect {
 
 impl From<Collect> for CollectResult {
   fn from(collect: Collect) -> CollectResult {
-    let imports = collect
+    // The collect maps are HashMaps, so sort by source location to keep symbol
+    // order deterministic across builds (it flows into asset symbols and output).
+    let mut imports: Vec<CollectImportedSymbol> = collect
       .imports
       .into_iter()
       .filter(|(local, _)| collect.used_imports.contains(local))
@@ -201,6 +203,9 @@ impl From<Collect> for CollectResult {
         },
       )
       .collect();
+    imports.sort_by(|a, b| {
+      (a.loc.start_line, a.loc.start_col, &a.local).cmp(&(b.loc.start_line, b.loc.start_col, &b.local))
+    });
 
     let mut exports: Vec<CollectExportedSymbol> = collect
       .exports
@@ -222,6 +227,13 @@ impl From<Collect> for CollectResult {
         },
       )
       .collect();
+    exports.sort_by(|a, b| {
+      (a.loc.start_line, a.loc.start_col, &a.exported).cmp(&(
+        b.loc.start_line,
+        b.loc.start_col,
+        &b.exported,
+      ))
+    });
 
     // Add * symbol if there are any CJS exports so that unknown symbols don't cause errors (e.g. default interop).
     if collect.has_cjs_exports {
@@ -238,14 +250,23 @@ impl From<Collect> for CollectResult {
       })
     }
 
+    let mut exports_all: Vec<CollectExportedAll> = collect
+      .exports_all
+      .into_iter()
+      .map(|(source, loc)| CollectExportedAll { source, loc })
+      .collect();
+    exports_all.sort_by(|a, b| {
+      (a.loc.start_line, a.loc.start_col, &a.source).cmp(&(
+        b.loc.start_line,
+        b.loc.start_col,
+        &b.source,
+      ))
+    });
+
     CollectResult {
       imports,
       exports,
-      exports_all: collect
-        .exports_all
-        .into_iter()
-        .map(|(source, loc)| CollectExportedAll { source, loc })
-        .collect(),
+      exports_all,
       should_wrap: collect.should_wrap,
       has_cjs_exports: collect.has_cjs_exports,
       static_cjs_exports: collect.static_cjs_exports,

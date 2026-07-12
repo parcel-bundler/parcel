@@ -1,0 +1,21 @@
+{
+  "description": "should not let star re-exports overwrite local client reference exports",
+  "input": "index.jsx",
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": ["index.jsx"],
+      "context": "react-server",
+      "contains": [
+        "exports[\"Client\"]=$rsc.createClientReference(",
+        "exports[\"Extra\"]=$rsc.createClientReference(",
+        "exports[\"Both\"]=$rsc.createClientReference(",
+        "exports[\"Extra2\"]=$rsc.createClientReference("
+      ]
+    },
+    {
+      "assets": ["client.jsx", "extras.js", "extras2.js"],
+      "context": "react-client"
+    }
+  ]
+}

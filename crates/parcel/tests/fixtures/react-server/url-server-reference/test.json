@@ -1,0 +1,15 @@
+{
+  "description": "should resolve URL dependencies to 'use server' files as URLs rather than server references",
+  "input": "index.jsx",
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": ["index.jsx"],
+      "context": "react-server",
+      "contains": ["new URL(\"actions-", "registerServerActions"],
+      "notContains": ["rsc_ss"]
+    },
+    {"assets": ["actions.js"], "context": "react-server"},
+    {"assets": []}
+  ]
+}

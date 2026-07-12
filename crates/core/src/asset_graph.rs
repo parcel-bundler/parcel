@@ -355,7 +355,91 @@ impl AssetGraphBuilder {
   }
 }
 
-// https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#sec-resolveexport
+/// Abstracts the side effects of symbol resolution so a single ResolveExport traversal
+/// can drive both the mutating build-time pass (which marks symbols as requested and
+/// queues deferred assets for transformation) and read-only resolution on a completed
+/// graph.
+trait SymbolGraph {
+  fn asset(&self, asset_index: u32) -> &AssetNode;
+
+  fn expect_asset(&self, asset_index: u32) -> &Asset {
+    self.asset(asset_index).expect_asset()
+  }
+
+  /// Called when resolution reaches an asset that has not been transformed yet.
+  fn resolve_deferred(&mut self, asset_index: u32, name: SymbolName) -> SymbolResolution;
+
+  fn mark_export_requested(&mut self, _asset_index: u32, _export_index: usize) {}
+  fn mark_indirect_requested(&mut self, _asset_index: u32, _indirect_index: usize) {}
+  fn request_all(&mut self, _asset_index: u32) {}
+}
+
+/// Build-time resolution over a graph that is still being constructed.
+struct RequestSymbols<'a> {
+  assets: &'a mut Vec<AssetNode>,
+  queue: &'a mut TransformQueue,
+}
+
+impl SymbolGraph for RequestSymbols<'_> {
+  fn asset(&self, asset_index: u32) -> &AssetNode {
+    &self.assets[asset_index as usize]
+  }
+
+  fn resolve_deferred(&mut self, asset_index: u32, name: SymbolName) -> SymbolResolution {
+    let AssetNode::Deferred {
+      request,
+      symbols,
+      requested,
+    } = &mut self.assets[asset_index as usize]
+    else {
+      unreachable!()
+    };
+
+    symbols.push(name);
+    if !*requested {
+      *requested = true;
+      self.queue.transform(asset_index as usize, request.clone());
+    }
+
+    SymbolResolution::Ambiguous
+  }
+
+  fn mark_export_requested(&mut self, asset_index: u32, export_index: usize) {
+    let AssetNode::Asset(asset) = &mut self.assets[asset_index as usize] else {
+      unreachable!()
+    };
+    asset.symbols.exports[export_index].requested = true;
+  }
+
+  fn mark_indirect_requested(&mut self, asset_index: u32, indirect_index: usize) {
+    let AssetNode::Asset(asset) = &mut self.assets[asset_index as usize] else {
+      unreachable!()
+    };
+    asset.symbols.indirect[indirect_index].requested = true;
+  }
+
+  fn request_all(&mut self, asset_index: u32) {
+    request_all(self.assets, asset_index, self.queue);
+  }
+}
+
+/// Read-only resolution over a completed graph, e.g. during packaging.
+struct ResolveSymbols<'a> {
+  assets: &'a [AssetNode],
+}
+
+impl SymbolGraph for ResolveSymbols<'_> {
+  fn asset(&self, asset_index: u32) -> &AssetNode {
+    &self.assets[asset_index as usize]
+  }
+
+  fn resolve_deferred(&mut self, _asset_index: u32, _name: SymbolName) -> SymbolResolution {
+    // The asset was never transformed (e.g. side effect free and unused), so its exports
+    // are unknown. Matches the build-time resolution for deferred assets.
+    SymbolResolution::Ambiguous
+  }
+}
+
 fn request_symbol(
   assets: &mut Vec<AssetNode>,
   asset_index: u32,
@@ -364,71 +448,83 @@ fn request_symbol(
   resolve_set: &mut HashSet<(u32, SymbolName)>,
   queue: &mut TransformQueue,
 ) -> SymbolResolution {
+  resolve_symbol(
+    &mut RequestSymbols { assets, queue },
+    asset_index,
+    name,
+    boundary_environment,
+    resolve_set,
+  )
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#sec-resolveexport
+fn resolve_symbol<G: SymbolGraph>(
+  graph: &mut G,
+  asset_index: u32,
+  name: SymbolName,
+  boundary_environment: Option<Environment>,
+  resolve_set: &mut HashSet<(u32, SymbolName)>,
+) -> SymbolResolution {
   if !resolve_set.insert((asset_index, name.clone())) {
     // Circular.
     return SymbolResolution::None;
   }
 
-  let asset_node = &mut assets[asset_index as usize];
-  let asset = match asset_node {
-    AssetNode::Asset(asset) => asset,
-    AssetNode::Deferred {
-      request,
-      symbols,
-      requested,
-    } => {
-      symbols.push(name);
-      if !*requested {
-        *requested = true;
-        queue.transform(asset_index as usize, request.clone());
-      }
-      return SymbolResolution::Ambiguous;
-    }
-  };
+  if let AssetNode::Deferred { .. } = graph.asset(asset_index) {
+    return graph.resolve_deferred(asset_index, name);
+  }
 
   if name == SymbolName::Namespace {
-    request_all(assets, asset_index, queue);
+    graph.request_all(asset_index);
     return SymbolResolution::Namespace { asset_index };
   }
 
+  let asset = graph.expect_asset(asset_index);
   let is_environment_boundary =
     boundary_environment.is_some_and(|environment| asset.target.environment != environment);
 
-  for (export_index, export) in asset.symbols.exports.iter_mut().enumerate() {
-    if export.exported == name {
-      export.requested = true;
-      return SymbolResolution::Export {
-        asset_index,
-        export_index: export_index as u32,
-      };
-    }
+  if let Some(export_index) = asset
+    .symbols
+    .exports
+    .iter()
+    .position(|export| export.exported == name)
+  {
+    graph.mark_export_requested(asset_index, export_index);
+    return SymbolResolution::Export {
+      asset_index,
+      export_index: export_index as u32,
+    };
   }
 
-  for export in &mut asset.symbols.indirect {
-    if export.exported == name {
-      let dep = &asset.dependencies[export.dep_index as usize];
-      if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
-        export.requested = true;
-        let imported = export.imported.clone();
-        let resolution = request_symbol(
-          assets,
-          resolved_asset_index,
-          imported,
-          boundary_environment,
-          resolve_set,
-          queue,
-        );
+  if let Some(indirect_index) = asset
+    .symbols
+    .indirect
+    .iter()
+    .position(|export| export.exported == name)
+  {
+    let export = &asset.symbols.indirect[indirect_index];
+    if let DependencyResolution::Asset(resolved_asset_index) =
+      asset.dependencies[export.dep_index as usize].resolution
+    {
+      let imported = export.imported.clone();
+      graph.mark_indirect_requested(asset_index, indirect_index);
+      let resolution = resolve_symbol(
+        graph,
+        resolved_asset_index,
+        imported,
+        boundary_environment,
+        resolve_set,
+      );
 
-        // Preserve the first module on the other side of an environment boundary. This is the
-        // public facade used by runtimes such as React client and server references.
-        if is_environment_boundary && resolution.asset_index().is_some() {
-          return SymbolResolution::Runtime { asset_index, name };
-        }
-
-        return resolution;
-      } else {
-        return SymbolResolution::None;
+      // Preserve the first module on the other side of an environment boundary. This is the
+      // public facade used by runtimes such as React client and server references.
+      if is_environment_boundary && resolution.asset_index().is_some() {
+        return SymbolResolution::Runtime { asset_index, name };
       }
+
+      return resolution;
+    } else {
+      return SymbolResolution::None;
     }
   }
 
@@ -437,25 +533,21 @@ fn request_symbol(
   // A default export cannot be provided by an export * from "mod" declaration.
   if name != SymbolName::Default {
     for i in 0..asset.symbols.star.len() {
-      let AssetNode::Asset(asset) = &assets[asset_index as usize] else {
-        unreachable!()
-      };
-
+      let asset = graph.expect_asset(asset_index);
       let dep = &asset.dependencies[asset.symbols.star[i].dep_index as usize];
       if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
-        let res = request_symbol(
-          assets,
+        let res = resolve_symbol(
+          graph,
           resolved_asset_index,
           name.clone(),
           boundary_environment,
           resolve_set,
-          queue,
         );
 
         match res {
           SymbolResolution::None => continue,
           SymbolResolution::Runtime { .. } => {
-            request_all(assets, asset_index, queue);
+            graph.request_all(asset_index);
             return SymbolResolution::Runtime { asset_index, name };
           }
           _ => {
@@ -470,15 +562,13 @@ fn request_symbol(
     }
   }
 
-  let AssetNode::Asset(asset) = &assets[asset_index as usize] else {
-    unreachable!()
-  };
+  let flags = graph.expect_asset(asset_index).flags;
 
   // If the asset has side effects or non-static exports, resolve at runtime.
-  if star_resolution == SymbolResolution::None && asset.flags.contains(AssetFlags::SIDE_EFFECTS)
-    || !asset.flags.contains(AssetFlags::STATIC_EXPORTS)
+  if star_resolution == SymbolResolution::None
+    && (flags.contains(AssetFlags::SIDE_EFFECTS) || !flags.contains(AssetFlags::STATIC_EXPORTS))
   {
-    request_all(assets, asset_index, queue);
+    graph.request_all(asset_index);
     return SymbolResolution::Runtime { asset_index, name };
   }
 
@@ -670,6 +760,15 @@ impl<'a> AssetGraph<'a> {
         }
       }
 
+      // Per GetExportedNames, names provided by local or named re-exports take precedence
+      // over export *, and conflicting export * declarations of the same name are ambiguous.
+      let mut seen: HashMap<SymbolName, usize> = exported_names
+        .iter()
+        .enumerate()
+        .map(|(index, (name, _))| (name.clone(), index))
+        .collect();
+      let star_start = exported_names.len();
+
       for star in &asset.symbols.star {
         if let DependencyResolution::Asset(resolved) =
           asset.dependencies[star.dep_index as usize].resolution
@@ -685,7 +784,18 @@ impl<'a> AssetGraph<'a> {
               } else {
                 resolution
               };
-              exported_names.push((name, resolution));
+              match seen.entry(name) {
+                std::collections::hash_map::Entry::Occupied(entry) => {
+                  let index = *entry.get();
+                  if index >= star_start && exported_names[index].1 != resolution {
+                    exported_names[index].1 = SymbolResolution::Ambiguous;
+                  }
+                }
+                std::collections::hash_map::Entry::Vacant(entry) => {
+                  exported_names.push((entry.key().clone(), resolution));
+                  entry.insert(exported_names.len() - 1);
+                }
+              }
             }
           }
         }
@@ -704,114 +814,13 @@ impl<'a> AssetGraph<'a> {
     name: SymbolName,
     boundary_environment: Environment,
   ) -> SymbolResolution {
-    fn resolve_export(
-      asset_graph: &AssetGraph,
-      asset_index: u32,
-      name: SymbolName,
-      boundary_environment: Environment,
-      resolve_set: &mut HashSet<(u32, SymbolName)>,
-    ) -> SymbolResolution {
-      if !resolve_set.insert((asset_index, name.clone())) {
-        // Circular.
-        return SymbolResolution::None;
-      }
-
-      let asset_node = &asset_graph.assets[asset_index as usize];
-      let asset = match asset_node {
-        AssetNode::Asset(asset) => asset,
-        _ => return SymbolResolution::None,
-      };
-      let is_environment_boundary = asset.target.environment != boundary_environment;
-
-      if name == SymbolName::Namespace {
-        return SymbolResolution::Namespace { asset_index };
-      }
-
-      for (export_index, export) in asset.symbols.exports.iter().enumerate() {
-        if export.exported == name {
-          return SymbolResolution::Export {
-            asset_index,
-            export_index: export_index as u32,
-          };
-        }
-      }
-
-      for export in &asset.symbols.indirect {
-        if export.exported == name {
-          let dep = &asset.dependencies[export.dep_index as usize];
-          if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
-            let imported = export.imported.clone();
-            if is_environment_boundary {
-              return SymbolResolution::Runtime { asset_index, name };
-            }
-            return resolve_export(
-              asset_graph,
-              resolved_asset_index,
-              imported,
-              boundary_environment,
-              resolve_set,
-            );
-          } else {
-            return SymbolResolution::None;
-          }
-        }
-      }
-
-      let mut star_resolution = SymbolResolution::None;
-
-      // A default export cannot be provided by an export * from "mod" declaration.
-      if name != SymbolName::Default {
-        for i in 0..asset.symbols.star.len() {
-          let AssetNode::Asset(asset) = &asset_graph.assets[asset_index as usize] else {
-            continue;
-          };
-
-          let dep = &asset.dependencies[asset.symbols.star[i].dep_index as usize];
-          if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
-            let res = resolve_export(
-              asset_graph,
-              resolved_asset_index,
-              name.clone(),
-              boundary_environment,
-              resolve_set,
-            );
-
-            match res {
-              SymbolResolution::None => continue,
-              SymbolResolution::Runtime { .. } => {
-                return SymbolResolution::Runtime { asset_index, name };
-              }
-              _ => {
-                if star_resolution == SymbolResolution::None {
-                  star_resolution = res;
-                } else if star_resolution != res {
-                  star_resolution = SymbolResolution::Ambiguous;
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // If the asset has side effects or non-static exports, resolve at runtime.
-      if star_resolution == SymbolResolution::None && asset.flags.contains(AssetFlags::SIDE_EFFECTS)
-        || !asset.flags.contains(AssetFlags::STATIC_EXPORTS)
-      {
-        return SymbolResolution::Runtime { asset_index, name };
-      }
-
-      if is_environment_boundary && star_resolution.asset_index().is_some() {
-        return SymbolResolution::Runtime { asset_index, name };
-      }
-
-      star_resolution
-    }
-
-    resolve_export(
-      self,
+    resolve_symbol(
+      &mut ResolveSymbols {
+        assets: &self.assets,
+      },
       asset_index,
       name,
-      boundary_environment,
+      Some(boundary_environment),
       &mut HashSet::new(),
     )
   }
