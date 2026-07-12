@@ -375,6 +375,47 @@ impl SymbolResolution {
       SymbolResolution::Runtime { name, .. } => Some(name.clone()),
     }
   }
+
+  pub fn is_used(&self, asset_graph: &AssetGraph) -> bool {
+    match self {
+      SymbolResolution::Export {
+        asset_index,
+        export_index,
+      } => {
+        asset_graph.assets[*asset_index as usize]
+          .expect_asset()
+          .symbols
+          .exports[*export_index as usize]
+          .requested
+      }
+      SymbolResolution::Runtime { asset_index, name } => {
+        let symbols = &asset_graph.assets[*asset_index as usize]
+          .expect_asset()
+          .symbols;
+        symbols.used_namespace
+          || symbols
+            .exports
+            .iter()
+            .find(|export| export.exported == *name)
+            .map(|export| export.requested)
+            .or_else(|| {
+              symbols
+                .indirect
+                .iter()
+                .find(|export| export.exported == *name)
+                .map(|export| export.requested)
+            })
+            .unwrap_or(true)
+      }
+      SymbolResolution::Namespace { asset_index } => {
+        let symbols = &asset_graph.assets[*asset_index as usize]
+          .expect_asset()
+          .symbols;
+        symbols.used_namespace
+      }
+      _ => true,
+    }
+  }
 }
 
 #[derive(Debug, Clone, Serialize)]

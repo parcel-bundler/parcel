@@ -192,9 +192,12 @@ pub(super) fn resolve_dependency(
       runtime: runtime_asset(importer_index, importer, bundle_graph)?,
       original: resolved_index,
       exports: if is_client {
-        bundle_graph
+        // Only create server references for exports that were actually imported.
+        let mut exports = bundle_graph
           .asset_graph
-          .get_exports(resolved_index, importer.target.environment)
+          .get_exports(resolved_index, importer.target.environment);
+        exports.retain(|(_, resolution)| resolution.is_used(&bundle_graph.asset_graph));
+        exports
       } else {
         Vec::new()
       },
@@ -292,24 +295,24 @@ fn resource_plan(
             url,
           });
         }
-      }
-    }
 
-    // Find the client entry in this bundle group if any.
-    if plan.client_entry.is_none() {
-      plan.client_entry = bundle.assets.iter().find_map(|asset_index| {
-        let asset = bundle_graph.asset_graph.assets[*asset_index].expect_asset();
-        asset
-          .content
-          .downcast_ref::<JsContent>()
-          .is_some_and(|content| {
-            content
-              .directives
-              .iter()
-              .any(|directive| directive == "use client-entry")
-          })
-          .then_some(*asset_index as u32)
-      });
+        // Find the client entry in this bundle group if any.
+        if importer.target.environment == Environment::ReactServer && plan.client_entry.is_none() {
+          plan.client_entry = bundle.assets.iter().find_map(|asset_index| {
+            let asset = bundle_graph.asset_graph.assets[*asset_index].expect_asset();
+            asset
+              .content
+              .downcast_ref::<JsContent>()
+              .is_some_and(|content| {
+                content
+                  .directives
+                  .iter()
+                  .any(|directive| directive == "use client-entry")
+              })
+              .then_some(*asset_index as u32)
+          });
+        }
+      }
     }
   }
 
@@ -658,8 +661,9 @@ fn write_resources<W: std::fmt::Write>(
   }
   write!(dest, "];\n")?;
 
-  // A bootstrap script that loads the client entry, which will be injected into the initial HTML.
-  let bootstrap_script = plan.client_entry.map(|client_entry| {
+  // A bootstrap script that loads the client entry, which will be injected into
+  // the initial HTML. Only applies to sync bundle group boundaries, i.e. the page.
+  let bootstrap_script = plan.client_entry.filter(|_| !is_async).map(|client_entry| {
     let imports = plan
       .bootstrap_modules
       .iter()
