@@ -91,15 +91,16 @@ pub fn get_hmr_update<'a>(
 
   // TODO: only changed ones??
   for synthetic_asset in synthetic_assets {
-    let id = if let SyntheticAsset::Asset(id, _) = &synthetic_asset {
-      Id::Asset(id.clone())
+    let asset_id = synthetic_asset.id(bundle_graph, &bundle_graph.project_root);
+    let id = if matches!(synthetic_asset, SyntheticAsset::CssModuleExports(_)) {
+      Id::Asset(asset_id.clone())
     } else {
-      Id::Bundle(synthetic_asset.id())
+      Id::Bundle(asset_id.clone())
     };
 
     let mut output = String::new();
     write!(&mut output, "parcelHotUpdate[").unwrap();
-    write!(&mut output, "'{}'", synthetic_asset.id()).unwrap();
+    write!(&mut output, "'{}'", asset_id).unwrap();
     write!(&mut output, "] = function (module, exports, require) {{").unwrap();
     synthetic_asset
       .write_content(
