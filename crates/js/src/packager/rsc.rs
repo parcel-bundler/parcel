@@ -15,10 +15,10 @@ use crate::JsContent;
 /// A packager-generated module implementing an RSC boundary or entry.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum RscModule {
-  /// Replaces a "use client-entry" import in the server environment. The client
-  /// entry only runs on the client, so the server sees an empty module.
+  /// Resolves a "use client-entry" import to an empty module so the client
+  /// entry does not run on the server.
   Empty { importer: u32, dependency: u32 },
-  /// Replaces a "use client" import in the server environment with a client
+  /// Replaces a server dependency on a client component with a client
   /// reference for each export.
   ClientReference {
     importer: u32,
@@ -29,9 +29,9 @@ pub enum RscModule {
     css_resources: Vec<String>,
     is_async: bool,
   },
-  /// Replaces a "use server" import with server references (on the client), or
-  /// wraps the original module to register its functions as server references
-  /// (on the server).
+  /// Replaces a "use server" import with a client proxy module that will call
+  /// the server (on the client), or wraps the original module to register its
+  /// functions as server references (on the server).
   ServerReference {
     importer: u32,
     dependency: u32,
@@ -41,8 +41,9 @@ pub enum RscModule {
     is_client: bool,
     is_async: bool,
   },
-  /// Wraps a module with the resources (stylesheets, preloads,
-  /// client bootstrap script) that should be rendered along with it.
+  /// Handles bundle group boundaries to automatically inject resources like CSS.
+  /// This is normally handled by the JS runtime, but the resources also need to be
+  /// attached to the React tree so they get loaded during SSR as well.
   Resources {
     importer: u32,
     dependency: u32,
@@ -157,6 +158,8 @@ pub(super) fn resolve_dependency(
         ))
       })?;
     let is_async = dependency.priority == Priority::Lazy;
+    // If this is an async boundary, inject CSS. JS for client components is
+    // injected by prepareDestinationForModule in React.
     let css_resources = if is_async {
       bundle_graph
         .referenced_bundles(bundle_index as usize)
@@ -278,6 +281,8 @@ fn resource_plan(
         let url = bundle.absolute_url();
         plan.bootstrap_modules.push(url.clone());
         if importer.target.environment == Environment::ReactClient {
+          // Preload scripts for dynamic imports during SSR.
+          // Can't use <script> because there might not be a prelude available yet.
           plan.resources.push(RscResource {
             kind: if bundle.target.output_format == OutputFormat::Esmodule {
               RscResourceKind::ModulePreload
@@ -290,6 +295,7 @@ fn resource_plan(
       }
     }
 
+    // Find the client entry in this bundle group if any.
     if plan.client_entry.is_none() {
       plan.client_entry = bundle.assets.iter().find_map(|asset_index| {
         let asset = bundle_graph.asset_graph.assets[*asset_index].expect_asset();
@@ -578,6 +584,8 @@ fn write_server_reference<W: std::fmt::Write>(
 ) -> Result<(), DiagnosticList> {
   let require = write_preamble(dest, should_optimize, bundle_graph, project_root, runtime)?;
   if is_client {
+    // Dependency on a "use server" module from a client environment.
+    // Create a client proxy module that will call the server.
     for (export_as, referenced_asset, export_name) in resolved_exports(exports, bundle_graph) {
       write!(
         dest,
@@ -588,6 +596,8 @@ fn write_server_reference<W: std::fmt::Write>(
       )?;
     }
   } else {
+    // Dependency on a "use server" module from a server environment.
+    // Mark each export as a server reference that can be passed to a client component as a prop.
     let original_asset = bundle_graph.asset_graph.assets[original as usize].expect_asset();
     let original_id = serde_json::to_string(&original_asset.id(project_root))?;
     write!(dest, "let $original={}({});\n", require, original_id)?;
@@ -648,6 +658,7 @@ fn write_resources<W: std::fmt::Write>(
   }
   write!(dest, "];\n")?;
 
+  // A bootstrap script that loads the client entry, which will be injected into the initial HTML.
   let bootstrap_script = plan.client_entry.map(|client_entry| {
     let imports = plan
       .bootstrap_modules
@@ -672,6 +683,8 @@ fn write_resources<W: std::fmt::Write>(
     )?;
   }
 
+  // Use a proxy to attach resources to all exports. This will be used by the JSX
+  // runtime to automatically render CSS at bundle group boundaries.
   if is_async {
     let mut loads = Vec::new();
     let mut css = Vec::new();
@@ -680,11 +693,15 @@ fn write_resources<W: std::fmt::Write>(
       loads.push(js_bundle_load_expression(load_bundle, bundle, require));
     }
     for url in &plan.client_css {
+      // Start preloading CSS via React.
       write!(
         dest,
         "$rsc.preinit({},{{as:'style',precedence:'default'}});\n",
         serde_json::to_string(url)?
       )?;
+      // If the promise is not being loaded by React.lazy, wait for CSS to load.
+      // Otherwise, React will suspend on the rendered <link> element in the resources.
+      // This allows React to start rendering earlier if the CSS takes longer to load.
       if !dependency.flags.contains(DependencyFlags::REACT_LAZY) {
         css.push(format!("$rsc.waitForCSS({})", serde_json::to_string(url)?));
       }
@@ -734,7 +751,10 @@ fn write_server_entry<W: std::fmt::Write>(
   actions: &[RscServerAction],
 ) -> Result<(), DiagnosticList> {
   write_preamble(dest, should_optimize, bundle_graph, project_root, runtime)?;
+  // React needs AsyncLocalStorage defined as a global for the edge environment.
+  // Without this, preinit scripts won't be inserted during SSR.
   write!(dest, "$rsc.ensureAsyncLocalStorage();\n")?;
+  // Register server actions in the server entry point.
   if !actions.is_empty() {
     write!(dest, "$rsc.registerServerActions({{")?;
     for action in actions {
