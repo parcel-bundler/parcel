@@ -1,10 +1,12 @@
 {
   "description": "should support CSS imports in server and client components",
-  "input": "index.jsx",
+  "input": "entry.jsx",
   "skipNodeModules": true,
   "bundles": [
+    {"assets": ["entry.jsx"], "context": "react-server", "contains": ["createResourcesProxy", "stylesheetResource"]},
     {"assets": ["index.jsx"], "context": "react-server"},
     {"assets": ["client.jsx"], "context": "react-client"},
-    {"assets": ["client.css", "server.css"], "type": "css", "context": "react-client"}
+    {"assets": ["client.css", "server.css"], "type": "css", "context": "react-client"},
+    {"assets": []}
   ]
 }

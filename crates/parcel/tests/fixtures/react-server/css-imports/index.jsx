@@ -1,6 +1,8 @@
+'use server-entry';
+
 import {Client} from './client';
 import './server.css';
-function Server() {
+
+export function Server() {
   return <Client />;
 }
-output = {Server};
