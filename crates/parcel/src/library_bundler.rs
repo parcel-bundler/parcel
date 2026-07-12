@@ -11,7 +11,7 @@ impl Bundler for LibraryBundler {
   fn bundle<'a>(
     &self,
     asset_graph: AssetGraph<'a>,
-    _options: &ParcelOptions,
+    options: &ParcelOptions,
   ) -> Result<BundleGraph<'a>, DiagnosticList> {
     #[derive(Hash, PartialEq, Eq)]
     struct BundleKey<'a> {
@@ -88,7 +88,7 @@ impl Bundler for LibraryBundler {
       asset_graph,
       bundles,
       dependency_resolutions,
-      PathId::root(),
+      options.project_root,
     ))
   }
 }

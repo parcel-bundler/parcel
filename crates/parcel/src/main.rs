@@ -125,11 +125,5 @@ pub fn main() -> ExitCode {
     }
   }
 
-  // parcel::serve(
-  //   // vec!["/Users/devongovett/dev/esbuild/require/parcel2/bench/three/entry.parcel2.js".into()],
-  //   // vec!["/Users/devongovett/dev/parcel/test/index.html".into()],
-  //   vec!["/Users/devongovett/dev/parcel/test/library".into()],
-  //   options,
-  // );
   ExitCode::from(0)
 }

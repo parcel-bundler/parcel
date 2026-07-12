@@ -184,14 +184,14 @@ impl PluginFactory for DefaultPluginFactory {
             .resolve(name, from, parcel_resolver::SpecifierType::Esm, &*self.fs);
         match resolved {
           Ok(resolution) => match resolution.resolution {
-            parcel_resolver::Resolution::Path(path)
-              if matches!(
-                path.extension().map(|s| s.as_bytes()),
-                Some(b"so" | b"dylib" | b"dll")
-              ) =>
-            {
-              return Ok(Arc::new(CPlugin::new(path, config.as_ref())?));
-            }
+            Resolution::Path(path) => match path.extension().map(|s| s.as_bytes()) {
+              Some(b"so" | b"dylib" | b"dll") => {
+                return Ok(Arc::new(CPlugin::new(path, config.as_ref())?));
+              }
+              _ => {
+                return Ok(Arc::new(JsPlugin::new(path)));
+              }
+            },
             _ => {}
           },
           _ => {}

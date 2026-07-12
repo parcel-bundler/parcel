@@ -330,7 +330,7 @@ impl Bundler for DefaultBundler {
       asset_graph,
       bundles,
       dependency_resolutions,
-      PathId::root(),
+      options.project_root,
     ))
   }
 }
