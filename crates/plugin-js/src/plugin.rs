@@ -16,12 +16,27 @@ use crate::{await_promise, cjs::CjsLoader, with_js_env};
 
 pub struct JsPlugin {
   path: String,
+  config: Option<serde_json::Value>,
 }
 
 impl JsPlugin {
-  pub fn new(path: PathId) -> JsPlugin {
+  pub fn new(path: PathId, config: Option<serde_json::Value>) -> JsPlugin {
     JsPlugin {
       path: path.with_path(|path| path.to_str().unwrap().to_owned()),
+      config,
+    }
+  }
+
+  fn config_to_js<'js>(&self, ctx: &Ctx<'js>) -> rquickjs::Result<rquickjs::Value<'js>> {
+    match &self.config {
+      Some(config) => rquickjs_serde::to_value(ctx.clone(), config).map_err(|error| {
+        rquickjs::Error::new_into_js_message(
+          "serde_json::Value",
+          "JavaScript value",
+          error.to_string(),
+        )
+      }),
+      None => Ok(rquickjs::Value::new_undefined(ctx.clone())),
     }
   }
 }
@@ -120,6 +135,7 @@ impl Transformer for JsPlugin {
       let value = asset.into_js(&ctx)?;
       let options = Object::new(ctx.clone())?;
       options.set("asset", value.clone())?;
+      options.set("config", self.config_to_js(ctx)?)?;
       let res: rquickjs::Value = transform.call((options,))?;
       await_promise(ctx, res)?;
       let obj = Class::<JsAsset>::from_js(&ctx, value)?;
@@ -160,6 +176,7 @@ impl Resolver for JsPlugin {
         opts.set("dependency", js_dep)?;
         opts.set("specifier", specifier)?;
         opts.set("pipeline", pipeline)?;
+        opts.set("config", self.config_to_js(ctx)?)?;
 
         let res: rquickjs::Value = resolve.call((opts,))?;
         let res = await_promise(ctx, res)?;
@@ -274,6 +291,7 @@ impl Namer for JsPlugin {
           "bundleGraph",
           JsBundleGraph::new(bundles.clone(), assets.clone()),
         )?;
+        args.set("config", self.config_to_js(ctx)?)?;
         let result: rquickjs::Value = name.call((args,))?;
         let result = await_promise(&ctx, result)?;
         Option::<String>::from_js(&ctx, result)

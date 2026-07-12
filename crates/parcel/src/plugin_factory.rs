@@ -96,7 +96,7 @@ impl PluginFactory for DefaultPluginFactory {
                 return Ok(Arc::new(CPlugin::new(path, config.as_ref())?));
               }
               _ => {
-                return Ok(Arc::new(JsPlugin::new(path)));
+                return Ok(Arc::new(JsPlugin::new(path, config)));
               }
             },
             _ => {}
@@ -133,7 +133,7 @@ impl PluginFactory for DefaultPluginFactory {
   fn namer(
     &self,
     name: &str,
-    _config: Option<serde_json::Value>,
+    config: Option<serde_json::Value>,
     from: PathId,
   ) -> Result<Arc<dyn Namer>, DiagnosticList> {
     if name == "@parcel/namer-default" {
@@ -145,7 +145,7 @@ impl PluginFactory for DefaultPluginFactory {
           .resolve(name, from, parcel_resolver::SpecifierType::Esm, &*self.fs);
       if let Ok(resolution) = resolved {
         if let Resolution::Path(path) = resolution.resolution {
-          return Ok(Arc::new(JsPlugin::new(path)));
+          return Ok(Arc::new(JsPlugin::new(path, config)));
         }
       }
       Err(Diagnostic::from_message(format!("Could not find namer {}", name)).into())
@@ -198,7 +198,7 @@ impl PluginFactory for DefaultPluginFactory {
                 return Ok(Arc::new(CPlugin::new(path, config.as_ref())?));
               }
               _ => {
-                return Ok(Arc::new(JsPlugin::new(path)));
+                return Ok(Arc::new(JsPlugin::new(path, config)));
               }
             },
             _ => {}

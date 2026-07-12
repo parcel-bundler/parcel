@@ -14,7 +14,18 @@ fn run(
   specifier: &str,
   pipeline: Option<&str>,
 ) -> Result<DependencyResolution, parcel_core::DiagnosticList> {
-  run_times(name, code, dependency, specifier, pipeline, 1)
+  run_times(name, code, dependency, specifier, pipeline, 1, None)
+}
+
+fn run_with_config(
+  name: &str,
+  code: &str,
+  dependency: Dependency,
+  specifier: &str,
+  pipeline: Option<&str>,
+  config: Option<serde_json::Value>,
+) -> Result<DependencyResolution, parcel_core::DiagnosticList> {
+  run_times(name, code, dependency, specifier, pipeline, 1, config)
 }
 
 fn run_times(
@@ -24,6 +35,7 @@ fn run_times(
   specifier: &str,
   pipeline: Option<&str>,
   times: usize,
+  config: Option<serde_json::Value>,
 ) -> Result<DependencyResolution, parcel_core::DiagnosticList> {
   let fs = Arc::new(OverlayFileSystem::new());
   let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
@@ -50,7 +62,7 @@ fn run_times(
   )
   .expect("Error writing plugin API");
 
-  let plugin = JsPlugin::new(plugin_path);
+  let plugin = JsPlugin::new(plugin_path, config);
   let dyn_fs: Arc<dyn FileSystem> = fs.clone();
   let options = ParcelOptions {
     input_fs: fs,
@@ -61,6 +73,34 @@ fn run_times(
     result = Some(plugin.resolve(&dependency, specifier, pipeline, &options, &dyn_fs));
   }
   result.expect("Resolver must be called at least once")
+}
+
+#[test]
+fn test_resolver_config() {
+  let result = run_with_config(
+    "plugin-config.mjs",
+    r#"
+      import {Resolver} from '@parcel/plugin';
+      import assert from 'assert';
+
+      export default new Resolver({
+        resolve({config}) {
+          assert.deepEqual(config, {filePath: '/configured.js', enabled: true});
+          return {filePath: config.filePath};
+        }
+      });
+    "#,
+    test_dependency(),
+    "configured",
+    None,
+    Some(serde_json::json!({
+      "filePath": "/configured.js",
+      "enabled": true
+    })),
+  )
+  .unwrap();
+
+  assert!(matches!(result, DependencyResolution::Deferred(_)));
 }
 
 fn test_dependency() -> Dependency {
@@ -227,6 +267,7 @@ fn test_dependency_wrapper_expires_after_call() {
     "guarded",
     None,
     2,
+    None,
   )
   .unwrap();
 

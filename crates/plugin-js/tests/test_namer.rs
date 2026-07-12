@@ -8,10 +8,19 @@ use parcel_core::{
 use parcel_plugin_js::JsPlugin;
 
 fn run(name: &str, code: &str) -> Option<PathId> {
-  run_times(name, code, 1)
+  run_times(name, code, 1, None)
 }
 
-fn run_times(name: &str, code: &str, times: usize) -> Option<PathId> {
+fn run_with_config(name: &str, code: &str, config: serde_json::Value) -> Option<PathId> {
+  run_times(name, code, 1, Some(config))
+}
+
+fn run_times(
+  name: &str,
+  code: &str,
+  times: usize,
+  config: Option<serde_json::Value>,
+) -> Option<PathId> {
   let fs = Arc::new(OverlayFileSystem::new());
   let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
   let plugin_path = root.join(Path::new(name));
@@ -87,7 +96,7 @@ fn run_times(name: &str, code: &str, times: usize) -> Option<PathId> {
     HashMap::new(),
     PathId::new(Path::new("/")),
   );
-  let plugin = JsPlugin::new(plugin_path);
+  let plugin = JsPlugin::new(plugin_path, config);
   let options = ParcelOptions {
     input_fs: fs,
     ..Default::default()
@@ -96,6 +105,33 @@ fn run_times(name: &str, code: &str, times: usize) -> Option<PathId> {
     .map(|_| plugin.name(&graph, &graph.bundles[0], &options).unwrap())
     .last()
     .flatten()
+}
+
+#[test]
+fn test_namer_config() {
+  let result = run_with_config(
+    "namer-config.mjs",
+    r#"
+      import {Namer} from '@parcel/plugin';
+      import assert from 'assert';
+
+      export default new Namer({
+        name({bundle, config}) {
+          assert.deepEqual(config, {directory: 'configured', suffix: 42});
+          return `${config.directory}/${bundle.type}-${config.suffix}.js`;
+        }
+      });
+    "#,
+    serde_json::json!({
+      "directory": "configured",
+      "suffix": 42
+    }),
+  );
+
+  assert_eq!(
+    result,
+    Some(PathId::new(Path::new("/dist/configured/js-42.js")))
+  );
 }
 
 fn test_asset(url: &str, ty: AssetType, target: Arc<Target>) -> Asset {
@@ -212,6 +248,7 @@ fn test_namer_wrappers_expire_after_call() {
       });
     "#,
     2,
+    None,
   );
 
   assert_eq!(result, Some(PathId::new(Path::new("/dist/guarded.js"))));

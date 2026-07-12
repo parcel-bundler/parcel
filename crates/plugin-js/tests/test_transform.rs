@@ -7,13 +7,22 @@ use parcel_core::{
 use parcel_plugin_js::JsPlugin;
 
 fn run(name: &str, code: &str, asset: Asset) -> Result<Asset, DiagnosticList> {
+  run_with_config(name, code, asset, None)
+}
+
+fn run_with_config(
+  name: &str,
+  code: &str,
+  asset: Asset,
+  config: Option<serde_json::Value>,
+) -> Result<Asset, DiagnosticList> {
   let fs = Arc::new(OverlayFileSystem::new());
   let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
   let plugin_path = root.join(Path::new(name));
   fs.create_dir_all(root).expect("Error creating dir");
   fs.write(plugin_path, &code.as_bytes().to_owned())
     .expect("Error writing file");
-  let plugin = JsPlugin::new(plugin_path);
+  let plugin = JsPlugin::new(plugin_path, config);
   let dyn_fs: Arc<dyn FileSystem> = fs.clone();
   plugin.transform(
     asset,
@@ -23,6 +32,32 @@ fn run(name: &str, code: &str, asset: Asset) -> Result<Asset, DiagnosticList> {
     },
     &dyn_fs,
   )
+}
+
+#[test]
+fn test_transform_config() {
+  let result = run_with_config(
+    "plugin-config.mjs",
+    r#"
+      import {Transformer} from '@parcel/plugin';
+      import assert from 'assert';
+
+      export default new Transformer({
+        transform({asset, config}) {
+          assert.deepEqual(config, {message: 'configured', nested: [true, null, 42]});
+          asset.setCode(config.message);
+        }
+      });
+    "#,
+    test_asset(),
+    Some(serde_json::json!({
+      "message": "configured",
+      "nested": [true, null, 42]
+    })),
+  )
+  .unwrap();
+
+  assert_eq!(result.content.read().unwrap(), b"configured");
 }
 
 fn test_asset() -> Asset {
