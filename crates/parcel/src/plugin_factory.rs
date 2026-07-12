@@ -155,14 +155,23 @@ impl PluginFactory for DefaultPluginFactory {
   fn optimizer(
     &self,
     name: &str,
-    _config: Option<serde_json::Value>,
-    _from: PathId,
+    config: Option<serde_json::Value>,
+    from: PathId,
   ) -> Result<Arc<dyn Optimizer>, DiagnosticList> {
     match name {
       "@parcel/optimizer-data-url" => Ok(Arc::new(DataUrlOptimizer {})),
-      _ => {
-        return Err(Diagnostic::from_message(format!("Could not find optimizer {}", name)).into());
-      }
+      _ => match self
+        .resolver
+        .resolve(name, from, parcel_resolver::SpecifierType::Esm, &*self.fs)
+      {
+        Ok(resolution) => match resolution.resolution {
+          Resolution::Path(path) => Ok(Arc::new(JsPlugin::new(path, config))),
+          _ => Err(Diagnostic::from_message(format!("Could not find optimizer {}", name)).into()),
+        },
+        Err(_) => {
+          Err(Diagnostic::from_message(format!("Could not find optimizer {}", name)).into())
+        }
+      },
     }
   }
 

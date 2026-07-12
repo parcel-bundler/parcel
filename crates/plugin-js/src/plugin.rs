@@ -2,9 +2,10 @@ use std::{cell::Cell, marker::PhantomData, path::Path, ptr::NonNull, rc::Rc, syn
 
 use parcel_core::{
   Asset, AssetFlags, AssetNode, AssetRequest, AssetType, BufferContent, Bundle, BundleBehavior,
-  BundleFlags, BundleGraph, DependencyFlags, DependencyResolution, Environment, EnvironmentFlags,
-  ExportsCondition, FileContent, Namer, OutputFormat, PathId, Priority, Resolver, SourceLocation,
-  SourceType, SourceUrl, SpecifierType, Target, Transformer,
+  BundleFlags, BundleGraph, Content, ContentWithSourceMap, DependencyFlags, DependencyResolution,
+  Environment, EnvironmentFlags, ExportsCondition, FileContent, Namer, Optimizer, OutputFormat,
+  PathId, Priority, Resolver, SourceLocation, SourceType, SourceUrl, SpecifierType, Target,
+  Transformer,
 };
 use rquickjs::{
   Class, Coerced, Ctx, FromJs, Function, IntoJs, JsLifetime, Object, Symbol, TypedArray,
@@ -38,6 +39,102 @@ impl JsPlugin {
       }),
       None => Ok(rquickjs::Value::new_undefined(ctx.clone())),
     }
+  }
+}
+
+impl Optimizer for JsPlugin {
+  fn optimize(
+    &self,
+    bundle_graph: &BundleGraph,
+    bundle: &Bundle,
+    contents: Arc<dyn Content>,
+    options: &parcel_core::ParcelOptions,
+  ) -> Result<Arc<dyn Content>, parcel_core::DiagnosticList> {
+    let bundle_index = bundle_graph
+      .bundles
+      .iter()
+      .position(|candidate| std::ptr::eq(candidate, bundle))
+      .expect("Bundle passed to optimizer must belong to the bundle graph");
+    let source_map = contents
+      .downcast_ref::<ContentWithSourceMap>()
+      .map(|contents| contents.source_map().to_vec());
+    let contents = contents.read()?;
+
+    with_call_scope(|scope| {
+      let bundles = Arc::new(
+        bundle_graph
+          .bundles
+          .iter()
+          .map(|bundle| scope.wrap(bundle))
+          .collect::<Vec<_>>(),
+      );
+      let assets = Arc::new(
+        bundle_graph
+          .asset_graph
+          .assets
+          .iter()
+          .map(|node| match node {
+            AssetNode::Asset(asset) => Some(scope.wrap(asset)),
+            AssetNode::Deferred { .. } => None,
+          })
+          .collect::<Vec<_>>(),
+      );
+
+      with_js_env(options.input_fs.clone(), &options.env, options.cwd, |ctx| {
+        let module = load_module(ctx, &self.path)?;
+        let symbol: Object = ctx.globals().get("Symbol")?;
+        let symbol_for: Function = symbol.get("for")?;
+        let sym: Symbol = symbol_for.call(("parcel-plugin-config",))?;
+        let config: Object = module.get::<_, Object>(sym.clone()).or_else(|_| {
+          module
+            .get::<_, Object>("default")
+            .and_then(|o| o.get::<_, Object>(sym))
+        })?;
+        let optimize: Function = config.get("optimize")?;
+        let args = Object::new(ctx.clone())?;
+        args.set(
+          "bundle",
+          JsBundle::new(bundle_index, bundles.clone(), assets.clone()),
+        )?;
+        args.set(
+          "bundleGraph",
+          JsBundleGraph::new(bundles.clone(), assets.clone()),
+        )?;
+        args.set("contents", TypedArray::new(ctx.clone(), contents)?)?;
+        if let Some(source_map) = source_map {
+          args.set("map", TypedArray::new(ctx.clone(), source_map)?)?;
+        } else {
+          args.set("map", rquickjs::Value::new_null(ctx.clone()))?;
+        }
+        args.set("config", self.config_to_js(ctx)?)?;
+
+        let result: rquickjs::Value = optimize.call((args,))?;
+        let result = await_promise(ctx, result)?;
+        let result = result.into_object().ok_or_else(|| {
+          rquickjs::Error::new_from_js_message("optimizer result", "object", "Expected an object")
+        })?;
+        let contents: TypedArray<u8> = result.get("contents")?;
+        let contents = contents
+          .as_bytes()
+          .ok_or_else(|| {
+            rquickjs::Error::new_from_js_message("contents", "Uint8Array", "Invalid Uint8Array")
+          })?
+          .to_vec();
+        let map: rquickjs::Value = result.get("map")?;
+        if map.is_null() || map.is_undefined() {
+          Ok(Arc::new(BufferContent::new(contents)) as Arc<dyn Content>)
+        } else {
+          let map = TypedArray::<u8>::from_js(ctx, map)?;
+          let map = map
+            .as_bytes()
+            .ok_or_else(|| {
+              rquickjs::Error::new_from_js_message("map", "Uint8Array", "Invalid Uint8Array")
+            })?
+            .to_vec();
+          Ok(Arc::new(ContentWithSourceMap::new(contents, map)) as Arc<dyn Content>)
+        }
+      })
+    })
   }
 }
 

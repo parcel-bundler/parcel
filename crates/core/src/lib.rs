@@ -399,7 +399,7 @@ pub fn get_bundle_content(
     .get(name.to_str().unwrap(), &pipeline, false);
 
   for optimizer in optimizers.0 {
-    content = optimizer.optimize(&bundle_graph, &bundle, content)?;
+    content = optimizer.optimize(&bundle_graph, &bundle, content, options)?;
   }
 
   Ok(content)

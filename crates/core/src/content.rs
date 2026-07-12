@@ -153,6 +153,10 @@ impl ContentWithSourceMap {
   pub fn new(code: Vec<u8>, map: Vec<u8>) -> Self {
     ContentWithSourceMap { code, map }
   }
+
+  pub fn source_map(&self) -> &[u8] {
+    &self.map
+  }
 }
 
 impl Content for ContentWithSourceMap {
