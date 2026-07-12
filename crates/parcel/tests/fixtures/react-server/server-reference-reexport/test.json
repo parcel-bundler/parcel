@@ -1,0 +1,21 @@
+[
+  {
+    "description": "should support re-exported server references with sideEffects false",
+    "input": "index.jsx",
+    "skipNodeModules": true,
+    "bundles": [
+      {"assets": ["actions.js", "impl.js", "index.jsx"], "context": "react-server", "contains": ["registerServerActions", "reexported action", "star reexported action"]},
+      {"assets": ["client.jsx"], "context": "react-client", "contains": ["createServerReference", "reexportedAction", "starReexportedAction"]}
+    ]
+  },
+  {
+    "description": "should preserve re-exported server references in optimized builds",
+    "input": "index.jsx",
+    "options": {"minify": true},
+    "skipNodeModules": true,
+    "bundles": [
+      {"assets": ["actions.js", "impl.js", "index.jsx"], "context": "react-server", "contains": ["reexported action", "star reexported action"]},
+      {"assets": ["client.jsx"], "context": "react-client", "contains": ["reexportedAction", "starReexportedAction"]}
+    ]
+  }
+]

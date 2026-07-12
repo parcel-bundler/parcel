@@ -1,0 +1,7 @@
+{
+  "name": "react-server-reference-reexport-test",
+  "private": true,
+  "sideEffects": false,
+  "dependencies": {"react": "^19"},
+  "targets": {"default": {"context": "react-server"}}
+}

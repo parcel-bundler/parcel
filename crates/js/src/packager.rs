@@ -834,7 +834,9 @@ fn rsc_dependency_resolution(
       importer: importer_index as u32,
       dependency: dependency_index as u32,
       runtime,
-      exports: bundle_graph.asset_graph.get_exports(resolved_index),
+      exports: bundle_graph
+        .asset_graph
+        .get_exports(resolved_index, importer.target.environment),
       bundles: client_bundle_names(bundle_graph, bundle_index),
       bundle: bundle_index,
       is_async: dependency.priority == Priority::Lazy,
@@ -849,7 +851,9 @@ fn rsc_dependency_resolution(
       runtime,
       original: resolved_index,
       exports: if importer.target.environment == Environment::ReactClient {
-        bundle_graph.asset_graph.get_exports(resolved_index)
+        bundle_graph
+          .asset_graph
+          .get_exports(resolved_index, importer.target.environment)
       } else {
         Vec::new()
       },

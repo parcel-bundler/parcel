@@ -1,0 +1,21 @@
+[
+  {
+    "description": "should support re-exported client references with sideEffects false",
+    "input": "index.jsx",
+    "skipNodeModules": true,
+    "bundles": [
+      {"assets": ["index.jsx"], "context": "react-server", "contains": ["createClientReference", "ReExportedComponent", "StarReExportedComponent"]},
+      {"assets": ["client.jsx", "impl.jsx"], "context": "react-client", "contains": ["re-exported client component", "star re-exported client component"]}
+    ]
+  },
+  {
+    "description": "should preserve re-exported client references in optimized builds",
+    "input": "index.jsx",
+    "options": {"minify": true},
+    "skipNodeModules": true,
+    "bundles": [
+      {"assets": ["index.jsx"], "context": "react-server", "contains": ["createClientReference", "ReExportedComponent", "StarReExportedComponent"]},
+      {"assets": ["client.jsx", "impl.jsx"], "context": "react-client", "contains": ["re-exported client component", "star re-exported client component"]}
+    ]
+  }
+]

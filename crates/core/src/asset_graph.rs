@@ -8,8 +8,8 @@ use fixedbitset::FixedBitSet;
 
 use crate::{
   Asset, AssetFlags, AssetRequest, AssetType, DependencyResolution, DiagnosticList, Entry,
-  EnvironmentFlags, FileContent, InvalidationMap, ParcelOptions, PathId, Priority, SourceLocation,
-  SymbolName, SymbolResolution,
+  Environment, EnvironmentFlags, FileContent, InvalidationMap, ParcelOptions, PathId, Priority,
+  SourceLocation, SymbolName, SymbolResolution,
   config::ParcelConfig,
   request::{RequestResult, TransformQueue},
 };
@@ -252,6 +252,7 @@ impl AssetGraphBuilder {
               &mut self.assets,
               res.index as u32,
               name,
+              None,
               &mut HashSet::new(),
               &mut queue,
             );
@@ -267,10 +268,12 @@ impl AssetGraphBuilder {
             let dep = &asset.dependencies[symbol.dep_index as usize];
             if let DependencyResolution::Asset(resolved_index) = dep.resolution {
               let name = symbol.symbol.clone();
+              let environment = asset.target.environment;
               request_symbol(
                 &mut self.assets,
                 resolved_index,
                 name,
+                Some(environment),
                 &mut HashSet::new(),
                 &mut queue,
               );
@@ -292,6 +295,7 @@ impl AssetGraphBuilder {
           let dep = &asset.dependencies[symbol.dep_index as usize];
           if let DependencyResolution::Asset(resolved_index) = dep.resolution {
             let name = symbol.symbol.clone();
+            let environment = asset.target.environment;
             let res = if dep.priority == Priority::Lazy {
               SymbolResolution::Runtime {
                 asset_index: resolved_index,
@@ -302,6 +306,7 @@ impl AssetGraphBuilder {
                 &mut self.assets,
                 resolved_index,
                 name.clone(),
+                Some(environment),
                 &mut HashSet::new(),
                 &mut queue,
               )
@@ -355,6 +360,7 @@ fn request_symbol(
   assets: &mut Vec<AssetNode>,
   asset_index: u32,
   name: SymbolName,
+  boundary_environment: Option<Environment>,
   resolve_set: &mut HashSet<(u32, SymbolName)>,
   queue: &mut TransformQueue,
 ) -> SymbolResolution {
@@ -385,6 +391,9 @@ fn request_symbol(
     return SymbolResolution::Namespace { asset_index };
   }
 
+  let is_environment_boundary =
+    boundary_environment.is_some_and(|environment| asset.target.environment != environment);
+
   for (export_index, export) in asset.symbols.exports.iter_mut().enumerate() {
     if export.exported == name {
       export.requested = true;
@@ -401,7 +410,22 @@ fn request_symbol(
       if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
         export.requested = true;
         let imported = export.imported.clone();
-        return request_symbol(assets, resolved_asset_index, imported, resolve_set, queue);
+        let resolution = request_symbol(
+          assets,
+          resolved_asset_index,
+          imported,
+          boundary_environment,
+          resolve_set,
+          queue,
+        );
+
+        // Preserve the first module on the other side of an environment boundary. This is the
+        // public facade used by runtimes such as React client and server references.
+        if is_environment_boundary && resolution.asset_index().is_some() {
+          return SymbolResolution::Runtime { asset_index, name };
+        }
+
+        return resolution;
       } else {
         return SymbolResolution::None;
       }
@@ -423,6 +447,7 @@ fn request_symbol(
           assets,
           resolved_asset_index,
           name.clone(),
+          boundary_environment,
           resolve_set,
           queue,
         );
@@ -454,6 +479,10 @@ fn request_symbol(
     || !asset.flags.contains(AssetFlags::STATIC_EXPORTS)
   {
     request_all(assets, asset_index, queue);
+    return SymbolResolution::Runtime { asset_index, name };
+  }
+
+  if is_environment_boundary && star_resolution.asset_index().is_some() {
     return SymbolResolution::Runtime { asset_index, name };
   }
 
@@ -494,6 +523,7 @@ fn request_all(assets: &mut Vec<AssetNode>, asset_index: u32, queue: &mut Transf
         assets,
         resolved_asset_index,
         name,
+        None,
         &mut HashSet::new(),
         queue,
       );
@@ -522,6 +552,7 @@ fn request_all(assets: &mut Vec<AssetNode>, asset_index: u32, queue: &mut Transf
         assets,
         resolved_asset_index,
         SymbolName::Namespace,
+        None,
         &mut HashSet::new(),
         queue,
       );
@@ -591,10 +622,15 @@ impl<'a> AssetGraph<'a> {
   }
 
   // https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#sec-getexportednames
-  pub fn get_exports(&self, asset_index: u32) -> Vec<(SymbolName, SymbolResolution)> {
+  pub fn get_exports(
+    &self,
+    asset_index: u32,
+    boundary_environment: Environment,
+  ) -> Vec<(SymbolName, SymbolResolution)> {
     fn get_exports(
       asset_graph: &AssetGraph,
       asset_index: u32,
+      boundary_environment: Environment,
       export_star_set: &mut HashSet<u32>,
     ) -> Vec<(SymbolName, SymbolResolution)> {
       if !export_star_set.insert(asset_index) {
@@ -606,6 +642,7 @@ impl<'a> AssetGraph<'a> {
       let AssetNode::Asset(asset) = &asset_graph.assets[asset_index as usize] else {
         return Vec::new();
       };
+      let is_environment_boundary = asset.target.environment != boundary_environment;
 
       for (index, export) in asset.symbols.exports.iter().enumerate() {
         exported_names.push((
@@ -621,7 +658,14 @@ impl<'a> AssetGraph<'a> {
         if let DependencyResolution::Asset(resolved) =
           asset.dependencies[export.dep_index as usize].resolution
         {
-          let resolved = asset_graph.resolve_export(resolved, export.imported.clone());
+          let resolved = if is_environment_boundary {
+            SymbolResolution::Runtime {
+              asset_index,
+              name: export.exported.clone(),
+            }
+          } else {
+            asset_graph.resolve_export(resolved, export.imported.clone(), boundary_environment)
+          };
           exported_names.push((export.exported.clone(), resolved));
         }
       }
@@ -630,10 +674,18 @@ impl<'a> AssetGraph<'a> {
         if let DependencyResolution::Asset(resolved) =
           asset.dependencies[star.dep_index as usize].resolution
         {
-          let names = get_exports(asset_graph, resolved, export_star_set);
-          for name in names {
-            if name.0 != SymbolName::Default {
-              exported_names.push(name);
+          let names = get_exports(asset_graph, resolved, boundary_environment, export_star_set);
+          for (name, resolution) in names {
+            if name != SymbolName::Default {
+              let resolution = if is_environment_boundary && resolution.asset_index().is_some() {
+                SymbolResolution::Runtime {
+                  asset_index,
+                  name: name.clone(),
+                }
+              } else {
+                resolution
+              };
+              exported_names.push((name, resolution));
             }
           }
         }
@@ -642,15 +694,21 @@ impl<'a> AssetGraph<'a> {
       exported_names
     }
 
-    get_exports(self, asset_index, &mut HashSet::new())
+    get_exports(self, asset_index, boundary_environment, &mut HashSet::new())
   }
 
   // https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#sec-resolveexport
-  pub fn resolve_export(&self, asset_index: u32, name: SymbolName) -> SymbolResolution {
+  pub fn resolve_export(
+    &self,
+    asset_index: u32,
+    name: SymbolName,
+    boundary_environment: Environment,
+  ) -> SymbolResolution {
     fn resolve_export(
       asset_graph: &AssetGraph,
       asset_index: u32,
       name: SymbolName,
+      boundary_environment: Environment,
       resolve_set: &mut HashSet<(u32, SymbolName)>,
     ) -> SymbolResolution {
       if !resolve_set.insert((asset_index, name.clone())) {
@@ -663,6 +721,7 @@ impl<'a> AssetGraph<'a> {
         AssetNode::Asset(asset) => asset,
         _ => return SymbolResolution::None,
       };
+      let is_environment_boundary = asset.target.environment != boundary_environment;
 
       if name == SymbolName::Namespace {
         return SymbolResolution::Namespace { asset_index };
@@ -682,7 +741,16 @@ impl<'a> AssetGraph<'a> {
           let dep = &asset.dependencies[export.dep_index as usize];
           if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
             let imported = export.imported.clone();
-            return resolve_export(asset_graph, resolved_asset_index, imported, resolve_set);
+            if is_environment_boundary {
+              return SymbolResolution::Runtime { asset_index, name };
+            }
+            return resolve_export(
+              asset_graph,
+              resolved_asset_index,
+              imported,
+              boundary_environment,
+              resolve_set,
+            );
           } else {
             return SymbolResolution::None;
           }
@@ -700,7 +768,13 @@ impl<'a> AssetGraph<'a> {
 
           let dep = &asset.dependencies[asset.symbols.star[i].dep_index as usize];
           if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
-            let res = resolve_export(asset_graph, resolved_asset_index, name.clone(), resolve_set);
+            let res = resolve_export(
+              asset_graph,
+              resolved_asset_index,
+              name.clone(),
+              boundary_environment,
+              resolve_set,
+            );
 
             match res {
               SymbolResolution::None => continue,
@@ -726,9 +800,19 @@ impl<'a> AssetGraph<'a> {
         return SymbolResolution::Runtime { asset_index, name };
       }
 
+      if is_environment_boundary && star_resolution.asset_index().is_some() {
+        return SymbolResolution::Runtime { asset_index, name };
+      }
+
       star_resolution
     }
 
-    resolve_export(self, asset_index, name, &mut HashSet::new())
+    resolve_export(
+      self,
+      asset_index,
+      name,
+      boundary_environment,
+      &mut HashSet::new(),
+    )
   }
 }
