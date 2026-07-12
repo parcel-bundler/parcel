@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc};
+use std::{cell::Cell, marker::PhantomData, path::Path, ptr::NonNull, rc::Rc, sync::Arc};
 
 use parcel_core::{
   Asset, AssetFlags, AssetNode, AssetRequest, AssetType, BufferContent, Bundle, BundleBehavior,
@@ -32,6 +32,72 @@ pub fn load_module<'js>(ctx: &Ctx<'js>, path: &str) -> rquickjs::Result<Object<'
   module.into_object().ok_or(rquickjs::Error::Unknown)
 }
 
+/// A non-owning reference which may be retained by JavaScript, but can only be
+/// dereferenced while its originating call scope is alive.
+struct ScopedRef<T> {
+  ptr: NonNull<T>,
+  alive: Rc<Cell<bool>>,
+}
+
+impl<T> Clone for ScopedRef<T> {
+  fn clone(&self) -> Self {
+    Self {
+      ptr: self.ptr,
+      alive: self.alive.clone(),
+    }
+  }
+}
+
+unsafe impl<'js, T: 'static> JsLifetime<'js> for ScopedRef<T> {
+  type Changed<'to> = ScopedRef<T>;
+}
+
+impl<T> ScopedRef<T> {
+  fn with<R>(&self, f: impl for<'a> FnOnce(&'a T) -> R) -> rquickjs::Result<R> {
+    if !self.alive.get() {
+      return Err(rquickjs::Error::new_from_js_message(
+        "scoped object",
+        "live scoped object",
+        "This object can no longer be accessed because its plugin call has completed",
+      ));
+    }
+
+    // SAFETY: ScopedRef values can only be created by CallScope::wrap. The
+    // higher-ranked with_call_scope closure ensures all source references live
+    // through the call, and CallScope::drop invalidates every handle before
+    // those references may expire. The pointer is never exposed to callers.
+    Ok(f(unsafe { self.ptr.as_ref() }))
+  }
+}
+
+struct CallScope<'scope> {
+  alive: Rc<Cell<bool>>,
+  _lifetime: PhantomData<Cell<&'scope ()>>,
+}
+
+impl<'scope> CallScope<'scope> {
+  fn wrap<T>(&self, value: &'scope T) -> ScopedRef<T> {
+    ScopedRef {
+      ptr: NonNull::from(value),
+      alive: self.alive.clone(),
+    }
+  }
+}
+
+impl Drop for CallScope<'_> {
+  fn drop(&mut self) {
+    self.alive.set(false);
+  }
+}
+
+fn with_call_scope<'scope, R>(f: impl FnOnce(&CallScope<'scope>) -> R) -> R {
+  let scope = CallScope {
+    alive: Rc::new(Cell::new(true)),
+    _lifetime: PhantomData,
+  };
+  f(&scope)
+}
+
 impl Transformer for JsPlugin {
   fn transform(
     &self,
@@ -50,7 +116,7 @@ impl Transformer for JsPlugin {
           .and_then(|o| o.get::<_, Object>(sym))
       })?;
       let transform: Function = config.get("transform")?;
-      let asset = JsAsset { asset: Some(asset) };
+      let asset = JsAsset::owned(asset);
       let value = asset.into_js(&ctx)?;
       let options = Object::new(ctx.clone())?;
       options.set("asset", value.clone())?;
@@ -58,7 +124,7 @@ impl Transformer for JsPlugin {
       await_promise(ctx, res)?;
       let obj = Class::<JsAsset>::from_js(&ctx, value)?;
       let js_asset = &mut *obj.borrow_mut();
-      let asset = js_asset.asset.take().expect("Asset already taken");
+      let asset = js_asset.take_owned().expect("Asset already taken");
       Ok(asset)
     })?;
 
@@ -75,79 +141,83 @@ impl Resolver for JsPlugin {
     options: &parcel_core::ParcelOptions,
     fs: &Arc<dyn parcel_core::FileSystem>,
   ) -> Result<parcel_core::DependencyResolution, parcel_core::DiagnosticList> {
-    with_js_env(fs.clone(), &options.env, options.cwd, |ctx| {
-      let module = load_module(&ctx, &self.path)?;
-      let symbol: Object = ctx.globals().get("Symbol")?;
-      let symbol_for: Function = symbol.get("for")?;
-      let sym: Symbol = symbol_for.call(("parcel-plugin-config",))?;
-      let config: Object = module.get::<_, Object>(sym.clone()).or_else(|_| {
-        module
-          .get::<_, Object>("default")
-          .and_then(|o| o.get::<_, Object>(sym))
-      })?;
-      let resolve: Function = config.get("resolve")?;
-      let js_dep = JsDependency { dep: dep.clone() };
-      let opts = Object::new(ctx.clone())?;
-      opts.set("dependency", js_dep)?;
-      opts.set("specifier", specifier)?;
-      opts.set("pipeline", pipeline)?;
+    with_call_scope(|scope| {
+      with_js_env(fs.clone(), &options.env, options.cwd, |ctx| {
+        let module = load_module(&ctx, &self.path)?;
+        let symbol: Object = ctx.globals().get("Symbol")?;
+        let symbol_for: Function = symbol.get("for")?;
+        let sym: Symbol = symbol_for.call(("parcel-plugin-config",))?;
+        let config: Object = module.get::<_, Object>(sym.clone()).or_else(|_| {
+          module
+            .get::<_, Object>("default")
+            .and_then(|o| o.get::<_, Object>(sym))
+        })?;
+        let resolve: Function = config.get("resolve")?;
+        let js_dep = JsDependency {
+          dep: scope.wrap(dep),
+        };
+        let opts = Object::new(ctx.clone())?;
+        opts.set("dependency", js_dep)?;
+        opts.set("specifier", specifier)?;
+        opts.set("pipeline", pipeline)?;
 
-      let res: rquickjs::Value = resolve.call((opts,))?;
-      let res = await_promise(ctx, res)?;
-      if let Some(res) = res.as_object() {
-        // TODO: Support the remaining Resolver API surface: options/logger/tracer/config and
-        // loadConfig inputs, plus priority/meta/canDefer/diagnostics/invalidation result fields.
-        let is_excluded: Option<bool> = res.get("isExcluded")?;
-        if is_excluded == Some(true) {
-          return Ok(DependencyResolution::External);
-        }
-
-        let file_path: Option<String> = res.get("filePath")?;
-        if let Some(file_path) = file_path {
-          if !Path::new(&file_path).is_absolute() {
-            return Err(rquickjs::Exception::throw_type(
-              &ctx,
-              &format!("Resolvers must return an absolute path, returned: {file_path}"),
-            ));
+        let res: rquickjs::Value = resolve.call((opts,))?;
+        let res = await_promise(ctx, res)?;
+        if let Some(res) = res.as_object() {
+          // TODO: Support the remaining Resolver API surface: options/logger/tracer/config and
+          // loadConfig inputs, plus priority/meta/canDefer/diagnostics/invalidation result fields.
+          let is_excluded: Option<bool> = res.get("isExcluded")?;
+          if is_excluded == Some(true) {
+            return Ok(DependencyResolution::External);
           }
 
-          let query_value: rquickjs::Value = res.get("query")?;
-          let query = if query_value.is_null() || query_value.is_undefined() {
-            None
-          } else {
-            Some(Coerced::<String>::from_js(&ctx, query_value)?.0)
-          };
-          let side_effects: Option<bool> = res.get("sideEffects")?;
-          let code: Option<String> = res.get("code")?;
-          let result_pipeline: rquickjs::Value = res.get("pipeline")?;
-          let path = PathId::new(Path::new(&file_path));
-          let url = SourceUrl::from_path_and_query(&path, query.as_ref().map(|s| s.as_str()));
-          let ty = AssetType::from_url(&url);
-          return Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
-            loc: SourceLocation {
-              url,
-              ..Default::default()
-            },
-            content: if let Some(code) = code {
-              Arc::new(BufferContent::new(code.into_bytes()))
-            } else {
-              Arc::new(FileContent::new(path, options.input_fs.clone()))
-            },
-            target: Target::normalize(&dep.target, &ty),
-            pipeline: if result_pipeline.is_undefined() {
-              pipeline.map(Into::into)
-            } else if result_pipeline.is_null() {
+          let file_path: Option<String> = res.get("filePath")?;
+          if let Some(file_path) = file_path {
+            if !Path::new(&file_path).is_absolute() {
+              return Err(rquickjs::Exception::throw_type(
+                &ctx,
+                &format!("Resolvers must return an absolute path, returned: {file_path}"),
+              ));
+            }
+
+            let query_value: rquickjs::Value = res.get("query")?;
+            let query = if query_value.is_null() || query_value.is_undefined() {
               None
             } else {
-              Some(String::from_js(&ctx, result_pipeline)?.into())
-            },
-            ty,
-            side_effects: side_effects.unwrap_or(true),
-          })));
+              Some(Coerced::<String>::from_js(&ctx, query_value)?.0)
+            };
+            let side_effects: Option<bool> = res.get("sideEffects")?;
+            let code: Option<String> = res.get("code")?;
+            let result_pipeline: rquickjs::Value = res.get("pipeline")?;
+            let path = PathId::new(Path::new(&file_path));
+            let url = SourceUrl::from_path_and_query(&path, query.as_ref().map(|s| s.as_str()));
+            let ty = AssetType::from_url(&url);
+            return Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
+              loc: SourceLocation {
+                url,
+                ..Default::default()
+              },
+              content: if let Some(code) = code {
+                Arc::new(BufferContent::new(code.into_bytes()))
+              } else {
+                Arc::new(FileContent::new(path, options.input_fs.clone()))
+              },
+              target: Target::normalize(&dep.target, &ty),
+              pipeline: if result_pipeline.is_undefined() {
+                pipeline.map(Into::into)
+              } else if result_pipeline.is_null() {
+                None
+              } else {
+                Some(String::from_js(&ctx, result_pipeline)?.into())
+              },
+              ty,
+              side_effects: side_effects.unwrap_or(true),
+            })));
+          }
         }
-      }
 
-      Ok(DependencyResolution::None)
+        Ok(DependencyResolution::None)
+      })
     })
   }
 }
@@ -164,78 +234,62 @@ impl Namer for JsPlugin {
       .iter()
       .position(|candidate| std::ptr::eq(candidate, bundle))
       .expect("Bundle passed to namer must belong to the bundle graph");
-    let bundles = Arc::new(
-      bundle_graph
-        .bundles
-        .iter()
-        .map(|bundle| JsBundleData::new(bundle, bundle_graph))
-        .collect::<Vec<_>>(),
-    );
+    let name = with_call_scope(|scope| {
+      let bundles = Arc::new(
+        bundle_graph
+          .bundles
+          .iter()
+          .map(|bundle| scope.wrap(bundle))
+          .collect::<Vec<_>>(),
+      );
+      let assets = Arc::new(
+        bundle_graph
+          .asset_graph
+          .assets
+          .iter()
+          .map(|node| match node {
+            AssetNode::Asset(asset) => Some(scope.wrap(asset)),
+            AssetNode::Deferred { .. } => None,
+          })
+          .collect::<Vec<_>>(),
+      );
 
-    let name = with_js_env(options.input_fs.clone(), &options.env, options.cwd, |ctx| {
-      let module = load_module(&ctx, &self.path)?;
-      let symbol: Object = ctx.globals().get("Symbol")?;
-      let symbol_for: Function = symbol.get("for")?;
-      let sym: Symbol = symbol_for.call(("parcel-plugin-config",))?;
-      let config: Object = module.get::<_, Object>(sym.clone()).or_else(|_| {
-        module
-          .get::<_, Object>("default")
-          .and_then(|o| o.get::<_, Object>(sym))
-      })?;
-      let name: Function = config.get("name")?;
-      let args = Object::new(ctx.clone())?;
-      args.set(
-        "bundle",
-        JsBundle::new(bundles[bundle_index].clone(), bundles.clone()),
-      )?;
-      args.set("bundleGraph", JsBundleGraph::new(bundles.clone()))?;
-      let result: rquickjs::Value = name.call((args,))?;
-      let result = await_promise(&ctx, result)?;
-      Option::<String>::from_js(&ctx, result)
+      with_js_env(options.input_fs.clone(), &options.env, options.cwd, |ctx| {
+        let module = load_module(&ctx, &self.path)?;
+        let symbol: Object = ctx.globals().get("Symbol")?;
+        let symbol_for: Function = symbol.get("for")?;
+        let sym: Symbol = symbol_for.call(("parcel-plugin-config",))?;
+        let config: Object = module.get::<_, Object>(sym.clone()).or_else(|_| {
+          module
+            .get::<_, Object>("default")
+            .and_then(|o| o.get::<_, Object>(sym))
+        })?;
+        let name: Function = config.get("name")?;
+        let args = Object::new(ctx.clone())?;
+        args.set(
+          "bundle",
+          JsBundle::new(bundle_index, bundles.clone(), assets.clone()),
+        )?;
+        args.set(
+          "bundleGraph",
+          JsBundleGraph::new(bundles.clone(), assets.clone()),
+        )?;
+        let result: rquickjs::Value = name.call((args,))?;
+        let result = await_promise(&ctx, result)?;
+        Option::<String>::from_js(&ctx, result)
+      })
     })?;
 
     Ok(name.map(|name| bundle.target.dist_dir.join(Path::new(&name))))
   }
 }
 
-#[derive(Clone)]
-struct JsBundleData {
-  ty: AssetType,
-  target: Arc<Target>,
-  bundle_behavior: BundleBehavior,
-  flags: BundleFlags,
-  entry_assets: Vec<Asset>,
-  main_entry_asset: Option<Asset>,
-  referenced_bundles: Vec<usize>,
-}
-
-impl JsBundleData {
-  fn new(bundle: &Bundle, bundle_graph: &BundleGraph) -> Self {
-    let asset = |index: usize| match &bundle_graph.asset_graph.assets[index] {
-      AssetNode::Asset(asset) => Some(asset.clone()),
-      AssetNode::Deferred { .. } => None,
-    };
-    Self {
-      ty: bundle.ty.clone(),
-      target: bundle.target.clone(),
-      bundle_behavior: bundle.bundle_behavior,
-      flags: bundle.flags,
-      entry_assets: bundle
-        .entry_assets
-        .iter()
-        .filter_map(|index| asset(*index))
-        .collect(),
-      main_entry_asset: bundle.main_entry_asset.and_then(asset),
-      referenced_bundles: bundle.referenced_bundles.clone(),
-    }
-  }
-}
-
 #[derive(JsLifetime)]
 #[rquickjs::class]
 struct JsBundle {
-  bundle: JsBundleData,
-  bundles: Arc<Vec<JsBundleData>>,
+  index: usize,
+  bundles: Arc<Vec<ScopedRef<Bundle>>>,
+  assets: Arc<Vec<Option<ScopedRef<Asset>>>>,
 }
 
 impl<'js> Trace<'js> for JsBundle {
@@ -245,65 +299,76 @@ impl<'js> Trace<'js> for JsBundle {
 #[methods(rename_all = "camelCase")]
 impl JsBundle {
   #[qjs(get, rename = "type")]
-  fn get_type(&self) -> &str {
-    self.bundle.ty.extension()
+  fn get_type(&self) -> rquickjs::Result<String> {
+    self.bundles[self.index].with(|bundle| bundle.ty.extension().to_owned())
   }
 
   #[qjs(get)]
-  fn needs_stable_name(&self) -> bool {
-    self.bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME)
+  fn needs_stable_name(&self) -> rquickjs::Result<bool> {
+    self.bundles[self.index].with(|bundle| bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME))
   }
 
   #[qjs(get)]
-  fn is_entry(&self) -> bool {
-    self.bundle.flags.contains(BundleFlags::ENTRY)
+  fn is_entry(&self) -> rquickjs::Result<bool> {
+    self.bundles[self.index].with(|bundle| bundle.flags.contains(BundleFlags::ENTRY))
   }
 
   #[qjs(get)]
-  fn bundle_behavior(&self) -> Option<&str> {
-    match self.bundle.bundle_behavior {
+  fn bundle_behavior(&self) -> rquickjs::Result<Option<&str>> {
+    self.bundles[self.index].with(|bundle| match bundle.bundle_behavior {
       BundleBehavior::None => None,
       BundleBehavior::Inline => Some("inline"),
       BundleBehavior::Isolated => Some("isolated"),
-    }
+    })
   }
 
   #[qjs(get)]
-  fn target(&self) -> JsTarget {
-    JsTarget {
-      target: self.bundle.target.clone(),
-    }
+  fn target(&self) -> rquickjs::Result<JsTarget> {
+    self.bundles[self.index].with(|bundle| JsTarget {
+      target: bundle.target.clone(),
+    })
   }
 
-  fn get_main_entry(&self) -> Option<JsAsset> {
-    self
-      .bundle
-      .main_entry_asset
-      .clone()
-      .map(|asset| JsAsset { asset: Some(asset) })
+  fn get_main_entry(&self) -> rquickjs::Result<Option<JsAsset>> {
+    self.bundles[self.index].with(|bundle| {
+      bundle
+        .main_entry_asset
+        .and_then(|index| self.assets[index].clone())
+        .map(JsAsset::borrowed)
+    })
   }
 
-  fn get_entry_assets(&self) -> Vec<JsAsset> {
-    self
-      .bundle
-      .entry_assets
-      .iter()
-      .cloned()
-      .map(|asset| JsAsset { asset: Some(asset) })
-      .collect()
+  fn get_entry_assets(&self) -> rquickjs::Result<Vec<JsAsset>> {
+    self.bundles[self.index].with(|bundle| {
+      bundle
+        .entry_assets
+        .iter()
+        .filter_map(|index| self.assets[*index].clone())
+        .map(JsAsset::borrowed)
+        .collect()
+    })
   }
 }
 
 impl JsBundle {
-  fn new(bundle: JsBundleData, bundles: Arc<Vec<JsBundleData>>) -> Self {
-    Self { bundle, bundles }
+  fn new(
+    index: usize,
+    bundles: Arc<Vec<ScopedRef<Bundle>>>,
+    assets: Arc<Vec<Option<ScopedRef<Asset>>>>,
+  ) -> Self {
+    Self {
+      index,
+      bundles,
+      assets,
+    }
   }
 }
 
 #[derive(JsLifetime)]
 #[rquickjs::class]
 struct JsBundleGraph {
-  bundles: Arc<Vec<JsBundleData>>,
+  bundles: Arc<Vec<ScopedRef<Bundle>>>,
+  assets: Arc<Vec<Option<ScopedRef<Asset>>>>,
 }
 
 impl<'js> Trace<'js> for JsBundleGraph {
@@ -316,19 +381,23 @@ impl JsBundleGraph {
     self
       .bundles
       .iter()
-      .cloned()
-      .map(|bundle| JsBundle::new(bundle, self.bundles.clone()))
+      .enumerate()
+      .map(|(index, _)| JsBundle::new(index, self.bundles.clone(), self.assets.clone()))
       .collect()
   }
 
-  fn get_entry_bundles(&self) -> Vec<JsBundle> {
-    self
-      .bundles
-      .iter()
-      .filter(|bundle| bundle.flags.contains(BundleFlags::ENTRY))
-      .cloned()
-      .map(|bundle| JsBundle::new(bundle, self.bundles.clone()))
-      .collect()
+  fn get_entry_bundles(&self) -> rquickjs::Result<Vec<JsBundle>> {
+    let mut result = Vec::new();
+    for (index, bundle) in self.bundles.iter().enumerate() {
+      if bundle.with(|bundle| bundle.flags.contains(BundleFlags::ENTRY))? {
+        result.push(JsBundle::new(
+          index,
+          self.bundles.clone(),
+          self.assets.clone(),
+        ));
+      }
+    }
+    Ok(result)
   }
 
   fn get_referenced_bundles(
@@ -350,12 +419,15 @@ impl JsBundleGraph {
       .transpose()?
       .flatten()
       .unwrap_or(false);
-    let mut indices = bundle.bundle.referenced_bundles.clone();
+    let mut indices =
+      bundle.bundles[bundle.index].with(|bundle| bundle.referenced_bundles.clone())?;
     if recursive {
       let mut offset = 0;
       while offset < indices.len() {
         let index = indices[offset];
-        for referenced in &self.bundles[index].referenced_bundles {
+        let referenced_bundles =
+          self.bundles[index].with(|bundle| bundle.referenced_bundles.clone())?;
+        for referenced in &referenced_bundles {
           if !indices.contains(referenced) {
             indices.push(*referenced);
           }
@@ -366,153 +438,172 @@ impl JsBundleGraph {
     Ok(
       indices
         .into_iter()
-        .map(|index| JsBundle::new(self.bundles[index].clone(), self.bundles.clone()))
+        .map(|index| JsBundle::new(index, self.bundles.clone(), self.assets.clone()))
         .collect(),
     )
   }
 }
 
 impl JsBundleGraph {
-  fn new(bundles: Arc<Vec<JsBundleData>>) -> Self {
-    Self { bundles }
+  fn new(bundles: Arc<Vec<ScopedRef<Bundle>>>, assets: Arc<Vec<Option<ScopedRef<Asset>>>>) -> Self {
+    Self { bundles, assets }
   }
 }
 
 #[derive(JsLifetime)]
 #[rquickjs::class]
 struct JsAsset {
-  asset: Option<Asset>,
+  asset: JsAssetValue,
+}
+
+#[derive(JsLifetime)]
+enum JsAssetValue {
+  Owned(Option<Asset>),
+  Borrowed(ScopedRef<Asset>),
 }
 
 impl<'js> Trace<'js> for JsAsset {
   fn trace<'a>(&self, _tracer: class::Tracer<'a, 'js>) {}
 }
 
+impl JsAsset {
+  fn owned(asset: Asset) -> Self {
+    Self {
+      asset: JsAssetValue::Owned(Some(asset)),
+    }
+  }
+
+  fn borrowed(asset: ScopedRef<Asset>) -> Self {
+    Self {
+      asset: JsAssetValue::Borrowed(asset),
+    }
+  }
+
+  fn take_owned(&mut self) -> Option<Asset> {
+    match &mut self.asset {
+      JsAssetValue::Owned(asset) => asset.take(),
+      JsAssetValue::Borrowed(_) => None,
+    }
+  }
+
+  fn with_asset<R>(&self, f: impl for<'a> FnOnce(&'a Asset) -> R) -> rquickjs::Result<R> {
+    match &self.asset {
+      JsAssetValue::Owned(Some(asset)) => Ok(f(asset)),
+      JsAssetValue::Owned(None) => Err(rquickjs::Error::new_from_js_message(
+        "asset",
+        "available asset",
+        "Asset has already been consumed",
+      )),
+      JsAssetValue::Borrowed(asset) => asset.with(f),
+    }
+  }
+
+  fn with_asset_mut<R>(&mut self, f: impl FnOnce(&mut Asset) -> R) -> rquickjs::Result<R> {
+    match &mut self.asset {
+      JsAssetValue::Owned(Some(asset)) => Ok(f(asset)),
+      JsAssetValue::Owned(None) => Err(rquickjs::Error::new_from_js_message(
+        "asset",
+        "available asset",
+        "Asset has already been consumed",
+      )),
+      JsAssetValue::Borrowed(_) => Err(rquickjs::Error::new_from_js_message(
+        "read-only asset",
+        "mutable asset",
+        "Assets exposed to Namer plugins are read-only",
+      )),
+    }
+  }
+}
+
 #[methods(rename_all = "camelCase")]
 impl JsAsset {
   #[qjs(get)]
-  fn url(&self) -> String {
-    let Some(asset) = &self.asset else {
-      unreachable!()
-    };
-    asset.loc.url.to_string()
+  fn url(&self) -> rquickjs::Result<String> {
+    self.with_asset(|asset| asset.loc.url.to_string())
   }
 
   #[qjs(get, rename = "type")]
-  fn get_type(&self) -> &str {
-    let Some(asset) = &self.asset else {
-      unreachable!()
-    };
-    asset.ty.extension()
+  fn get_type(&self) -> rquickjs::Result<String> {
+    self.with_asset(|asset| asset.ty.extension().to_owned())
   }
 
   #[qjs(set, rename = "type")]
-  fn set_type(&mut self, ty: String) {
-    let Some(asset) = &mut self.asset else {
-      unreachable!()
-    };
-    asset.ty = AssetType::from_extension(&ty)
+  fn set_type(&mut self, ty: String) -> rquickjs::Result<()> {
+    self.with_asset_mut(|asset| asset.ty = AssetType::from_extension(&ty))
   }
 
   fn get_buffer<'js>(&self, ctx: Ctx<'js>) -> rquickjs::Result<TypedArray<'js, u8>> {
-    let Some(asset) = &self.asset else {
-      unreachable!()
-    };
-    let src = asset.content.read().unwrap();
+    let src = self.with_asset(|asset| asset.content.read().unwrap())?;
     TypedArray::new(ctx, src)
   }
 
   fn get_code(&self) -> rquickjs::Result<String> {
-    let Some(asset) = &self.asset else {
-      unreachable!()
-    };
-    let src = asset.content.read().unwrap();
+    let src = self.with_asset(|asset| asset.content.read().unwrap())?;
     Ok(String::from_utf8(src).unwrap())
   }
 
-  fn set_buffer<'js>(&mut self, buf: TypedArray<'js, u8>) {
-    let Some(asset) = &mut self.asset else {
-      unreachable!()
-    };
-    asset.content = Arc::new(BufferContent::new(buf.as_bytes().unwrap().to_owned()));
+  fn set_buffer<'js>(&mut self, buf: TypedArray<'js, u8>) -> rquickjs::Result<()> {
+    self.with_asset_mut(|asset| {
+      asset.content = Arc::new(BufferContent::new(buf.as_bytes().unwrap().to_owned()))
+    })
   }
 
-  fn set_code(&mut self, value: String) {
-    let Some(asset) = &mut self.asset else {
-      unreachable!()
-    };
-    asset.content = Arc::new(BufferContent::new(value.into_bytes()));
+  fn set_code(&mut self, value: String) -> rquickjs::Result<()> {
+    self.with_asset_mut(|asset| asset.content = Arc::new(BufferContent::new(value.into_bytes())))
   }
 
   #[qjs(get)]
-  fn target(&mut self) -> JsTarget {
-    let Some(asset) = &mut self.asset else {
-      unreachable!()
-    };
-    JsTarget {
+  fn target(&self) -> rquickjs::Result<JsTarget> {
+    self.with_asset(|asset| JsTarget {
       target: asset.target.clone(),
-    }
+    })
   }
 
   #[qjs(get)]
-  fn is_source(&self) -> bool {
-    let Some(asset) = &self.asset else {
-      unreachable!()
-    };
-    asset.flags.contains(AssetFlags::IS_SOURCE)
+  fn is_source(&self) -> rquickjs::Result<bool> {
+    self.with_asset(|asset| asset.flags.contains(AssetFlags::IS_SOURCE))
   }
 
   #[qjs(get)]
-  fn side_effects(&self) -> bool {
-    let Some(asset) = &self.asset else {
-      unreachable!()
-    };
-    asset.flags.contains(AssetFlags::SIDE_EFFECTS)
+  fn side_effects(&self) -> rquickjs::Result<bool> {
+    self.with_asset(|asset| asset.flags.contains(AssetFlags::SIDE_EFFECTS))
   }
 
   #[qjs(get, rename = "isBundleSplittable")]
-  fn is_bundle_splittable(&self) -> bool {
-    let Some(asset) = &self.asset else {
-      unreachable!()
-    };
-    asset.flags.contains(AssetFlags::IS_BUNDLE_SPLITTABLE)
+  fn is_bundle_splittable(&self) -> rquickjs::Result<bool> {
+    self.with_asset(|asset| asset.flags.contains(AssetFlags::IS_BUNDLE_SPLITTABLE))
   }
 
   #[qjs(set, rename = "isBundleSplittable")]
-  fn set_is_bundle_splittable(&mut self, value: bool) {
-    let Some(asset) = &mut self.asset else {
-      unreachable!()
-    };
-    if value {
-      asset.flags.insert(AssetFlags::IS_BUNDLE_SPLITTABLE);
-    } else {
-      asset.flags.remove(AssetFlags::IS_BUNDLE_SPLITTABLE);
-    }
+  fn set_is_bundle_splittable(&mut self, value: bool) -> rquickjs::Result<()> {
+    self.with_asset_mut(|asset| {
+      if value {
+        asset.flags.insert(AssetFlags::IS_BUNDLE_SPLITTABLE);
+      } else {
+        asset.flags.remove(AssetFlags::IS_BUNDLE_SPLITTABLE);
+      }
+    })
   }
 
   #[qjs(get, rename = "bundleBehavior")]
-  fn bundle_behavior(&self) -> Option<&str> {
-    let Some(asset) = &self.asset else {
-      unreachable!()
-    };
-    match asset.bundle_behavior {
+  fn bundle_behavior(&self) -> rquickjs::Result<Option<String>> {
+    self.with_asset(|asset| match asset.bundle_behavior {
       BundleBehavior::None => None,
-      BundleBehavior::Inline => Some("inline"),
-      BundleBehavior::Isolated => Some("isolated"),
-    }
+      BundleBehavior::Inline => Some("inline".into()),
+      BundleBehavior::Isolated => Some("isolated".into()),
+    })
   }
 
   #[qjs(set, rename = "bundleBehavior")]
-  fn set_bundle_behavior(&mut self, value: Option<String>) {
-    let Some(asset) = &mut self.asset else {
-      unreachable!()
-    };
-    asset.bundle_behavior = match value.as_deref() {
-      None | Some("none") => BundleBehavior::None,
-      Some("inline") => BundleBehavior::Inline,
-      Some("isolated") => BundleBehavior::Isolated,
-      _ => BundleBehavior::None,
-    };
+  fn set_bundle_behavior(&mut self, value: Option<String>) -> rquickjs::Result<()> {
+    self.with_asset_mut(|asset| {
+      asset.bundle_behavior = match value.as_deref() {
+        None | Some("none") => BundleBehavior::None,
+        Some("inline") => BundleBehavior::Inline,
+        Some("isolated") => BundleBehavior::Isolated,
+        _ => BundleBehavior::None,
+      }
+    })
   }
 }
 
@@ -606,7 +697,7 @@ impl JsTarget {
 #[derive(JsLifetime)]
 #[rquickjs::class]
 pub struct JsDependency {
-  dep: parcel_core::Dependency,
+  dep: ScopedRef<parcel_core::Dependency>,
 }
 
 impl<'js> Trace<'js> for JsDependency {
@@ -616,118 +707,129 @@ impl<'js> Trace<'js> for JsDependency {
 #[methods(rename_all = "camelCase")]
 impl JsDependency {
   #[qjs(get)]
-  pub fn specifier(&self) -> &str {
-    &self.dep.specifier
+  pub fn specifier(&self) -> rquickjs::Result<String> {
+    self.dep.with(|dep| dep.specifier.to_string())
   }
 
   #[qjs(get)]
-  pub fn specifier_type(&self) -> &str {
-    match self.dep.specifier_type {
+  pub fn specifier_type(&self) -> rquickjs::Result<&'static str> {
+    self.dep.with(|dep| match dep.specifier_type {
       SpecifierType::Commonjs => "commonjs",
       SpecifierType::Esm => "esm",
       SpecifierType::Url => "url",
       SpecifierType::Custom => "custom",
-    }
+    })
   }
 
   #[qjs(get)]
-  pub fn priority(&self) -> &str {
-    match self.dep.priority {
+  pub fn priority(&self) -> rquickjs::Result<&'static str> {
+    self.dep.with(|dep| match dep.priority {
       Priority::Sync => "sync",
       Priority::Parallel => "parallel",
       Priority::Lazy => "lazy",
-    }
+    })
   }
 
   #[qjs(get)]
-  pub fn bundle_behavior(&self) -> Option<&str> {
-    match self.dep.bundle_behavior {
+  pub fn bundle_behavior(&self) -> rquickjs::Result<Option<&'static str>> {
+    self.dep.with(|dep| match dep.bundle_behavior {
       BundleBehavior::None => None,
       BundleBehavior::Inline => Some("inline"),
       BundleBehavior::Isolated => Some("isolated"),
-    }
+    })
   }
 
   #[qjs(get)]
-  pub fn is_entry(&self) -> bool {
-    self.dep.flags.contains(DependencyFlags::ENTRY)
+  pub fn is_entry(&self) -> rquickjs::Result<bool> {
+    self
+      .dep
+      .with(|dep| dep.flags.contains(DependencyFlags::ENTRY))
   }
 
   #[qjs(get)]
-  pub fn is_optional(&self) -> bool {
-    self.dep.flags.contains(DependencyFlags::OPTIONAL)
+  pub fn is_optional(&self) -> rquickjs::Result<bool> {
+    self
+      .dep
+      .with(|dep| dep.flags.contains(DependencyFlags::OPTIONAL))
   }
 
   #[qjs(get)]
-  pub fn needs_stable_name(&self) -> bool {
-    self.dep.flags.contains(DependencyFlags::NEEDS_STABLE_NAME)
+  pub fn needs_stable_name(&self) -> rquickjs::Result<bool> {
+    self
+      .dep
+      .with(|dep| dep.flags.contains(DependencyFlags::NEEDS_STABLE_NAME))
   }
 
   #[qjs(get)]
-  pub fn target(&self) -> JsTarget {
-    JsTarget {
-      target: self.dep.target.clone(),
-    }
+  pub fn target(&self) -> rquickjs::Result<JsTarget> {
+    self.dep.with(|dep| JsTarget {
+      target: dep.target.clone(),
+    })
   }
 
   #[qjs(get)]
-  pub fn resolve_from(&self) -> Option<String> {
-    self.dep.resolve_from.as_ref().map(|s| s.to_string())
+  pub fn resolve_from(&self) -> rquickjs::Result<Option<String>> {
+    self
+      .dep
+      .with(|dep| dep.resolve_from.as_ref().map(|value| value.to_string()))
   }
 
   #[qjs(get)]
   pub fn loc<'js>(&self, ctx: Ctx<'js>) -> rquickjs::Result<Option<Object<'js>>> {
-    let Some(loc) = &self.dep.loc else {
-      return Ok(None);
-    };
-    let result = Object::new(ctx.clone())?;
-    result.set(
-      "filePath",
-      loc
-        .url
-        .to_file_path()
-        .map(|path| path.to_path_buf().to_string_lossy().into_owned())
-        .unwrap_or_else(|_| loc.url.to_string()),
-    )?;
-    result.set(
-      "start",
-      js_location(&ctx, loc.start.line, loc.start.column)?,
-    )?;
-    result.set("end", js_location(&ctx, loc.end.line, loc.end.column)?)?;
-    Ok(Some(result))
+    self.dep.with(|dep| {
+      let Some(loc) = &dep.loc else {
+        return Ok(None);
+      };
+      let result = Object::new(ctx.clone())?;
+      result.set(
+        "filePath",
+        loc
+          .url
+          .to_file_path()
+          .map(|path| path.to_path_buf().to_string_lossy().into_owned())
+          .unwrap_or_else(|_| loc.url.to_string()),
+      )?;
+      result.set(
+        "start",
+        js_location(&ctx, loc.start.line, loc.start.column)?,
+      )?;
+      result.set("end", js_location(&ctx, loc.end.line, loc.end.column)?)?;
+      Ok(Some(result))
+    })?
   }
 
   #[qjs(get)]
-  pub fn package_conditions(&self) -> Vec<&'static str> {
-    let conditions = self.dep.conditions;
-    [
-      (ExportsCondition::IMPORT, "import"),
-      (ExportsCondition::REQUIRE, "require"),
-      (ExportsCondition::MODULE, "module"),
-      (ExportsCondition::NODE, "node"),
-      (ExportsCondition::BROWSER, "browser"),
-      (ExportsCondition::WORKER, "worker"),
-      (ExportsCondition::WORKLET, "worklet"),
-      (ExportsCondition::ELECTRON, "electron"),
-      (ExportsCondition::DEVELOPMENT, "development"),
-      (ExportsCondition::PRODUCTION, "production"),
-      (ExportsCondition::TYPES, "types"),
-      (ExportsCondition::DEFAULT, "default"),
-      (ExportsCondition::STYLE, "style"),
-      (ExportsCondition::SASS, "sass"),
-      (ExportsCondition::LESS, "less"),
-      (ExportsCondition::STYLUS, "stylus"),
-      (ExportsCondition::REACT_SERVER, "react-server"),
-      (ExportsCondition::SOURCE, "source"),
-    ]
-    .into_iter()
-    .filter_map(|(flag, name)| conditions.contains(flag).then_some(name))
-    .collect()
+  pub fn package_conditions(&self) -> rquickjs::Result<Vec<&'static str>> {
+    self.dep.with(|dep| {
+      [
+        (ExportsCondition::IMPORT, "import"),
+        (ExportsCondition::REQUIRE, "require"),
+        (ExportsCondition::MODULE, "module"),
+        (ExportsCondition::NODE, "node"),
+        (ExportsCondition::BROWSER, "browser"),
+        (ExportsCondition::WORKER, "worker"),
+        (ExportsCondition::WORKLET, "worklet"),
+        (ExportsCondition::ELECTRON, "electron"),
+        (ExportsCondition::DEVELOPMENT, "development"),
+        (ExportsCondition::PRODUCTION, "production"),
+        (ExportsCondition::TYPES, "types"),
+        (ExportsCondition::DEFAULT, "default"),
+        (ExportsCondition::STYLE, "style"),
+        (ExportsCondition::SASS, "sass"),
+        (ExportsCondition::LESS, "less"),
+        (ExportsCondition::STYLUS, "stylus"),
+        (ExportsCondition::REACT_SERVER, "react-server"),
+        (ExportsCondition::SOURCE, "source"),
+      ]
+      .into_iter()
+      .filter_map(|(flag, name)| dep.conditions.contains(flag).then_some(name))
+      .collect()
+    })
   }
 
   #[qjs(get)]
-  pub fn range(&self) -> Option<&str> {
-    self.dep.range.as_deref()
+  pub fn range(&self) -> rquickjs::Result<Option<String>> {
+    self.dep.with(|dep| dep.range.clone())
   }
 }
 

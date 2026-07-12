@@ -8,6 +8,10 @@ use parcel_core::{
 use parcel_plugin_js::JsPlugin;
 
 fn run(name: &str, code: &str) -> Option<PathId> {
+  run_times(name, code, 1)
+}
+
+fn run_times(name: &str, code: &str, times: usize) -> Option<PathId> {
   let fs = Arc::new(OverlayFileSystem::new());
   let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
   let plugin_path = root.join(Path::new(name));
@@ -88,7 +92,10 @@ fn run(name: &str, code: &str) -> Option<PathId> {
     input_fs: fs,
     ..Default::default()
   };
-  plugin.name(&graph, &graph.bundles[0], &options).unwrap()
+  (0..times)
+    .map(|_| plugin.name(&graph, &graph.bundles[0], &options).unwrap())
+    .last()
+    .flatten()
 }
 
 fn test_asset(url: &str, ty: AssetType, target: Arc<Target>) -> Asset {
@@ -172,4 +179,40 @@ fn test_namer_can_defer() {
   );
 
   assert_eq!(result, None);
+}
+
+#[test]
+fn test_namer_wrappers_expire_after_call() {
+  let result = run_times(
+    "namer.cjs",
+    r#"
+      const {Namer} = require('@parcel/plugin');
+      let savedBundle;
+      let calls = 0;
+
+      module.exports = new Namer({
+        name({bundle}) {
+          calls++;
+          if (calls === 1) {
+            savedBundle = bundle;
+            return null;
+          }
+
+          let message;
+          try {
+            savedBundle.type;
+          } catch (err) {
+            message = err.message;
+          }
+          if (!message?.includes('plugin call has completed')) {
+            throw new Error(`Expected expired wrapper error, got: ${message}`);
+          }
+          return `guarded.${bundle.type}`;
+        }
+      });
+    "#,
+    2,
+  );
+
+  assert_eq!(result, Some(PathId::new(Path::new("/dist/guarded.js"))));
 }

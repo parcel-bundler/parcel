@@ -14,25 +14,53 @@ fn run(
   specifier: &str,
   pipeline: Option<&str>,
 ) -> Result<DependencyResolution, parcel_core::DiagnosticList> {
+  run_times(name, code, dependency, specifier, pipeline, 1)
+}
+
+fn run_times(
+  name: &str,
+  code: &str,
+  dependency: Dependency,
+  specifier: &str,
+  pipeline: Option<&str>,
+  times: usize,
+) -> Result<DependencyResolution, parcel_core::DiagnosticList> {
   let fs = Arc::new(OverlayFileSystem::new());
   let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
   let plugin_path = root.join(Path::new(name));
   fs.create_dir_all(root).expect("Error creating dir");
   fs.write(plugin_path, &code.as_bytes().to_owned())
     .expect("Error writing plugin");
+  let plugin_dir = root.join(Path::new("node_modules/@parcel/plugin"));
+  fs.create_dir_all(plugin_dir)
+    .expect("Error creating plugin dir");
+  fs.write(
+    plugin_dir.child("package.json"),
+    &br#"{"main":"index.js"}"#.to_vec(),
+  )
+  .expect("Error writing plugin package");
+  fs.write(
+    plugin_dir.child("index.js"),
+    &br#"
+      const CONFIG = Symbol.for('parcel-plugin-config');
+      class Resolver { constructor(opts) { this[CONFIG] = opts; } }
+      module.exports = {Resolver};
+    "#
+    .to_vec(),
+  )
+  .expect("Error writing plugin API");
 
   let plugin = JsPlugin::new(plugin_path);
   let dyn_fs: Arc<dyn FileSystem> = fs.clone();
-  plugin.resolve(
-    &dependency,
-    specifier,
-    pipeline,
-    &ParcelOptions {
-      input_fs: fs,
-      ..Default::default()
-    },
-    &dyn_fs,
-  )
+  let options = ParcelOptions {
+    input_fs: fs,
+    ..Default::default()
+  };
+  let mut result = None;
+  for _ in 0..times {
+    result = Some(plugin.resolve(&dependency, specifier, pipeline, &options, &dyn_fs));
+  }
+  result.expect("Resolver must be called at least once")
 }
 
 fn test_dependency() -> Dependency {
@@ -163,6 +191,49 @@ fn test_resolve_async() {
     panic!("Expected deferred asset request");
   };
   assert_eq!(request.content.read().unwrap(), b"async".to_vec());
+}
+
+#[test]
+fn test_dependency_wrapper_expires_after_call() {
+  let result = run_times(
+    "plugin.cjs",
+    r#"
+      const {Resolver} = require('@parcel/plugin');
+      let savedDependency;
+      let calls = 0;
+
+      module.exports = new Resolver({
+        resolve({dependency}) {
+          calls++;
+          if (calls === 1) {
+            savedDependency = dependency;
+            return null;
+          }
+
+          let message;
+          try {
+            savedDependency.specifier;
+          } catch (err) {
+            message = err.message;
+          }
+          if (!message?.includes('plugin call has completed')) {
+            throw new Error(`Expected expired wrapper error, got: ${message}`);
+          }
+          return {filePath: '/project/guarded.js'};
+        }
+      });
+    "#,
+    test_dependency(),
+    "guarded",
+    None,
+    2,
+  )
+  .unwrap();
+
+  let DependencyResolution::Deferred(request) = result else {
+    panic!("Expected deferred asset request");
+  };
+  assert_eq!(request.loc.url.to_string(), "file:///project/guarded.js");
 }
 
 #[test]
