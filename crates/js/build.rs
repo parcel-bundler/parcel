@@ -23,6 +23,8 @@ const RUNTIME_GLOBALS: &[(&str, &str)] = &[
   ("entries", "e"),
   ("mainEntry", "n"),
   ("require", "r"),
+  ("distDir", "d"),
+  ("publicUrl", "u"),
 ];
 
 fn main() {

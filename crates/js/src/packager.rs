@@ -22,6 +22,8 @@ const RUNTIME_EXTERNALS: &str = "x";
 const RUNTIME_ENTRIES: &str = "e";
 const RUNTIME_MAIN_ENTRY: &str = "n";
 const RUNTIME_REQUIRE: &str = "r";
+const RUNTIME_DIST_DIR: &str = "d";
+const RUNTIME_PUBLIC_URL: &str = "u";
 
 fn runtime_name(
   should_optimize: bool,
@@ -243,6 +245,32 @@ impl JsContent {
     printer.newline()?;
     printer.write_var(runtime_parcel_require_name, "'parcelRequire'", true)?;
     printer.write_var(runtime_externals, "{}", true)?;
+
+    // The path from this bundle's directory back to the dist root. Bundle ids passed to
+    // parcelLoadJS are dist-root-relative, so the runtime resolves them against this prefix.
+    let mut dist_dir_prefix = bundle
+      .target
+      .dist_dir
+      .relative_url(&bundle.dist_path().parent().unwrap());
+    if !dist_dir_prefix.starts_with(".") {
+      dist_dir_prefix.insert_str(0, "./");
+    }
+    printer.write_var(
+      runtime_name(should_optimize, "distDir", RUNTIME_DIST_DIR),
+      &serde_json::to_string(&dist_dir_prefix)?,
+      true,
+    )?;
+
+    let mut public_url = bundle.target.public_url.clone();
+    if !public_url.ends_with('/') {
+      public_url.push('/');
+    }
+    printer.write_var(
+      runtime_name(should_optimize, "publicUrl", RUNTIME_PUBLIC_URL),
+      &serde_json::to_string(&public_url)?,
+      true,
+    )?;
+
     printer.write_var(runtime_entries, "[", false)?;
     if let Some(entry) = rsc_server_entry {
       write!(printer, "'{}',", entry)?;
@@ -1384,18 +1412,17 @@ impl SyntheticAsset {
           let mut css = Vec::new();
           for bundle_index in &plan.load_bundles {
             let load_bundle = &bundle_graph.bundles[*bundle_index as usize];
-            let specifier = load_bundle.relative_specifier(bundle).unwrap();
             loads.push(
               if load_bundle.target.output_format == OutputFormat::Commonjs {
                 format!(
                   "Promise.resolve({}({}))",
                   require,
-                  serde_json::to_string(&specifier)?
+                  serde_json::to_string(&load_bundle.relative_specifier(bundle).unwrap())?
                 )
               } else {
                 format!(
                   "module.bundle.loadJS({})",
-                  serde_json::to_string(&specifier)?
+                  serde_json::to_string(&load_bundle.name())?
                 )
               },
             );
@@ -1520,13 +1547,17 @@ fn load_bundle<W: std::fmt::Write>(
   from: &Bundle,
   res: &mut W,
 ) -> core::fmt::Result {
-  let name = bundle.relative_url(from).unwrap();
   match &bundle.ty {
     AssetType::Js => {
-      write!(res, "module.bundle.loadJS('./{}')", name)
+      // parcelLoadJS resolves dist-root-relative names against the runtime's distDir prefix.
+      write!(res, "module.bundle.loadJS('{}')", bundle.name())
     }
     AssetType::Css => {
-      write!(res, "module.bundle.loadCSS('./{}')", name)
+      write!(
+        res,
+        "module.bundle.loadCSS('./{}')",
+        bundle.relative_url(from).unwrap()
+      )
     }
     _ => Ok(()),
   }

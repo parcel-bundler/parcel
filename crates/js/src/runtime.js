@@ -1,5 +1,5 @@
 /* eslint-env browser */
-/* global parcelRequireName, modules, mainEntry, entries, externals */
+/* global parcelRequireName, modules, mainEntry, entries, externals, distDir, publicUrl */
 /* eslint-disable no-unused-vars */
 
 // Save the require from previous bundle to this closure if any
@@ -74,9 +74,10 @@ require.Module = Module;
 require.modules = modules;
 require.cache = cache;
 require.parent = previousRequire;
-// parcelRequire.distDir = distDir;
-// parcelRequire.publicUrl = publicUrl;
-// parcelRequire.devServer = devServer;
+require.meta = {
+  distDir: distDir,
+  publicUrl: publicUrl,
+};
 require.i = importMap;
 
 Object.defineProperty(require, 'root', {
@@ -88,14 +89,10 @@ Object.defineProperty(require, 'root', {
 globalThis[parcelRequireName] = require;
 
 function parcelLoadJS(bundleId) {
-  let url =
-    importMap[bundleId] ||
-    (bundleId.startsWith('.') ||
-      bundleId.startsWith('/') ||
-    URL.canParse(bundleId)
-      ? bundleId
-      : './' + bundleId);
-  return import(url);
+  // Bundle ids are relative to the dist root; `distDir` is the path from this
+  // bundle's directory back to that root, so the import resolves correctly
+  // regardless of where this bundle is nested.
+  return import(distDir + (importMap[bundleId] || bundleId));
 }
 
 function parcelLoadCSS(bundleId) {
@@ -140,6 +137,9 @@ function parcelLoadCSS(bundleId) {
 require.loadJS = parcelLoadJS;
 require.load = parcelLoadJS;
 require.loadCSS = parcelLoadCSS;
+require.extendImportMap = function (map) {
+  Object.assign(importMap, map);
+};
 
 if (entries) {
   for (var i = 0; i < entries.length; i++) {
