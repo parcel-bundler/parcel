@@ -141,7 +141,7 @@ export function errorToDiagnostic(
   if (typeof error === 'string') {
     return [
       {
-        origin: defaultValues?.origin ?? 'Error',
+        origin: defaultValues?.origin,
         message: escapeMarkdown(error),
       },
     ];
@@ -183,7 +183,7 @@ export function errorToDiagnostic(
 
   return [
     {
-      origin: defaultValues?.origin ?? 'Error',
+      origin: defaultValues?.origin,
       message: escapeMarkdown(error.message),
       name: error.name,
       stack:

@@ -64,7 +64,9 @@ export default async function prettyDiagnostic(
 
   let result = {
     message:
-      md(`**${origin ?? 'unknown'}**: `) +
+    (origin != null && origin !== 'unknown' && origin !== ''
+      ? md(`**${origin}**: `)
+      : '') +
       (skipFormatting ? message : md(message)),
     stack: '',
     codeframe: '',
