@@ -1,9 +1,117 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
-use rquickjs::{Class, Ctx, JsLifetime, class::Trace};
+use rquickjs::{
+  Class, Ctx, FromJs, IntoJs, JsLifetime, Object, Value, class::Trace, module::ModuleDef,
+};
 
+use crate::cjs::CjsLoader;
 use crate::url_search_params::URLSearchParams;
 use url::Url;
+
+#[derive(Clone, Trace, JsLifetime)]
+#[rquickjs::class]
+pub struct UrlModule {}
+
+#[rquickjs::methods(rename_all = "camelCase")]
+impl UrlModule {
+  #[qjs(get, rename = "URL")]
+  fn url<'js>(ctx: Ctx<'js>) -> rquickjs::Result<Value<'js>> {
+    ctx.globals().get("URL")
+  }
+
+  #[qjs(get, rename = "URLSearchParams")]
+  fn url_search_params<'js>(ctx: Ctx<'js>) -> rquickjs::Result<Value<'js>> {
+    ctx.globals().get("URLSearchParams")
+  }
+
+  #[qjs(rename = "fileURLToPath")]
+  fn file_url_to_path<'js>(ctx: Ctx<'js>, value: Value<'js>) -> rquickjs::Result<String> {
+    let url = if let Ok(value) = Class::<URL>::from_js(&ctx, value.clone()) {
+      value.borrow().url.borrow().clone()
+    } else {
+      let value = rquickjs::Coerced::<String>::from_js(&ctx, value)?.0;
+      Url::parse(&value)
+        .map_err(|err| rquickjs::Exception::throw_type(&ctx, &format!("Invalid URL: {err}")))?
+    };
+
+    url
+      .to_file_path()
+      .map(|path| path.to_string_lossy().into_owned())
+      .map_err(|_| rquickjs::Exception::throw_type(&ctx, "The URL must be a file URL"))
+  }
+
+  #[qjs(rename = "pathToFileURL")]
+  fn path_to_file_url<'js>(
+    ctx: Ctx<'js>,
+    path: rquickjs::Coerced<String>,
+  ) -> rquickjs::Result<Class<'js, URL<'js>>> {
+    let mut path = PathBuf::from(path.0);
+    if path.is_relative() {
+      let process: Object = ctx.globals().get("process")?;
+      let cwd: rquickjs::Function = process.get("cwd")?;
+      path = PathBuf::from(cwd.call::<_, String>(())?).join(path);
+    }
+
+    let url = Url::from_file_path(path)
+      .map_err(|_| rquickjs::Exception::throw_type(&ctx, "Invalid file path"))?;
+    Class::instance(ctx.clone(), URL::from_url(ctx, url)?)
+  }
+}
+
+impl ModuleDef for UrlModule {
+  fn declare<'js>(decl: &rquickjs::module::Declarations<'js>) -> rquickjs::Result<()> {
+    for name in [
+      "default",
+      "URL",
+      "URLSearchParams",
+      "fileURLToPath",
+      "pathToFileURL",
+      "parse",
+      "resolve",
+      "resolveObject",
+      "format",
+      "Url",
+    ] {
+      decl.declare(name)?;
+    }
+    Ok(())
+  }
+
+  fn evaluate<'js>(
+    ctx: &Ctx<'js>,
+    exports: &rquickjs::module::Exports<'js>,
+  ) -> rquickjs::Result<()> {
+    let module = url_module(ctx)?;
+    for name in [
+      "URL",
+      "URLSearchParams",
+      "fileURLToPath",
+      "pathToFileURL",
+      "parse",
+      "resolve",
+      "resolveObject",
+      "format",
+      "Url",
+    ] {
+      exports.export(name, module.get::<_, Value>(name)?)?;
+    }
+    exports.export("default", module)?;
+    Ok(())
+  }
+}
+
+pub fn url_module<'js>(ctx: &Ctx<'js>) -> rquickjs::Result<Object<'js>> {
+  let cjs = ctx.userdata::<CjsLoader>().unwrap();
+  let legacy = cjs.load(ctx, "builtin:url-legacy/index.js")?;
+  let legacy = legacy.into_object().ok_or(rquickjs::Error::Unknown)?;
+  let module = UrlModule {}.into_js(ctx)?;
+  let module = module.into_object().ok_or(rquickjs::Error::Unknown)?;
+  for key in legacy.keys::<String>() {
+    let key = key?;
+    module.set(&key, legacy.get::<_, Value>(&key)?)?;
+  }
+  Ok(module)
+}
 
 #[derive(Clone, Trace, JsLifetime)]
 #[rquickjs::class]
@@ -15,6 +123,15 @@ pub struct URL<'js> {
 
 #[rquickjs::methods(rename_all = "camelCase")]
 impl<'js> URL<'js> {
+  #[qjs(skip)]
+  fn from_url(ctx: Ctx<'js>, url: Url) -> rquickjs::Result<Self> {
+    let url = Rc::new(RefCell::new(url));
+    Ok(URL {
+      url: url.clone(),
+      search_params: Class::instance(ctx, URLSearchParams { url })?,
+    })
+  }
+
   #[qjs(constructor)]
   pub fn new(
     ctx: Ctx<'js>,

@@ -17,6 +17,7 @@ use swc_core::{
 use crate::{
   bytecode,
   fs::{Fs, FsPromises},
+  url,
 };
 
 #[derive(Embed)]
@@ -100,7 +101,7 @@ impl CjsLoader {
       "string_decoder" => "string_decoder",
       "sys" => "util",
       "tty" => "tty-browserify",
-      "url" => "url",
+      "url" => return Ok("builtin:url".into()),
       "util" => "util",
       "zlib" => "browserify-zlib",
       _ => {
@@ -146,8 +147,15 @@ impl CjsLoader {
         "process" => {
           return globals.get("process");
         }
+        "url" => {
+          return Ok(url::url_module(ctx)?.into_value());
+        }
         module => {
-          if let Some(file) = Builtins::get(module) {
+          let embedded_module = module
+            .strip_prefix("url-legacy/")
+            .map(|module| format!("url/{module}"));
+          let embedded_module = embedded_module.as_deref().unwrap_or(module);
+          if let Some(file) = Builtins::get(embedded_module) {
             let source = match file.data {
               Cow::Borrowed(data) => Cow::Borrowed(std::str::from_utf8(data).unwrap()),
               Cow::Owned(data) => Cow::Owned(String::from_utf8(data).unwrap()),

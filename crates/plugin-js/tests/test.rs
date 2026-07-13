@@ -331,6 +331,34 @@ fn test_url_searchparams() {
 }
 
 #[test]
+fn test_url_module() {
+  run(
+    r#"
+    import url, {URL, URLSearchParams, fileURLToPath, pathToFileURL, parse} from 'url';
+    import assert from 'assert';
+
+    assert.equal(URL, globalThis.URL);
+    assert.equal(URLSearchParams, globalThis.URLSearchParams);
+    assert.equal(url.URL, URL);
+    assert.equal(url.URLSearchParams, URLSearchParams);
+    assert.equal(parse('https://example.com/a').hostname, 'example.com');
+
+    const value = pathToFileURL('/tmp/a b.txt');
+    assert.ok(value instanceof URL);
+    assert.equal(value.href, 'file:///tmp/a%20b.txt');
+    assert.equal(fileURLToPath(value), '/tmp/a b.txt');
+    assert.equal(fileURLToPath('file:///tmp/a%20b.txt'), '/tmp/a b.txt');
+
+    const cjs = require('url');
+    assert.equal(cjs.URL, URL);
+    assert.equal(cjs.URLSearchParams, URLSearchParams);
+    assert.equal(cjs.fileURLToPath(cjs.pathToFileURL('/tmp/c d.txt')), '/tmp/c d.txt');
+    assert.equal(cjs.format(cjs.parse('https://example.com/a')), 'https://example.com/a');
+    "#,
+  );
+}
+
+#[test]
 fn test_atob() {
   run(
     r#"

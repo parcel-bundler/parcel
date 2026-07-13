@@ -21,6 +21,7 @@ use crate::{
   console::Console,
   fs::{Fs, FsPromises},
   process::Process,
+  url::UrlModule,
 };
 
 pub fn create_esm_loader(
@@ -126,6 +127,7 @@ impl Loader for ModuleLoader {
         "fs" => return Module::declare_def::<Fs, _>(ctx.clone(), "fs"),
         "fs/promises" => return Module::declare_def::<FsPromises, _>(ctx.clone(), "fs/promises"),
         "process" => return Module::declare_def::<Process, _>(ctx.clone(), "process"),
+        "url" => return Module::declare_def::<UrlModule, _>(ctx.clone(), "url"),
         name => {
           let cjs = ctx.userdata::<CjsLoader>().unwrap();
           let name = cjs.resolve_builtin(&ctx, name, false)?;
