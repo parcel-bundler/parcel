@@ -156,6 +156,19 @@ export async function _report(
 
       persistSpinner('buildProgress', 'error', chalk.red.bold('Build failed.'));
 
+      if (event.diagnostics.length > 1){
+         writeOut('');
+         writeOut(
+          chalk.red.bold(`Found ${event.diagnostics.length} errors:`),
+         );
+      }
+      writeOut('');
+      writeOut(
+        chalk.gray(
+          `Environment: Node ${process.version}, ${process.platform} ${process.arch}`,
+        ),
+      )
+
       await writeDiagnostic(options, event.diagnostics, 'red', true);
       break;
     case 'cache':
@@ -226,6 +239,21 @@ async function writeDiagnostic(
       await prettyDiagnostic(diagnostic, options, columns - indent);
     // $FlowFixMe[incompatible-use]
     message = chalk[color](message);
+
+    if (stack) {
+      stack = stack
+        .split('\n')
+        .filter(frame =>{
+          if (!frame.trimStart().startsWith('at ')) return true;
+          return (
+            !frame.includes('/packages/core/') &&
+            !frame.includes('/packages/reporters/') &&
+            !frame.includes('node_modules/@parcel/')
+          );
+        })
+        .join('\n');
+    }
+
 
     if (spaceAfter) {
       writeOut('');
