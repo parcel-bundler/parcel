@@ -282,7 +282,7 @@ impl Resolver for JsPlugin {
           // loadConfig inputs, plus priority/meta/canDefer/diagnostics/invalidation result fields.
           let is_excluded: Option<bool> = res.get("isExcluded")?;
           if is_excluded == Some(true) {
-            return Ok(DependencyResolution::External);
+            return Ok(DependencyResolution::Excluded);
           }
 
           let file_path: Option<String> = res.get("filePath")?;
