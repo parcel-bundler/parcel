@@ -16,7 +16,7 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-      - uses: DeMoorJasper/stale@master
+      - uses: DeMoorJasper/stale@d4a18e296fceab5e544df362752ed2c91154cbab # frozen fork of actions/stale (2020-01-17)
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           stale-label: Stale
