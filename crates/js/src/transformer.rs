@@ -788,12 +788,12 @@ fn config(
     }
 
     is_jsx = tsconfig_jsx.is_some() || jsx_pragma.is_some();
+  }
 
-    if asset.ty == AssetType::Ts {
-      is_jsx = false;
-    } else if !is_jsx {
-      is_jsx = matches!(asset.ty, AssetType::Jsx | AssetType::Tsx);
-    }
+  if asset.ty == AssetType::Ts {
+    is_jsx = false;
+  } else if !is_jsx {
+    is_jsx = matches!(asset.ty, AssetType::Jsx | AssetType::Tsx);
   }
 
   let mut inline_fs = true;
