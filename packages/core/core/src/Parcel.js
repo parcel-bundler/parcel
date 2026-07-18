@@ -18,7 +18,10 @@ import type {FarmOptions, SharedReference} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
 
 import invariant from 'assert';
-import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {
+  anyToDiagnostic,
+  normalizeCodeFrames,
+} from '@parcel/diagnostic';
 import {assetFromValue} from './public/Asset';
 import {PackagedBundle} from './public/Bundle';
 import BundleGraph from './public/BundleGraph';
@@ -174,7 +177,14 @@ export default class Parcel {
     await this._end();
 
     if (result.type === 'buildFailure') {
-      throw new BuildError(result.diagnostics);
+      let resolvedOptions = nullthrows(this.#resolvedOptions);
+      throw new BuildError(
+        await normalizeCodeFrames(
+          result.diagnostics,
+          filePath => resolvedOptions.inputFS.readFile(filePath, 'utf8'),
+          resolvedOptions.projectRoot,
+        ),
+      );
     }
 
     return result;
@@ -356,7 +366,13 @@ export default class Parcel {
           let results = await this.#watchQueue.run();
           let result = results.filter(Boolean).pop();
           if (result.type === 'buildFailure') {
-            throw new BuildError(result.diagnostics);
+            throw new BuildError(
+              await normalizeCodeFrames(
+                result.diagnostics,
+                filePath => options.inputFS.readFile(filePath, 'utf8'),
+                options.projectRoot,
+              ),
+            );
           }
 
           return result;

@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import invariant from 'assert';
+import path from 'path';
 import nullthrows from 'nullthrows';
 import {parse, type Mapping} from '@mischnic/json-sourcemap';
 
@@ -193,6 +194,50 @@ export function errorToDiagnostic(
       codeFrames,
     },
   ];
+}
+
+/**
+ * Fills in `codeFrame.code` for any code frames that omit it, by reading
+ * the corresponding file from disk. This lets consumers of thrown
+ * diagnostics (e.g. `error.diagnostics[i].codeFrames[j].code`) rely on
+ * `code` being present without duplicating the same file-read fallback
+ * that reporters like `prettyDiagnostic` already perform for display.
+ */
+export async function normalizeCodeFrames(
+  diagnostics: Array<Diagnostic>,
+  readFile: (filePath: string) => Promise<string>,
+  projectRoot?: string,
+): Promise<Array<Diagnostic>> {
+  return Promise.all(
+    diagnostics.map(async diagnostic => {
+      if (diagnostic.codeFrames == null) {
+        return diagnostic;
+      }
+
+      let codeFrames = await Promise.all(
+        diagnostic.codeFrames.map(async codeFrame => {
+          if (codeFrame.code != null || codeFrame.filePath == null) {
+            return codeFrame;
+          }
+
+          let filePath =
+            projectRoot != null && !path.isAbsolute(codeFrame.filePath)
+              ? path.join(projectRoot, codeFrame.filePath)
+              : codeFrame.filePath;
+
+          try {
+            return {...codeFrame, code: await readFile(filePath)};
+          } catch {
+            // The file may no longer exist (e.g. it was deleted after the
+            // diagnostic was created). Leave `code` unset in that case.
+            return codeFrame;
+          }
+        }),
+      );
+
+      return {...diagnostic, codeFrames};
+    }),
+  );
 }
 
 type ThrowableDiagnosticOpts = {
