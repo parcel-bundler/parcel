@@ -17,6 +17,11 @@ impl Console {
   fn print<'js>(&self, ctx: Ctx<'js>, values: Rest<Value<'js>>) -> rquickjs::Result<()> {
     use std::fmt::Write;
 
+    if values.len() == 1 && values[0].is_string() {
+      println!("{}", values[0].as_string().unwrap().to_string()?);
+      return Ok(());
+    }
+
     let util = require(ctx, "util".into())?;
     let util = util.try_into_object().unwrap();
     let inspect: rquickjs::Function = util.get("inspect")?;
