@@ -83,6 +83,7 @@ impl JsContent {
       }
     }
 
+    let externals = write_external_imports(&mut printer, bundle_graph, bundle)?;
     write_bundle_references(&mut printer, bundle_graph, bundle)?;
 
     printer.write_var(
@@ -151,6 +152,7 @@ impl JsContent {
       bundle_graph,
       bundle,
       rsc_server_entry,
+      &externals,
       &options.project_root,
       should_optimize,
     )?;
@@ -162,6 +164,42 @@ impl JsContent {
     })?;
     printer.into_content()
   }
+}
+
+/// Hoists external modules because `require` is unavailable in ESM output.
+fn write_external_imports(
+  printer: &mut Printer,
+  bundle_graph: &BundleGraph,
+  bundle: &Bundle,
+) -> Result<IndexSet<String>, DiagnosticList> {
+  let mut externals = IndexSet::new();
+  if bundle.target.output_format != OutputFormat::Esmodule {
+    return Ok(externals);
+  }
+
+  for asset_index in &bundle.assets {
+    let asset = bundle_graph.asset_graph.assets[*asset_index].expect_asset();
+    for (dependency_index, dependency) in asset.dependencies.iter().enumerate() {
+      if !dependency.flags.contains(DependencyFlags::OPTIONAL)
+        && bundle_graph.dependency_resolution(*asset_index, dependency_index)
+          == BundleGraphDependencyResolution::External
+      {
+        externals.insert(dependency.specifier.clone());
+      }
+    }
+  }
+
+  for (index, external) in externals.iter().enumerate() {
+    write!(
+      printer,
+      "import * as __parcelExternal{} from {};",
+      index,
+      serde_json::to_string(external)?
+    )?;
+    printer.newline()?;
+  }
+
+  Ok(externals)
 }
 
 /// Writes imports for bundles referenced by this one, so they load first.
@@ -311,6 +349,7 @@ fn write_runtime_globals(
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
   rsc_server_entry: Option<String>,
+  externals: &IndexSet<String>,
   project_root: &PathId,
   should_optimize: bool,
 ) -> Result<(), DiagnosticList> {
@@ -325,9 +364,19 @@ fn write_runtime_globals(
   )?;
   printer.write_var(
     runtime_name(should_optimize, "externals", RUNTIME_EXTERNALS),
-    "{}",
-    true,
+    "{",
+    false,
   )?;
+  for (index, external) in externals.iter().enumerate() {
+    write!(
+      printer,
+      "{}:__parcelExternal{},",
+      serde_json::to_string(external)?,
+      index
+    )?;
+  }
+  printer.write_str("};")?;
+  printer.newline()?;
 
   // The path from this bundle's directory back to the dist root. Bundle ids passed to
   // parcelLoadJS are dist-root-relative, so the runtime resolves them against this prefix.
