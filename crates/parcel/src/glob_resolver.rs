@@ -18,16 +18,19 @@ impl Resolver for GlobResolver {
     _options: &ParcelOptions,
     fs: &Arc<dyn FileSystem>,
   ) -> Result<DependencyResolution, DiagnosticList> {
-    if !is_glob(specifier) {
+    let (glob, query) = specifier.split_once('?').unwrap_or((specifier, ""));
+    if !is_glob(glob) {
       return Ok(DependencyResolution::None);
     }
+
+    let is_async = query == "async";
 
     let source_path = dep.resolve_from.as_ref().unwrap().to_file_path()?;
     let dir = source_path.parent().unwrap();
     // Glob through `fs` so a new file matching the pattern triggers a rebuild (tracked as a
     // create-glob invalidation of this asset).
     let files: Vec<_> = fs
-      .glob(specifier, dir)
+      .glob(glob, dir)
       .into_iter()
       .map(|path| path.relative(&dir))
       .collect();
@@ -36,7 +39,7 @@ impl Resolver for GlobResolver {
     let mut root = GlobEntry::new_dir();
     for file in files.iter() {
       let rel = to_rel(file.to_str().unwrap());
-      if let Some(captures) = glob_match_with_captures(specifier, &rel) {
+      if let Some(captures) = glob_match_with_captures(glob, &rel) {
         // Collect all capture groups, split each on '/', discard empty segments.
         let parts: Vec<&str> = captures
           .iter()
@@ -51,7 +54,7 @@ impl Resolver for GlobResolver {
           };
           root.insert(
             &parts,
-            if dep.priority == Priority::Lazy {
+            if is_async {
               GlobEntry::Import(rel)
             } else {
               GlobEntry::Require(rel)

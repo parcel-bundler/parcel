@@ -1,6 +1,5 @@
-var vars = import('./dir/*.js');
+import vars from './dir/*.js?async';
 
 module.exports = async function () {
-  let v = await vars; // TODO
-  return await v.a() + await v.b();
+  return await vars.a() + await vars.b();
 };
