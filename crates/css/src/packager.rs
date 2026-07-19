@@ -288,40 +288,42 @@ fn collect(
       CssRule::Import(import) => {
         let dep = &asset.dependencies[dep_index];
         if let DependencyResolution::Asset(asset_index) = dep.resolution {
-          let layer = if (state.layer == Some(None) && import.layer.is_some())
-            || (import.layer == Some(None) && state.layer.is_some())
-          {
-            // Cannot combine anonymous layers
-            unreachable!();
-          } else if let Some(Some(a)) = &state.layer {
-            if let Some(Some(b)) = &import.layer {
-              let mut name = a.clone();
-              name.0.extend(b.0.iter().cloned());
-              Some(Some(name))
+          if let Some(stylesheet_index) = asset_index_to_stylesheet_index.get(&asset_index) {
+            let layer = if (state.layer == Some(None) && import.layer.is_some())
+              || (import.layer == Some(None) && state.layer.is_some())
+            {
+              // Cannot combine anonymous layers
+              unreachable!();
+            } else if let Some(Some(a)) = &state.layer {
+              if let Some(Some(b)) = &import.layer {
+                let mut name = a.clone();
+                name.0.extend(b.0.iter().cloned());
+                Some(Some(name))
+              } else {
+                Some(Some(a.clone()))
+              }
             } else {
-              Some(Some(a.clone()))
-            }
-          } else {
-            import.layer.clone()
-          };
+              import.layer.clone()
+            };
 
-          let mut media = state.media.clone();
-          media.and(&import.media).unwrap();
+            let mut media = state.media.clone();
+            media.and(&import.media).unwrap();
 
-          collect(
-            assets,
-            asset_index_to_stylesheet_index,
-            stylesheets,
-            State {
-              parent_stylesheet_index: state.stylesheet_index,
-              stylesheet_index: asset_index_to_stylesheet_index[&asset_index],
-              dep_index,
-              layer,
-              supports: combine_supports(state.supports.clone(), &import.supports),
-              media,
-            },
-            visited,
-          )?;
+            collect(
+              assets,
+              asset_index_to_stylesheet_index,
+              stylesheets,
+              State {
+                parent_stylesheet_index: state.stylesheet_index,
+                stylesheet_index: *stylesheet_index,
+                dep_index,
+                layer,
+                supports: combine_supports(state.supports.clone(), &import.supports),
+                media,
+              },
+              visited,
+            )?;
+          }
         }
         dep_index += 1;
       }
@@ -354,21 +356,22 @@ fn inline(
     // Include the dependency if this is the first instance as computed earlier.
     if dep.specifier_type == SpecifierType::Esm {
       if let DependencyResolution::Asset(asset_index) = dep.resolution {
-        let dep_source_index = asset_index_to_stylesheet_index[&asset_index];
-        let resolved = &stylesheets[dep_source_index];
-        if resolved.parent_stylesheet_index == stylesheet_index
-          && resolved.parent_dep_index == dep_index
-        {
-          inline(
-            bundle_graph,
-            bundle,
-            get_inline_bundle_content,
-            asset_index_to_stylesheet_index,
-            stylesheets,
-            dep_source_index,
-            visited,
-            dest,
-          )?;
+        if let Some(dep_source_index) = asset_index_to_stylesheet_index.get(&asset_index) {
+          let resolved = &stylesheets[*dep_source_index];
+          if resolved.parent_stylesheet_index == stylesheet_index
+            && resolved.parent_dep_index == dep_index
+          {
+            inline(
+              bundle_graph,
+              bundle,
+              get_inline_bundle_content,
+              asset_index_to_stylesheet_index,
+              stylesheets,
+              *dep_source_index,
+              visited,
+              dest,
+            )?;
+          }
         }
       }
     }
@@ -382,23 +385,24 @@ fn inline(
         let dep = &asset.dependencies[dep_index];
         match bundle_graph.dependency_resolution(asset_index, dep_index) {
           BundleGraphDependencyResolution::Asset(asset_index) => {
-            let dep_source_index = asset_index_to_stylesheet_index[&asset_index];
-            let resolved = &stylesheets[dep_source_index];
+            if let Some(dep_source_index) = asset_index_to_stylesheet_index.get(&asset_index) {
+              let resolved = &stylesheets[*dep_source_index];
 
-            // Include the dependency if this is the last instance as computed earlier.
-            if resolved.parent_stylesheet_index == stylesheet_index
-              && resolved.parent_dep_index == dep_index
-            {
-              inline(
-                bundle_graph,
-                bundle,
-                get_inline_bundle_content,
-                asset_index_to_stylesheet_index,
-                stylesheets,
-                dep_source_index,
-                visited,
-                dest,
-              )?;
+              // Include the dependency if this is the last instance as computed earlier.
+              if resolved.parent_stylesheet_index == stylesheet_index
+                && resolved.parent_dep_index == dep_index
+              {
+                inline(
+                  bundle_graph,
+                  bundle,
+                  get_inline_bundle_content,
+                  asset_index_to_stylesheet_index,
+                  stylesheets,
+                  *dep_source_index,
+                  visited,
+                  dest,
+                )?;
+              }
             }
 
             *rule = CssRule::Ignored;
