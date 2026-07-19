@@ -30,6 +30,7 @@ pub fn json_to_js(
   if output_format == OutputFormat::Esmodule {
     if let serde_json::Value::Object(obj) = json {
       let mut js = String::new();
+      let mut default = String::new();
       let mut count = 0;
       for (k, v) in &obj {
         if is_valid_js_identifier(&k) {
@@ -39,6 +40,7 @@ pub fn json_to_js(
             k,
             serde_json::to_string(&v)?
           )?;
+          write!(&mut default, "{},", k)?;
         } else {
           let mut key = format!("_export{}", count);
           while obj.contains_key(&key) {
@@ -48,9 +50,13 @@ pub fn json_to_js(
 
           write!(&mut js, "const {} = {};\n", key, serde_json::to_string(&v)?)?;
           write!(&mut js, "export {{{} as {:?}}}\n;", key, k)?;
+          write!(&mut default, "{:?}: {},", k, key)?;
           count += 1;
         }
       }
+      js.push_str("export default {");
+      js.push_str(&default);
+      js.push_str("};\n");
       Ok(js)
     } else {
       Ok(format!(

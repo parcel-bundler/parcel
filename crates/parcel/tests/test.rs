@@ -590,8 +590,8 @@ fn test(file: PathBuf) {
 /// different `export *` sources is ambiguous.
 #[test]
 fn get_exports_star_dedupe() {
-  let fixture_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-    .join("tests/fixtures/react-server/client-star-exports");
+  let fixture_dir =
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/react-server/client-star-exports");
   let output_fs = Arc::new(MemoryFileSystem::new());
   let bundle_graph = bundle_with_options(
     &fixture_dir,
@@ -632,7 +632,11 @@ fn get_exports_star_dedupe() {
       "expected exactly one export named {name}: {exports:?}"
     );
   }
-  let client = &exports.iter().find(|(n, _)| n.as_str() == "Client").unwrap().1;
+  let client = &exports
+    .iter()
+    .find(|(n, _)| n.as_str() == "Client")
+    .unwrap()
+    .1;
   assert!(
     matches!(client, SymbolResolution::Export { asset_index, .. } if *asset_index == client_index),
     "local export must win over export *: {client:?}"
@@ -644,16 +648,28 @@ fn get_exports_star_dedupe() {
   let exports = bundle_graph
     .asset_graph
     .get_exports(client_index, Environment::ReactClient);
-  let client = &exports.iter().find(|(n, _)| n.as_str() == "Client").unwrap().1;
+  let client = &exports
+    .iter()
+    .find(|(n, _)| n.as_str() == "Client")
+    .unwrap()
+    .1;
   assert!(
     matches!(client, SymbolResolution::Export { asset_index, .. } if *asset_index == client_index),
     "local export must win over export *: {client:?}"
   );
-  let extra = &exports.iter().find(|(n, _)| n.as_str() == "Extra").unwrap().1;
+  let extra = &exports
+    .iter()
+    .find(|(n, _)| n.as_str() == "Extra")
+    .unwrap()
+    .1;
   assert!(
     matches!(extra, SymbolResolution::Export { asset_index, .. } if *asset_index == extras_index),
     "star export must resolve to its source: {extra:?}"
   );
-  let both = &exports.iter().find(|(n, _)| n.as_str() == "Both").unwrap().1;
+  let both = &exports
+    .iter()
+    .find(|(n, _)| n.as_str() == "Both")
+    .unwrap()
+    .1;
   assert_eq!(*both, SymbolResolution::Ambiguous);
 }

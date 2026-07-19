@@ -1,0 +1,15 @@
+{
+  "description": "should support default imports of JSON files",
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "esmodule-helpers.js",
+        "index.js",
+        "local.json"
+      ]
+    }
+  ],
+  "output": 3
+}
