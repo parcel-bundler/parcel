@@ -565,6 +565,7 @@ impl Transformer for SvgToJsxTransformer {
     // TODO: avoid re-parse by storing JS ast.
     asset.content = Arc::new(BufferContent::new(res.code));
     asset.ty = AssetType::Jsx;
+    asset.flags |= AssetFlags::AUTOMATIC_JSX_RUNTIME;
     Ok(asset)
   }
 }

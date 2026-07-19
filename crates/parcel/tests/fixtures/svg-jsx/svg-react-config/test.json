@@ -4,12 +4,12 @@
   "options": {"mode": "development"},
   "bundles": [
     {
-      "assets": ["esmodule-helpers.js", "icon.svg", "index.js", "preact.module.js", "react.development.js", "react.js"],
+      "assets": ["esmodule-helpers.js", "icon.svg", "index.js", "jsxRuntime.module.js", "preact.module.js", "react.development.js", "react.js"],
       "contains": [
         "function SvgComponent",
         "_react.forwardRef",
         "_react.memo",
-        "h(\"svg",
+        "(0, _jsxDevRuntime.jsxDEV)(\"svg",
         "width: \"1em",
         "role: \"img",
         "fill: props.fill",

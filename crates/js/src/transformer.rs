@@ -741,6 +741,10 @@ fn config(
       };
     }
 
+    if asset.flags.contains(AssetFlags::AUTOMATIC_JSX_RUNTIME) {
+      automatic_jsx_runtime = true;
+    }
+
     if matches!(
       tsconfig_jsx,
       Some(parcel_resolver::Jsx::ReactJsx | parcel_resolver::Jsx::ReactJsxdev)
@@ -776,13 +780,14 @@ fn config(
             .and_then(|r| r.min_version())
           {
             min_version.pre_release.clear();
-            automatic_jsx_runtime = tsconfig_jsx_factory.is_none()
-              && matches!(automatic_range, Some(automatic_range) if min_version.satisfies(&automatic_range));
+            automatic_jsx_runtime = automatic_jsx_runtime
+              || (tsconfig_jsx_factory.is_none()
+                && matches!(automatic_range, Some(automatic_range) if min_version.satisfies(&automatic_range)));
           }
+        }
 
-          if automatic_jsx_runtime {
-            jsx_import_source = Some(react_lib.into());
-          }
+        if automatic_jsx_runtime {
+          jsx_import_source = Some(react_lib.into());
         }
       }
     }

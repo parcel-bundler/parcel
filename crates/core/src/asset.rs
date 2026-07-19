@@ -320,6 +320,7 @@ bitflags! {
     const IS_HTML_ATTR = 1 << 10;
     const IS_HTML_TAG = 1 << 11;
     const IS_ESM = 1 << 12;
+    const AUTOMATIC_JSX_RUNTIME = 1 << 13;
   }
 }
 

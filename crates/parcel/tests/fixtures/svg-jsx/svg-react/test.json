@@ -3,6 +3,9 @@
   "input": "react.js",
   "options": {"mode": "production", "minify": false},
   "bundles": [
-    {"assets": ["esmodule-helpers.js", "icon.svg", "react.js"], "contains": ["function SvgComponent", "createElement(\"svg", "id: \"8b76cf__circle"]}
+    {
+      "assets": ["esmodule-helpers.js", "icon.svg", "index.js", "jsx-runtime.js", "react-jsx-runtime.development.js", "react.development.js", "react.js"],
+      "contains": ["function SvgComponent", "(0, _jsxRuntime.jsxs)(\"svg", "id: \"8b76cf__circle"]
+    }
   ]
 }

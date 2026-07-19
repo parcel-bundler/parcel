@@ -3,6 +3,9 @@
   "input": "react.ts",
   "options": {"mode": "production", "minify": false},
   "bundles": [
-    {"assets": ["esmodule-helpers.js", "icon.svg", "react.ts"], "contains": ["function SvgComponent", "createElement(\"svg"]}
+    {
+      "assets": ["esmodule-helpers.js", "icon.svg", "index.js", "jsx-runtime.js", "react-jsx-runtime.development.js", "react.development.js", "react.ts"],
+      "contains": ["function SvgComponent", "(0, _jsxRuntime.jsx)(\"svg"]
+    }
   ]
 }
