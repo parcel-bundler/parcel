@@ -313,11 +313,11 @@ impl<'a> DependencyCollector<'a> {
       } else {
         specifier
       };
-      return create_url_constructor(
-        ast::Expr::Call(self.create_require(specifier)),
-        self.config.is_esm_output,
-        optional,
-      );
+      let req = ast::Expr::Call(self.create_require(specifier));
+      if optional {
+        return req;
+      }
+      return create_url_constructor(req, self.config.is_esm_output, optional);
     }
 
     // For library builds, we need to create something that can be statically analyzed by another bundler,

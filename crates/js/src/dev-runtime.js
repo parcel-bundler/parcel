@@ -73,10 +73,6 @@ function parcelRequire(name, jumped) {
       return {};
     }
 
-    if (res === true) {
-      return x;
-    }
-
     if (Array.isArray(res)) {
       var m = {__esModule: true};
       res.forEach(function (v) {
@@ -122,6 +118,8 @@ function parcelRequire(name, jumped) {
         }
       });
       return m;
+    } else if (res && typeof res === 'object' && res.value) {
+      return res.value;
     }
 
     return parcelRequire(res);

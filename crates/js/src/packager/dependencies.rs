@@ -169,13 +169,16 @@ pub fn asset_dependencies<'a>(
           );
         }
       }
-      BundleGraphDependencyResolution::None | BundleGraphDependencyResolution::Excluded => {}
+      BundleGraphDependencyResolution::None => {}
       BundleGraphDependencyResolution::Deferred => {
         dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
       }
-      BundleGraphDependencyResolution::External => {
+      BundleGraphDependencyResolution::Excluded | BundleGraphDependencyResolution::External => {
         if dep.specifier_type == SpecifierType::Url {
-          dependencies.insert(placeholder.as_str().into(), Resolution::Unresolved);
+          dependencies.insert(
+            placeholder.as_str().into(),
+            Resolution::String(Cow::Borrowed(&dep.specifier)),
+          );
         } else {
           dependencies.insert(
             placeholder.as_str().into(),
@@ -196,7 +199,7 @@ pub fn asset_dependencies<'a>(
               .read()?;
             dependencies.insert(
               placeholder.as_str().into(),
-              Resolution::String(String::from_utf8(content)?),
+              Resolution::String(Cow::Owned(String::from_utf8(content)?)),
             );
           } else if dep.specifier_type == SpecifierType::Url {
             dependencies.insert(

@@ -1,4 +1,7 @@
-use std::{borrow::Cow, collections::HashSet};
+use std::{
+  borrow::Cow,
+  collections::{HashMap, HashSet},
+};
 
 use indexmap::IndexMap;
 use swc_core::{
@@ -22,8 +25,6 @@ use crate::{
 pub enum Resolution<'a> {
   #[serde(serialize_with = "serialize_excluded")]
   Excluded,
-  #[serde(serialize_with = "serialize_unresolved")]
-  Unresolved,
   Asset(String),
   Symbols(Vec<(&'a str, String, &'a str)>),
   #[serde(serialize_with = "serialize_bundle")]
@@ -31,7 +32,8 @@ pub enum Resolution<'a> {
   #[serde(serialize_with = "serialize_bundle_interop")]
   BundleInterop(u32),
   External(Cow<'a, str>),
-  String(String),
+  #[serde(serialize_with = "serialize_string")]
+  String(Cow<'a, str>),
   CssModule(String, Vec<(&'a str, String)>),
 }
 
@@ -43,12 +45,12 @@ where
   false.serialize(serializer)
 }
 
-fn serialize_unresolved<S>(serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_string<S>(value: &Cow<'_, str>, serializer: S) -> Result<S::Ok, S::Error>
 where
   S: serde::Serializer,
 {
   use serde::Serialize;
-  true.serialize(serializer)
+  HashMap::from([("value", value)]).serialize(serializer)
 }
 
 fn serialize_bundle<S>(value: &u32, serializer: S) -> Result<S::Ok, S::Error>
@@ -294,9 +296,6 @@ impl<'a> VisitMut for TreeShake<'a> {
             Resolution::Excluded => {
               *node = Expr::Object(Default::default());
             }
-            Resolution::Unresolved => {
-              *expr = specifier.clone().into();
-            }
             Resolution::Asset(resolution) => {
               **expr = resolution.clone().into();
             }
@@ -310,7 +309,7 @@ impl<'a> VisitMut for TreeShake<'a> {
               **expr = specifier.as_ref().into();
             }
             Resolution::String(string) => {
-              *node = string.as_str().into();
+              *node = string.clone().into_owned().into();
             }
             Resolution::Symbols(symbols) => {
               *node = Expr::Object(ObjectLit {
