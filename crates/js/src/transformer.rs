@@ -801,6 +801,10 @@ fn config(
     is_jsx = matches!(asset.ty, AssetType::Jsx | AssetType::Tsx);
   }
 
+  if asset.flags.contains(AssetFlags::AUTOMATIC_JSX_RUNTIME) {
+    automatic_jsx_runtime = true;
+  }
+
   let mut inline_fs = true;
 
   // Check if we should ignore fs calls
