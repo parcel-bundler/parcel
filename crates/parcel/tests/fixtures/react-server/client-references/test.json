@@ -10,7 +10,8 @@
     },
     {
       "assets": ["client.jsx"],
-      "context": "react-client"
+      "context": "react-client",
+      "contains": ["var distDir = \"../\";"]
     }
   ]
 }

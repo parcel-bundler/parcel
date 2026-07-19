@@ -380,13 +380,10 @@ fn write_runtime_globals(
 
   // The path from this bundle's directory back to the dist root. Bundle ids passed to
   // parcelLoadJS are dist-root-relative, so the runtime resolves them against this prefix.
-  let mut dist_dir_prefix = bundle
-    .target
-    .dist_dir
-    .relative_url(&bundle.dist_path().parent().unwrap());
-  if !dist_dir_prefix.starts_with(".") {
-    dist_dir_prefix.insert_str(0, "./");
-  }
+  let dist_dir_prefix = dist_dir_prefix(
+    &bundle.target.dist_dir,
+    &bundle.dist_path().parent().unwrap(),
+  );
   printer.write_var(
     runtime_name(should_optimize, "distDir", RUNTIME_DIST_DIR),
     &serde_json::to_string(&dist_dir_prefix)?,
@@ -432,4 +429,38 @@ fn write_runtime_globals(
   }
 
   Ok(())
+}
+
+fn dist_dir_prefix(dist_dir: &PathId, bundle_dir: &PathId) -> String {
+  let mut prefix = SourceUrl::from_directory_path(dist_dir)
+    .relative(&SourceUrl::from_directory_path(bundle_dir))
+    .unwrap();
+  if !prefix.starts_with('.') {
+    prefix.insert_str(0, "./");
+  }
+  if !prefix.ends_with('/') {
+    prefix.push('/');
+  }
+  prefix
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::path::Path;
+
+  #[test]
+  fn dist_dir_prefix_is_directory_relative_and_ends_in_slash() {
+    let dist_dir = PathId::new(Path::new("/project/dist"));
+
+    assert_eq!(dist_dir_prefix(&dist_dir, &dist_dir), "./");
+    assert_eq!(dist_dir_prefix(&dist_dir, &dist_dir.child("client")), "../");
+    assert_eq!(
+      dist_dir_prefix(
+        &dist_dir,
+        &dist_dir.child("client").child("routes").child("nested")
+      ),
+      "../../../"
+    );
+  }
 }

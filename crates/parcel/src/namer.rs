@@ -5,7 +5,7 @@ use std::{
 
 use parcel_core::{
   Asset, AssetGraph, AssetNode, AssetType, Bundle, BundleFlags, BundleGraph, Diagnostic,
-  DiagnosticList, EnvironmentFlags, Namer, OutputFormat, PathId,
+  DiagnosticList, Environment, EnvironmentFlags, Namer, OutputFormat, PathId,
 };
 use xxhash_rust::xxh3::Xxh3Default;
 
@@ -91,7 +91,17 @@ impl Namer for DefaultNamer {
       }
     }
 
-    Ok(Some(bundle.target.dist_dir.child(&format!(
+    // Group server and client bundles into separate folders.
+    // This allows users to easily upload to different places, and avoid exposing
+    // server code on public servers.
+    // If bundleExtension is set, assume everything is static (rendering at build time).
+    let prefix = match bundle.target.environment {
+      Environment::ReactServer => bundle.target.dist_dir.child("server"),
+      Environment::ReactClient => bundle.target.dist_dir.child("client"),
+      _ => bundle.target.dist_dir,
+    };
+
+    Ok(Some(prefix.child(&format!(
       "{:016x}.{}",
       hash_bundle(&bundle_graph.asset_graph, bundle, &options.project_root),
       ext
