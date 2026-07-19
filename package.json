@@ -84,6 +84,7 @@
     "scheduler": false
   },
   "dependencies": {
+    "handlebars": "4.7.9",
     "patch-package": "^8.0.0"
   },
   "_": "See issue #9405 for the Vue problem",
