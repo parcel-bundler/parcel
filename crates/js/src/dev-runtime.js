@@ -138,10 +138,8 @@ parcelRequire.Module = Module;
 parcelRequire.modules = modules;
 parcelRequire.cache = cache;
 parcelRequire.parent = previousRequire;
-parcelRequire.meta = {
-  distDir: distDir,
-  publicUrl: publicUrl,
-};
+parcelRequire.distDir = distDir;
+parcelRequire.publicUrl = publicUrl;
 parcelRequire.i = importMap;
 parcelRequire.hotData = {};
 
@@ -158,6 +156,10 @@ function parcelLoadJS(bundleId) {
   // bundle's directory back to that root, so the import resolves correctly
   // regardless of where this bundle is nested.
   return import(distDir + (importMap[bundleId] || bundleId));
+}
+
+function parcelResolve(bundleId) {
+  return publicUrl + (importMap[bundleId] || bundleId);
 }
 
 function parcelLoadCSS(bundleId) {
@@ -202,6 +204,7 @@ function parcelLoadCSS(bundleId) {
 parcelRequire.loadJS = parcelLoadJS;
 parcelRequire.load = parcelLoadJS;
 parcelRequire.loadCSS = parcelLoadCSS;
+parcelRequire.resolve = parcelResolve;
 parcelRequire.extendImportMap = function (map) {
   Object.assign(importMap, map);
 };

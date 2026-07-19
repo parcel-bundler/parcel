@@ -6,7 +6,7 @@
     {
       "assets": ["index.jsx"],
       "context": "react-server",
-      "contains": ["new URL(\"actions-", "registerServerActions"],
+      "contains": ["module.bundle.resolve(\"actions-", "registerServerActions"],
       "notContains": ["rsc_ss"]
     },
     {"assets": ["actions.js"], "context": "react-server"},

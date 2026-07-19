@@ -74,10 +74,8 @@ require.Module = Module;
 require.modules = modules;
 require.cache = cache;
 require.parent = previousRequire;
-require.meta = {
-  distDir: distDir,
-  publicUrl: publicUrl,
-};
+require.distDir = distDir;
+require.publicUrl = publicUrl;
 require.i = importMap;
 
 Object.defineProperty(require, 'root', {
@@ -93,6 +91,10 @@ function parcelLoadJS(bundleId) {
   // bundle's directory back to that root, so the import resolves correctly
   // regardless of where this bundle is nested.
   return import(distDir + (importMap[bundleId] || bundleId));
+}
+
+function parcelResolve(bundleId) {
+  return publicUrl + (importMap[bundleId] || bundleId);
 }
 
 function parcelLoadCSS(bundleId) {
@@ -137,6 +139,7 @@ function parcelLoadCSS(bundleId) {
 require.loadJS = parcelLoadJS;
 require.load = parcelLoadJS;
 require.loadCSS = parcelLoadCSS;
+require.resolve = parcelResolve;
 require.extendImportMap = function (map) {
   Object.assign(importMap, map);
 };

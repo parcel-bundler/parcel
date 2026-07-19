@@ -137,8 +137,8 @@ impl SyntheticAsset {
           let resolved_bundle = &bundle_graph.bundles[*bundle_index as usize];
           write!(
             dest,
-            "module.exports=''+new URL({:?},import.meta.url)",
-            resolved_bundle.relative_url(bundle).unwrap()
+            "module.exports=module.bundle.resolve({:?})",
+            resolved_bundle.name()
           )?;
         }
         BundleShim::Inline => {
