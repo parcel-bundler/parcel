@@ -144,14 +144,13 @@ pub(super) fn resolve_dependency(
     && resolved.target.environment == Environment::ReactClient
     && directives.iter().any(|directive| directive == "use client")
   {
-    let bundle_index = bundle_index
-      .or_else(|| {
-        bundle_graph
-          .bundles
-          .iter()
-          .position(|bundle| bundle.assets.contains(&(resolved_index as usize)))
-          .map(|bundle_index| bundle_index as u32)
-      })
+    // Find the bundle containing the importer so we can get the referenced bundles for the entire bundle group.
+    // TODO: the importer might not actually be the bundle root (it might also be a shared bundle).
+    let bundle_index = bundle_graph
+      .bundles
+      .iter()
+      .position(|bundle| bundle.assets.contains(&(importer_index as usize)))
+      .map(|bundle_index| bundle_index as u32)
       .ok_or_else(|| {
         DiagnosticList::from(Diagnostic::from_message(
           "React client reference asset was not included in a bundle".into(),
@@ -663,7 +662,7 @@ fn write_resources<W: std::fmt::Write>(
 
   // A bootstrap script that loads the client entry, which will be injected into
   // the initial HTML. Only applies to sync bundle group boundaries, i.e. the page.
-  let bootstrap_script = plan.client_entry.filter(|_| !is_async).map(|client_entry| {
+  let bootstrap_script = plan.client_entry.map(|client_entry| {
     let imports = plan
       .bootstrap_modules
       .iter()
