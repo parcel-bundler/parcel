@@ -23,7 +23,16 @@ impl Resolver for GlobResolver {
       return Ok(DependencyResolution::None);
     }
 
-    let is_async = query == "async";
+    let mut is_async = false;
+    let mut flat = false;
+    for pair in query.split('&') {
+      let (key, value) = pair.split_once('=').unwrap_or((pair, ""));
+      match key {
+        "async" => is_async = value == "true",
+        "flat" => flat = value == "true",
+        _ => {}
+      }
+    }
 
     let source_path = dep.resolve_from.as_ref().unwrap().to_file_path()?;
     let dir = source_path.parent().unwrap();
@@ -39,29 +48,33 @@ impl Resolver for GlobResolver {
     let mut root = GlobEntry::new_dir();
     for file in files.iter() {
       let rel = to_rel(file.to_str().unwrap());
-      if let Some(captures) = glob_match_with_captures(glob, &rel) {
+      let parts: Vec<&str> = if flat {
+        vec![rel.as_ref()]
+      } else if let Some(captures) = glob_match_with_captures(glob, &rel) {
         // Collect all capture groups, split each on '/', discard empty segments.
-        let parts: Vec<&str> = captures
+        captures
           .iter()
           .flat_map(|range| rel[range.clone()].split('/'))
           .filter(|s| !s.is_empty())
-          .collect();
-        if !parts.is_empty() {
-          let rel = if let Some(pipeline) = pipeline {
-            format!("{}:{}", pipeline, rel)
+          .collect()
+      } else {
+        vec![]
+      };
+      if !parts.is_empty() {
+        let rel = if let Some(pipeline) = pipeline {
+          format!("{}:{}", pipeline, rel)
+        } else {
+          rel.clone().into_owned()
+        };
+        root.insert(
+          &parts,
+          if is_async {
+            GlobEntry::Import(rel)
           } else {
-            rel.clone().into_owned()
-          };
-          root.insert(
-            &parts,
-            if is_async {
-              GlobEntry::Import(rel)
-            } else {
-              GlobEntry::Require(rel)
-            },
-          );
-        }
-      }
+            GlobEntry::Require(rel)
+          },
+        );
+      };
     }
 
     let mut code = String::new();

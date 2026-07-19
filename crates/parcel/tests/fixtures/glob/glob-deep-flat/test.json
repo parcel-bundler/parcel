@@ -1,0 +1,5 @@
+{
+  "description": "should flatten keys when requiring nested directories with a glob",
+  "input": "index.js",
+  "output": 13
+}
