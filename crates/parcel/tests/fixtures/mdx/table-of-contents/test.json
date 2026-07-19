@@ -1,0 +1,28 @@
+{
+  "description": "should export a table of contents from MDX",
+  "input": "index.js",
+  "output": [
+    {
+      "title": "Testing",
+      "level": 1,
+      "children": [
+        {
+          "title": "Subtitle",
+          "level": 2,
+          "children": [
+            {
+              "title": "Sub subtitle",
+              "level": 3,
+              "children": []
+            }
+          ]
+        },
+        {
+          "title": "Another subtitle",
+          "level": 2,
+          "children": []
+        }
+      ]
+    }
+  ]
+}

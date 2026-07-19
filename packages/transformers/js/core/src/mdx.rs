@@ -22,9 +22,11 @@ use swc_core::{
   common::{DUMMY_SP, SourceMap, comments::Comments, sync::Lrc},
   ecma::{
     ast::{
-      CallExpr, Callee, Decl, ExportDefaultExpr, ExportSpecifier, Expr, ExprOrSpread, Ident,
-      JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElement, JSXElementName, JSXExpr,
-      JSXExprContainer, JSXOpeningElement, Lit, Module, ModuleDecl, ModuleItem, Stmt, VarDeclKind,
+      ArrayLit, BindingIdent, CallExpr, Callee, Decl, ExportDecl, ExportDefaultExpr,
+      ExportSpecifier, Expr, ExprOrSpread, Ident, JSXAttrName, JSXAttrOrSpread, JSXAttrValue,
+      JSXElement, JSXElementName, JSXExpr, JSXExprContainer, JSXOpeningElement, Lit, Module,
+      ModuleDecl, ModuleItem, ObjectLit, Pat, PropOrSpread, Stmt, VarDecl, VarDeclKind,
+      VarDeclarator,
     },
     atoms::Atom as JsWord,
     codegen::to_code,
@@ -32,6 +34,7 @@ use swc_core::{
     utils::for_each_binding_ident,
     visit::{VisitMut, VisitMutWith},
   },
+  quote, quote_expr,
 };
 use swc_node_comments::SwcComments;
 
@@ -94,6 +97,25 @@ pub fn mdx(config: &Config) -> Result<MdxResult, Diagnostic> {
     comments.add_leading(c.span.lo, c.clone());
   }
 
+  program
+    .module
+    .body
+    .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+      decl: Decl::Var(Box::new(VarDecl {
+        decls: vec![VarDeclarator {
+          name: Pat::Ident(BindingIdent {
+            id: Ident::new_no_ctxt("tableOfContents".into(), DUMMY_SP),
+            ..Default::default()
+          }),
+          definite: false,
+          init: Some(Box::new(TocNode::to_array(contents.clone()))),
+          span: DUMMY_SP,
+        }],
+        ..Default::default()
+      })),
+      span: DUMMY_SP,
+    })));
+
   Ok(MdxResult {
     module: program.module,
     comments,
@@ -103,7 +125,7 @@ pub fn mdx(config: &Config) -> Result<MdxResult, Diagnostic> {
   })
 }
 
-#[derive(serde::Serialize, Debug)]
+#[derive(serde::Serialize, Debug, Clone)]
 pub struct TocNode {
   pub title: String,
   pub level: u8,
@@ -136,6 +158,28 @@ fn toc(node: &Node, results: &mut Vec<TocNode>) {
         }
       }
     }
+  }
+}
+
+impl TocNode {
+  pub fn to_array(nodes: Vec<TocNode>) -> Expr {
+    Expr::Array(ArrayLit {
+      span: DUMMY_SP,
+      elems: nodes
+        .into_iter()
+        .map(|c| {
+          Some(ExprOrSpread {
+            expr: Box::new(c.into_expr()),
+            spread: None,
+          })
+        })
+        .collect(),
+    })
+  }
+
+  pub fn into_expr(self) -> Expr {
+    let children = TocNode::to_array(self.children);
+    quote!("{title: $title, level: $level, children: $children}" as Expr, title: Expr = self.title.into(), level: Expr = (self.level as f64).into(), children: Expr = children)
   }
 }
 
