@@ -1,7 +1,7 @@
 const path = require('path')
 const fs = require('fs')
 
-exports.compileTailwind = async function compileTailwind(resolve, from, base, css, candidates) {
+exports.compileTailwind = async function compileTailwind(resolve, from, base, css, getCandidates) {
   const tailwindcssPath = resolve('tailwindcss', from, 0)
   const { compile } = require(tailwindcssPath)
 
@@ -10,7 +10,7 @@ exports.compileTailwind = async function compileTailwind(resolve, from, base, cs
     base,
     shouldRewriteUrls: true,
     loadModule(id, base) {
-      const resolved = resolve(id, base, 0)
+      const resolved = resolve(id, from, 0)
       const module = require(resolved)
       return {
         path: resolved,
@@ -19,7 +19,7 @@ exports.compileTailwind = async function compileTailwind(resolve, from, base, cs
       }
     },
     loadStylesheet(id, base) {
-      const resolved = resolve(id, base, 1)
+      const resolved = resolve(id, from, 1)
       return {
         path: resolved,
         base: path.dirname(resolved),
@@ -28,5 +28,20 @@ exports.compileTailwind = async function compileTailwind(resolve, from, base, cs
     },
   })
 
-  return compiler.build(candidates)
+  let sources = (() => {
+    // Disable auto source detection
+    if (compiler.root === 'none') {
+      return []
+    }
+
+    // No root specified, use the base directory
+    if (compiler.root === null) {
+      return [{ base, pattern: '**/*', negated: false }]
+    }
+
+    // Use the specified root
+    return [{ ...compiler.root, negated: false }]
+  })().concat(compiler.sources || compiler.globs || []);
+
+  return compiler.build(getCandidates(sources))
 }

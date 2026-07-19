@@ -5,7 +5,7 @@ use parcel_core::{
 };
 use parcel_plugin_js::{await_promise, require_source, with_js_env};
 use parcel_resolver::{Resolution, ResolveOptions, Resolver, SpecifierType};
-use rquickjs::{Array, Ctx, Function, Value};
+use rquickjs::{Array, Ctx, Function, Object, Value};
 use tailwindcss_oxide::{PublicSourceEntry, Scanner};
 
 pub struct TailwindTransformer;
@@ -20,19 +20,11 @@ impl Transformer for TailwindTransformer {
     fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
   ) -> Result<Asset, DiagnosticList> {
     let project_root_path = options.project_root;
-    let mut scanner = Scanner::new(vec![PublicSourceEntry {
-      base: project_root_path
-        .to_path_buf()
-        .to_string_lossy()
-        .into_owned(),
-      pattern: "**/*".into(),
-      negated: false,
-    }]);
-    let candidates = scanner.scan();
 
     let css_bytes = asset.content.read()?;
     let css = String::from_utf8(css_bytes).map_err(Diagnostic::from)?;
     // TODO: skip if tailwind is not present?
+    // let canBail = !/@(import|reference|theme|variant|config|plugin|apply|tailwind)\b/.test(source)
 
     let asset_path = asset.loc.url.to_file_path()?;
     let from = asset_path.to_path_buf().to_string_lossy().into_owned();
@@ -50,11 +42,6 @@ impl Transformer for TailwindTransformer {
         .as_object()
         .ok_or(rquickjs::Error::Unknown)?
         .get("compileTailwind")?;
-
-      let js_candidates = Array::new(ctx.clone())?;
-      for (i, candidate) in candidates.iter().enumerate() {
-        js_candidates.set(i, candidate.as_str())?;
-      }
 
       let resolve_fn =
         move |ctx: Ctx, specifier: String, from: String, kind: u32| -> rquickjs::Result<String> {
@@ -97,12 +84,36 @@ impl Transformer for TailwindTransformer {
 
       let resolve = Function::new(ctx.clone(), resolve_fn)?;
 
+      let get_candidates = Function::new(
+        ctx.clone(),
+        move |sources: Array| -> rquickjs::Result<Vec<String>> {
+          let sources = sources
+            .into_iter()
+            .map(|source| {
+              let source = source?;
+              let source = source.as_object().unwrap(); // TODO: error handling
+              let base: String = source.get("base")?;
+              let pattern: String = source.get("pattern")?;
+              let negated: Option<bool> = source.get("negated")?;
+              Ok(PublicSourceEntry {
+                base,
+                pattern,
+                negated: negated.unwrap_or_default(),
+              })
+            })
+            .collect::<rquickjs::Result<Vec<PublicSourceEntry>>>()?;
+
+          let mut scanner = Scanner::new(sources);
+          Ok(scanner.scan())
+        },
+      )?;
+
       let promise: Value = func.call((
         resolve,
         from.as_str(),
         base.as_str(),
         css.as_str(),
-        js_candidates,
+        get_candidates,
       ))?;
 
       let result = await_promise(ctx, promise)?;
