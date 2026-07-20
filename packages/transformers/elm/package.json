@@ -30,6 +30,6 @@
     "terser": "^5.39.0"
   },
   "peerDependencies": {
-    "elm": "^0.19.1-5"
+    "elm": "^0.19.2-0"
   }
 }
