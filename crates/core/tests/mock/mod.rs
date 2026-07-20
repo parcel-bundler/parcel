@@ -12,12 +12,12 @@ use std::{
 };
 
 use parcel_core::{
-  Asset, AssetGraph, AssetNode, AssetRequest, AssetType, BufferContent, BuildMode, BuildOptions,
-  Bundle, BundleBehavior, BundleFlags, BundleGraph, Bundler, Content, Dependency, DependencyFlags,
-  DependencyResolution, Diagnostic, DiagnosticList, DirEntry, ExportsCondition, FileKind, FileStat,
-  FileSystem, LogLevel, MemoryFileSystem, Namer, Optimizer, ParcelConfig, ParcelOptions, PathId,
-  PluginFactory, Priority, Resolver, SourceLocation, SourceUrl, SpecifierType, SubPath,
-  Transformer,
+  Asset, AssetGraph, AssetIndex, AssetNode, AssetNodeIndex, AssetRequest, AssetType, BufferContent,
+  BuildMode, BuildOptions, Bundle, BundleBehavior, BundleFlags, BundleGraph, Bundler, Content,
+  Dependency, DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList, DirEntry,
+  ExportsCondition, FileKind, FileStat, FileSystem, LogLevel, MemoryFileSystem, Namer, Optimizer,
+  ParcelConfig, ParcelOptions, PathId, PluginFactory, Priority, Resolver, SourceLocation,
+  SourceUrl, SpecifierType, SubPath, Transformer,
 };
 
 // ===========================================================================
@@ -155,7 +155,7 @@ impl Content for MockContent {
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     let mut out = Vec::new();
     for &index in &bundle.assets {
-      let asset = bundle_graph.asset_graph.assets[index].expect_asset();
+      let asset = &bundle_graph.asset_graph.assets[index as usize];
       out.extend_from_slice(&asset.content.read()?);
       out.push(b'\n');
     }
@@ -352,10 +352,10 @@ impl Bundler for MockBundler {
   ) -> Result<BundleGraph<'a>, DiagnosticList> {
     // Bundle roots: start with the entries (in order), then async targets discovered while
     // walking each bundle's synchronous subgraph.
-    let mut roots: Vec<(usize, bool)> = Vec::new();
-    let mut seen_roots: HashSet<usize> = HashSet::new();
+    let mut roots: Vec<(AssetIndex, bool)> = Vec::new();
+    let mut seen_roots: HashSet<AssetIndex> = HashSet::new();
     for entry in asset_graph.entries.iter() {
-      if let Some(index) = entry.asset {
+      if let Some(index) = asset_graph.resolved_entry(entry) {
         if seen_roots.insert(index) {
           roots.push((index, true));
         }
@@ -385,7 +385,7 @@ impl Bundler for MockBundler {
         }
       }
 
-      let root_asset = asset_graph.assets[root].expect_asset();
+      let root_asset = &asset_graph.assets[root as usize];
       let mut flags = BundleFlags::empty();
       if is_entry {
         flags |= BundleFlags::ENTRY;
@@ -417,22 +417,19 @@ impl Bundler for MockBundler {
 /// of async dependencies into `async_targets`.
 fn collect_sync(
   graph: &AssetGraph,
-  index: usize,
-  visited: &mut HashSet<usize>,
-  assets: &mut Vec<usize>,
-  async_targets: &mut Vec<usize>,
+  index: AssetIndex,
+  visited: &mut HashSet<AssetIndex>,
+  assets: &mut Vec<AssetIndex>,
+  async_targets: &mut Vec<AssetIndex>,
 ) {
   if !visited.insert(index) {
     return;
   }
-  let AssetNode::Asset(asset) = &graph.assets[index] else {
-    return;
-  };
   assets.push(index);
 
+  let asset = &graph.assets[index as usize];
   for dep in &asset.dependencies {
-    if let DependencyResolution::Asset(target) = dep.resolution {
-      let target = target as usize;
+    if let Some((target, _)) = graph.resolved_asset(dep) {
       if dep.priority == Priority::Sync {
         collect_sync(graph, target, visited, assets, async_targets);
       } else {
@@ -465,14 +462,14 @@ impl Namer for MockNamer {
       .asset_graph
       .entries
       .iter()
-      .find(|e| e.asset == Some(main))
+      .find(|e| bundle_graph.asset_graph.resolved_entry(e) == Some(main))
     {
       if let Some(dist_entry) = entry.dist_entry {
         return Ok(Some(dist_entry));
       }
     }
 
-    let asset = bundle_graph.asset_graph.assets[main].expect_asset();
+    let asset = &bundle_graph.asset_graph.assets[main as usize];
     let path = asset.loc.url.to_file_path().unwrap();
     let file = path.file_name();
     let stem = file.rsplit_once('.').map(|(s, _)| s).unwrap_or(file);

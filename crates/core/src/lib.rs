@@ -66,7 +66,7 @@ pub struct Parcel {
   cached_fs: Arc<CachedFileSystem>,
   /// Metadata from the previous bundle pass used to detect which bundles need re-packaging.
   /// Keyed by bundle dist path; value is the bundle's sorted asset indices.
-  prev_bundles: HashMap<PathId, Vec<usize>>,
+  prev_bundles: HashMap<PathId, Vec<AssetIndex>>,
   /// Original constructor inputs, retained so the build can be recreated from scratch when a
   /// configuration file changes.
   entries: Vec<String>,
@@ -80,20 +80,19 @@ pub struct Parcel {
 #[derive(Debug)]
 pub struct BuildResult<'a> {
   pub bundle_graph: BundleGraph<'a>,
-  pub changed_assets: Vec<usize>,
+  pub changed_assets: Vec<AssetIndex>,
 }
 
 impl<'a> BuildResult<'a> {
-  pub fn changed_assets(&'a self) -> Vec<(u32, &'a Asset)> {
+  pub fn changed_assets(&'a self) -> Vec<(AssetIndex, &'a Asset)> {
     self
       .changed_assets
       .iter()
       .filter_map(|index| {
-        if let AssetNode::Asset(a) = &self.bundle_graph.asset_graph.assets[*index] {
-          Some((*index as u32, a))
-        } else {
-          None
-        }
+        Some((
+          *index,
+          &self.bundle_graph.asset_graph.assets[*index as usize],
+        ))
       })
       .collect()
   }
@@ -103,7 +102,7 @@ impl<'a> BuildResult<'a> {
 #[derive(Debug, Default)]
 pub struct InvalidateResult {
   /// Asset indices invalidated for an incremental rebuild.
-  pub affected: HashSet<usize>,
+  pub affected: HashSet<AssetNodeIndex>,
   /// True if a configuration file changed and the `Parcel` was rebuilt from scratch. In that case
   /// `affected` is empty and the next `build()` performs a full build.
   pub config_changed: bool,
@@ -292,8 +291,8 @@ fn bundle_and_package<'a>(
   asset_graph: AssetGraph<'a>,
   config: &ParcelConfig,
   options: &ParcelOptions,
-  changed_assets: &Vec<usize>,
-  prev_bundles: &mut HashMap<PathId, Vec<usize>>,
+  changed_assets: &Vec<AssetIndex>,
+  prev_bundles: &mut HashMap<PathId, Vec<AssetIndex>>,
 ) -> Result<BundleGraph<'a>, DiagnosticList> {
   // Group assets into bundles.
   let bundle_graph = bundle(asset_graph, config, options)?;
@@ -301,7 +300,7 @@ fn bundle_and_package<'a>(
   // Diff the new bundle graph against the previous build's metadata to find dirty bundles.
   // A bundle is dirty if it's new, its asset composition changed, or any of its assets
   // were re-transformed this build.
-  let mut new_prev: HashMap<PathId, Vec<usize>> = HashMap::new();
+  let mut new_prev: HashMap<PathId, Vec<AssetIndex>> = HashMap::new();
   let mut dirty: HashSet<usize> = HashSet::new();
 
   for (bundle_index, bundle) in bundle_graph.bundles.iter().enumerate() {
@@ -369,9 +368,7 @@ pub fn get_bundle_content(
   bundle: &Bundle,
   options: &ParcelOptions,
 ) -> Result<Arc<dyn Content>, DiagnosticList> {
-  let first_content = &bundle_graph.asset_graph.assets[bundle.assets[0]]
-    .expect_asset()
-    .content;
+  let first_content = &bundle_graph.asset_graph.assets[bundle.assets[0] as usize].content;
   let get_inline_bundle_content = |bundle_index| {
     get_bundle_content(
       config,
@@ -386,8 +383,7 @@ pub fn get_bundle_content(
 
   let mut pipeline = None;
   if let Some(main) = bundle.main_entry_asset {
-    pipeline = bundle_graph.asset_graph.assets[main]
-      .expect_asset()
+    pipeline = bundle_graph.asset_graph.assets[main as usize]
       .pipeline
       .clone();
   }

@@ -51,7 +51,7 @@ impl JsContent {
 
     if bundle.target.source_type == SourceType::Script {
       assert_eq!(bundle.assets.len(), 1);
-      let asset = bundle_graph.asset_graph.assets[bundle.main_entry_asset.unwrap()].expect_asset();
+      let asset = &bundle_graph.asset_graph.assets[bundle.main_entry_asset.unwrap() as usize];
       if bundle.target.source_map.is_some()
         && let Some(content) = asset.content.downcast_ref::<JsContent>()
       {
@@ -74,11 +74,10 @@ impl JsContent {
 
     let mut printer = Printer::new(should_build_source_map, should_optimize);
     if let Some(main) = bundle.main_entry_asset {
-      if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[main] {
-        if let Some(content) = asset.content.downcast_ref::<JsContent>() {
-          if let Some(shebang) = &content.shebang {
-            write!(printer, "#!{}\n", shebang)?;
-          }
+      let asset = &bundle_graph.asset_graph.assets[main as usize];
+      if let Some(content) = asset.content.downcast_ref::<JsContent>() {
+        if let Some(shebang) = &content.shebang {
+          write!(printer, "#!{}\n", shebang)?;
         }
       }
     }
@@ -96,25 +95,24 @@ impl JsContent {
     let mut synthetic_assets = IndexSet::new();
 
     for asset_index in &bundle.assets {
-      if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[*asset_index] {
-        if !first {
-          printer.write_char(',')?;
-        }
-        first = false;
-
-        write_asset_module(
-          &mut printer,
-          *asset_index,
-          asset,
-          bundle_graph,
-          bundle,
-          &mut synthetic_assets,
-          get_inline_bundle_content,
-          options,
-          should_build_source_map,
-          should_optimize,
-        )?;
+      let asset = &bundle_graph.asset_graph.assets[*asset_index as usize];
+      if !first {
+        printer.write_char(',')?;
       }
+      first = false;
+
+      write_asset_module(
+        &mut printer,
+        *asset_index,
+        asset,
+        bundle_graph,
+        bundle,
+        &mut synthetic_assets,
+        get_inline_bundle_content,
+        options,
+        should_build_source_map,
+        should_optimize,
+      )?;
     }
 
     let rsc_server_entry =
@@ -178,7 +176,7 @@ fn write_external_imports(
   }
 
   for asset_index in &bundle.assets {
-    let asset = bundle_graph.asset_graph.assets[*asset_index].expect_asset();
+    let asset = &bundle_graph.asset_graph.assets[*asset_index as usize];
     for (dependency_index, dependency) in asset.dependencies.iter().enumerate() {
       if !dependency.flags.contains(DependencyFlags::OPTIONAL)
         && bundle_graph.dependency_resolution(*asset_index, dependency_index)
@@ -228,7 +226,7 @@ fn write_bundle_references(
 
 fn write_asset_module(
   printer: &mut Printer,
-  asset_index: usize,
+  asset_index: AssetIndex,
   asset: &Asset,
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
@@ -409,7 +407,7 @@ fn write_runtime_globals(
     write!(printer, "'{}',", entry)?;
   }
   for entry in &bundle.entry_assets {
-    let asset = &bundle_graph.asset_graph.assets[*entry].expect_asset();
+    let asset = &bundle_graph.asset_graph.assets[*entry as usize];
     write!(printer, "'{}'", asset.id(project_root))?;
   }
 
@@ -418,7 +416,7 @@ fn write_runtime_globals(
 
   let runtime_main_entry = runtime_name(should_optimize, "mainEntry", RUNTIME_MAIN_ENTRY);
   if let Some(main) = &bundle.main_entry_asset {
-    let asset = &bundle_graph.asset_graph.assets[*main].expect_asset();
+    let asset = &bundle_graph.asset_graph.assets[*main as usize];
     printer.write_var(
       runtime_main_entry,
       &format!("'{}'", asset.id(project_root)),

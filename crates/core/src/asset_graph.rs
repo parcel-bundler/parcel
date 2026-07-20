@@ -7,9 +7,10 @@ use std::{
 use fixedbitset::FixedBitSet;
 
 use crate::{
-  Asset, AssetFlags, AssetRequest, AssetType, DependencyResolution, DiagnosticList, Entry,
-  Environment, EnvironmentFlags, FileContent, InvalidationMap, ParcelOptions, PathId, Priority,
-  SourceLocation, SymbolName, SymbolResolution,
+  Asset, AssetFlags, AssetIndex, AssetKey, AssetNodeIndex, AssetRequest, AssetType, Dependency,
+  DependencyFlags, DependencyResolution, DiagnosticList, Entry, Environment, EnvironmentFlags,
+  FileContent, InvalidationMap, ParcelOptions, PathId, Priority, SourceLocation, SymbolName,
+  SymbolResolution,
   config::ParcelConfig,
   request::{RequestResult, TransformQueue},
 };
@@ -21,28 +22,20 @@ pub enum AssetNode {
     symbols: Vec<SymbolName>,
     requested: bool,
   },
-  Asset(Asset),
-}
-
-impl AssetNode {
-  pub fn expect_asset(&self) -> &Asset {
-    match self {
-      AssetNode::Asset(asset) => asset,
-      _ => unreachable!(),
-    }
-  }
+  Asset(AssetIndex),
 }
 
 #[derive(Debug, Clone)]
 pub struct AssetGraph<'a> {
-  pub assets: Cow<'a, [AssetNode]>,
+  pub asset_nodes: Cow<'a, [AssetNode]>,
+  pub assets: Cow<'a, [Asset]>,
   pub entries: Cow<'a, [Entry]>,
 }
 
 #[derive(Debug, Clone)]
 pub struct AssetGraphBuildResult<'a> {
   pub asset_graph: AssetGraph<'a>,
-  pub changed_assets: Vec<usize>,
+  pub changed_assets: Vec<AssetIndex>,
 }
 
 /// Stateful builder for the asset graph, enabling incremental rebuilds.
@@ -52,10 +45,12 @@ pub struct AssetGraphBuildResult<'a> {
 /// re-transforms only the affected assets and their transitive dependents.
 pub struct AssetGraphBuilder {
   /// The asset graph nodes, monotonically growing across builds.
-  assets: Vec<AssetNode>,
-  /// Deduplication map: AssetRequest → slot index in `assets`.
+  asset_nodes: Vec<AssetNode>,
+  assets: Vec<Asset>,
+  asset_keys: HashMap<AssetKey, usize>,
+  /// Deduplication map: AssetRequest → slot index in `asset_nodes`.
   asset_requests: HashMap<Arc<AssetRequest>, usize>,
-  /// Parallel to `assets`: the original AssetRequest for each slot.
+  /// Parallel to `asset_nodes`: the original AssetRequest for each slot.
   /// Used to reset slots back to Deferred during invalidation.
   requests: Vec<Arc<AssetRequest>>,
   /// Reverse invalidation map: which assets to re-transform when a file changes.
@@ -69,7 +64,9 @@ pub struct AssetGraphBuilder {
 impl AssetGraphBuilder {
   pub fn new(entries: Vec<Entry>, config: Arc<ParcelConfig>, options: Arc<ParcelOptions>) -> Self {
     AssetGraphBuilder {
+      asset_nodes: Vec::new(),
       assets: Vec::new(),
+      asset_keys: HashMap::new(),
       asset_requests: HashMap::new(),
       requests: Vec::new(),
       invalidation_map: InvalidationMap::default(),
@@ -82,7 +79,7 @@ impl AssetGraphBuilder {
   /// Marks assets as needing re-transformation based on changed/created file URLs.
   /// `changed` are modified or deleted files; `created` are newly created files.
   /// Call before `build()` to trigger an incremental rebuild.
-  pub fn invalidate(&mut self, changed: &[PathId], created: &[PathId]) -> HashSet<usize> {
+  pub fn invalidate(&mut self, changed: &[PathId], created: &[PathId]) -> HashSet<AssetNodeIndex> {
     let affected = self.invalidation_map.invalidate(changed, created);
 
     for index in &affected {
@@ -92,10 +89,10 @@ impl AssetGraphBuilder {
     affected
   }
 
-  fn reset_asset(&mut self, index: usize) {
-    if let AssetNode::Asset(_) = &self.assets[index] {
+  fn reset_asset(&mut self, index: AssetNodeIndex) {
+    if let AssetNode::Asset(_) = &self.asset_nodes[index] {
       let request = self.requests[index].clone();
-      self.assets[index] = AssetNode::Deferred {
+      self.asset_nodes[index] = AssetNode::Deferred {
         request,
         symbols: Vec::new(),
         requested: true,
@@ -127,7 +124,7 @@ impl AssetGraphBuilder {
           requested: true,
           request,
           ..
-        } = &self.assets[index]
+        } = &self.asset_nodes[index]
         {
           queue.transform(index, request.clone());
         }
@@ -149,8 +146,8 @@ impl AssetGraphBuilder {
           side_effects: true,
         });
 
-        let index = self.assets.len();
-        self.assets.push(AssetNode::Deferred {
+        let index = self.asset_nodes.len();
+        self.asset_nodes.push(AssetNode::Deferred {
           request: req.clone(),
           symbols: if entry.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
             vec![SymbolName::Namespace]
@@ -168,8 +165,9 @@ impl AssetGraphBuilder {
 
     // On incremental rebuilds, also re-queue non-entry assets that were invalidated.
     // (Entry assets were handled above; skip them here to avoid double-queuing.)
-    let entry_indices: HashSet<usize> = self.entries.iter().filter_map(|e| e.asset).collect();
-    for (index, node) in self.assets.iter().enumerate() {
+    let entry_indices: HashSet<AssetNodeIndex> =
+      self.entries.iter().filter_map(|e| e.asset).collect();
+    for (index, node) in self.asset_nodes.iter().enumerate() {
       if let AssetNode::Deferred {
         requested: true,
         request,
@@ -185,28 +183,40 @@ impl AssetGraphBuilder {
     while let Some(result) = queue.receive() {
       match result {
         RequestResult::Transform(res) => {
-          changed_assets.push(res.index);
-
           // Always record invalidations, even when the transform errored.
           self.invalidation_map.add(res.index, res.invalidations);
 
-          let mut asset = match res.result {
+          let asset = match res.result {
             Ok(asset) => asset,
             Err(err) => return Err(err),
           };
 
+          let key = asset.key();
+          let index = if let Some(&index) = self.asset_keys.get(&key) {
+            self.assets[index] = asset;
+            index
+          } else {
+            let index = self.assets.len();
+            self.assets.push(asset);
+            self.asset_keys.insert(key, index);
+            index
+          } as AssetIndex;
+
+          changed_assets.push(index);
+
+          let asset = &mut self.assets[index as usize];
           for dep in &mut asset.dependencies {
             let priority = dep.priority;
             if let DependencyResolution::Deferred(req) = &dep.resolution {
               if let Some(&index) = self.asset_requests.get(req) {
-                dep.resolution = DependencyResolution::Asset(index as u32);
+                dep.resolution = DependencyResolution::Asset(index);
 
                 // Lazy/parallel deps must be transformed even if the package has sideEffects: false,
                 // because the user explicitly requested this module via import().
                 if priority != Priority::Sync {
                   if let AssetNode::Deferred {
                     requested, request, ..
-                  } = &mut self.assets[index]
+                  } = &mut self.asset_nodes[index]
                   {
                     if !*requested {
                       *requested = true;
@@ -218,13 +228,13 @@ impl AssetGraphBuilder {
                 let req = req.clone();
 
                 // Allocate a new asset slot.
-                let index = self.assets.len();
-                dep.resolution = DependencyResolution::Asset(index as u32);
+                let index = self.asset_nodes.len();
+                dep.resolution = DependencyResolution::Asset(index);
                 self.asset_requests.insert(req.clone(), index);
 
                 // If the dependency has side effects or is loaded via dynamic import, always transform it.
                 let requested = req.side_effects || priority != Priority::Sync;
-                self.assets.push(AssetNode::Deferred {
+                self.asset_nodes.push(AssetNode::Deferred {
                   request: req.clone(),
                   symbols: Vec::new(),
                   requested,
@@ -239,7 +249,7 @@ impl AssetGraphBuilder {
           }
 
           let import_len = asset.symbols.imports.len();
-          let prev = std::mem::replace(&mut self.assets[res.index], AssetNode::Asset(asset));
+          let prev = std::mem::replace(&mut self.asset_nodes[res.index], AssetNode::Asset(index));
           let requested_symbols = if let AssetNode::Deferred { symbols, .. } = prev {
             symbols
           } else {
@@ -249,8 +259,9 @@ impl AssetGraphBuilder {
           // Propagate the requested symbols for this asset to un-defer dependencies.
           for name in requested_symbols {
             request_symbol(
+              &mut self.asset_nodes,
               &mut self.assets,
-              res.index as u32,
+              res.index,
               name,
               None,
               &mut HashSet::new(),
@@ -260,16 +271,18 @@ impl AssetGraphBuilder {
 
           // Propagate this asset's imported symbols.
           for i in 0..import_len {
-            let AssetNode::Asset(asset) = &self.assets[res.index] else {
+            let AssetNode::Asset(asset) = &self.asset_nodes[res.index] else {
               unreachable!()
             };
 
+            let asset = &self.assets[*asset as usize];
             let symbol = &asset.symbols.imports[i];
             let dep = &asset.dependencies[symbol.dep_index as usize];
             if let DependencyResolution::Asset(resolved_index) = dep.resolution {
               let name = symbol.symbol.clone();
               let environment = asset.target.environment;
               request_symbol(
+                &mut self.asset_nodes,
                 &mut self.assets,
                 resolved_index,
                 name,
@@ -284,25 +297,30 @@ impl AssetGraphBuilder {
     }
 
     // Finalize symbol resolutions for each imported symbol.
-    for asset_index in 0..self.assets.len() {
-      if let AssetNode::Asset(asset) = &self.assets[asset_index] {
+    for asset_index in 0..self.asset_nodes.len() {
+      if let AssetNode::Asset(asset) = &self.asset_nodes[asset_index] {
+        let asset = &self.assets[*asset as usize];
         for import_index in 0..asset.symbols.imports.len() {
-          let AssetNode::Asset(asset) = &self.assets[asset_index] else {
+          let AssetNode::Asset(asset) = &self.asset_nodes[asset_index] else {
             unreachable!()
           };
 
+          let asset = &self.assets[*asset as usize];
           let symbol = &asset.symbols.imports[import_index];
           let dep = &asset.dependencies[symbol.dep_index as usize];
           if let DependencyResolution::Asset(resolved_index) = dep.resolution {
             let name = symbol.symbol.clone();
             let environment = asset.target.environment;
-            let res = if dep.priority == Priority::Lazy {
+            let res = if dep.priority == Priority::Lazy
+              && let AssetNode::Asset(asset_index) = &self.asset_nodes[resolved_index]
+            {
               SymbolResolution::Runtime {
-                asset_index: resolved_index,
+                asset_index: *asset_index,
                 name,
               }
             } else {
               request_symbol(
+                &mut self.asset_nodes,
                 &mut self.assets,
                 resolved_index,
                 name.clone(),
@@ -312,10 +330,11 @@ impl AssetGraphBuilder {
               )
             };
 
-            let AssetNode::Asset(asset) = &mut self.assets[asset_index] else {
+            let AssetNode::Asset(asset) = &mut self.asset_nodes[asset_index] else {
               unreachable!()
             };
 
+            let asset = &mut self.assets[*asset as usize];
             let symbol = &mut asset.symbols.imports[import_index];
             symbol.resolved = res;
           }
@@ -325,6 +344,7 @@ impl AssetGraphBuilder {
 
     Ok(AssetGraphBuildResult {
       asset_graph: AssetGraph {
+        asset_nodes: Cow::Borrowed(&self.asset_nodes),
         assets: Cow::Borrowed(&self.assets),
         entries: Cow::Borrowed(&self.entries),
       },
@@ -347,6 +367,7 @@ impl AssetGraphBuilder {
     let changed_assets = self.build_with_changes()?.changed_assets;
     Ok(AssetGraphBuildResult {
       asset_graph: AssetGraph {
+        asset_nodes: Cow::Owned(self.asset_nodes),
         assets: Cow::Owned(self.assets),
         entries: Cow::Owned(self.entries),
       },
@@ -360,37 +381,45 @@ impl AssetGraphBuilder {
 /// queues deferred assets for transformation) and read-only resolution on a completed
 /// graph.
 trait SymbolGraph {
-  fn asset(&self, asset_index: u32) -> &AssetNode;
+  fn asset(&self, asset_index: AssetNodeIndex) -> &AssetNode;
 
-  fn expect_asset(&self, asset_index: u32) -> &Asset {
-    self.asset(asset_index).expect_asset()
-  }
+  fn expect_asset(&self, asset_index: AssetIndex) -> &Asset;
 
   /// Called when resolution reaches an asset that has not been transformed yet.
-  fn resolve_deferred(&mut self, asset_index: u32, name: SymbolName) -> SymbolResolution;
+  fn resolve_deferred(&mut self, asset_index: AssetNodeIndex, name: SymbolName)
+  -> SymbolResolution;
 
-  fn mark_export_requested(&mut self, _asset_index: u32, _export_index: usize) {}
-  fn mark_indirect_requested(&mut self, _asset_index: u32, _indirect_index: usize) {}
-  fn request_all(&mut self, _asset_index: u32) {}
+  fn mark_export_requested(&mut self, _asset_index: AssetNodeIndex, _export_index: usize) {}
+  fn mark_indirect_requested(&mut self, _asset_index: AssetNodeIndex, _indirect_index: usize) {}
+  fn request_all(&mut self, _asset_index: AssetNodeIndex) {}
 }
 
 /// Build-time resolution over a graph that is still being constructed.
 struct RequestSymbols<'a> {
-  assets: &'a mut Vec<AssetNode>,
+  asset_nodes: &'a mut Vec<AssetNode>,
+  assets: &'a mut Vec<Asset>,
   queue: &'a mut TransformQueue,
 }
 
 impl SymbolGraph for RequestSymbols<'_> {
-  fn asset(&self, asset_index: u32) -> &AssetNode {
+  fn asset(&self, asset_index: AssetNodeIndex) -> &AssetNode {
+    &self.asset_nodes[asset_index as usize]
+  }
+
+  fn expect_asset(&self, asset_index: AssetIndex) -> &Asset {
     &self.assets[asset_index as usize]
   }
 
-  fn resolve_deferred(&mut self, asset_index: u32, name: SymbolName) -> SymbolResolution {
+  fn resolve_deferred(
+    &mut self,
+    asset_index: AssetNodeIndex,
+    name: SymbolName,
+  ) -> SymbolResolution {
     let AssetNode::Deferred {
       request,
       symbols,
       requested,
-    } = &mut self.assets[asset_index as usize]
+    } = &mut self.asset_nodes[asset_index as usize]
     else {
       unreachable!()
     };
@@ -404,36 +433,47 @@ impl SymbolGraph for RequestSymbols<'_> {
     SymbolResolution::Ambiguous
   }
 
-  fn mark_export_requested(&mut self, asset_index: u32, export_index: usize) {
-    let AssetNode::Asset(asset) = &mut self.assets[asset_index as usize] else {
+  fn mark_export_requested(&mut self, asset_index: AssetNodeIndex, export_index: usize) {
+    let AssetNode::Asset(asset) = &mut self.asset_nodes[asset_index as usize] else {
       unreachable!()
     };
+    let asset = &mut self.assets[*asset as usize];
     asset.symbols.exports[export_index].requested = true;
   }
 
-  fn mark_indirect_requested(&mut self, asset_index: u32, indirect_index: usize) {
-    let AssetNode::Asset(asset) = &mut self.assets[asset_index as usize] else {
+  fn mark_indirect_requested(&mut self, asset_index: AssetNodeIndex, indirect_index: usize) {
+    let AssetNode::Asset(asset) = &mut self.asset_nodes[asset_index as usize] else {
       unreachable!()
     };
+    let asset = &mut self.assets[*asset as usize];
     asset.symbols.indirect[indirect_index].requested = true;
   }
 
-  fn request_all(&mut self, asset_index: u32) {
-    request_all(self.assets, asset_index, self.queue);
+  fn request_all(&mut self, asset_index: AssetNodeIndex) {
+    request_all(self.asset_nodes, self.assets, asset_index, self.queue);
   }
 }
 
 /// Read-only resolution over a completed graph, e.g. during packaging.
 struct ResolveSymbols<'a> {
-  assets: &'a [AssetNode],
+  asset_nodes: &'a [AssetNode],
+  assets: &'a [Asset],
 }
 
 impl SymbolGraph for ResolveSymbols<'_> {
-  fn asset(&self, asset_index: u32) -> &AssetNode {
+  fn asset(&self, asset_index: AssetNodeIndex) -> &AssetNode {
+    &self.asset_nodes[asset_index as usize]
+  }
+
+  fn expect_asset(&self, asset_index: AssetIndex) -> &Asset {
     &self.assets[asset_index as usize]
   }
 
-  fn resolve_deferred(&mut self, _asset_index: u32, _name: SymbolName) -> SymbolResolution {
+  fn resolve_deferred(
+    &mut self,
+    _asset_index: AssetNodeIndex,
+    _name: SymbolName,
+  ) -> SymbolResolution {
     // The asset was never transformed (e.g. side effect free and unused), so its exports
     // are unknown. Matches the build-time resolution for deferred assets.
     SymbolResolution::Ambiguous
@@ -441,15 +481,20 @@ impl SymbolGraph for ResolveSymbols<'_> {
 }
 
 fn request_symbol(
-  assets: &mut Vec<AssetNode>,
-  asset_index: u32,
+  asset_nodes: &mut Vec<AssetNode>,
+  assets: &mut Vec<Asset>,
+  asset_index: AssetNodeIndex,
   name: SymbolName,
   boundary_environment: Option<Environment>,
-  resolve_set: &mut HashSet<(u32, SymbolName)>,
+  resolve_set: &mut HashSet<(AssetNodeIndex, SymbolName)>,
   queue: &mut TransformQueue,
 ) -> SymbolResolution {
   resolve_symbol(
-    &mut RequestSymbols { assets, queue },
+    &mut RequestSymbols {
+      asset_nodes,
+      assets,
+      queue,
+    },
     asset_index,
     name,
     boundary_environment,
@@ -460,22 +505,25 @@ fn request_symbol(
 // https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#sec-resolveexport
 fn resolve_symbol<G: SymbolGraph>(
   graph: &mut G,
-  asset_index: u32,
+  asset_node_index: AssetNodeIndex,
   name: SymbolName,
   boundary_environment: Option<Environment>,
-  resolve_set: &mut HashSet<(u32, SymbolName)>,
+  resolve_set: &mut HashSet<(AssetNodeIndex, SymbolName)>,
 ) -> SymbolResolution {
-  if !resolve_set.insert((asset_index, name.clone())) {
+  if !resolve_set.insert((asset_node_index, name.clone())) {
     // Circular.
     return SymbolResolution::None;
   }
 
-  if let AssetNode::Deferred { .. } = graph.asset(asset_index) {
-    return graph.resolve_deferred(asset_index, name);
-  }
+  let asset_index = match graph.asset(asset_node_index) {
+    AssetNode::Deferred { .. } => {
+      return graph.resolve_deferred(asset_node_index, name);
+    }
+    AssetNode::Asset(asset_index) => *asset_index,
+  };
 
   if name == SymbolName::Namespace {
-    graph.request_all(asset_index);
+    graph.request_all(asset_node_index);
     return SymbolResolution::Namespace { asset_index };
   }
 
@@ -489,7 +537,7 @@ fn resolve_symbol<G: SymbolGraph>(
     .iter()
     .position(|export| export.exported == name)
   {
-    graph.mark_export_requested(asset_index, export_index);
+    graph.mark_export_requested(asset_node_index, export_index);
     return SymbolResolution::Export {
       asset_index,
       export_index: export_index as u32,
@@ -507,7 +555,7 @@ fn resolve_symbol<G: SymbolGraph>(
       asset.dependencies[export.dep_index as usize].resolution
     {
       let imported = export.imported.clone();
-      graph.mark_indirect_requested(asset_index, indirect_index);
+      graph.mark_indirect_requested(asset_node_index, indirect_index);
       let resolution = resolve_symbol(
         graph,
         resolved_asset_index,
@@ -547,7 +595,7 @@ fn resolve_symbol<G: SymbolGraph>(
         match res {
           SymbolResolution::None => continue,
           SymbolResolution::Runtime { .. } => {
-            graph.request_all(asset_index);
+            graph.request_all(asset_node_index);
             return SymbolResolution::Runtime { asset_index, name };
           }
           _ => {
@@ -568,7 +616,7 @@ fn resolve_symbol<G: SymbolGraph>(
   if star_resolution == SymbolResolution::None
     && (flags.contains(AssetFlags::SIDE_EFFECTS) || !flags.contains(AssetFlags::STATIC_EXPORTS))
   {
-    graph.request_all(asset_index);
+    graph.request_all(asset_node_index);
     return SymbolResolution::Runtime { asset_index, name };
   }
 
@@ -579,11 +627,17 @@ fn resolve_symbol<G: SymbolGraph>(
   star_resolution
 }
 
-fn request_all(assets: &mut Vec<AssetNode>, asset_index: u32, queue: &mut TransformQueue) {
-  let AssetNode::Asset(asset) = &mut assets[asset_index as usize] else {
+fn request_all(
+  asset_nodes: &mut Vec<AssetNode>,
+  assets: &mut Vec<Asset>,
+  asset_index: AssetNodeIndex,
+  queue: &mut TransformQueue,
+) {
+  let AssetNode::Asset(asset) = &mut asset_nodes[asset_index as usize] else {
     return;
   };
 
+  let asset = &mut assets[*asset as usize];
   if asset.symbols.used_namespace {
     return;
   }
@@ -595,10 +649,11 @@ fn request_all(assets: &mut Vec<AssetNode>, asset_index: u32, queue: &mut Transf
   }
 
   for i in 0..asset.symbols.indirect.len() {
-    let AssetNode::Asset(asset) = &mut assets[asset_index as usize] else {
+    let AssetNode::Asset(asset) = &mut asset_nodes[asset_index as usize] else {
       continue;
     };
 
+    let asset = &mut assets[*asset as usize];
     let export = &mut asset.symbols.indirect[i];
     if export.requested {
       continue;
@@ -610,6 +665,7 @@ fn request_all(assets: &mut Vec<AssetNode>, asset_index: u32, queue: &mut Transf
     if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
       let name = export.imported.clone();
       request_symbol(
+        asset_nodes,
         assets,
         resolved_asset_index,
         name,
@@ -620,15 +676,17 @@ fn request_all(assets: &mut Vec<AssetNode>, asset_index: u32, queue: &mut Transf
     }
   }
 
-  let AssetNode::Asset(asset) = &mut assets[asset_index as usize] else {
+  let AssetNode::Asset(asset) = &mut asset_nodes[asset_index as usize] else {
     return;
   };
 
+  let asset = &mut assets[*asset as usize];
   for i in 0..asset.symbols.star.len() {
-    let AssetNode::Asset(asset) = &mut assets[asset_index as usize] else {
+    let AssetNode::Asset(asset) = &mut asset_nodes[asset_index as usize] else {
       continue;
     };
 
+    let asset = &mut assets[*asset as usize];
     let export = &mut asset.symbols.star[i];
     if export.requested {
       continue;
@@ -639,6 +697,7 @@ fn request_all(assets: &mut Vec<AssetNode>, asset_index: u32, queue: &mut Transf
     let dep = &asset.dependencies[export.dep_index as usize];
     if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
       request_symbol(
+        asset_nodes,
         assets,
         resolved_asset_index,
         SymbolName::Namespace,
@@ -653,7 +712,7 @@ fn request_all(assets: &mut Vec<AssetNode>, asset_index: u32, queue: &mut Transf
 impl<'a> AssetGraph<'a> {
   /// Visits all assets in depth-first order starting from each entry. The third element is the
   /// entry's requested dist path, for the entry asset of each entry that has one.
-  pub fn dfs<'b>(&'b self) -> impl Iterator<Item = (usize, &'b Asset, Option<PathId>)> {
+  pub fn dfs<'b>(&'b self) -> impl Iterator<Item = (AssetIndex, &'b Asset, Option<PathId>)> {
     let mut stack = Vec::new();
     let mut visited = FixedBitSet::with_capacity(self.assets.len());
     let mut entries = self.entries.iter();
@@ -670,8 +729,8 @@ impl<'a> AssetGraph<'a> {
               entry_index += 1;
             }
 
-            if let Some(index) = entry.asset {
-              if !visited.contains(index) {
+            if let Some(index) = self.resolved_entry(entry) {
+              if !visited.contains(index as usize) {
                 stack.push(index);
                 break;
               }
@@ -684,29 +743,88 @@ impl<'a> AssetGraph<'a> {
         }
 
         while let Some(index) = stack.pop() {
-          if visited.contains(index) {
+          if visited.contains(index as usize) {
             continue;
           }
 
-          visited.insert(index);
-          if let AssetNode::Asset(asset) = &self.assets[index] {
-            for dep in asset.dependencies.iter().rev() {
-              if let DependencyResolution::Asset(index) = dep.resolution {
-                if !visited.contains(index as usize) {
-                  stack.push(index as usize);
-                }
+          visited.insert(index as usize);
+          let asset = &self.assets[index as usize];
+          for dep in asset.dependencies.iter().rev() {
+            if let Some((index, _)) = self.resolved_asset(dep) {
+              if !visited.contains(index as usize) {
+                stack.push(index);
               }
             }
+          }
 
-            let name = if Some(index) == self.entries[entry_index].asset {
-              self.entries[entry_index].dist_entry.clone()
-            } else {
-              None
-            };
+          let name = if Some(index) == self.resolved_entry(&self.entries[entry_index]) {
+            self.entries[entry_index].dist_entry.clone()
+          } else {
+            None
+          };
 
-            return Some((index, asset, name));
+          return Some((index, asset, name));
+        }
+      }
+    })
+  }
+
+  /// Iterates over all resolved asset indices that this asset depends on, in dependency order.
+  /// NOTE: This may include duplicates. self.symbols.imports must be sorted by dep_index.
+  pub fn resolved_dependencies(&self, asset: &Asset) -> impl Iterator<Item = AssetIndex> {
+    let mut dep_index = 0;
+    let mut import_index = 0;
+    std::iter::from_fn(move || {
+      loop {
+        // If a dependency has side effects, emit its resolved asset.
+        // If the namespace of this asset is used, include all dependencies.
+        // If the dependency is referenced by a used indirect or star export,
+        if dep_index < asset.dependencies.len() {
+          let dep = &asset.dependencies[dep_index];
+          if dep.flags.contains(DependencyFlags::SIDE_EFFECTS)
+            || asset.symbols.used_namespace
+            // TODO: check
+            || asset
+              .symbols
+              .indirect
+              .iter()
+              .any(|i| i.dep_index == dep_index as u32 && i.requested)
+            || asset
+              .symbols
+              .star
+              .iter()
+              .any(|i| i.dep_index == dep_index as u32 && i.requested)
+          {
+            if let Some((asset, _)) = self.resolved_asset(dep) {
+              dep_index += 1;
+              return Some(asset);
+            }
           }
         }
+
+        // Emit all resolved assets for imported symbols in this dependency.
+        // Side-effect free re-exports are not included - they are referenced directly through their importers.
+        while import_index < asset.symbols.imports.len() {
+          let import = &asset.symbols.imports[import_index];
+          if import.dep_index > dep_index as u32 {
+            break;
+          }
+
+          if let Some(asset) = import.resolved.asset_index() {
+            import_index += 1;
+            return Some(asset);
+          }
+
+          import_index += 1;
+        }
+
+        // Continue looping while there are more dependencies.
+        if dep_index < asset.dependencies.len() {
+          dep_index += 1;
+          continue;
+        }
+
+        return None;
       }
     })
   }
@@ -729,9 +847,7 @@ impl<'a> AssetGraph<'a> {
       }
 
       let mut exported_names = Vec::new();
-      let AssetNode::Asset(asset) = &asset_graph.assets[asset_index as usize] else {
-        return Vec::new();
-      };
+      let asset = &asset_graph.assets[asset_index as usize];
       let is_environment_boundary = asset.target.environment != boundary_environment;
 
       for (index, export) in asset.symbols.exports.iter().enumerate() {
@@ -770,8 +886,8 @@ impl<'a> AssetGraph<'a> {
       let star_start = exported_names.len();
 
       for star in &asset.symbols.star {
-        if let DependencyResolution::Asset(resolved) =
-          asset.dependencies[star.dep_index as usize].resolution
+        if let Some((resolved, _)) =
+          asset_graph.resolved_asset(&asset.dependencies[star.dep_index as usize])
         {
           let names = get_exports(asset_graph, resolved, boundary_environment, export_star_set);
           for (name, resolution) in names {
@@ -810,12 +926,13 @@ impl<'a> AssetGraph<'a> {
   // https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#sec-resolveexport
   pub fn resolve_export(
     &self,
-    asset_index: u32,
+    asset_index: AssetNodeIndex,
     name: SymbolName,
     boundary_environment: Environment,
   ) -> SymbolResolution {
     resolve_symbol(
       &mut ResolveSymbols {
+        asset_nodes: &self.asset_nodes,
         assets: &self.assets,
       },
       asset_index,
@@ -823,5 +940,29 @@ impl<'a> AssetGraph<'a> {
       Some(boundary_environment),
       &mut HashSet::new(),
     )
+  }
+
+  pub fn resolved_entry(&self, entry: &Entry) -> Option<AssetIndex> {
+    entry.asset.and_then(|a| {
+      if let AssetNode::Asset(asset) = self.asset_nodes[a] {
+        Some(asset)
+      } else {
+        None
+      }
+    })
+  }
+
+  pub fn resolved_asset(&self, dep: &Dependency) -> Option<(AssetIndex, &Asset)> {
+    if let DependencyResolution::Asset(asset_node_index) = dep.resolution {
+      if let AssetNode::Asset(asset_index) = self.asset_nodes[asset_node_index as usize] {
+        return Some((asset_index, &self.assets[asset_index as usize]));
+      }
+    }
+
+    None
+  }
+
+  pub fn expect_asset(&self, asset_index: AssetIndex) -> &Asset {
+    &self.assets[asset_index as usize]
   }
 }

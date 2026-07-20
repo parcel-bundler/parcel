@@ -7,9 +7,9 @@ use std::{
 use serde_json::Value;
 
 use crate::{
-  AssetType, BuildMode, BuildOptions, Diagnostic, Engines, Environment, EnvironmentFlags,
-  ExportsCondition, FileKind, FileSystem, IncludeNodeModules, OutputFormat, PathId, SourceLocation,
-  SourceType, SourceUrl, SubPath, Target, Version, is_glob,
+  AssetNodeIndex, AssetType, BuildMode, BuildOptions, Diagnostic, Engines, Environment,
+  EnvironmentFlags, ExportsCondition, FileKind, FileSystem, IncludeNodeModules, OutputFormat,
+  PathId, SourceLocation, SourceType, SourceUrl, SubPath, Target, Version, is_glob,
 };
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -19,7 +19,7 @@ pub struct Entry {
   /// The full dist path requested for this entry's bundle (e.g. from a package.json `main`
   /// field), used in place of a namer-generated name.
   pub dist_entry: Option<PathId>,
-  pub asset: Option<usize>,
+  pub asset: Option<AssetNodeIndex>,
   pub loc: Option<SourceLocation>,
 }
 

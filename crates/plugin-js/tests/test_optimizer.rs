@@ -44,7 +44,7 @@ fn run(
     public_url: "/assets".into(),
     ..Default::default()
   });
-  let assets = vec![AssetNode::Asset(Asset {
+  let assets = vec![Asset {
     loc: SourceLocation {
       url: SourceUrl::parse("file:///src/index.js").unwrap(),
       ..Default::default()
@@ -58,7 +58,7 @@ fn run(
     unique_key: None,
     dependencies: vec![],
     symbols: Default::default(),
-  })];
+  }];
   let bundles = vec![Bundle {
     ty: AssetType::Js,
     target,
@@ -72,6 +72,11 @@ fn run(
   }];
   let graph = BundleGraph::new(
     AssetGraph {
+      asset_nodes: Cow::Owned(
+        (0..assets.len())
+          .map(|index| AssetNode::Asset(index as u32))
+          .collect(),
+      ),
       assets: Cow::Owned(assets),
       entries: Cow::Owned(vec![]),
     },

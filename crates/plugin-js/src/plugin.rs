@@ -73,10 +73,7 @@ impl Optimizer for JsPlugin {
           .asset_graph
           .assets
           .iter()
-          .map(|node| match node {
-            AssetNode::Asset(asset) => Some(scope.wrap(asset)),
-            AssetNode::Deferred { .. } => None,
-          })
+          .map(|asset| scope.wrap(asset))
           .collect::<Vec<_>>(),
       );
 
@@ -361,10 +358,7 @@ impl Namer for JsPlugin {
           .asset_graph
           .assets
           .iter()
-          .map(|node| match node {
-            AssetNode::Asset(asset) => Some(scope.wrap(asset)),
-            AssetNode::Deferred { .. } => None,
-          })
+          .map(|asset| scope.wrap(asset))
           .collect::<Vec<_>>(),
       );
 
@@ -404,7 +398,7 @@ impl Namer for JsPlugin {
 struct JsBundle {
   index: usize,
   bundles: Arc<Vec<ScopedRef<Bundle>>>,
-  assets: Arc<Vec<Option<ScopedRef<Asset>>>>,
+  assets: Arc<Vec<ScopedRef<Asset>>>,
 }
 
 impl<'js> Trace<'js> for JsBundle {
@@ -448,7 +442,7 @@ impl JsBundle {
     self.bundles[self.index].with(|bundle| {
       bundle
         .main_entry_asset
-        .and_then(|index| self.assets[index].clone())
+        .map(|index| self.assets[index as usize].clone())
         .map(JsAsset::borrowed)
     })
   }
@@ -458,7 +452,7 @@ impl JsBundle {
       bundle
         .entry_assets
         .iter()
-        .filter_map(|index| self.assets[*index].clone())
+        .map(|index| self.assets[*index as usize].clone())
         .map(JsAsset::borrowed)
         .collect()
     })
@@ -469,7 +463,7 @@ impl JsBundle {
   fn new(
     index: usize,
     bundles: Arc<Vec<ScopedRef<Bundle>>>,
-    assets: Arc<Vec<Option<ScopedRef<Asset>>>>,
+    assets: Arc<Vec<ScopedRef<Asset>>>,
   ) -> Self {
     Self {
       index,
@@ -483,7 +477,7 @@ impl JsBundle {
 #[rquickjs::class]
 struct JsBundleGraph {
   bundles: Arc<Vec<ScopedRef<Bundle>>>,
-  assets: Arc<Vec<Option<ScopedRef<Asset>>>>,
+  assets: Arc<Vec<ScopedRef<Asset>>>,
 }
 
 impl<'js> Trace<'js> for JsBundleGraph {
@@ -560,7 +554,7 @@ impl JsBundleGraph {
 }
 
 impl JsBundleGraph {
-  fn new(bundles: Arc<Vec<ScopedRef<Bundle>>>, assets: Arc<Vec<Option<ScopedRef<Asset>>>>) -> Self {
+  fn new(bundles: Arc<Vec<ScopedRef<Bundle>>>, assets: Arc<Vec<ScopedRef<Asset>>>) -> Self {
     Self { bundles, assets }
   }
 }

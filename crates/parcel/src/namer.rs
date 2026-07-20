@@ -4,8 +4,8 @@ use std::{
 };
 
 use parcel_core::{
-  Asset, AssetGraph, AssetNode, AssetType, Bundle, BundleFlags, BundleGraph, Diagnostic,
-  DiagnosticList, Environment, EnvironmentFlags, Namer, OutputFormat, PathId,
+  Asset, AssetGraph, AssetType, Bundle, BundleFlags, BundleGraph, Diagnostic, DiagnosticList,
+  Environment, EnvironmentFlags, Namer, OutputFormat, PathId,
 };
 use xxhash_rust::xxh3::Xxh3Default;
 
@@ -33,61 +33,59 @@ impl Namer for DefaultNamer {
     }
 
     if let Some(entry) = bundle.main_entry_asset {
-      if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[entry] {
-        if bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
-          let relative =
-            relative_path(asset, &bundle.target.dist_dir.parent().unwrap())?.with_extension("");
-          let name = relative.to_str().unwrap();
-          return Ok(Some(format_name(
-            &bundle_graph.asset_graph,
-            bundle,
-            name,
-            ext,
-            &options.project_root,
-          )));
-        } else {
-          if bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME) {
-            let entry_root = common_root_path(
-              bundle_graph
-                .bundles
-                .iter()
-                .filter(|b| {
-                  b.flags.contains(BundleFlags::NEEDS_STABLE_NAME)
-                    && b.main_entry_asset.is_some()
-                    && b.target.dist_dir == bundle.target.dist_dir
-                })
-                .map(|b| {
-                  bundle_graph.asset_graph.assets[b.main_entry_asset.unwrap()]
-                    .expect_asset()
-                    .loc
-                    .url
-                    .to_file_path()
-                    .unwrap()
-                }),
-            );
-            if let Some(entry_root) = entry_root {
-              let relative = relative_path(asset, &entry_root)?.with_extension("");
-              let name = relative.to_str().unwrap();
-              return Ok(Some(format_name(
-                &bundle_graph.asset_graph,
-                bundle,
-                name,
-                ext,
-                &options.project_root,
-              )));
-            }
+      let asset = &bundle_graph.asset_graph.assets[entry as usize];
+      if bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+        let relative =
+          relative_path(asset, &bundle.target.dist_dir.parent().unwrap())?.with_extension("");
+        let name = relative.to_str().unwrap();
+        return Ok(Some(format_name(
+          &bundle_graph.asset_graph,
+          bundle,
+          name,
+          ext,
+          &options.project_root,
+        )));
+      } else {
+        if bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME) {
+          let entry_root = common_root_path(
+            bundle_graph
+              .bundles
+              .iter()
+              .filter(|b| {
+                b.flags.contains(BundleFlags::NEEDS_STABLE_NAME)
+                  && b.main_entry_asset.is_some()
+                  && b.target.dist_dir == bundle.target.dist_dir
+              })
+              .map(|b| {
+                bundle_graph.asset_graph.assets[b.main_entry_asset.unwrap() as usize]
+                  .loc
+                  .url
+                  .to_file_path()
+                  .unwrap()
+              }),
+          );
+          if let Some(entry_root) = entry_root {
+            let relative = relative_path(asset, &entry_root)?.with_extension("");
+            let name = relative.to_str().unwrap();
+            return Ok(Some(format_name(
+              &bundle_graph.asset_graph,
+              bundle,
+              name,
+              ext,
+              &options.project_root,
+            )));
           }
-
-          let file_path = asset.loc.url.to_file_path()?;
-          let name = file_path.file_prefix().unwrap();
-          return Ok(Some(format_name(
-            &bundle_graph.asset_graph,
-            bundle,
-            name,
-            ext,
-            &options.project_root,
-          )));
         }
+
+        let file_path = asset.loc.url.to_file_path()?;
+        let name = file_path.file_prefix().unwrap();
+        return Ok(Some(format_name(
+          &bundle_graph.asset_graph,
+          bundle,
+          name,
+          ext,
+          &options.project_root,
+        )));
       }
     }
 
@@ -112,10 +110,9 @@ impl Namer for DefaultNamer {
 fn hash_bundle(asset_graph: &AssetGraph, bundle: &Bundle, project_root: &PathId) -> u64 {
   let mut hash = Xxh3Default::new();
   for asset in &bundle.assets {
-    if let AssetNode::Asset(asset) = &asset_graph.assets[*asset] {
-      asset.loc.stable_hash(project_root, &mut hash);
-      asset.target.stable_hash(project_root, &mut hash);
-    }
+    let asset = &asset_graph.assets[*asset as usize];
+    asset.loc.stable_hash(project_root, &mut hash);
+    asset.target.stable_hash(project_root, &mut hash);
   }
 
   hash.digest()

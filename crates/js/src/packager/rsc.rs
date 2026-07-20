@@ -81,18 +81,18 @@ struct RscResource {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RscResourcePlan {
-  original_asset: u32,
+  original_asset: AssetIndex,
   resources: Vec<RscResource>,
   load_bundles: Vec<u32>,
   client_css: Vec<String>,
-  client_entry: Option<u32>,
+  client_entry: Option<AssetIndex>,
   bootstrap_modules: Vec<String>,
 }
 
 /// Determines whether a dependency crosses an RSC boundary, and if so, returns
 /// the generated module that should replace its resolution.
 pub(super) fn resolve_dependency(
-  importer_index: usize,
+  importer_index: AssetIndex,
   dependency_index: usize,
   importer: &Asset,
   dependency: &Dependency,
@@ -120,9 +120,7 @@ pub(super) fn resolve_dependency(
     return Ok(None);
   }
 
-  let AssetNode::Asset(resolved) = &bundle_graph.asset_graph.assets[resolved_index as usize] else {
-    return Ok(None);
-  };
+  let resolved = &bundle_graph.asset_graph.assets[resolved_index as usize];
   let directives = resolved
     .content
     .downcast_ref::<JsContent>()
@@ -135,7 +133,7 @@ pub(super) fn resolve_dependency(
       .any(|directive| directive == "use client-entry")
   {
     return Ok(Some(RscModule::Empty {
-      importer: importer_index as u32,
+      importer: importer_index,
       dependency: dependency_index as u32,
     }));
   }
@@ -149,7 +147,7 @@ pub(super) fn resolve_dependency(
     let bundle_index = bundle_graph
       .bundles
       .iter()
-      .position(|bundle| bundle.assets.contains(&(importer_index as usize)))
+      .position(|bundle| bundle.assets.contains(&importer_index))
       .map(|bundle_index| bundle_index as u32)
       .ok_or_else(|| {
         DiagnosticList::from(Diagnostic::from_message(
@@ -171,7 +169,7 @@ pub(super) fn resolve_dependency(
       Vec::new()
     };
     return Ok(Some(RscModule::ClientReference {
-      importer: importer_index as u32,
+      importer: importer_index,
       dependency: dependency_index as u32,
       runtime: runtime_asset(importer_index, importer, bundle_graph)?,
       exports: bundle_graph
@@ -238,7 +236,7 @@ pub(super) fn server_entry(
     && bundle.target.environment == Environment::ReactServer
     && let Some(entry) = bundle.main_entry_asset
   {
-    let asset = bundle_graph.asset_graph.assets[entry].expect_asset();
+    let asset = &bundle_graph.asset_graph.assets[entry as usize];
     Ok(Some(RscModule::ServerEntry {
       entry: entry as u32,
       runtime: runtime_asset(entry, asset, bundle_graph)?,
@@ -298,7 +296,7 @@ fn resource_plan(
         // Find the client entry in this bundle group if any.
         if importer.target.environment == Environment::ReactServer && plan.client_entry.is_none() {
           plan.client_entry = bundle.assets.iter().find_map(|asset_index| {
-            let asset = bundle_graph.asset_graph.assets[*asset_index].expect_asset();
+            let asset = &bundle_graph.asset_graph.assets[*asset_index as usize];
             asset
               .content
               .downcast_ref::<JsContent>()
@@ -320,7 +318,7 @@ fn resource_plan(
 
 /// Resolves the RSC runtime module injected by the transformer for this asset.
 fn runtime_asset(
-  importer_index: usize,
+  importer_index: AssetIndex,
   importer: &Asset,
   bundle_graph: &BundleGraph,
 ) -> Result<u32, DiagnosticList> {
@@ -360,10 +358,7 @@ fn client_bundle_names(bundle_graph: &BundleGraph, bundle_index: u32) -> Vec<Str
 
 fn server_actions(bundle_graph: &BundleGraph, project_root: &PathId) -> Vec<RscServerAction> {
   let mut actions: IndexMap<String, RscServerAction> = IndexMap::new();
-  for (asset_index, node) in bundle_graph.asset_graph.assets.iter().enumerate() {
-    let AssetNode::Asset(asset) = node else {
-      continue;
-    };
+  for (asset_index, asset) in bundle_graph.asset_graph.assets.iter().enumerate() {
     let is_server_action = asset
       .content
       .downcast_ref::<JsContent>()
@@ -380,7 +375,7 @@ fn server_actions(bundle_graph: &BundleGraph, project_root: &PathId) -> Vec<RscS
     let Some(bundle_index) = bundle_graph
       .bundles
       .iter()
-      .position(|bundle| bundle.assets.contains(&asset_index))
+      .position(|bundle| bundle.assets.contains(&(asset_index as u32)))
     else {
       continue;
     };
@@ -578,8 +573,8 @@ fn write_server_reference<W: std::fmt::Write>(
   should_optimize: bool,
   bundle_graph: &BundleGraph,
   project_root: &PathId,
-  runtime: u32,
-  original: u32,
+  runtime: AssetIndex,
+  original: AssetIndex,
   exports: &[(SymbolName, SymbolResolution)],
   is_client: bool,
   is_async: bool,
@@ -600,7 +595,7 @@ fn write_server_reference<W: std::fmt::Write>(
   } else {
     // Dependency on a "use server" module from a server environment.
     // Mark each export as a server reference that can be passed to a client component as a prop.
-    let original_asset = bundle_graph.asset_graph.assets[original as usize].expect_asset();
+    let original_asset = &bundle_graph.asset_graph.assets[original as usize];
     let original_id = serde_json::to_string(&original_asset.id(project_root))?;
     write!(dest, "let $original={}({});\n", require, original_id)?;
     write!(dest, "for(let key in $original){{\n")?;
@@ -629,17 +624,17 @@ fn write_resources<W: std::fmt::Write>(
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
   project_root: &PathId,
-  importer: u32,
+  importer: AssetIndex,
   dependency: u32,
-  runtime: u32,
+  runtime: AssetIndex,
   target_bundle_index: u32,
   plan: &RscResourcePlan,
   is_async: bool,
 ) -> Result<(), DiagnosticList> {
-  let importer_asset = bundle_graph.asset_graph.assets[importer as usize].expect_asset();
+  let importer_asset = &bundle_graph.asset_graph.assets[importer as usize];
   let dependency = &importer_asset.dependencies[dependency as usize];
   let target_bundle = &bundle_graph.bundles[target_bundle_index as usize];
-  let original_asset = bundle_graph.asset_graph.assets[plan.original_asset as usize].expect_asset();
+  let original_asset = &bundle_graph.asset_graph.assets[plan.original_asset as usize];
   let original_id = serde_json::to_string(&original_asset.id(project_root))?;
 
   let require = write_preamble(dest, should_optimize, bundle_graph, project_root, runtime)?;
@@ -669,9 +664,7 @@ fn write_resources<W: std::fmt::Write>(
       .map(|url| format!("import({})", serde_json::to_string(url).unwrap()))
       .collect::<Vec<_>>()
       .join(",");
-    let entry = bundle_graph.asset_graph.assets[client_entry as usize]
-      .expect_asset()
-      .id(project_root);
+    let entry = bundle_graph.asset_graph.assets[client_entry as usize].id(project_root);
     format!(
       "Promise.all([{}]).then(()=>parcelRequire({}))",
       imports,
@@ -750,7 +743,7 @@ fn write_server_entry<W: std::fmt::Write>(
   should_optimize: bool,
   bundle_graph: &BundleGraph,
   project_root: &PathId,
-  runtime: u32,
+  runtime: AssetIndex,
   actions: &[RscServerAction],
 ) -> Result<(), DiagnosticList> {
   write_preamble(dest, should_optimize, bundle_graph, project_root, runtime)?;
@@ -761,7 +754,7 @@ fn write_server_entry<W: std::fmt::Write>(
   if !actions.is_empty() {
     write!(dest, "$rsc.registerServerActions({{")?;
     for action in actions {
-      let asset = bundle_graph.asset_graph.assets[action.asset_index as usize].expect_asset();
+      let asset = &bundle_graph.asset_graph.assets[action.asset_index as usize];
       write!(
         dest,
         "{}:{},",
@@ -780,10 +773,10 @@ fn write_preamble<W: std::fmt::Write>(
   should_optimize: bool,
   bundle_graph: &BundleGraph,
   project_root: &PathId,
-  runtime: u32,
+  runtime: AssetIndex,
 ) -> Result<&'static str, DiagnosticList> {
   let require = runtime_name(should_optimize, "require", RUNTIME_REQUIRE);
-  let runtime_asset = bundle_graph.asset_graph.assets[runtime as usize].expect_asset();
+  let runtime_asset = &bundle_graph.asset_graph.assets[runtime as usize];
   write!(
     dest,
     "let $rsc={}({});\n",
@@ -802,7 +795,7 @@ fn resolved_exports<'a>(
     let export_name = resolution.name(&bundle_graph.asset_graph)?;
     Some((
       export_as,
-      bundle_graph.asset_graph.assets[asset_index as usize].expect_asset(),
+      &bundle_graph.asset_graph.assets[asset_index as usize],
       export_name,
     ))
   })

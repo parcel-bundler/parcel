@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
-use crate::{AssetType, PathId, SourceUrl, Target, impl_bitflags_serde};
+use crate::{AssetIndex, AssetType, PathId, SourceUrl, Target, impl_bitflags_serde};
 
 #[derive(Debug)]
 pub struct Bundle {
@@ -12,9 +12,9 @@ pub struct Bundle {
   pub bundle_behavior: BundleBehavior,
   pub flags: BundleFlags,
   pub dist_path: Option<PathId>,
-  pub assets: Vec<usize>,
-  pub entry_assets: Vec<usize>,
-  pub main_entry_asset: Option<usize>,
+  pub assets: Vec<AssetIndex>,
+  pub entry_assets: Vec<AssetIndex>,
+  pub main_entry_asset: Option<AssetIndex>,
   pub referenced_bundles: Vec<usize>,
 }
 

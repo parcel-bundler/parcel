@@ -1,0 +1,15 @@
+{
+  "description": "should dedupe a client component imported from both server and client environments",
+  "input": "index.jsx",
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": ["index.jsx"],
+      "context": "react-server"
+    },
+    {
+      "assets": ["button.jsx", "page.jsx"],
+      "context": "react-client"
+    }
+  ]
+}

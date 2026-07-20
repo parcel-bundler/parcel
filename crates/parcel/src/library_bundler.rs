@@ -1,8 +1,8 @@
 use std::{any::TypeId, collections::HashMap, hash::Hash};
 
 use parcel_core::{
-  AssetGraph, AssetNode, Bundle, BundleFlags, BundleGraph, Bundler, DependencyId,
-  DependencyResolution, DiagnosticList, ParcelOptions, PathId, SourceUrl, Target,
+  AssetGraph, AssetIndex, Bundle, BundleFlags, BundleGraph, Bundler, DependencyId, DiagnosticList,
+  ParcelOptions, SourceUrl, Target,
 };
 
 pub struct LibraryBundler {}
@@ -58,27 +58,25 @@ impl Bundler for LibraryBundler {
       asset_to_bundle.insert(id as u32, bundle_index);
     }
 
-    for (id, node) in asset_graph.assets.iter().enumerate() {
-      if let AssetNode::Asset(asset) = node {
-        for (dep_index, dep) in asset.dependencies.iter().enumerate() {
-          if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
-            if let Some(bundle) = asset_to_bundle.get(&resolved_asset_index) {
-              dependency_resolutions.insert(
-                DependencyId {
-                  asset: id,
-                  dependency: dep_index,
-                },
-                *bundle as u32,
-              );
-            }
+    for (id, asset) in asset_graph.assets.iter().enumerate() {
+      for (dep_index, dep) in asset.dependencies.iter().enumerate() {
+        if let Some((resolved_asset_index, _)) = asset_graph.resolved_asset(dep) {
+          if let Some(bundle) = asset_to_bundle.get(&resolved_asset_index) {
+            dependency_resolutions.insert(
+              DependencyId {
+                asset: id as AssetIndex,
+                dependency: dep_index,
+              },
+              *bundle as u32,
+            );
           }
         }
       }
     }
 
     for entry in asset_graph.entries.iter() {
-      if let Some(asset_index) = entry.asset {
-        if let Some(bundle) = asset_to_bundle.get(&(asset_index as u32)) {
+      if let Some(asset_index) = asset_graph.resolved_entry(entry) {
+        if let Some(bundle) = asset_to_bundle.get(&asset_index) {
           bundles[*bundle].flags |= BundleFlags::ENTRY;
         }
       }

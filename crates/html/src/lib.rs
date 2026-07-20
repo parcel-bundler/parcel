@@ -435,7 +435,7 @@ fn prepare_to_package(
   ),
   DiagnosticList,
 > {
-  let asset = bundle_graph.asset_graph.assets[bundle.assets[0]].expect_asset();
+  let asset = &bundle_graph.asset_graph.assets[bundle.assets[0] as usize];
 
   let code = asset.content.read()?;
 

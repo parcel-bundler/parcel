@@ -23,7 +23,7 @@ pub(super) fn is_async_bundle_dependency(dependency: &Dependency, bundle: &Bundl
 /// Resolves each dependency of an asset for packaging, collecting any synthetic
 /// assets that must be emitted alongside it.
 pub fn asset_dependencies<'a>(
-  asset_index: usize,
+  asset_index: AssetIndex,
   asset: &'a Asset,
   bundle_graph: &'a BundleGraph,
   bundle: Option<&'a Bundle>,
@@ -33,7 +33,10 @@ pub fn asset_dependencies<'a>(
 ) -> Result<IndexMap<String, Resolution<'a>>, DiagnosticList> {
   let mut dependencies = IndexMap::new();
 
-  let used_deps: Vec<u32> = asset.resolved_dependencies().collect();
+  let used_deps: Vec<u32> = bundle_graph
+    .asset_graph
+    .resolved_dependencies(asset)
+    .collect();
 
   for (dep_index, dep) in asset.dependencies.iter().enumerate() {
     let placeholder = dep.placeholder.as_ref().unwrap_or(&dep.specifier);
@@ -65,22 +68,19 @@ pub fn asset_dependencies<'a>(
 
     match graph_resolution {
       BundleGraphDependencyResolution::Asset(resolved) => {
-        if let AssetNode::Asset(resolved_asset) =
-          &bundle_graph.asset_graph.assets[resolved as usize]
-        {
-          if resolved_asset.ty != AssetType::Js {
-            if resolved_asset.symbols.exports.iter().any(|e| e.requested) {
-              let asset = &bundle_graph.asset_graph.assets[resolved as usize].expect_asset();
-              dependencies.insert(
-                placeholder.as_str().into(),
-                Resolution::Asset(asset.id(project_root)),
-              );
-              additional_assets.insert(SyntheticAsset::CssModuleExports(resolved));
-              continue;
-            }
-            dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
+        let resolved_asset = &bundle_graph.asset_graph.assets[resolved as usize];
+        if resolved_asset.ty != AssetType::Js {
+          if resolved_asset.symbols.exports.iter().any(|e| e.requested) {
+            let asset = &bundle_graph.asset_graph.assets[resolved as usize];
+            dependencies.insert(
+              placeholder.as_str().into(),
+              Resolution::Asset(asset.id(project_root)),
+            );
+            additional_assets.insert(SyntheticAsset::CssModuleExports(resolved));
             continue;
           }
+          dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
+          continue;
         }
 
         let mut resolutions = Vec::new();
@@ -94,7 +94,7 @@ pub fn asset_dependencies<'a>(
                   asset_index,
                   export_index,
                 } => {
-                  let asset = bundle_graph.asset_graph.assets[*asset_index as usize].expect_asset();
+                  let asset = &bundle_graph.asset_graph.assets[*asset_index as usize];
                   let export = &asset.symbols.exports[*export_index as usize];
                   resolutions.push((
                     import.symbol.as_str(),
@@ -109,8 +109,7 @@ pub fn asset_dependencies<'a>(
                   }
                 }
                 SymbolResolution::Runtime { asset_index, name } => {
-                  let asset =
-                    &bundle_graph.asset_graph.assets[*asset_index as usize].expect_asset();
+                  let asset = &bundle_graph.asset_graph.assets[*asset_index as usize];
                   resolutions.push((
                     import.symbol.as_str(),
                     asset.id(project_root),
@@ -124,8 +123,7 @@ pub fn asset_dependencies<'a>(
                   }
                 }
                 SymbolResolution::Namespace { asset_index } => {
-                  let asset =
-                    &bundle_graph.asset_graph.assets[*asset_index as usize].expect_asset();
+                  let asset = &bundle_graph.asset_graph.assets[*asset_index as usize];
                   resolutions.push((import.symbol.as_str(), asset.id(project_root), "*"));
                   if first_asset.is_none() {
                     first_asset = Some(*asset_index);
@@ -144,7 +142,7 @@ pub fn asset_dependencies<'a>(
 
         if !resolutions.is_empty() {
           if all_assets_match && let Some(res) = first_asset {
-            let asset = &bundle_graph.asset_graph.assets[res as usize].expect_asset();
+            let asset = &bundle_graph.asset_graph.assets[res as usize];
             dependencies.insert(
               placeholder.as_str().into(),
               Resolution::Asset(asset.id(project_root)),
@@ -155,14 +153,10 @@ pub fn asset_dependencies<'a>(
               Resolution::Symbols(resolutions),
             );
           }
-        } else if matches!(
-          bundle_graph.asset_graph.assets[resolved as usize],
-          AssetNode::Deferred { .. }
-        ) || !used_deps.contains(&resolved)
-        {
+        } else if !used_deps.contains(&resolved) {
           dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
         } else {
-          let asset = &bundle_graph.asset_graph.assets[resolved as usize].expect_asset();
+          let asset = &bundle_graph.asset_graph.assets[resolved as usize];
           dependencies.insert(
             placeholder.as_str().into(),
             Resolution::Asset(asset.id(project_root)),
@@ -210,32 +204,29 @@ pub fn asset_dependencies<'a>(
             if resolved_bundle.ty != AssetType::Js
               && let Some(main) = resolved_bundle.main_entry_asset
             {
-              if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[main] {
-                let mut exports = Vec::new();
-                for exp in &asset.symbols.exports {
-                  if !exp.requested {
-                    continue;
-                  }
-
-                  if let Some(value) = resolve_css_module_export(
-                    &bundle_graph.asset_graph.assets,
-                    main,
-                    exp.exported.as_str(),
-                  ) {
-                    exports.push((exp.exported.as_str(), value));
-                  }
-                }
-
-                if !exports.is_empty() {
-                  dependencies.insert(
-                    placeholder.as_str().into(),
-                    Resolution::CssModule(
-                      resolved_bundle.relative_specifier(bundle).unwrap(),
-                      exports,
-                    ),
-                  );
+              let asset = &bundle_graph.asset_graph.assets[main as usize];
+              let mut exports = Vec::new();
+              for exp in &asset.symbols.exports {
+                if !exp.requested {
                   continue;
                 }
+
+                if let Some(value) =
+                  resolve_css_module_export(&bundle_graph.asset_graph, main, exp.exported.as_str())
+                {
+                  exports.push((exp.exported.as_str(), value));
+                }
+              }
+
+              if !exports.is_empty() {
+                dependencies.insert(
+                  placeholder.as_str().into(),
+                  Resolution::CssModule(
+                    resolved_bundle.relative_specifier(bundle).unwrap(),
+                    exports,
+                  ),
+                );
+                continue;
               }
             }
             dependencies.insert(

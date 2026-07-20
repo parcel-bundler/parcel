@@ -26,7 +26,7 @@ use crate::{
 };
 
 struct StyleSheetWrapper {
-  asset_index: usize,
+  asset_index: AssetIndex,
   stylesheet: StyleSheet<'static>,
   layer: Option<Option<LayerName<'static>>>,
   supports: Option<SupportsCondition<'static>>,
@@ -58,7 +58,7 @@ impl CssContent {
     let mut source_map = SourceMap::new("/");
 
     for asset_index in &bundle.assets {
-      let asset = bundle_graph.asset_graph.assets[*asset_index].expect_asset();
+      let asset = &bundle_graph.asset_graph.assets[*asset_index as usize];
       if let Some(content) = asset.content.downcast_ref::<CssContent>() {
         asset_index_to_stylesheet_index.insert(*asset_index as u32, stylesheets.len());
         let source_index = stylesheets.len() as u32;
@@ -85,7 +85,7 @@ impl CssContent {
     for index in 0..stylesheets.len() {
       if !visited[index] {
         collect(
-          &bundle_graph.asset_graph.assets,
+          &bundle_graph,
           &asset_index_to_stylesheet_index,
           &mut stylesheets,
           State {
@@ -198,8 +198,8 @@ impl CssContent {
 }
 
 fn collect(
-  assets: &[AssetNode],
-  asset_index_to_stylesheet_index: &HashMap<u32, usize>,
+  bundle_graph: &BundleGraph,
+  asset_index_to_stylesheet_index: &HashMap<AssetIndex, usize>,
   stylesheets: &mut Vec<StyleSheetWrapper>,
   state: State,
   visited: &mut Vec<bool>,
@@ -262,7 +262,8 @@ fn collect(
 
   visited[state.stylesheet_index] = true;
 
-  let asset = assets[stylesheet.asset_index].expect_asset();
+  let asset_index = stylesheet.asset_index;
+  let asset = &bundle_graph.asset_graph.assets[asset_index as usize];
   let content = asset.content.downcast_ref::<CssContent>().unwrap();
 
   let mut unused_symbols = HashSet::new();
@@ -286,8 +287,9 @@ fn collect(
   for rule in &content.stylesheet.rules.0 {
     match &rule {
       CssRule::Import(import) => {
-        let dep = &asset.dependencies[dep_index];
-        if let DependencyResolution::Asset(asset_index) = dep.resolution {
+        if let BundleGraphDependencyResolution::Asset(asset_index) =
+          bundle_graph.dependency_resolution(asset_index, dep_index)
+        {
           if let Some(stylesheet_index) = asset_index_to_stylesheet_index.get(&asset_index) {
             let layer = if (state.layer == Some(None) && import.layer.is_some())
               || (import.layer == Some(None) && state.layer.is_some())
@@ -310,7 +312,7 @@ fn collect(
             media.and(&import.media).unwrap();
 
             collect(
-              assets,
+              bundle_graph,
               asset_index_to_stylesheet_index,
               stylesheets,
               State {
@@ -348,14 +350,16 @@ fn inline(
   let asset_index = stylesheets[stylesheet_index as usize].asset_index;
   let stylesheet = &mut stylesheets[stylesheet_index as usize];
   let loc = stylesheet.loc.clone();
-  let asset = bundle_graph.asset_graph.assets[asset_index].expect_asset();
+  let asset = &bundle_graph.asset_graph.assets[asset_index as usize];
   let mut rules = std::mem::take(&mut stylesheet.stylesheet.rules.0);
 
   // Hoist css modules deps
   for (dep_index, dep) in asset.dependencies.iter().enumerate() {
     // Include the dependency if this is the first instance as computed earlier.
     if dep.specifier_type == SpecifierType::Esm {
-      if let DependencyResolution::Asset(asset_index) = dep.resolution {
+      if let BundleGraphDependencyResolution::Asset(asset_index) =
+        bundle_graph.dependency_resolution(asset_index, dep_index)
+      {
         if let Some(dep_source_index) = asset_index_to_stylesheet_index.get(&asset_index) {
           let resolved = &stylesheets[*dep_source_index];
           if resolved.parent_stylesheet_index == stylesheet_index
@@ -450,16 +454,15 @@ fn inline(
           export_index,
         } = &asset.symbols.imports[*v].resolved
         {
-          if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[*asset_index as usize] {
-            if let Some(res) = resolve_css_module_export(
-              &bundle_graph.asset_graph.assets,
-              *asset_index as usize,
-              &asset.symbols.exports[*export_index as usize]
-                .exported
-                .as_str(),
-            ) {
-              return Some((k.clone(), res));
-            }
+          let asset = &bundle_graph.asset_graph.assets[*asset_index as usize];
+          if let Some(res) = resolve_css_module_export(
+            &bundle_graph.asset_graph,
+            *asset_index,
+            &asset.symbols.exports[*export_index as usize]
+              .exported
+              .as_str(),
+          ) {
+            return Some((k.clone(), res));
           }
         }
 
@@ -535,16 +538,14 @@ struct ReferenceReplacer {
 impl ReferenceReplacer {
   fn new(
     bundle_graph: &BundleGraph,
-    asset_index: usize,
+    asset_index: AssetIndex,
     bundle: &Bundle,
     loc: lightningcss::rules::Location,
     css_modules: HashMap<String, String>,
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
   ) -> Result<ReferenceReplacer, DiagnosticList> {
     let mut urls = HashMap::new();
-    let dependencies = &bundle_graph.asset_graph.assets[asset_index]
-      .expect_asset()
-      .dependencies;
+    let dependencies = &bundle_graph.asset_graph.assets[asset_index as usize].dependencies;
     for (dep_index, dep) in dependencies.iter().enumerate() {
       if dep.priority == Priority::Lazy && dep.specifier_type == SpecifierType::Url {
         if let BundleGraphDependencyResolution::Bundle(bundle_index) =
@@ -718,7 +719,7 @@ impl StyleAttrContent {
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
-    let asset = bundle_graph.asset_graph.assets[bundle.assets[0]].expect_asset();
+    let asset = &bundle_graph.asset_graph.assets[bundle.assets[0] as usize];
     let content = asset.content.downcast_ref::<StyleAttrContent>().unwrap();
     let mut decls = content.attr.declarations.clone(); // TODO: avoid clone?
     let mut replacer = ReferenceReplacer::new(

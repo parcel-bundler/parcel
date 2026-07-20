@@ -89,7 +89,14 @@ impl MacroContext {
       resolution: DependencyResolution::Deferred(Arc::new(AssetRequest {
         loc: SourceLocation {
           url: self.url.clone(),
-          ..Default::default()
+          start: Location {
+            line: self.loc.line,
+            column: self.loc.col,
+          },
+          end: Location {
+            line: self.loc.line,
+            column: self.loc.col,
+          },
         },
         pipeline: None,
         target: Target::normalize(&self.target, &ty),

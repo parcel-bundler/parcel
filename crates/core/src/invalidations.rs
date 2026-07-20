@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{PathId, path::SubPath};
+use crate::{AssetNodeIndex, PathId, path::SubPath};
 
 /// Invalidation that fires when a file is created at or matching the given criteria.
 #[derive(Debug, Clone)]
@@ -58,19 +58,19 @@ impl Invalidations {
 #[derive(Default, Debug)]
 pub struct InvalidationMap {
   /// Assets to re-transform when a file at this URL changes.
-  pub on_file_change: HashMap<PathId, Vec<usize>>,
+  pub on_file_change: HashMap<PathId, Vec<AssetNodeIndex>>,
   /// Assets to re-transform when a file at this exact URL is created.
-  pub on_file_create_path: HashMap<PathId, Vec<usize>>,
+  pub on_file_create_path: HashMap<PathId, Vec<AssetNodeIndex>>,
   /// Assets to re-transform when a file with the given name is created above the given directory.
-  pub on_file_create_above: Vec<(SubPath, PathId, usize)>,
+  pub on_file_create_above: Vec<(SubPath, PathId, AssetNodeIndex)>,
   /// Assets to re-transform when a file matching the given glob is created.
-  pub on_file_create_glob: Vec<(String, usize)>,
+  pub on_file_create_glob: Vec<(String, AssetNodeIndex)>,
   /// Assets that must be re-transformed on process restart.
-  pub on_startup: Vec<usize>,
+  pub on_startup: Vec<AssetNodeIndex>,
 }
 
 impl InvalidationMap {
-  pub fn add(&mut self, asset_index: usize, invalidations: Invalidations) {
+  pub fn add(&mut self, asset_index: AssetNodeIndex, invalidations: Invalidations) {
     for url in invalidations.invalidate_on_file_change {
       self
         .on_file_change
@@ -110,8 +110,8 @@ impl InvalidationMap {
   /// `created` are newly created files; they match the `on_file_create_*` invalidations. Keeping
   /// the two apart matters for patterns that cover many files (globs, file-name-above): modifying
   /// an existing file that happens to match such a pattern must not be mistaken for a creation.
-  pub fn invalidate(&self, changed: &[PathId], created: &[PathId]) -> HashSet<usize> {
-    let mut affected: HashSet<usize> = HashSet::new();
+  pub fn invalidate(&self, changed: &[PathId], created: &[PathId]) -> HashSet<AssetNodeIndex> {
+    let mut affected: HashSet<AssetNodeIndex> = HashSet::new();
 
     for path in changed {
       if let Some(indices) = self.on_file_change.get(path) {

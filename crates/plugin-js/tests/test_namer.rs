@@ -52,16 +52,8 @@ fn run_times(
     ..Default::default()
   });
   let assets = vec![
-    AssetNode::Asset(test_asset(
-      "file:///src/index.js",
-      AssetType::Js,
-      target.clone(),
-    )),
-    AssetNode::Asset(test_asset(
-      "file:///src/style.css",
-      AssetType::Css,
-      target.clone(),
-    )),
+    test_asset("file:///src/index.js", AssetType::Js, target.clone()),
+    test_asset("file:///src/style.css", AssetType::Css, target.clone()),
   ];
   let bundles = vec![
     Bundle {
@@ -89,6 +81,11 @@ fn run_times(
   ];
   let graph = BundleGraph::new(
     AssetGraph {
+      asset_nodes: Cow::Owned(
+        (0..assets.len())
+          .map(|index| AssetNode::Asset(index as u32))
+          .collect(),
+      ),
       assets: Cow::Owned(assets),
       entries: Cow::Owned(vec![]),
     },

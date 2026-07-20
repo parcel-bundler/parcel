@@ -1,0 +1,12 @@
+{
+  "name": "react-server-shared-client-component-test",
+  "private": true,
+  "dependencies": {
+    "react": "^19"
+  },
+  "targets": {
+    "default": {
+      "context": "react-server"
+    }
+  }
+}

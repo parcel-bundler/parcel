@@ -165,12 +165,7 @@ fn full_build_shared_dependency_is_deduped() {
   assert_eq!(bundle_graph.bundles.len(), 1);
 
   // index, foo, bar, shared = 4 distinct asset nodes in the graph.
-  let asset_count = bundle_graph
-    .asset_graph
-    .assets
-    .iter()
-    .filter(|n| matches!(n, AssetNode::Asset(_)))
-    .count();
+  let asset_count = bundle_graph.asset_graph.assets.iter().count();
   assert_eq!(asset_count, 4);
 
   let out = read_dist(&output, "index.js");

@@ -42,10 +42,9 @@ impl BundleShim {
 impl SyntheticAsset {
   pub fn id(&self, bundle_graph: &BundleGraph, project_root: &PathId) -> String {
     match self {
-      SyntheticAsset::CssModuleExports(asset_index) => bundle_graph.asset_graph.assets
-        [*asset_index as usize]
-        .expect_asset()
-        .id(project_root),
+      SyntheticAsset::CssModuleExports(asset_index) => {
+        bundle_graph.asset_graph.assets[*asset_index as usize].id(project_root)
+      }
       SyntheticAsset::Bundle { bundle, kind } => kind.id(*bundle),
       SyntheticAsset::Rsc(module) => module.id(),
     }
@@ -64,7 +63,7 @@ impl SyntheticAsset {
       } => {
         let resolved_bundle = &bundle_graph.bundles[*bundle as usize];
         if let Some(main_entry_asset) = resolved_bundle.main_entry_asset {
-          let asset = bundle_graph.asset_graph.assets[main_entry_asset].expect_asset();
+          let asset = &bundle_graph.asset_graph.assets[main_entry_asset as usize];
           dependencies.insert("bundle".into(), Resolution::Asset(asset.id(project_root)));
         }
       }
@@ -94,19 +93,18 @@ impl SyntheticAsset {
   ) -> Result<(), DiagnosticList> {
     match self {
       SyntheticAsset::CssModuleExports(asset_index) => {
-        if let AssetNode::Asset(asset) = &bundle_graph.asset_graph.assets[*asset_index as usize] {
-          for exp in &asset.symbols.exports {
-            if !exp.requested {
-              continue;
-            }
+        let asset = &bundle_graph.asset_graph.assets[*asset_index as usize];
+        for exp in &asset.symbols.exports {
+          if !exp.requested {
+            continue;
+          }
 
-            if let Some(value) = resolve_css_module_export(
-              &bundle_graph.asset_graph.assets,
-              *asset_index as usize,
-              exp.exported.as_str(),
-            ) {
-              write!(dest, "exports[{:?}]='{}';\n", exp.exported.as_str(), value)?;
-            }
+          if let Some(value) = resolve_css_module_export(
+            &bundle_graph.asset_graph,
+            *asset_index,
+            exp.exported.as_str(),
+          ) {
+            write!(dest, "exports[{:?}]='{}';\n", exp.exported.as_str(), value)?;
           }
         }
       }
@@ -188,7 +186,7 @@ fn load_bundles<W: std::fmt::Write>(
   require_name: &str,
 ) -> core::fmt::Result {
   let main_entry_id = bundle.main_entry_asset.unwrap();
-  let asset = &bundle_graph.asset_graph.assets[main_entry_id].expect_asset();
+  let asset = &bundle_graph.asset_graph.assets[main_entry_id as usize];
 
   if !bundle.referenced_bundles.is_empty() {
     write!(res, "module.exports=Promise.all([")?;

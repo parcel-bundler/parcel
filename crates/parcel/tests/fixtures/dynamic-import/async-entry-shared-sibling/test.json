@@ -5,8 +5,7 @@
     {"assets": ["index.js"]},
     {"assets": ["b.js"]},
     {"assets": ["a.js"]},
-    {"assets": ["value.js"]},
-    {"assets": ["esmodule-helpers.js"]},
+    {"assets": ["esmodule-helpers.js", "value.js"]},
     {"assets": ["other-entry.js"]}
   ],
   "output": 43

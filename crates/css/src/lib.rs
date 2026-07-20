@@ -36,14 +36,11 @@ impl Content for CssContent {
 }
 
 pub fn resolve_css_module_export(
-  assets: &[AssetNode],
-  asset_index: usize,
+  asset_graph: &AssetGraph,
+  asset_index: AssetIndex,
   name: &str,
 ) -> Option<String> {
-  let AssetNode::Asset(asset) = &assets[asset_index] else {
-    return None;
-  };
-
+  let asset = &asset_graph.assets[asset_index as usize];
   let Some(content) = asset.content.downcast_ref::<CssContent>() else {
     return None;
   };
@@ -57,7 +54,7 @@ pub fn resolve_css_module_export(
           res.push_str(name);
         }
         CssModuleReference::Local { name } => {
-          if let Some(resolved) = resolve_css_module_export(assets, asset_index, name) {
+          if let Some(resolved) = resolve_css_module_export(asset_graph, asset_index, name) {
             res.push_str(&resolved);
           }
         }
@@ -67,8 +64,8 @@ pub fn resolve_css_module_export(
             .iter()
             .find(|d| d.specifier == *specifier && d.specifier_type == SpecifierType::Esm)
           {
-            if let DependencyResolution::Asset(resolved) = dep.resolution {
-              if let Some(resolved) = resolve_css_module_export(assets, resolved as usize, name) {
+            if let Some((resolved, _)) = asset_graph.resolved_asset(dep) {
+              if let Some(resolved) = resolve_css_module_export(asset_graph, resolved, name) {
                 res.push_str(&resolved);
               }
             }

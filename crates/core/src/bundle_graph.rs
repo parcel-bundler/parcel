@@ -1,10 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{DependencyResolution, PathId, asset_graph::AssetGraph, bundle::Bundle};
+use crate::{
+  AssetIndex, AssetNode, DependencyResolution, PathId, asset_graph::AssetGraph, bundle::Bundle,
+};
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct DependencyId {
-  pub asset: usize,
+  pub asset: AssetIndex,
   pub dependency: usize,
 }
 
@@ -14,7 +16,7 @@ pub enum BundleGraphDependencyResolution {
   Deferred,
   External,
   Excluded,
-  Asset(u32),
+  Asset(AssetIndex),
   Bundle(u32),
 }
 
@@ -43,7 +45,7 @@ impl<'a> BundleGraph<'a> {
 
   pub fn dependency_resolution(
     &self,
-    asset_index: usize,
+    asset_index: AssetIndex,
     dependency_index: usize,
   ) -> BundleGraphDependencyResolution {
     if let Some(bundle_index) = self.dependency_resolutions.get(&DependencyId {
@@ -53,15 +55,18 @@ impl<'a> BundleGraph<'a> {
       return BundleGraphDependencyResolution::Bundle(*bundle_index);
     }
 
-    let dep = &self.asset_graph.assets[asset_index]
-      .expect_asset()
-      .dependencies[dependency_index];
+    let dep = &self.asset_graph.assets[asset_index as usize].dependencies[dependency_index];
     match &dep.resolution {
       DependencyResolution::None => BundleGraphDependencyResolution::None,
       DependencyResolution::Deferred(_) => BundleGraphDependencyResolution::Deferred,
       DependencyResolution::External => BundleGraphDependencyResolution::External,
       DependencyResolution::Excluded => BundleGraphDependencyResolution::Excluded,
-      DependencyResolution::Asset(asset) => BundleGraphDependencyResolution::Asset(*asset),
+      DependencyResolution::Asset(asset_node_index) => {
+        match &self.asset_graph.asset_nodes[*asset_node_index as usize] {
+          AssetNode::Asset(asset_index) => BundleGraphDependencyResolution::Asset(*asset_index),
+          _ => BundleGraphDependencyResolution::Deferred,
+        }
+      }
     }
   }
 

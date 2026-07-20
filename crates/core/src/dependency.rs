@@ -3,7 +3,7 @@ use std::{
   sync::Arc,
 };
 
-use crate::{AssetType, BundleBehavior, Content, SourceUrl, Target};
+use crate::{AssetNodeIndex, AssetType, BundleBehavior, Content, SourceUrl, Target};
 use crate::{SourceLocation, impl_bitflags_serde};
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
@@ -165,7 +165,7 @@ pub enum DependencyResolution {
   Deferred(Arc<AssetRequest>),
   External,
   Excluded,
-  Asset(u32),
+  Asset(AssetNodeIndex),
 }
 
 #[derive(Debug, Clone, Serialize)]

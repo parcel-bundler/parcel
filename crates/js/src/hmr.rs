@@ -47,7 +47,7 @@ pub fn get_hmr_update<'a>(
   let mut assets = Vec::with_capacity(changed_assets.len());
   for (id, asset) in changed_assets {
     let dependencies = asset_dependencies(
-      id as usize,
+      id,
       asset,
       bundle_graph,
       None,

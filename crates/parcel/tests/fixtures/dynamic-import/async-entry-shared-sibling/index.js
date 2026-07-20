@@ -1,1 +1,1 @@
-export default import('./b').then(mod => mod.default);
+output = import('./b').then(mod => mod.default);

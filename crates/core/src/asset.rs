@@ -4,9 +4,12 @@ use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-  AssetGraph, BundleBehavior, Content, Dependency, DependencyFlags, DependencyResolution, PathId,
-  SourceLocation, SourceUrl, Target, impl_bitflags_serde,
+  AssetGraph, BundleBehavior, Content, Dependency, PathId, SourceLocation, SourceUrl, Target,
+  impl_bitflags_serde,
 };
+
+pub type AssetNodeIndex = usize;
+pub type AssetIndex = u32;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,6 +27,16 @@ pub struct Asset {
   pub symbols: AssetSymbols,
 }
 
+#[derive(Hash, PartialEq, Eq, Clone, Debug)]
+pub struct AssetKey {
+  pub loc: SourceLocation,
+  pub ty: AssetType,
+  pub target: Arc<Target>,
+  pub pipeline: Option<hstr::Atom>,
+  pub bundle_behavior: BundleBehavior,
+  pub flags: AssetFlags,
+}
+
 impl Asset {
   pub fn id(&self, project_root: &PathId) -> String {
     let mut hasher = xxhash_rust::xxh3::Xxh3Default::new();
@@ -37,64 +50,15 @@ impl Asset {
     format!("{:016x}", hasher.digest())
   }
 
-  /// Iterates over all resolved asset indices that this asset depends on, in dependency order.
-  /// NOTE: This may include duplicates. self.symbols.imports must be sorted by dep_index.
-  pub fn resolved_dependencies(&self) -> impl Iterator<Item = u32> {
-    let mut dep_index = 0;
-    let mut import_index = 0;
-    std::iter::from_fn(move || {
-      loop {
-        // If a dependency has side effects, emit its resolved asset.
-        // If the namespace of this asset is used, include all dependencies.
-        // If the dependency is referenced by a used indirect or star export,
-        if dep_index < self.dependencies.len() {
-          let dep = &self.dependencies[dep_index];
-          if dep.flags.contains(DependencyFlags::SIDE_EFFECTS)
-            || self.symbols.used_namespace
-            // TODO: check
-            || self
-              .symbols
-              .indirect
-              .iter()
-              .any(|i| i.dep_index == dep_index as u32 && i.requested)
-            || self
-              .symbols
-              .star
-              .iter()
-              .any(|i| i.dep_index == dep_index as u32 && i.requested)
-          {
-            if let DependencyResolution::Asset(asset) = dep.resolution {
-              dep_index += 1;
-              return Some(asset);
-            }
-          }
-        }
-
-        // Emit all resolved assets for imported symbols in this dependency.
-        // Side-effect free re-exports are not included - they are referenced directly through their importers.
-        while import_index < self.symbols.imports.len() {
-          let import = &self.symbols.imports[import_index];
-          if import.dep_index > dep_index as u32 {
-            break;
-          }
-
-          if let Some(asset) = import.resolved.asset_index() {
-            import_index += 1;
-            return Some(asset);
-          }
-
-          import_index += 1;
-        }
-
-        // Continue looping while there are more dependencies.
-        if dep_index < self.dependencies.len() {
-          dep_index += 1;
-          continue;
-        }
-
-        return None;
-      }
-    })
+  pub fn key(&self) -> AssetKey {
+    AssetKey {
+      loc: self.loc.clone(),
+      ty: self.ty.clone(),
+      target: self.target.clone(),
+      pipeline: self.pipeline.clone(),
+      bundle_behavior: self.bundle_behavior.clone(),
+      flags: self.flags.clone(),
+    }
   }
 }
 
@@ -305,7 +269,7 @@ impl AssetType {
 }
 
 bitflags! {
-  #[derive(Debug, Clone, Copy, Hash)]
+  #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
   pub struct AssetFlags: u32 {
     const IS_SOURCE = 1 << 0;
     const SIDE_EFFECTS = 1 << 1;
@@ -346,13 +310,21 @@ pub struct ImportedSymbol {
 pub enum SymbolResolution {
   None,
   Ambiguous,
-  Export { asset_index: u32, export_index: u32 },
-  Namespace { asset_index: u32 },
-  Runtime { asset_index: u32, name: SymbolName },
+  Export {
+    asset_index: AssetIndex,
+    export_index: u32,
+  },
+  Namespace {
+    asset_index: AssetIndex,
+  },
+  Runtime {
+    asset_index: AssetIndex,
+    name: SymbolName,
+  },
 }
 
 impl SymbolResolution {
-  pub fn asset_index(&self) -> Option<u32> {
+  pub fn asset_index(&self) -> Option<AssetIndex> {
     match self {
       SymbolResolution::None | SymbolResolution::Ambiguous => None,
       SymbolResolution::Export { asset_index, .. }
@@ -368,7 +340,7 @@ impl SymbolResolution {
         asset_index,
         export_index,
       } => {
-        let asset = asset_graph.assets[*asset_index as usize].expect_asset();
+        let asset = asset_graph.expect_asset(*asset_index);
         let export = &asset.symbols.exports[*export_index as usize];
         Some(export.exported.clone())
       }
@@ -382,17 +354,9 @@ impl SymbolResolution {
       SymbolResolution::Export {
         asset_index,
         export_index,
-      } => {
-        asset_graph.assets[*asset_index as usize]
-          .expect_asset()
-          .symbols
-          .exports[*export_index as usize]
-          .requested
-      }
+      } => asset_graph.expect_asset(*asset_index).symbols.exports[*export_index as usize].requested,
       SymbolResolution::Runtime { asset_index, name } => {
-        let symbols = &asset_graph.assets[*asset_index as usize]
-          .expect_asset()
-          .symbols;
+        let symbols = &asset_graph.expect_asset(*asset_index).symbols;
         symbols.used_namespace
           || symbols
             .exports
@@ -409,9 +373,7 @@ impl SymbolResolution {
             .unwrap_or(true)
       }
       SymbolResolution::Namespace { asset_index } => {
-        let symbols = &asset_graph.assets[*asset_index as usize]
-          .expect_asset()
-          .symbols;
+        let symbols = &asset_graph.expect_asset(*asset_index).symbols;
         symbols.used_namespace
       }
       _ => true,
