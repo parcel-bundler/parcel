@@ -221,7 +221,11 @@ export async function getInvalidationHash(
 
   let sortedInvalidations = invalidations
     .slice()
-    .sort((a, b) => (getInvalidationId(a) < getInvalidationId(b) ? -1 : 1));
+    .sort((a, b) => {
+      const idA = getInvalidationId(a);
+      const idB = getInvalidationId(b);
+      return idA < idB ? -1 : idA > idB ? 1 : 0;
+    });
 
   let hashes = '';
   for (let invalidation of sortedInvalidations) {
@@ -241,7 +245,7 @@ export async function getInvalidationHash(
       }
       case 'env':
         hashes +=
-          invalidation.key + ':' + (options.env[invalidation.key] || '');
+          invalidation.key + ':' + (options.env[invalidation.key] ?? '');
         break;
       case 'option':
         hashes +=
