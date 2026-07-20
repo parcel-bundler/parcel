@@ -325,25 +325,40 @@ fn bundle_and_package<'a>(
   // Delete output files for bundles that no longer exist.
   for dist_path in prev_bundles.keys() {
     if !new_prev.contains_key(dist_path) {
-      options.output_fs.remove_file(*dist_path).ok();
+      match options.output_fs.remove_file(*dist_path) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => {
+          return Err(
+            Diagnostic::from_message(format!("Failed to remove stale {:?}: {}", dist_path, e))
+              .into(),
+          );
+        }
+      }
     }
   }
 
   *prev_bundles = new_prev;
 
-  bundle_graph
-    .bundles
-    .par_iter()
-    .enumerate()
-    .for_each(|(bundle_index, bundle)| {
+  bundle_graph.bundles.par_iter().enumerate().try_for_each(
+    |(bundle_index, bundle)| -> Result<(), DiagnosticList> {
       if dirty.contains(&bundle_index) {
-        let content = get_bundle_content(config, &bundle_graph, bundle, options).unwrap();
+        let content = get_bundle_content(config, &bundle_graph, bundle, options)?;
         let path = bundle.dist_path();
-        let parent = path.parent().unwrap();
-        options.output_fs.create_dir_all(parent).ok();
-        content.write(&*options.output_fs, path).ok();
+        let parent = path
+          .parent()
+          .ok_or_else(|| Diagnostic::from_message(format!("{:?} has no parent directory", path)))?;
+        options
+          .output_fs
+          .create_dir_all(parent)
+          .map_err(|e| Diagnostic::from_message(format!("Failed to create {:?}: {}", parent, e)))?;
+        content
+          .write(&*options.output_fs, path)
+          .map_err(|e| Diagnostic::from_message(e.to_string()))?;
       }
-    });
+      Ok(())
+    },
+  )?;
 
   Ok(bundle_graph)
 }

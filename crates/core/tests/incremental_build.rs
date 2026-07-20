@@ -109,6 +109,28 @@ fn full_build_single_bundle() {
 }
 
 #[test]
+fn full_build_write_failure_returns_diagnostic_error() {
+  // If the output file system fails to write a bundle (e.g. permissions, ENOSPC, read-only dist
+  // dir), `build()` must return an `Err(DiagnosticList)` rather than panicking or reporting a
+  // false success.
+  let (mut parcel, _input, output) = setup(
+    &[("/project/index.js", "console.log('index')")],
+    &["/project/index.js"],
+  );
+
+  output.set_fail_writes(true);
+
+  let result = parcel.build();
+  assert!(
+    result.is_err(),
+    "build should fail when the output file system rejects a write"
+  );
+
+  // No output was actually written.
+  assert!(written_names(&output).is_empty());
+}
+
+#[test]
 fn full_build_async_split_into_two_bundles() {
   let (mut parcel, _input, output) = setup(
     &[
