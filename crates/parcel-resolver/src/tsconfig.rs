@@ -144,6 +144,29 @@ impl TsConfig {
     if self.module_suffixes.is_none() {
       self.module_suffixes = extended.module_suffixes.clone();
     }
+
+    if self.jsx.is_none() {
+      self.jsx = extended.jsx;
+    }
+    if self.jsx_factory.is_none() {
+      self.jsx_factory = extended.jsx_factory.clone();
+    }
+    if self.jsx_fragment_factory.is_none() {
+      self.jsx_fragment_factory = extended.jsx_fragment_factory.clone();
+    }
+    if self.jsx_import_source.is_none() {
+      self.jsx_import_source = extended.jsx_import_source.clone();
+    }
+    if self.use_define_for_class_fields.is_none() {
+      self.use_define_for_class_fields = extended.use_define_for_class_fields;
+    }
+    if self.target.is_none() {
+      self.target = extended.target.clone();
+    }
+    // `experimental_decorators` is a plain bool with no "unset" state; inherit by
+    // OR so a base that enables it is honored. (Explicit child `false` cannot
+    // override a base `true` — documented limitation.)
+    self.experimental_decorators = self.experimental_decorators || extended.experimental_decorators;
   }
 
   pub fn paths<'a>(&'a self, specifier: &'a Specifier) -> impl Iterator<Item = PathId> + 'a {
@@ -395,5 +418,49 @@ mod tests {
       ]
     );
     assert_eq!(test("./jquery"), Vec::<PathId>::new());
+  }
+
+  #[test]
+  fn test_extends_inherits_compiler_options() {
+    let base = TsConfig::from_serialized(
+      get_normalized("/foo/base.json"),
+      SerializedTsConfig {
+        base_url: None,
+        paths: None,
+        module_suffixes: None,
+        jsx: Some(Jsx::ReactJsx),
+        jsx_factory: Some("h".into()),
+        jsx_fragment_factory: None,
+        jsx_import_source: Some("preact".into()),
+        experimental_decorators: true,
+        use_define_for_class_fields: Some(true),
+        target: Some("es2022".into()),
+      },
+    );
+
+    let mut child = TsConfig::from_serialized(
+      get_normalized("/foo/tsconfig.json"),
+      SerializedTsConfig {
+        base_url: None,
+        paths: None,
+        module_suffixes: None,
+        jsx: None,
+        jsx_factory: None,
+        jsx_fragment_factory: None,
+        jsx_import_source: None,
+        experimental_decorators: false,
+        use_define_for_class_fields: None,
+        target: None,
+      },
+    );
+
+    child.extend(&base);
+
+    assert_eq!(child.jsx, Some(Jsx::ReactJsx));
+    assert_eq!(child.jsx_factory.as_deref(), Some("h"));
+    assert_eq!(child.jsx_import_source.as_deref(), Some("preact"));
+    assert_eq!(child.experimental_decorators, true);
+    assert_eq!(child.use_define_for_class_fields, Some(true));
+    assert_eq!(child.target.as_deref(), Some("es2022"));
   }
 }
