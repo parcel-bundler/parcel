@@ -507,11 +507,40 @@ export default class NodeResolver {
           relative = './' + relative;
         }
 
+        let hints = potentialFiles.map(r => {
+          return `Did you mean '__${error.module}/${r}__'?`;
+        });
+        let packageExportsEnabled =
+          this.options.packageExports ||
+          options.env.context === 'react-server' ||
+          options.env.context === 'react-client';
+        let packageExportKeys =
+          pkg.exports != null &&
+          typeof pkg.exports === 'object' &&
+          !Array.isArray(pkg.exports)
+            ? Object.keys(pkg.exports)
+            : [];
+        let hasMatchingPackageExport = packageExportKeys.some(key => {
+          if (key === relative) {
+            return true;
+          }
+
+          let wildcardIndex = key.indexOf('*');
+          return (
+            wildcardIndex >= 0 &&
+            relative.startsWith(key.slice(0, wildcardIndex)) &&
+            relative.endsWith(key.slice(wildcardIndex + 1))
+          );
+        });
+        if (!packageExportsEnabled && hasMatchingPackageExport) {
+          hints.push(
+            'Add "@parcel/resolver-default": { "packageExports": true } to your package.json to enable package exports.',
+          );
+        }
+
         return {
           message: md`Cannot load file '${relative}' from module '${error.module}'`,
-          hints: potentialFiles.map(r => {
-            return `Did you mean '__${error.module}/${r}__'?`;
-          }),
+          hints,
         };
       }
       case 'JsonError': {
