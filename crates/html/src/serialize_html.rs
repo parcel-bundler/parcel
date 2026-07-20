@@ -203,7 +203,8 @@ impl<Wr: Write> HtmlSerializer<Wr> {
       self.writer.write_all(attr.name.local.as_bytes())?;
       if !attr.value.is_empty() {
         if !attr.value.contains(|c: char| {
-          c.is_ascii_whitespace() || matches!(c, '"' | '\'' | '=' | '<' | '>' | '`' | '\u{00A0}')
+          c.is_ascii_whitespace()
+            || matches!(c, '"' | '\'' | '=' | '<' | '>' | '`' | '&' | '\u{00A0}')
         }) {
           self.writer.write_all(b"=")?;
           self.writer.write_all(attr.value.as_bytes())?;
@@ -605,6 +606,14 @@ mod tests {
       "<div class=\"foo bar\">Test</div>",
     );
     test("<div class='foo'>Test</div>", "<div class=foo>Test</div>");
+    // A value containing '&' must be quoted and '&' escaped, or it round-trips wrong.
+    // Note: the input uses `&amp;reg` (encoded) so the parsed DOM attribute value is
+    // the literal string `x&reg`. Writing raw `&reg` in the source would itself be
+    // decoded by the parser into `x®` before serialization ever runs.
+    test(
+      "<a href='x&amp;reg'>Test</a>",
+      "<a href=\"x&amp;reg\">Test</a>",
+    );
   }
 
   #[test]
