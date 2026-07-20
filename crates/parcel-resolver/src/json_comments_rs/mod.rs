@@ -269,6 +269,8 @@ fn maybe_comment_end(c: &mut u8) -> State {
   if old == b'/' {
     *c = b' ';
     Top
+  } else if old == b'*' {
+    MaybeCommentEnd
   } else {
     InBlockComment
   }
@@ -303,6 +305,14 @@ mod tests {
     let json = r#"{/* Comment */"hi": /** abc */ "bye"}"#;
     let stripped = strip_string(json);
     assert_eq!(stripped, r#"{             "hi":            "bye"}"#);
+  }
+
+  #[test]
+  fn block_comment_double_star_end() {
+    let json = r#"{/** abc **/"hi": "bye"}"#;
+    let stripped = strip_string(json);
+    // The whole /** ... **/ becomes spaces; the rest is preserved.
+    assert_eq!(stripped, r#"{           "hi": "bye"}"#);
   }
 
   #[test]
