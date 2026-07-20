@@ -72,15 +72,37 @@ pub fn serve_dir(path: &Path, options: ServerOptions) -> DevServer {
       }
 
       let base_url = Url::parse("http://localhost").unwrap();
-      let url = base_url.join(request.url()).unwrap();
+      let url = match base_url.join(request.url()) {
+        Ok(url) => url,
+        Err(_) => {
+          let response = Response::from_string("400 bad request").with_status_code(400);
+          let _ = request.respond(response);
+          continue;
+        }
+      };
       let mut full_path = path.clone();
+      let mut bad_request = false;
       for segment in url.path_segments().unwrap() {
-        full_path.push(
-          percent_encoding::percent_decode(segment.as_bytes())
-            .decode_utf8()
-            .unwrap()
-            .as_ref(),
-        );
+        let decoded = match percent_encoding::percent_decode(segment.as_bytes()).decode_utf8() {
+          Ok(d) => d,
+          Err(_) => {
+            bad_request = true;
+            break;
+          }
+        };
+        if decoded.is_empty() {
+          continue;
+        }
+        if decoded == ".." || decoded == "." || decoded.contains('/') || decoded.contains('\\') {
+          bad_request = true;
+          break;
+        }
+        full_path.push(decoded.as_ref());
+      }
+      if bad_request {
+        let response = Response::from_string("400 bad request").with_status_code(400);
+        let _ = request.respond(response);
+        continue;
       }
 
       if full_path.is_dir() {
@@ -88,18 +110,26 @@ pub fn serve_dir(path: &Path, options: ServerOptions) -> DevServer {
       }
 
       if full_path.is_file() && full_path.starts_with(&path) {
-        let file = File::open(&full_path).unwrap();
+        let file = match File::open(&full_path) {
+          Ok(file) => file,
+          Err(_) => {
+            let response = Response::from_string("404 not found").with_status_code(404);
+            let _ = request.respond(response);
+            continue;
+          }
+        };
         let ty = full_path
           .extension()
-          .map(|e| AssetType::from_extension(e.to_str().unwrap()).mime())
+          .and_then(|e| e.to_str())
+          .map(|e| AssetType::from_extension(e).mime())
           .unwrap_or("application/octet-stream");
         let response = Response::from_file(file)
           .with_header(Header::from_bytes(b"Content-Type", ty.as_bytes()).unwrap());
 
-        request.respond(response).unwrap();
+        let _ = request.respond(response);
       } else {
         let response = Response::from_string("404 not found").with_status_code(404);
-        request.respond(response).unwrap();
+        let _ = request.respond(response);
       }
     }
   });
