@@ -33,7 +33,7 @@ impl Namer for DefaultNamer {
     }
 
     if let Some(entry) = bundle.main_entry_asset {
-      let asset = &bundle_graph.asset_graph.assets[entry as usize];
+      let asset = &bundle_graph.asset_graph.asset(entry);
       if bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
         let relative =
           relative_path(asset, &bundle.target.dist_dir.parent().unwrap())?.with_extension("");
@@ -57,7 +57,9 @@ impl Namer for DefaultNamer {
                   && b.target.dist_dir == bundle.target.dist_dir
               })
               .map(|b| {
-                bundle_graph.asset_graph.assets[b.main_entry_asset.unwrap() as usize]
+                bundle_graph
+                  .asset_graph
+                  .asset(b.main_entry_asset.unwrap())
                   .loc
                   .url
                   .to_file_path()
@@ -110,7 +112,7 @@ impl Namer for DefaultNamer {
 fn hash_bundle(asset_graph: &AssetGraph, bundle: &Bundle, project_root: &PathId) -> u64 {
   let mut hash = Xxh3Default::new();
   for asset in &bundle.assets {
-    let asset = &asset_graph.assets[*asset as usize];
+    let asset = &asset_graph.asset(*asset);
     asset.loc.stable_hash(project_root, &mut hash);
     asset.target.stable_hash(project_root, &mut hash);
   }

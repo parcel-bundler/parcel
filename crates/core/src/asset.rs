@@ -4,12 +4,9 @@ use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-  AssetGraph, BundleBehavior, Content, Dependency, PathId, SourceLocation, SourceUrl, Target,
-  impl_bitflags_serde,
+  AssetGraph, AssetIndex, BundleBehavior, Content, Dependency, PathId, SourceLocation, SourceUrl,
+  Target, impl_bitflags_serde,
 };
-
-pub type AssetNodeIndex = usize;
-pub type AssetIndex = u32;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -340,7 +337,7 @@ impl SymbolResolution {
         asset_index,
         export_index,
       } => {
-        let asset = asset_graph.expect_asset(*asset_index);
+        let asset = asset_graph.asset(*asset_index);
         let export = &asset.symbols.exports[*export_index as usize];
         Some(export.exported.clone())
       }
@@ -354,9 +351,9 @@ impl SymbolResolution {
       SymbolResolution::Export {
         asset_index,
         export_index,
-      } => asset_graph.expect_asset(*asset_index).symbols.exports[*export_index as usize].requested,
+      } => asset_graph.asset(*asset_index).symbols.exports[*export_index as usize].requested,
       SymbolResolution::Runtime { asset_index, name } => {
-        let symbols = &asset_graph.expect_asset(*asset_index).symbols;
+        let symbols = &asset_graph.asset(*asset_index).symbols;
         symbols.used_namespace
           || symbols
             .exports
@@ -373,7 +370,7 @@ impl SymbolResolution {
             .unwrap_or(true)
       }
       SymbolResolution::Namespace { asset_index } => {
-        let symbols = &asset_graph.expect_asset(*asset_index).symbols;
+        let symbols = &asset_graph.asset(*asset_index).symbols;
         symbols.used_namespace
       }
       _ => true,

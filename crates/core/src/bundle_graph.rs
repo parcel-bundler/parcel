@@ -55,14 +55,14 @@ impl<'a> BundleGraph<'a> {
       return BundleGraphDependencyResolution::Bundle(*bundle_index);
     }
 
-    let dep = &self.asset_graph.assets[asset_index as usize].dependencies[dependency_index];
+    let dep = &self.asset_graph.asset(asset_index).dependencies[dependency_index];
     match &dep.resolution {
       DependencyResolution::None => BundleGraphDependencyResolution::None,
       DependencyResolution::Deferred(_) => BundleGraphDependencyResolution::Deferred,
       DependencyResolution::External => BundleGraphDependencyResolution::External,
       DependencyResolution::Excluded => BundleGraphDependencyResolution::Excluded,
       DependencyResolution::Asset(asset_node_index) => {
-        match &self.asset_graph.asset_nodes[*asset_node_index as usize] {
+        match &self.asset_graph.asset_nodes[asset_node_index.index()] {
           AssetNode::Asset(asset_index) => BundleGraphDependencyResolution::Asset(*asset_index),
           _ => BundleGraphDependencyResolution::Deferred,
         }

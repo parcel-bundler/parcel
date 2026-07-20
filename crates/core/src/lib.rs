@@ -29,7 +29,7 @@ use std::{
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 pub use asset::*;
-pub use asset_graph::{AssetGraph, AssetGraphBuilder, AssetNode};
+pub use asset_graph::{AssetGraph, AssetGraphBuilder, AssetIndex, AssetNode, AssetNodeIndex};
 pub use bundle::*;
 pub use bundle_graph::*;
 pub use bundler::*;
@@ -88,12 +88,7 @@ impl<'a> BuildResult<'a> {
     self
       .changed_assets
       .iter()
-      .filter_map(|index| {
-        Some((
-          *index,
-          &self.bundle_graph.asset_graph.assets[*index as usize],
-        ))
-      })
+      .filter_map(|index| Some((*index, self.bundle_graph.asset_graph.asset(*index))))
       .collect()
   }
 }
@@ -163,7 +158,7 @@ impl Parcel {
     // keyed by a single sentinel index. Entry source files are stat'd while resolving entries, but
     // editing one should trigger an incremental rebuild, not a full one — so drop them.
     let mut config_invalidations = InvalidationMap::default();
-    config_invalidations.add(0, tracker.take());
+    config_invalidations.add(AssetNodeIndex(0), tracker.take());
     for entry in &resolved_entries {
       if let Ok(url) = entry.url.to_file_path() {
         config_invalidations.on_file_change.remove(&url);
@@ -368,7 +363,7 @@ pub fn get_bundle_content(
   bundle: &Bundle,
   options: &ParcelOptions,
 ) -> Result<Arc<dyn Content>, DiagnosticList> {
-  let first_content = &bundle_graph.asset_graph.assets[bundle.assets[0] as usize].content;
+  let first_content = &bundle_graph.asset_graph.asset(bundle.assets[0]).content;
   let get_inline_bundle_content = |bundle_index| {
     get_bundle_content(
       config,
@@ -383,9 +378,7 @@ pub fn get_bundle_content(
 
   let mut pipeline = None;
   if let Some(main) = bundle.main_entry_asset {
-    pipeline = bundle_graph.asset_graph.assets[main as usize]
-      .pipeline
-      .clone();
+    pipeline = bundle_graph.asset_graph.asset(main).pipeline.clone();
   }
   // Match optimizer globs against the dist-relative name, as they were written for bundle names
   // (e.g. "*.js"), not absolute dist paths.

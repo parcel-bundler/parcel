@@ -23,7 +23,9 @@ impl JsContent {
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
-    let asset = &bundle_graph.asset_graph.assets[bundle.main_entry_asset.unwrap() as usize];
+    let asset = &bundle_graph
+      .asset_graph
+      .asset(bundle.main_entry_asset.unwrap());
     let mut synthetic_assets = IndexSet::new();
     let dependencies = asset_dependencies(
       bundle.main_entry_asset.unwrap(),

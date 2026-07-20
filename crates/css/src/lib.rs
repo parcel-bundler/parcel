@@ -40,7 +40,7 @@ pub fn resolve_css_module_export(
   asset_index: AssetIndex,
   name: &str,
 ) -> Option<String> {
-  let asset = &asset_graph.assets[asset_index as usize];
+  let asset = &asset_graph.asset(asset_index);
   let Some(content) = asset.content.downcast_ref::<CssContent>() else {
     return None;
   };

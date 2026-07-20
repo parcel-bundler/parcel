@@ -1,8 +1,8 @@
 use std::{borrow::Cow, collections::HashMap, path::Path, sync::Arc};
 
 use parcel_core::{
-  Asset, AssetFlags, AssetGraph, AssetNode, AssetType, BufferContent, Bundle, BundleBehavior,
-  BundleFlags, BundleGraph, Content, ContentWithSourceMap, FileSystem, Optimizer,
+  Asset, AssetFlags, AssetGraph, AssetIndex, AssetNode, AssetType, BufferContent, Bundle,
+  BundleBehavior, BundleFlags, BundleGraph, Content, ContentWithSourceMap, FileSystem, Optimizer,
   OverlayFileSystem, ParcelOptions, PathId, SourceLocation, SourceUrl, Target,
 };
 use parcel_plugin_js::JsPlugin;
@@ -65,16 +65,16 @@ fn run(
     bundle_behavior: BundleBehavior::None,
     flags: BundleFlags::ENTRY | BundleFlags::NEEDS_STABLE_NAME,
     dist_path: None,
-    assets: vec![0],
-    entry_assets: vec![0],
-    main_entry_asset: Some(0),
+    assets: vec![AssetIndex(1)],
+    entry_assets: vec![AssetIndex(1)],
+    main_entry_asset: Some(AssetIndex(1)),
     referenced_bundles: vec![],
   }];
   let graph = BundleGraph::new(
     AssetGraph {
       asset_nodes: Cow::Owned(
         (0..assets.len())
-          .map(|index| AssetNode::Asset(index as u32))
+          .map(|index| AssetNode::Asset(AssetIndex::from_index(index)))
           .collect(),
       ),
       assets: Cow::Owned(assets),

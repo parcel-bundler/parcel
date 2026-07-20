@@ -17,13 +17,16 @@ use crate::JsContent;
 pub enum RscModule {
   /// Resolves a "use client-entry" import to an empty module so the client
   /// entry does not run on the server.
-  Empty { importer: u32, dependency: u32 },
+  Empty {
+    importer: AssetIndex,
+    dependency: u32,
+  },
   /// Replaces a server dependency on a client component with a client
   /// reference for each export.
   ClientReference {
-    importer: u32,
+    importer: AssetIndex,
     dependency: u32,
-    runtime: u32,
+    runtime: AssetIndex,
     exports: Vec<(SymbolName, SymbolResolution)>,
     bundles: Vec<String>,
     css_resources: Vec<String>,
@@ -33,10 +36,10 @@ pub enum RscModule {
   /// the server (on the client), or wraps the original module to register its
   /// functions as server references (on the server).
   ServerReference {
-    importer: u32,
+    importer: AssetIndex,
     dependency: u32,
-    runtime: u32,
-    original: u32,
+    runtime: AssetIndex,
+    original: AssetIndex,
     exports: Vec<(SymbolName, SymbolResolution)>,
     is_client: bool,
     is_async: bool,
@@ -45,24 +48,24 @@ pub enum RscModule {
   /// This is normally handled by the JS runtime, but the resources also need to be
   /// attached to the React tree so they get loaded during SSR as well.
   Resources {
-    importer: u32,
+    importer: AssetIndex,
     dependency: u32,
-    runtime: u32,
+    runtime: AssetIndex,
     bundle: u32,
     plan: RscResourcePlan,
     is_async: bool,
   },
   /// Server entry setup: initializes AsyncLocalStorage and registers server actions.
   ServerEntry {
-    entry: u32,
-    runtime: u32,
+    entry: AssetIndex,
+    runtime: AssetIndex,
     actions: Vec<RscServerAction>,
   },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RscServerAction {
-  asset_index: u32,
+  asset_index: AssetIndex,
   bundles: Vec<String>,
 }
 
@@ -96,7 +99,7 @@ pub(super) fn resolve_dependency(
   dependency_index: usize,
   importer: &Asset,
   dependency: &Dependency,
-  resolved_index: u32,
+  resolved_index: AssetIndex,
   bundle_index: Option<u32>,
   bundle_graph: &BundleGraph,
 ) -> Result<Option<RscModule>, DiagnosticList> {
@@ -120,7 +123,7 @@ pub(super) fn resolve_dependency(
     return Ok(None);
   }
 
-  let resolved = &bundle_graph.asset_graph.assets[resolved_index as usize];
+  let resolved = &bundle_graph.asset_graph.asset(resolved_index);
   let directives = resolved
     .content
     .downcast_ref::<JsContent>()
@@ -184,7 +187,7 @@ pub(super) fn resolve_dependency(
   if directives.iter().any(|directive| directive == "use server") {
     let is_client = importer.target.environment == Environment::ReactClient;
     return Ok(Some(RscModule::ServerReference {
-      importer: importer_index as u32,
+      importer: importer_index,
       dependency: dependency_index as u32,
       runtime: runtime_asset(importer_index, importer, bundle_graph)?,
       original: resolved_index,
@@ -214,7 +217,7 @@ pub(super) fn resolve_dependency(
     }
 
     return Ok(Some(RscModule::Resources {
-      importer: importer_index as u32,
+      importer: importer_index,
       dependency: dependency_index as u32,
       runtime: runtime_asset(importer_index, importer, bundle_graph)?,
       bundle: bundle_index,
@@ -236,9 +239,9 @@ pub(super) fn server_entry(
     && bundle.target.environment == Environment::ReactServer
     && let Some(entry) = bundle.main_entry_asset
   {
-    let asset = &bundle_graph.asset_graph.assets[entry as usize];
+    let asset = &bundle_graph.asset_graph.asset(entry);
     Ok(Some(RscModule::ServerEntry {
-      entry: entry as u32,
+      entry: entry,
       runtime: runtime_asset(entry, asset, bundle_graph)?,
       actions: server_actions(bundle_graph, project_root),
     }))
@@ -249,7 +252,7 @@ pub(super) fn server_entry(
 
 fn resource_plan(
   importer: &Asset,
-  original_asset: u32,
+  original_asset: AssetIndex,
   bundle_index: u32,
   bundle_graph: &BundleGraph,
 ) -> RscResourcePlan {
@@ -296,7 +299,7 @@ fn resource_plan(
         // Find the client entry in this bundle group if any.
         if importer.target.environment == Environment::ReactServer && plan.client_entry.is_none() {
           plan.client_entry = bundle.assets.iter().find_map(|asset_index| {
-            let asset = &bundle_graph.asset_graph.assets[*asset_index as usize];
+            let asset = &bundle_graph.asset_graph.asset(*asset_index);
             asset
               .content
               .downcast_ref::<JsContent>()
@@ -306,7 +309,7 @@ fn resource_plan(
                   .iter()
                   .any(|directive| directive == "use client-entry")
               })
-              .then_some(*asset_index as u32)
+              .then_some(*asset_index)
           });
         }
       }
@@ -321,7 +324,7 @@ fn runtime_asset(
   importer_index: AssetIndex,
   importer: &Asset,
   bundle_graph: &BundleGraph,
-) -> Result<u32, DiagnosticList> {
+) -> Result<AssetIndex, DiagnosticList> {
   let resolution = importer
     .content
     .downcast_ref::<JsContent>()
@@ -336,7 +339,7 @@ fn runtime_asset(
     BundleGraphDependencyResolution::Bundle(bundle_index) => bundle_graph.bundles
       [bundle_index as usize]
       .main_entry_asset
-      .map(|asset_index| asset_index as u32)
+      .map(|asset_index| asset_index)
       .ok_or_else(|| {
         Diagnostic::from_message("RSC support bundle does not have a main entry asset".into())
           .into()
@@ -359,6 +362,7 @@ fn client_bundle_names(bundle_graph: &BundleGraph, bundle_index: u32) -> Vec<Str
 fn server_actions(bundle_graph: &BundleGraph, project_root: &PathId) -> Vec<RscServerAction> {
   let mut actions: IndexMap<String, RscServerAction> = IndexMap::new();
   for (asset_index, asset) in bundle_graph.asset_graph.assets.iter().enumerate() {
+    let asset_index = AssetIndex(asset_index as u32);
     let is_server_action = asset
       .content
       .downcast_ref::<JsContent>()
@@ -375,7 +379,7 @@ fn server_actions(bundle_graph: &BundleGraph, project_root: &PathId) -> Vec<RscS
     let Some(bundle_index) = bundle_graph
       .bundles
       .iter()
-      .position(|bundle| bundle.assets.contains(&(asset_index as u32)))
+      .position(|bundle| bundle.assets.contains(&asset_index))
     else {
       continue;
     };
@@ -398,7 +402,7 @@ fn server_actions(bundle_graph: &BundleGraph, project_root: &PathId) -> Vec<RscS
       actions.insert(
         id,
         RscServerAction {
-          asset_index: asset_index as u32,
+          asset_index: asset_index,
           bundles: names,
         },
       );
@@ -524,7 +528,7 @@ fn write_client_reference<W: std::fmt::Write>(
   should_optimize: bool,
   bundle_graph: &BundleGraph,
   project_root: &PathId,
-  runtime: u32,
+  runtime: AssetIndex,
   exports: &[(SymbolName, SymbolResolution)],
   bundles: &[String],
   css_resources: &[String],
@@ -595,7 +599,7 @@ fn write_server_reference<W: std::fmt::Write>(
   } else {
     // Dependency on a "use server" module from a server environment.
     // Mark each export as a server reference that can be passed to a client component as a prop.
-    let original_asset = &bundle_graph.asset_graph.assets[original as usize];
+    let original_asset = &bundle_graph.asset_graph.asset(original);
     let original_id = serde_json::to_string(&original_asset.id(project_root))?;
     write!(dest, "let $original={}({});\n", require, original_id)?;
     write!(dest, "for(let key in $original){{\n")?;
@@ -631,10 +635,10 @@ fn write_resources<W: std::fmt::Write>(
   plan: &RscResourcePlan,
   is_async: bool,
 ) -> Result<(), DiagnosticList> {
-  let importer_asset = &bundle_graph.asset_graph.assets[importer as usize];
+  let importer_asset = &bundle_graph.asset_graph.asset(importer);
   let dependency = &importer_asset.dependencies[dependency as usize];
   let target_bundle = &bundle_graph.bundles[target_bundle_index as usize];
-  let original_asset = &bundle_graph.asset_graph.assets[plan.original_asset as usize];
+  let original_asset = &bundle_graph.asset_graph.asset(plan.original_asset);
   let original_id = serde_json::to_string(&original_asset.id(project_root))?;
 
   let require = write_preamble(dest, should_optimize, bundle_graph, project_root, runtime)?;
@@ -664,7 +668,10 @@ fn write_resources<W: std::fmt::Write>(
       .map(|url| format!("import({})", serde_json::to_string(url).unwrap()))
       .collect::<Vec<_>>()
       .join(",");
-    let entry = bundle_graph.asset_graph.assets[client_entry as usize].id(project_root);
+    let entry = bundle_graph
+      .asset_graph
+      .asset(client_entry)
+      .id(project_root);
     format!(
       "Promise.all([{}]).then(()=>parcelRequire({}))",
       imports,
@@ -754,7 +761,7 @@ fn write_server_entry<W: std::fmt::Write>(
   if !actions.is_empty() {
     write!(dest, "$rsc.registerServerActions({{")?;
     for action in actions {
-      let asset = &bundle_graph.asset_graph.assets[action.asset_index as usize];
+      let asset = &bundle_graph.asset_graph.asset(action.asset_index);
       write!(
         dest,
         "{}:{},",
@@ -776,7 +783,7 @@ fn write_preamble<W: std::fmt::Write>(
   runtime: AssetIndex,
 ) -> Result<&'static str, DiagnosticList> {
   let require = runtime_name(should_optimize, "require", RUNTIME_REQUIRE);
-  let runtime_asset = &bundle_graph.asset_graph.assets[runtime as usize];
+  let runtime_asset = &bundle_graph.asset_graph.asset(runtime);
   write!(
     dest,
     "let $rsc={}({});\n",
@@ -795,7 +802,7 @@ fn resolved_exports<'a>(
     let export_name = resolution.name(&bundle_graph.asset_graph)?;
     Some((
       export_as,
-      &bundle_graph.asset_graph.assets[asset_index as usize],
+      bundle_graph.asset_graph.asset(asset_index),
       export_name,
     ))
   })

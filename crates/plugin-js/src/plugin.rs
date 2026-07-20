@@ -442,7 +442,7 @@ impl JsBundle {
     self.bundles[self.index].with(|bundle| {
       bundle
         .main_entry_asset
-        .map(|index| self.assets[index as usize].clone())
+        .map(|index| self.assets[index.index()].clone())
         .map(JsAsset::borrowed)
     })
   }
@@ -452,7 +452,7 @@ impl JsBundle {
       bundle
         .entry_assets
         .iter()
-        .map(|index| self.assets[*index as usize].clone())
+        .map(|index| self.assets[index.index()].clone())
         .map(JsAsset::borrowed)
         .collect()
     })

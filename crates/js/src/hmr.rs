@@ -2,7 +2,8 @@ use std::{collections::HashMap, fmt::Write};
 
 use indexmap::{IndexMap, IndexSet};
 use parcel_core::{
-  Asset, AssetType, BundleGraph, OutputFormat, ParcelConfig, ParcelOptions, get_bundle_content,
+  Asset, AssetIndex, AssetType, BundleGraph, OutputFormat, ParcelConfig, ParcelOptions,
+  get_bundle_content,
 };
 
 use crate::packager::{Resolution, SyntheticAsset, asset_dependencies};
@@ -38,7 +39,7 @@ pub struct HmrAsset<'a> {
 }
 
 pub fn get_hmr_update<'a>(
-  changed_assets: Vec<(u32, &'a Asset)>,
+  changed_assets: Vec<(AssetIndex, &'a Asset)>,
   bundle_graph: &'a BundleGraph,
   config: &'a ParcelConfig,
   options: &'a ParcelOptions,

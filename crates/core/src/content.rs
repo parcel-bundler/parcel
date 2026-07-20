@@ -49,7 +49,9 @@ pub trait Content: Any + std::fmt::Debug + Send + Sync {
     }
 
     Ok(
-      bundle_graph.asset_graph.assets[bundle.assets[0] as usize]
+      bundle_graph
+        .asset_graph
+        .asset(bundle.assets[0])
         .content
         .clone(),
     )

@@ -33,7 +33,7 @@ pub fn asset_dependencies<'a>(
 ) -> Result<IndexMap<String, Resolution<'a>>, DiagnosticList> {
   let mut dependencies = IndexMap::new();
 
-  let used_deps: Vec<u32> = bundle_graph
+  let used_deps: Vec<AssetIndex> = bundle_graph
     .asset_graph
     .resolved_dependencies(asset)
     .collect();
@@ -46,7 +46,7 @@ pub fn asset_dependencies<'a>(
       BundleGraphDependencyResolution::Bundle(bundle_index) => bundle_graph.bundles
         [bundle_index as usize]
         .main_entry_asset
-        .map(|asset_index| (asset_index as u32, Some(bundle_index))),
+        .map(|asset_index| (asset_index, Some(bundle_index))),
       _ => None,
     };
 
@@ -68,10 +68,10 @@ pub fn asset_dependencies<'a>(
 
     match graph_resolution {
       BundleGraphDependencyResolution::Asset(resolved) => {
-        let resolved_asset = &bundle_graph.asset_graph.assets[resolved as usize];
+        let resolved_asset = &bundle_graph.asset_graph.asset(resolved);
         if resolved_asset.ty != AssetType::Js {
           if resolved_asset.symbols.exports.iter().any(|e| e.requested) {
-            let asset = &bundle_graph.asset_graph.assets[resolved as usize];
+            let asset = &bundle_graph.asset_graph.asset(resolved);
             dependencies.insert(
               placeholder.as_str().into(),
               Resolution::Asset(asset.id(project_root)),
@@ -94,7 +94,7 @@ pub fn asset_dependencies<'a>(
                   asset_index,
                   export_index,
                 } => {
-                  let asset = &bundle_graph.asset_graph.assets[*asset_index as usize];
+                  let asset = &bundle_graph.asset_graph.asset(*asset_index);
                   let export = &asset.symbols.exports[*export_index as usize];
                   resolutions.push((
                     import.symbol.as_str(),
@@ -109,7 +109,7 @@ pub fn asset_dependencies<'a>(
                   }
                 }
                 SymbolResolution::Runtime { asset_index, name } => {
-                  let asset = &bundle_graph.asset_graph.assets[*asset_index as usize];
+                  let asset = &bundle_graph.asset_graph.asset(*asset_index);
                   resolutions.push((
                     import.symbol.as_str(),
                     asset.id(project_root),
@@ -123,7 +123,7 @@ pub fn asset_dependencies<'a>(
                   }
                 }
                 SymbolResolution::Namespace { asset_index } => {
-                  let asset = &bundle_graph.asset_graph.assets[*asset_index as usize];
+                  let asset = &bundle_graph.asset_graph.asset(*asset_index);
                   resolutions.push((import.symbol.as_str(), asset.id(project_root), "*"));
                   if first_asset.is_none() {
                     first_asset = Some(*asset_index);
@@ -142,7 +142,7 @@ pub fn asset_dependencies<'a>(
 
         if !resolutions.is_empty() {
           if all_assets_match && let Some(res) = first_asset {
-            let asset = &bundle_graph.asset_graph.assets[res as usize];
+            let asset = &bundle_graph.asset_graph.asset(res);
             dependencies.insert(
               placeholder.as_str().into(),
               Resolution::Asset(asset.id(project_root)),
@@ -156,7 +156,7 @@ pub fn asset_dependencies<'a>(
         } else if !used_deps.contains(&resolved) {
           dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
         } else {
-          let asset = &bundle_graph.asset_graph.assets[resolved as usize];
+          let asset = &bundle_graph.asset_graph.asset(resolved);
           dependencies.insert(
             placeholder.as_str().into(),
             Resolution::Asset(asset.id(project_root)),
@@ -204,7 +204,7 @@ pub fn asset_dependencies<'a>(
             if resolved_bundle.ty != AssetType::Js
               && let Some(main) = resolved_bundle.main_entry_asset
             {
-              let asset = &bundle_graph.asset_graph.assets[main as usize];
+              let asset = &bundle_graph.asset_graph.asset(main);
               let mut exports = Vec::new();
               for exp in &asset.symbols.exports {
                 if !exp.requested {

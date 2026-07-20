@@ -57,7 +57,8 @@ impl Bundler for DefaultBundler {
     options: &ParcelOptions,
   ) -> Result<BundleGraph<'a>, DiagnosticList> {
     if asset_graph.entries.iter().all(|e| {
-      asset_graph.assets[asset_graph.resolved_entry(e).unwrap() as usize]
+      asset_graph
+        .asset(asset_graph.resolved_entry(e).unwrap())
         .target
         .flags
         .contains(EnvironmentFlags::IS_LIBRARY)
@@ -81,24 +82,25 @@ impl Bundler for DefaultBundler {
     let mut entry_bundle_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
     for entry in asset_graph.entries.iter() {
       if let Some(asset) = asset_graph.resolved_entry(entry) {
-        bundle_roots.insert(asset as usize);
-        entry_bundle_roots.insert(asset as usize);
+        bundle_roots.insert(asset.index());
+        entry_bundle_roots.insert(asset.index());
       }
     }
 
-    for asset_index in 0..asset_graph.assets.len() {
-      let asset = &asset_graph.assets[asset_index];
-      if bundle_behaviors[asset_index] != BundleBehavior::None {
-        bundle_roots.insert(asset_index);
+    for index in 0..asset_graph.assets.len() {
+      let asset_index = AssetIndex::from_index(index);
+      let asset = &asset_graph.asset(asset_index);
+      if bundle_behaviors[index] != BundleBehavior::None {
+        bundle_roots.insert(index);
       }
 
       for dep_index in 0..asset.dependencies.len() {
-        let dep = &asset_graph.assets[asset_index].dependencies[dep_index];
+        let dep = &asset_graph.asset(asset_index).dependencies[dep_index];
         if dep.bundle_behavior != BundleBehavior::None || dep.priority != Priority::Sync {
           if let Some((resolved_asset_index, _)) = asset_graph.resolved_asset(dep) {
             let bundle_behavior = dep.bundle_behavior;
-            bundle_roots.insert(resolved_asset_index as usize);
-            let target_bundle_behavior = &mut bundle_behaviors[resolved_asset_index as usize];
+            bundle_roots.insert(resolved_asset_index.index());
+            let target_bundle_behavior = &mut bundle_behaviors[resolved_asset_index.index()];
             if bundle_behavior != BundleBehavior::None
               && *target_bundle_behavior == BundleBehavior::None
             {
@@ -119,16 +121,17 @@ impl Bundler for DefaultBundler {
     for (bundle_root_index, bundle_root_asset_index) in bundle_roots.ones().enumerate() {
       visited.clear();
       queue.clear();
-      queue.push_back(bundle_root_asset_index);
+      queue.push_back(AssetIndex::from_index(bundle_root_asset_index));
       visited.insert(bundle_root_asset_index);
       while let Some(asset_index) = queue.pop_front() {
-        reachable_roots[asset_index].insert(bundle_root_index);
+        reachable_roots[asset_index.index()].insert(bundle_root_index);
 
-        let asset = &asset_graph.assets[asset_index];
-        for i in asset_graph.resolved_dependencies(asset) {
-          if !visited.contains(i as usize) && !bundle_roots.contains(i as usize) {
-            visited.insert(i as usize);
-            queue.push_back(i as usize);
+        let asset = &asset_graph.asset(asset_index);
+        for index in asset_graph.resolved_dependencies(asset) {
+          let i = index.index();
+          if !visited.contains(i) && !bundle_roots.contains(i) {
+            visited.insert(i);
+            queue.push_back(index);
           }
         }
       }
@@ -152,12 +155,13 @@ impl Bundler for DefaultBundler {
 
     // Create bundles for each bundle root first.
     for bundle_root_asset_index in bundle_roots.ones() {
-      let asset = &asset_graph.assets[bundle_root_asset_index];
+      let bundle_root_asset_index = AssetIndex::from_index(bundle_root_asset_index);
+      let asset = &asset_graph.asset(bundle_root_asset_index);
       let bundle = Bundle {
         ty: asset.ty.clone(),
         target: asset.target.clone(),
-        bundle_behavior: bundle_behaviors[bundle_root_asset_index],
-        flags: if entry_bundle_roots.contains(bundle_root_asset_index) {
+        bundle_behavior: bundle_behaviors[bundle_root_asset_index.index()],
+        flags: if entry_bundle_roots.contains(bundle_root_asset_index.index()) {
           BundleFlags::ENTRY | BundleFlags::NEEDS_STABLE_NAME
         } else {
           BundleFlags::empty()
@@ -176,7 +180,7 @@ impl Bundler for DefaultBundler {
         }
       } else {
         BundleKey::Default {
-          reachable_roots: &reachable_roots[bundle_root_asset_index],
+          reachable_roots: &reachable_roots[bundle_root_asset_index.index()],
           context: asset.target.environment, // TODO: other environment properties?
           packager: asset.content.type_id(),
         }
@@ -190,8 +194,8 @@ impl Bundler for DefaultBundler {
 
     // Place assets into bundles, following depth-first order.
     for (asset_index, asset, name) in asset_graph.dfs() {
-      let is_bundle_root = bundle_roots.contains(asset_index as usize);
-      if !is_bundle_root && reachable_roots[asset_index as usize].is_clear() {
+      let is_bundle_root = bundle_roots.contains(asset_index.index());
+      if !is_bundle_root && reachable_roots[asset_index.index()].is_clear() {
         continue;
       }
 
@@ -202,7 +206,7 @@ impl Bundler for DefaultBundler {
         }
       } else {
         BundleKey::Default {
-          reachable_roots: &reachable_roots[asset_index as usize],
+          reachable_roots: &reachable_roots[asset_index.index()],
           context: asset.target.environment, // TODO: other environment properties?
           packager: asset.content.type_id(),
         }
@@ -217,8 +221,8 @@ impl Bundler for DefaultBundler {
         let bundle = Bundle {
           ty: asset.ty.clone(),
           target: asset.target.clone(),
-          bundle_behavior: bundle_behaviors[asset_index as usize],
-          flags: if entry_bundle_roots.contains(asset_index as usize) {
+          bundle_behavior: bundle_behaviors[asset_index.index()],
+          flags: if entry_bundle_roots.contains(asset_index.index()) {
             BundleFlags::ENTRY | BundleFlags::NEEDS_STABLE_NAME
           } else {
             BundleFlags::empty()
@@ -243,14 +247,14 @@ impl Bundler for DefaultBundler {
         bundles.push(bundle);
 
         if is_bundle_root {
-          asset_index_to_bundle_index.insert(asset_index as usize, bundle_index);
+          asset_index_to_bundle_index.insert(asset_index, bundle_index);
         }
 
         bundle_index
       };
 
       // Each reachable root depends on this shared bundle.
-      for bundle_root_index in reachable_roots[asset_index as usize].ones() {
+      for bundle_root_index in reachable_roots[asset_index.index()].ones() {
         if bundle_root_index != bundle_index {
           bundles[bundle_root_index]
             .referenced_bundles
@@ -260,20 +264,19 @@ impl Bundler for DefaultBundler {
     }
 
     // Build a reverse map from asset index to the bundle it was placed in.
-    let mut asset_to_bundle = HashMap::<usize, usize>::new();
+    let mut asset_to_bundle = HashMap::<AssetIndex, usize>::new();
     for (bundle_index, bundle) in bundles.iter().enumerate() {
       for asset_index in &bundle.assets {
-        asset_to_bundle.insert(*asset_index as usize, bundle_index);
+        asset_to_bundle.insert(*asset_index, bundle_index);
       }
     }
 
     for (asset_index, asset) in asset_graph.assets.iter().enumerate() {
+      let asset_index = AssetIndex::from_index(asset_index);
       let source_bundle_index = asset_to_bundle.get(&asset_index).copied();
       for (dep_index, dep) in asset.dependencies.iter().enumerate() {
         if let Some((resolved_asset_index, _)) = asset_graph.resolved_asset(dep) {
-          if let Some(&bundle_index) =
-            asset_index_to_bundle_index.get(&(resolved_asset_index as usize))
-          {
+          if let Some(&bundle_index) = asset_index_to_bundle_index.get(&resolved_asset_index) {
             // A sync non-URL dep targeting a bundle root in a different JS bundle keeps its
             // Asset resolution so the runtime can resolve it via the parcelRequire chain.
             // The target bundle is added to referenced_bundles so it loads synchronously first.

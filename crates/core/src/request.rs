@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-  AssetRequest, ParcelConfig, ParcelOptions,
+  AssetNodeIndex, AssetRequest, ParcelConfig, ParcelOptions,
   transformer::{TransformRequest, TransformResult},
 };
 
@@ -41,7 +41,7 @@ impl TransformQueue {
     }
   }
 
-  pub fn transform(&mut self, index: usize, req: Arc<AssetRequest>) {
+  pub fn transform(&mut self, index: AssetNodeIndex, req: Arc<AssetRequest>) {
     self.pending_requests += 1;
     let request = Request::Transform(TransformRequest {
       index,

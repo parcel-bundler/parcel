@@ -10,7 +10,7 @@ use super::{RUNTIME_REQUIRE, Resolution, rsc::RscModule, runtime_name};
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SyntheticAsset {
   /// Exposes the requested CSS module exports of a non-JS asset as a JS module.
-  CssModuleExports(u32),
+  CssModuleExports(AssetIndex),
   /// A shim module for a dependency that resolved to another bundle.
   Bundle { bundle: u32, kind: BundleShim },
   /// A generated React Server Components module.
@@ -42,9 +42,10 @@ impl BundleShim {
 impl SyntheticAsset {
   pub fn id(&self, bundle_graph: &BundleGraph, project_root: &PathId) -> String {
     match self {
-      SyntheticAsset::CssModuleExports(asset_index) => {
-        bundle_graph.asset_graph.assets[*asset_index as usize].id(project_root)
-      }
+      SyntheticAsset::CssModuleExports(asset_index) => bundle_graph
+        .asset_graph
+        .asset(*asset_index)
+        .id(project_root),
       SyntheticAsset::Bundle { bundle, kind } => kind.id(*bundle),
       SyntheticAsset::Rsc(module) => module.id(),
     }
@@ -63,7 +64,7 @@ impl SyntheticAsset {
       } => {
         let resolved_bundle = &bundle_graph.bundles[*bundle as usize];
         if let Some(main_entry_asset) = resolved_bundle.main_entry_asset {
-          let asset = &bundle_graph.asset_graph.assets[main_entry_asset as usize];
+          let asset = &bundle_graph.asset_graph.asset(main_entry_asset);
           dependencies.insert("bundle".into(), Resolution::Asset(asset.id(project_root)));
         }
       }
@@ -93,7 +94,7 @@ impl SyntheticAsset {
   ) -> Result<(), DiagnosticList> {
     match self {
       SyntheticAsset::CssModuleExports(asset_index) => {
-        let asset = &bundle_graph.asset_graph.assets[*asset_index as usize];
+        let asset = &bundle_graph.asset_graph.asset(*asset_index);
         for exp in &asset.symbols.exports {
           if !exp.requested {
             continue;
@@ -186,7 +187,7 @@ fn load_bundles<W: std::fmt::Write>(
   require_name: &str,
 ) -> core::fmt::Result {
   let main_entry_id = bundle.main_entry_asset.unwrap();
-  let asset = &bundle_graph.asset_graph.assets[main_entry_id as usize];
+  let asset = &bundle_graph.asset_graph.asset(main_entry_id);
 
   if !bundle.referenced_bundles.is_empty() {
     write!(res, "module.exports=Promise.all([")?;

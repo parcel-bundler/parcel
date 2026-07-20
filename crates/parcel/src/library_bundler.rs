@@ -55,7 +55,7 @@ impl Bundler for LibraryBundler {
         bundles_by_path.insert(key, bundle_index);
         bundle_index
       };
-      asset_to_bundle.insert(id as u32, bundle_index);
+      asset_to_bundle.insert(id, bundle_index);
     }
 
     for (id, asset) in asset_graph.assets.iter().enumerate() {
@@ -64,7 +64,7 @@ impl Bundler for LibraryBundler {
           if let Some(bundle) = asset_to_bundle.get(&resolved_asset_index) {
             dependency_resolutions.insert(
               DependencyId {
-                asset: id as AssetIndex,
+                asset: AssetIndex(id as u32),
                 dependency: dep_index,
               },
               *bundle as u32,

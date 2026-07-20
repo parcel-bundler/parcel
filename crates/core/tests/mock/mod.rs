@@ -155,7 +155,7 @@ impl Content for MockContent {
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     let mut out = Vec::new();
     for &index in &bundle.assets {
-      let asset = &bundle_graph.asset_graph.assets[index as usize];
+      let asset = &bundle_graph.asset_graph.asset(index);
       out.extend_from_slice(&asset.content.read()?);
       out.push(b'\n');
     }
@@ -385,7 +385,7 @@ impl Bundler for MockBundler {
         }
       }
 
-      let root_asset = &asset_graph.assets[root as usize];
+      let root_asset = &asset_graph.asset(root);
       let mut flags = BundleFlags::empty();
       if is_entry {
         flags |= BundleFlags::ENTRY;
@@ -427,7 +427,7 @@ fn collect_sync(
   }
   assets.push(index);
 
-  let asset = &graph.assets[index as usize];
+  let asset = &graph.asset(index);
   for dep in &asset.dependencies {
     if let Some((target, _)) = graph.resolved_asset(dep) {
       if dep.priority == Priority::Sync {
@@ -469,7 +469,7 @@ impl Namer for MockNamer {
       }
     }
 
-    let asset = &bundle_graph.asset_graph.assets[main as usize];
+    let asset = &bundle_graph.asset_graph.asset(main);
     let path = asset.loc.url.to_file_path().unwrap();
     let file = path.file_name();
     let stem = file.rsplit_once('.').map(|(s, _)| s).unwrap_or(file);

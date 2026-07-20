@@ -1,4 +1,6 @@
-use parcel_core::{Asset, AssetType, BundleGraph, DiagnosticList, ParcelConfig, ParcelOptions};
+use parcel_core::{
+  Asset, AssetIndex, AssetType, BundleGraph, DiagnosticList, ParcelConfig, ParcelOptions,
+};
 use parcel_js::hmr::{HmrUpdate, get_hmr_update};
 use std::{
   borrow::Cow,
@@ -115,7 +117,7 @@ fn is_websocket_upgrade(request: &tiny_http::Request) -> bool {
 impl DevServer {
   pub fn emit_hmr_update(
     &self,
-    changed_assets: Vec<(u32, &Asset)>,
+    changed_assets: Vec<(AssetIndex, &Asset)>,
     bundle_graph: &BundleGraph,
     config: &ParcelConfig,
     options: &ParcelOptions,

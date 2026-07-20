@@ -51,7 +51,9 @@ impl JsContent {
 
     if bundle.target.source_type == SourceType::Script {
       assert_eq!(bundle.assets.len(), 1);
-      let asset = &bundle_graph.asset_graph.assets[bundle.main_entry_asset.unwrap() as usize];
+      let asset = &bundle_graph
+        .asset_graph
+        .asset(bundle.main_entry_asset.unwrap());
       if bundle.target.source_map.is_some()
         && let Some(content) = asset.content.downcast_ref::<JsContent>()
       {
@@ -74,7 +76,7 @@ impl JsContent {
 
     let mut printer = Printer::new(should_build_source_map, should_optimize);
     if let Some(main) = bundle.main_entry_asset {
-      let asset = &bundle_graph.asset_graph.assets[main as usize];
+      let asset = &bundle_graph.asset_graph.asset(main);
       if let Some(content) = asset.content.downcast_ref::<JsContent>() {
         if let Some(shebang) = &content.shebang {
           write!(printer, "#!{}\n", shebang)?;
@@ -95,7 +97,7 @@ impl JsContent {
     let mut synthetic_assets = IndexSet::new();
 
     for asset_index in &bundle.assets {
-      let asset = &bundle_graph.asset_graph.assets[*asset_index as usize];
+      let asset = &bundle_graph.asset_graph.asset(*asset_index);
       if !first {
         printer.write_char(',')?;
       }
@@ -176,7 +178,7 @@ fn write_external_imports(
   }
 
   for asset_index in &bundle.assets {
-    let asset = &bundle_graph.asset_graph.assets[*asset_index as usize];
+    let asset = &bundle_graph.asset_graph.asset(*asset_index);
     for (dependency_index, dependency) in asset.dependencies.iter().enumerate() {
       if !dependency.flags.contains(DependencyFlags::OPTIONAL)
         && bundle_graph.dependency_resolution(*asset_index, dependency_index)
@@ -407,7 +409,7 @@ fn write_runtime_globals(
     write!(printer, "'{}',", entry)?;
   }
   for entry in &bundle.entry_assets {
-    let asset = &bundle_graph.asset_graph.assets[*entry as usize];
+    let asset = &bundle_graph.asset_graph.asset(*entry);
     write!(printer, "'{}'", asset.id(project_root))?;
   }
 
@@ -416,7 +418,7 @@ fn write_runtime_globals(
 
   let runtime_main_entry = runtime_name(should_optimize, "mainEntry", RUNTIME_MAIN_ENTRY);
   if let Some(main) = &bundle.main_entry_asset {
-    let asset = &bundle_graph.asset_graph.assets[*main as usize];
+    let asset = &bundle_graph.asset_graph.asset(*main);
     printer.write_var(
       runtime_main_entry,
       &format!("'{}'", asset.id(project_root)),

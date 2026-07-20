@@ -6,8 +6,8 @@ use std::{
 };
 
 use parcel_core::{
-  AssetType, BuildOptions, BundleBehavior, BundleFlags, BundleGraph, CodeFrame, CodeHighlight,
-  DependencyResolution, Diagnostic, DiagnosticList, DiagnosticSeverity, Environment,
+  AssetIndex, AssetType, BuildOptions, BundleBehavior, BundleFlags, BundleGraph, CodeFrame,
+  CodeHighlight, DependencyResolution, Diagnostic, DiagnosticList, DiagnosticSeverity, Environment,
   EnvironmentFlags, FileSystem, MemoryFileSystem, OsFileSystem, OutputFormat, OverlayFileSystem,
   PathId, SymbolResolution,
 };
@@ -174,7 +174,9 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
         .assets
         .iter()
         .filter_map(|a| {
-          let path = bundle_graph.asset_graph.assets[*a as usize]
+          let path = bundle_graph
+            .asset_graph
+            .asset(*a)
             .loc
             .url
             .to_file_path()
@@ -249,7 +251,9 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
               output_fs.clone(),
               &cwd,
               Environment::Node,
-              bundle_graph.asset_graph.assets[bundle.main_entry_asset.unwrap() as usize]
+              bundle_graph
+                .asset_graph
+                .asset(bundle.main_entry_asset.unwrap())
                 .id(&bundle_graph.project_root),
               true,
             );
@@ -260,8 +264,12 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
           } else {
             if scripts.is_empty() {
               if let Some(m) = bundle.main_entry_asset {
-                main =
-                  Some(bundle_graph.asset_graph.assets[m as usize].id(&bundle_graph.project_root));
+                main = Some(
+                  bundle_graph
+                    .asset_graph
+                    .asset(m)
+                    .id(&bundle_graph.project_root),
+                );
               }
             }
             scripts.push((path.to_path_buf(), bundle.target.output_format));
@@ -294,7 +302,10 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
                     .unwrap();
                   if let Some(m) = b.main_entry_asset {
                     main = Some(
-                      bundle_graph.asset_graph.assets[m as usize].id(&bundle_graph.project_root),
+                      bundle_graph
+                        .asset_graph
+                        .asset(m)
+                        .id(&bundle_graph.project_root),
                     );
                   }
 
@@ -338,7 +349,9 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
             .assets
             .iter()
             .map(|a| {
-              bundle_graph.asset_graph.assets[*a as usize]
+              bundle_graph
+                .asset_graph
+                .asset(*a)
                 .loc
                 .url
                 .to_file_path()
@@ -593,19 +606,21 @@ fn get_exports_star_dedupe() {
   )
   .unwrap();
 
-  let find = |file_name: &str| -> u32 {
-    bundle_graph
-      .asset_graph
-      .assets
-      .iter()
-      .position(|asset| {
-        asset
-          .loc
-          .url
-          .to_file_path()
-          .is_ok_and(|path| path.file_name().to_string() == file_name)
-      })
-      .unwrap_or_else(|| panic!("could not find asset {file_name}")) as u32
+  let find = |file_name: &str| -> AssetIndex {
+    AssetIndex::from_index(
+      bundle_graph
+        .asset_graph
+        .assets
+        .iter()
+        .position(|asset| {
+          asset
+            .loc
+            .url
+            .to_file_path()
+            .is_ok_and(|path| path.file_name().to_string() == file_name)
+        })
+        .unwrap_or_else(|| panic!("could not find asset {file_name}")),
+    )
   };
 
   let client_index = find("client.jsx");

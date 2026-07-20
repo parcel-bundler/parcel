@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use crate::{
-  Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, DependencyFlags, DependencyResolution,
-  DiagnosticList, FileSystem, Invalidations, ParcelOptions, PathId, Pipeline, SourceUrl,
-  TrackingFileSystem,
+  Asset, AssetFlags, AssetNodeIndex, AssetRequest, AssetSymbols, AssetType, DependencyFlags,
+  DependencyResolution, DiagnosticList, FileSystem, Invalidations, ParcelOptions, PathId, Pipeline,
+  SourceUrl, TrackingFileSystem,
   config::{ParcelConfig, PipelineMap},
   resolver::resolve,
 };
@@ -24,14 +24,14 @@ pub trait Transformer: Send + Sync {
 }
 
 pub struct TransformRequest {
-  pub index: usize,
+  pub index: AssetNodeIndex,
   pub req: Arc<AssetRequest>,
   pub options: Arc<ParcelOptions>,
   pub config: Arc<ParcelConfig>,
 }
 
 pub struct TransformResult {
-  pub index: usize,
+  pub index: AssetNodeIndex,
   pub invalidations: Invalidations,
   pub result: Result<Asset, DiagnosticList>,
 }

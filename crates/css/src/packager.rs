@@ -53,14 +53,14 @@ impl CssContent {
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
     options: &ParcelOptions,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
-    let mut asset_index_to_stylesheet_index: HashMap<u32, usize> = HashMap::new();
+    let mut asset_index_to_stylesheet_index: HashMap<AssetIndex, usize> = HashMap::new();
     let mut stylesheets = Vec::new();
     let mut source_map = SourceMap::new("/");
 
     for asset_index in &bundle.assets {
-      let asset = &bundle_graph.asset_graph.assets[*asset_index as usize];
+      let asset = &bundle_graph.asset_graph.asset(*asset_index);
       if let Some(content) = asset.content.downcast_ref::<CssContent>() {
-        asset_index_to_stylesheet_index.insert(*asset_index as u32, stylesheets.len());
+        asset_index_to_stylesheet_index.insert(*asset_index, stylesheets.len());
         let source_index = stylesheets.len() as u32;
         stylesheets.push(StyleSheetWrapper {
           asset_index: *asset_index,
@@ -263,7 +263,7 @@ fn collect(
   visited[state.stylesheet_index] = true;
 
   let asset_index = stylesheet.asset_index;
-  let asset = &bundle_graph.asset_graph.assets[asset_index as usize];
+  let asset = &bundle_graph.asset_graph.asset(asset_index);
   let content = asset.content.downcast_ref::<CssContent>().unwrap();
 
   let mut unused_symbols = HashSet::new();
@@ -341,7 +341,7 @@ fn inline(
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
   get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
-  asset_index_to_stylesheet_index: &HashMap<u32, usize>,
+  asset_index_to_stylesheet_index: &HashMap<AssetIndex, usize>,
   stylesheets: &mut Vec<StyleSheetWrapper>,
   stylesheet_index: usize,
   visited: &mut Vec<bool>,
@@ -350,7 +350,7 @@ fn inline(
   let asset_index = stylesheets[stylesheet_index as usize].asset_index;
   let stylesheet = &mut stylesheets[stylesheet_index as usize];
   let loc = stylesheet.loc.clone();
-  let asset = &bundle_graph.asset_graph.assets[asset_index as usize];
+  let asset = &bundle_graph.asset_graph.asset(asset_index);
   let mut rules = std::mem::take(&mut stylesheet.stylesheet.rules.0);
 
   // Hoist css modules deps
@@ -454,7 +454,7 @@ fn inline(
           export_index,
         } = &asset.symbols.imports[*v].resolved
         {
-          let asset = &bundle_graph.asset_graph.assets[*asset_index as usize];
+          let asset = &bundle_graph.asset_graph.asset(*asset_index);
           if let Some(res) = resolve_css_module_export(
             &bundle_graph.asset_graph,
             *asset_index,
@@ -545,7 +545,7 @@ impl ReferenceReplacer {
     get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
   ) -> Result<ReferenceReplacer, DiagnosticList> {
     let mut urls = HashMap::new();
-    let dependencies = &bundle_graph.asset_graph.assets[asset_index as usize].dependencies;
+    let dependencies = &bundle_graph.asset_graph.asset(asset_index).dependencies;
     for (dep_index, dep) in dependencies.iter().enumerate() {
       if dep.priority == Priority::Lazy && dep.specifier_type == SpecifierType::Url {
         if let BundleGraphDependencyResolution::Bundle(bundle_index) =
@@ -719,7 +719,7 @@ impl StyleAttrContent {
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
-    let asset = &bundle_graph.asset_graph.assets[bundle.assets[0] as usize];
+    let asset = &bundle_graph.asset_graph.asset(bundle.assets[0]);
     let content = asset.content.downcast_ref::<StyleAttrContent>().unwrap();
     let mut decls = content.attr.declarations.clone(); // TODO: avoid clone?
     let mut replacer = ReferenceReplacer::new(
