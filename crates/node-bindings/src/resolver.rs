@@ -84,7 +84,12 @@ impl FileSystem for JsFileSystem {
       let path = self.read.env.create_string(&path_str)?;
       let res: JsBuffer = self.read.get()?.call(None, &[path])?.try_into()?;
       let value = res.into_value()?;
-      Ok(unsafe { String::from_utf8_unchecked(value.to_vec()) })
+      String::from_utf8(value.to_vec()).map_err(|e| {
+        napi::Error::new(
+          napi::Status::GenericFailure,
+          format!("Invalid UTF-8 in {}: {}", path_str, e),
+        )
+      })
     };
 
     read().map_err(|err| std::io::Error::new(std::io::ErrorKind::NotFound, err.to_string()))
