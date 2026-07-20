@@ -2493,6 +2493,70 @@ describe('resolver', function () {
       });
     });
 
+    it('should suggest enabling package exports for exported subpaths', async function () {
+      let resolver = new NodeResolver({
+        fs: overlayFS,
+        projectRoot: rootDir,
+        mode: 'development',
+        packageExports: false,
+      });
+      let result = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'package-exports/redirect',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.deepEqual(nullthrows(nullthrows(result).diagnostics)[0], {
+        message: `Cannot load file './redirect' from module 'package-exports'`,
+        hints: [
+          'Add "@parcel/resolver-default": { "packageExports": true } to your package.json to enable package exports.',
+        ],
+      });
+    });
+
+    it('should suggest enabling package exports for wildcard subpaths', async function () {
+      let resolver = new NodeResolver({
+        fs: overlayFS,
+        projectRoot: rootDir,
+        mode: 'development',
+        packageExports: false,
+      });
+      let result = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'package-exports/extensionless-features/test',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.deepEqual(nullthrows(nullthrows(result).diagnostics)[0], {
+        message: `Cannot load file './extensionless-features/test' from module 'package-exports'`,
+        hints: [
+          'Add "@parcel/resolver-default": { "packageExports": true } to your package.json to enable package exports.',
+        ],
+      });
+    });
+
+    it('should not suggest enabling package exports for unexported subpaths', async function () {
+      let resolver = new NodeResolver({
+        fs: overlayFS,
+        projectRoot: rootDir,
+        mode: 'development',
+        packageExports: false,
+      });
+      let result = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'package-exports/not-exported',
+        specifierType: 'esm',
+        parent: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.deepEqual(nullthrows(nullthrows(result).diagnostics)[0], {
+        message: `Cannot load file './not-exported' from module 'package-exports'`,
+        hints: [],
+      });
+    });
+
     it('should error when a library is missing an external dependency', async function () {
       let result = await resolver.resolve({
         env: new Environment(
@@ -2732,7 +2796,7 @@ describe('resolver', function () {
                     column: 14,
                   },
                   end: {
-                    line: 13,
+                    line: 14,
                     column: 3,
                   },
                 },
