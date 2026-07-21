@@ -192,7 +192,7 @@ impl std::fmt::Display for Version {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(f, ">= {}", self.major())?;
     if self.minor() > 0 {
-      write!(f, "{}", self.minor())?;
+      write!(f, ".{}", self.minor())?;
     }
     Ok(())
   }
@@ -202,7 +202,7 @@ impl std::fmt::Debug for Version {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(f, "{}", self.major())?;
     if self.minor() > 0 {
-      write!(f, "{}", self.minor())?;
+      write!(f, ".{}", self.minor())?;
     }
     Ok(())
   }
@@ -640,5 +640,33 @@ impl TryFrom<&str> for OutputFormat {
         )));
       }
     })
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn version_display_has_decimal() {
+    let v: Version = "11.3".parse().unwrap();
+    assert_eq!(format!("{}", v), ">= 11.3");
+    assert_eq!(v.major(), 11);
+    assert_eq!(v.minor(), 3);
+  }
+
+  #[test]
+  fn version_display_no_minor() {
+    let v: Version = "11".parse().unwrap();
+    assert_eq!(format!("{}", v), ">= 11");
+  }
+
+  #[test]
+  fn version_serde_roundtrip() {
+    let v: Version = "11.3".parse().unwrap();
+    let s = serde_json::to_string(&v).unwrap();
+    let back: Version = serde_json::from_str(&s).unwrap();
+    assert_eq!(back.major(), 11);
+    assert_eq!(back.minor(), 3);
   }
 }
