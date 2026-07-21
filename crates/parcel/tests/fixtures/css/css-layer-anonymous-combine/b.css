@@ -1,0 +1,5 @@
+@import "c.css" layer(foo);
+
+.b {
+  color: blue;
+}
