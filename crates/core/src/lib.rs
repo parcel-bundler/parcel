@@ -440,22 +440,20 @@ fn load_dotenv(
   fs: &dyn FileSystem,
   env: &mut HashMap<String, String>,
 ) -> Result<(), DiagnosticList> {
+  // Highest precedence first (first writer wins via or_insert):
+  //   .env.{mode}.local > .env.local > .env.{mode} > .env
+  let mut files: Vec<String> = Vec::new();
   if let Some(node_env) = env.get("NODE_ENV").cloned() {
-    for file in ["", ".local"] {
-      let path = project_root.child(&format!(".env.{}{}", node_env, file));
-      if fs.kind(path) == FileKind::IS_FILE {
-        let content = fs.read(path)?;
-        let iter = dotenvy::from_read_iter(std::io::BufReader::new(std::io::Cursor::new(content)));
-        for item in iter {
-          if let Ok((key, value)) = item {
-            env.entry(key).or_insert(value);
-          }
-        }
-      }
-    }
+    files.push(format!(".env.{}.local", node_env));
+    files.push(".env.local".to_string());
+    files.push(format!(".env.{}", node_env));
+    files.push(".env".to_string());
+  } else {
+    files.push(".env.local".to_string());
+    files.push(".env".to_string());
   }
 
-  for file in [".env", ".env.local"] {
+  for file in &files {
     let path = project_root.child(file);
     if fs.kind(path) == FileKind::IS_FILE {
       let content = fs.read(path)?;
@@ -469,4 +467,58 @@ fn load_dotenv(
   }
 
   Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::load_dotenv;
+  use crate::{FileSystem, MemoryFileSystem, PathId};
+  use std::{collections::HashMap, path::Path};
+
+  #[test]
+  fn dotenv_local_overrides_base() {
+    let fs = MemoryFileSystem::new();
+    fs.mkdir(Path::new("/root")).unwrap();
+    fs.write(PathId::new(Path::new("/root/.env")), &b"FOO=base".to_vec())
+      .unwrap();
+    fs.write(
+      PathId::new(Path::new("/root/.env.local")),
+      &b"FOO=local".to_vec(),
+    )
+    .unwrap();
+
+    let mut env = HashMap::new();
+    load_dotenv(PathId::new(Path::new("/root")), &fs, &mut env).unwrap();
+
+    assert_eq!(env.get("FOO").map(String::as_str), Some("local"));
+  }
+
+  #[test]
+  fn dotenv_mode_local_overrides_everything() {
+    let fs = MemoryFileSystem::new();
+    fs.mkdir(Path::new("/root")).unwrap();
+    fs.write(PathId::new(Path::new("/root/.env")), &b"FOO=base".to_vec())
+      .unwrap();
+    fs.write(
+      PathId::new(Path::new("/root/.env.local")),
+      &b"FOO=local".to_vec(),
+    )
+    .unwrap();
+    fs.write(
+      PathId::new(Path::new("/root/.env.production")),
+      &b"FOO=production".to_vec(),
+    )
+    .unwrap();
+    fs.write(
+      PathId::new(Path::new("/root/.env.production.local")),
+      &b"FOO=production-local".to_vec(),
+    )
+    .unwrap();
+
+    let mut env = HashMap::new();
+    env.insert("NODE_ENV".to_string(), "production".to_string());
+    load_dotenv(PathId::new(Path::new("/root")), &fs, &mut env).unwrap();
+
+    assert_eq!(env.get("FOO").map(String::as_str), Some("production-local"));
+  }
 }
