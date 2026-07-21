@@ -92,7 +92,7 @@ impl URLSearchParams {
 
   pub fn set(&mut self, name: String, value: String) {
     let mut found = false;
-    let pairs = self
+    let mut pairs = self
       .url
       .borrow()
       .query_pairs()
@@ -109,6 +109,10 @@ impl URLSearchParams {
         }
       })
       .collect::<Vec<(String, String)>>();
+
+    if !found {
+      pairs.push((name, value));
+    }
 
     self
       .url

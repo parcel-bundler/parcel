@@ -309,6 +309,11 @@ fn test_url_searchparams() {
     assert.ok(sp instanceof URLSearchParams);
     assert(u.searchParams === sp);
     assert.equal(sp.get('query'), '1');
+    // set() on an absent key must append it (WHATWG), not no-op.
+    sp.set('brandnew', 'v');
+    assert.equal(sp.get('brandnew'), 'v');
+    assert.deepEqual(sp.getAll('brandnew'), ['v']);
+    sp.delete('brandnew');
     sp.append('foo', 'bar');
     assert.equal(sp.get('foo'), 'bar');
     sp.set('foo', 'baz');
