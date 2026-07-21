@@ -31,6 +31,8 @@ pub fn structured_clone<'js>(ctx: Ctx<'js>, value: Value<'js>) -> rquickjs::Resu
       (JS_READ_OBJ_BYTECODE | JS_READ_OBJ_REFERENCE | JS_READ_OBJ_SAB) as i32,
     );
 
+    js_free(ctx_ptr, buf as _);
+
     return Ok(Value::from_raw(ctx, value));
   }
 }
