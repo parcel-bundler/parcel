@@ -8,7 +8,10 @@ use std::{
   hash::{Hash, Hasher},
   io::Result as IoResult,
   path::{Path, PathBuf},
-  sync::{Arc, Mutex},
+  sync::{
+    Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
+  },
 };
 
 use parcel_core::{
@@ -63,6 +66,10 @@ pub struct RecordingFileSystem {
   inner: MemoryFileSystem,
   writes: Mutex<Vec<PathBuf>>,
   removes: Mutex<Vec<PathBuf>>,
+  /// When set, every `write` call fails with a simulated I/O error instead of touching `inner`.
+  /// Used to test that packaging failures propagate as a `DiagnosticList` instead of panicking
+  /// or silently succeeding.
+  fail_writes: AtomicBool,
 }
 
 impl RecordingFileSystem {
@@ -71,6 +78,7 @@ impl RecordingFileSystem {
       inner: MemoryFileSystem::new(),
       writes: Mutex::new(Vec::new()),
       removes: Mutex::new(Vec::new()),
+      fail_writes: AtomicBool::new(false),
     }
   }
 
@@ -82,6 +90,12 @@ impl RecordingFileSystem {
   /// Returns and clears the list of paths removed since the last call.
   pub fn take_removes(&self) -> Vec<PathBuf> {
     std::mem::take(&mut *self.removes.lock().unwrap())
+  }
+
+  /// When `fail` is true, every subsequent `write` call returns a simulated I/O error instead of
+  /// succeeding, to test build-failure propagation for output write errors.
+  pub fn set_fail_writes(&self, fail: bool) {
+    self.fail_writes.store(fail, Ordering::SeqCst);
   }
 }
 
@@ -107,6 +121,12 @@ impl FileSystem for RecordingFileSystem {
   }
 
   fn write(&self, path: PathId, contents: &Vec<u8>) -> IoResult<()> {
+    if self.fail_writes.load(Ordering::SeqCst) {
+      return Err(std::io::Error::new(
+        std::io::ErrorKind::PermissionDenied,
+        "simulated write failure",
+      ));
+    }
     self.writes.lock().unwrap().push(path.to_path_buf());
     self.inner.write(path, contents)
   }
