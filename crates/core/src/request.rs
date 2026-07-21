@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-  AssetNodeIndex, AssetRequest, ParcelConfig, ParcelOptions,
+  AssetNodeIndex, AssetRequest, Diagnostic, Invalidations, ParcelConfig, ParcelOptions,
   transformer::{TransformRequest, TransformResult},
 };
 
@@ -54,9 +54,17 @@ impl TransformQueue {
 
   pub fn receive(&mut self) -> Option<RequestResult> {
     if self.pending_requests > 0 {
-      let result = self.result_receiver.recv().unwrap();
-      self.pending_requests -= 1;
-      Some(result)
+      match self.result_receiver.recv() {
+        Ok(result) => {
+          self.pending_requests -= 1;
+          Some(result)
+        }
+        Err(_) => {
+          // All workers gone; nothing more will arrive.
+          self.pending_requests = 0;
+          None
+        }
+      }
     } else {
       None
     }
@@ -83,7 +91,25 @@ fn spawn_workers(rx: mpsc::Receiver<Request>, tx: mpsc::Sender<RequestResult>) {
         };
 
         let result = match request {
-          Request::Transform(req) => RequestResult::Transform(req.run()),
+          Request::Transform(req) => {
+            let index = req.index;
+            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| req.run()));
+            match outcome {
+              Ok(r) => RequestResult::Transform(r),
+              Err(payload) => {
+                let msg = payload
+                  .downcast_ref::<&str>()
+                  .map(|s| s.to_string())
+                  .or_else(|| payload.downcast_ref::<String>().cloned())
+                  .unwrap_or_else(|| "transform panicked".to_string());
+                RequestResult::Transform(TransformResult {
+                  index,
+                  invalidations: Invalidations::default(),
+                  result: Err(Diagnostic::from_message(msg).into()),
+                })
+              }
+            }
+          }
         };
 
         let _ = tx.send(result);
