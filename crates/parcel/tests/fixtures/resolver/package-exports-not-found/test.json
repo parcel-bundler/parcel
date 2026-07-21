@@ -1,0 +1,14 @@
+{
+  "description": "should return a diagnostic (not panic) when a subpath is not exported by a package.json exports field",
+  "input": "index.js",
+  "diagnostics": [
+    {
+      "message": "Failed to resolve",
+      "origin": "@parcel/core"
+    },
+    {
+      "message": "does not export",
+      "origin": "@parcel/resolver-default"
+    }
+  ]
+}

@@ -7,7 +7,7 @@ use parcel_core::{
   Resolver, SourceLocation, SourceUrl, SpecifierType, Target,
 };
 use parcel_resolver::{
-  Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
+  PackageJsonError, Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
 };
 
 pub struct DefaultResolver;
@@ -308,10 +308,31 @@ impl Resolver for DefaultResolver {
             module,
             path,
             error,
-          } => match error {
-            // PackageJsonError::PackagePathNotExported => {}
-            _ => todo!(),
-          },
+          } => {
+            let message = match error {
+              PackageJsonError::PackagePathNotExported => {
+                format!("Module {:?} does not export {:?}", module, path)
+              }
+              PackageJsonError::ImportNotDefined => {
+                format!("Package import {:?} is not defined in {:?}", path, module)
+              }
+              PackageJsonError::InvalidPackageTarget => {
+                format!("Invalid package target in {:?} for {:?}", module, path)
+              }
+              PackageJsonError::InvalidSpecifier => {
+                format!("Invalid package specifier {:?} in {:?}", path, module)
+              }
+            };
+
+            Err(DiagnosticList(vec![Diagnostic {
+              message,
+              origin: Some("@parcel/resolver-default".into()),
+              code_frames: vec![],
+              hints: vec![],
+              severity: parcel_core::DiagnosticSeverity::Error,
+              documentation_url: None,
+            }]))
+          }
           ResolverError::IOError(e) => Err(DiagnosticList(vec![Diagnostic {
             message: e.0.to_string(),
             origin: Some("@parcel/resolver-default".into()),
