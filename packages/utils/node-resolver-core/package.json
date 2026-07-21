@@ -57,6 +57,9 @@
     "util": "^0.12.5",
     "vm-browserify": "^1.1.2"
   },
+  "peerDependencies": {
+    "@parcel/core": "^2.16.4"
+  },
   "browser": {
     "./src/builtins.js": "./src/builtins.browser.js"
   }
