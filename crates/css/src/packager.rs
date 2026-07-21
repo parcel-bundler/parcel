@@ -216,11 +216,9 @@ fn collect(
   if (!state.media.media_queries.is_empty() && !stylesheet.supports.is_none())
     || (!stylesheet.media.media_queries.is_empty() && !state.supports.is_none())
   {
-    // return Err(Error {
-    //   kind: BundleErrorKind::UnsupportedImportCondition,
-    //   loc: Some(ErrorLocation::new(rule.loc, self.find_filename(rule.loc.source_index))),
-    // });
-    todo!()
+    return Err(Diagnostic::from_message(
+      "Cannot combine a media query and a supports condition from different @import rules of the same file.".to_string(),
+    ).into());
   }
 
   if state.media.media_queries.is_empty() {
@@ -245,11 +243,12 @@ fn collect(
     if let Some(existing_layer) = &stylesheet.layer {
       // We can't OR layer names without duplicating all of the nested rules, so error for now.
       if layer != existing_layer || (layer.is_none() && existing_layer.is_none()) {
-        // return Err(Error {
-        //   kind: BundleErrorKind::UnsupportedLayerCombination,
-        //   loc: Some(ErrorLocation::new(rule.loc, self.find_filename(rule.loc.source_index))),
-        // });
-        todo!()
+        return Err(
+          Diagnostic::from_message(
+            "Cannot combine multiple @layer rules for the same imported file.".to_string(),
+          )
+          .into(),
+        );
       }
     } else {
       stylesheet.layer = state.layer.clone();
@@ -417,7 +416,12 @@ fn inline(
             if dep.bundle_behavior == BundleBehavior::Inline
               || referenced_bundle.bundle_behavior == BundleBehavior::Inline
             {
-              todo!()
+              return Err(
+                Diagnostic::from_message(
+                  "Inline bundles are not supported in @import.".to_string(),
+                )
+                .into(),
+              );
             } else {
               import.url = referenced_bundle.relative_url(&bundle).unwrap().into();
             }
@@ -425,7 +429,12 @@ fn inline(
           }
           _ => {
             if has_bundled_import {
-              // TODO: error - external imports must be before bundled ones
+              return Err(
+                Diagnostic::from_message(
+                  "External @import rules must appear before bundled @import rules.".to_string(),
+                )
+                .into(),
+              );
             }
             dest.push(std::mem::replace(rule, CssRule::Ignored));
           }
@@ -482,7 +491,7 @@ fn inline(
     references,
     get_inline_bundle_content,
   )?;
-  rules.visit(&mut replacer).unwrap();
+  rules.visit(&mut replacer)?;
 
   // Wrap rules in the appropriate @layer, @media, and @supports rules.
   let stylesheet = &mut stylesheets[stylesheet_index as usize];
@@ -574,7 +583,7 @@ impl ReferenceReplacer {
 }
 
 impl<'i> lightningcss::visitor::Visitor<'i> for ReferenceReplacer {
-  type Error = ();
+  type Error = Diagnostic;
 
   fn visit_types(&self) -> lightningcss::visitor::VisitTypes {
     lightningcss::visit_types!(RULES | URLS | DASHED_IDENTS)
@@ -735,7 +744,7 @@ impl StyleAttrContent {
       get_inline_bundle_content,
     )?;
     if !replacer.urls.is_empty() {
-      decls.visit(&mut replacer).unwrap();
+      decls.visit(&mut replacer)?;
     }
 
     let css = decls.to_css_string(Default::default()).unwrap();
