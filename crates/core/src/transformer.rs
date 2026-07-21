@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use crate::{
   Asset, AssetFlags, AssetNodeIndex, AssetRequest, AssetSymbols, AssetType, DependencyFlags,
-  DependencyResolution, DiagnosticList, FileSystem, Invalidations, ParcelOptions, PathId, Pipeline,
-  SourceUrl, TrackingFileSystem,
+  DependencyResolution, Diagnostic, DiagnosticList, FileSystem, Invalidations, ParcelOptions,
+  PathId, Pipeline, SourceUrl, TrackingFileSystem,
   config::{ParcelConfig, PipelineMap},
   resolver::resolve,
 };
@@ -42,9 +42,16 @@ impl TransformRequest {
     let mut invalidations = Invalidations::default();
 
     // Add the source file itself as an invalidation so changes to it trigger re-transformation.
-    invalidations
-      .invalidate_on_file_change
-      .push(self.req.loc.url.to_file_path().unwrap());
+    match self.req.loc.url.to_file_path() {
+      Ok(path) => invalidations.invalidate_on_file_change.push(path),
+      Err(diagnostic) => {
+        return TransformResult {
+          index,
+          invalidations,
+          result: Err(diagnostic.into()),
+        };
+      }
+    }
 
     let result = self.transform(&mut invalidations);
 
@@ -57,7 +64,7 @@ impl TransformRequest {
 
   fn transform(&self, invalidations: &mut Invalidations) -> Result<Asset, DiagnosticList> {
     let req = &self.req;
-    let relative_path = relative_path(&req.loc.url, &self.options.project_root, &req.ty);
+    let relative_path = relative_path(&req.loc.url, &self.options.project_root, &req.ty)?;
     let transformer_pipeline = self
       .config
       .transformers
@@ -135,7 +142,7 @@ pub fn transform(
     let ty: AssetType = input.ty.clone();
     let mut result = plugin.transform(input, options, fs)?;
     if result.ty != ty {
-      let next_path = relative_path(&result.loc.url, &options.project_root, &result.ty);
+      let next_path = relative_path(&result.loc.url, &options.project_root, &result.ty)?;
 
       let mut next_pipeline = transformers.get(&next_path, &result.pipeline, false);
       if result.pipeline.is_some() && next_pipeline.0.is_empty() {
@@ -154,11 +161,15 @@ pub fn transform(
   Ok(input)
 }
 
-fn relative_path<'a>(url: &'a SourceUrl, project_root: &PathId, ty: &AssetType) -> String {
-  let path = url.to_file_path().unwrap();
+fn relative_path(
+  url: &SourceUrl,
+  project_root: &PathId,
+  ty: &AssetType,
+) -> Result<String, Diagnostic> {
+  let path = url.to_file_path()?;
   let mut relative_path = path.relative(project_root);
   relative_path.set_extension(ty.extension());
-  relative_path.to_string_lossy().into_owned()
+  Ok(relative_path.to_string_lossy().into_owned())
 }
 
 // #[cfg(test)]
