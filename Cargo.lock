@@ -2992,6 +2992,7 @@ version = "0.1.0"
 dependencies = [
  "base64-url",
  "criterion",
+ "data-encoding",
  "fixedbitset",
  "glob-match",
  "indexmap 2.14.0",
