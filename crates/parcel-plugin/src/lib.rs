@@ -743,12 +743,33 @@ macro_rules! register_plugin {
       } else {
         unsafe { ::core::slice::from_raw_parts(config, config_len) }
       };
-      match <$type as $crate::Plugin>::new(config) {
-        Ok(plugin) => {
+      let __parcel_panic_message =
+        |payload: ::std::boxed::Box<dyn ::std::any::Any + Send>| -> String {
+          if let Some(s) = payload.downcast_ref::<&str>() {
+            (*s).to_string()
+          } else if let Some(s) = payload.downcast_ref::<String>() {
+            s.clone()
+          } else {
+            "unknown panic".to_string()
+          }
+        };
+      let result = ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {
+        <$type as $crate::Plugin>::new(config)
+      }));
+      match result {
+        Ok(Ok(plugin)) => {
           ::std::boxed::Box::into_raw(::std::boxed::Box::new(plugin)) as *mut ::core::ffi::c_void
         }
-        Err(e) => {
+        Ok(Err(e)) => {
           e.write_to_raw(raw_diagnostic);
+          ::core::ptr::null_mut()
+        }
+        Err(payload) => {
+          $crate::Diagnostic::new(format!(
+            "plugin panicked in init: {}",
+            __parcel_panic_message(payload)
+          ))
+          .write_to_raw(raw_diagnostic);
           ::core::ptr::null_mut()
         }
       }
@@ -771,8 +792,27 @@ macro_rules! register_plugin {
       let mut asset = unsafe { $crate::Asset::from_raw(raw_asset, raw_options) };
       let options = unsafe { $crate::Options::from_raw(raw_options) };
       let plugin = unsafe { &*(state as *const $type) };
-      if let Err(e) = $crate::Plugin::transform(plugin, &mut asset, &options) {
-        e.write_to_raw(raw_diagnostic);
+      let __parcel_panic_message =
+        |payload: ::std::boxed::Box<dyn ::std::any::Any + Send>| -> String {
+          if let Some(s) = payload.downcast_ref::<&str>() {
+            (*s).to_string()
+          } else if let Some(s) = payload.downcast_ref::<String>() {
+            s.clone()
+          } else {
+            "unknown panic".to_string()
+          }
+        };
+      let result = ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {
+        $crate::Plugin::transform(plugin, &mut asset, &options)
+      }));
+      match result {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => e.write_to_raw(raw_diagnostic),
+        Err(payload) => $crate::Diagnostic::new(format!(
+          "plugin panicked in transform: {}",
+          __parcel_panic_message(payload)
+        ))
+        .write_to_raw(raw_diagnostic),
       }
     }
 
@@ -802,10 +842,27 @@ macro_rules! register_plugin {
       let options = unsafe { $crate::Options::from_raw(raw_options) };
       let mut result = unsafe { $crate::ResolveResult::from_raw(raw_result) };
       let plugin = unsafe { &*(state as *const $type) };
-      if let Err(e) =
+      let __parcel_panic_message =
+        |payload: ::std::boxed::Box<dyn ::std::any::Any + Send>| -> String {
+          if let Some(s) = payload.downcast_ref::<&str>() {
+            (*s).to_string()
+          } else if let Some(s) = payload.downcast_ref::<String>() {
+            s.clone()
+          } else {
+            "unknown panic".to_string()
+          }
+        };
+      let result = ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {
         $crate::Plugin::resolve(plugin, &dep, specifier, pipeline, &options, &mut result)
-      {
-        e.write_to_raw(raw_diagnostic);
+      }));
+      match result {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => e.write_to_raw(raw_diagnostic),
+        Err(payload) => $crate::Diagnostic::new(format!(
+          "plugin panicked in resolve: {}",
+          __parcel_panic_message(payload)
+        ))
+        .write_to_raw(raw_diagnostic),
       }
     }
   };
