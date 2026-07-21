@@ -138,7 +138,7 @@ fn update_position(s: &str, line: &mut u32, column: &mut u32) {
       *line += 1;
       *column = 0;
     } else {
-      *column += segment.len() as u32;
+      *column += segment.chars().map(|c| c.len_utf16() as u32).sum::<u32>();
     }
   }
 }
@@ -168,4 +168,39 @@ impl SourceMapSection {
 struct SourceMapSectionOffset {
   line: u32,
   column: u32,
+}
+
+#[cfg(test)]
+mod tests {
+  use super::update_position;
+
+  fn col(s: &str) -> u32 {
+    let mut line = 0;
+    let mut column = 0;
+    update_position(s, &mut line, &mut column);
+    column
+  }
+
+  #[test]
+  fn ascii_column_is_length() {
+    assert_eq!(col("abc"), 3);
+  }
+
+  #[test]
+  fn bmp_nonascii_counts_one_utf16_unit() {
+    // 'é' is 2 UTF-8 bytes but 1 UTF-16 code unit.
+    assert_eq!(col("é"), 1);
+  }
+
+  #[test]
+  fn astral_counts_two_utf16_units() {
+    // '𝐀' (U+1D400) is 4 UTF-8 bytes but 2 UTF-16 code units.
+    assert_eq!(col("𝐀"), 2);
+  }
+
+  #[test]
+  fn newline_resets_column() {
+    // After a newline, column restarts; trailing 'é' adds 1.
+    assert_eq!(col("abc\né"), 1);
+  }
 }
