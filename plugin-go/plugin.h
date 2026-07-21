@@ -20,33 +20,6 @@ typedef uint8_t BundleBehavior;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
-enum AssetFlags
-#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
-  : uint32_t
-#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
- {
-  PARCEL_ASSET_IS_SOURCE = (1 << 0),
-  PARCEL_ASSET_SIDE_EFFECTS = (1 << 1),
-  PARCEL_ASSET_IS_BUNDLE_SPLITTABLE = (1 << 2),
-  PARCEL_ASSET_LARGE_BLOB = (1 << 3),
-  PARCEL_ASSET_HAS_CJS_EXPORTS = (1 << 4),
-  PARCEL_ASSET_STATIC_EXPORTS = (1 << 5),
-  PARCEL_ASSET_SHOULD_WRAP = (1 << 6),
-  PARCEL_ASSET_IS_CONSTANT_MODULE = (1 << 7),
-  PARCEL_ASSET_HAS_NODE_REPLACEMENTS = (1 << 8),
-  PARCEL_ASSET_HAS_SYMBOLS = (1 << 9),
-  PARCEL_ASSET_IS_HTML_ATTR = (1 << 10),
-  PARCEL_ASSET_IS_HTML_TAG = (1 << 11),
-  PARCEL_ASSET_IS_ESM = (1 << 12),
-};
-#ifndef __cplusplus
-#if __STDC_VERSION__ >= 202311L
-typedef enum AssetFlags AssetFlags;
-#else
-typedef uint32_t AssetFlags;
-#endif // __STDC_VERSION__ >= 202311L
-#endif // __cplusplus
-
 enum Environment
 #if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
   : uint8_t
@@ -103,24 +76,6 @@ typedef uint8_t SourceType;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
-enum EnvironmentFlags
-#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
-  : uint8_t
-#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
- {
-  PARCEL_ENV_FLAG_IS_LIBRARY = (1 << 0),
-  PARCEL_ENV_FLAG_SHOULD_OPTIMIZE = (1 << 1),
-  PARCEL_ENV_FLAG_SHOULD_SCOPE_HOIST = (1 << 2),
-  PARCEL_ENV_FLAG_MODULE_TYPE_EXTENSION = (1 << 3),
-};
-#ifndef __cplusplus
-#if __STDC_VERSION__ >= 202311L
-typedef enum EnvironmentFlags EnvironmentFlags;
-#else
-typedef uint8_t EnvironmentFlags;
-#endif // __STDC_VERSION__ >= 202311L
-#endif // __cplusplus
-
 enum SpecifierType
 #if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
   : uint8_t
@@ -153,26 +108,6 @@ enum Priority
 typedef enum Priority Priority;
 #else
 typedef uint8_t Priority;
-#endif // __STDC_VERSION__ >= 202311L
-#endif // __cplusplus
-
-enum DependencyFlags
-#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
-  : uint8_t
-#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
- {
-  PARCEL_DEP_ENTRY = (1 << 0),
-  PARCEL_DEP_OPTIONAL = (1 << 1),
-  PARCEL_DEP_NEEDS_STABLE_NAME = (1 << 2),
-  PARCEL_DEP_IS_WEBWORKER = (1 << 3),
-  PARCEL_DEP_SIDE_EFFECTS = (1 << 4),
-  PARCEL_DEP_MACRO = (1 << 5),
-};
-#ifndef __cplusplus
-#if __STDC_VERSION__ >= 202311L
-typedef enum DependencyFlags DependencyFlags;
-#else
-typedef uint8_t DependencyFlags;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
@@ -209,6 +144,71 @@ enum ResolutionType
 typedef enum ResolutionType ResolutionType;
 #else
 typedef uint8_t ResolutionType;
+#endif // __STDC_VERSION__ >= 202311L
+#endif // __cplusplus
+
+enum DependencyFlags
+#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+  : uint8_t
+#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+ {
+  PARCEL_DEP_ENTRY = (1 << 0),
+  PARCEL_DEP_OPTIONAL = (1 << 1),
+  PARCEL_DEP_NEEDS_STABLE_NAME = (1 << 2),
+  PARCEL_DEP_IS_WEBWORKER = (1 << 3),
+  PARCEL_DEP_SIDE_EFFECTS = (1 << 4),
+  PARCEL_DEP_MACRO = (1 << 5),
+};
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef enum DependencyFlags DependencyFlags;
+#else
+typedef uint8_t DependencyFlags;
+#endif // __STDC_VERSION__ >= 202311L
+#endif // __cplusplus
+
+enum AssetFlags
+#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+  : uint32_t
+#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+ {
+  PARCEL_ASSET_IS_SOURCE = (1 << 0),
+  PARCEL_ASSET_SIDE_EFFECTS = (1 << 1),
+  PARCEL_ASSET_IS_BUNDLE_SPLITTABLE = (1 << 2),
+  PARCEL_ASSET_LARGE_BLOB = (1 << 3),
+  PARCEL_ASSET_HAS_CJS_EXPORTS = (1 << 4),
+  PARCEL_ASSET_STATIC_EXPORTS = (1 << 5),
+  PARCEL_ASSET_SHOULD_WRAP = (1 << 6),
+  PARCEL_ASSET_IS_CONSTANT_MODULE = (1 << 7),
+  PARCEL_ASSET_HAS_NODE_REPLACEMENTS = (1 << 8),
+  PARCEL_ASSET_HAS_SYMBOLS = (1 << 9),
+  PARCEL_ASSET_IS_HTML_ATTR = (1 << 10),
+  PARCEL_ASSET_IS_HTML_TAG = (1 << 11),
+  PARCEL_ASSET_IS_ESM = (1 << 12),
+};
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef enum AssetFlags AssetFlags;
+#else
+typedef uint32_t AssetFlags;
+#endif // __STDC_VERSION__ >= 202311L
+#endif // __cplusplus
+
+enum EnvironmentFlags
+#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+  : uint8_t
+#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+ {
+  PARCEL_ENV_FLAG_IS_LIBRARY = (1 << 0),
+  PARCEL_ENV_FLAG_SHOULD_OPTIMIZE = (1 << 1),
+  PARCEL_ENV_FLAG_SHOULD_SCOPE_HOIST = (1 << 2),
+  PARCEL_ENV_FLAG_MODULE_TYPE_EXTENSION = (1 << 3),
+};
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef enum EnvironmentFlags EnvironmentFlags;
+#else
+typedef uint8_t EnvironmentFlags;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 

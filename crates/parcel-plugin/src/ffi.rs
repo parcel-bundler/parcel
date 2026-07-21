@@ -7,6 +7,110 @@ pub enum BundleBehavior {
   Inline = 1,
   Isolated = 2,
 }
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum Environment {
+  Browser = 0,
+  WebWorker = 1,
+  ServiceWorker = 2,
+  Worklet = 3,
+  Node = 4,
+  ElectronMain = 5,
+  ElectronRenderer = 6,
+  ReactClient = 7,
+  ReactServer = 8,
+}
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum OutputFormat {
+  Global = 0,
+  Commonjs = 1,
+  Esmodule = 2,
+}
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum SourceType {
+  Module = 0,
+  Script = 1,
+}
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum SpecifierType {
+  Esm = 0,
+  Commonjs = 1,
+  Url = 2,
+  Custom = 3,
+}
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum Priority {
+  Sync = 0,
+  Parallel = 1,
+  Lazy = 2,
+}
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum DiagnosticSeverity {
+  Error = 0,
+  Warning = 1,
+  SourceError = 2,
+  Info = 3,
+}
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum ResolutionType {
+  None = 0,
+  FilePath = 1,
+  External = 2,
+  Excluded = 3,
+}
+impl DependencyFlags {
+  pub const ENTRY: DependencyFlags = DependencyFlags(1);
+}
+impl DependencyFlags {
+  pub const OPTIONAL: DependencyFlags = DependencyFlags(2);
+}
+impl DependencyFlags {
+  pub const NEEDS_STABLE_NAME: DependencyFlags = DependencyFlags(4);
+}
+impl DependencyFlags {
+  pub const IS_WEBWORKER: DependencyFlags = DependencyFlags(8);
+}
+impl DependencyFlags {
+  pub const SIDE_EFFECTS: DependencyFlags = DependencyFlags(16);
+}
+impl DependencyFlags {
+  pub const MACRO: DependencyFlags = DependencyFlags(32);
+}
+impl ::std::ops::BitOr<DependencyFlags> for DependencyFlags {
+  type Output = Self;
+  #[inline]
+  fn bitor(self, other: Self) -> Self {
+    DependencyFlags(self.0 | other.0)
+  }
+}
+impl ::std::ops::BitOrAssign for DependencyFlags {
+  #[inline]
+  fn bitor_assign(&mut self, rhs: DependencyFlags) {
+    self.0 |= rhs.0;
+  }
+}
+impl ::std::ops::BitAnd<DependencyFlags> for DependencyFlags {
+  type Output = Self;
+  #[inline]
+  fn bitand(self, other: Self) -> Self {
+    DependencyFlags(self.0 & other.0)
+  }
+}
+impl ::std::ops::BitAndAssign for DependencyFlags {
+  #[inline]
+  fn bitand_assign(&mut self, rhs: DependencyFlags) {
+    self.0 &= rhs.0;
+  }
+}
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct DependencyFlags(pub u8);
 impl AssetFlags {
   pub const IS_SOURCE: AssetFlags = AssetFlags(1);
 }
@@ -75,32 +179,6 @@ impl ::std::ops::BitAndAssign for AssetFlags {
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct AssetFlags(pub u32);
-#[repr(u8)]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum Environment {
-  Browser = 0,
-  WebWorker = 1,
-  ServiceWorker = 2,
-  Worklet = 3,
-  Node = 4,
-  ElectronMain = 5,
-  ElectronRenderer = 6,
-  ReactClient = 7,
-  ReactServer = 8,
-}
-#[repr(u8)]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum OutputFormat {
-  Global = 0,
-  Commonjs = 1,
-  Esmodule = 2,
-}
-#[repr(u8)]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum SourceType {
-  Module = 0,
-  Script = 1,
-}
 impl EnvironmentFlags {
   pub const IS_LIBRARY: EnvironmentFlags = EnvironmentFlags(1);
 }
@@ -142,84 +220,6 @@ impl ::std::ops::BitAndAssign for EnvironmentFlags {
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct EnvironmentFlags(pub u8);
-#[repr(u8)]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum SpecifierType {
-  Esm = 0,
-  Commonjs = 1,
-  Url = 2,
-  Custom = 3,
-}
-#[repr(u8)]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum Priority {
-  Sync = 0,
-  Parallel = 1,
-  Lazy = 2,
-}
-impl DependencyFlags {
-  pub const ENTRY: DependencyFlags = DependencyFlags(1);
-}
-impl DependencyFlags {
-  pub const OPTIONAL: DependencyFlags = DependencyFlags(2);
-}
-impl DependencyFlags {
-  pub const NEEDS_STABLE_NAME: DependencyFlags = DependencyFlags(4);
-}
-impl DependencyFlags {
-  pub const IS_WEBWORKER: DependencyFlags = DependencyFlags(8);
-}
-impl DependencyFlags {
-  pub const SIDE_EFFECTS: DependencyFlags = DependencyFlags(16);
-}
-impl DependencyFlags {
-  pub const MACRO: DependencyFlags = DependencyFlags(32);
-}
-impl ::std::ops::BitOr<DependencyFlags> for DependencyFlags {
-  type Output = Self;
-  #[inline]
-  fn bitor(self, other: Self) -> Self {
-    DependencyFlags(self.0 | other.0)
-  }
-}
-impl ::std::ops::BitOrAssign for DependencyFlags {
-  #[inline]
-  fn bitor_assign(&mut self, rhs: DependencyFlags) {
-    self.0 |= rhs.0;
-  }
-}
-impl ::std::ops::BitAnd<DependencyFlags> for DependencyFlags {
-  type Output = Self;
-  #[inline]
-  fn bitand(self, other: Self) -> Self {
-    DependencyFlags(self.0 & other.0)
-  }
-}
-impl ::std::ops::BitAndAssign for DependencyFlags {
-  #[inline]
-  fn bitand_assign(&mut self, rhs: DependencyFlags) {
-    self.0 &= rhs.0;
-  }
-}
-#[repr(transparent)]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub struct DependencyFlags(pub u8);
-#[repr(u8)]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum DiagnosticSeverity {
-  Error = 0,
-  Warning = 1,
-  SourceError = 2,
-  Info = 3,
-}
-#[repr(u8)]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum ResolutionType {
-  None = 0,
-  FilePath = 1,
-  External = 2,
-  Excluded = 3,
-}
 #[doc = " Owned byte buffer returned by getter functions.\n Release with `parcel_free_buffer()` when done.\n Zero-initialise before use so a no-op getter leaves `data == NULL`."]
 #[repr(C)]
 #[derive(Debug)]

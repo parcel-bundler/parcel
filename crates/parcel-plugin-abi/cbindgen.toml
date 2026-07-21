@@ -5,5 +5,10 @@ no_includes = true
 sys_includes = ["stdint.h"]
 
 [export]
-include = ["Diagnostic", "ResolveResult", "DependencyFlags"]
-exclude = ["CPlugin"]
+include = ["Diagnostic", "ResolveResult", "DependencyFlags", "AssetFlags", "EnvironmentFlags"]
+exclude = ["CPlugin", "AssetFlagsFFI", "DependencyFlagsFFI", "EnvironmentFlagsFFI"]
+
+[export.rename]
+"AssetFlagsFFI" = "AssetFlags"
+"DependencyFlagsFFI" = "DependencyFlags"
+"EnvironmentFlagsFFI" = "EnvironmentFlags"

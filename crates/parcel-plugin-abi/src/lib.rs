@@ -73,6 +73,8 @@ pub enum DependencyFlags {
   PARCEL_DEP_MACRO = 1 << 5,
 }
 
+pub type DependencyFlagsFFI = u8;
+
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, Hash)]
 pub enum AssetFlags {
@@ -90,6 +92,8 @@ pub enum AssetFlags {
   PARCEL_ASSET_IS_HTML_TAG = 1 << 11,
   PARCEL_ASSET_IS_ESM = 1 << 12,
 }
+
+pub type AssetFlagsFFI = u32;
 
 // Environment (target, read-only)
 #[repr(u8)]
@@ -132,6 +136,8 @@ pub enum EnvironmentFlags {
   PARCEL_ENV_FLAG_SHOULD_SCOPE_HOIST = 1 << 2,
   PARCEL_ENV_FLAG_MODULE_TYPE_EXTENSION = 1 << 3,
 }
+
+pub type EnvironmentFlagsFFI = u8;
 
 // DiagnosticSeverity — CDiagnostic.severity field
 #[repr(u8)]
@@ -268,7 +274,7 @@ pub struct DependencyOptions {
   /// `PARCEL_BUNDLE_BEHAVIOR_*`
   pub bundle_behavior: BundleBehavior,
   /// `PARCEL_DEP_*` bits
-  pub flags: DependencyFlags,
+  pub flags: DependencyFlagsFFI,
 }
 
 /// Result filled by a resolver plugin's `parcel_plugin_resolve()`.
@@ -464,16 +470,16 @@ pub extern "C" fn parcel_asset_set_bundle_behavior(asset: Asset, behavior: Bundl
 
 /// Returns the raw `AssetFlags` bitfield (`PARCEL_ASSET_*` bits).
 #[unsafe(no_mangle)]
-pub extern "C" fn parcel_asset_get_flags(asset: Asset) -> AssetFlags {
+pub extern "C" fn parcel_asset_get_flags(asset: Asset) -> AssetFlagsFFI {
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
-  unsafe { std::mem::transmute(asset.flags.bits()) }
+  asset.flags.bits()
 }
 
 /// Replaces the `AssetFlags` bitfield.
 #[unsafe(no_mangle)]
-pub extern "C" fn parcel_asset_set_flags(asset: Asset, flags: AssetFlags) {
+pub extern "C" fn parcel_asset_set_flags(asset: Asset, flags: AssetFlagsFFI) {
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
-  asset.flags = CoreAssetFlags::from_bits_truncate(flags as u32);
+  asset.flags = CoreAssetFlags::from_bits_truncate(flags);
 }
 
 // ── UniqueKey ─────────────────────────────────────────────────────────────────
@@ -556,9 +562,9 @@ pub extern "C" fn parcel_target_get_source_type(target: Target) -> SourceType {
 
 /// Returns the `EnvironmentFlags` bitfield (`PARCEL_ENV_FLAG_*` bits).
 #[unsafe(no_mangle)]
-pub extern "C" fn parcel_target_get_env_flags(target: Target) -> EnvironmentFlags {
+pub extern "C" fn parcel_target_get_env_flags(target: Target) -> EnvironmentFlagsFFI {
   let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };
-  unsafe { std::mem::transmute(target.flags.bits()) }
+  target.flags.bits()
 }
 
 /// Returns the public URL (e.g. `"/"`) into `*buf`. Caller must `parcel_free_buffer(buf)`.
@@ -625,7 +631,7 @@ pub extern "C" fn parcel_asset_add_dependency(asset: Asset, dep: *const Dependen
     BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_INLINE => CoreBundleBehavior::Inline,
     BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_ISOLATED => CoreBundleBehavior::Isolated,
   };
-  let flags = CoreDependencyFlags::from_bits_truncate(dep.flags as u8);
+  let flags = CoreDependencyFlags::from_bits_truncate(dep.flags);
 
   asset.dependencies.push(CoreDependency {
     specifier,
@@ -707,9 +713,9 @@ pub extern "C" fn parcel_dep_get_bundle_behavior(dep: Dependency) -> BundleBehav
 
 /// Returns the raw `DependencyFlags` bitfield (`PARCEL_DEP_*` bits).
 #[unsafe(no_mangle)]
-pub extern "C" fn parcel_dep_get_flags(dep: Dependency) -> DependencyFlags {
+pub extern "C" fn parcel_dep_get_flags(dep: Dependency) -> DependencyFlagsFFI {
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
-  unsafe { std::mem::transmute(dep.flags.bits()) }
+  dep.flags.bits()
 }
 
 /// Returns the absolute path of the file containing this import into `*buf`.
