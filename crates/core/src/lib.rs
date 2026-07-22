@@ -378,7 +378,10 @@ pub fn get_bundle_content(
   bundle: &Bundle,
   options: &ParcelOptions,
 ) -> Result<Arc<dyn Content>, DiagnosticList> {
-  let first_content = &bundle_graph.asset_graph.asset(bundle.assets[0]).content;
+  let first_asset = *bundle.assets.first().ok_or_else(|| {
+    Diagnostic::from_message("Cannot package a bundle with no assets".to_string())
+  })?;
+  let first_content = &bundle_graph.asset_graph.asset(first_asset).content;
   let get_inline_bundle_content = |bundle_index| {
     get_bundle_content(
       config,

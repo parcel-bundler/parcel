@@ -212,7 +212,7 @@ impl EntryResolver {
 
           if let Some(child) = context.child(&json, field) {
             let source_path = dir.join(Path::new(source));
-            let (dist_dir, dist_entry) = dist_dir_entry(dir, main, source_path);
+            let (dist_dir, dist_entry) = dist_dir_entry(dir, main, source_path)?;
             let mut env = child.to_env(&json, dist_dir, dist_entry, options)?;
             if *cond == ExportsCondition::MODULE {
               env.output_format = OutputFormat::Esmodule;
@@ -343,7 +343,7 @@ impl EntryResolver {
             value.clone()
           };
 
-          let (dist_dir, dist_entry) = dist_dir_entry(dir, &dist_entry, source);
+          let (dist_dir, dist_entry) = dist_dir_entry(dir, &dist_entry, source)?;
           let env = self.target(context.to_env(pkg, dist_dir, dist_entry, options)?);
 
           self.add_entry(Entry {
@@ -361,12 +361,24 @@ impl EntryResolver {
   }
 }
 
-fn dist_dir_entry(dir: PathId, dist_entry: &str, source: PathId) -> (PathId, PathId) {
+fn dist_dir_entry(
+  dir: PathId,
+  dist_entry: &str,
+  source: PathId,
+) -> Result<(PathId, PathId), Diagnostic> {
   let dist_entry_path = Path::new(&dist_entry);
   let dist_entry = dir.join(dist_entry_path);
   let mut dist_dir = dir.to_path_buf();
   let source = source.to_path_buf();
-  let mut source_components = source.strip_prefix(&dist_dir).unwrap().components();
+  let mut source_components = match source.strip_prefix(&dist_dir) {
+    Ok(stripped) => stripped.components(),
+    Err(_) => {
+      return Err(Diagnostic::from_message(format!(
+        "package.json \"source\" {:?} must be inside the package directory {:?}",
+        source, dist_dir
+      )));
+    }
+  };
   let mut dist_components = dist_entry_path.components();
   let mut source = source_components.next();
   let mut dist = dist_components.next();
@@ -400,7 +412,7 @@ fn dist_dir_entry(dir: PathId, dist_entry: &str, source: PathId) -> (PathId, Pat
   }
 
   let dist_dir = PathId::new(&dist_dir);
-  (dist_dir, dist_entry)
+  Ok((dist_dir, dist_entry))
 }
 
 struct ExportsContext<'a> {
@@ -1244,6 +1256,44 @@ mod tests {
     }"#,
       vec![],
     );
+  }
+
+  #[test]
+  fn test_resolve_package_entries_source_outside_package_dir() {
+    // A `"source"` field that resolves outside the package directory (e.g. `"../foo.tsx"`)
+    // must produce a diagnostic instead of panicking in `dist_dir_entry`'s `strip_prefix`.
+    let fs = MemoryFileSystem::new();
+    fs.mkdir(Path::new("/root")).unwrap();
+    fs.write(
+      PathId::new(Path::new("/root/package.json")),
+      &br#"
+    {
+      "source": "../outside.tsx",
+      "main": "./dist.js"
+    }"#
+        .to_vec(),
+    )
+    .unwrap();
+    fs.write(PathId::new(Path::new("/outside.tsx")), &Vec::new())
+      .unwrap();
+    let fs = Arc::new(fs);
+    let result = resolve_entries(
+      &vec!["/root".into()],
+      &crate::BuildOptions {
+        input_fs: fs.clone(),
+        output_fs: fs,
+        env: HashMap::new(),
+        log_level: crate::LogLevel::Error,
+        mode: crate::BuildMode::Development,
+        optimize: None,
+        config: None,
+        cwd: PathId::new(&std::env::current_dir().unwrap()),
+        source_map: Some(Default::default()),
+        dist_dir: None,
+        public_url: Default::default(),
+      },
+    );
+    assert!(result.is_err());
   }
 
   #[test]
