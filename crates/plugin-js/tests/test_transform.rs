@@ -126,6 +126,33 @@ fn test_transform_esm() {
 }
 
 #[test]
+fn test_transform_get_code_binary_content() {
+  // Binary (non-UTF-8) asset content should be returned as a lossy string
+  // (replacement characters for invalid sequences) rather than panicking.
+  let mut input = test_asset();
+  input.content = Arc::new(BufferContent::new(vec![0x68, 0x69, 0xff, 0xfe, 0x21]));
+  let result = run(
+    "plugin-binary.mjs",
+    r#"
+  import {Transformer} from '@parcel/plugin';
+  import assert from 'assert';
+
+  export default new Transformer({
+    transform({asset}) {
+      let code = asset.getCode();
+      assert.equal(code, 'hi��!');
+      asset.setCode('ok');
+    }
+  });
+  "#,
+    input,
+  )
+  .unwrap();
+
+  assert_eq!(result.content.read().unwrap(), b"ok");
+}
+
+#[test]
 fn test_transform_cjs() {
   let input = test_asset();
   let result = run(

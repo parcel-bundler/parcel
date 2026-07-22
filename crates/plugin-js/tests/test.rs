@@ -239,6 +239,36 @@ fn test_fs_readdir_callback() {
 }
 
 #[test]
+fn test_fs_async_missing_callback_throws() {
+  // Calling the async fs functions without a callback (and without an
+  // intermediate options/encoding argument) used to index an empty `Rest`
+  // vec and panic. It should throw a normal JS exception instead.
+  run(
+    r#"
+    import fs from 'fs';
+    import assert from 'assert';
+    assert.throws(() => fs.readFile('/_parcel_test/test.txt'), /Required callback not provided/);
+    assert.throws(() => fs.realpath('/_parcel_test/test.txt'), /Required callback not provided/);
+    assert.throws(() => fs.readlink('/_parcel_test/test.txt'), /Required callback not provided/);
+    assert.throws(() => fs.readdir('/_parcel_test'), /Required callback not provided/);
+  "#,
+  );
+}
+
+#[test]
+fn test_text_decoder_invalid_utf8() {
+  run(
+    r#"
+    import assert from 'assert';
+    const decoder = new TextDecoder();
+    const bytes = new Uint8Array([0x68, 0x69, 0xff, 0xfe, 0x21]); // "hi" + invalid bytes + "!"
+    const result = decoder.decode(bytes);
+    assert.equal(result, 'hi��!');
+  "#,
+  );
+}
+
+#[test]
 fn test_url_path() {
   run(
     r#"

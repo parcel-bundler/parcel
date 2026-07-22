@@ -232,7 +232,7 @@ impl Fs {
         rest.0[1].as_function(),
       )
     } else {
-      (None, rest.0[0].as_function())
+      (None, rest.0.first().and_then(|v| v.as_function()))
     };
     let Some(callback) = callback else {
       return Err(rquickjs::Exception::throw_message(
@@ -271,7 +271,7 @@ impl Fs {
     let (_encoding, callback) = if rest.0.len() >= 2 {
       (rest.0[0].as_string(), rest.0[1].as_function())
     } else {
-      (None, rest.0[0].as_function())
+      (None, rest.0.first().and_then(|v| v.as_function()))
     };
 
     let Some(callback) = callback else {
@@ -296,7 +296,7 @@ impl Fs {
     let (_encoding, callback) = if rest.0.len() >= 2 {
       (rest.0[0].as_string(), rest.0[1].as_function())
     } else {
-      (None, rest.0[0].as_function())
+      (None, rest.0.first().and_then(|v| v.as_function()))
     };
 
     let Some(callback) = callback else {
@@ -332,7 +332,7 @@ impl Fs {
     let (options, callback) = if rest.0.len() >= 2 {
       (Some(&rest.0[0]), rest.0[1].as_function())
     } else {
-      (None, rest.0[0].as_function())
+      (None, rest.0.first().and_then(|v| v.as_function()))
     };
     let Some(callback) = callback else {
       return Err(rquickjs::Exception::throw_message(

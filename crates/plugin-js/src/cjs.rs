@@ -181,14 +181,23 @@ impl CjsLoader {
         Ok(module.into_value())
       }
       Ok(ModuleType::CommonJs) => {
-        let source = self.fs.read_to_string(pathid).unwrap();
+        let source = self
+          .fs
+          .read_to_string(pathid)
+          .map_err(|e| rquickjs::Error::Loading {
+            name: resolved.into(),
+            message: Some(e.to_string()),
+          })?;
         self.load_cjs(ctx, resolved, Cow::Owned(source), cache)
       }
       Ok(ModuleType::Json) => {
         let module = Object::new(ctx.clone())?;
         cache.set(resolved, module.clone())?;
 
-        let source = self.fs.read(pathid).unwrap();
+        let source = self.fs.read(pathid).map_err(|e| rquickjs::Error::Loading {
+          name: resolved.into(),
+          message: Some(e.to_string()),
+        })?;
         module.set("exports", ctx.json_parse(source)?)?;
 
         let exports: Value = module.get("exports")?;

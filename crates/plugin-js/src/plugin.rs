@@ -642,19 +642,35 @@ impl JsAsset {
   }
 
   fn get_buffer<'js>(&self, ctx: Ctx<'js>) -> rquickjs::Result<TypedArray<'js, u8>> {
-    let src = self.with_asset(|asset| asset.content.read().unwrap())?;
+    let src = self
+      .with_asset(|asset| asset.content.read())?
+      .map_err(|e| {
+        rquickjs::Error::new_from_js_message("content", "readable content", e.to_string())
+      })?;
     TypedArray::new(ctx, src)
   }
 
   fn get_code(&self) -> rquickjs::Result<String> {
-    let src = self.with_asset(|asset| asset.content.read().unwrap())?;
-    Ok(String::from_utf8(src).unwrap())
+    let src = self
+      .with_asset(|asset| asset.content.read())?
+      .map_err(|e| {
+        rquickjs::Error::new_from_js_message("content", "readable content", e.to_string())
+      })?;
+    Ok(String::from_utf8_lossy(&src).into_owned())
   }
 
   fn set_buffer<'js>(&mut self, buf: TypedArray<'js, u8>) -> rquickjs::Result<()> {
-    self.with_asset_mut(|asset| {
-      asset.content = Arc::new(BufferContent::new(buf.as_bytes().unwrap().to_owned()))
-    })
+    let bytes = buf
+      .as_bytes()
+      .ok_or_else(|| {
+        rquickjs::Error::new_from_js_message(
+          "buffer",
+          "Uint8Array",
+          "Invalid or detached Uint8Array",
+        )
+      })?
+      .to_owned();
+    self.with_asset_mut(|asset| asset.content = Arc::new(BufferContent::new(bytes)))
   }
 
   fn set_code(&mut self, value: String) -> rquickjs::Result<()> {

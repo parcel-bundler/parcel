@@ -67,7 +67,7 @@ impl<'js> TextDecoder {
       };
 
       // TODO: other encodings
-      Ok(String::from_utf8(bytes[start_pos..].to_vec()).unwrap())
+      Ok(String::from_utf8_lossy(&bytes[start_pos..]).into_owned())
     } else {
       Err(rquickjs::Exception::throw_type(&ctx, "Invalid bytes"))
     }
