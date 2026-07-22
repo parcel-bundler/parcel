@@ -32,6 +32,16 @@ impl Namer for DefaultNamer {
       }
     }
 
+    // Group server and client bundles into separate folders.
+    // This allows users to easily upload to different places, and avoid exposing
+    // server code on public servers.
+    // If bundleExtension is set, assume everything is static (rendering at build time).
+    let prefix = match bundle.target.environment {
+      Environment::ReactServer => bundle.target.dist_dir.child("server"),
+      Environment::ReactClient => bundle.target.dist_dir.child("client"),
+      _ => bundle.target.dist_dir,
+    };
+
     if let Some(entry) = bundle.main_entry_asset {
       let asset = &bundle_graph.asset_graph.asset(entry);
       if bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
@@ -39,6 +49,7 @@ impl Namer for DefaultNamer {
           relative_path(asset, &bundle.target.dist_dir.parent().unwrap())?.with_extension("");
         let name = relative.to_str().unwrap();
         return Ok(Some(format_name(
+          prefix,
           &bundle_graph.asset_graph,
           bundle,
           name,
@@ -70,6 +81,7 @@ impl Namer for DefaultNamer {
             let relative = relative_path(asset, &entry_root)?.with_extension("");
             let name = relative.to_str().unwrap();
             return Ok(Some(format_name(
+              prefix,
               &bundle_graph.asset_graph,
               bundle,
               name,
@@ -82,6 +94,7 @@ impl Namer for DefaultNamer {
         let file_path = asset.loc.url.to_file_path()?;
         let name = file_path.file_prefix().unwrap();
         return Ok(Some(format_name(
+          prefix,
           &bundle_graph.asset_graph,
           bundle,
           name,
@@ -90,16 +103,6 @@ impl Namer for DefaultNamer {
         )));
       }
     }
-
-    // Group server and client bundles into separate folders.
-    // This allows users to easily upload to different places, and avoid exposing
-    // server code on public servers.
-    // If bundleExtension is set, assume everything is static (rendering at build time).
-    let prefix = match bundle.target.environment {
-      Environment::ReactServer => bundle.target.dist_dir.child("server"),
-      Environment::ReactClient => bundle.target.dist_dir.child("client"),
-      _ => bundle.target.dist_dir,
-    };
 
     Ok(Some(prefix.child(&format!(
       "{:016x}.{}",
@@ -137,6 +140,7 @@ fn relative_path(asset: &Asset, from: &PathId) -> Result<PathBuf, Diagnostic> {
 /// Formats the final bundle name and joins it onto the target's dist dir. `name` may contain
 /// subdirectories (from relative entry paths), so it is joined as a path, not a single segment.
 fn format_name(
+  prefix: PathId,
   asset_graph: &AssetGraph,
   bundle: &Bundle,
   name: &str,
@@ -153,7 +157,7 @@ fn format_name(
       ext
     )
   };
-  bundle.target.dist_dir.join(Path::new(&name))
+  prefix.join(Path::new(&name))
 }
 
 fn common_root_path(paths: impl IntoIterator<Item = PathId>) -> Option<PathId> {
