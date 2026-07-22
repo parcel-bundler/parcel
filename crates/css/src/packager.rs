@@ -294,7 +294,13 @@ fn collect(
               || (import.layer == Some(None) && state.layer.is_some())
             {
               // Cannot combine anonymous layers
-              unreachable!();
+              return Err(
+                Diagnostic::from_message(
+                  "Cannot combine an anonymous @layer with another layer during CSS bundling."
+                    .to_string(),
+                )
+                .into(),
+              );
             } else if let Some(Some(a)) = &state.layer {
               if let Some(Some(b)) = &import.layer {
                 let mut name = a.clone();
@@ -308,7 +314,14 @@ fn collect(
             };
 
             let mut media = state.media.clone();
-            media.and(&import.media).unwrap();
+            if media.and(&import.media).is_err() {
+              return Err(
+                Diagnostic::from_message(
+                  "Cannot combine incompatible media queries across @import".to_string(),
+                )
+                .into(),
+              );
+            }
 
             collect(
               bundle_graph,

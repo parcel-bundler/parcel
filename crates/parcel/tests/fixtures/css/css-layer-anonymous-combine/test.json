@@ -1,0 +1,12 @@
+{
+  "description": "should return a diagnostic instead of panicking when an anonymous @layer is combined with another layer during CSS bundling",
+  "input": "a.css",
+  "options": {
+    "mode": "production"
+  },
+  "diagnostics": [
+    {
+      "message": "Cannot combine an anonymous @layer with another layer during CSS bundling."
+    }
+  ]
+}
