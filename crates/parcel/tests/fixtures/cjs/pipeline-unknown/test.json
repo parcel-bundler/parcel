@@ -6,7 +6,7 @@
       "message": "Failed to resolve 'strange-pipeline:./b.js'"
     },
     {
-      "message": "Unknown url scheme or pipeline \"strange-pipeline\""
+      "message": "Unknown url scheme or pipeline 'strange-pipeline:'"
     }
   ]
 }

@@ -7,7 +7,7 @@
       {"assets": ["img.svg"]},
       {"assets": ["text.css"]}
     ],
-    "output": "body {\n  background-color: #000;\n}\n\n.svg-img {\n  background-image: url(\"data:image/svg+xml;base64,PHN2Zz4KCjwvc3ZnPg\");\n}\n"
+    "output": "body {\n  background-color: #000;\n}\n\n.svg-img {\n  background-image: url(\"data:image/svg+xml;base64,PHN2Zz4KCjwvc3ZnPg==\");\n}\n"
   },
   {
     "description": "should inline an HTML bundle's compiled text with `bundle-text`",
@@ -22,6 +22,6 @@
   {
     "description": "should inline a bundle's compiled text with `bundle-text` asynchronously",
     "input": "async.js",
-    "output": "body {\n  background-color: #000;\n}\n\n.svg-img {\n  background-image: url(\"data:image/svg+xml;base64,PHN2Zz4KCjwvc3ZnPg\");\n}\n"
+    "output": "body {\n  background-color: #000;\n}\n\n.svg-img {\n  background-image: url(\"data:image/svg+xml;base64,PHN2Zz4KCjwvc3ZnPg==\");\n}\n"
   }
 ]

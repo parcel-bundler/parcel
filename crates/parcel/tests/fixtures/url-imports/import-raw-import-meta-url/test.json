@@ -27,7 +27,7 @@
     "input": "missing.js",
     "diagnostics": [
       {"message": "Failed to resolve 'invalid.txt'", "origin": "@parcel/core"},
-      {"message": "Cannot load file \"invalid.txt\"", "origin": "@parcel/resolver-default"}
+      {"message": "Cannot load file 'invalid.txt'", "origin": "@parcel/resolver-default"}
     ]
   }
 ]
