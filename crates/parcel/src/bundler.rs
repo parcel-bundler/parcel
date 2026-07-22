@@ -255,7 +255,11 @@ impl Bundler for DefaultBundler {
 
       // Each reachable root depends on this shared bundle.
       for bundle_root_index in reachable_roots[asset_index.index()].ones() {
-        if bundle_root_index != bundle_index {
+        if bundle_root_index != bundle_index
+          && !bundles[bundle_root_index]
+            .referenced_bundles
+            .contains(&bundle_index)
+        {
           bundles[bundle_root_index]
             .referenced_bundles
             .push(bundle_index);
