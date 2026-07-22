@@ -1,0 +1,11 @@
+{
+  "description": "should support a JSON key named default",
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": ["esmodule-helpers.js", "index.js", "local.json"]
+    }
+  ],
+  "output": 6
+}

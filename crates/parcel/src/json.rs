@@ -49,7 +49,9 @@ pub fn json_to_js(
           }
 
           write!(&mut js, "const {} = {};\n", key, serde_json::to_string(&v)?)?;
-          write!(&mut js, "export {{{} as {:?}}}\n;", key, k)?;
+          if k != "default" {
+            write!(&mut js, "export {{{} as {:?}}}\n;", key, k)?;
+          }
           write!(&mut default, "{:?}: {},", k, key)?;
           count += 1;
         }
