@@ -1,8 +1,4 @@
-use std::{
-  cell::RefCell,
-  collections::HashMap,
-  sync::{Arc, Mutex},
-};
+use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
 use glob_match::glob_match;
 use parcel_core::*;
@@ -11,11 +7,32 @@ use parcel_js_swc_core::{
 };
 use parcel_macros::{JsValue, MacroError};
 use parcel_plugin_js::call_macro;
-use parcel_resolver::{AliasValue, BrowserField, InlineEnvironment, Specifier};
+use parcel_resolver::{AliasValue, BrowserField, Specifier};
 
 use crate::JsContent;
 
-pub struct JsTransformer {}
+#[derive(Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JsTransformer {
+  #[serde(rename = "inlineFS")]
+  inline_fs: Option<bool>,
+  inline_environment: Option<InlineEnvironment>,
+  #[serde(default, rename = "unstable_inlineConstants")]
+  inline_constants: bool,
+}
+
+#[derive(Clone, serde::Deserialize)]
+#[serde(untagged)]
+enum InlineEnvironment {
+  Bool(bool),
+  Array(Vec<String>),
+}
+
+impl Default for InlineEnvironment {
+  fn default() -> Self {
+    InlineEnvironment::Bool(true)
+  }
+}
 
 impl Transformer for JsTransformer {
   fn transform(
@@ -24,7 +41,7 @@ impl Transformer for JsTransformer {
     options: &ParcelOptions,
     fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
   ) -> Result<Asset, DiagnosticList> {
-    let config = config(&mut asset, options, fs)?;
+    let config = config(&mut asset, options, fs, self)?;
     let resolver = parcel_resolver::Resolver::parcel(options.project_root);
 
     let url = asset.loc.url.clone();
@@ -630,6 +647,7 @@ fn config(
   asset: &mut Asset,
   options: &ParcelOptions,
   fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+  transformer: &JsTransformer,
 ) -> Result<Config, Diagnostic> {
   let mut targets = None;
   if asset.target.environment.is_electron() {
@@ -826,22 +844,9 @@ fn config(
     }
   }
 
-  let mut inline_constants = false;
-  let mut inline_env = InlineEnvironment::default();
-  if let Some(root_pkg) = resolver.find_package(options.project_root, &**fs) {
-    if let Ok(root_pkg) = &*root_pkg {
-      if let Some(config) = &root_pkg.js_transformer_config {
-        if let Some(inline_environment) = &config.inline_environment {
-          inline_env = inline_environment.clone();
-        }
-
-        if let Some(fs) = config.inline_fs {
-          inline_fs = fs;
-        }
-
-        inline_constants = config.inline_constants;
-      }
-    }
+  let inline_env = transformer.inline_environment.clone().unwrap_or_default();
+  if let Some(fs) = transformer.inline_fs {
+    inline_fs = fs;
   }
 
   let mut env = HashMap::new();
@@ -940,6 +945,6 @@ fn config(
       .url
       .query()
       .map_or(false, |q| q.contains("standalone=true")), // TODO: use a real parser
-    inline_constants,
+    inline_constants: transformer.inline_constants,
   })
 }

@@ -80,41 +80,6 @@ struct SerializedPackageJson {
   pub dev_dependencies: IndexMap<String, String>,
   #[serde(default)]
   pub peer_dependencies: IndexMap<String, String>,
-  #[serde(default, rename = "@parcel/transformer-js")]
-  pub js_transformer_config: Option<JsTransformerConfig>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct JsTransformerConfig {
-  #[serde(rename = "inlineFS")]
-  pub inline_fs: Option<bool>,
-  pub inline_environment: Option<InlineEnvironment>,
-  #[serde(default, rename = "unstable_inlineConstants")]
-  pub inline_constants: bool,
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(untagged)]
-pub enum InlineEnvironment {
-  Bool(bool),
-  Array(Vec<String>),
-}
-
-impl Default for InlineEnvironment {
-  fn default() -> Self {
-    InlineEnvironment::Bool(true)
-  }
-}
-
-impl InlineEnvironment {
-  pub fn matches(&self, name: &str) -> bool {
-    match self {
-      InlineEnvironment::Bool(false) => name == "NODE_ENV",
-      InlineEnvironment::Bool(true) => true,
-      InlineEnvironment::Array(arr) => arr.iter().any(|a| glob_match(a, name)),
-    }
-  }
 }
 
 fn ok_or_default<'de, T, D>(deserializer: D) -> Result<T, D::Error>
@@ -143,7 +108,6 @@ pub struct PackageJson {
   pub dependencies: IndexMap<String, String>,
   pub dev_dependencies: IndexMap<String, String>,
   pub peer_dependencies: IndexMap<String, String>,
-  pub js_transformer_config: Option<JsTransformerConfig>,
 }
 
 /// Whether the module is ESM, CommonJS, or JSON according to its extension or the package.json "type" field.
@@ -373,7 +337,6 @@ impl PackageJson {
       dependencies: parsed.dependencies,
       dev_dependencies: parsed.dev_dependencies,
       peer_dependencies: parsed.peer_dependencies,
-      js_transformer_config: parsed.js_transformer_config,
     }
   }
 

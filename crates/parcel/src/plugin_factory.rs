@@ -42,7 +42,11 @@ impl PluginFactory for DefaultPluginFactory {
     from: PathId,
   ) -> Result<Arc<dyn Transformer>, DiagnosticList> {
     Ok(match name {
-      "@parcel/transformer-js" => Arc::new(JsTransformer {}),
+      "@parcel/transformer-js" => Arc::new(if let Some(config) = config {
+        serde_json::from_value(config)?
+      } else {
+        JsTransformer::default()
+      }),
       "@parcel/transformer-css" => Arc::new(if let Some(config) = config {
         serde_json::from_value(config)?
       } else {

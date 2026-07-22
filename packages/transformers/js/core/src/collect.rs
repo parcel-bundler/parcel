@@ -204,7 +204,11 @@ impl From<Collect> for CollectResult {
       )
       .collect();
     imports.sort_by(|a, b| {
-      (a.loc.start_line, a.loc.start_col, &a.local).cmp(&(b.loc.start_line, b.loc.start_col, &b.local))
+      (a.loc.start_line, a.loc.start_col, &a.local).cmp(&(
+        b.loc.start_line,
+        b.loc.start_col,
+        &b.local,
+      ))
     });
 
     let mut exports: Vec<CollectExportedSymbol> = collect
