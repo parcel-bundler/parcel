@@ -7,8 +7,18 @@
       "origin": "@parcel/core"
     },
     {
-      "message": "does not export",
-      "origin": "@parcel/resolver-default"
+      "message": "is not exported",
+      "origin": "@parcel/resolver-default",
+      "codeFrames": [
+        {
+          "codeHighlights": [
+            {
+              "start": {"line": 3, "column": 14},
+              "end": {"line": 5, "column": 3}
+            }
+          ]
+        }
+      ]
     }
   ]
 }

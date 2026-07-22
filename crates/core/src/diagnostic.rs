@@ -232,6 +232,41 @@ impl<T: Into<Diagnostic>> From<T> for DiagnosticList {
   }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JsonSourceLocationType {
+  Key,
+  Value,
+  KeyAndValue,
+}
+
+/// Returns the source range for a JSON pointer.
+///
+/// Locations returned by `json_sourcemap` are zero-based with an exclusive end. They can be
+/// converted to a diagnostic highlight with [`CodeHighlight::from_json`].
+pub fn json_source_location(
+  code: &str,
+  pointer: &str,
+  location_type: JsonSourceLocationType,
+) -> Result<Option<(json_sourcemap::Location, json_sourcemap::Location)>, json_sourcemap::Error> {
+  use json_sourcemap::Prop;
+
+  let source_map = json_sourcemap::parse(code, json_sourcemap::Options::default())?;
+  let Some(location) = source_map.get_location(pointer) else {
+    return Ok(None);
+  };
+
+  let range = match location_type {
+    JsonSourceLocationType::Key => location.get(Prop::Key).zip(location.get(Prop::KeyEnd)),
+    JsonSourceLocationType::Value => location.get(Prop::Value).zip(location.get(Prop::ValueEnd)),
+    JsonSourceLocationType::KeyAndValue => location
+      .get(Prop::Key)
+      .or_else(|| location.get(Prop::Value))
+      .zip(location.get(Prop::ValueEnd)),
+  };
+
+  Ok(range)
+}
+
 // pub(crate) struct EscapeMarkdown<'a, T>(pub &'a T);
 
 // fn escape_markdown(s: &str) -> Cow<'_, str> {
@@ -989,6 +1024,56 @@ fn escape_html(value: &str) -> Cow<'_, str> {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn gets_json_source_locations() {
+    let code = r#"{
+  "a": 1
+}"#;
+
+    let key = json_source_location(code, "/a", JsonSourceLocationType::Key)
+      .unwrap()
+      .unwrap();
+    let value = json_source_location(code, "/a", JsonSourceLocationType::Value)
+      .unwrap()
+      .unwrap();
+    let key_and_value = json_source_location(code, "/a", JsonSourceLocationType::KeyAndValue)
+      .unwrap()
+      .unwrap();
+
+    assert_eq!(
+      CodeHighlight::from_json(key.0, key.1, Some("key")),
+      CodeHighlight {
+        message: Some("key".into()),
+        start: Location { line: 2, column: 3 },
+        end: Location { line: 2, column: 5 },
+      }
+    );
+    assert_eq!(
+      CodeHighlight::from_json(value.0, value.1, Some("value")),
+      CodeHighlight {
+        message: Some("value".into()),
+        start: Location { line: 2, column: 8 },
+        end: Location { line: 2, column: 8 },
+      }
+    );
+    assert_eq!(
+      CodeHighlight::from_json(key_and_value.0, key_and_value.1, None),
+      CodeHighlight {
+        message: None,
+        start: Location { line: 2, column: 3 },
+        end: Location { line: 2, column: 8 },
+      }
+    );
+  }
+
+  #[test]
+  fn returns_none_for_missing_json_pointer() {
+    assert_eq!(
+      json_source_location("{}", "/missing", JsonSourceLocationType::Value).unwrap(),
+      None
+    );
+  }
 
   #[test]
   fn renders_browser_diagnostics_with_escaped_html_codeframes() {

@@ -1,10 +1,11 @@
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, path::Path, sync::Arc};
 
 use parcel_core::{
   AssetRequest, AssetType, BufferContent, BuildMode, CodeFrame, CodeHighlight, Dependency,
-  DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList, Environment, EnvironmentFlags,
-  ExportsCondition, FileContent, FileSystem, IncludeNodeModules, Location, ParcelOptions, PathId,
-  Resolver, SourceLocation, SourceUrl, SpecifierType, Target,
+  DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList, DiagnosticSeverity,
+  Environment, EnvironmentFlags, ExportsCondition, FileContent, FileSystem, IncludeNodeModules,
+  JsonSourceLocationType, Location, ParcelOptions, PathId, Resolver, SourceLocation, SourceUrl,
+  SpecifierType, Target, json_source_location,
 };
 use parcel_resolver::{
   PackageJsonError, Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
@@ -194,179 +195,179 @@ impl Resolver for DefaultResolver {
           self.resolve(dep, module, pipeline, options, fs)
         }
       },
-      Err(e) => {
-        match e {
-          ResolverError::FileNotFound { relative, from } => {
-            // TODO: find alternate files
-            Err(DiagnosticList(vec![Diagnostic {
-              message: format!("Cannot load file {:?} in {:?}", relative, from),
-              origin: Some("@parcel/resolver-default".into()),
-              code_frames: vec![],
-              hints: vec![],
-              severity: parcel_core::DiagnosticSeverity::Error,
-              documentation_url: None,
-            }]))
-          }
-          ResolverError::ModuleNotFound { module } => {
-            // TODO: find alternate modules
-            Err(DiagnosticList(vec![Diagnostic {
-              message: format!("Cannot find module {:?}", module),
-              origin: Some("@parcel/resolver-default".into()),
-              code_frames: vec![],
-              hints: vec![],
-              severity: parcel_core::DiagnosticSeverity::Error,
-              documentation_url: None,
-            }]))
-          }
-          ResolverError::ModuleEntryNotFound {
-            module,
-            entry_path,
-            package_path,
-            field,
-          } => {
-            Err(DiagnosticList(vec![Diagnostic {
-              message: format!(
-                "Could not load {:?} from module {:?} found in package.json#{}",
-                entry_path, module, field
-              ),
-              origin: Some("@parcel/resolver-default".into()),
-              code_frames: vec![CodeFrame {
-                url: Some(SourceUrl::from_path(&PathId::new(&package_path))),
-                code: None,
-                language: Some(AssetType::Json),
-                code_highlights: vec![
-                  // TODO
-                  // CodeHighlight {
-
-                  // }
-                ],
-              }],
-              hints: vec![],
-              severity: parcel_core::DiagnosticSeverity::Error,
-              documentation_url: None,
-            }]))
-          }
-          ResolverError::ModuleSubpathNotFound { module, path, .. } => {
-            Err(DiagnosticList(vec![Diagnostic {
-              message: format!("Cannot load file {:?} from module {:?}", path, module),
-              origin: Some("@parcel/resolver-default".into()),
-              code_frames: vec![],
-              hints: vec![],
-              severity: parcel_core::DiagnosticSeverity::Error,
-              documentation_url: None,
-            }]))
-          }
-          ResolverError::JsonError(e) => Err(DiagnosticList(vec![Diagnostic {
-            message: format!("Error parsing JSON"),
-            origin: Some("@parcel/resolver-default".into()),
-            code_frames: vec![CodeFrame {
-              url: Some(SourceUrl::from_path(&PathId::new(&e.path))),
-              code: None,
-              language: Some(AssetType::Json),
-              code_highlights: vec![CodeHighlight {
-                message: Some(e.message),
-                start: Location {
-                  line: e.line as u32,
-                  column: e.column as u32,
-                },
-                end: Location {
-                  line: e.line as u32,
-                  column: e.column as u32,
-                },
-              }],
-            }],
-            hints: vec![],
-            severity: parcel_core::DiagnosticSeverity::Error,
-            documentation_url: None,
-          }])),
-          ResolverError::InvalidSpecifier(e) => {
-            let message = match e {
-              SpecifierError::EmptySpecifier => format!("Invalid empty specifier"),
-              SpecifierError::InvalidPackageSpecifier => format!("Invalid package specifier"),
-              SpecifierError::InvalidFileUrl => format!("Invalid file url"),
-              SpecifierError::UrlError(url) => format!("Invalid URL: {}", url),
-            };
-
-            Err(DiagnosticList(vec![Diagnostic {
-              message,
-              origin: Some("@parcel/resolver-default".into()),
-              code_frames: vec![],
-              hints: vec![],
-              severity: parcel_core::DiagnosticSeverity::Error,
-              documentation_url: None,
-            }]))
-          }
-          ResolverError::UnknownScheme { scheme } => Err(DiagnosticList(vec![Diagnostic {
-            message: format!("Unknown url scheme or pipeline {:?}", scheme),
-            origin: Some("@parcel/resolver-default".into()),
-            code_frames: vec![],
-            hints: vec![],
-            severity: parcel_core::DiagnosticSeverity::Error,
-            documentation_url: None,
-          }])),
-          ResolverError::PackageJsonError {
-            module,
-            path,
-            error,
-          } => {
-            let message = match error {
-              PackageJsonError::PackagePathNotExported => {
-                format!("Module {:?} does not export {:?}", module, path)
-              }
-              PackageJsonError::ImportNotDefined => {
-                format!("Package import {:?} is not defined in {:?}", path, module)
-              }
-              PackageJsonError::InvalidPackageTarget => {
-                format!("Invalid package target in {:?} for {:?}", module, path)
-              }
-              PackageJsonError::InvalidSpecifier => {
-                format!("Invalid package specifier {:?} in {:?}", path, module)
-              }
-            };
-
-            Err(DiagnosticList(vec![Diagnostic {
-              message,
-              origin: Some("@parcel/resolver-default".into()),
-              code_frames: vec![],
-              hints: vec![],
-              severity: parcel_core::DiagnosticSeverity::Error,
-              documentation_url: None,
-            }]))
-          }
-          ResolverError::IOError(e) => Err(DiagnosticList(vec![Diagnostic {
-            message: e.0.to_string(),
-            origin: Some("@parcel/resolver-default".into()),
-            code_frames: vec![],
-            hints: vec![],
-            severity: parcel_core::DiagnosticSeverity::Error,
-            documentation_url: None,
-          }])),
-          ResolverError::PackageJsonNotFound { from } => Err(DiagnosticList(vec![Diagnostic {
-            message: format!("Cannot find a package.json above {:?}", from),
-            origin: Some("@parcel/resolver-default".into()),
-            code_frames: vec![],
-            hints: vec![],
-            severity: parcel_core::DiagnosticSeverity::Error,
-            documentation_url: None,
-          }])),
-          ResolverError::TsConfigExtendsNotFound { .. } => Err(DiagnosticList(vec![Diagnostic {
-            message: format!("Could not find extended tsconfig"),
-            origin: Some("@parcel/resolver-default".into()),
-            code_frames: vec![],
-            hints: vec![],
-            severity: parcel_core::DiagnosticSeverity::Error,
-            documentation_url: None,
-          }])),
-          ResolverError::UnknownError => Err(DiagnosticList(vec![Diagnostic {
-            message: "Unknown error".into(),
-            origin: Some("@parcel/resolver-default".into()),
-            code_frames: vec![],
-            hints: vec![],
-            severity: parcel_core::DiagnosticSeverity::Error,
-            documentation_url: None,
-          }])),
-        }
-      }
+      Err(error) => Err(DiagnosticList(resolver_error_diagnostics(
+        error, specifier, &**fs,
+      ))),
     }
+  }
+}
+
+const ORIGIN: &str = "@parcel/resolver-default";
+
+fn diagnostic(message: String) -> Diagnostic {
+  Diagnostic {
+    message,
+    origin: Some(ORIGIN.into()),
+    code_frames: vec![],
+    hints: vec![],
+    severity: DiagnosticSeverity::Error,
+    documentation_url: None,
+  }
+}
+
+fn json_code_frame(
+  fs: &dyn FileSystem,
+  path: &Path,
+  pointer: &str,
+  message: Option<&str>,
+) -> CodeFrame {
+  let path = PathId::new(path);
+  let code = fs.read_to_string(path).ok();
+  let code_highlights = code
+    .as_deref()
+    .and_then(|code| {
+      json_source_location(code, pointer, JsonSourceLocationType::Value)
+        .ok()
+        .flatten()
+    })
+    .map(|(start, end)| CodeHighlight::from_json(start, end, message))
+    .into_iter()
+    .collect();
+
+  CodeFrame {
+    code,
+    url: Some(SourceUrl::from_path(&path)),
+    language: Some(AssetType::Json),
+    code_highlights,
+  }
+}
+
+fn resolver_error_diagnostics(
+  error: ResolverError,
+  specifier: &str,
+  fs: &dyn FileSystem,
+) -> Vec<Diagnostic> {
+  match error {
+    ResolverError::FileNotFound { relative, from } => {
+      vec![diagnostic(format!(
+        "Cannot load file '{}' in '{}'",
+        relative.display(),
+        from.display()
+      ))]
+    }
+    ResolverError::ModuleNotFound { module } => {
+      vec![diagnostic(format!("Cannot find module '{}'", module))]
+    }
+    ResolverError::ModuleEntryNotFound {
+      module,
+      entry_path,
+      package_path,
+      field,
+    } => {
+      let file_specifier = package_path
+        .parent()
+        .and_then(|dir| entry_path.strip_prefix(dir).ok())
+        .unwrap_or(&entry_path)
+        .to_string_lossy()
+        .replace('\\', "/");
+      let highlight_message = format!("'{}' does not exist", file_specifier);
+      let mut result = diagnostic(format!(
+        "Could not load '{}' from module '{}' found in package.json#{}",
+        file_specifier, module, field
+      ));
+      result.code_frames.push(json_code_frame(
+        fs,
+        &package_path,
+        &format!("/{field}"),
+        Some(&highlight_message),
+      ));
+      vec![result]
+    }
+    ResolverError::ModuleSubpathNotFound { module, path, .. } => vec![diagnostic(format!(
+      "Cannot load file '{}' from module '{}'",
+      path.display(),
+      module
+    ))],
+    ResolverError::JsonError(error) => {
+      let path = PathId::new(&error.path);
+      let mut result = diagnostic("Error parsing JSON".into());
+      result.code_frames.push(CodeFrame {
+        code: fs.read_to_string(path).ok(),
+        url: Some(SourceUrl::from_path(&path)),
+        language: Some(AssetType::Json),
+        code_highlights: vec![CodeHighlight {
+          message: Some(error.message),
+          start: Location {
+            line: error.line as u32,
+            column: error.column as u32,
+          },
+          end: Location {
+            line: error.line as u32,
+            column: error.column as u32,
+          },
+        }],
+      });
+      vec![result]
+    }
+    ResolverError::InvalidSpecifier(error) => {
+      let message = match error {
+        SpecifierError::EmptySpecifier => "Invalid empty specifier".into(),
+        SpecifierError::InvalidPackageSpecifier => "Invalid package specifier".into(),
+        SpecifierError::InvalidFileUrl => "Invalid file url".into(),
+        SpecifierError::UrlError(url) => format!("Invalid URL: {url}"),
+      };
+      vec![diagnostic(message)]
+    }
+    ResolverError::UnknownScheme { scheme } => vec![diagnostic(format!(
+      "Unknown url scheme or pipeline '{scheme}:'"
+    ))],
+    ResolverError::PackageJsonError {
+      module,
+      path,
+      error,
+    } => {
+      let (message, pointer) = match error {
+        PackageJsonError::PackagePathNotExported => (
+          format!("Module '{specifier}' is not exported from the '{module}' package"),
+          Some("/exports"),
+        ),
+        PackageJsonError::ImportNotDefined => (
+          format!("Package import '{specifier}' is not defined in the '{module}' package"),
+          Some("/imports"),
+        ),
+        PackageJsonError::InvalidPackageTarget => (
+          format!(
+            "Invalid package target in the '{module}' package. Targets may not refer to files outside the package."
+          ),
+          Some("/exports"),
+        ),
+        PackageJsonError::InvalidSpecifier => (
+          format!("Invalid package import specifier '{specifier}'."),
+          None,
+        ),
+      };
+      let mut result = diagnostic(message);
+      if let Some(pointer) = pointer {
+        result
+          .code_frames
+          .push(json_code_frame(fs, &path, pointer, None));
+      }
+      vec![result]
+    }
+    ResolverError::IOError(error) => vec![diagnostic(error.0.to_string())],
+    ResolverError::PackageJsonNotFound { from } => vec![diagnostic(format!(
+      "Cannot find a package.json above '{}'",
+      from.display()
+    ))],
+    ResolverError::TsConfigExtendsNotFound { tsconfig, error } => {
+      let mut result = diagnostic("Could not find extended tsconfig".into());
+      result
+        .code_frames
+        .push(json_code_frame(fs, &tsconfig, "/extends", None));
+      let mut diagnostics = vec![result];
+      diagnostics.extend(resolver_error_diagnostics(*error, specifier, fs));
+      diagnostics
+    }
+    ResolverError::UnknownError => vec![diagnostic("Unknown error".into())],
   }
 }
