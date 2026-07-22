@@ -280,7 +280,7 @@ impl<'a> Resolver<'a> {
     path: PathId,
     fs: &dyn FileSystem,
   ) -> Result<bool, ResolverError> {
-    if let Some(package) = self.find_package(path.parent().unwrap(), fs) {
+    if let Some(package) = self.find_package(path.parent().unwrap_or(path), fs) {
       Ok(unwrap_arc(&package)?.has_side_effects(path))
     } else {
       Ok(true)
@@ -308,7 +308,7 @@ impl<'a> Resolver<'a> {
       }
 
       if ext == "js" {
-        if let Some(package) = self.find_package(path.parent().unwrap(), fs) {
+        if let Some(package) = self.find_package(path.parent().unwrap_or(path), fs) {
           return Ok(unwrap_arc(&package)?.module_type);
         }
       }

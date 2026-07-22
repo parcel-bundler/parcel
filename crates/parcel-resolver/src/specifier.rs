@@ -312,14 +312,11 @@ fn parse_package<'s>(specifier: Cow<'s, str>) -> Result<Specifier<'s>, Specifier
 }
 
 pub fn parse_package_specifier(specifier: &str) -> Result<(&str, &str), SpecifierError> {
-  let idx = specifier.chars().position(|p| p == '/');
+  let idx = specifier.find('/');
   if specifier.starts_with('@') {
     let idx = idx.ok_or(SpecifierError::InvalidPackageSpecifier)?;
-    if let Some(next) = &specifier[idx + 1..].chars().position(|p| p == '/') {
-      Ok((
-        &specifier[0..idx + 1 + *next],
-        &specifier[idx + *next + 2..],
-      ))
+    if let Some(next) = specifier[idx + 1..].find('/') {
+      Ok((&specifier[0..idx + 1 + next], &specifier[idx + next + 2..]))
     } else {
       Ok((specifier, ""))
     }
@@ -381,5 +378,46 @@ impl<'de> serde::Deserialize<'de> for Specifier<'static> {
         Specifier::Url(_) => todo!(),
       })
       .map_err(|_| serde::de::Error::custom("Invalid specifier"))
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_parse_package_specifier_multibyte() {
+    // Regression test: `chars().position()` returns a char count, not a byte
+    // offset, which used to panic when slicing multibyte specifiers.
+    assert!(parse_package_specifier("@€/x").is_ok());
+  }
+
+  #[test]
+  fn test_parse_package_specifier_scoped_with_subpath() {
+    assert_eq!(
+      parse_package_specifier("@scope/name/sub").unwrap(),
+      ("@scope/name", "sub")
+    );
+  }
+
+  #[test]
+  fn test_parse_package_specifier_scoped_no_subpath() {
+    assert_eq!(
+      parse_package_specifier("@scope/name").unwrap(),
+      ("@scope/name", "")
+    );
+  }
+
+  #[test]
+  fn test_parse_package_specifier_with_subpath() {
+    assert_eq!(
+      parse_package_specifier("name/sub").unwrap(),
+      ("name", "sub")
+    );
+  }
+
+  #[test]
+  fn test_parse_package_specifier_no_subpath() {
+    assert_eq!(parse_package_specifier("name").unwrap(), ("name", ""));
   }
 }

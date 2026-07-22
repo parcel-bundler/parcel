@@ -198,6 +198,7 @@ impl TsConfig {
         let path = key.to_string();
         if let Some((prefix, suffix)) = path.split_once('*') {
           if (best_key.is_none() || prefix.len() > longest_prefix_length)
+            && full_specifier.len() >= prefix.len() + suffix.len()
             && full_specifier.starts_with(prefix)
             && full_specifier.ends_with(suffix)
           {
@@ -326,6 +327,36 @@ mod tests {
       test("url"),
       vec![get_normalized("/foo/node_modules/my-url")]
     );
+  }
+
+  #[test]
+  fn test_paths_overlapping_prefix_suffix_does_not_panic() {
+    // Regression test: a pattern whose prefix + suffix length exceeds the
+    // specifier's length (e.g. "foo*obar" vs "foobar") used to panic when
+    // computing the wildcard replacement slice.
+    let tsconfig = TsConfig::from_serialized(
+      get_normalized("/foo/tsconfig.json"),
+      SerializedTsConfig {
+        base_url: None,
+        paths: Some(indexmap! {
+          "foo*obar".into() => vec!["x/*".into()],
+        }),
+        module_suffixes: None,
+        jsx: None,
+        jsx_factory: None,
+        jsx_fragment_factory: None,
+        jsx_import_source: None,
+        experimental_decorators: false,
+        use_define_for_class_fields: None,
+        target: None,
+      },
+    );
+
+    let test = |specifier: &str| tsconfig.paths(&specifier.into()).collect::<Vec<PathId>>();
+
+    // "foobar" starts_with "foo" and ends_with "obar", but prefix.len() (3)
+    // + suffix.len() (4) = 7 > "foobar".len() (6), so it must not match.
+    assert_eq!(test("foobar"), Vec::<PathId>::new());
   }
 
   #[test]
