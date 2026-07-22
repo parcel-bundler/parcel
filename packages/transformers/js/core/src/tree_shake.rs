@@ -73,7 +73,6 @@ pub fn tree_shake<'a>(
   ast: &mut Ast,
   used_symbols: HashSet<JsWord>,
   resolutions: IndexMap<String, Resolution<'a>>,
-  dirname: JsWord,
   minify: bool,
   is_library: bool,
   require_name: JsWord,
@@ -87,7 +86,6 @@ pub fn tree_shake<'a>(
       unresolved_mark: ast.unresolved_mark,
       wrapper_mark,
       wrapper_ctxt,
-      dirname,
       mutated: false,
       is_library,
       require_name,
@@ -177,7 +175,6 @@ struct TreeShake<'a> {
   unresolved_mark: Mark,
   wrapper_mark: Mark,
   wrapper_ctxt: SyntaxContext,
-  dirname: JsWord,
   mutated: bool,
   is_library: bool,
   require_name: JsWord,
@@ -489,12 +486,6 @@ impl<'a> VisitMut for TreeShake<'a> {
         _ => node.visit_mut_children_with(self),
       }
       i += 1;
-    }
-  }
-
-  fn visit_mut_str(&mut self, node: &mut Str) {
-    if node.value == "$parcel$dirnameReplace" || node.value == "$parcel$filenameReplace" {
-      node.value = self.dirname.clone().into();
     }
   }
 

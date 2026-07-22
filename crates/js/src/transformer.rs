@@ -526,11 +526,16 @@ impl Transformer for JsTransformer {
     asset
       .dependencies
       .extend(std::mem::take(&mut *macro_deps.borrow_mut()));
+    asset
+      .flags
+      .set(AssetFlags::HAS_NODE_REPLACEMENTS, res.has_node_replacements);
     asset.content = Arc::new(JsContent {
       ast: res.ast,
       shebang: res.shebang,
       directives,
       rsc_runtime_dep,
+      needs_filename: res.needs_filename,
+      needs_dirname: res.needs_dirname,
     });
     Ok(asset)
   }

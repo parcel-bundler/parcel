@@ -11,7 +11,10 @@ use swc_core::{
   quote,
 };
 
-use crate::{JsContent, packager::asset_dependencies};
+use crate::{
+  JsContent,
+  packager::{asset_dependencies, insert_node_replacement_helpers, insert_node_replacements},
+};
 
 impl JsContent {
   pub(crate) fn package_library(
@@ -78,6 +81,18 @@ impl JsContent {
         ast.program.body.splice(0..0, macro_imports);
       }
 
+      let should_optimize = bundle
+        .target
+        .flags
+        .contains(EnvironmentFlags::SHOULD_OPTIMIZE);
+      insert_node_replacements(&mut ast, content, asset, bundle, should_optimize);
+      insert_node_replacement_helpers(
+        &mut ast,
+        content,
+        bundle.target.output_format,
+        should_optimize,
+      );
+
       let used_symbols = asset
         .symbols
         .exports
@@ -97,18 +112,11 @@ impl JsContent {
           }
         }))
         .collect();
-      let dirname = asset
-        .loc
-        .url
-        .relative(&SourceUrl::from_directory_path(&bundle.target.dist_dir))
-        .unwrap_or_else(|| asset.loc.url.to_string())
-        .into();
       // println!("{:?} {:?} {:?}", asset.loc.url, used_symbols, dependencies);
       tree_shake(
         &mut ast,
         used_symbols,
         dependencies,
-        dirname,
         false,
         true,
         "require".into(),

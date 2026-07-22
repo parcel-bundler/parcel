@@ -2,7 +2,12 @@ use std::{fmt::Write, sync::Arc};
 
 use indexmap::IndexSet;
 use parcel_core::*;
-use parcel_js_swc_core::tree_shake::tree_shake;
+use parcel_js_swc_core::{Ast, tree_shake::tree_shake};
+use swc_core::{
+  common::{DUMMY_SP, SyntaxContext},
+  ecma::ast::{Ident, ImportDecl, ImportSpecifier, ImportStarAsSpecifier, ModuleDecl, ModuleItem},
+  quote,
+};
 
 mod dependencies;
 mod printer;
@@ -25,6 +30,10 @@ const RUNTIME_MAIN_ENTRY: &str = "n";
 const RUNTIME_REQUIRE: &str = "r";
 const RUNTIME_DIST_DIR: &str = "d";
 const RUNTIME_PUBLIC_URL: &str = "u";
+const NODE_PATH: &str = "$parcel$path";
+const BUNDLE_DIR: &str = "$parcel$bundleDir";
+const RUNTIME_NODE_PATH: &str = "v";
+const RUNTIME_BUNDLE_DIR: &str = "w";
 
 fn runtime_name(
   should_optimize: bool,
@@ -54,10 +63,20 @@ impl JsContent {
       let asset = &bundle_graph
         .asset_graph
         .asset(bundle.main_entry_asset.unwrap());
-      if bundle.target.source_map.is_some()
-        && let Some(content) = asset.content.downcast_ref::<JsContent>()
-      {
-        let (code, map) = content.ast.to_code(true, false)?;
+      if let Some(content) = asset.content.downcast_ref::<JsContent>() {
+        let should_optimize = bundle
+          .target
+          .flags
+          .contains(EnvironmentFlags::SHOULD_OPTIMIZE);
+        let mut ast = content.ast.clone();
+        insert_node_replacements(&mut ast, content, asset, bundle, should_optimize);
+        insert_node_replacement_helpers(
+          &mut ast,
+          content,
+          bundle.target.output_format,
+          should_optimize,
+        );
+        let (code, map) = ast.to_code(bundle.target.source_map.is_some(), false)?;
         if let Some(map) = map {
           return Ok(Arc::new(ContentWithSourceMap::new(code, map.into_bytes())));
         }
@@ -84,6 +103,7 @@ impl JsContent {
       }
     }
 
+    write_node_replacement_helpers(&mut printer, bundle_graph, bundle)?;
     let externals = write_external_imports(&mut printer, bundle_graph, bundle)?;
     write_bundle_references(&mut printer, bundle_graph, bundle)?;
 
@@ -248,58 +268,57 @@ fn write_asset_module(
     &options.project_root,
   )?;
 
-  if should_optimize && let Some(content) = asset.content.downcast_ref::<JsContent>() {
+  if let Some(content) = asset.content.downcast_ref::<JsContent>() {
     let mut ast = content.ast.clone();
-    let used_symbols = asset
-      .symbols
-      .exports
-      .iter()
-      .filter_map(|e| {
-        if e.requested {
-          Some(e.exported.as_str().into())
-        } else {
-          None
-        }
-      })
-      .chain(asset.symbols.indirect.iter().filter_map(|e| {
-        if e.requested {
-          Some(e.exported.as_str().into())
-        } else {
-          None
-        }
-      }))
-      .collect();
-    let dirname = asset
-      .loc
-      .url
-      .relative(&SourceUrl::from_directory_path(&bundle.target.dist_dir))
-      .unwrap_or_else(|| asset.loc.url.to_string())
-      .into();
-    tree_shake(
-      &mut ast,
-      used_symbols,
-      dependencies,
-      dirname,
-      true,
-      false,
-      RUNTIME_REQUIRE.into(),
-    );
-    ast.finalize();
-    let (code, map) = ast.to_code(should_build_source_map, true)?;
+    insert_node_replacements(&mut ast, content, asset, bundle, should_optimize);
+    let serialized_dependencies = if should_optimize {
+      None
+    } else {
+      Some(serde_json::to_string(&dependencies)?)
+    };
+
+    if should_optimize {
+      let used_symbols = asset
+        .symbols
+        .exports
+        .iter()
+        .filter_map(|e| {
+          if e.requested {
+            Some(e.exported.as_str().into())
+          } else {
+            None
+          }
+        })
+        .chain(asset.symbols.indirect.iter().filter_map(|e| {
+          if e.requested {
+            Some(e.exported.as_str().into())
+          } else {
+            None
+          }
+        }))
+        .collect();
+      tree_shake(
+        &mut ast,
+        used_symbols,
+        dependencies,
+        true,
+        false,
+        RUNTIME_REQUIRE.into(),
+      );
+      ast.finalize();
+    }
+    let (code, map) = ast.to_code(should_build_source_map, should_optimize)?;
 
     printer.write_module_header(asset.id(&options.project_root))?;
     printer.add_source_map(map)?;
-    printer.write_expression_code(&code)?;
-  } else {
-    let (code, map) = if should_build_source_map {
-      if let Some(content) = asset.content.downcast_ref::<JsContent>() {
-        content.ast.to_code(true, false)?
-      } else {
-        (asset.content.read()?, None)
-      }
+    if should_optimize {
+      printer.write_expression_code(&code)?;
     } else {
-      (asset.content.read()?, None)
-    };
+      printer.write_str(std::str::from_utf8(&code).unwrap())?;
+      printer.write_module_trailer(serialized_dependencies.unwrap())?;
+    }
+  } else {
+    let (code, map) = (asset.content.read()?, None);
     let deps = serde_json::to_string(&dependencies)?;
 
     printer.write_module_header(asset.id(&options.project_root))?;
@@ -309,6 +328,178 @@ fn write_asset_module(
   }
 
   Ok(())
+}
+
+fn write_node_replacement_helpers(
+  printer: &mut Printer,
+  bundle_graph: &BundleGraph,
+  bundle: &Bundle,
+) -> Result<(), DiagnosticList> {
+  if !bundle.assets.iter().any(|asset_index| {
+    bundle_graph
+      .asset_graph
+      .asset(*asset_index)
+      .flags
+      .contains(AssetFlags::HAS_NODE_REPLACEMENTS)
+  }) {
+    return Ok(());
+  }
+
+  let should_optimize = bundle
+    .target
+    .flags
+    .contains(EnvironmentFlags::SHOULD_OPTIMIZE);
+  let path = runtime_name(should_optimize, NODE_PATH, RUNTIME_NODE_PATH);
+  let bundle_dir = runtime_name(should_optimize, BUNDLE_DIR, RUNTIME_BUNDLE_DIR);
+  if bundle.target.output_format == OutputFormat::Esmodule {
+    writeln!(printer, "import * as {path} from 'path';")?;
+    printer.write_var(bundle_dir, "import.meta.dirname", true)?;
+  } else {
+    printer.write_var(path, "module.require('path')", true)?;
+    printer.write_var(bundle_dir, "__dirname", true)?;
+  }
+
+  Ok(())
+}
+
+pub(super) fn insert_node_replacements(
+  ast: &mut Ast,
+  content: &JsContent,
+  asset: &Asset,
+  bundle: &Bundle,
+  should_optimize: bool,
+) {
+  if !content.needs_filename && !content.needs_dirname {
+    return;
+  }
+
+  let globals = ast.globals.clone();
+  swc_core::common::GLOBALS.set(&globals, || {
+    let ctxt = SyntaxContext::empty().apply_mark(ast.unresolved_mark);
+    let path = Ident::new(
+      runtime_name(should_optimize, NODE_PATH, RUNTIME_NODE_PATH).into(),
+      DUMMY_SP,
+      ctxt,
+    );
+    let bundle_dir = Ident::new(
+      runtime_name(should_optimize, BUNDLE_DIR, RUNTIME_BUNDLE_DIR).into(),
+      DUMMY_SP,
+      ctxt,
+    );
+    let (filename, dirname) = node_replacement_paths(asset, bundle);
+    let mut items = Vec::with_capacity(2);
+
+    if content.needs_filename {
+      let name = Ident::new("__filename".into(), DUMMY_SP, ctxt);
+      items.push(quote!(
+        "var $name = $path.resolve($bundle_dir, $value)" as ModuleItem,
+        name: Ident = name,
+        path: Ident = path.clone(),
+        bundle_dir: Ident = bundle_dir.clone(),
+        value: Expr = filename.into()
+      ));
+    }
+
+    if content.needs_dirname {
+      let name = Ident::new("__dirname".into(), DUMMY_SP, ctxt);
+      items.push(quote!(
+        "var $name = $path.resolve($bundle_dir, $value)" as ModuleItem,
+        name: Ident = name,
+        path: Ident = path,
+        bundle_dir: Ident = bundle_dir,
+        value: Expr = dirname.into()
+      ));
+    }
+
+    ast.program.body.splice(0..0, items);
+  });
+}
+
+pub(super) fn insert_node_replacement_helpers(
+  ast: &mut Ast,
+  content: &JsContent,
+  output_format: OutputFormat,
+  should_optimize: bool,
+) {
+  if !content.needs_filename && !content.needs_dirname {
+    return;
+  }
+
+  let globals = ast.globals.clone();
+  swc_core::common::GLOBALS.set(&globals, || {
+    let ctxt = SyntaxContext::empty().apply_mark(ast.unresolved_mark);
+    let path = Ident::new(
+      runtime_name(should_optimize, NODE_PATH, RUNTIME_NODE_PATH).into(),
+      DUMMY_SP,
+      ctxt,
+    );
+    let bundle_dir = Ident::new(
+      runtime_name(should_optimize, BUNDLE_DIR, RUNTIME_BUNDLE_DIR).into(),
+      DUMMY_SP,
+      ctxt,
+    );
+    let mut items = Vec::new();
+
+    if output_format == OutputFormat::Esmodule {
+      items.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+        src: Box::new("path".into()),
+        phase: Default::default(),
+        span: DUMMY_SP,
+        specifiers: vec![ImportSpecifier::Namespace(ImportStarAsSpecifier {
+          span: DUMMY_SP,
+          local: path.clone(),
+        })],
+        type_only: false,
+        with: None,
+      })));
+      items.push(quote!(
+        "var $bundle_dir = import.meta.dirname" as ModuleItem,
+        bundle_dir: Ident = bundle_dir,
+      ));
+    } else {
+      let require = Ident::new("require".into(), DUMMY_SP, ctxt);
+      items.push(quote!(
+        "var $path = $require($value)" as ModuleItem,
+        path: Ident = path,
+        require: Ident = require,
+        value: Expr = "path".into()
+      ));
+      let dirname = Ident::new("__dirname".into(), DUMMY_SP, ctxt);
+      items.push(quote!(
+        "var $bundle_dir = $dirname" as ModuleItem,
+        bundle_dir: Ident = bundle_dir,
+        dirname: Ident = dirname
+      ));
+    }
+
+    ast.program.body.splice(0..0, items);
+  });
+}
+
+fn node_replacement_paths(asset: &Asset, bundle: &Bundle) -> (String, String) {
+  let bundle_dir = bundle
+    .dist_path()
+    .parent()
+    .unwrap_or(bundle.target.dist_dir);
+  let from = SourceUrl::from_directory_path(&bundle_dir);
+
+  if let Ok(filename) = asset.loc.url.to_file_path() {
+    let dirname = filename.parent().unwrap_or(filename);
+    let filename = SourceUrl::from_path(&filename)
+      .relative(&from)
+      .unwrap_or_else(|| filename.to_path_buf().to_string_lossy().into_owned());
+    let dirname = SourceUrl::from_directory_path(&dirname)
+      .relative(&from)
+      .unwrap_or_else(|| dirname.to_path_buf().to_string_lossy().into_owned());
+    (filename, dirname)
+  } else {
+    let filename = asset
+      .loc
+      .url
+      .relative(&from)
+      .unwrap_or_else(|| asset.loc.url.to_string());
+    (filename.clone(), filename)
+  }
 }
 
 fn write_synthetic_module(

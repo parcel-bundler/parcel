@@ -1,17 +1,42 @@
-{
-  "description": "should replace __dirname and __filename with relative paths in node environment",
-  "input": "index.js",
-  "bundles": [{"assets": ["index.js", "function.js", "index.js"]}],
-  "TODO:output": {
-    "data": "hello",
-    "other": "hello",
-    "firstDirnameTest": "data",
-    "secondDirnameTest": "other-data",
-    "firstFilenameTest": "index.js",
-    "secondFilenameTest": "index.js?query-string=test",
-    "sub": {
-      "dirname": "sub",
-      "filename": "index.js"
+[
+  {
+    "description": "should replace __dirname and __filename with relative paths in node environment",
+    "input": "index.js",
+    "bundles": [{
+      "assets": ["index.js", "function.js", "index.js"],
+      "contains": [
+        "var $parcel$path = module.require('path');",
+        "var __dirname = $parcel$path.resolve($parcel$bundleDir",
+        "var __filename = $parcel$path.resolve($parcel$bundleDir"
+      ],
+      "notContains": [
+        "$parcel$dirnameReplace",
+        "$parcel$filenameReplace",
+        "$parcel$__dirname",
+        "$parcel$__filename"
+      ]
+    }],
+    "TODO:output": {
+      "data": "hello",
+      "other": "hello",
+      "firstDirnameTest": "data",
+      "secondDirnameTest": "other-data",
+      "firstFilenameTest": "index.js",
+      "secondFilenameTest": "index.js?query-string=test",
+      "sub": {
+        "dirname": "sub",
+        "filename": "index.js"
+      }
     }
+  },
+  {
+    "description": "should minify node path helper names in production",
+    "input": "index.js",
+    "options": {"mode": "production", "minify": true},
+    "bundles": [{
+      "assets": ["index.js", "function.js", "index.js"],
+      "contains": ["var v=module.require('path');var w=__dirname;"],
+      "notContains": ["$parcel$path", "$parcel$bundleDir"]
+    }]
   }
-}
+]

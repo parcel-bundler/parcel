@@ -218,6 +218,8 @@ pub struct TransformResult {
   pub needs_esm_helpers: bool,
   pub used_env: HashSet<JsWord>,
   pub has_node_replacements: bool,
+  pub needs_filename: bool,
+  pub needs_dirname: bool,
   pub is_constant_module: bool,
   pub directives: Vec<JsWord>,
   pub helpers: Helpers,
@@ -265,6 +267,8 @@ pub struct TransformAstResult {
   pub needs_esm_helpers: bool,
   pub used_env: HashSet<JsWord>,
   pub has_node_replacements: bool,
+  pub needs_filename: bool,
+  pub needs_dirname: bool,
   pub is_constant_module: bool,
   pub directives: Vec<JsWord>,
   pub helpers: Helpers,
@@ -361,6 +365,8 @@ pub fn transform(
     needs_esm_helpers: res.needs_esm_helpers,
     used_env: res.used_env,
     has_node_replacements: res.has_node_replacements,
+    needs_filename: res.needs_filename,
+    needs_dirname: res.needs_dirname,
     is_constant_module: res.is_constant_module,
     directives: res.directives,
     helpers: res.helpers,
@@ -652,17 +658,13 @@ pub fn transform_to_ast(
           ));
 
           module.visit_mut_with(
-            // Replace __dirname and __filename with placeholders in Node env
+            // Track __dirname and __filename references for the packager in Node env
             &mut Optional::new(
               NodeReplacer {
-                source_map: source_map.clone(),
-                items: &mut global_deps,
-                global_mark,
-                globals: IndexMap::new(),
-                filename: Path::new(&config.filename),
                 unresolved_mark,
+                needs_filename: &mut result.needs_filename,
+                needs_dirname: &mut result.needs_dirname,
                 has_node_replacements: &mut result.has_node_replacements,
-                is_esm: config.is_esm_output,
               },
               config.node_replacer(),
             ),
