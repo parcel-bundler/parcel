@@ -186,9 +186,13 @@ export async function load({
     if (isDynamic) {
       // We have to invalidate on startup in case the config is non-deterministic,
       // e.g. using unknown environment variables, reading from the filesystem, etc.
+      let filename = path.basename(configFile.filePath);
       logger.warn({
-        message:
-          'WARNING: Using a JavaScript PostCSS config file means losing out on caching features of Parcel. Use a .postcssrc(.json) file whenever possible.',
+        message: md`Using a JavaScript PostCSS config file (__${filename}__) means Parcel cannot cache PostCSS transformations. Prefer a static .postcssrc or .postcssrc.json file when possible.`,
+        hints: [
+          md`Replace __${filename}__ with a .postcssrc or .postcssrc.json file that only uses JSON-compatible plugin configuration`,
+        ],
+        documentationURL: 'https://parceljs.org/languages/css/#postcss',
       });
     }
 
