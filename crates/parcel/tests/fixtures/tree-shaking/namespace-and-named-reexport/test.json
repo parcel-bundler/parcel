@@ -1,0 +1,6 @@
+{
+  "description": "tree shaking: namespace and named imports through a re-exporting module preserve live bindings",
+  "input": "entry.js",
+  "options": {"mode": "production"},
+  "output": ["before", "after"]
+}

@@ -309,14 +309,20 @@ impl<'a> VisitMut for TreeShake<'a> {
               *node = string.clone().into_owned().into();
             }
             Resolution::Symbols(symbols) => {
+              // A namespace resolution already contains every export from this dependency,
+              // including symbols that were resolved to a more specific asset. Keep the
+              // namespace object intact so its property getters preserve live bindings.
+              if let Some((_, id, _)) = symbols.iter().find(|(key, _, _)| *key == "*") {
+                **expr = id.clone().into();
+                return;
+              }
+
               *node = Expr::Object(ObjectLit {
                 span: DUMMY_SP,
                 props: symbols
                   .iter()
                   .map(|(key, id, exp)| {
-                    let prop = if *key == "*" {
-                      todo!()
-                    } else if *exp == "*" {
+                    let prop = if *exp == "*" {
                       Prop::KeyValue(KeyValueProp {
                         key: PropName::Str((*key).into()),
                         value: Box::new(quote!(
