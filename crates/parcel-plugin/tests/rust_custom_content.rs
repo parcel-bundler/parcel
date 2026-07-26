@@ -1,6 +1,11 @@
-use std::{path::Path, sync::Arc};
+use std::{
+  path::{Path, PathBuf},
+  sync::{Arc, OnceLock},
+};
 
-use parcel_core::{BuildOptions, FileSystem, LogLevel, OsFileSystem, OverlayFileSystem, PathId};
+use parcel_core::{
+  BuildOptions, DiagnosticList, FileSystem, LogLevel, OsFileSystem, OverlayFileSystem, PathId,
+};
 
 #[cfg(target_os = "macos")]
 const LIB_EXT: &str = "dylib";
@@ -41,35 +46,42 @@ fn build_rust_plugin() -> std::path::PathBuf {
     .join(format!("libcustom_content_transformer_rs.{}", LIB_EXT))
 }
 
-#[test]
-fn test_rust_custom_content_transformer() {
-  let plugin_path = build_rust_plugin();
-  assert!(
-    plugin_path.exists(),
-    "built plugin not found at {:?}",
-    plugin_path
-  );
+fn plugin_config() -> &'static PathBuf {
+  static CONFIG: OnceLock<PathBuf> = OnceLock::new();
+  CONFIG.get_or_init(|| {
+    let plugin_path = build_rust_plugin();
+    assert!(
+      plugin_path.exists(),
+      "built plugin not found at {:?}",
+      plugin_path
+    );
 
-  let tmp = std::env::temp_dir().join("parcel-rust-custom-content-test");
-  std::fs::create_dir_all(&tmp).expect("create tmp dir");
-  let parcelrc_path = tmp.join("native-plugin.parcelrc");
-  let parcelrc = format!(
-    r#"{{"extends":"@parcel/config-default","transformers":{{"*.upper.js":[{{"plugin":"@parcel/transformer-native","config":{{"lib":"{}"}}}}]}}}}"#,
-    plugin_path.display()
-  );
-  std::fs::write(&parcelrc_path, &parcelrc).expect("write parcelrc");
+    let tmp = std::env::temp_dir().join("parcel-rust-custom-content-test");
+    std::fs::create_dir_all(&tmp).expect("create tmp dir");
+    let parcelrc_path = tmp.join("native-plugin.parcelrc");
+    let parcelrc = format!(
+      r#"{{"extends":"@parcel/config-default","transformers":{{"*.upper":[{{"plugin":"@parcel/transformer-native","config":{{"lib":"{}"}}}}],"*.upper.js":[{{"plugin":"@parcel/transformer-native","config":{{"lib":"{}"}}}}]}}}}"#,
+      plugin_path.display(),
+      plugin_path.display(),
+    );
+    std::fs::write(&parcelrc_path, &parcelrc).expect("write parcelrc");
+    parcelrc_path
+  })
+}
 
+fn build_fixture(
+  entry: &str,
+  output_fs: Arc<OverlayFileSystem>,
+) -> Result<parcel_core::BundleGraph<'static>, DiagnosticList> {
   let fixture_dir =
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/rust-custom-content-plugin");
-  let output_fs = Arc::new(OverlayFileSystem::new());
-
-  let bundle_graph = parcel::build(
-    &vec!["index.js".into()],
+  parcel::build(
+    &vec![entry.into()],
     BuildOptions {
       cwd: PathId::new(&fixture_dir),
-      config: Some(parcelrc_path.to_str().unwrap().to_owned()),
+      config: Some(plugin_config().to_str().unwrap().to_owned()),
       input_fs: Arc::new(OsFileSystem {}),
-      output_fs: output_fs.clone(),
+      output_fs,
       mode: parcel_core::BuildMode::Development,
       optimize: None,
       env: Default::default(),
@@ -79,7 +91,13 @@ fn test_rust_custom_content_transformer() {
       public_url: Default::default(),
     },
   )
-  .unwrap_or_else(|e| panic!("parcel build failed: {:?}", e));
+}
+
+#[test]
+fn test_rust_custom_content_transformer() {
+  let output_fs = Arc::new(OverlayFileSystem::new());
+  let bundle_graph = build_fixture("index.js", output_fs.clone())
+    .unwrap_or_else(|e| panic!("parcel build failed: {:?}", e));
 
   let outputs = bundle_graph
     .bundles
@@ -104,5 +122,35 @@ fn test_rust_custom_content_transformer() {
       .iter()
       .any(|content| content.contains("// rust-custom-content assets=")),
     "Expected metadata produced through BundleGraph accessors"
+  );
+}
+
+fn assert_build_diagnostic(entry: &str, expected: &str) {
+  let result = build_fixture(entry, Arc::new(OverlayFileSystem::new()));
+  let Err(diagnostics) = result else {
+    panic!("expected build to fail with {expected:?}");
+  };
+  assert!(
+    diagnostics
+      .0
+      .iter()
+      .any(|diagnostic| diagnostic.message.contains(expected)),
+    "Expected diagnostic containing {expected:?}, got: {diagnostics:?}"
+  );
+}
+
+#[test]
+fn custom_content_read_panic_becomes_diagnostic() {
+  assert_build_diagnostic(
+    "panic-read.js",
+    "plugin panicked in custom content read: example custom content read panic",
+  );
+}
+
+#[test]
+fn custom_content_package_panic_becomes_diagnostic() {
+  assert_build_diagnostic(
+    "panic-package.js",
+    "plugin panicked in custom content package: example custom content package panic",
   );
 }

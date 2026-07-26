@@ -41,7 +41,7 @@
 //! }
 //! ```
 
-use std::any::TypeId;
+use std::any::{Any, TypeId};
 use std::marker::PhantomData;
 use std::os::raw::c_void;
 use std::ptr;
@@ -393,16 +393,22 @@ impl Asset {
       diagnostic: *mut ffi::Diagnostic,
     ) {
       let content = unsafe { &*(content as *const T) as &T };
-      match content.read() {
-        Ok(ContentBuffer::Bytes(b)) => {
+      let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| content.read()));
+      match result {
+        Ok(Ok(ContentBuffer::Bytes(b))) => {
           unsafe { ffi::parcel_buffer_write(buf, b.as_ptr(), b.len()) };
         }
-        Ok(ContentBuffer::String(s)) => {
+        Ok(Ok(ContentBuffer::String(s))) => {
           unsafe { ffi::parcel_buffer_write_utf8(buf, s.as_bytes().as_ptr(), s.len()) };
         }
-        Err(e) => {
+        Ok(Err(e)) => {
           e.write_to_raw(diagnostic);
         }
+        Err(payload) => Diagnostic::new(format!(
+          "plugin panicked in custom content read: {}",
+          panic_message(payload)
+        ))
+        .write_to_raw(diagnostic),
       }
     }
 
@@ -418,16 +424,24 @@ impl Asset {
       let bundle_graph = unsafe { BundleGraph::from_raw(bundle_graph, options) };
       let bundle = unsafe { Bundle::from_raw(bundle, options) };
       let options = unsafe { Options::from_raw(options) };
-      match content.package(&bundle_graph, &bundle, &options) {
-        Ok(ContentBuffer::Bytes(b)) => {
+      let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        content.package(&bundle_graph, &bundle, &options)
+      }));
+      match result {
+        Ok(Ok(ContentBuffer::Bytes(b))) => {
           unsafe { ffi::parcel_buffer_write(buf, b.as_ptr(), b.len()) };
         }
-        Ok(ContentBuffer::String(s)) => {
+        Ok(Ok(ContentBuffer::String(s))) => {
           unsafe { ffi::parcel_buffer_write_utf8(buf, s.as_bytes().as_ptr(), s.len()) };
         }
-        Err(e) => {
+        Ok(Err(e)) => {
           e.write_to_raw(diagnostic);
         }
+        Err(payload) => Diagnostic::new(format!(
+          "plugin panicked in custom content package: {}",
+          panic_message(payload)
+        ))
+        .write_to_raw(diagnostic),
       }
     }
 
@@ -595,6 +609,16 @@ fn type_id<T: 'static>() -> [u8; 16] {
   let ty = TypeId::of::<T>();
   let slice = unsafe { std::slice::from_raw_parts(&ty as *const TypeId as *const u8, 16) };
   slice.try_into().unwrap()
+}
+
+fn panic_message(payload: Box<dyn Any + Send>) -> String {
+  if let Some(message) = payload.downcast_ref::<&str>() {
+    (*message).to_owned()
+  } else if let Some(message) = payload.downcast_ref::<String>() {
+    message.clone()
+  } else {
+    "unknown panic".to_owned()
+  }
 }
 
 pub enum ContentBuffer {

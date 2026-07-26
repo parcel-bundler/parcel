@@ -1,6 +1,11 @@
-use std::{path::Path, sync::Arc};
+use std::{
+  path::{Path, PathBuf},
+  sync::{Arc, OnceLock},
+};
 
-use parcel_core::{BuildOptions, FileSystem, LogLevel, OsFileSystem, OverlayFileSystem, PathId};
+use parcel_core::{
+  BuildOptions, DiagnosticList, FileSystem, LogLevel, OsFileSystem, OverlayFileSystem, PathId,
+};
 
 #[cfg(target_os = "macos")]
 const LIB_EXT: &str = "dylib";
@@ -46,32 +51,37 @@ fn build_go_plugin() -> Option<std::path::PathBuf> {
   Some(lib_path)
 }
 
-#[test]
-fn test_go_custom_content_transformer() {
-  let Some(plugin_path) = build_go_plugin() else {
-    eprintln!("Go not available – skipping native custom content plugin test");
-    return;
-  };
+fn plugin_config() -> Option<&'static PathBuf> {
+  static CONFIG: OnceLock<Option<PathBuf>> = OnceLock::new();
+  CONFIG
+    .get_or_init(|| {
+      let plugin_path = build_go_plugin()?;
+      let tmp = std::env::temp_dir().join("parcel-go-custom-content-test");
+      let parcelrc_path = tmp.join("native-plugin.parcelrc");
+      let parcelrc = format!(
+        r#"{{"extends":"@parcel/config-default","transformers":{{"*.upper":[{{"plugin":"@parcel/transformer-native","config":{{"lib":"{}"}}}}],"*.upper.js":[{{"plugin":"@parcel/transformer-native","config":{{"lib":"{}"}}}}]}}}}"#,
+        plugin_path.display(),
+        plugin_path.display(),
+      );
+      std::fs::write(&parcelrc_path, &parcelrc).expect("write parcelrc");
+      Some(parcelrc_path)
+    })
+    .as_ref()
+}
 
-  let tmp = std::env::temp_dir().join("parcel-go-custom-content-test");
-  let parcelrc_path = tmp.join("native-plugin.parcelrc");
-  let parcelrc = format!(
-    r#"{{"extends":"@parcel/config-default","transformers":{{"*.upper.js":[{{"plugin":"@parcel/transformer-native","config":{{"lib":"{}"}}}}]}}}}"#,
-    plugin_path.display()
-  );
-  std::fs::write(&parcelrc_path, &parcelrc).expect("write parcelrc");
-
+fn build_fixture(
+  entry: &str,
+  output_fs: Arc<OverlayFileSystem>,
+) -> Option<Result<parcel_core::BundleGraph<'static>, DiagnosticList>> {
   let fixture_dir =
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/custom-content-plugin");
-  let output_fs = Arc::new(OverlayFileSystem::new());
-
-  let bundle_graph = parcel::build(
-    &vec!["index.js".into()],
+  Some(parcel::build(
+    &vec![entry.into()],
     BuildOptions {
       cwd: PathId::new(&fixture_dir),
-      config: Some(parcelrc_path.to_str().unwrap().to_owned()),
+      config: Some(plugin_config()?.to_str().unwrap().to_owned()),
       input_fs: Arc::new(OsFileSystem {}),
-      output_fs: output_fs.clone(),
+      output_fs,
       mode: parcel_core::BuildMode::Development,
       optimize: None,
       env: Default::default(),
@@ -80,8 +90,17 @@ fn test_go_custom_content_transformer() {
       dist_dir: None,
       public_url: Default::default(),
     },
-  )
-  .unwrap_or_else(|e| panic!("parcel build failed: {:?}", e));
+  ))
+}
+
+#[test]
+fn test_go_custom_content_transformer() {
+  let output_fs = Arc::new(OverlayFileSystem::new());
+  let Some(result) = build_fixture("index.js", output_fs.clone()) else {
+    eprintln!("Go not available – skipping native custom content plugin test");
+    return;
+  };
+  let bundle_graph = result.unwrap_or_else(|e| panic!("parcel build failed: {:?}", e));
 
   let outputs = bundle_graph
     .bundles
@@ -106,5 +125,46 @@ fn test_go_custom_content_transformer() {
       .iter()
       .any(|content| content.contains("// custom-content assets=")),
     "Expected metadata produced through BundleGraph accessors"
+  );
+}
+
+fn assert_build_diagnostic(entry: &str, expected: &str) {
+  let Some(result) = build_fixture(entry, Arc::new(OverlayFileSystem::new())) else {
+    eprintln!("Go not available – skipping panic recovery test");
+    return;
+  };
+  let Err(diagnostics) = result else {
+    panic!("expected build to fail with {expected:?}");
+  };
+  assert!(
+    diagnostics
+      .0
+      .iter()
+      .any(|diagnostic| diagnostic.message.contains(expected)),
+    "Expected diagnostic containing {expected:?}, got: {diagnostics:?}"
+  );
+}
+
+#[test]
+fn go_transform_panic_becomes_diagnostic() {
+  assert_build_diagnostic(
+    "panic-transform.js",
+    "plugin panicked in transform: example transform panic",
+  );
+}
+
+#[test]
+fn go_custom_content_read_panic_becomes_diagnostic() {
+  assert_build_diagnostic(
+    "panic-read.js",
+    "plugin panicked in custom content read: example custom content read panic",
+  );
+}
+
+#[test]
+fn go_custom_content_package_panic_becomes_diagnostic() {
+  assert_build_diagnostic(
+    "panic-package.js",
+    "plugin panicked in custom content package: example custom content package panic",
   );
 }

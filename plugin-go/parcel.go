@@ -24,6 +24,7 @@ package parcel
 import "C"
 import (
 	"errors"
+	"fmt"
 	"runtime/cgo"
 	"unsafe"
 )
@@ -69,7 +70,13 @@ func RegisterPlugin(factory func([]byte) (Plugin, error)) {
 }
 
 //export parcel_plugin_init
-func parcel_plugin_init(config *C.uint8_t, configLen C.uintptr_t, diag *C.Diagnostic) unsafe.Pointer {
+func parcel_plugin_init(config *C.uint8_t, configLen C.uintptr_t, diag *C.Diagnostic) (state unsafe.Pointer) {
+	defer func() {
+		if value := recover(); value != nil {
+			state = nil
+			writeDiagnostic(diag, panicError("init", value))
+		}
+	}()
 	if pluginFactory == nil {
 		return nil
 	}
@@ -94,6 +101,7 @@ func parcel_plugin_init(config *C.uint8_t, configLen C.uintptr_t, diag *C.Diagno
 
 //export parcel_plugin_deinit
 func parcel_plugin_deinit(state unsafe.Pointer) {
+	defer recoverCleanupPanic()
 	if state == nil {
 		return
 	}
@@ -105,6 +113,7 @@ func parcel_plugin_deinit(state unsafe.Pointer) {
 
 //export parcel_plugin_transform
 func parcel_plugin_transform(asset C.Asset, rawOptions C.Options, state unsafe.Pointer, diag *C.Diagnostic) {
+	defer recoverDiagnostic("transform", diag)
 	if state == nil {
 		writeDiagnostic(diag, errors.New("plugin not registered: call parcel.RegisterPlugin in init()"))
 		return
@@ -119,6 +128,7 @@ func parcel_plugin_transform(asset C.Asset, rawOptions C.Options, state unsafe.P
 
 //export parcel_plugin_resolve
 func parcel_plugin_resolve(dep C.Dependency, specifier *C.uint8_t, specifierLen C.uintptr_t, pipeline *C.uint8_t, pipelineLen C.uintptr_t, rawOptions C.Options, result *C.ResolveResult, state unsafe.Pointer, diag *C.Diagnostic) {
+	defer recoverDiagnostic("resolve", diag)
 	if state == nil {
 		writeDiagnostic(diag, errors.New("plugin not registered: call parcel.RegisterPlugin in init()"))
 		return
@@ -132,6 +142,29 @@ func parcel_plugin_resolve(dep C.Dependency, specifier *C.uint8_t, specifierLen 
 	if err := plugin.Resolve(d, spec, pipe, opts, r); err != nil {
 		writeDiagnostic(diag, err)
 	}
+}
+
+func panicError(scope string, value any) error {
+	var message string
+	switch value := value.(type) {
+	case error:
+		message = value.Error()
+	case string:
+		message = value
+	default:
+		message = fmt.Sprint(value)
+	}
+	return fmt.Errorf("plugin panicked in %s: %s", scope, message)
+}
+
+func recoverDiagnostic(scope string, diagnostic *C.Diagnostic) {
+	if value := recover(); value != nil {
+		writeDiagnostic(diagnostic, panicError(scope, value))
+	}
+}
+
+func recoverCleanupPanic() {
+	_ = recover()
 }
 
 // writeDiagnostic fills a Diagnostic from an error. If err is a *Diagnostic,

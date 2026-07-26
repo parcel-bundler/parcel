@@ -23,12 +23,19 @@ type UppercaseContent struct {
 // Read provides a source representation for tools that need to inspect the
 // content before packaging.
 func (c *UppercaseContent) Read() (parcel.Content, error) {
+	if c.Source == "PANIC_READ" {
+		panic("example custom content read panic")
+	}
 	return parcel.StringContent(c.Source), nil
 }
 
 // Package generates the final JavaScript module. It also demonstrates that the
 // callback receives read-only access to the complete BundleGraph and Bundle.
 func (c *UppercaseContent) Package(graph *parcel.BundleGraph, bundle *parcel.Bundle, _ *parcel.Options) (parcel.Content, error) {
+	if c.Source == "PANIC_PACKAGE" {
+		panic("example custom content package panic")
+	}
+
 	foundSelf := false
 	dependencyCount := 0
 
@@ -70,10 +77,18 @@ type CustomContentTransformer struct {
 
 func (t *CustomContentTransformer) Transform(asset *parcel.Asset, _ *parcel.Options) error {
 	source := strings.TrimSpace(asset.Content())
+	if source == "PANIC_TRANSFORM" {
+		panic("example transform panic")
+	}
 	asset.SetCustomContent(&UppercaseContent{
 		Source: source,
 		Words:  strings.Fields(source),
 	})
+	if source == "PANIC_READ" {
+		// Changing type causes the normal JS transformer to request the custom
+		// content's string representation, exercising the read callback.
+		asset.SetType("js")
+	}
 	return nil
 }
 

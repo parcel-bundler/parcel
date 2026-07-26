@@ -119,6 +119,7 @@ func writeContentBuffer(buf *C.Buffer, content Content) error {
 
 //export parcel_go_content_read
 func parcel_go_content_read(rawContent unsafe.Pointer, buf *C.Buffer, diagnostic *C.Diagnostic) {
+	defer recoverDiagnostic("custom content read", diagnostic)
 	content, _, ok := contentForPointer(rawContent)
 	if !ok {
 		writeDiagnostic(diagnostic, errors.New("parcel: custom content handle is no longer valid"))
@@ -136,6 +137,7 @@ func parcel_go_content_read(rawContent unsafe.Pointer, buf *C.Buffer, diagnostic
 
 //export parcel_go_content_package
 func parcel_go_content_package(rawContent unsafe.Pointer, rawGraph C.BundleGraph, rawBundle C.Bundle, rawOptions C.Options, buf *C.Buffer, diagnostic *C.Diagnostic) {
+	defer recoverDiagnostic("custom content package", diagnostic)
 	content, _, ok := contentForPointer(rawContent)
 	if !ok {
 		writeDiagnostic(diagnostic, errors.New("parcel: custom content handle is no longer valid"))
@@ -157,12 +159,13 @@ func parcel_go_content_package(rawContent unsafe.Pointer, rawGraph C.BundleGraph
 
 //export parcel_go_content_free
 func parcel_go_content_free(rawContent unsafe.Pointer) {
+	defer recoverCleanupPanic()
 	if rawContent == nil {
 		return
 	}
 	if value, ok := registeredContents.LoadAndDelete(uintptr(rawContent)); ok {
-		value.(registeredContent).handle.Delete()
 		C.free(rawContent)
+		value.(registeredContent).handle.Delete()
 	}
 }
 
