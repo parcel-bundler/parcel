@@ -49,7 +49,7 @@ impl Target {
   pub fn normalize(target: &Arc<Target>, ty: &AssetType) -> Arc<Target> {
     // The output format + environment only applies to JavaScript-based languages.
     // Normalize the target for other asset types to avoid duplicating them.
-    if !ty.is_js()
+    if *ty != AssetType::Js
       && (matches!(
         target.output_format,
         OutputFormat::Esmodule | OutputFormat::Commonjs

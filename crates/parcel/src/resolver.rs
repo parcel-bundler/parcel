@@ -122,7 +122,7 @@ impl Resolver for DefaultResolver {
               ..Default::default()
             },
             content: Arc::new(FileContent::new(path, options.input_fs.clone())),
-            target: Target::normalize(&dep.target, &ty),
+            target: dep.target.clone(),
             pipeline: pipeline.map(|p| p.into()),
             ty,
             side_effects,

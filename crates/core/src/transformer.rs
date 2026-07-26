@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
   Asset, AssetFlags, AssetNodeIndex, AssetRequest, AssetSymbols, AssetType, DependencyFlags,
   DependencyResolution, Diagnostic, DiagnosticList, FileSystem, Invalidations, ParcelOptions,
-  PathId, Pipeline, SourceUrl, TrackingFileSystem,
+  PathId, Pipeline, SourceUrl, Target, TrackingFileSystem,
   config::{ParcelConfig, PipelineMap},
   resolver::resolve,
 };
@@ -104,6 +104,8 @@ impl TransformRequest {
         &self.options,
         &fs,
       )?;
+
+      asset.target = Target::normalize(&asset.target, &asset.ty);
 
       let resolvers = &self.config.resolvers;
       let named_pipelines = self.config.transformers.named_pipelines();

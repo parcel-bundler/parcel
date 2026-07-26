@@ -313,7 +313,7 @@ impl Resolver for JsPlugin {
               } else {
                 Arc::new(FileContent::new(path, options.input_fs.clone()))
               },
-              target: Target::normalize(&dep.target, &ty),
+              target: dep.target.clone(),
               pipeline: if result_pipeline.is_undefined() {
                 pipeline.map(Into::into)
               } else if result_pipeline.is_null() {

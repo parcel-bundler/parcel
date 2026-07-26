@@ -99,7 +99,7 @@ impl MacroContext {
           },
         },
         pipeline: None,
-        target: Target::normalize(&self.target, &ty),
+        target: self.target.clone(),
         ty,
         content: Arc::new(BufferContent::new_string(content)),
         side_effects: true,
