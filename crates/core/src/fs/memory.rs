@@ -60,12 +60,16 @@ impl MemoryFileSystem {
   }
 
   fn dir(&self, path: &Path) -> Result<usize> {
+    let entries = self.entries.lock().unwrap();
+    Self::dir_in(&entries, path)
+  }
+
+  fn dir_in(entries: &[Entry], path: &Path) -> Result<usize> {
     let mut node = 0;
     for component in path.components() {
       match component {
         Component::CurDir => {}
         Component::ParentDir => {
-          let entries = self.entries.lock().unwrap();
           let entry = &entries[node];
           if let Some(parent) = entry.parent() {
             node = parent;
@@ -78,7 +82,7 @@ impl MemoryFileSystem {
           node = 0;
         }
         Component::Normal(name) => {
-          node = self.entry(node, name)?;
+          node = Self::entry_in(entries, node, name)?;
         }
       }
     }
@@ -88,6 +92,10 @@ impl MemoryFileSystem {
 
   fn entry(&self, parent: usize, name: &OsStr) -> Result<usize> {
     let entries = self.entries.lock().unwrap();
+    Self::entry_in(&entries, parent, name)
+  }
+
+  fn entry_in(entries: &[Entry], parent: usize, name: &OsStr) -> Result<usize> {
     let entry = &entries[parent];
     if let Entry::Directory { children, .. } = entry {
       for child in children {
@@ -104,8 +112,9 @@ impl MemoryFileSystem {
 
   pub fn mkdir(&self, path: &Path) -> Result<()> {
     let name = path.file_name().unwrap();
-    let node = path.parent().map_or(Ok(0), |p| self.dir(p))?;
-    let found = self.entry(node, name);
+    let mut entries = self.entries.lock().unwrap();
+    let node = path.parent().map_or(Ok(0), |p| Self::dir_in(&entries, p))?;
+    let found = Self::entry_in(&entries, node, name);
     if found.is_ok() {
       return Err(std::io::Error::new(
         std::io::ErrorKind::AlreadyExists,
@@ -113,7 +122,6 @@ impl MemoryFileSystem {
       ));
     }
 
-    let mut entries = self.entries.lock().unwrap();
     let index = entries.len();
     entries.push(Entry::Directory {
       name: name.into(),
@@ -171,9 +179,9 @@ impl FileSystem for MemoryFileSystem {
   fn write(&self, path: PathId, contents: &[u8]) -> Result<()> {
     path.with_path(|path| {
       let name = path.file_name().unwrap();
-      let node = path.parent().map_or(Ok(0), |p| self.dir(p))?;
-      let found = self.entry(node, name);
       let mut entries = self.entries.lock().unwrap();
+      let node = path.parent().map_or(Ok(0), |p| Self::dir_in(&entries, p))?;
+      let found = Self::entry_in(&entries, node, name);
 
       if let Ok(found) = found {
         if let Entry::File {
@@ -246,12 +254,12 @@ impl FileSystem for MemoryFileSystem {
 
   fn create_dir_all(&self, path: PathId) -> Result<()> {
     path.with_path(|path| {
+      let mut entries = self.entries.lock().unwrap();
       let mut node = 0;
       for component in path.components() {
         match component {
           Component::CurDir => {}
           Component::ParentDir => {
-            let entries = self.entries.lock().unwrap();
             let entry = &entries[node];
             if let Some(parent) = entry.parent() {
               node = parent;
@@ -264,10 +272,9 @@ impl FileSystem for MemoryFileSystem {
             node = 0;
           }
           Component::Normal(name) => {
-            node = match self.entry(node, name) {
+            node = match Self::entry_in(&entries, node, name) {
               Ok(v) => v,
               Err(e) if e.kind() == ErrorKind::NotFound => {
-                let mut entries = self.entries.lock().unwrap();
                 let index = entries.len();
                 entries.push(Entry::Directory {
                   name: name.into(),
