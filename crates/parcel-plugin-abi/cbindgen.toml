@@ -5,11 +5,12 @@ no_includes = true
 sys_includes = ["stdint.h", "stdbool.h"]
 
 [export]
-include = ["Diagnostic", "ResolveResult", "DependencyFlags", "AssetFlags", "EnvironmentFlags", "BundleFlags", "BundleGraphDependencyResolution", "PARCEL_INVALID_ASSET_INDEX"]
-exclude = ["CPlugin", "AssetFlagsFFI", "DependencyFlagsFFI", "EnvironmentFlagsFFI", "BundleFlagsFFI"]
+include = ["Diagnostic", "ResolveResult", "DependencyFlags", "ExportsConditions", "AssetFlags", "EnvironmentFlags", "BundleFlags", "BundleGraphDependencyResolution", "PARCEL_INVALID_ASSET_INDEX"]
+exclude = ["CPlugin", "AssetFlagsFFI", "DependencyFlagsFFI", "ExportsConditionsFFI", "EnvironmentFlagsFFI", "BundleFlagsFFI"]
 
 [export.rename]
 "AssetFlagsFFI" = "AssetFlags"
 "DependencyFlagsFFI" = "DependencyFlags"
+"ExportsConditionsFFI" = "ExportsConditions"
 "EnvironmentFlagsFFI" = "EnvironmentFlags"
 "BundleFlagsFFI" = "BundleFlags"

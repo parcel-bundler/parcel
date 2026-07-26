@@ -123,6 +123,90 @@ impl ::std::ops::BitAndAssign for DependencyFlags {
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct DependencyFlags(pub u8);
+impl ExportsConditions {
+  pub const IMPORT: ExportsConditions = ExportsConditions(1);
+}
+impl ExportsConditions {
+  pub const REQUIRE: ExportsConditions = ExportsConditions(2);
+}
+impl ExportsConditions {
+  pub const MODULE: ExportsConditions = ExportsConditions(4);
+}
+impl ExportsConditions {
+  pub const NODE: ExportsConditions = ExportsConditions(8);
+}
+impl ExportsConditions {
+  pub const BROWSER: ExportsConditions = ExportsConditions(16);
+}
+impl ExportsConditions {
+  pub const WORKER: ExportsConditions = ExportsConditions(32);
+}
+impl ExportsConditions {
+  pub const WORKLET: ExportsConditions = ExportsConditions(64);
+}
+impl ExportsConditions {
+  pub const ELECTRON: ExportsConditions = ExportsConditions(128);
+}
+impl ExportsConditions {
+  pub const DEVELOPMENT: ExportsConditions = ExportsConditions(256);
+}
+impl ExportsConditions {
+  pub const PRODUCTION: ExportsConditions = ExportsConditions(512);
+}
+impl ExportsConditions {
+  pub const TYPES: ExportsConditions = ExportsConditions(1024);
+}
+impl ExportsConditions {
+  pub const DEFAULT: ExportsConditions = ExportsConditions(2048);
+}
+impl ExportsConditions {
+  pub const STYLE: ExportsConditions = ExportsConditions(4096);
+}
+impl ExportsConditions {
+  pub const SASS: ExportsConditions = ExportsConditions(8192);
+}
+impl ExportsConditions {
+  pub const LESS: ExportsConditions = ExportsConditions(16384);
+}
+impl ExportsConditions {
+  pub const STYLUS: ExportsConditions = ExportsConditions(32768);
+}
+impl ExportsConditions {
+  pub const REACT_SERVER: ExportsConditions = ExportsConditions(65536);
+}
+impl ExportsConditions {
+  pub const SOURCE: ExportsConditions = ExportsConditions(131072);
+}
+impl ::std::ops::BitOr<ExportsConditions> for ExportsConditions {
+  type Output = Self;
+  #[inline]
+  fn bitor(self, other: Self) -> Self {
+    ExportsConditions(self.0 | other.0)
+  }
+}
+impl ::std::ops::BitOrAssign for ExportsConditions {
+  #[inline]
+  fn bitor_assign(&mut self, rhs: ExportsConditions) {
+    self.0 |= rhs.0;
+  }
+}
+impl ::std::ops::BitAnd<ExportsConditions> for ExportsConditions {
+  type Output = Self;
+  #[inline]
+  fn bitand(self, other: Self) -> Self {
+    ExportsConditions(self.0 & other.0)
+  }
+}
+impl ::std::ops::BitAndAssign for ExportsConditions {
+  #[inline]
+  fn bitand_assign(&mut self, rhs: ExportsConditions) {
+    self.0 &= rhs.0;
+  }
+}
+#[repr(transparent)]
+#[doc = " Conditions used when resolving package `exports` and `imports` fields."]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct ExportsConditions(pub u32);
 impl AssetFlags {
   pub const IS_SOURCE: AssetFlags = AssetFlags(1);
 }
@@ -371,6 +455,8 @@ pub struct DependencyOptions {
   pub bundle_behavior: BundleBehavior,
   #[doc = " `PARCEL_DEP_*` bits"]
   pub flags: DependencyFlags,
+  #[doc = " `PARCEL_EXPORTS_CONDITION_*` bits"]
+  pub conditions: ExportsConditions,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
@@ -388,6 +474,8 @@ const _: () = {
     [::std::mem::offset_of!(DependencyOptions, bundle_behavior) - 18usize];
   ["Offset of field: DependencyOptions::flags"]
     [::std::mem::offset_of!(DependencyOptions, flags) - 19usize];
+  ["Offset of field: DependencyOptions::conditions"]
+    [::std::mem::offset_of!(DependencyOptions, conditions) - 20usize];
 };
 #[doc = " Result filled by a resolver plugin's `parcel_plugin_resolve()`.\n The struct is zero-initialised by the host before the call.\n\n When type == PARCEL_RESOLUTION_FILE_PATH, fill `file_path` (and optionally `pipeline`) via `parcel_buffer_alloc()`."]
 #[repr(C)]
@@ -660,6 +748,10 @@ unsafe extern "C" {
 unsafe extern "C" {
   #[doc = " Returns the raw `DependencyFlags` bitfield (`PARCEL_DEP_*` bits)."]
   pub fn parcel_dep_get_flags(dep: Dependency) -> DependencyFlags;
+}
+unsafe extern "C" {
+  #[doc = " Returns the raw `ExportsConditions` bitfield (`PARCEL_EXPORTS_CONDITION_*` bits)."]
+  pub fn parcel_dep_get_conditions(dep: Dependency) -> ExportsConditions;
 }
 unsafe extern "C" {
   #[doc = " Returns the absolute path of the file containing this import into `*buf`."]

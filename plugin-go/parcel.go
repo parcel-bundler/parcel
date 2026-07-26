@@ -359,6 +359,7 @@ func (a *Asset) AddDependency(dep DependencySpec) {
 		priority:        C.uint8_t(dep.Priority),
 		bundle_behavior: C.uint8_t(dep.BundleBehavior),
 		flags:           C.uint8_t(dep.Flags),
+		conditions:      C.uint32_t(dep.Conditions),
 	}
 	C.parcel_asset_add_dependency(a.ptr, &cDep)
 }
@@ -409,6 +410,11 @@ func (d *Dependency) BundleBehavior() BundleBehavior {
 // Flags returns the raw DependencyFlags bitfield.
 func (d *Dependency) Flags() DependencyFlags {
 	return DependencyFlags(C.parcel_dep_get_flags(d.ptr))
+}
+
+// Conditions returns the package exports and imports conditions bitfield.
+func (d *Dependency) Conditions() ExportsConditions {
+	return ExportsConditions(C.parcel_dep_get_conditions(d.ptr))
 }
 
 // SourcePath returns the absolute path of the file that contains this import.
@@ -630,6 +636,31 @@ const (
 	DependencyFlagMacro           DependencyFlags = 1 << 5
 )
 
+// ExportsConditions is a bitfield of conditions used when resolving package
+// exports and imports fields.
+type ExportsConditions uint32
+
+const (
+	ExportsConditionImport      ExportsConditions = 1 << 0
+	ExportsConditionRequire     ExportsConditions = 1 << 1
+	ExportsConditionModule      ExportsConditions = 1 << 2
+	ExportsConditionNode        ExportsConditions = 1 << 3
+	ExportsConditionBrowser     ExportsConditions = 1 << 4
+	ExportsConditionWorker      ExportsConditions = 1 << 5
+	ExportsConditionWorklet     ExportsConditions = 1 << 6
+	ExportsConditionElectron    ExportsConditions = 1 << 7
+	ExportsConditionDevelopment ExportsConditions = 1 << 8
+	ExportsConditionProduction  ExportsConditions = 1 << 9
+	ExportsConditionTypes       ExportsConditions = 1 << 10
+	ExportsConditionDefault     ExportsConditions = 1 << 11
+	ExportsConditionStyle       ExportsConditions = 1 << 12
+	ExportsConditionSass        ExportsConditions = 1 << 13
+	ExportsConditionLess        ExportsConditions = 1 << 14
+	ExportsConditionStylus      ExportsConditions = 1 << 15
+	ExportsConditionReactServer ExportsConditions = 1 << 16
+	ExportsConditionSource      ExportsConditions = 1 << 17
+)
+
 // DependencySpec describes a dependency to be added from a transformer.
 type DependencySpec struct {
 	Specifier      string
@@ -637,6 +668,7 @@ type DependencySpec struct {
 	Priority       Priority
 	BundleBehavior BundleBehavior
 	Flags          DependencyFlags
+	Conditions     ExportsConditions
 }
 
 // Environment represents the target execution environment.

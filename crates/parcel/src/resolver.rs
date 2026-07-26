@@ -8,7 +8,8 @@ use parcel_core::{
   SpecifierType, Target, json_source_location,
 };
 use parcel_resolver::{
-  PackageJsonError, Resolution, ResolutionAndQuery, ResolveOptions, ResolverError, SpecifierError,
+  Extensions, Fields, PackageJsonError, Resolution, ResolutionAndQuery, ResolveOptions,
+  ResolverError, SpecifierError,
 };
 
 pub struct DefaultResolver;
@@ -29,7 +30,7 @@ impl Resolver for DefaultResolver {
     fs: &Arc<dyn FileSystem>,
   ) -> Result<DependencyResolution, DiagnosticList> {
     let resolve_from = dep.resolve_from.as_ref().unwrap();
-    let mut conditions = dep.conditions | ExportsCondition::SOURCE;
+    let mut conditions = ExportsCondition::SOURCE;
 
     if dep.target.environment.is_browser() {
       conditions |= ExportsCondition::BROWSER;
@@ -65,6 +66,12 @@ impl Resolver for DefaultResolver {
     // existence checks, ...) is recorded as an invalidation of this asset. The interning cache is
     // per-resolve; the underlying metadata/parse caching is shared via the wrapped CachedFileSystem.
     let mut resolver = parcel_resolver::Resolver::parcel(options.project_root);
+    resolver.conditions = conditions;
+    if dep.conditions.contains(ExportsCondition::TYPES) {
+      resolver.entries |= Fields::TYPES;
+      resolver.extensions = Extensions::Borrowed(&["ts", "tsx", "d.ts"]);
+    }
+
     resolver.include_node_modules = if dep.flags.contains(DependencyFlags::FORCE_BUNDLE) {
       Cow::Owned(IncludeNodeModules::Bool(true))
     } else {
@@ -82,7 +89,7 @@ impl Resolver for DefaultResolver {
       },
       &**fs,
       ResolveOptions {
-        conditions,
+        conditions: dep.conditions,
         ..Default::default()
       },
     );

@@ -203,6 +203,21 @@ impl Default for DependencyFlags {
   }
 }
 
+/// Conditions used when resolving package `exports` and `imports` fields.
+pub use ffi::ExportsConditions;
+
+impl ExportsConditions {
+  pub fn contains(self, other: ExportsConditions) -> bool {
+    self.0 & other.0 == other.0
+  }
+}
+
+impl Default for ExportsConditions {
+  fn default() -> Self {
+    ExportsConditions(0)
+  }
+}
+
 /// A dependency to be added to an asset from a transformer.
 #[derive(Default, Debug)]
 pub struct DependencyOptions {
@@ -212,6 +227,7 @@ pub struct DependencyOptions {
   pub priority: Priority,
   pub bundle_behavior: BundleBehavior,
   pub flags: DependencyFlags,
+  pub conditions: ExportsConditions,
 }
 
 impl DependencyOptions {
@@ -592,6 +608,7 @@ impl Asset {
       priority: dep.priority,
       bundle_behavior: dep.bundle_behavior,
       flags: dep.flags,
+      conditions: dep.conditions,
     };
     unsafe { ffi::parcel_asset_add_dependency(self.raw, &raw) };
   }
@@ -1023,6 +1040,11 @@ impl Dependency {
   /// Returns the raw `DependencyFlags` bitfield.
   pub fn flags(&self) -> DependencyFlags {
     unsafe { ffi::parcel_dep_get_flags(self.raw) }
+  }
+
+  /// Returns the package `exports` and `imports` conditions bitfield.
+  pub fn conditions(&self) -> ExportsConditions {
+    unsafe { ffi::parcel_dep_get_conditions(self.raw) }
   }
 
   /// Returns the absolute path of the file that contains this import.

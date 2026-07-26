@@ -189,6 +189,41 @@ typedef uint8_t DependencyFlags;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
+/**
+ * Conditions used when resolving package `exports` and `imports` fields.
+ */
+enum ExportsConditions
+#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+  : uint32_t
+#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+ {
+  PARCEL_EXPORTS_CONDITION_IMPORT = (1 << 0),
+  PARCEL_EXPORTS_CONDITION_REQUIRE = (1 << 1),
+  PARCEL_EXPORTS_CONDITION_MODULE = (1 << 2),
+  PARCEL_EXPORTS_CONDITION_NODE = (1 << 3),
+  PARCEL_EXPORTS_CONDITION_BROWSER = (1 << 4),
+  PARCEL_EXPORTS_CONDITION_WORKER = (1 << 5),
+  PARCEL_EXPORTS_CONDITION_WORKLET = (1 << 6),
+  PARCEL_EXPORTS_CONDITION_ELECTRON = (1 << 7),
+  PARCEL_EXPORTS_CONDITION_DEVELOPMENT = (1 << 8),
+  PARCEL_EXPORTS_CONDITION_PRODUCTION = (1 << 9),
+  PARCEL_EXPORTS_CONDITION_TYPES = (1 << 10),
+  PARCEL_EXPORTS_CONDITION_DEFAULT = (1 << 11),
+  PARCEL_EXPORTS_CONDITION_STYLE = (1 << 12),
+  PARCEL_EXPORTS_CONDITION_SASS = (1 << 13),
+  PARCEL_EXPORTS_CONDITION_LESS = (1 << 14),
+  PARCEL_EXPORTS_CONDITION_STYLUS = (1 << 15),
+  PARCEL_EXPORTS_CONDITION_REACT_SERVER = (1 << 16),
+  PARCEL_EXPORTS_CONDITION_SOURCE = (1 << 17),
+};
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef enum ExportsConditions ExportsConditions;
+#else
+typedef uint32_t ExportsConditions;
+#endif // __STDC_VERSION__ >= 202311L
+#endif // __cplusplus
+
 enum AssetFlags
 #if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
   : uint32_t
@@ -367,6 +402,10 @@ typedef struct DependencyOptions {
    * `PARCEL_DEP_*` bits
    */
   DependencyFlags flags;
+  /**
+   * `PARCEL_EXPORTS_CONDITION_*` bits
+   */
+  ExportsConditions conditions;
 } DependencyOptions;
 
 /**
@@ -694,6 +733,11 @@ BundleBehavior parcel_dep_get_bundle_behavior(Dependency dep);
  * Returns the raw `DependencyFlags` bitfield (`PARCEL_DEP_*` bits).
  */
 DependencyFlags parcel_dep_get_flags(Dependency dep);
+
+/**
+ * Returns the raw `ExportsConditions` bitfield (`PARCEL_EXPORTS_CONDITION_*` bits).
+ */
+ExportsConditions parcel_dep_get_conditions(Dependency dep);
 
 /**
  * Returns the absolute path of the file containing this import into `*buf`.

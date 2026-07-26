@@ -10,8 +10,8 @@ use parcel_core::{
   Content, ContentType, Dependency as CoreDependency, DependencyFlags as CoreDependencyFlags,
   DependencyResolution, Diagnostic as CoreDiagnostic, DiagnosticList,
   DiagnosticSeverity as CoreDiagnosticSeverity, EnvironmentFlags as CoreEnvironmentFlags,
-  ExportsCondition, FileContent, LocalSymbol, Location, ParcelOptions, PathId,
-  Priority as CorePriority, Resolver, SourceLocation, SourceUrl,
+  ExportsCondition as CoreExportsCondition, FileContent, LocalSymbol, Location, ParcelOptions,
+  PathId, Priority as CorePriority, Resolver, SourceLocation, SourceUrl,
   SpecifierType as CoreSpecifierType, SymbolName, Transformer,
 };
 
@@ -79,6 +79,32 @@ pub enum DependencyFlags {
 }
 
 pub type DependencyFlagsFFI = u8;
+
+/// Conditions used when resolving package `exports` and `imports` fields.
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, Hash)]
+pub enum ExportsConditions {
+  PARCEL_EXPORTS_CONDITION_IMPORT = 1 << 0,
+  PARCEL_EXPORTS_CONDITION_REQUIRE = 1 << 1,
+  PARCEL_EXPORTS_CONDITION_MODULE = 1 << 2,
+  PARCEL_EXPORTS_CONDITION_NODE = 1 << 3,
+  PARCEL_EXPORTS_CONDITION_BROWSER = 1 << 4,
+  PARCEL_EXPORTS_CONDITION_WORKER = 1 << 5,
+  PARCEL_EXPORTS_CONDITION_WORKLET = 1 << 6,
+  PARCEL_EXPORTS_CONDITION_ELECTRON = 1 << 7,
+  PARCEL_EXPORTS_CONDITION_DEVELOPMENT = 1 << 8,
+  PARCEL_EXPORTS_CONDITION_PRODUCTION = 1 << 9,
+  PARCEL_EXPORTS_CONDITION_TYPES = 1 << 10,
+  PARCEL_EXPORTS_CONDITION_DEFAULT = 1 << 11,
+  PARCEL_EXPORTS_CONDITION_STYLE = 1 << 12,
+  PARCEL_EXPORTS_CONDITION_SASS = 1 << 13,
+  PARCEL_EXPORTS_CONDITION_LESS = 1 << 14,
+  PARCEL_EXPORTS_CONDITION_STYLUS = 1 << 15,
+  PARCEL_EXPORTS_CONDITION_REACT_SERVER = 1 << 16,
+  PARCEL_EXPORTS_CONDITION_SOURCE = 1 << 17,
+}
+
+pub type ExportsConditionsFFI = u32;
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, Hash)]
@@ -230,6 +256,69 @@ const _: () = debug_assert!(
 const _: () =
   debug_assert!(CoreDependencyFlags::MACRO.bits() == DependencyFlags::PARCEL_DEP_MACRO as u8);
 
+const _: () = debug_assert!(
+  CoreExportsCondition::IMPORT.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_IMPORT as u32
+);
+const _: () = debug_assert!(
+  CoreExportsCondition::REQUIRE.bits()
+    == ExportsConditions::PARCEL_EXPORTS_CONDITION_REQUIRE as u32
+);
+const _: () = debug_assert!(
+  CoreExportsCondition::MODULE.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_MODULE as u32
+);
+const _: () = debug_assert!(
+  CoreExportsCondition::NODE.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_NODE as u32
+);
+const _: () = debug_assert!(
+  CoreExportsCondition::BROWSER.bits()
+    == ExportsConditions::PARCEL_EXPORTS_CONDITION_BROWSER as u32
+);
+const _: () = debug_assert!(
+  CoreExportsCondition::WORKER.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_WORKER as u32
+);
+const _: () = debug_assert!(
+  CoreExportsCondition::WORKLET.bits()
+    == ExportsConditions::PARCEL_EXPORTS_CONDITION_WORKLET as u32
+);
+const _: () = debug_assert!(
+  CoreExportsCondition::ELECTRON.bits()
+    == ExportsConditions::PARCEL_EXPORTS_CONDITION_ELECTRON as u32
+);
+const _: () = debug_assert!(
+  CoreExportsCondition::DEVELOPMENT.bits()
+    == ExportsConditions::PARCEL_EXPORTS_CONDITION_DEVELOPMENT as u32
+);
+const _: () = debug_assert!(
+  CoreExportsCondition::PRODUCTION.bits()
+    == ExportsConditions::PARCEL_EXPORTS_CONDITION_PRODUCTION as u32
+);
+const _: () = debug_assert!(
+  CoreExportsCondition::TYPES.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_TYPES as u32
+);
+const _: () = debug_assert!(
+  CoreExportsCondition::DEFAULT.bits()
+    == ExportsConditions::PARCEL_EXPORTS_CONDITION_DEFAULT as u32
+);
+const _: () = debug_assert!(
+  CoreExportsCondition::STYLE.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_STYLE as u32
+);
+const _: () = debug_assert!(
+  CoreExportsCondition::SASS.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_SASS as u32
+);
+const _: () = debug_assert!(
+  CoreExportsCondition::LESS.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_LESS as u32
+);
+const _: () = debug_assert!(
+  CoreExportsCondition::STYLUS.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_STYLUS as u32
+);
+const _: () = debug_assert!(
+  CoreExportsCondition::REACT_SERVER.bits()
+    == ExportsConditions::PARCEL_EXPORTS_CONDITION_REACT_SERVER as u32
+);
+const _: () = debug_assert!(
+  CoreExportsCondition::SOURCE.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_SOURCE as u32
+);
+
 const _: () =
   debug_assert!(CoreAssetFlags::IS_SOURCE.bits() == AssetFlags::PARCEL_ASSET_IS_SOURCE as u32);
 const _: () = debug_assert!(
@@ -343,6 +432,8 @@ pub struct DependencyOptions {
   pub bundle_behavior: BundleBehavior,
   /// `PARCEL_DEP_*` bits
   pub flags: DependencyFlagsFFI,
+  /// `PARCEL_EXPORTS_CONDITION_*` bits
+  pub conditions: ExportsConditionsFFI,
 }
 
 /// Result filled by a resolver plugin's `parcel_plugin_resolve()`.
@@ -1267,7 +1358,7 @@ pub extern "C" fn parcel_asset_add_dependency(asset: Asset, dep: *const Dependen
     placeholder: None,
     resolve_from: Some(asset.loc.url.clone()),
     range: None,
-    conditions: ExportsCondition::empty(),
+    conditions: CoreExportsCondition::from_bits_truncate(dep.conditions),
     resolution: DependencyResolution::None,
   });
 }
@@ -1339,6 +1430,13 @@ pub extern "C" fn parcel_dep_get_bundle_behavior(dep: Dependency) -> BundleBehav
 pub extern "C" fn parcel_dep_get_flags(dep: Dependency) -> DependencyFlagsFFI {
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
   dep.flags.bits()
+}
+
+/// Returns the raw `ExportsConditions` bitfield (`PARCEL_EXPORTS_CONDITION_*` bits).
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_dep_get_conditions(dep: Dependency) -> ExportsConditionsFFI {
+  let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
+  dep.conditions.bits()
 }
 
 /// Returns the absolute path of the file containing this import into `*buf`.
