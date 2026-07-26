@@ -23,7 +23,7 @@ mod transformer;
 use std::{
   collections::{HashMap, HashSet},
   path::Path,
-  sync::Arc,
+  sync::{Arc, Mutex},
 };
 
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
@@ -340,10 +340,12 @@ fn bundle_and_package<'a>(
 
   *prev_bundles = new_prev;
 
+  let cache = papaya::HashMap::new();
+
   bundle_graph.bundles.par_iter().enumerate().try_for_each(
     |(bundle_index, bundle)| -> Result<(), DiagnosticList> {
       if dirty.contains(&bundle_index) {
-        let content = get_bundle_content(config, &bundle_graph, bundle, options)?;
+        let content = get_bundle_content(config, &bundle_graph, bundle_index, options, &cache)?;
         let path = bundle.dist_path();
         let parent = path
           .parent()
@@ -375,21 +377,40 @@ pub fn build(
 pub fn get_bundle_content(
   config: &ParcelConfig,
   bundle_graph: &BundleGraph,
-  bundle: &Bundle,
+  bundle_index: usize,
   options: &ParcelOptions,
+  cache: &papaya::HashMap<usize, Arc<Mutex<Option<Arc<dyn Content>>>>>,
 ) -> Result<Arc<dyn Content>, DiagnosticList> {
+  let bundle = &bundle_graph.bundles[bundle_index];
+
+  // If this is an inline bundle, it's possible that it's inlined into many parent bundles.
+  // To avoid packaging the same bundle many times, we have a cache by bundle index.
+  // Each entry is a Mutex<Option<dyn Content>>. The mutex is initially empty, and locked
+  // while the content is packaging. If the bundle is requested a second time concurrently,
+  // that thread waits on the lock and reuses the same content.
+  let slot = if bundle.bundle_behavior == BundleBehavior::Inline {
+    Some(
+      cache
+        .pin()
+        .get_or_insert_with(bundle_index, || Arc::new(Mutex::new(None)))
+        .clone(),
+    )
+  } else {
+    None
+  };
+
+  // TODO: error instead of deadlocking if there is a cycle in inline bundles. Currently this cannot happen.
+  let mut lock = slot.as_ref().map(|slot| slot.lock().unwrap());
+  if let Some(content) = lock.as_ref().and_then(|c| (*c).as_ref()) {
+    return Ok(content.clone());
+  }
+
   let first_asset = *bundle.assets.first().ok_or_else(|| {
     Diagnostic::from_message("Cannot package a bundle with no assets".to_string())
   })?;
   let first_content = &bundle_graph.asset_graph.asset(first_asset).content;
-  let get_inline_bundle_content = |bundle_index| {
-    get_bundle_content(
-      config,
-      bundle_graph,
-      &bundle_graph.bundles[bundle_index],
-      options,
-    )
-  };
+  let get_inline_bundle_content =
+    |bundle_index| get_bundle_content(config, bundle_graph, bundle_index, options, cache);
 
   let mut content =
     first_content.package(&bundle_graph, &bundle, &get_inline_bundle_content, options)?;
@@ -409,6 +430,9 @@ pub fn get_bundle_content(
     content = optimizer.optimize(&bundle_graph, &bundle, content, options)?;
   }
 
+  if let Some(slot) = &mut lock {
+    **slot = Some(content.clone());
+  }
   Ok(content)
 }
 
