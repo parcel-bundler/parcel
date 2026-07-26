@@ -21,6 +21,14 @@ impl Transformer for ImageTransformer {
   ) -> Result<Asset, DiagnosticList> {
     asset.bundle_behavior = BundleBehavior::Isolated;
 
+    if !asset
+      .target
+      .flags
+      .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+    {
+      return Ok(asset);
+    }
+
     let mut width: Option<u32> = None;
     let mut height: Option<u32> = None;
     let mut quality: Option<u8> = None;

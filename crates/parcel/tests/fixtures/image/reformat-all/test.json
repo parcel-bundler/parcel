@@ -1,6 +1,7 @@
 {
   "description": "Should be able to change image to all formats",
   "input": "reformat-all.html",
+  "options": {"mode": "production"},
   "bundles": [
     {"type": "html", "assets": ["reformat-all.html"]},
     {"type": "avif", "assets": ["foo.png"]},
