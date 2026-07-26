@@ -140,19 +140,37 @@ impl PluginFactory for DefaultPluginFactory {
     config: Option<serde_json::Value>,
     from: PathId,
   ) -> Result<Arc<dyn Namer>, DiagnosticList> {
-    if name == "@parcel/namer-default" {
-      Ok(Arc::new(DefaultNamer {}))
-    } else {
-      let resolved =
-        self
-          .resolver
-          .resolve(name, from, parcel_resolver::SpecifierType::Esm, &*self.fs);
-      if let Ok(resolution) = resolved {
-        if let Resolution::Path(path) = resolution.resolution {
-          return Ok(Arc::new(JsPlugin::new(path, config)));
+    match name {
+      "@parcel/namer-default" => Ok(Arc::new(DefaultNamer {})),
+      "@parcel/namer-native" => {
+        if let Some(config) = config {
+          if let Some(serde_json::Value::String(lib)) = config.get("lib") {
+            return Ok(Arc::new(CPlugin::new(
+              PathId::new(Path::new(lib)),
+              Some(&config),
+            )?));
+          }
         }
+        Err(Diagnostic::from_message(format!("Could not find namer {}", name)).into())
       }
-      Err(Diagnostic::from_message(format!("Could not find namer {}", name)).into())
+      _ => {
+        let resolved =
+          self
+            .resolver
+            .resolve(name, from, parcel_resolver::SpecifierType::Esm, &*self.fs);
+        if let Ok(resolution) = resolved {
+          if let Resolution::Path(path) = resolution.resolution {
+            if matches!(
+              path.extension().map(|s| s.as_bytes()),
+              Some(b"so" | b"dylib" | b"dll")
+            ) {
+              return Ok(Arc::new(CPlugin::new(path, config.as_ref())?));
+            }
+            return Ok(Arc::new(JsPlugin::new(path, config)));
+          }
+        }
+        Err(Diagnostic::from_message(format!("Could not find namer {}", name)).into())
+      }
     }
   }
 

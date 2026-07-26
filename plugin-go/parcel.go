@@ -1,11 +1,11 @@
-// Package parcel provides an idiomatic Go API for building Parcel transformer
-// plugins. Plugins import this package, register a transform function with
-// [Register], and export the compiled shared library:
+// Package parcel provides an idiomatic Go API for building Parcel transformer,
+// resolver, and namer plugins. Plugins import this package, register a plugin
+// with [RegisterPlugin], and export the compiled shared library:
 //
 //	go build -buildmode=c-shared -o plugin.dylib .
 //
-// The library exports the C symbol `parcel_plugin_transform` which Parcel
-// calls for each asset that matches the plugin's configured glob.
+// The library exports C entry points which Parcel calls for the plugin type
+// selected in its configuration.
 //
 // plugin.h is auto-copied here from crates/parcel-plugin-abi/plugin.h by that
 // crate's build.rs whenever the Rust crate is rebuilt.  To sync it manually
@@ -29,13 +29,15 @@ import (
 	"unsafe"
 )
 
-// Plugin is the interface that transformer and resolver plugins implement.
+// Plugin is the interface that transformer, resolver, and namer plugins implement.
 // Override Transform to act as a transformer, Resolve to act as a resolver,
-// or both.  Embed [DefaultPlugin] to get error-returning defaults for whichever
+// Name to act as a namer, or any combination. Embed [DefaultPlugin] to get
+// error-returning defaults for whichever
 // methods you don't need.
 type Plugin interface {
 	Transform(asset *Asset, options *Options) error
 	Resolve(dep *Dependency, specifier, pipeline string, options *Options, result *ResolveResult) error
+	Name(bundleGraph *BundleGraph, bundle *Bundle, options *Options) (string, error)
 }
 
 // DefaultPlugin provides error-returning default implementations of [Plugin].
@@ -55,6 +57,12 @@ func (DefaultPlugin) Transform(*Asset, *Options) error {
 
 func (DefaultPlugin) Resolve(*Dependency, string, string, *Options, *ResolveResult) error {
 	return errors.New("resolve not implemented")
+}
+
+// Name returns a path relative to the bundle target's dist directory. An empty
+// string allows the next namer in the configured pipeline to run.
+func (DefaultPlugin) Name(*BundleGraph, *Bundle, *Options) (string, error) {
+	return "", errors.New("name not implemented")
 }
 
 // pluginFactory is the registered plugin factory function.
@@ -141,6 +149,29 @@ func parcel_plugin_resolve(dep C.Dependency, specifier *C.uint8_t, specifierLen 
 	r := &ResolveResult{ptr: result}
 	if err := plugin.Resolve(d, spec, pipe, opts, r); err != nil {
 		writeDiagnostic(diag, err)
+	}
+}
+
+//export parcel_plugin_name
+func parcel_plugin_name(rawGraph C.BundleGraph, rawBundle C.Bundle, rawOptions C.Options, result *C.Buffer, state unsafe.Pointer, diag *C.Diagnostic) {
+	defer recoverDiagnostic("name", diag)
+	if state == nil {
+		writeDiagnostic(diag, errors.New("plugin not registered: call parcel.RegisterPlugin in init()"))
+		return
+	}
+	plugin := cgo.Handle(*(*C.uintptr_t)(state)).Value().(Plugin)
+	name, err := plugin.Name(
+		&BundleGraph{ptr: rawGraph, options: rawOptions},
+		&Bundle{ptr: rawBundle, options: rawOptions},
+		&Options{ptr: rawOptions},
+	)
+	if err != nil {
+		writeDiagnostic(diag, err)
+		return
+	}
+	if len(name) > 0 && result != nil {
+		ptr := (*C.uint8_t)(unsafe.Pointer(unsafe.StringData(name)))
+		C.parcel_buffer_write_utf8(result, ptr, C.uintptr_t(len(name)))
 	}
 }
 

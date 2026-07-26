@@ -1,0 +1,13 @@
+[workspace]
+
+[package]
+name = "custom-namer-rs"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "custom_namer_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+parcel-plugin = { path = "../../../crates/parcel-plugin" }

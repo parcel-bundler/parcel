@@ -1,4 +1,4 @@
-//! Rust SDK for building Parcel transformer and resolver plugins.
+//! Rust SDK for building Parcel transformer, resolver, and namer plugins.
 //!
 //! Plugins are compiled as `cdylib` crates.  Implement the [`Plugin`] trait on
 //! a struct that holds your parsed config, then call [`register_plugin!`] once
@@ -23,11 +23,11 @@
 //! register_plugin!(MyPlugin);
 //! ```
 //!
-//! The macro generates all four ABI symbols: `parcel_plugin_init` (calls
+//! The macro generates all five ABI symbols: `parcel_plugin_init` (calls
 //! `MyPlugin::new`), `parcel_plugin_deinit` (drops the boxed value),
-//! `parcel_plugin_transform`, and `parcel_plugin_resolve`.  Override only the
-//! methods you need; the default implementations return an error so
-//! misconfiguration is visible immediately.
+//! `parcel_plugin_transform`, `parcel_plugin_resolve`, and `parcel_plugin_name`.
+//! Override only the methods you need; the default implementations return an
+//! error so misconfiguration is visible immediately.
 //!
 //! Plugin crates must configure the linker to allow Parcel's ABI symbols to be
 //! resolved at load time.  Add a `build.rs` containing:
@@ -656,7 +656,7 @@ pub trait AssetContent: Send + Sync + 'static {
 
 // ── Bundle graph ───────────────────────────────────────────────────────────
 
-/// Read-only view of the bundle graph during packaging.
+/// Read-only view of the bundle graph during packaging or naming.
 pub struct BundleGraph {
   raw: ffi::BundleGraph,
   options: ffi::Options,
@@ -846,7 +846,7 @@ pub enum BundleGraphDependencyResolution {
 
 // ── Bundle ─────────────────────────────────────────────────────────────────
 
-/// Read-only view of a bundle during packaging.
+/// Read-only view of a bundle during packaging or naming.
 pub struct Bundle {
   raw: ffi::Bundle,
   options: ffi::Options,
@@ -1130,11 +1130,13 @@ impl ResolveResult {
 /// The single trait to implement for any Parcel plugin.
 ///
 /// Override [`transform`] to act as a transformer, [`resolve`] to act as a
-/// resolver, or both.  The default implementations return an error, so Parcel
-/// surfaces a clear message if a method is unexpectedly called.
+/// resolver, or [`name`] to act as a namer. The default implementations return
+/// an error, so Parcel surfaces a clear message if a method is unexpectedly
+/// called.
 ///
 /// [`transform`]: Plugin::transform
 /// [`resolve`]: Plugin::resolve
+/// [`name`]: Plugin::name
 ///
 /// ```rust,ignore
 /// use parcel_plugin::{Asset, Diagnostic, Plugin, register_plugin};
@@ -1177,13 +1179,24 @@ pub trait Plugin: Sized + Send + Sync {
   ) -> Result<(), Diagnostic> {
     Err(Diagnostic::new("resolve not implemented"))
   }
+
+  /// Called for each bundle that needs a name. Return a path relative to the
+  /// bundle target's dist directory, or `None` to continue to the next namer.
+  fn name(
+    &self,
+    _bundle_graph: &BundleGraph,
+    _bundle: &Bundle,
+    _options: &Options,
+  ) -> Result<Option<String>, Diagnostic> {
+    Err(Diagnostic::new("name not implemented"))
+  }
 }
 
 // ── register_plugin! macro ────────────────────────────────────────────────
 
-/// Generates all four ABI exports for a type that implements [`Plugin`]:
+/// Generates all five ABI exports for a type that implements [`Plugin`]:
 /// `parcel_plugin_init`, `parcel_plugin_deinit`, `parcel_plugin_transform`,
-/// and `parcel_plugin_resolve`.
+/// `parcel_plugin_resolve`, and `parcel_plugin_name`.
 ///
 /// ```rust,ignore
 /// register_plugin!(MyPlugin);
@@ -1324,6 +1337,48 @@ macro_rules! register_plugin {
         Ok(Err(e)) => e.write_to_raw(raw_diagnostic),
         Err(payload) => $crate::Diagnostic::new(format!(
           "plugin panicked in resolve: {}",
+          __parcel_panic_message(payload)
+        ))
+        .write_to_raw(raw_diagnostic),
+      }
+    }
+
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn parcel_plugin_name(
+      raw_bundle_graph: u64,
+      raw_bundle: u64,
+      raw_options: u64,
+      raw_name: *mut $crate::ffi::Buffer,
+      state: *mut ::core::ffi::c_void,
+      raw_diagnostic: *mut $crate::ffi::Diagnostic,
+    ) {
+      let bundle_graph = unsafe { $crate::BundleGraph::from_raw(raw_bundle_graph, raw_options) };
+      let bundle = unsafe { $crate::Bundle::from_raw(raw_bundle, raw_options) };
+      let options = unsafe { $crate::Options::from_raw(raw_options) };
+      let plugin = unsafe { &*(state as *const $type) };
+      let __parcel_panic_message =
+        |payload: ::std::boxed::Box<dyn ::std::any::Any + Send>| -> String {
+          if let Some(s) = payload.downcast_ref::<&str>() {
+            (*s).to_string()
+          } else if let Some(s) = payload.downcast_ref::<String>() {
+            s.clone()
+          } else {
+            "unknown panic".to_string()
+          }
+        };
+      let result = ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {
+        $crate::Plugin::name(plugin, &bundle_graph, &bundle, &options)
+      }));
+      match result {
+        Ok(Ok(Some(name))) => {
+          if !raw_name.is_null() {
+            unsafe { $crate::ffi::parcel_buffer_write_utf8(raw_name, name.as_ptr(), name.len()) };
+          }
+        }
+        Ok(Ok(None)) => {}
+        Ok(Err(e)) => e.write_to_raw(raw_diagnostic),
+        Err(payload) => $crate::Diagnostic::new(format!(
+          "plugin panicked in name: {}",
           __parcel_panic_message(payload)
         ))
         .write_to_raw(raw_diagnostic),

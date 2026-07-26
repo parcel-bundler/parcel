@@ -207,8 +207,9 @@ func (a *Asset) CustomContent() (AssetContent, bool) {
 	return customContent(a.ptr)
 }
 
-// BundleGraph is a read-only view of the bundle graph during packaging. It and
-// all values obtained from it are valid only for the duration of Package.
+// BundleGraph is a read-only view of the bundle graph during packaging or
+// naming. It and all values obtained from it are valid only for the duration of
+// the Package or Name call.
 type BundleGraph struct {
 	ptr     C.BundleGraph
 	options C.Options
@@ -429,7 +430,7 @@ func (a *AssetRef) Dependencies() []*Dependency {
 	return dependencies
 }
 
-// Bundle is a read-only view of a bundle during packaging.
+// Bundle is a read-only view of a bundle during packaging or naming.
 type Bundle struct {
 	ptr     C.Bundle
 	options C.Options

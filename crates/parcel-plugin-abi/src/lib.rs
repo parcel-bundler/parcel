@@ -1856,3 +1856,59 @@ impl Resolver for CPlugin {
     }
   }
 }
+
+impl parcel_core::Namer for CPlugin {
+  fn name(
+    &self,
+    bundle_graph: &parcel_core::BundleGraph,
+    bundle: &parcel_core::Bundle,
+    options: &ParcelOptions,
+  ) -> Result<Option<PathId>, DiagnosticList> {
+    type NameFn =
+      extern "C" fn(BundleGraph, Bundle, Options, *mut Buffer, *mut c_void, *mut Diagnostic);
+    let name_fn: Symbol<NameFn> = unsafe {
+      self
+        .lib
+        .get(b"parcel_plugin_name")
+        .expect("Failed to find parcel_plugin_name symbol")
+    };
+
+    let mut name = Buffer::default();
+    let mut diagnostic = Diagnostic::default();
+    name_fn(
+      bundle_graph as *const parcel_core::BundleGraph as BundleGraph,
+      bundle as *const parcel_core::Bundle as Bundle,
+      options as *const ParcelOptions as Options,
+      &mut name,
+      self.state,
+      &mut diagnostic,
+    );
+
+    if let Some(diag) = read_cdiagnostic(&mut diagnostic, Some(&options.project_root)) {
+      parcel_free_buffer(&mut name);
+      return Err(DiagnosticList(vec![diag]));
+    }
+
+    if name.data.is_null() {
+      return Ok(None);
+    }
+
+    let relative_name = unsafe {
+      let slice = std::slice::from_raw_parts(name.data, name.len);
+      if name.is_utf8 {
+        std::str::from_utf8_unchecked(slice)
+      } else {
+        std::str::from_utf8(std::slice::from_raw_parts(name.data, name.len))?
+      }
+    };
+
+    let res = if relative_name.is_empty() {
+      Ok(None)
+    } else {
+      Ok(Some(bundle.target.dist_dir.join(Path::new(&relative_name))))
+    };
+
+    parcel_free_buffer(&mut name);
+    res
+  }
+}
