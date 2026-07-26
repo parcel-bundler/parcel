@@ -22,6 +22,23 @@ typedef uint8_t DiagnosticSeverity;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
+enum BundleBehavior
+#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+  : uint8_t
+#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+ {
+  PARCEL_BUNDLE_BEHAVIOR_NONE = 0,
+  PARCEL_BUNDLE_BEHAVIOR_INLINE = 1,
+  PARCEL_BUNDLE_BEHAVIOR_ISOLATED = 2,
+};
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef enum BundleBehavior BundleBehavior;
+#else
+typedef uint8_t BundleBehavior;
+#endif // __STDC_VERSION__ >= 202311L
+#endif // __cplusplus
+
 enum BundleGraphResolutionType
 #if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
   : uint8_t
@@ -43,20 +60,38 @@ typedef uint8_t BundleGraphResolutionType;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
-enum BundleBehavior
+enum SpecifierType
 #if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
   : uint8_t
 #endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
  {
-  PARCEL_BUNDLE_BEHAVIOR_NONE = 0,
-  PARCEL_BUNDLE_BEHAVIOR_INLINE = 1,
-  PARCEL_BUNDLE_BEHAVIOR_ISOLATED = 2,
+  PARCEL_SPECIFIER_ESM = 0,
+  PARCEL_SPECIFIER_COMMONJS = 1,
+  PARCEL_SPECIFIER_URL = 2,
+  PARCEL_SPECIFIER_CUSTOM = 3,
 };
 #ifndef __cplusplus
 #if __STDC_VERSION__ >= 202311L
-typedef enum BundleBehavior BundleBehavior;
+typedef enum SpecifierType SpecifierType;
 #else
-typedef uint8_t BundleBehavior;
+typedef uint8_t SpecifierType;
+#endif // __STDC_VERSION__ >= 202311L
+#endif // __cplusplus
+
+enum Priority
+#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+  : uint8_t
+#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+ {
+  PARCEL_PRIORITY_SYNC = 0,
+  PARCEL_PRIORITY_PARALLEL = 1,
+  PARCEL_PRIORITY_LAZY = 2,
+};
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef enum Priority Priority;
+#else
+typedef uint8_t Priority;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
@@ -113,41 +148,6 @@ enum SourceType
 typedef enum SourceType SourceType;
 #else
 typedef uint8_t SourceType;
-#endif // __STDC_VERSION__ >= 202311L
-#endif // __cplusplus
-
-enum SpecifierType
-#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
-  : uint8_t
-#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
- {
-  PARCEL_SPECIFIER_ESM = 0,
-  PARCEL_SPECIFIER_COMMONJS = 1,
-  PARCEL_SPECIFIER_URL = 2,
-  PARCEL_SPECIFIER_CUSTOM = 3,
-};
-#ifndef __cplusplus
-#if __STDC_VERSION__ >= 202311L
-typedef enum SpecifierType SpecifierType;
-#else
-typedef uint8_t SpecifierType;
-#endif // __STDC_VERSION__ >= 202311L
-#endif // __cplusplus
-
-enum Priority
-#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
-  : uint8_t
-#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
- {
-  PARCEL_PRIORITY_SYNC = 0,
-  PARCEL_PRIORITY_PARALLEL = 1,
-  PARCEL_PRIORITY_LAZY = 2,
-};
-#ifndef __cplusplus
-#if __STDC_VERSION__ >= 202311L
-typedef enum Priority Priority;
-#else
-typedef uint8_t Priority;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
@@ -339,6 +339,11 @@ typedef uint64_t Bundle;
 typedef uint64_t Options;
 
 /**
+ * Opaque handle to a Parcel target. Obtained via `parcel_asset_get_target()`.
+ */
+typedef uint64_t Target;
+
+/**
  * Index of an asset within the bundle graph.
  */
 typedef uint32_t AssetIndex;
@@ -362,11 +367,6 @@ typedef struct BundleGraphDependencyResolution {
    */
   BundleIndex bundle;
 } BundleGraphDependencyResolution;
-
-/**
- * Opaque handle to a Parcel target. Obtained via `parcel_asset_get_target()`.
- */
-typedef uint64_t Target;
 
 /**
  * Opaque handle to a Parcel dependency. Passed to `parcel_plugin_resolve()`.
@@ -444,29 +444,6 @@ extern "C" {
 #endif // __cplusplus
 
 /**
- * Release a `Buffer` previously filled by a getter or `parcel_buffer_alloc()`.
- */
-void parcel_free_buffer(struct Buffer *buf);
-
-/**
- * Allocates a new `Buffer` containing a copy of `[data, data+len)`.
- * The plugin calls this to fill `ResolveResult` or `Diagnostic` fields.
- * Returns a zero `Buffer` when `data` is NULL or `len` is 0.
- */
-struct Buffer parcel_buffer_alloc(const uint8_t *data, uintptr_t len);
-
-/**
- * Copies the given bytes into a `Buffer`, replacing the existing content if any.
- */
-void parcel_buffer_write(struct Buffer *buf, const uint8_t *data, uintptr_t len);
-
-/**
- * Copies the given UTF-8 encoded string into a `Buffer`, replacing the existing content if any.
- * It is the caller's responsibility to ensure that the UTF-8 data is valid.
- */
-void parcel_buffer_write_utf8(struct Buffer *buf, const uint8_t *data, uintptr_t len);
-
-/**
  * Returns the asset content into `*buf`. Caller must `parcel_free_buffer(buf)`.
  */
 void parcel_asset_get_content(struct Buffer *buf, Asset asset);
@@ -512,34 +489,92 @@ bool parcel_asset_get_custom_content(uint8_t (*ty)[16],
                                      Asset asset);
 
 /**
- * Returns the number of assets in the graph.
+ * Returns the asset type extension (e.g. `"js"`, `"css"`) into `*buf`.
+ * Caller must `parcel_free_buffer(buf)`.
  */
-uintptr_t parcel_bundle_graph_get_asset_count(BundleGraph bundle_graph);
+void parcel_asset_get_type(struct Buffer *buf, Asset asset);
 
 /**
- * Returns a borrowed, read-only asset handle, or zero when `index` is out of bounds.
- * The handle is valid only for the lifetime of the bundle graph and must only be
- * passed to `parcel_asset_get_*` functions.
+ * Changes the asset type to the given file-extension bytes (e.g. `"js"`).
  */
-Asset parcel_bundle_graph_get_asset(BundleGraph bundle_graph, AssetIndex index);
+void parcel_asset_set_type(Asset asset, const uint8_t *ty, uintptr_t ty_len);
 
 /**
- * Returns the number of bundles in the graph.
+ * Returns the absolute filesystem path of the source asset into `*buf`.
+ * `options` is the handle received from `parcel_plugin_transform()`.
+ * Caller must `parcel_free_buffer(buf)`.
  */
-uintptr_t parcel_bundle_graph_get_bundle_count(BundleGraph bundle_graph);
+void parcel_asset_get_file_path(struct Buffer *buf, Asset asset, Options _options);
 
 /**
- * Returns a borrowed bundle handle, or zero when `index` is out of bounds.
+ * Returns the named pipeline into `*buf`, or leaves `buf->data == NULL` if none is set.
+ * Caller must `parcel_free_buffer(buf)` when `data != NULL`.
  */
-Bundle parcel_bundle_graph_get_bundle(BundleGraph bundle_graph, BundleIndex index);
+void parcel_asset_get_pipeline(struct Buffer *buf, Asset asset);
 
 /**
- * Returns the resolution of one dependency belonging to an asset.
- * Returns `PARCEL_BUNDLE_GRAPH_RESOLUTION_INVALID` for invalid indices.
+ * Sets the named pipeline. Pass `NULL` / `0` to clear.
  */
-struct BundleGraphDependencyResolution parcel_bundle_graph_get_dependency_resolution(BundleGraph bundle_graph,
-                                                                                     AssetIndex asset,
-                                                                                     uintptr_t dependency_index);
+void parcel_asset_set_pipeline(Asset asset, const uint8_t *pipeline, uintptr_t pipeline_len);
+
+/**
+ * Returns the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`).
+ */
+BundleBehavior parcel_asset_get_bundle_behavior(Asset asset);
+
+/**
+ * Sets the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`).
+ */
+void parcel_asset_set_bundle_behavior(Asset asset, BundleBehavior behavior);
+
+/**
+ * Returns the raw `AssetFlags` bitfield (`PARCEL_ASSET_*` bits).
+ */
+AssetFlags parcel_asset_get_flags(Asset asset);
+
+/**
+ * Replaces the `AssetFlags` bitfield.
+ */
+void parcel_asset_set_flags(Asset asset, AssetFlags flags);
+
+/**
+ * Returns the unique key into `*buf`, or leaves `buf->data == NULL` if not set.
+ * Caller must `parcel_free_buffer(buf)` when `data != NULL`.
+ */
+void parcel_asset_get_unique_key(struct Buffer *buf, Asset asset);
+
+/**
+ * Sets the unique key. Pass `NULL` / `0` to clear.
+ */
+void parcel_asset_set_unique_key(Asset asset, const uint8_t *key, uintptr_t key_len);
+
+/**
+ * Registers an exported symbol name (e.g. `"default"`, `"foo"`, `"*"`).
+ */
+void parcel_asset_add_export_symbol(Asset asset, const uint8_t *name, uintptr_t name_len);
+
+/**
+ * Release a `Buffer` previously filled by a getter or `parcel_buffer_alloc()`.
+ */
+void parcel_free_buffer(struct Buffer *buf);
+
+/**
+ * Allocates a new `Buffer` containing a copy of `[data, data+len)`.
+ * The plugin calls this to fill `ResolveResult` or `Diagnostic` fields.
+ * Returns a zero `Buffer` when `data` is NULL or `len` is 0.
+ */
+struct Buffer parcel_buffer_alloc(const uint8_t *data, uintptr_t len);
+
+/**
+ * Copies the given bytes into a `Buffer`, replacing the existing content if any.
+ */
+void parcel_buffer_write(struct Buffer *buf, const uint8_t *data, uintptr_t len);
+
+/**
+ * Copies the given UTF-8 encoded string into a `Buffer`, replacing the existing content if any.
+ * It is the caller's responsibility to ensure that the UTF-8 data is valid.
+ */
+void parcel_buffer_write_utf8(struct Buffer *buf, const uint8_t *data, uintptr_t len);
 
 /**
  * Returns the bundle type extension (for example, `"js"`) into `*buf`.
@@ -606,101 +641,34 @@ void parcel_bundle_get_relative_url(struct Buffer *buf, Bundle bundle, Bundle fr
 void parcel_bundle_get_relative_specifier(struct Buffer *buf, Bundle bundle, Bundle from);
 
 /**
- * Returns the asset type extension (e.g. `"js"`, `"css"`) into `*buf`.
- * Caller must `parcel_free_buffer(buf)`.
+ * Returns the number of assets in the graph.
  */
-void parcel_asset_get_type(struct Buffer *buf, Asset asset);
+uintptr_t parcel_bundle_graph_get_asset_count(BundleGraph bundle_graph);
 
 /**
- * Changes the asset type to the given file-extension bytes (e.g. `"js"`).
+ * Returns a borrowed, read-only asset handle, or zero when `index` is out of bounds.
+ * The handle is valid only for the lifetime of the bundle graph and must only be
+ * passed to `parcel_asset_get_*` functions.
  */
-void parcel_asset_set_type(Asset asset, const uint8_t *ty, uintptr_t ty_len);
+Asset parcel_bundle_graph_get_asset(BundleGraph bundle_graph, AssetIndex index);
 
 /**
- * Returns the absolute filesystem path of the source asset into `*buf`.
- * `options` is the handle received from `parcel_plugin_transform()`.
- * Caller must `parcel_free_buffer(buf)`.
+ * Returns the number of bundles in the graph.
  */
-void parcel_asset_get_file_path(struct Buffer *buf, Asset asset, Options _options);
+uintptr_t parcel_bundle_graph_get_bundle_count(BundleGraph bundle_graph);
 
 /**
- * Returns the named pipeline into `*buf`, or leaves `buf->data == NULL` if none is set.
- * Caller must `parcel_free_buffer(buf)` when `data != NULL`.
+ * Returns a borrowed bundle handle, or zero when `index` is out of bounds.
  */
-void parcel_asset_get_pipeline(struct Buffer *buf, Asset asset);
+Bundle parcel_bundle_graph_get_bundle(BundleGraph bundle_graph, BundleIndex index);
 
 /**
- * Sets the named pipeline. Pass `NULL` / `0` to clear.
+ * Returns the resolution of one dependency belonging to an asset.
+ * Returns `PARCEL_BUNDLE_GRAPH_RESOLUTION_INVALID` for invalid indices.
  */
-void parcel_asset_set_pipeline(Asset asset, const uint8_t *pipeline, uintptr_t pipeline_len);
-
-/**
- * Returns the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`).
- */
-BundleBehavior parcel_asset_get_bundle_behavior(Asset asset);
-
-/**
- * Sets the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`).
- */
-void parcel_asset_set_bundle_behavior(Asset asset, BundleBehavior behavior);
-
-/**
- * Returns the raw `AssetFlags` bitfield (`PARCEL_ASSET_*` bits).
- */
-AssetFlags parcel_asset_get_flags(Asset asset);
-
-/**
- * Replaces the `AssetFlags` bitfield.
- */
-void parcel_asset_set_flags(Asset asset, AssetFlags flags);
-
-/**
- * Returns the unique key into `*buf`, or leaves `buf->data == NULL` if not set.
- * Caller must `parcel_free_buffer(buf)` when `data != NULL`.
- */
-void parcel_asset_get_unique_key(struct Buffer *buf, Asset asset);
-
-/**
- * Sets the unique key. Pass `NULL` / `0` to clear.
- */
-void parcel_asset_set_unique_key(Asset asset, const uint8_t *key, uintptr_t key_len);
-
-/**
- * Returns an opaque `Target` handle. Valid for the duration of the transform call.
- */
-Target parcel_asset_get_target(Asset asset);
-
-/**
- * Returns the target environment (`PARCEL_ENV_*`).
- */
-Environment parcel_target_get_environment(Target target);
-
-/**
- * Returns the output format (`PARCEL_OUTPUT_FORMAT_*`).
- */
-OutputFormat parcel_target_get_output_format(Target target);
-
-/**
- * Returns the source type (`PARCEL_SOURCE_TYPE_*`).
- */
-SourceType parcel_target_get_source_type(Target target);
-
-/**
- * Returns the `EnvironmentFlags` bitfield (`PARCEL_ENV_FLAG_*` bits).
- */
-EnvironmentFlags parcel_target_get_env_flags(Target target);
-
-/**
- * Returns the public URL (e.g. `"/"`) into `*buf`. Caller must `parcel_free_buffer(buf)`.
- */
-void parcel_target_get_public_url(struct Buffer *buf, Target target);
-
-/**
- * Returns the absolute path of the dist directory into `*buf`.
- * `options` is the handle received from `parcel_plugin_transform()`.
- * Caller must `parcel_free_buffer(buf)`.
- */
-void parcel_target_get_dist_dir(struct Buffer *buf, Target target, Options _options);
+struct BundleGraphDependencyResolution parcel_bundle_graph_get_dependency_resolution(BundleGraph bundle_graph,
+                                                                                     AssetIndex asset,
+                                                                                     uintptr_t dependency_index);
 
 /**
  * Returns the number of dependencies belonging to an asset.
@@ -717,11 +685,6 @@ Dependency parcel_asset_get_dependency(Asset asset, uintptr_t index);
  * Appends a dependency to the asset. The new dependency inherits the asset's target.
  */
 void parcel_asset_add_dependency(Asset asset, const struct DependencyOptions *dep);
-
-/**
- * Registers an exported symbol name (e.g. `"default"`, `"foo"`, `"*"`).
- */
-void parcel_asset_add_export_symbol(Asset asset, const uint8_t *name, uintptr_t name_len);
 
 /**
  * Returns the raw specifier string (e.g. `"custom:greeting"`) into `*buf`.
@@ -784,6 +747,43 @@ void parcel_options_get_env(struct Buffer *buf,
                             Options options,
                             const uint8_t *key,
                             uintptr_t key_len);
+
+/**
+ * Returns an opaque `Target` handle. Valid for the duration of the transform call.
+ */
+Target parcel_asset_get_target(Asset asset);
+
+/**
+ * Returns the target environment (`PARCEL_ENV_*`).
+ */
+Environment parcel_target_get_environment(Target target);
+
+/**
+ * Returns the output format (`PARCEL_OUTPUT_FORMAT_*`).
+ */
+OutputFormat parcel_target_get_output_format(Target target);
+
+/**
+ * Returns the source type (`PARCEL_SOURCE_TYPE_*`).
+ */
+SourceType parcel_target_get_source_type(Target target);
+
+/**
+ * Returns the `EnvironmentFlags` bitfield (`PARCEL_ENV_FLAG_*` bits).
+ */
+EnvironmentFlags parcel_target_get_env_flags(Target target);
+
+/**
+ * Returns the public URL (e.g. `"/"`) into `*buf`. Caller must `parcel_free_buffer(buf)`.
+ */
+void parcel_target_get_public_url(struct Buffer *buf, Target target);
+
+/**
+ * Returns the absolute path of the dist directory into `*buf`.
+ * `options` is the handle received from `parcel_plugin_transform()`.
+ * Caller must `parcel_free_buffer(buf)`.
+ */
+void parcel_target_get_dist_dir(struct Buffer *buf, Target target, Options _options);
 
 #ifdef __cplusplus
 }  // extern "C"

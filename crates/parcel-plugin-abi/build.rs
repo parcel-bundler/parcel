@@ -5,7 +5,7 @@ fn main() {
 
   // Only re-run when inputs that affect the generated output change.
   println!("cargo:rerun-if-changed=build.rs");
-  println!("cargo:rerun-if-changed=src/lib.rs");
+  println!("cargo:rerun-if-changed=src");
   println!("cargo:rerun-if-changed=cbindgen.toml");
 
   let output_path = format!("{}/plugin.h", crate_dir);

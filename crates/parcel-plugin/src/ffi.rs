@@ -11,6 +11,13 @@ pub enum DiagnosticSeverity {
 }
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum BundleBehavior {
+  None = 0,
+  Inline = 1,
+  Isolated = 2,
+}
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum BundleGraphResolutionType {
   Invalid = 0,
   None = 1,
@@ -22,10 +29,18 @@ pub enum BundleGraphResolutionType {
 }
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum BundleBehavior {
-  None = 0,
-  Inline = 1,
-  Isolated = 2,
+pub enum SpecifierType {
+  Esm = 0,
+  Commonjs = 1,
+  Url = 2,
+  Custom = 3,
+}
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum Priority {
+  Sync = 0,
+  Parallel = 1,
+  Lazy = 2,
 }
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -52,21 +67,6 @@ pub enum OutputFormat {
 pub enum SourceType {
   Module = 0,
   Script = 1,
-}
-#[repr(u8)]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum SpecifierType {
-  Esm = 0,
-  Commonjs = 1,
-  Url = 2,
-  Custom = 3,
-}
-#[repr(u8)]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum Priority {
-  Sync = 0,
-  Parallel = 1,
-  Lazy = 2,
 }
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -408,6 +408,8 @@ pub type BundleGraph = u64;
 pub type Bundle = u64;
 #[doc = " Opaque handle to Parcel build options. Passed to all plugin entry points."]
 pub type Options = u64;
+#[doc = " Opaque handle to a Parcel target. Obtained via `parcel_asset_get_target()`."]
+pub type Target = u64;
 #[doc = " Index of an asset within the bundle graph."]
 pub type AssetIndex = u32;
 #[doc = " Index of a bundle within the bundle graph."]
@@ -435,8 +437,6 @@ const _: () = {
   ["Offset of field: BundleGraphDependencyResolution::bundle"]
     [::std::mem::offset_of!(BundleGraphDependencyResolution, bundle) - 8usize];
 };
-#[doc = " Opaque handle to a Parcel target. Obtained via `parcel_asset_get_target()`."]
-pub type Target = u64;
 #[doc = " Opaque handle to a Parcel dependency. Passed to `parcel_plugin_resolve()`."]
 pub type Dependency = u64;
 #[doc = " Dependency descriptor passed to `parcel_asset_add_dependency()`.\n Use `PARCEL_SPECIFIER_ESM` / `PARCEL_PRIORITY_SYNC` / `PARCEL_BUNDLE_BEHAVIOR_NONE` as defaults."]
@@ -515,22 +515,6 @@ const _: () = {
     [::std::mem::offset_of!(OptimizeResult, source_map) - 32usize];
 };
 unsafe extern "C" {
-  #[doc = " Release a `Buffer` previously filled by a getter or `parcel_buffer_alloc()`."]
-  pub fn parcel_free_buffer(buf: *mut Buffer);
-}
-unsafe extern "C" {
-  #[doc = " Allocates a new `Buffer` containing a copy of `[data, data+len)`.\n The plugin calls this to fill `ResolveResult` or `Diagnostic` fields.\n Returns a zero `Buffer` when `data` is NULL or `len` is 0."]
-  pub fn parcel_buffer_alloc(data: *const u8, len: usize) -> Buffer;
-}
-unsafe extern "C" {
-  #[doc = " Copies the given bytes into a `Buffer`, replacing the existing content if any."]
-  pub fn parcel_buffer_write(buf: *mut Buffer, data: *const u8, len: usize);
-}
-unsafe extern "C" {
-  #[doc = " Copies the given UTF-8 encoded string into a `Buffer`, replacing the existing content if any.\n It is the caller's responsibility to ensure that the UTF-8 data is valid."]
-  pub fn parcel_buffer_write_utf8(buf: *mut Buffer, data: *const u8, len: usize);
-}
-unsafe extern "C" {
   #[doc = " Returns the asset content into `*buf`. Caller must `parcel_free_buffer(buf)`."]
   pub fn parcel_asset_get_content(buf: *mut Buffer, asset: Asset);
 }
@@ -581,28 +565,68 @@ unsafe extern "C" {
   ) -> bool;
 }
 unsafe extern "C" {
-  #[doc = " Returns the number of assets in the graph."]
-  pub fn parcel_bundle_graph_get_asset_count(bundle_graph: BundleGraph) -> usize;
+  #[doc = " Returns the asset type extension (e.g. `\"js\"`, `\"css\"`) into `*buf`.\n Caller must `parcel_free_buffer(buf)`."]
+  pub fn parcel_asset_get_type(buf: *mut Buffer, asset: Asset);
 }
 unsafe extern "C" {
-  #[doc = " Returns a borrowed, read-only asset handle, or zero when `index` is out of bounds.\n The handle is valid only for the lifetime of the bundle graph and must only be\n passed to `parcel_asset_get_*` functions."]
-  pub fn parcel_bundle_graph_get_asset(bundle_graph: BundleGraph, index: AssetIndex) -> Asset;
+  #[doc = " Changes the asset type to the given file-extension bytes (e.g. `\"js\"`)."]
+  pub fn parcel_asset_set_type(asset: Asset, ty: *const u8, ty_len: usize);
 }
 unsafe extern "C" {
-  #[doc = " Returns the number of bundles in the graph."]
-  pub fn parcel_bundle_graph_get_bundle_count(bundle_graph: BundleGraph) -> usize;
+  #[doc = " Returns the absolute filesystem path of the source asset into `*buf`.\n `options` is the handle received from `parcel_plugin_transform()`.\n Caller must `parcel_free_buffer(buf)`."]
+  pub fn parcel_asset_get_file_path(buf: *mut Buffer, asset: Asset, _options: Options);
 }
 unsafe extern "C" {
-  #[doc = " Returns a borrowed bundle handle, or zero when `index` is out of bounds."]
-  pub fn parcel_bundle_graph_get_bundle(bundle_graph: BundleGraph, index: BundleIndex) -> Bundle;
+  #[doc = " Returns the named pipeline into `*buf`, or leaves `buf->data == NULL` if none is set.\n Caller must `parcel_free_buffer(buf)` when `data != NULL`."]
+  pub fn parcel_asset_get_pipeline(buf: *mut Buffer, asset: Asset);
 }
 unsafe extern "C" {
-  #[doc = " Returns the resolution of one dependency belonging to an asset.\n Returns `PARCEL_BUNDLE_GRAPH_RESOLUTION_INVALID` for invalid indices."]
-  pub fn parcel_bundle_graph_get_dependency_resolution(
-    bundle_graph: BundleGraph,
-    asset: AssetIndex,
-    dependency_index: usize,
-  ) -> BundleGraphDependencyResolution;
+  #[doc = " Sets the named pipeline. Pass `NULL` / `0` to clear."]
+  pub fn parcel_asset_set_pipeline(asset: Asset, pipeline: *const u8, pipeline_len: usize);
+}
+unsafe extern "C" {
+  #[doc = " Returns the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`)."]
+  pub fn parcel_asset_get_bundle_behavior(asset: Asset) -> BundleBehavior;
+}
+unsafe extern "C" {
+  #[doc = " Sets the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`)."]
+  pub fn parcel_asset_set_bundle_behavior(asset: Asset, behavior: BundleBehavior);
+}
+unsafe extern "C" {
+  #[doc = " Returns the raw `AssetFlags` bitfield (`PARCEL_ASSET_*` bits)."]
+  pub fn parcel_asset_get_flags(asset: Asset) -> AssetFlags;
+}
+unsafe extern "C" {
+  #[doc = " Replaces the `AssetFlags` bitfield."]
+  pub fn parcel_asset_set_flags(asset: Asset, flags: AssetFlags);
+}
+unsafe extern "C" {
+  #[doc = " Returns the unique key into `*buf`, or leaves `buf->data == NULL` if not set.\n Caller must `parcel_free_buffer(buf)` when `data != NULL`."]
+  pub fn parcel_asset_get_unique_key(buf: *mut Buffer, asset: Asset);
+}
+unsafe extern "C" {
+  #[doc = " Sets the unique key. Pass `NULL` / `0` to clear."]
+  pub fn parcel_asset_set_unique_key(asset: Asset, key: *const u8, key_len: usize);
+}
+unsafe extern "C" {
+  #[doc = " Registers an exported symbol name (e.g. `\"default\"`, `\"foo\"`, `\"*\"`)."]
+  pub fn parcel_asset_add_export_symbol(asset: Asset, name: *const u8, name_len: usize);
+}
+unsafe extern "C" {
+  #[doc = " Release a `Buffer` previously filled by a getter or `parcel_buffer_alloc()`."]
+  pub fn parcel_free_buffer(buf: *mut Buffer);
+}
+unsafe extern "C" {
+  #[doc = " Allocates a new `Buffer` containing a copy of `[data, data+len)`.\n The plugin calls this to fill `ResolveResult` or `Diagnostic` fields.\n Returns a zero `Buffer` when `data` is NULL or `len` is 0."]
+  pub fn parcel_buffer_alloc(data: *const u8, len: usize) -> Buffer;
+}
+unsafe extern "C" {
+  #[doc = " Copies the given bytes into a `Buffer`, replacing the existing content if any."]
+  pub fn parcel_buffer_write(buf: *mut Buffer, data: *const u8, len: usize);
+}
+unsafe extern "C" {
+  #[doc = " Copies the given UTF-8 encoded string into a `Buffer`, replacing the existing content if any.\n It is the caller's responsibility to ensure that the UTF-8 data is valid."]
+  pub fn parcel_buffer_write_utf8(buf: *mut Buffer, data: *const u8, len: usize);
 }
 unsafe extern "C" {
   #[doc = " Returns the bundle type extension (for example, `\"js\"`) into `*buf`."]
@@ -659,76 +683,28 @@ unsafe extern "C" {
   pub fn parcel_bundle_get_relative_specifier(buf: *mut Buffer, bundle: Bundle, from: Bundle);
 }
 unsafe extern "C" {
-  #[doc = " Returns the asset type extension (e.g. `\"js\"`, `\"css\"`) into `*buf`.\n Caller must `parcel_free_buffer(buf)`."]
-  pub fn parcel_asset_get_type(buf: *mut Buffer, asset: Asset);
+  #[doc = " Returns the number of assets in the graph."]
+  pub fn parcel_bundle_graph_get_asset_count(bundle_graph: BundleGraph) -> usize;
 }
 unsafe extern "C" {
-  #[doc = " Changes the asset type to the given file-extension bytes (e.g. `\"js\"`)."]
-  pub fn parcel_asset_set_type(asset: Asset, ty: *const u8, ty_len: usize);
+  #[doc = " Returns a borrowed, read-only asset handle, or zero when `index` is out of bounds.\n The handle is valid only for the lifetime of the bundle graph and must only be\n passed to `parcel_asset_get_*` functions."]
+  pub fn parcel_bundle_graph_get_asset(bundle_graph: BundleGraph, index: AssetIndex) -> Asset;
 }
 unsafe extern "C" {
-  #[doc = " Returns the absolute filesystem path of the source asset into `*buf`.\n `options` is the handle received from `parcel_plugin_transform()`.\n Caller must `parcel_free_buffer(buf)`."]
-  pub fn parcel_asset_get_file_path(buf: *mut Buffer, asset: Asset, _options: Options);
+  #[doc = " Returns the number of bundles in the graph."]
+  pub fn parcel_bundle_graph_get_bundle_count(bundle_graph: BundleGraph) -> usize;
 }
 unsafe extern "C" {
-  #[doc = " Returns the named pipeline into `*buf`, or leaves `buf->data == NULL` if none is set.\n Caller must `parcel_free_buffer(buf)` when `data != NULL`."]
-  pub fn parcel_asset_get_pipeline(buf: *mut Buffer, asset: Asset);
+  #[doc = " Returns a borrowed bundle handle, or zero when `index` is out of bounds."]
+  pub fn parcel_bundle_graph_get_bundle(bundle_graph: BundleGraph, index: BundleIndex) -> Bundle;
 }
 unsafe extern "C" {
-  #[doc = " Sets the named pipeline. Pass `NULL` / `0` to clear."]
-  pub fn parcel_asset_set_pipeline(asset: Asset, pipeline: *const u8, pipeline_len: usize);
-}
-unsafe extern "C" {
-  #[doc = " Returns the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`)."]
-  pub fn parcel_asset_get_bundle_behavior(asset: Asset) -> BundleBehavior;
-}
-unsafe extern "C" {
-  #[doc = " Sets the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`)."]
-  pub fn parcel_asset_set_bundle_behavior(asset: Asset, behavior: BundleBehavior);
-}
-unsafe extern "C" {
-  #[doc = " Returns the raw `AssetFlags` bitfield (`PARCEL_ASSET_*` bits)."]
-  pub fn parcel_asset_get_flags(asset: Asset) -> AssetFlags;
-}
-unsafe extern "C" {
-  #[doc = " Replaces the `AssetFlags` bitfield."]
-  pub fn parcel_asset_set_flags(asset: Asset, flags: AssetFlags);
-}
-unsafe extern "C" {
-  #[doc = " Returns the unique key into `*buf`, or leaves `buf->data == NULL` if not set.\n Caller must `parcel_free_buffer(buf)` when `data != NULL`."]
-  pub fn parcel_asset_get_unique_key(buf: *mut Buffer, asset: Asset);
-}
-unsafe extern "C" {
-  #[doc = " Sets the unique key. Pass `NULL` / `0` to clear."]
-  pub fn parcel_asset_set_unique_key(asset: Asset, key: *const u8, key_len: usize);
-}
-unsafe extern "C" {
-  #[doc = " Returns an opaque `Target` handle. Valid for the duration of the transform call."]
-  pub fn parcel_asset_get_target(asset: Asset) -> Target;
-}
-unsafe extern "C" {
-  #[doc = " Returns the target environment (`PARCEL_ENV_*`)."]
-  pub fn parcel_target_get_environment(target: Target) -> Environment;
-}
-unsafe extern "C" {
-  #[doc = " Returns the output format (`PARCEL_OUTPUT_FORMAT_*`)."]
-  pub fn parcel_target_get_output_format(target: Target) -> OutputFormat;
-}
-unsafe extern "C" {
-  #[doc = " Returns the source type (`PARCEL_SOURCE_TYPE_*`)."]
-  pub fn parcel_target_get_source_type(target: Target) -> SourceType;
-}
-unsafe extern "C" {
-  #[doc = " Returns the `EnvironmentFlags` bitfield (`PARCEL_ENV_FLAG_*` bits)."]
-  pub fn parcel_target_get_env_flags(target: Target) -> EnvironmentFlags;
-}
-unsafe extern "C" {
-  #[doc = " Returns the public URL (e.g. `\"/\"`) into `*buf`. Caller must `parcel_free_buffer(buf)`."]
-  pub fn parcel_target_get_public_url(buf: *mut Buffer, target: Target);
-}
-unsafe extern "C" {
-  #[doc = " Returns the absolute path of the dist directory into `*buf`.\n `options` is the handle received from `parcel_plugin_transform()`.\n Caller must `parcel_free_buffer(buf)`."]
-  pub fn parcel_target_get_dist_dir(buf: *mut Buffer, target: Target, _options: Options);
+  #[doc = " Returns the resolution of one dependency belonging to an asset.\n Returns `PARCEL_BUNDLE_GRAPH_RESOLUTION_INVALID` for invalid indices."]
+  pub fn parcel_bundle_graph_get_dependency_resolution(
+    bundle_graph: BundleGraph,
+    asset: AssetIndex,
+    dependency_index: usize,
+  ) -> BundleGraphDependencyResolution;
 }
 unsafe extern "C" {
   #[doc = " Returns the number of dependencies belonging to an asset."]
@@ -741,10 +717,6 @@ unsafe extern "C" {
 unsafe extern "C" {
   #[doc = " Appends a dependency to the asset. The new dependency inherits the asset's target."]
   pub fn parcel_asset_add_dependency(asset: Asset, dep: *const DependencyOptions);
-}
-unsafe extern "C" {
-  #[doc = " Registers an exported symbol name (e.g. `\"default\"`, `\"foo\"`, `\"*\"`)."]
-  pub fn parcel_asset_add_export_symbol(asset: Asset, name: *const u8, name_len: usize);
 }
 unsafe extern "C" {
   #[doc = " Returns the raw specifier string (e.g. `\"custom:greeting\"`) into `*buf`."]
@@ -789,4 +761,32 @@ unsafe extern "C" {
 unsafe extern "C" {
   #[doc = " Looks up `key` in the build environment map.\n Writes the value into `*buf` if found; leaves `buf->data == NULL` if not.\n Caller must `parcel_free_buffer(buf)` when `data != NULL`."]
   pub fn parcel_options_get_env(buf: *mut Buffer, options: Options, key: *const u8, key_len: usize);
+}
+unsafe extern "C" {
+  #[doc = " Returns an opaque `Target` handle. Valid for the duration of the transform call."]
+  pub fn parcel_asset_get_target(asset: Asset) -> Target;
+}
+unsafe extern "C" {
+  #[doc = " Returns the target environment (`PARCEL_ENV_*`)."]
+  pub fn parcel_target_get_environment(target: Target) -> Environment;
+}
+unsafe extern "C" {
+  #[doc = " Returns the output format (`PARCEL_OUTPUT_FORMAT_*`)."]
+  pub fn parcel_target_get_output_format(target: Target) -> OutputFormat;
+}
+unsafe extern "C" {
+  #[doc = " Returns the source type (`PARCEL_SOURCE_TYPE_*`)."]
+  pub fn parcel_target_get_source_type(target: Target) -> SourceType;
+}
+unsafe extern "C" {
+  #[doc = " Returns the `EnvironmentFlags` bitfield (`PARCEL_ENV_FLAG_*` bits)."]
+  pub fn parcel_target_get_env_flags(target: Target) -> EnvironmentFlags;
+}
+unsafe extern "C" {
+  #[doc = " Returns the public URL (e.g. `\"/\"`) into `*buf`. Caller must `parcel_free_buffer(buf)`."]
+  pub fn parcel_target_get_public_url(buf: *mut Buffer, target: Target);
+}
+unsafe extern "C" {
+  #[doc = " Returns the absolute path of the dist directory into `*buf`.\n `options` is the handle received from `parcel_plugin_transform()`.\n Caller must `parcel_free_buffer(buf)`."]
+  pub fn parcel_target_get_dist_dir(buf: *mut Buffer, target: Target, _options: Options);
 }
