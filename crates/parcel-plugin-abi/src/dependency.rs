@@ -3,9 +3,8 @@
 use std::sync::Arc;
 
 use parcel_core::{
-  Asset as CoreAsset, BundleBehavior as CoreBundleBehavior, Dependency as CoreDependency,
-  DependencyFlags as CoreDependencyFlags, DependencyResolution,
-  ExportsCondition as CoreExportsCondition, Priority as CorePriority,
+  Asset as CoreAsset, Dependency as CoreDependency, DependencyFlags as CoreDependencyFlags,
+  DependencyResolution, ExportsCondition as CoreExportsCondition, Priority as CorePriority,
   SpecifierType as CoreSpecifierType,
 };
 
@@ -30,6 +29,23 @@ pub enum Priority {
   PARCEL_PRIORITY_SYNC = 0,
   PARCEL_PRIORITY_PARALLEL = 1,
   PARCEL_PRIORITY_LAZY = 2,
+}
+
+impl_enum_conversion! {
+  CoreSpecifierType => SpecifierType {
+    CoreSpecifierType::Esm => SpecifierType::PARCEL_SPECIFIER_ESM,
+    CoreSpecifierType::Commonjs => SpecifierType::PARCEL_SPECIFIER_COMMONJS,
+    CoreSpecifierType::Url => SpecifierType::PARCEL_SPECIFIER_URL,
+    CoreSpecifierType::Custom => SpecifierType::PARCEL_SPECIFIER_CUSTOM,
+  }
+}
+
+impl_enum_conversion! {
+  CorePriority => Priority {
+    CorePriority::Sync => Priority::PARCEL_PRIORITY_SYNC,
+    CorePriority::Parallel => Priority::PARCEL_PRIORITY_PARALLEL,
+    CorePriority::Lazy => Priority::PARCEL_PRIORITY_LAZY,
+  }
 }
 
 #[repr(u8)]
@@ -70,85 +86,48 @@ pub enum ExportsConditions {
 }
 
 pub type ExportsConditionsFFI = u32;
-const _: () =
-  debug_assert!(CoreDependencyFlags::ENTRY.bits() == DependencyFlags::PARCEL_DEP_ENTRY as u8);
-const _: () =
-  debug_assert!(CoreDependencyFlags::OPTIONAL.bits() == DependencyFlags::PARCEL_DEP_OPTIONAL as u8);
-const _: () = debug_assert!(
-  CoreDependencyFlags::NEEDS_STABLE_NAME.bits()
-    == DependencyFlags::PARCEL_DEP_NEEDS_STABLE_NAME as u8
-);
-const _: () = debug_assert!(
-  CoreDependencyFlags::IS_WEBWORKER.bits() == DependencyFlags::PARCEL_DEP_IS_WEBWORKER as u8
-);
-const _: () = debug_assert!(
-  CoreDependencyFlags::SIDE_EFFECTS.bits() == DependencyFlags::PARCEL_DEP_SIDE_EFFECTS as u8
-);
-const _: () =
-  debug_assert!(CoreDependencyFlags::MACRO.bits() == DependencyFlags::PARCEL_DEP_MACRO as u8);
 
-const _: () = debug_assert!(
-  CoreExportsCondition::IMPORT.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_IMPORT as u32
-);
-const _: () = debug_assert!(
-  CoreExportsCondition::REQUIRE.bits()
-    == ExportsConditions::PARCEL_EXPORTS_CONDITION_REQUIRE as u32
-);
-const _: () = debug_assert!(
-  CoreExportsCondition::MODULE.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_MODULE as u32
-);
-const _: () = debug_assert!(
-  CoreExportsCondition::NODE.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_NODE as u32
-);
-const _: () = debug_assert!(
-  CoreExportsCondition::BROWSER.bits()
-    == ExportsConditions::PARCEL_EXPORTS_CONDITION_BROWSER as u32
-);
-const _: () = debug_assert!(
-  CoreExportsCondition::WORKER.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_WORKER as u32
-);
-const _: () = debug_assert!(
-  CoreExportsCondition::WORKLET.bits()
-    == ExportsConditions::PARCEL_EXPORTS_CONDITION_WORKLET as u32
-);
-const _: () = debug_assert!(
-  CoreExportsCondition::ELECTRON.bits()
-    == ExportsConditions::PARCEL_EXPORTS_CONDITION_ELECTRON as u32
-);
-const _: () = debug_assert!(
-  CoreExportsCondition::DEVELOPMENT.bits()
-    == ExportsConditions::PARCEL_EXPORTS_CONDITION_DEVELOPMENT as u32
-);
-const _: () = debug_assert!(
-  CoreExportsCondition::PRODUCTION.bits()
-    == ExportsConditions::PARCEL_EXPORTS_CONDITION_PRODUCTION as u32
-);
-const _: () = debug_assert!(
-  CoreExportsCondition::TYPES.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_TYPES as u32
-);
-const _: () = debug_assert!(
-  CoreExportsCondition::DEFAULT.bits()
-    == ExportsConditions::PARCEL_EXPORTS_CONDITION_DEFAULT as u32
-);
-const _: () = debug_assert!(
-  CoreExportsCondition::STYLE.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_STYLE as u32
-);
-const _: () = debug_assert!(
-  CoreExportsCondition::SASS.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_SASS as u32
-);
-const _: () = debug_assert!(
-  CoreExportsCondition::LESS.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_LESS as u32
-);
-const _: () = debug_assert!(
-  CoreExportsCondition::STYLUS.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_STYLUS as u32
-);
-const _: () = debug_assert!(
-  CoreExportsCondition::REACT_SERVER.bits()
-    == ExportsConditions::PARCEL_EXPORTS_CONDITION_REACT_SERVER as u32
-);
-const _: () = debug_assert!(
-  CoreExportsCondition::SOURCE.bits() == ExportsConditions::PARCEL_EXPORTS_CONDITION_SOURCE as u32
-);
+assert_flag_values! {
+  core = CoreDependencyFlags,
+  abi = DependencyFlags,
+  repr = u8;
+  flags = {
+    ENTRY => PARCEL_DEP_ENTRY,
+    OPTIONAL => PARCEL_DEP_OPTIONAL,
+    NEEDS_STABLE_NAME => PARCEL_DEP_NEEDS_STABLE_NAME,
+    IS_WEBWORKER => PARCEL_DEP_IS_WEBWORKER,
+    SIDE_EFFECTS => PARCEL_DEP_SIDE_EFFECTS,
+    MACRO => PARCEL_DEP_MACRO,
+  }
+  ignored = [REACT_LAZY, FORCE_BUNDLE];
+}
+
+assert_flag_values! {
+  core = CoreExportsCondition,
+  abi = ExportsConditions,
+  repr = u32;
+  flags = {
+    IMPORT => PARCEL_EXPORTS_CONDITION_IMPORT,
+    REQUIRE => PARCEL_EXPORTS_CONDITION_REQUIRE,
+    MODULE => PARCEL_EXPORTS_CONDITION_MODULE,
+    NODE => PARCEL_EXPORTS_CONDITION_NODE,
+    BROWSER => PARCEL_EXPORTS_CONDITION_BROWSER,
+    WORKER => PARCEL_EXPORTS_CONDITION_WORKER,
+    WORKLET => PARCEL_EXPORTS_CONDITION_WORKLET,
+    ELECTRON => PARCEL_EXPORTS_CONDITION_ELECTRON,
+    DEVELOPMENT => PARCEL_EXPORTS_CONDITION_DEVELOPMENT,
+    PRODUCTION => PARCEL_EXPORTS_CONDITION_PRODUCTION,
+    TYPES => PARCEL_EXPORTS_CONDITION_TYPES,
+    DEFAULT => PARCEL_EXPORTS_CONDITION_DEFAULT,
+    STYLE => PARCEL_EXPORTS_CONDITION_STYLE,
+    SASS => PARCEL_EXPORTS_CONDITION_SASS,
+    LESS => PARCEL_EXPORTS_CONDITION_LESS,
+    STYLUS => PARCEL_EXPORTS_CONDITION_STYLUS,
+    REACT_SERVER => PARCEL_EXPORTS_CONDITION_REACT_SERVER,
+    SOURCE => PARCEL_EXPORTS_CONDITION_SOURCE,
+  }
+}
+
 /// Dependency descriptor passed to `parcel_asset_add_dependency()`.
 /// Use `PARCEL_SPECIFIER_ESM` / `PARCEL_PRIORITY_SYNC` / `PARCEL_BUNDLE_BEHAVIOR_NONE` as defaults.
 #[repr(C)]
@@ -207,22 +186,9 @@ pub extern "C" fn parcel_asset_add_dependency(asset: Asset, dep: *const Dependen
   }
   let specifier = unsafe { bytes_to_str(dep.specifier, dep.specifier_len) }.to_owned();
 
-  let specifier_type = match dep.specifier_type {
-    SpecifierType::PARCEL_SPECIFIER_ESM => CoreSpecifierType::Esm,
-    SpecifierType::PARCEL_SPECIFIER_COMMONJS => CoreSpecifierType::Commonjs,
-    SpecifierType::PARCEL_SPECIFIER_URL => CoreSpecifierType::Url,
-    SpecifierType::PARCEL_SPECIFIER_CUSTOM => CoreSpecifierType::Custom,
-  };
-  let priority = match dep.priority {
-    Priority::PARCEL_PRIORITY_SYNC => CorePriority::Sync,
-    Priority::PARCEL_PRIORITY_PARALLEL => CorePriority::Parallel,
-    Priority::PARCEL_PRIORITY_LAZY => CorePriority::Lazy,
-  };
-  let bundle_behavior = match dep.bundle_behavior {
-    BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_NONE => CoreBundleBehavior::None,
-    BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_INLINE => CoreBundleBehavior::Inline,
-    BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_ISOLATED => CoreBundleBehavior::Isolated,
-  };
+  let specifier_type = dep.specifier_type.into();
+  let priority = dep.priority.into();
+  let bundle_behavior = dep.bundle_behavior.into();
   let flags = CoreDependencyFlags::from_bits_truncate(dep.flags);
 
   asset.dependencies.push(CoreDependency {
@@ -257,34 +223,21 @@ pub extern "C" fn parcel_dep_get_specifier(buf: *mut Buffer, dep: Dependency) {
 #[unsafe(no_mangle)]
 pub extern "C" fn parcel_dep_get_specifier_type(dep: Dependency) -> SpecifierType {
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
-  match dep.specifier_type {
-    CoreSpecifierType::Esm => SpecifierType::PARCEL_SPECIFIER_ESM,
-    CoreSpecifierType::Commonjs => SpecifierType::PARCEL_SPECIFIER_COMMONJS,
-    CoreSpecifierType::Url => SpecifierType::PARCEL_SPECIFIER_URL,
-    CoreSpecifierType::Custom => SpecifierType::PARCEL_SPECIFIER_CUSTOM,
-  }
+  dep.specifier_type.into()
 }
 
 /// Returns the priority (`PARCEL_PRIORITY_*`).
 #[unsafe(no_mangle)]
 pub extern "C" fn parcel_dep_get_priority(dep: Dependency) -> Priority {
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
-  match dep.priority {
-    CorePriority::Sync => Priority::PARCEL_PRIORITY_SYNC,
-    CorePriority::Parallel => Priority::PARCEL_PRIORITY_PARALLEL,
-    CorePriority::Lazy => Priority::PARCEL_PRIORITY_LAZY,
-  }
+  dep.priority.into()
 }
 
 /// Returns the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`).
 #[unsafe(no_mangle)]
 pub extern "C" fn parcel_dep_get_bundle_behavior(dep: Dependency) -> BundleBehavior {
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
-  match dep.bundle_behavior {
-    CoreBundleBehavior::None => BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_NONE,
-    CoreBundleBehavior::Inline => BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_INLINE,
-    CoreBundleBehavior::Isolated => BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_ISOLATED,
-  }
+  dep.bundle_behavior.into()
 }
 
 /// Returns the raw `DependencyFlags` bitfield (`PARCEL_DEP_*` bits).

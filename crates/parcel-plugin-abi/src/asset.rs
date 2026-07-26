@@ -3,9 +3,8 @@
 use std::{borrow::Cow, ffi::c_void, sync::Arc};
 
 use parcel_core::{
-  Asset as CoreAsset, AssetFlags as CoreAssetFlags, AssetType, BufferContent,
-  BundleBehavior as CoreBundleBehavior, Content, ContentType, Diagnostic as CoreDiagnostic,
-  DiagnosticList, LocalSymbol, ParcelOptions, SymbolName,
+  Asset as CoreAsset, AssetFlags as CoreAssetFlags, AssetType, BufferContent, Content, ContentType,
+  Diagnostic as CoreDiagnostic, DiagnosticList, LocalSymbol, ParcelOptions, SymbolName,
 };
 
 use crate::{
@@ -32,41 +31,29 @@ pub enum AssetFlags {
 }
 
 pub type AssetFlagsFFI = u32;
-const _: () =
-  debug_assert!(CoreAssetFlags::IS_SOURCE.bits() == AssetFlags::PARCEL_ASSET_IS_SOURCE as u32);
-const _: () = debug_assert!(
-  CoreAssetFlags::SIDE_EFFECTS.bits() == AssetFlags::PARCEL_ASSET_SIDE_EFFECTS as u32
-);
-const _: () = debug_assert!(
-  CoreAssetFlags::IS_BUNDLE_SPLITTABLE.bits()
-    == AssetFlags::PARCEL_ASSET_IS_BUNDLE_SPLITTABLE as u32
-);
-const _: () =
-  debug_assert!(CoreAssetFlags::LARGE_BLOB.bits() == AssetFlags::PARCEL_ASSET_LARGE_BLOB as u32);
-const _: () = debug_assert!(
-  CoreAssetFlags::HAS_CJS_EXPORTS.bits() == AssetFlags::PARCEL_ASSET_HAS_CJS_EXPORTS as u32
-);
-const _: () = debug_assert!(
-  CoreAssetFlags::STATIC_EXPORTS.bits() == AssetFlags::PARCEL_ASSET_STATIC_EXPORTS as u32
-);
-const _: () =
-  debug_assert!(CoreAssetFlags::SHOULD_WRAP.bits() == AssetFlags::PARCEL_ASSET_SHOULD_WRAP as u32);
-const _: () = debug_assert!(
-  CoreAssetFlags::IS_CONSTANT_MODULE.bits() == AssetFlags::PARCEL_ASSET_IS_CONSTANT_MODULE as u32
-);
-const _: () = debug_assert!(
-  CoreAssetFlags::HAS_NODE_REPLACEMENTS.bits()
-    == AssetFlags::PARCEL_ASSET_HAS_NODE_REPLACEMENTS as u32
-);
-const _: () =
-  debug_assert!(CoreAssetFlags::HAS_SYMBOLS.bits() == AssetFlags::PARCEL_ASSET_HAS_SYMBOLS as u32);
-const _: () = debug_assert!(
-  CoreAssetFlags::IS_HTML_ATTR.bits() == AssetFlags::PARCEL_ASSET_IS_HTML_ATTR as u32
-);
-const _: () =
-  debug_assert!(CoreAssetFlags::IS_HTML_TAG.bits() == AssetFlags::PARCEL_ASSET_IS_HTML_TAG as u32);
-const _: () =
-  debug_assert!(CoreAssetFlags::IS_ESM.bits() == AssetFlags::PARCEL_ASSET_IS_ESM as u32);
+
+assert_flag_values! {
+  core = CoreAssetFlags,
+  abi = AssetFlags,
+  repr = u32;
+  flags = {
+    IS_SOURCE => PARCEL_ASSET_IS_SOURCE,
+    SIDE_EFFECTS => PARCEL_ASSET_SIDE_EFFECTS,
+    IS_BUNDLE_SPLITTABLE => PARCEL_ASSET_IS_BUNDLE_SPLITTABLE,
+    LARGE_BLOB => PARCEL_ASSET_LARGE_BLOB,
+    HAS_CJS_EXPORTS => PARCEL_ASSET_HAS_CJS_EXPORTS,
+    STATIC_EXPORTS => PARCEL_ASSET_STATIC_EXPORTS,
+    SHOULD_WRAP => PARCEL_ASSET_SHOULD_WRAP,
+    IS_CONSTANT_MODULE => PARCEL_ASSET_IS_CONSTANT_MODULE,
+    HAS_NODE_REPLACEMENTS => PARCEL_ASSET_HAS_NODE_REPLACEMENTS,
+    HAS_SYMBOLS => PARCEL_ASSET_HAS_SYMBOLS,
+    IS_HTML_ATTR => PARCEL_ASSET_IS_HTML_ATTR,
+    IS_HTML_TAG => PARCEL_ASSET_IS_HTML_TAG,
+    IS_ESM => PARCEL_ASSET_IS_ESM,
+  }
+  ignored = [AUTOMATIC_JSX_RUNTIME];
+}
+
 // ── Content ───────────────────────────────────────────────────────────────────
 
 /// Returns the asset content into `*buf`. Caller must `parcel_free_buffer(buf)`.
@@ -385,22 +372,14 @@ pub extern "C" fn parcel_asset_set_pipeline(
 #[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_get_bundle_behavior(asset: Asset) -> BundleBehavior {
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
-  match asset.bundle_behavior {
-    CoreBundleBehavior::None => BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_NONE,
-    CoreBundleBehavior::Inline => BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_INLINE,
-    CoreBundleBehavior::Isolated => BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_ISOLATED,
-  }
+  asset.bundle_behavior.into()
 }
 
 /// Sets the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`).
 #[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_set_bundle_behavior(asset: Asset, behavior: BundleBehavior) {
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
-  asset.bundle_behavior = match behavior {
-    BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_NONE => CoreBundleBehavior::None,
-    BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_INLINE => CoreBundleBehavior::Inline,
-    BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_ISOLATED => CoreBundleBehavior::Isolated,
-  };
+  asset.bundle_behavior = behavior.into();
 }
 
 // ── Flags ─────────────────────────────────────────────────────────────────────

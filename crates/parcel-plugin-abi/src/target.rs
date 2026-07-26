@@ -2,7 +2,10 @@
 
 use std::sync::Arc;
 
-use parcel_core::{Asset as CoreAsset, EnvironmentFlags as CoreEnvironmentFlags};
+use parcel_core::{
+  Asset as CoreAsset, Environment as CoreEnvironment, EnvironmentFlags as CoreEnvironmentFlags,
+  OutputFormat as CoreOutputFormat, SourceType as CoreSourceType,
+};
 
 use crate::{Asset, Buffer, Options, Target, write_buffer};
 
@@ -21,6 +24,20 @@ pub enum Environment {
   PARCEL_ENV_REACT_SERVER = 8,
 }
 
+impl_enum_conversion! {
+  CoreEnvironment => Environment {
+    CoreEnvironment::Browser => Environment::PARCEL_ENV_BROWSER,
+    CoreEnvironment::WebWorker => Environment::PARCEL_ENV_WEB_WORKER,
+    CoreEnvironment::ServiceWorker => Environment::PARCEL_ENV_SERVICE_WORKER,
+    CoreEnvironment::Worklet => Environment::PARCEL_ENV_WORKLET,
+    CoreEnvironment::Node => Environment::PARCEL_ENV_NODE,
+    CoreEnvironment::ElectronMain => Environment::PARCEL_ENV_ELECTRON_MAIN,
+    CoreEnvironment::ElectronRenderer => Environment::PARCEL_ENV_ELECTRON_RENDERER,
+    CoreEnvironment::ReactClient => Environment::PARCEL_ENV_REACT_CLIENT,
+    CoreEnvironment::ReactServer => Environment::PARCEL_ENV_REACT_SERVER,
+  }
+}
+
 // OutputFormat (target, read-only)
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -30,12 +47,27 @@ pub enum OutputFormat {
   PARCEL_OUTPUT_FORMAT_ESMODULE = 2,
 }
 
+impl_enum_conversion! {
+  CoreOutputFormat => OutputFormat {
+    CoreOutputFormat::Global => OutputFormat::PARCEL_OUTPUT_FORMAT_GLOBAL,
+    CoreOutputFormat::Commonjs => OutputFormat::PARCEL_OUTPUT_FORMAT_COMMONJS,
+    CoreOutputFormat::Esmodule => OutputFormat::PARCEL_OUTPUT_FORMAT_ESMODULE,
+  }
+}
+
 // SourceType (target, read-only)
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum SourceType {
   PARCEL_SOURCE_TYPE_MODULE = 0,
   PARCEL_SOURCE_TYPE_SCRIPT = 1,
+}
+
+impl_enum_conversion! {
+  CoreSourceType => SourceType {
+    CoreSourceType::Module => SourceType::PARCEL_SOURCE_TYPE_MODULE,
+    CoreSourceType::Script => SourceType::PARCEL_SOURCE_TYPE_SCRIPT,
+  }
 }
 
 // EnvironmentFlags (target, read-only) — bitfield
@@ -49,21 +81,19 @@ pub enum EnvironmentFlags {
 }
 
 pub type EnvironmentFlagsFFI = u8;
-const _: () = debug_assert!(
-  CoreEnvironmentFlags::IS_LIBRARY.bits() == EnvironmentFlags::PARCEL_ENV_FLAG_IS_LIBRARY as u8
-);
-const _: () = debug_assert!(
-  CoreEnvironmentFlags::SHOULD_OPTIMIZE.bits()
-    == EnvironmentFlags::PARCEL_ENV_FLAG_SHOULD_OPTIMIZE as u8
-);
-const _: () = debug_assert!(
-  CoreEnvironmentFlags::SHOULD_SCOPE_HOIST.bits()
-    == EnvironmentFlags::PARCEL_ENV_FLAG_SHOULD_SCOPE_HOIST as u8
-);
-const _: () = debug_assert!(
-  CoreEnvironmentFlags::MODULE_TYPE_EXTENSION.bits()
-    == EnvironmentFlags::PARCEL_ENV_FLAG_MODULE_TYPE_EXTENSION as u8
-);
+
+assert_flag_values! {
+  core = CoreEnvironmentFlags,
+  abi = EnvironmentFlags,
+  repr = u8;
+  flags = {
+    IS_LIBRARY => PARCEL_ENV_FLAG_IS_LIBRARY,
+    SHOULD_OPTIMIZE => PARCEL_ENV_FLAG_SHOULD_OPTIMIZE,
+    SHOULD_SCOPE_HOIST => PARCEL_ENV_FLAG_SHOULD_SCOPE_HOIST,
+    MODULE_TYPE_EXTENSION => PARCEL_ENV_FLAG_MODULE_TYPE_EXTENSION,
+  }
+}
+
 // ── Target (read-only) ────────────────────────────────────────────────────────
 
 /// Returns an opaque `Target` handle. Valid for the duration of the transform call.
@@ -76,42 +106,22 @@ pub extern "C" fn parcel_asset_get_target(asset: Asset) -> Target {
 /// Returns the target environment (`PARCEL_ENV_*`).
 #[unsafe(no_mangle)]
 pub extern "C" fn parcel_target_get_environment(target: Target) -> Environment {
-  use parcel_core::Environment::*;
   let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };
-  match target.environment {
-    Browser => Environment::PARCEL_ENV_BROWSER,
-    WebWorker => Environment::PARCEL_ENV_WEB_WORKER,
-    ServiceWorker => Environment::PARCEL_ENV_SERVICE_WORKER,
-    Worklet => Environment::PARCEL_ENV_WORKLET,
-    Node => Environment::PARCEL_ENV_NODE,
-    ElectronMain => Environment::PARCEL_ENV_ELECTRON_MAIN,
-    ElectronRenderer => Environment::PARCEL_ENV_ELECTRON_RENDERER,
-    ReactClient => Environment::PARCEL_ENV_REACT_CLIENT,
-    ReactServer => Environment::PARCEL_ENV_REACT_SERVER,
-  }
+  target.environment.into()
 }
 
 /// Returns the output format (`PARCEL_OUTPUT_FORMAT_*`).
 #[unsafe(no_mangle)]
 pub extern "C" fn parcel_target_get_output_format(target: Target) -> OutputFormat {
-  use parcel_core::OutputFormat::*;
   let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };
-  match target.output_format {
-    Global => OutputFormat::PARCEL_OUTPUT_FORMAT_GLOBAL,
-    Commonjs => OutputFormat::PARCEL_OUTPUT_FORMAT_COMMONJS,
-    Esmodule => OutputFormat::PARCEL_OUTPUT_FORMAT_ESMODULE,
-  }
+  target.output_format.into()
 }
 
 /// Returns the source type (`PARCEL_SOURCE_TYPE_*`).
 #[unsafe(no_mangle)]
 pub extern "C" fn parcel_target_get_source_type(target: Target) -> SourceType {
-  use parcel_core::SourceType::*;
   let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };
-  match target.source_type {
-    Module => SourceType::PARCEL_SOURCE_TYPE_MODULE,
-    Script => SourceType::PARCEL_SOURCE_TYPE_SCRIPT,
-  }
+  target.source_type.into()
 }
 
 /// Returns the `EnvironmentFlags` bitfield (`PARCEL_ENV_FLAG_*` bits).

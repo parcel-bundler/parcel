@@ -15,6 +15,14 @@ pub enum BundleBehavior {
   PARCEL_BUNDLE_BEHAVIOR_ISOLATED = 2,
 }
 
+impl_enum_conversion! {
+  CoreBundleBehavior => BundleBehavior {
+    CoreBundleBehavior::None => BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_NONE,
+    CoreBundleBehavior::Inline => BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_INLINE,
+    CoreBundleBehavior::Isolated => BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_ISOLATED,
+  }
+}
+
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, Hash)]
 pub enum BundleFlags {
@@ -25,18 +33,19 @@ pub enum BundleFlags {
 }
 
 pub type BundleFlagsFFI = u8;
-const _: () = debug_assert!(
-  CoreBundleFlags::NEEDS_STABLE_NAME.bits()
-    == BundleFlags::PARCEL_BUNDLE_FLAG_NEEDS_STABLE_NAME as u8
-);
-const _: () = debug_assert!(
-  CoreBundleFlags::IS_SPLITTABLE.bits() == BundleFlags::PARCEL_BUNDLE_FLAG_IS_SPLITTABLE as u8
-);
-const _: () = debug_assert!(
-  CoreBundleFlags::IS_PLACEHOLDER.bits() == BundleFlags::PARCEL_BUNDLE_FLAG_IS_PLACEHOLDER as u8
-);
-const _: () =
-  debug_assert!(CoreBundleFlags::ENTRY.bits() == BundleFlags::PARCEL_BUNDLE_FLAG_ENTRY as u8);
+
+assert_flag_values! {
+  core = CoreBundleFlags,
+  abi = BundleFlags,
+  repr = u8;
+  flags = {
+    NEEDS_STABLE_NAME => PARCEL_BUNDLE_FLAG_NEEDS_STABLE_NAME,
+    IS_SPLITTABLE => PARCEL_BUNDLE_FLAG_IS_SPLITTABLE,
+    IS_PLACEHOLDER => PARCEL_BUNDLE_FLAG_IS_PLACEHOLDER,
+    ENTRY => PARCEL_BUNDLE_FLAG_ENTRY,
+  }
+}
+
 // ── Bundle (read-only) ───────────────────────────────────────────────────────
 
 /// Returns the bundle type extension (for example, `"js"`) into `*buf`.
@@ -66,11 +75,7 @@ pub extern "C" fn parcel_bundle_get_bundle_behavior(bundle: Bundle) -> BundleBeh
     return BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_NONE;
   }
   let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
-  match bundle.bundle_behavior {
-    CoreBundleBehavior::None => BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_NONE,
-    CoreBundleBehavior::Inline => BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_INLINE,
-    CoreBundleBehavior::Isolated => BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_ISOLATED,
-  }
+  bundle.bundle_behavior.into()
 }
 
 /// Returns the raw `BundleFlags` bitfield (`PARCEL_BUNDLE_FLAG_*` bits).

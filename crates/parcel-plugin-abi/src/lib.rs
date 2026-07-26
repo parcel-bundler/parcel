@@ -1,5 +1,8 @@
 #![allow(non_camel_case_types)]
 
+#[macro_use]
+mod macros;
+
 mod asset;
 mod buffer;
 mod bundle;

@@ -207,6 +207,7 @@ fn asset_accessors_return_content_metadata_and_optional_values() {
   for (core, abi) in behavior_cases {
     asset.bundle_behavior = core;
     assert_eq!(parcel_asset_get_bundle_behavior(asset_handle(&asset)), abi);
+    assert_eq!(CoreBundleBehavior::from(abi), core);
   }
 
   asset.pipeline = None;
@@ -315,6 +316,7 @@ fn target_accessors_map_every_enum_variant_and_return_fields() {
       ..Default::default()
     };
     assert_eq!(parcel_target_get_environment(target_handle(&target)), abi);
+    assert_eq!(CoreEnvironment::from(abi), core);
   }
 
   let output_format_cases = [
@@ -337,6 +339,7 @@ fn target_accessors_map_every_enum_variant_and_return_fields() {
       ..Default::default()
     };
     assert_eq!(parcel_target_get_output_format(target_handle(&target)), abi);
+    assert_eq!(CoreOutputFormat::from(abi), core);
   }
 
   let source_type_cases = [
@@ -355,6 +358,7 @@ fn target_accessors_map_every_enum_variant_and_return_fields() {
       ..Default::default()
     };
     assert_eq!(parcel_target_get_source_type(target_handle(&target)), abi);
+    assert_eq!(CoreSourceType::from(abi), core);
   }
 
   let target = target_fixture();
@@ -419,6 +423,7 @@ fn dependency_accessors_return_values_and_map_every_enum_variant() {
       parcel_dep_get_specifier_type(dependency_handle(&dependency)),
       abi
     );
+    assert_eq!(CoreSpecifierType::from(abi), core);
   }
 
   let priority_cases = [
@@ -430,6 +435,7 @@ fn dependency_accessors_return_values_and_map_every_enum_variant() {
     let mut dependency = dependency_fixture(target.clone());
     dependency.priority = core;
     assert_eq!(parcel_dep_get_priority(dependency_handle(&dependency)), abi);
+    assert_eq!(CorePriority::from(abi), core);
   }
 
   let behavior_cases = [
@@ -453,6 +459,7 @@ fn dependency_accessors_return_values_and_map_every_enum_variant() {
       parcel_dep_get_bundle_behavior(dependency_handle(&dependency)),
       abi
     );
+    assert_eq!(CoreBundleBehavior::from(abi), core);
   }
 
   let mut fallback = dependency_fixture(target.clone());
@@ -566,6 +573,7 @@ fn bundle_accessors_return_fields_urls_indices_and_fallbacks() {
       parcel_bundle_get_bundle_behavior(bundle_handle(&bundle)),
       abi
     );
+    assert_eq!(CoreBundleBehavior::from(abi), core);
   }
 
   let mut unnamed = bundle_fixture(target, None);
