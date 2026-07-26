@@ -188,13 +188,9 @@ pub fn asset_dependencies<'a>(
           if dep.bundle_behavior == BundleBehavior::Inline
             || resolved_bundle.bundle_behavior == BundleBehavior::Inline
           {
-            let content = get_inline_bundle_content(bundle_index as usize)
-              .unwrap()
-              .read()?;
-            dependencies.insert(
-              placeholder.as_str().into(),
-              Resolution::String(Cow::Owned(String::from_utf8(content)?)),
-            );
+            let content = get_inline_bundle_content(bundle_index as usize).unwrap();
+            let content = Cow::Owned(content.read_string()?.into_owned());
+            dependencies.insert(placeholder.as_str().into(), Resolution::String(content));
           } else if dep.specifier_type == SpecifierType::Url {
             dependencies.insert(
               placeholder.as_str().into(),

@@ -113,7 +113,7 @@ impl FileSystem for TrackingFileSystem {
     self.inner.read_dir(path)
   }
 
-  fn write(&self, path: PathId, contents: &Vec<u8>) -> Result<()> {
+  fn write(&self, path: PathId, contents: &[u8]) -> Result<()> {
     self.inner.write(path, contents)
   }
 

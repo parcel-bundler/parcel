@@ -309,7 +309,7 @@ impl Resolver for JsPlugin {
                 ..Default::default()
               },
               content: if let Some(code) = code {
-                Arc::new(BufferContent::new(code.into_bytes()))
+                Arc::new(BufferContent::new_string(code))
               } else {
                 Arc::new(FileContent::new(path, options.input_fs.clone()))
               },
@@ -674,7 +674,7 @@ impl JsAsset {
   }
 
   fn set_code(&mut self, value: String) -> rquickjs::Result<()> {
-    self.with_asset_mut(|asset| asset.content = Arc::new(BufferContent::new(value.into_bytes())))
+    self.with_asset_mut(|asset| asset.content = Arc::new(BufferContent::new_string(value)))
   }
 
   #[qjs(get)]

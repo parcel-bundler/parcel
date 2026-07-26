@@ -14,7 +14,7 @@ impl Optimizer for DataUrlOptimizer {
   ) -> Result<Arc<dyn parcel_core::Content>, DiagnosticList> {
     let base64 = data_encoding::BASE64.encode(&contents.read()?);
     let url = format!("data:{};base64,{}", bundle.ty.mime(), base64);
-    Ok(Arc::new(BufferContent::new(url.into_bytes())))
+    Ok(Arc::new(BufferContent::new_string(url)))
   }
 }
 

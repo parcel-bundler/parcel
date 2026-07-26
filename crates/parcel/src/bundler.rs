@@ -1,14 +1,11 @@
-use std::{
-  any::TypeId,
-  collections::{HashMap, VecDeque},
-};
+use std::collections::{HashMap, VecDeque};
 
 use fixedbitset::FixedBitSet;
 use glob_match::glob_match;
 use parcel_core::{
   Asset, AssetGraph, AssetIndex, AssetType, Bundle, BundleBehavior, BundleFlags, BundleGraph,
-  Bundler, DependencyFlags, DependencyId, DiagnosticList, Environment, EnvironmentFlags,
-  ParcelOptions, Priority, SpecifierType,
+  Bundler, ContentType, DependencyFlags, DependencyId, DiagnosticList, Environment,
+  EnvironmentFlags, ParcelOptions, Priority, SpecifierType,
 };
 
 use crate::library_bundler::LibraryBundler;
@@ -142,11 +139,11 @@ impl Bundler for DefaultBundler {
       Default {
         reachable_roots: &'a FixedBitSet,
         context: Environment,
-        packager: TypeId,
+        packager: ContentType,
       },
       Manual {
         index: usize,
-        packager: TypeId,
+        packager: ContentType,
       },
     }
 
@@ -176,13 +173,13 @@ impl Bundler for DefaultBundler {
       let key = if let Some(index) = self.manual_shared_bundle(asset, options) {
         BundleKey::Manual {
           index,
-          packager: asset.content.type_id(),
+          packager: asset.content.ty(),
         }
       } else {
         BundleKey::Default {
           reachable_roots: &reachable_roots[bundle_root_asset_index.index()],
           context: asset.target.environment, // TODO: other environment properties?
-          packager: asset.content.type_id(),
+          packager: asset.content.ty(),
         }
       };
 
@@ -202,13 +199,13 @@ impl Bundler for DefaultBundler {
       let key = if let Some(index) = self.manual_shared_bundle(asset, options) {
         BundleKey::Manual {
           index,
-          packager: asset.content.type_id(),
+          packager: asset.content.ty(),
         }
       } else {
         BundleKey::Default {
           reachable_roots: &reachable_roots[asset_index.index()],
           context: asset.target.environment, // TODO: other environment properties?
-          packager: asset.content.type_id(),
+          packager: asset.content.ty(),
         }
       };
 

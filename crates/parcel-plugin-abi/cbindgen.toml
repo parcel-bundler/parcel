@@ -2,13 +2,14 @@ language = "C"
 include_guard = "PARCEL_PLUGIN_H"
 cpp_compat = true
 no_includes = true
-sys_includes = ["stdint.h"]
+sys_includes = ["stdint.h", "stdbool.h"]
 
 [export]
-include = ["Diagnostic", "ResolveResult", "DependencyFlags", "AssetFlags", "EnvironmentFlags"]
-exclude = ["CPlugin", "AssetFlagsFFI", "DependencyFlagsFFI", "EnvironmentFlagsFFI"]
+include = ["Diagnostic", "ResolveResult", "DependencyFlags", "AssetFlags", "EnvironmentFlags", "BundleFlags", "BundleGraphDependencyResolution", "PARCEL_INVALID_ASSET_INDEX"]
+exclude = ["CPlugin", "AssetFlagsFFI", "DependencyFlagsFFI", "EnvironmentFlagsFFI", "BundleFlagsFFI"]
 
 [export.rename]
 "AssetFlagsFFI" = "AssetFlags"
 "DependencyFlagsFFI" = "DependencyFlags"
 "EnvironmentFlagsFFI" = "EnvironmentFlags"
+"BundleFlagsFFI" = "BundleFlags"

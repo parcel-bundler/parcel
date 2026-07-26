@@ -97,10 +97,7 @@ impl Printer {
         version: 3,
         sections,
       })?;
-      Ok(Arc::new(ContentWithSourceMap::new(
-        self.output.into_bytes(),
-        map,
-      )))
+      Ok(Arc::new(ContentWithSourceMap::new_string(self.output, map)))
     } else {
       Ok(Arc::new(BufferContent::new(self.output.into_bytes())))
     }
@@ -133,13 +130,14 @@ impl std::io::Write for Printer {
 }
 
 fn update_position(s: &str, line: &mut u32, column: &mut u32) {
-  for segment in s.split_inclusive('\n') {
-    if segment.ends_with('\n') {
-      *line += 1;
-      *column = 0;
-    } else {
-      *column += segment.chars().map(|c| c.len_utf16() as u32).sum::<u32>();
+  let newlines = bytecount::count(s.as_bytes(), b'\n');
+  if newlines > 0 {
+    *line += newlines as u32;
+    if let Some((_, last)) = s.rsplit_once('\n') {
+      *column = simd_utf16_len::utf16_len(last) as u32;
     }
+  } else {
+    *column += simd_utf16_len::utf16_len(s) as u32;
   }
 }
 

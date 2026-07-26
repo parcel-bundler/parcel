@@ -168,7 +168,7 @@ impl FileSystem for MemoryFileSystem {
     todo!()
   }
 
-  fn write(&self, path: PathId, contents: &Vec<u8>) -> Result<()> {
+  fn write(&self, path: PathId, contents: &[u8]) -> Result<()> {
     path.with_path(|path| {
       let name = path.file_name().unwrap();
       let node = path.parent().map_or(Ok(0), |p| self.dir(p))?;
@@ -181,7 +181,7 @@ impl FileSystem for MemoryFileSystem {
           ..
         } = &mut entries[found]
         {
-          *file_contents = contents.clone();
+          *file_contents = contents.to_vec();
         } else {
           return Err(Error::new(ErrorKind::NotFound, "not a file"));
         }
@@ -189,7 +189,7 @@ impl FileSystem for MemoryFileSystem {
         let index = entries.len();
         entries.push(Entry::File {
           name: name.into(),
-          contents: contents.clone(),
+          contents: contents.to_vec(),
           parent: Some(node),
         });
         if let Entry::Directory { children, .. } = &mut entries[node] {

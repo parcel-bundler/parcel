@@ -260,7 +260,7 @@ impl<'a> Resolver<'a> {
     let mut request = ResolveRequest::new(self, &specifier, specifier_type, &from, fs);
     if !options.conditions.is_empty() || !options.custom_conditions.is_empty() {
       // If custom conditions are defined, these override the default conditions inferred from the specifier type.
-      request.conditions = self.conditions | options.conditions;
+      request.conditions |= options.conditions;
       request.custom_conditions = options.custom_conditions.as_slice();
     }
 

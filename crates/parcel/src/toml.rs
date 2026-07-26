@@ -20,7 +20,7 @@ impl Transformer for TomlTransformer {
     let js = json_to_js(parsed, asset.target.output_format)?;
 
     asset.ty = AssetType::Js;
-    asset.content = Arc::new(BufferContent::new(js.into_bytes()));
+    asset.content = Arc::new(BufferContent::new_string(js));
     Ok(asset)
   }
 }

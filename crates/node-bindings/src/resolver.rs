@@ -135,7 +135,7 @@ impl FileSystem for JsFileSystem {
     todo!()
   }
 
-  fn write(&self, path: PathId, contents: &Vec<u8>) -> std::io::Result<()> {
+  fn write(&self, path: PathId, contents: &[u8]) -> std::io::Result<()> {
     todo!()
   }
 

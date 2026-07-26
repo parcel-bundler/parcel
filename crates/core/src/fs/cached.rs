@@ -248,7 +248,7 @@ impl FileSystem for CachedFileSystem {
     result
   }
 
-  fn write(&self, path: PathId, contents: &Vec<u8>) -> Result<()> {
+  fn write(&self, path: PathId, contents: &[u8]) -> Result<()> {
     self.inner.write(path, contents)?;
     self.invalidate([path]);
     Ok(())
@@ -345,7 +345,7 @@ mod tests {
       self.read_dir_calls.fetch_add(1, Ordering::Relaxed);
       self.inner.read_dir(path)
     }
-    fn write(&self, path: PathId, contents: &Vec<u8>) -> Result<()> {
+    fn write(&self, path: PathId, contents: &[u8]) -> Result<()> {
       self.inner.write(path, contents)
     }
     fn remove_file(&self, path: PathId) -> Result<()> {
@@ -526,7 +526,7 @@ mod tests {
     fn read_dir(&self, _path: PathId) -> Result<Vec<DirEntry>> {
       Ok(Vec::new())
     }
-    fn write(&self, _path: PathId, _contents: &Vec<u8>) -> Result<()> {
+    fn write(&self, _path: PathId, _contents: &[u8]) -> Result<()> {
       Ok(())
     }
     fn remove_file(&self, _path: PathId) -> Result<()> {

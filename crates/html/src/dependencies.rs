@@ -388,7 +388,7 @@ impl<'arena> DependencyCollector<'arena> {
             ty: ty
               .map(|ty| AssetType::from_mime(&ty))
               .unwrap_or(AssetType::Js),
-            content: Arc::new(BufferContent::new(code.into_bytes())),
+            content: Arc::new(BufferContent::new_string(code)),
             unique_key: Some(key.into()),
             flags: AssetFlags::IS_HTML_TAG,
             target: self.create_env(output_format, source_type, node.line),
@@ -425,7 +425,7 @@ impl<'arena> DependencyCollector<'arena> {
 
         self.assets.push(Asset {
           ty,
-          content: Arc::new(BufferContent::new(code.into_bytes())),
+          content: Arc::new(BufferContent::new_string(code)),
           unique_key: Some(key.into()),
           flags: AssetFlags::IS_HTML_TAG,
           target: self.target.clone(),
@@ -568,7 +568,7 @@ impl<'arena> DependencyCollector<'arena> {
 
       self.assets.push(Asset {
         ty: AssetType::StyleAttribute,
-        content: Arc::new(BufferContent::new(style.to_string().into_bytes())),
+        content: Arc::new(BufferContent::new_string(style.to_string())),
         unique_key: Some(key.into()),
         flags: AssetFlags::IS_HTML_ATTR,
         target: self.target.clone(),

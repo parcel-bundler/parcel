@@ -41,6 +41,9 @@
 //! }
 //! ```
 
+use std::any::TypeId;
+use std::marker::PhantomData;
+use std::os::raw::c_void;
 use std::ptr;
 
 pub mod ffi;
@@ -55,6 +58,7 @@ impl Default for Buffer {
       data: ptr::null_mut(),
       len: 0,
       cap: 0,
+      is_utf8: false,
     }
   }
 }
@@ -73,7 +77,11 @@ impl Buffer {
       return None;
     }
     let bytes = unsafe { std::slice::from_raw_parts(self.data as *const u8, self.len) };
-    Some(String::from_utf8_lossy(bytes).into_owned())
+    if self.is_utf8 {
+      Some(unsafe { String::from_utf8_unchecked(bytes.to_vec()) })
+    } else {
+      String::from_utf8(bytes.to_vec()).ok()
+    }
   }
 
   fn to_bytes(&self) -> Option<Vec<u8>> {
@@ -167,6 +175,18 @@ impl AssetFlags {
     self.0 & other.0 == other.0
   }
 }
+
+/// Bitfield describing bundle state.
+pub use ffi::BundleFlags;
+
+impl BundleFlags {
+  pub fn contains(self, other: BundleFlags) -> bool {
+    self.0 & other.0 == other.0
+  }
+}
+
+pub type AssetIndex = ffi::AssetIndex;
+pub type BundleIndex = ffi::BundleIndex;
 
 /// Bitfield of dependency flags.
 pub use ffi::DependencyFlags;
@@ -358,12 +378,91 @@ impl Asset {
   /// Replaces the asset content with a UTF-8 string.
   pub fn set_content(&mut self, content: impl AsRef<str>) {
     let bytes = content.as_ref().as_bytes();
-    unsafe { ffi::parcel_asset_set_content(self.raw, bytes.as_ptr(), bytes.len() as u32) };
+    unsafe { ffi::parcel_asset_set_content_utf8(self.raw, bytes.as_ptr(), bytes.len() as u32) };
   }
 
   /// Replaces the asset content with raw bytes.
   pub fn set_content_bytes(&mut self, bytes: &[u8]) {
     unsafe { ffi::parcel_asset_set_content(self.raw, bytes.as_ptr(), bytes.len() as u32) };
+  }
+
+  pub fn set_custom_content<T: AssetContent>(&mut self, content: T) {
+    unsafe extern "C" fn read_content<T: AssetContent>(
+      content: *const c_void,
+      buf: *mut Buffer,
+      diagnostic: *mut ffi::Diagnostic,
+    ) {
+      let content = unsafe { &*(content as *const T) as &T };
+      match content.read() {
+        Ok(ContentBuffer::Bytes(b)) => {
+          unsafe { ffi::parcel_buffer_write(buf, b.as_ptr(), b.len()) };
+        }
+        Ok(ContentBuffer::String(s)) => {
+          unsafe { ffi::parcel_buffer_write_utf8(buf, s.as_bytes().as_ptr(), s.len()) };
+        }
+        Err(e) => {
+          e.write_to_raw(diagnostic);
+        }
+      }
+    }
+
+    unsafe extern "C" fn package_content<T: AssetContent>(
+      content: *const c_void,
+      bundle_graph: ffi::BundleGraph,
+      bundle: ffi::Bundle,
+      options: ffi::Options,
+      buf: *mut Buffer,
+      diagnostic: *mut ffi::Diagnostic,
+    ) {
+      let content = unsafe { &*(content as *const T) as &T };
+      let bundle_graph = unsafe { BundleGraph::from_raw(bundle_graph, options) };
+      let bundle = unsafe { Bundle::from_raw(bundle, options) };
+      let options = unsafe { Options::from_raw(options) };
+      match content.package(&bundle_graph, &bundle, &options) {
+        Ok(ContentBuffer::Bytes(b)) => {
+          unsafe { ffi::parcel_buffer_write(buf, b.as_ptr(), b.len()) };
+        }
+        Ok(ContentBuffer::String(s)) => {
+          unsafe { ffi::parcel_buffer_write_utf8(buf, s.as_bytes().as_ptr(), s.len()) };
+        }
+        Err(e) => {
+          e.write_to_raw(diagnostic);
+        }
+      }
+    }
+
+    unsafe extern "C" fn free_content<T: AssetContent>(content: *mut c_void) {
+      drop(unsafe { Box::from_raw(content as *mut T) })
+    }
+
+    let ty = type_id::<T>();
+    unsafe {
+      ffi::parcel_asset_set_custom_content(
+        self.raw,
+        &ty,
+        Box::leak(Box::new(content)) as *mut T as *mut c_void,
+        Some(read_content::<T>),
+        Some(package_content::<T>),
+        Some(free_content::<T>),
+      );
+    }
+  }
+
+  pub fn custom_content<T: AssetContent>(&self) -> Option<&T> {
+    let mut ty = [0; 16];
+    let mut content = std::ptr::null_mut();
+    unsafe {
+      ffi::parcel_asset_get_custom_content(&mut ty, &mut content, self.raw);
+      if !content.is_null() {
+        let expected_ty = type_id::<T>();
+        if ty != expected_ty {
+          return None;
+        }
+        return Some(&*(content as *const T));
+      }
+    }
+
+    None
   }
 
   // ── Type ─────────────────────────────────────────────────────────────────
@@ -490,6 +589,320 @@ impl Asset {
   }
 }
 
+fn type_id<T: 'static>() -> [u8; 16] {
+  let ty = TypeId::of::<T>();
+  let slice = unsafe { std::slice::from_raw_parts(&ty as *const TypeId as *const u8, 16) };
+  slice.try_into().unwrap()
+}
+
+pub enum ContentBuffer {
+  Bytes(Vec<u8>),
+  String(String),
+}
+
+pub trait AssetContent: Send + Sync + 'static {
+  fn read(&self) -> Result<ContentBuffer, Diagnostic>;
+
+  fn package(
+    &self,
+    bundle_graph: &BundleGraph,
+    bundle: &Bundle,
+    options: &Options,
+  ) -> Result<ContentBuffer, Diagnostic>;
+}
+
+// ── Bundle graph ───────────────────────────────────────────────────────────
+
+/// Read-only view of the bundle graph during packaging.
+pub struct BundleGraph {
+  raw: ffi::BundleGraph,
+  options: ffi::Options,
+}
+
+impl BundleGraph {
+  /// Wraps the raw bundle graph handle supplied by Parcel.
+  ///
+  /// # Safety
+  /// `raw` and `options` must be the handles supplied to the package callback.
+  pub unsafe fn from_raw(raw: ffi::BundleGraph, options: ffi::Options) -> Self {
+    Self { raw, options }
+  }
+
+  pub fn asset_count(&self) -> usize {
+    unsafe { ffi::parcel_bundle_graph_get_asset_count(self.raw) }
+  }
+
+  pub fn asset<'a>(&'a self, index: AssetIndex) -> Option<AssetRef<'a>> {
+    let raw = unsafe { ffi::parcel_bundle_graph_get_asset(self.raw, index) };
+    (raw != 0).then_some(AssetRef {
+      raw,
+      options: self.options,
+      index,
+      phantom: PhantomData,
+    })
+  }
+
+  pub fn assets<'a>(&'a self) -> impl Iterator<Item = AssetRef<'a>> + 'a {
+    (0..self.asset_count()).filter_map(|index| self.asset(index as AssetIndex))
+  }
+
+  pub fn bundle_count(&self) -> usize {
+    unsafe { ffi::parcel_bundle_graph_get_bundle_count(self.raw) }
+  }
+
+  pub fn bundle(&self, index: BundleIndex) -> Option<Bundle> {
+    let raw = unsafe { ffi::parcel_bundle_graph_get_bundle(self.raw, index) };
+    (raw != 0).then_some(Bundle {
+      raw,
+      options: self.options,
+    })
+  }
+
+  pub fn bundles(&self) -> impl Iterator<Item = Bundle> + '_ {
+    (0..self.bundle_count()).filter_map(|index| self.bundle(index))
+  }
+
+  pub fn dependency_resolution(
+    &self,
+    asset: AssetIndex,
+    dependency_index: usize,
+  ) -> BundleGraphDependencyResolution {
+    let resolution = unsafe {
+      ffi::parcel_bundle_graph_get_dependency_resolution(self.raw, asset, dependency_index)
+    };
+    match resolution.resolution_type {
+      ffi::BundleGraphResolutionType::Invalid => BundleGraphDependencyResolution::Invalid,
+      ffi::BundleGraphResolutionType::None => BundleGraphDependencyResolution::None,
+      ffi::BundleGraphResolutionType::Deferred => BundleGraphDependencyResolution::Deferred,
+      ffi::BundleGraphResolutionType::External => BundleGraphDependencyResolution::External,
+      ffi::BundleGraphResolutionType::Excluded => BundleGraphDependencyResolution::Excluded,
+      ffi::BundleGraphResolutionType::Asset => {
+        BundleGraphDependencyResolution::Asset(resolution.asset)
+      }
+      ffi::BundleGraphResolutionType::Bundle => {
+        BundleGraphDependencyResolution::Bundle(resolution.bundle)
+      }
+    }
+  }
+}
+
+/// Read-only view of an asset in a [`BundleGraph`].
+pub struct AssetRef<'a> {
+  raw: ffi::Asset,
+  options: ffi::Options,
+  index: AssetIndex,
+  phantom: PhantomData<&'a ()>,
+}
+
+impl<'a> AssetRef<'a> {
+  pub fn index(&self) -> AssetIndex {
+    self.index
+  }
+
+  pub fn content(&self) -> String {
+    let mut buf = Buffer::default();
+    unsafe { ffi::parcel_asset_get_content(&mut buf, self.raw) };
+    buf.to_string().unwrap_or_default()
+  }
+
+  pub fn content_bytes(&self) -> Vec<u8> {
+    let mut buf = Buffer::default();
+    unsafe { ffi::parcel_asset_get_content(&mut buf, self.raw) };
+    buf.to_bytes().unwrap_or_default()
+  }
+
+  pub fn custom_content<T: AssetContent>(&self) -> Option<&'a T> {
+    let mut ty = [0; 16];
+    let mut content = std::ptr::null_mut();
+    unsafe {
+      ffi::parcel_asset_get_custom_content(&mut ty, &mut content, self.raw);
+      if !content.is_null() {
+        let expected_ty = type_id::<T>();
+        if ty != expected_ty {
+          return None;
+        }
+        return Some(&*(content as *const T));
+      }
+    }
+
+    None
+  }
+
+  pub fn asset_type(&self) -> String {
+    let mut buf = Buffer::default();
+    unsafe { ffi::parcel_asset_get_type(&mut buf, self.raw) };
+    buf.to_string().unwrap_or_default()
+  }
+
+  pub fn file_path(&self) -> String {
+    let mut buf = Buffer::default();
+    unsafe { ffi::parcel_asset_get_file_path(&mut buf, self.raw, self.options) };
+    buf.to_string().unwrap_or_default()
+  }
+
+  pub fn pipeline(&self) -> Option<String> {
+    let mut buf = Buffer::default();
+    unsafe { ffi::parcel_asset_get_pipeline(&mut buf, self.raw) };
+    buf.to_string()
+  }
+
+  pub fn bundle_behavior(&self) -> BundleBehavior {
+    unsafe { ffi::parcel_asset_get_bundle_behavior(self.raw) }
+  }
+
+  pub fn flags(&self) -> AssetFlags {
+    unsafe { ffi::parcel_asset_get_flags(self.raw) }
+  }
+
+  pub fn has_flag(&self, mask: AssetFlags) -> bool {
+    self.flags().contains(mask)
+  }
+
+  pub fn unique_key(&self) -> Option<String> {
+    let mut buf = Buffer::default();
+    unsafe { ffi::parcel_asset_get_unique_key(&mut buf, self.raw) };
+    buf.to_string()
+  }
+
+  pub fn target(&self) -> Target {
+    Target {
+      raw: unsafe { ffi::parcel_asset_get_target(self.raw) },
+      options: self.options,
+    }
+  }
+
+  pub fn dependency_count(&self) -> usize {
+    unsafe { ffi::parcel_asset_get_dependency_count(self.raw) }
+  }
+
+  pub fn dependency(&self, index: usize) -> Option<Dependency> {
+    let raw = unsafe { ffi::parcel_asset_get_dependency(self.raw, index) };
+    (raw != 0).then_some(Dependency {
+      raw,
+      options: self.options,
+    })
+  }
+
+  pub fn dependencies(&self) -> impl Iterator<Item = Dependency> + '_ {
+    (0..self.dependency_count()).filter_map(|index| self.dependency(index))
+  }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BundleGraphDependencyResolution {
+  Invalid,
+  None,
+  Deferred,
+  External,
+  Excluded,
+  Asset(AssetIndex),
+  Bundle(BundleIndex),
+}
+
+// ── Bundle ─────────────────────────────────────────────────────────────────
+
+/// Read-only view of a bundle during packaging.
+pub struct Bundle {
+  raw: ffi::Bundle,
+  options: ffi::Options,
+}
+
+impl Bundle {
+  /// Wraps the raw bundle handle supplied by Parcel.
+  ///
+  /// # Safety
+  /// `raw` and `options` must be the handles supplied to the package callback.
+  pub unsafe fn from_raw(raw: ffi::Bundle, options: ffi::Options) -> Self {
+    Self { raw, options }
+  }
+
+  pub fn asset_type(&self) -> String {
+    let mut buf = Buffer::default();
+    unsafe { ffi::parcel_bundle_get_type(&mut buf, self.raw) };
+    buf.to_string().unwrap_or_default()
+  }
+
+  pub fn target(&self) -> Target {
+    Target {
+      raw: unsafe { ffi::parcel_bundle_get_target(self.raw) },
+      options: self.options,
+    }
+  }
+
+  pub fn bundle_behavior(&self) -> BundleBehavior {
+    unsafe { ffi::parcel_bundle_get_bundle_behavior(self.raw) }
+  }
+
+  pub fn flags(&self) -> BundleFlags {
+    unsafe { ffi::parcel_bundle_get_flags(self.raw) }
+  }
+
+  pub fn has_flag(&self, flag: BundleFlags) -> bool {
+    self.flags().contains(flag)
+  }
+
+  pub fn dist_path(&self) -> Option<String> {
+    let mut buf = Buffer::default();
+    unsafe { ffi::parcel_bundle_get_dist_path(&mut buf, self.raw) };
+    buf.to_string()
+  }
+
+  pub fn asset_count(&self) -> usize {
+    unsafe { ffi::parcel_bundle_get_asset_count(self.raw) }
+  }
+
+  pub fn asset(&self, index: usize) -> Option<AssetIndex> {
+    let asset = unsafe { ffi::parcel_bundle_get_asset(self.raw, index) };
+    (asset != ffi::PARCEL_INVALID_ASSET_INDEX).then_some(asset)
+  }
+
+  pub fn assets(&self) -> impl Iterator<Item = AssetIndex> + '_ {
+    (0..self.asset_count()).filter_map(|index| self.asset(index))
+  }
+
+  pub fn entry_asset_count(&self) -> usize {
+    unsafe { ffi::parcel_bundle_get_entry_asset_count(self.raw) }
+  }
+
+  pub fn entry_asset(&self, index: usize) -> Option<AssetIndex> {
+    let asset = unsafe { ffi::parcel_bundle_get_entry_asset(self.raw, index) };
+    (asset != ffi::PARCEL_INVALID_ASSET_INDEX).then_some(asset)
+  }
+
+  pub fn entry_assets(&self) -> impl Iterator<Item = AssetIndex> + '_ {
+    (0..self.entry_asset_count()).filter_map(|index| self.entry_asset(index))
+  }
+
+  pub fn main_entry_asset(&self) -> Option<AssetIndex> {
+    let asset = unsafe { ffi::parcel_bundle_get_main_entry_asset(self.raw) };
+    (asset != ffi::PARCEL_INVALID_ASSET_INDEX).then_some(asset)
+  }
+
+  pub fn name(&self) -> Option<String> {
+    let mut buf = Buffer::default();
+    unsafe { ffi::parcel_bundle_get_name(&mut buf, self.raw) };
+    buf.to_string()
+  }
+
+  pub fn absolute_url(&self) -> Option<String> {
+    let mut buf = Buffer::default();
+    unsafe { ffi::parcel_bundle_get_absolute_url(&mut buf, self.raw) };
+    buf.to_string()
+  }
+
+  pub fn relative_url(&self, from: &Bundle) -> Option<String> {
+    let mut buf = Buffer::default();
+    unsafe { ffi::parcel_bundle_get_relative_url(&mut buf, self.raw, from.raw) };
+    buf.to_string()
+  }
+
+  pub fn relative_specifier(&self, from: &Bundle) -> Option<String> {
+    let mut buf = Buffer::default();
+    unsafe { ffi::parcel_bundle_get_relative_specifier(&mut buf, self.raw, from.raw) };
+    buf.to_string()
+  }
+}
+
 // ── Target ─────────────────────────────────────────────────────────────────
 
 /// Read-only view of the build target associated with an asset.
@@ -538,9 +951,10 @@ impl Target {
 
 // ── Dependency ─────────────────────────────────────────────────────────────
 
-/// Read-only view of a Parcel dependency being resolved.
+/// Read-only view of a Parcel dependency.
 ///
-/// Passed to the function registered with [`register_resolver!`].
+/// Passed to the function registered with [`register_resolver!`] and returned
+/// by [`AssetRef::dependency`].
 pub struct Dependency {
   raw: u64,
   options: u64,

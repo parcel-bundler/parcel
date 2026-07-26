@@ -152,7 +152,7 @@ pub trait FileSystem: Send + Sync {
     }
   }
 
-  fn write(&self, path: PathId, contents: &Vec<u8>) -> Result<()>;
+  fn write(&self, path: PathId, contents: &[u8]) -> Result<()>;
 
   fn copy(&self, from: PathId, to: PathId) -> Result<()> {
     self.write(to, &self.read(from)?)

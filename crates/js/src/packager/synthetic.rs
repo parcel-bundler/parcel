@@ -141,12 +141,14 @@ impl SyntheticAsset {
           )?;
         }
         BundleShim::Inline => {
-          let content = get_inline_bundle_content(*bundle_index as usize)?.read()?;
-          write!(
-            dest,
-            "module.exports={:?}",
-            String::from_utf8_lossy(&content)
-          )?;
+          let content = get_inline_bundle_content(*bundle_index as usize)?;
+          let content = content.read_string()?;
+          if bundle_graph.bundles[*bundle_index as usize].ty == AssetType::Other("docs".into()) {
+            dest.write_str("module.exports=")?;
+            dest.write_str(&content)?;
+          } else {
+            write!(dest, "module.exports={:?}", content)?;
+          }
         }
       },
       SyntheticAsset::Rsc(module) => {

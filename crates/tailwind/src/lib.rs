@@ -21,8 +21,7 @@ impl Transformer for TailwindTransformer {
   ) -> Result<Asset, DiagnosticList> {
     let project_root_path = options.project_root;
 
-    let css_bytes = asset.content.read()?;
-    let css = String::from_utf8(css_bytes).map_err(Diagnostic::from)?;
+    let css = asset.content.read_string()?;
     // TODO: skip if tailwind is not present?
     // let canBail = !/@(import|reference|theme|variant|config|plugin|apply|tailwind)\b/.test(source)
 
@@ -112,7 +111,7 @@ impl Transformer for TailwindTransformer {
         resolve,
         from.as_str(),
         base.as_str(),
-        css.as_str(),
+        css.as_ref(),
         get_candidates,
       ))?;
 
@@ -123,7 +122,7 @@ impl Transformer for TailwindTransformer {
         .to_string()
     })?;
 
-    asset.content = Arc::new(BufferContent::new(result_css.into_bytes()));
+    asset.content = Arc::new(BufferContent::new_string(result_css));
     Ok(asset)
   }
 }

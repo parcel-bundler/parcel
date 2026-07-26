@@ -53,7 +53,7 @@ impl FileSystem for OverlayFileSystem {
     }
   }
 
-  fn write(&self, path: PathId, contents: &Vec<u8>) -> Result<()> {
+  fn write(&self, path: PathId, contents: &[u8]) -> Result<()> {
     self.mem.write(path, contents)
   }
 

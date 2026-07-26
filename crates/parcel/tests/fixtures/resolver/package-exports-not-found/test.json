@@ -13,8 +13,8 @@
         {
           "codeHighlights": [
             {
-              "start": {"line": 3, "column": 14},
-              "end": {"line": 5, "column": 3}
+              "start": {"line": 3, "column": 3},
+              "end": {"line": 3, "column": 11}
             }
           ]
         }

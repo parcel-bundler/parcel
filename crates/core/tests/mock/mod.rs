@@ -120,7 +120,7 @@ impl FileSystem for RecordingFileSystem {
     self.inner.read_link(path)
   }
 
-  fn write(&self, path: PathId, contents: &Vec<u8>) -> IoResult<()> {
+  fn write(&self, path: PathId, contents: &[u8]) -> IoResult<()> {
     if self.fail_writes.load(Ordering::SeqCst) {
       return Err(std::io::Error::new(
         std::io::ErrorKind::PermissionDenied,

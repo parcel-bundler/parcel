@@ -401,7 +401,7 @@ impl Transformer for JsTransformer {
               },
             },
             ty: AssetType::from_extension(&mdx_asset.lang),
-            content: Arc::new(BufferContent::new(mdx_asset.code.clone().into_bytes())),
+            content: Arc::new(BufferContent::new_string(mdx_asset.code.clone())),
             pipeline: None,
             side_effects: true,
             target: asset.target.clone(),

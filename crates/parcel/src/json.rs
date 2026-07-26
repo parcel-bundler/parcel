@@ -18,7 +18,7 @@ impl Transformer for JsonTransformer {
     let js = json_to_js(json, asset.target.output_format)?;
 
     asset.ty = AssetType::Js;
-    asset.content = Arc::new(BufferContent::new(js.into_bytes()));
+    asset.content = Arc::new(BufferContent::new_string(js));
     Ok(asset)
   }
 }

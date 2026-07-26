@@ -101,7 +101,7 @@ impl MacroContext {
         pipeline: None,
         target: Target::normalize(&self.target, &ty),
         ty,
-        content: Arc::new(BufferContent::new(content.into_bytes())),
+        content: Arc::new(BufferContent::new_string(content)),
         side_effects: true,
       })),
     })

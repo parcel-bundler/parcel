@@ -1,14 +1,25 @@
 use std::{
-  any::Any,
+  any::{Any, TypeId},
+  borrow::Cow,
   hash::{Hash, Hasher},
   sync::Arc,
 };
 
 use crate::{Bundle, BundleGraph, Diagnostic, DiagnosticList, FileSystem, ParcelOptions, PathId};
 
+#[derive(Hash, PartialEq, Eq, Clone, Debug)]
+pub enum ContentType {
+  Rust(TypeId),
+  Custom([u8; 16]),
+}
+
 pub trait Content: Any + std::fmt::Debug + Send + Sync {
   /// Reads the content as a byte vector.
   fn read(&self) -> Result<Vec<u8>, Diagnostic>;
+
+  fn read_string(&self) -> Result<Cow<'_, str>, Diagnostic> {
+    Ok(Cow::Owned(String::from_utf8(self.read()?)?))
+  }
 
   /// Writes the content to a file.
   fn write(&self, fs: &dyn FileSystem, path: PathId) -> Result<(), Diagnostic> {
@@ -24,6 +35,10 @@ pub trait Content: Any + std::fmt::Debug + Send + Sync {
     let a = self.read();
     let b = other.read();
     a == b
+  }
+
+  fn ty(&self) -> ContentType {
+    ContentType::Rust(self.type_id())
   }
 
   #[allow(unused_variables)]
@@ -124,35 +139,86 @@ impl std::fmt::Debug for FileContent {
 }
 
 #[derive(Debug)]
+enum Buffer {
+  Bytes(Vec<u8>),
+  String(String),
+}
+
+impl Buffer {
+  fn to_vec(&self) -> Vec<u8> {
+    match self {
+      Buffer::Bytes(v) => v.clone(),
+      Buffer::String(v) => v.clone().into_bytes(),
+    }
+  }
+
+  fn as_bytes(&self) -> &[u8] {
+    match self {
+      Buffer::Bytes(v) => v.as_slice(),
+      Buffer::String(v) => v.as_bytes(),
+    }
+  }
+
+  fn as_str(&self) -> Result<Cow<'_, str>, Diagnostic> {
+    match self {
+      Buffer::Bytes(v) => Ok(Cow::Borrowed(std::str::from_utf8(v)?)),
+      Buffer::String(v) => Ok(Cow::Borrowed(v.as_str())),
+    }
+  }
+}
+
+#[derive(Debug)]
 pub struct BufferContent {
-  buf: Vec<u8>,
+  buf: Buffer,
 }
 
 impl BufferContent {
   pub fn new(buf: Vec<u8>) -> Self {
-    BufferContent { buf }
+    BufferContent {
+      buf: Buffer::Bytes(buf),
+    }
+  }
+
+  pub fn new_string(string: String) -> Self {
+    BufferContent {
+      buf: Buffer::String(string),
+    }
   }
 }
 
 impl Content for BufferContent {
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
-    Ok(self.buf.clone())
+    Ok(self.buf.to_vec())
+  }
+
+  fn read_string(&self) -> Result<Cow<'_, str>, Diagnostic> {
+    self.buf.as_str()
   }
 
   fn write(&self, fs: &dyn FileSystem, path: PathId) -> Result<(), Diagnostic> {
-    Ok(fs.write(path, &self.buf)?)
+    Ok(fs.write(path, self.buf.as_bytes())?)
   }
 }
 
 #[derive(Debug)]
 pub struct ContentWithSourceMap {
-  code: Vec<u8>,
+  code: Buffer,
   map: Vec<u8>,
 }
 
 impl ContentWithSourceMap {
   pub fn new(code: Vec<u8>, map: Vec<u8>) -> Self {
-    ContentWithSourceMap { code, map }
+    ContentWithSourceMap {
+      code: Buffer::Bytes(code),
+      map,
+    }
+  }
+
+  pub fn new_string(code: String, map: Vec<u8>) -> Self {
+    ContentWithSourceMap {
+      code: Buffer::String(code),
+      map,
+    }
   }
 
   pub fn source_map(&self) -> &[u8] {
@@ -162,11 +228,11 @@ impl ContentWithSourceMap {
 
 impl Content for ContentWithSourceMap {
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
-    Ok(self.code.clone())
+    Ok(self.code.to_vec())
   }
 
   fn write(&self, fs: &dyn FileSystem, path: PathId) -> Result<(), Diagnostic> {
-    fs.write(path, &self.code)?;
+    fs.write(path, self.code.as_bytes())?;
     fs.write(path.add_extension("map"), &self.map)?;
     Ok(())
   }

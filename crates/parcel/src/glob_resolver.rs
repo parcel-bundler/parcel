@@ -91,7 +91,7 @@ impl Resolver for GlobResolver {
       ty: AssetType::Js,
       pipeline: None,
       target: dep.target.clone(),
-      content: Arc::new(BufferContent::new(code.into_bytes())),
+      content: Arc::new(BufferContent::new_string(code)),
       side_effects: true,
     })))
   }

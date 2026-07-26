@@ -187,12 +187,12 @@ impl CssContent {
       let map = source_map
         .to_json(None)
         .map_err(|e| Diagnostic::from_message(e.to_string()))?;
-      Ok(Arc::new(ContentWithSourceMap::new(
-        res.code.into_bytes(),
+      Ok(Arc::new(ContentWithSourceMap::new_string(
+        res.code,
         map.into_bytes(),
       )))
     } else {
-      Ok(Arc::new(BufferContent::new(res.code.into_bytes())))
+      Ok(Arc::new(BufferContent::new_string(res.code)))
     }
   }
 }
@@ -577,7 +577,9 @@ impl ReferenceReplacer {
           if dep.bundle_behavior == BundleBehavior::Inline
             || referenced_bundle.bundle_behavior == BundleBehavior::Inline
           {
-            let url = String::from_utf8(get_inline_bundle_content(bundle_index as usize)?.read()?)?;
+            let url = get_inline_bundle_content(bundle_index as usize)?
+              .read_string()?
+              .into_owned();
             urls.insert(dep.specifier.clone(), url);
           } else {
             let url = referenced_bundle.relative_url(bundle).unwrap().into();
@@ -761,6 +763,6 @@ impl StyleAttrContent {
     }
 
     let css = decls.to_css_string(Default::default()).unwrap();
-    Ok(Arc::new(BufferContent::new(css.into_bytes())))
+    Ok(Arc::new(BufferContent::new_string(css)))
   }
 }

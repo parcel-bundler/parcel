@@ -59,7 +59,7 @@ impl FileSystem for OsFileSystem {
     path.with_path(|p| p.canonicalize().map(|c| PathId::new(&c)))
   }
 
-  fn write(&self, path: PathId, contents: &Vec<u8>) -> Result<()> {
+  fn write(&self, path: PathId, contents: &[u8]) -> Result<()> {
     path.with_path(|p| std::fs::write(p, contents))
   }
 

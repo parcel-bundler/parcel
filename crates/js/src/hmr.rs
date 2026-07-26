@@ -57,8 +57,9 @@ pub fn get_hmr_update<'a>(
         get_bundle_content(
           config,
           bundle_graph,
-          &bundle_graph.bundles[bundle_index],
+          bundle_index,
           options,
+          &Default::default(),
         )
       },
       &bundle_graph.project_root,
@@ -75,7 +76,7 @@ pub fn get_hmr_update<'a>(
       output = format!(
         "parcelHotUpdate['{}'] = function (module, exports, require) {{{}}}",
         asset.id(&bundle_graph.project_root),
-        String::from_utf8(asset.content.read().unwrap()).unwrap()
+        asset.content.read_string().unwrap()
       );
     }
 
@@ -113,8 +114,9 @@ pub fn get_hmr_update<'a>(
           get_bundle_content(
             config,
             bundle_graph,
-            &bundle_graph.bundles[bundle_index],
+            bundle_index,
             options,
+            &Default::default(),
           )
         },
         &bundle_graph.project_root,

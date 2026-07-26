@@ -87,21 +87,22 @@ impl Resolver for DefaultResolver {
       },
     );
 
-    let side_effects = if let Ok(ResolutionAndQuery {
-      resolution: Resolution::Path(p),
-      ..
-    }) = &res
-    {
-      match resolver.resolve_side_effects(*p, &**fs) {
-        Ok(side_effects) => side_effects,
-        Err(err) => {
-          res = Err(err);
-          true
+    let side_effects = dep.flags.contains(DependencyFlags::SIDE_EFFECTS)
+      || if let Ok(ResolutionAndQuery {
+        resolution: Resolution::Path(p),
+        ..
+      }) = &res
+      {
+        match resolver.resolve_side_effects(*p, &**fs) {
+          Ok(side_effects) => side_effects,
+          Err(err) => {
+            res = Err(err);
+            true
+          }
         }
-      }
-    } else {
-      true
-    };
+      } else {
+        true
+      };
 
     match res {
       Ok(res) => match res.resolution {
@@ -138,9 +139,10 @@ impl Resolver for DefaultResolver {
             url: SourceUrl::parse(&format!("file:///globals/{}.js", global))?,
             ..Default::default()
           },
-          content: Arc::new(BufferContent::new(
-            format!("module.exports={};", global).into_bytes(),
-          )),
+          content: Arc::new(BufferContent::new_string(format!(
+            "module.exports={};",
+            global
+          ))),
           target: dep.target.clone(),
           pipeline: pipeline.map(|p| p.into()),
           side_effects,
@@ -226,7 +228,7 @@ fn json_code_frame(
   let code_highlights = code
     .as_deref()
     .and_then(|code| {
-      json_source_location(code, pointer, JsonSourceLocationType::Value)
+      json_source_location(code, pointer, JsonSourceLocationType::Key)
         .ok()
         .flatten()
     })

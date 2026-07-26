@@ -446,7 +446,9 @@ fn prepare_to_package(
       BundleGraphDependencyResolution::Bundle(b) => {
         let referenced_bundle = &bundle_graph.bundles[b as usize];
         let contents = if dep.bundle_behavior == BundleBehavior::Inline {
-          String::from_utf8(get_inline_bundle_content(b as usize)?.read()?)?
+          get_inline_bundle_content(b as usize)?
+            .read_string()?
+            .into_owned()
         } else {
           referenced_bundle.relative_url(&bundle).unwrap()
         };

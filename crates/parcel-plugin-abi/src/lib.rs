@@ -1,22 +1,17 @@
 #![allow(non_camel_case_types)]
 
 use libloading::{Library, Symbol};
-use std::{
-  collections::HashMap,
-  ffi::c_void,
-  mem::ManuallyDrop,
-  path::{Path, PathBuf},
-  ptr,
-  sync::{Arc, Mutex, OnceLock},
-};
+use std::{borrow::Cow, ffi::c_void, mem::ManuallyDrop, path::Path, ptr, sync::Arc};
 
 use parcel_core::{
-  Asset as CoreAsset, AssetFlags as CoreAssetFlags, AssetRequest, AssetType, BufferContent,
-  BundleBehavior as CoreBundleBehavior, CodeFrame, CodeHighlight, Dependency as CoreDependency,
-  DependencyFlags as CoreDependencyFlags, DependencyResolution, Diagnostic as CoreDiagnostic,
-  DiagnosticList, DiagnosticSeverity as CoreDiagnosticSeverity,
-  EnvironmentFlags as CoreEnvironmentFlags, ExportsCondition, FileContent, LocalSymbol, Location,
-  ParcelOptions, PathId, Priority as CorePriority, Resolver, SourceLocation, SourceUrl,
+  Asset as CoreAsset, AssetFlags as CoreAssetFlags, AssetIndex as CoreAssetIndex, AssetRequest,
+  AssetType, BufferContent, BundleBehavior as CoreBundleBehavior, BundleFlags as CoreBundleFlags,
+  BundleGraphDependencyResolution as CoreBundleGraphDependencyResolution, CodeFrame, CodeHighlight,
+  Content, ContentType, Dependency as CoreDependency, DependencyFlags as CoreDependencyFlags,
+  DependencyResolution, Diagnostic as CoreDiagnostic, DiagnosticList,
+  DiagnosticSeverity as CoreDiagnosticSeverity, EnvironmentFlags as CoreEnvironmentFlags,
+  ExportsCondition, FileContent, LocalSymbol, Location, ParcelOptions, PathId,
+  Priority as CorePriority, Resolver, SourceLocation, SourceUrl,
   SpecifierType as CoreSpecifierType, SymbolName, Transformer,
 };
 
@@ -31,6 +26,16 @@ pub type Target = u64;
 pub type Dependency = u64;
 /// Opaque handle to Parcel build options. Passed to all plugin entry points.
 pub type Options = u64;
+/// Opaque handle to Parcel bundle graph.
+pub type BundleGraph = u64;
+/// Opaque handle to Parcel bundle.
+pub type Bundle = u64;
+/// Index of an asset within the bundle graph.
+pub type AssetIndex = u32;
+/// Index of a bundle within the bundle graph.
+pub type BundleIndex = usize;
+
+pub const PARCEL_INVALID_ASSET_INDEX: AssetIndex = 0xffff_ffff;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -95,6 +100,51 @@ pub enum AssetFlags {
 
 pub type AssetFlagsFFI = u32;
 
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, Hash)]
+pub enum BundleFlags {
+  PARCEL_BUNDLE_FLAG_NEEDS_STABLE_NAME = 1 << 0,
+  PARCEL_BUNDLE_FLAG_IS_SPLITTABLE = 1 << 1,
+  PARCEL_BUNDLE_FLAG_IS_PLACEHOLDER = 1 << 2,
+  PARCEL_BUNDLE_FLAG_ENTRY = 1 << 3,
+}
+
+pub type BundleFlagsFFI = u8;
+
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Default)]
+pub enum BundleGraphResolutionType {
+  #[default]
+  PARCEL_BUNDLE_GRAPH_RESOLUTION_INVALID = 0,
+  PARCEL_BUNDLE_GRAPH_RESOLUTION_NONE = 1,
+  PARCEL_BUNDLE_GRAPH_RESOLUTION_DEFERRED = 2,
+  PARCEL_BUNDLE_GRAPH_RESOLUTION_EXTERNAL = 3,
+  PARCEL_BUNDLE_GRAPH_RESOLUTION_EXCLUDED = 4,
+  PARCEL_BUNDLE_GRAPH_RESOLUTION_ASSET = 5,
+  PARCEL_BUNDLE_GRAPH_RESOLUTION_BUNDLE = 6,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct BundleGraphDependencyResolution {
+  /// `PARCEL_BUNDLE_GRAPH_RESOLUTION_*`
+  pub resolution_type: BundleGraphResolutionType,
+  /// Valid only when `resolution_type == PARCEL_BUNDLE_GRAPH_RESOLUTION_ASSET`.
+  pub asset: AssetIndex,
+  /// Valid only when `resolution_type == PARCEL_BUNDLE_GRAPH_RESOLUTION_BUNDLE`.
+  pub bundle: BundleIndex,
+}
+
+impl Default for BundleGraphDependencyResolution {
+  fn default() -> Self {
+    Self {
+      resolution_type: BundleGraphResolutionType::PARCEL_BUNDLE_GRAPH_RESOLUTION_INVALID,
+      asset: PARCEL_INVALID_ASSET_INDEX,
+      bundle: 0,
+    }
+  }
+}
+
 // Environment (target, read-only)
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -141,8 +191,9 @@ pub type EnvironmentFlagsFFI = u8;
 
 // DiagnosticSeverity — CDiagnostic.severity field
 #[repr(u8)]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Default)]
 pub enum DiagnosticSeverity {
+  #[default]
   PARCEL_SEVERITY_ERROR = 0,
   PARCEL_SEVERITY_WARNING = 1,
   PARCEL_SEVERITY_SOURCE_ERROR = 2,
@@ -231,6 +282,19 @@ const _: () = debug_assert!(
     == EnvironmentFlags::PARCEL_ENV_FLAG_MODULE_TYPE_EXTENSION as u8
 );
 
+const _: () = debug_assert!(
+  CoreBundleFlags::NEEDS_STABLE_NAME.bits()
+    == BundleFlags::PARCEL_BUNDLE_FLAG_NEEDS_STABLE_NAME as u8
+);
+const _: () = debug_assert!(
+  CoreBundleFlags::IS_SPLITTABLE.bits() == BundleFlags::PARCEL_BUNDLE_FLAG_IS_SPLITTABLE as u8
+);
+const _: () = debug_assert!(
+  CoreBundleFlags::IS_PLACEHOLDER.bits() == BundleFlags::PARCEL_BUNDLE_FLAG_IS_PLACEHOLDER as u8
+);
+const _: () =
+  debug_assert!(CoreBundleFlags::ENTRY.bits() == BundleFlags::PARCEL_BUNDLE_FLAG_ENTRY as u8);
+
 // ── Buffer ────────────────────────────────────────────────────────────────────
 
 unsafe fn bytes_to_str<'a>(data: *const u8, len: usize) -> &'a str {
@@ -240,21 +304,25 @@ unsafe fn bytes_to_str<'a>(data: *const u8, len: usize) -> &'a str {
   unsafe { std::str::from_utf8(std::slice::from_raw_parts(data, len)).unwrap_or("") }
 }
 
-/// Owned byte buffer returned by getter functions.
-/// Release with `parcel_free_buffer()` when done.
-/// Zero-initialise before use so a no-op getter leaves `data == NULL`.
+/// Byte buffer owned by Parcel.
+/// Plugins may allocate a buffer with `parcel_buffer_alloc` and release with `parcel_free_buffer()`.
+/// Use `parcel_buffer_write` or `parcel_buffer_write_utf8` to copy data into an existing Buffer,
+/// replacing and dropping the existing content if any. Do not set the fields in this struct manually.
 #[repr(C)]
+#[derive(Default)]
 pub struct Buffer {
   pub data: *mut u8,
   pub len: usize,
   pub cap: usize,
+  pub is_utf8: bool,
 }
 
-unsafe fn write_buffer(buffer: *mut Buffer, mut bytes: Vec<u8>) {
+unsafe fn write_buffer(buffer: *mut Buffer, mut bytes: Vec<u8>, is_utf8: bool) {
   unsafe {
     (*buffer).data = bytes.as_mut_ptr();
     (*buffer).len = bytes.len();
     (*buffer).cap = bytes.capacity();
+    (*buffer).is_utf8 = is_utf8;
   }
   std::mem::forget(bytes);
 }
@@ -294,6 +362,7 @@ pub struct ResolveResult {
 /// Fill via `parcel_buffer_alloc()`; host frees all `Buffer` fields after the call.
 /// If `message.data == NULL` after the call, no diagnostic was set.
 #[repr(C)]
+#[derive(Default)]
 pub struct Diagnostic {
   pub message: Buffer,
   pub file_path: Buffer,
@@ -323,21 +392,58 @@ pub extern "C" fn parcel_free_buffer(buf: *mut Buffer) {
 /// Returns a zero `Buffer` when `data` is NULL or `len` is 0.
 #[unsafe(no_mangle)]
 pub extern "C" fn parcel_buffer_alloc(data: *const u8, len: usize) -> Buffer {
-  if data.is_null() || len == 0 {
-    return Buffer {
-      data: ptr::null_mut(),
-      len: 0,
-      cap: 0,
-    };
-  }
-  let bytes = unsafe { std::slice::from_raw_parts(data, len) }.to_vec();
-  let mut buf = Buffer {
-    data: ptr::null_mut(),
-    len: 0,
-    cap: 0,
-  };
-  unsafe { write_buffer(&mut buf, bytes) };
+  let mut buf = Buffer::default();
+  parcel_buffer_write(&mut buf, data, len);
   buf
+}
+
+/// Copies the given bytes into a `Buffer`, replacing the existing content if any.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_buffer_write(buf: *mut Buffer, data: *const u8, len: usize) {
+  if data.is_null() {
+    return;
+  }
+
+  unsafe {
+    let slice = std::slice::from_raw_parts(data, len);
+    let buf = &mut *buf;
+    let vec = if !buf.data.is_null() {
+      // Reuse the existing allocation.
+      let mut vec = Vec::from_raw_parts(buf.data, buf.len, buf.cap);
+      vec.clear();
+      vec.extend_from_slice(slice);
+      vec
+    } else {
+      slice.to_vec()
+    };
+
+    write_buffer(buf as *mut Buffer, vec, false)
+  }
+}
+
+/// Copies the given UTF-8 encoded string into a `Buffer`, replacing the existing content if any.
+/// It is the caller's responsibility to ensure that the UTF-8 data is valid.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_buffer_write_utf8(buf: *mut Buffer, data: *const u8, len: usize) {
+  if data.is_null() {
+    return;
+  }
+
+  unsafe {
+    let slice = std::slice::from_raw_parts(data, len);
+    let buf = &mut *buf;
+    let vec = if !buf.data.is_null() {
+      // Reuse the existing allocation.
+      let mut vec = Vec::from_raw_parts(buf.data, buf.len, buf.cap);
+      vec.clear();
+      vec.extend_from_slice(slice);
+      vec
+    } else {
+      slice.to_vec()
+    };
+
+    write_buffer(buf as *mut Buffer, vec, true)
+  }
 }
 
 // ── Content ───────────────────────────────────────────────────────────────────
@@ -352,7 +458,20 @@ pub extern "C" fn parcel_asset_get_content(buf: *mut Buffer, asset: Asset) {
   let Ok(content) = asset.content.read() else {
     return;
   };
-  unsafe { write_buffer(buf, content) };
+  unsafe { write_buffer(buf, content, false) };
+}
+
+/// Returns the asset content as a UTF-8 string into `*buf`. Caller must `parcel_free_buffer(buf)`.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_asset_get_content_utf8(buf: *mut Buffer, asset: Asset) {
+  if buf.is_null() {
+    return;
+  }
+  let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
+  let Ok(content) = asset.content.read_string() else {
+    return;
+  };
+  unsafe { write_buffer(buf, content.into_owned().into_bytes(), true) };
 }
 
 /// Replaces the asset content with the given bytes.
@@ -361,6 +480,479 @@ pub extern "C" fn parcel_asset_set_content(asset: Asset, data: *const u8, len: u
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
   let vec = unsafe { std::slice::from_raw_parts(data, len as usize).to_vec() };
   asset.content = Arc::new(BufferContent::new(vec));
+}
+
+/// Replaces the asset content with the given UTF-8 bytes.
+/// It is the caller's responsibility to validate that the data is valid UTF-8.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_asset_set_content_utf8(asset: Asset, data: *const u8, len: u32) {
+  let asset = unsafe { &mut *(asset as *mut CoreAsset) };
+  let string =
+    unsafe { String::from_utf8_unchecked(std::slice::from_raw_parts(data, len as usize).to_vec()) };
+  asset.content = Arc::new(BufferContent::new_string(string));
+}
+
+#[derive(Debug)]
+struct CContent {
+  ty: [u8; 16],
+  ptr: *mut c_void,
+  read: extern "C" fn(content: *const c_void, buf: *mut Buffer, diagnostic: *mut Diagnostic),
+  package: Option<
+    extern "C" fn(
+      content: *const c_void,
+      bundle_graph: BundleGraph,
+      bundle: Bundle,
+      options: Options,
+      buf: *mut Buffer,
+      diagnostic: *mut Diagnostic,
+    ),
+  >,
+  free: extern "C" fn(content: *mut c_void),
+}
+
+unsafe impl Send for CContent {}
+unsafe impl Sync for CContent {}
+
+impl Drop for CContent {
+  fn drop(&mut self) {
+    (self.free)(self.ptr);
+  }
+}
+
+impl Content for CContent {
+  fn ty(&self) -> ContentType {
+    ContentType::Custom(self.ty.clone())
+  }
+
+  fn read(&self) -> Result<Vec<u8>, CoreDiagnostic> {
+    let mut buf = Buffer::default();
+    let mut diagnostic = Diagnostic::default();
+
+    (self.read)(self.ptr, &mut buf, &mut diagnostic);
+
+    let buf = if !buf.data.is_null() {
+      unsafe { Vec::from_raw_parts(buf.data, buf.len, buf.cap) }
+    } else {
+      Vec::new()
+    };
+
+    if let Some(diag) = read_cdiagnostic(&mut diagnostic, None) {
+      return Err(diag);
+    }
+
+    Ok(buf)
+  }
+
+  fn read_string(&self) -> Result<Cow<'_, str>, CoreDiagnostic> {
+    let mut buf = Buffer::default();
+    let mut diagnostic = Diagnostic::default();
+
+    (self.read)(self.ptr, &mut buf, &mut diagnostic);
+
+    let bytes = if !buf.data.is_null() {
+      unsafe { Vec::from_raw_parts(buf.data, buf.len, buf.cap) }
+    } else {
+      Vec::new()
+    };
+
+    if let Some(diag) = read_cdiagnostic(&mut diagnostic, None) {
+      return Err(diag);
+    }
+
+    if buf.is_utf8 {
+      Ok(Cow::Owned(unsafe { String::from_utf8_unchecked(bytes) }))
+    } else {
+      Ok(Cow::Owned(String::from_utf8(bytes)?))
+    }
+  }
+
+  fn package(
+    &self,
+    bundle_graph: &parcel_core::BundleGraph,
+    bundle: &parcel_core::Bundle,
+    get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+    options: &ParcelOptions,
+  ) -> Result<Arc<dyn Content>, DiagnosticList> {
+    if let Some(package) = self.package {
+      let mut buf = Buffer::default();
+      let mut diagnostic = Diagnostic::default();
+
+      (package)(
+        self.ptr,
+        bundle_graph as *const parcel_core::BundleGraph as BundleGraph,
+        bundle as *const parcel_core::Bundle as Bundle,
+        options as *const ParcelOptions as Options,
+        &mut buf,
+        &mut diagnostic,
+      );
+
+      let bytes = if !buf.data.is_null() {
+        unsafe { Vec::from_raw_parts(buf.data, buf.len, buf.cap) }
+      } else {
+        Vec::new()
+      };
+
+      if let Some(diag) = read_cdiagnostic(&mut diagnostic, None) {
+        return Err(DiagnosticList(vec![diag]));
+      }
+
+      let content = if buf.is_utf8 {
+        Arc::new(BufferContent::new_string(unsafe {
+          String::from_utf8_unchecked(bytes)
+        }))
+      } else {
+        Arc::new(BufferContent::new(bytes))
+      };
+      Ok(content)
+    } else {
+      Content::package(
+        self,
+        bundle_graph,
+        bundle,
+        get_inline_bundle_content,
+        options,
+      )
+    }
+  }
+}
+
+/// Replaces the asset content with a custom content type.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_asset_set_custom_content(
+  asset: Asset,
+  ty: *const [u8; 16],
+  content: *mut c_void,
+  // Callback to read the content to a buffer. Bytes should be written into the buffer using parcel_buffer_write.
+  read: Option<
+    extern "C" fn(content: *const c_void, buf: *mut Buffer, diagnostic: *mut Diagnostic),
+  >,
+  package: Option<
+    extern "C" fn(
+      content: *const c_void,
+      bundle_graph: BundleGraph,
+      bundle: Bundle,
+      options: Options,
+      buf: *mut Buffer,
+      diagnostic: *mut Diagnostic,
+    ),
+  >,
+  free: Option<extern "C" fn(content: *mut c_void)>,
+) {
+  let content = CContent {
+    ty: unsafe { *ty },
+    ptr: content,
+    read: read.expect("a read callback must be provided to parcel_asset_set_content"),
+    package,
+    free: free.expect("a free callback must be provided to parcel_asset_set_content"),
+  };
+
+  let asset = unsafe { &mut *(asset as *mut CoreAsset) };
+  asset.content = Arc::new(content);
+}
+
+/// Returns the asset content into `*buf`. Caller must `parcel_free_buffer(buf)`.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_asset_get_custom_content(
+  ty: *mut [u8; 16],
+  content: *mut *mut c_void,
+  asset: Asset,
+) {
+  if content.is_null() {
+    return;
+  }
+  let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
+  if let Some(value) = asset.content.downcast_ref::<CContent>() {
+    unsafe {
+      *ty = value.ty;
+      *content = value.ptr
+    };
+  }
+}
+
+// ── Bundle graph (read-only) ─────────────────────────────────────────────────
+
+/// Returns the number of assets in the graph.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_graph_get_asset_count(bundle_graph: BundleGraph) -> usize {
+  if bundle_graph == 0 {
+    return 0;
+  }
+  let bundle_graph: &parcel_core::BundleGraph =
+    unsafe { &*(bundle_graph as *const parcel_core::BundleGraph) };
+  bundle_graph.asset_graph.assets.len()
+}
+
+/// Returns a borrowed, read-only asset handle, or zero when `index` is out of bounds.
+/// The handle is valid only for the lifetime of the bundle graph and must only be
+/// passed to `parcel_asset_get_*` functions.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_graph_get_asset(
+  bundle_graph: BundleGraph,
+  index: AssetIndex,
+) -> Asset {
+  if bundle_graph == 0 {
+    return 0;
+  }
+  let bundle_graph: &parcel_core::BundleGraph =
+    unsafe { &*(bundle_graph as *const parcel_core::BundleGraph) };
+  bundle_graph
+    .asset_graph
+    .assets
+    .get(index as usize)
+    .map_or(0, |asset| asset as *const CoreAsset as Asset)
+}
+
+/// Returns the number of bundles in the graph.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_graph_get_bundle_count(bundle_graph: BundleGraph) -> usize {
+  if bundle_graph == 0 {
+    return 0;
+  }
+  let bundle_graph: &parcel_core::BundleGraph =
+    unsafe { &*(bundle_graph as *const parcel_core::BundleGraph) };
+  bundle_graph.bundles.len()
+}
+
+/// Returns a borrowed bundle handle, or zero when `index` is out of bounds.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_graph_get_bundle(
+  bundle_graph: BundleGraph,
+  index: BundleIndex,
+) -> Bundle {
+  if bundle_graph == 0 {
+    return 0;
+  }
+  let bundle_graph: &parcel_core::BundleGraph =
+    unsafe { &*(bundle_graph as *const parcel_core::BundleGraph) };
+  bundle_graph
+    .bundles
+    .get(index)
+    .map_or(0, |bundle| bundle as *const parcel_core::Bundle as Bundle)
+}
+
+/// Returns the resolution of one dependency belonging to an asset.
+/// Returns `PARCEL_BUNDLE_GRAPH_RESOLUTION_INVALID` for invalid indices.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_graph_get_dependency_resolution(
+  bundle_graph: BundleGraph,
+  asset: AssetIndex,
+  dependency_index: usize,
+) -> BundleGraphDependencyResolution {
+  if bundle_graph == 0 {
+    return BundleGraphDependencyResolution::default();
+  }
+  let bundle_graph: &parcel_core::BundleGraph =
+    unsafe { &*(bundle_graph as *const parcel_core::BundleGraph) };
+  let Some(asset_value) = bundle_graph.asset_graph.assets.get(asset as usize) else {
+    return BundleGraphDependencyResolution::default();
+  };
+  if dependency_index >= asset_value.dependencies.len() {
+    return BundleGraphDependencyResolution::default();
+  }
+
+  let mut result = BundleGraphDependencyResolution::default();
+  match bundle_graph.dependency_resolution(CoreAssetIndex(asset), dependency_index) {
+    CoreBundleGraphDependencyResolution::None => {
+      result.resolution_type = BundleGraphResolutionType::PARCEL_BUNDLE_GRAPH_RESOLUTION_NONE;
+    }
+    CoreBundleGraphDependencyResolution::Deferred => {
+      result.resolution_type = BundleGraphResolutionType::PARCEL_BUNDLE_GRAPH_RESOLUTION_DEFERRED;
+    }
+    CoreBundleGraphDependencyResolution::External => {
+      result.resolution_type = BundleGraphResolutionType::PARCEL_BUNDLE_GRAPH_RESOLUTION_EXTERNAL;
+    }
+    CoreBundleGraphDependencyResolution::Excluded => {
+      result.resolution_type = BundleGraphResolutionType::PARCEL_BUNDLE_GRAPH_RESOLUTION_EXCLUDED;
+    }
+    CoreBundleGraphDependencyResolution::Asset(asset) => {
+      result.resolution_type = BundleGraphResolutionType::PARCEL_BUNDLE_GRAPH_RESOLUTION_ASSET;
+      result.asset = asset.0;
+    }
+    CoreBundleGraphDependencyResolution::Bundle(bundle) => {
+      result.resolution_type = BundleGraphResolutionType::PARCEL_BUNDLE_GRAPH_RESOLUTION_BUNDLE;
+      result.bundle = bundle as usize;
+    }
+  }
+  result
+}
+
+// ── Bundle (read-only) ───────────────────────────────────────────────────────
+
+/// Returns the bundle type extension (for example, `"js"`) into `*buf`.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_get_type(buf: *mut Buffer, bundle: Bundle) {
+  if buf.is_null() || bundle == 0 {
+    return;
+  }
+  let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
+  unsafe { write_buffer(buf, bundle.ty.extension().as_bytes().to_vec(), true) };
+}
+
+/// Returns the bundle target as a borrowed handle.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_get_target(bundle: Bundle) -> Target {
+  if bundle == 0 {
+    return 0;
+  }
+  let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
+  Arc::as_ptr(&bundle.target) as Target
+}
+
+/// Returns the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`).
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_get_bundle_behavior(bundle: Bundle) -> BundleBehavior {
+  if bundle == 0 {
+    return BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_NONE;
+  }
+  let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
+  match bundle.bundle_behavior {
+    CoreBundleBehavior::None => BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_NONE,
+    CoreBundleBehavior::Inline => BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_INLINE,
+    CoreBundleBehavior::Isolated => BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_ISOLATED,
+  }
+}
+
+/// Returns the raw `BundleFlags` bitfield (`PARCEL_BUNDLE_FLAG_*` bits).
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_get_flags(bundle: Bundle) -> BundleFlagsFFI {
+  if bundle == 0 {
+    return 0;
+  }
+  let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
+  bundle.flags.bits()
+}
+
+/// Returns the absolute output path into `*buf`, or leaves it empty when unnamed.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_get_dist_path(buf: *mut Buffer, bundle: Bundle) {
+  if buf.is_null() || bundle == 0 {
+    return;
+  }
+  let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
+  let Some(path) = bundle.dist_path else {
+    return;
+  };
+  unsafe {
+    write_buffer(
+      buf,
+      path
+        .to_path_buf()
+        .to_string_lossy()
+        .into_owned()
+        .into_bytes(),
+      true,
+    )
+  };
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_get_asset_count(bundle: Bundle) -> usize {
+  if bundle == 0 {
+    return 0;
+  }
+  let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
+  bundle.assets.len()
+}
+
+/// Returns an asset index, or `PARCEL_INVALID_ASSET_INDEX` when out of bounds.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_get_asset(bundle: Bundle, index: usize) -> AssetIndex {
+  if bundle == 0 {
+    return PARCEL_INVALID_ASSET_INDEX;
+  }
+  let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
+  bundle
+    .assets
+    .get(index)
+    .map_or(PARCEL_INVALID_ASSET_INDEX, |asset| asset.0)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_get_entry_asset_count(bundle: Bundle) -> usize {
+  if bundle == 0 {
+    return 0;
+  }
+  let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
+  bundle.entry_assets.len()
+}
+
+/// Returns an entry asset index, or `PARCEL_INVALID_ASSET_INDEX` when out of bounds.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_get_entry_asset(bundle: Bundle, index: usize) -> AssetIndex {
+  if bundle == 0 {
+    return PARCEL_INVALID_ASSET_INDEX;
+  }
+  let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
+  bundle
+    .entry_assets
+    .get(index)
+    .map_or(PARCEL_INVALID_ASSET_INDEX, |asset| asset.0)
+}
+
+/// Returns the main entry asset, or `PARCEL_INVALID_ASSET_INDEX` when absent.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_get_main_entry_asset(bundle: Bundle) -> AssetIndex {
+  if bundle == 0 {
+    return PARCEL_INVALID_ASSET_INDEX;
+  }
+  let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
+  bundle
+    .main_entry_asset
+    .map_or(PARCEL_INVALID_ASSET_INDEX, |asset| asset.0)
+}
+
+/// Returns the dist-relative bundle name into `*buf`, or leaves it empty when unnamed.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_get_name(buf: *mut Buffer, bundle: Bundle) {
+  if buf.is_null() || bundle == 0 {
+    return;
+  }
+  let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
+  if bundle.dist_path.is_some() {
+    unsafe { write_buffer(buf, bundle.name().into_bytes(), true) };
+  }
+}
+
+/// Returns the public bundle URL into `*buf`, or leaves it empty when unnamed.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_get_absolute_url(buf: *mut Buffer, bundle: Bundle) {
+  if buf.is_null() || bundle == 0 {
+    return;
+  }
+  let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
+  if bundle.dist_path.is_some() {
+    unsafe { write_buffer(buf, bundle.absolute_url().into_bytes(), true) };
+  }
+}
+
+/// Returns `bundle`'s URL relative to `from`, or leaves `*buf` empty when unavailable.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_get_relative_url(buf: *mut Buffer, bundle: Bundle, from: Bundle) {
+  if buf.is_null() || bundle == 0 || from == 0 {
+    return;
+  }
+  let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
+  let from: &parcel_core::Bundle = unsafe { &*(from as *const parcel_core::Bundle) };
+  if let Some(url) = bundle.relative_url(from) {
+    unsafe { write_buffer(buf, url.into_bytes(), true) };
+  }
+}
+
+/// Returns `bundle`'s module specifier relative to `from`, or leaves `*buf` empty when unavailable.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_bundle_get_relative_specifier(
+  buf: *mut Buffer,
+  bundle: Bundle,
+  from: Bundle,
+) {
+  if buf.is_null() || bundle == 0 || from == 0 {
+    return;
+  }
+  let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
+  let from: &parcel_core::Bundle = unsafe { &*(from as *const parcel_core::Bundle) };
+  if let Some(specifier) = bundle.relative_specifier(from) {
+    unsafe { write_buffer(buf, specifier.into_bytes(), true) };
+  }
 }
 
 // ── Type ──────────────────────────────────────────────────────────────────────
@@ -373,7 +965,7 @@ pub extern "C" fn parcel_asset_get_type(buf: *mut Buffer, asset: Asset) {
     return;
   }
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
-  unsafe { write_buffer(buf, asset.ty.extension().as_bytes().to_vec()) };
+  unsafe { write_buffer(buf, asset.ty.extension().as_bytes().to_vec(), true) };
 }
 
 /// Changes the asset type to the given file-extension bytes (e.g. `"js"`).
@@ -406,6 +998,7 @@ pub extern "C" fn parcel_asset_get_file_path(buf: *mut Buffer, asset: Asset, _op
         .to_string_lossy()
         .into_owned()
         .into_bytes(),
+      true,
     )
   };
 }
@@ -423,7 +1016,7 @@ pub extern "C" fn parcel_asset_get_pipeline(buf: *mut Buffer, asset: Asset) {
   let Some(pipeline) = &asset.pipeline else {
     return;
   };
-  unsafe { write_buffer(buf, pipeline.as_bytes().to_vec()) };
+  unsafe { write_buffer(buf, pipeline.as_bytes().to_vec(), true) };
 }
 
 /// Sets the named pipeline. Pass `NULL` / `0` to clear.
@@ -495,7 +1088,7 @@ pub extern "C" fn parcel_asset_get_unique_key(buf: *mut Buffer, asset: Asset) {
   let Some(key) = &asset.unique_key else {
     return;
   };
-  unsafe { write_buffer(buf, key.as_bytes().to_vec()) };
+  unsafe { write_buffer(buf, key.as_bytes().to_vec(), true) };
 }
 
 /// Sets the unique key. Pass `NULL` / `0` to clear.
@@ -574,7 +1167,7 @@ pub extern "C" fn parcel_target_get_public_url(buf: *mut Buffer, target: Target)
     return;
   }
   let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };
-  unsafe { write_buffer(buf, target.public_url.as_bytes().to_vec()) };
+  unsafe { write_buffer(buf, target.public_url.as_bytes().to_vec(), true) };
 }
 
 /// Returns the absolute path of the dist directory into `*buf`.
@@ -595,11 +1188,35 @@ pub extern "C" fn parcel_target_get_dist_dir(buf: *mut Buffer, target: Target, _
         .to_string_lossy()
         .into_owned()
         .into_bytes(),
+      true,
     )
   };
 }
 
 // ── Dependencies ──────────────────────────────────────────────────────────────
+
+/// Returns the number of dependencies belonging to an asset.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_asset_get_dependency_count(asset: Asset) -> usize {
+  if asset == 0 {
+    return 0;
+  }
+  let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
+  asset.dependencies.len()
+}
+
+/// Returns a borrowed, read-only dependency handle, or zero when `index` is out of bounds.
+/// The handle is valid only for the lifetime of the asset.
+#[unsafe(no_mangle)]
+pub extern "C" fn parcel_asset_get_dependency(asset: Asset, index: usize) -> Dependency {
+  if asset == 0 {
+    return 0;
+  }
+  let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
+  asset.dependencies.get(index).map_or(0, |dependency| {
+    dependency as *const CoreDependency as Dependency
+  })
+}
 
 /// Appends a dependency to the asset. The new dependency inherits the asset's target.
 #[unsafe(no_mangle)]
@@ -642,7 +1259,7 @@ pub extern "C" fn parcel_asset_add_dependency(asset: Asset, dep: *const Dependen
     target: asset.target.clone(),
     loc: None,
     placeholder: None,
-    resolve_from: None,
+    resolve_from: Some(asset.loc.url.clone()),
     range: None,
     conditions: ExportsCondition::empty(),
     resolution: DependencyResolution::None,
@@ -674,7 +1291,7 @@ pub extern "C" fn parcel_dep_get_specifier(buf: *mut Buffer, dep: Dependency) {
     return;
   }
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
-  unsafe { write_buffer(buf, dep.specifier.as_bytes().to_vec()) };
+  unsafe { write_buffer(buf, dep.specifier.as_bytes().to_vec(), true) };
 }
 
 /// Returns the specifier type (`PARCEL_SPECIFIER_*`).
@@ -737,6 +1354,7 @@ pub extern "C" fn parcel_dep_get_source_path(buf: *mut Buffer, dep: Dependency, 
         .to_string_lossy()
         .into_owned()
         .into_bytes(),
+      true,
     )
   };
 }
@@ -769,6 +1387,7 @@ pub extern "C" fn parcel_dep_get_resolve_from(
         .to_string_lossy()
         .into_owned()
         .into_bytes(),
+      true,
     )
   };
 }
@@ -799,6 +1418,7 @@ pub extern "C" fn parcel_options_get_project_root(buf: *mut Buffer, options: Opt
         .to_string_lossy()
         .into_owned()
         .into_bytes(),
+      true,
     )
   };
 }
@@ -819,7 +1439,7 @@ pub extern "C" fn parcel_options_get_env(
   let options: &ParcelOptions = unsafe { &*(options as *const ParcelOptions) };
   let key_str = unsafe { bytes_to_str(key, key_len) };
   if let Some(value) = options.env.get(key_str) {
-    unsafe { write_buffer(buf, value.as_bytes().to_vec()) };
+    unsafe { write_buffer(buf, value.as_bytes().to_vec(), true) };
   }
 }
 
@@ -938,27 +1558,7 @@ impl CPlugin {
       .and_then(|v| serde_json::to_vec(v).ok())
       .unwrap_or_default();
 
-    let mut diagnostic = Diagnostic {
-      message: Buffer {
-        data: ptr::null_mut(),
-        len: 0,
-        cap: 0,
-      },
-      file_path: Buffer {
-        data: ptr::null_mut(),
-        len: 0,
-        cap: 0,
-      },
-      line: 0,
-      column: 0,
-      hint: Buffer {
-        data: ptr::null_mut(),
-        len: 0,
-        cap: 0,
-      },
-      severity: DiagnosticSeverity::PARCEL_SEVERITY_ERROR,
-    };
-
+    let mut diagnostic = Diagnostic::default();
     let state = init_fn(config_bytes.as_ptr(), config_bytes.len(), &mut diagnostic);
 
     if let Some(diag) = read_cdiagnostic(&mut diagnostic, None) {
@@ -996,26 +1596,7 @@ impl Transformer for CPlugin {
         .expect("Failed to find parcel_plugin_transform symbol")
     };
 
-    let mut diagnostic = Diagnostic {
-      message: Buffer {
-        data: ptr::null_mut(),
-        len: 0,
-        cap: 0,
-      },
-      file_path: Buffer {
-        data: ptr::null_mut(),
-        len: 0,
-        cap: 0,
-      },
-      line: 0,
-      column: 0,
-      hint: Buffer {
-        data: ptr::null_mut(),
-        len: 0,
-        cap: 0,
-      },
-      severity: DiagnosticSeverity::PARCEL_SEVERITY_ERROR,
-    };
+    let mut diagnostic = Diagnostic::default();
     transform(
       &mut asset as *mut CoreAsset as Asset,
       options as *const ParcelOptions as Options,
@@ -1063,11 +1644,13 @@ impl Resolver for CPlugin {
         data: ptr::null_mut(),
         len: 0,
         cap: 0,
+        is_utf8: false,
       },
       pipeline: Buffer {
         data: ptr::null_mut(),
         len: 0,
         cap: 0,
+        is_utf8: false,
       },
     };
     let mut diagnostic = Diagnostic {
@@ -1075,11 +1658,13 @@ impl Resolver for CPlugin {
         data: ptr::null_mut(),
         len: 0,
         cap: 0,
+        is_utf8: false,
       },
       file_path: Buffer {
         data: ptr::null_mut(),
         len: 0,
         cap: 0,
+        is_utf8: false,
       },
       line: 0,
       column: 0,
@@ -1087,6 +1672,7 @@ impl Resolver for CPlugin {
         data: ptr::null_mut(),
         len: 0,
         cap: 0,
+        is_utf8: false,
       },
       severity: DiagnosticSeverity::PARCEL_SEVERITY_ERROR,
     };

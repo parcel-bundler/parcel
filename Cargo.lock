@@ -477,9 +477,9 @@ dependencies = [
 
 [[package]]
 name = "bytecount"
-version = "0.6.8"
+version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ce89b21cab1437276d2650d57e971f9d548a2d9037cc231abdc0562b97498ce"
+checksum = "175812e0be2bccb6abe50bb8d566126198344f707e304f45c648fd8f2cc0365e"
 
 [[package]]
 name = "bytemuck"
@@ -3129,6 +3129,7 @@ dependencies = [
 name = "parcel-js"
 version = "0.1.0"
 dependencies = [
+ "bytecount",
  "fixedbitset",
  "glob-match",
  "indexmap 2.14.0",
@@ -3141,6 +3142,7 @@ dependencies = [
  "parcel-resolver",
  "serde",
  "serde_json",
+ "simd-utf16-len",
  "swc_core 66.0.2",
 ]
 
@@ -4463,6 +4465,12 @@ name = "simd-adler32"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d66dc143e6b11c1eddc06d5c423cfc97062865baf299914ab64caa38182078fe"
+
+[[package]]
+name = "simd-utf16-len"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c17a83ac53a3ccce2d4fec2031c22b539d12dc95498e75935a6da589b7b4372"
 
 [[package]]
 name = "simd_helpers"

@@ -57,9 +57,14 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
       original_variant_name: &str,
       _variant_value: bindgen::callbacks::EnumVariantValue,
     ) -> Option<String> {
-      if let Some(name) = ["PARCEL_DEP_", "PARCEL_ENV_FLAG_", "PARCEL_ASSET_"]
-        .iter()
-        .find_map(|prefix| original_variant_name.strip_prefix(prefix))
+      if let Some(name) = [
+        "PARCEL_DEP_",
+        "PARCEL_ENV_FLAG_",
+        "PARCEL_ASSET_",
+        "PARCEL_BUNDLE_FLAG_",
+      ]
+      .iter()
+      .find_map(|prefix| original_variant_name.strip_prefix(prefix))
       {
         return Some(name.to_string());
       }
@@ -73,6 +78,7 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
         "PARCEL_SOURCE_TYPE_",
         "PARCEL_SEVERITY_",
         "PARCEL_RESOLUTION_",
+        "PARCEL_BUNDLE_GRAPH_RESOLUTION_",
       ]
       .iter()
       .find_map(|prefix| original_variant_name.strip_prefix(prefix));
@@ -106,7 +112,7 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
     .allowlist_function("parcel_.*")
     .allowlist_var("PARCEL_.*")
     .allowlist_type(
-      "SpecifierType|Priority|BundleBehavior|Environment|OutputFormat|SourceType|Diagnostic|DiagnosticSeverity|ResolveResult|ResolutionType|DependencyFlags|AssetFlags|EnvironmentFlags",
+      "SpecifierType|Priority|BundleBehavior|Environment|OutputFormat|SourceType|Diagnostic|DiagnosticSeverity|ResolveResult|ResolutionType|DependencyFlags|AssetFlags|EnvironmentFlags|BundleFlags|BundleGraphResolutionType|BundleGraphDependencyResolution|AssetIndex|BundleIndex",
     )
     .rustified_enum("SpecifierType")
     .rustified_enum("Priority")
@@ -116,9 +122,11 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
     .rustified_enum("SourceType")
     .rustified_enum("DiagnosticSeverity")
     .rustified_enum("ResolutionType")
+    .rustified_enum("BundleGraphResolutionType")
     .bitfield_enum("DependencyFlags")
     .bitfield_enum("AssetFlags")
     .bitfield_enum("EnvironmentFlags")
+    .bitfield_enum("BundleFlags")
     .translate_enum_integer_types(true)
     .no_copy("Buffer")
     .parse_callbacks(Box::new(CustomCallbacks))
@@ -128,7 +136,9 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
 
   // Rust 2024 edition requires `unsafe extern "C"` blocks; bindgen 0.70
   // doesn't emit the keyword yet, so patch it here.
-  let generated = generated.replace("extern \"C\"", "unsafe extern \"C\"");
+  let generated = generated
+    .replace("extern \"C\"", "unsafe extern \"C\"")
+    .replace("unsafe unsafe ", "unsafe ");
 
   let ffi_rs = format!("{}/../parcel-plugin/src/ffi.rs", crate_dir);
   write_if_changed(&ffi_rs, &generated);
