@@ -14,15 +14,16 @@ impl Plugin for CustomResolver {
     specifier: &str,
     _pipeline: Option<&str>,
     _options: &Options,
-    result: &mut ResolveResult,
-  ) -> Result<(), Diagnostic> {
+  ) -> Result<ResolveResult, Diagnostic> {
     let Some(name) = specifier.strip_prefix("custom:") else {
-      return Ok(());
+      return Ok(ResolveResult::None);
     };
     let resolve_from = dep.resolve_from();
     let dir = Path::new(&resolve_from).parent().unwrap_or(Path::new("."));
-    result.set_file_path(dir.join(format!("{}.js", name)).to_str().unwrap());
-    Ok(())
+    Ok(ResolveResult::Resolved {
+      file_path: dir.join(format!("{}.js", name)),
+      pipeline: None,
+    })
   }
 }
 

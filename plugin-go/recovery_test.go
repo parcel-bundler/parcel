@@ -14,7 +14,7 @@ func (*panickingPlugin) Transform(*Asset, *Options) error {
 	panic("transform panic")
 }
 
-func (*panickingPlugin) Resolve(*Dependency, string, string, *Options, *ResolveResult) error {
+func (*panickingPlugin) Resolve(*Dependency, string, string, *Options) (ResolveResult, error) {
 	panic(errors.New("resolve panic"))
 }
 

@@ -1820,11 +1820,12 @@ impl Resolver for CPlugin {
           None
         } else {
           let s = unsafe {
-            std::str::from_utf8(std::slice::from_raw_parts(
-              result.pipeline.data,
-              result.pipeline.len,
-            ))
-            .unwrap_or("")
+            let slice = std::slice::from_raw_parts(result.pipeline.data, result.pipeline.len);
+            if result.pipeline.is_utf8 {
+              std::str::from_utf8_unchecked(slice)
+            } else {
+              std::str::from_utf8(slice)?
+            }
           };
           let atom = Some(hstr::Atom::from(s));
           parcel_free_buffer(&mut result.pipeline);
@@ -1898,7 +1899,7 @@ impl parcel_core::Namer for CPlugin {
       if name.is_utf8 {
         std::str::from_utf8_unchecked(slice)
       } else {
-        std::str::from_utf8(std::slice::from_raw_parts(name.data, name.len))?
+        std::str::from_utf8(slice)?
       }
     };
 

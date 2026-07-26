@@ -36,7 +36,7 @@ import (
 // methods you don't need.
 type Plugin interface {
 	Transform(asset *Asset, options *Options) error
-	Resolve(dep *Dependency, specifier, pipeline string, options *Options, result *ResolveResult) error
+	Resolve(dep *Dependency, specifier, pipeline string, options *Options) (ResolveResult, error)
 	Name(bundleGraph *BundleGraph, bundle *Bundle, options *Options) (string, error)
 }
 
@@ -55,8 +55,8 @@ func (DefaultPlugin) Transform(*Asset, *Options) error {
 	return errors.New("transform not implemented")
 }
 
-func (DefaultPlugin) Resolve(*Dependency, string, string, *Options, *ResolveResult) error {
-	return errors.New("resolve not implemented")
+func (DefaultPlugin) Resolve(*Dependency, string, string, *Options) (ResolveResult, error) {
+	return ResolveResult{}, errors.New("resolve not implemented")
 }
 
 // Name returns a path relative to the bundle target's dist directory. An empty
@@ -146,10 +146,12 @@ func parcel_plugin_resolve(dep C.Dependency, specifier *C.uint8_t, specifierLen 
 	spec := C.GoStringN((*C.char)(unsafe.Pointer(specifier)), C.int(specifierLen))
 	pipe := C.GoStringN((*C.char)(unsafe.Pointer(pipeline)), C.int(pipelineLen))
 	opts := &Options{ptr: rawOptions}
-	r := &ResolveResult{ptr: result}
-	if err := plugin.Resolve(d, spec, pipe, opts, r); err != nil {
+	resolution, err := plugin.Resolve(d, spec, pipe, opts)
+	if err != nil {
 		writeDiagnostic(diag, err)
+		return
 	}
+	writeResolveResult(result, resolution)
 }
 
 //export parcel_plugin_name
@@ -477,42 +479,61 @@ func (d *Dependency) Target() *Target {
 
 // ── ResolveResult ───────────────────────────────────────────────────────────
 
-// ResolveResult is used by resolver plugins to record the resolution outcome.
-// Call one of SetFilePath, SetExternal, or SetExcluded; or return without
-// calling any to pass the dependency to the next resolver.
+type resolveResultKind uint8
+
+const (
+	resolveResultNone resolveResultKind = iota
+	resolveResultFilePath
+	resolveResultExternal
+	resolveResultExcluded
+)
+
+// ResolveResult is the outcome of resolving a dependency. Its zero value
+// continues to the next resolver.
 type ResolveResult struct {
-	ptr *C.ResolveResult
+	kind     resolveResultKind
+	filePath string
+	pipeline string
 }
 
-// SetFilePath records that the specifier resolved to the given absolute path.
-// The bytes are copied into a host-allocated Buffer via parcel_buffer_alloc.
-func (r *ResolveResult) SetFilePath(path string) {
-	r.ptr.resolution_type = 1
-	if len(path) == 0 {
+// Resolved returns a result for an absolute file path and optional transformer
+// pipeline. Pass an empty pipeline when no pipeline is needed.
+func Resolved(filePath, pipeline string) ResolveResult {
+	return ResolveResult{
+		kind:     resolveResultFilePath,
+		filePath: filePath,
+		pipeline: pipeline,
+	}
+}
+
+// External returns a result that marks the dependency as external (not bundled).
+func External() ResolveResult {
+	return ResolveResult{kind: resolveResultExternal}
+}
+
+// Excluded returns a result that silently excludes the dependency from the bundle.
+func Excluded() ResolveResult {
+	return ResolveResult{kind: resolveResultExcluded}
+}
+
+func writeResolveResult(raw *C.ResolveResult, result ResolveResult) {
+	if raw == nil {
 		return
 	}
-	data := []byte(path)
-	r.ptr.file_path = C.parcel_buffer_alloc((*C.uint8_t)(unsafe.Pointer(&data[0])), C.uintptr_t(len(data)))
-}
 
-// SetPipeline optionally sets a transformer pipeline for the resolved asset.
-// The bytes are copied into a host-allocated Buffer via parcel_buffer_alloc.
-func (r *ResolveResult) SetPipeline(pipeline string) {
-	if len(pipeline) == 0 {
-		return
+	raw.resolution_type = C.ResolutionType(result.kind)
+	writeBuffer := func(buf *C.Buffer, value string) {
+		if len(value) == 0 {
+			return
+		}
+		data := []byte(value)
+		*buf = C.parcel_buffer_alloc((*C.uint8_t)(unsafe.Pointer(&data[0])), C.uintptr_t(len(data)))
 	}
-	data := []byte(pipeline)
-	r.ptr.pipeline = C.parcel_buffer_alloc((*C.uint8_t)(unsafe.Pointer(&data[0])), C.uintptr_t(len(data)))
-}
 
-// SetExternal marks the dependency as external (not bundled).
-func (r *ResolveResult) SetExternal() {
-	r.ptr.resolution_type = 2
-}
-
-// SetExcluded marks the dependency as excluded (silently dropped).
-func (r *ResolveResult) SetExcluded() {
-	r.ptr.resolution_type = 3
+	if result.kind == resolveResultFilePath {
+		writeBuffer(&raw.file_path, result.filePath)
+		writeBuffer(&raw.pipeline, result.pipeline)
+	}
 }
 
 // ── Target ─────────────────────────────────────────────────────────────────

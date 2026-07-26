@@ -44,6 +44,7 @@
 use std::any::{Any, TypeId};
 use std::marker::PhantomData;
 use std::os::raw::c_void;
+use std::path::PathBuf;
 use std::ptr;
 
 pub mod ffi;
@@ -1073,55 +1074,61 @@ impl Dependency {
 
 // ── ResolveResult ──────────────────────────────────────────────────────────
 
-/// Used by resolver plugins to record the resolution outcome.
-///
-/// Call one of the setter methods, or return without calling any to pass
-/// to the next resolver.
-pub struct ResolveResult {
-  raw: u64,
+/// The outcome of resolving a dependency.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub enum ResolveResult {
+  /// Continue to the next resolver.
+  #[default]
+  None,
+  /// Resolve to an absolute file path, optionally using a transformer pipeline.
+  Resolved {
+    file_path: PathBuf,
+    pipeline: Option<String>,
+  },
+  /// Treat the dependency as external (not bundled).
+  External,
+  /// Exclude the dependency from the bundle.
+  Excluded,
 }
 
-impl ResolveResult {
-  /// Wraps the raw result pointer supplied by Parcel.
-  ///
-  /// # Safety
-  /// `raw` must be the `*mut RawResolveResult` pointer supplied by Parcel,
-  /// cast to `u64`.
-  pub unsafe fn from_raw(raw: u64) -> Self {
-    ResolveResult { raw }
-  }
+impl From<ResolveResult> for ffi::ResolveResult {
+  fn from(result: ResolveResult) -> Self {
+    let mut ffi_result = ffi::ResolveResult {
+      resolution_type: ffi::ResolutionType::None,
+      file_path: Buffer::default(),
+      pipeline: Buffer::default(),
+    };
 
-  fn raw_ptr(&self) -> *mut ffi::ResolveResult {
-    self.raw as *mut ffi::ResolveResult
-  }
-
-  /// Records that the specifier resolved to the given absolute file path.
-  ///
-  /// The bytes are copied into a host-allocated Buffer via `parcel_buffer_alloc`.
-  pub fn set_file_path(&mut self, path: &str) {
-    let bytes = path.as_bytes();
-    unsafe {
-      (*self.raw_ptr()).resolution_type = ffi::ResolutionType::FilePath;
-      (*self.raw_ptr()).file_path = ffi::parcel_buffer_alloc(bytes.as_ptr(), bytes.len());
+    match result {
+      ResolveResult::None => {}
+      ResolveResult::Resolved {
+        file_path,
+        pipeline,
+      } => {
+        ffi_result.resolution_type = ffi::ResolutionType::FilePath;
+        let path_bytes = file_path.as_os_str().as_encoded_bytes();
+        unsafe {
+          ffi::parcel_buffer_write(
+            &mut ffi_result.file_path,
+            path_bytes.as_ptr(),
+            path_bytes.len(),
+          )
+        };
+        if let Some(pipeline) = pipeline {
+          unsafe {
+            ffi::parcel_buffer_write_utf8(
+              &mut ffi_result.pipeline,
+              pipeline.as_ptr(),
+              pipeline.len(),
+            )
+          };
+        }
+      }
+      ResolveResult::External => ffi_result.resolution_type = ffi::ResolutionType::External,
+      ResolveResult::Excluded => ffi_result.resolution_type = ffi::ResolutionType::Excluded,
     }
-  }
 
-  /// Optionally sets the transformer pipeline for the resolved asset.
-  ///
-  /// The bytes are copied into a host-allocated Buffer via `parcel_buffer_alloc`.
-  pub fn set_pipeline(&mut self, pipeline: &str) {
-    let bytes = pipeline.as_bytes();
-    unsafe { (*self.raw_ptr()).pipeline = ffi::parcel_buffer_alloc(bytes.as_ptr(), bytes.len()) };
-  }
-
-  /// Marks the dependency as external (not bundled).
-  pub fn set_external(&mut self) {
-    unsafe { (*self.raw_ptr()).resolution_type = ffi::ResolutionType::External };
-  }
-
-  /// Marks the dependency as excluded (silently dropped).
-  pub fn set_excluded(&mut self) {
-    unsafe { (*self.raw_ptr()).resolution_type = ffi::ResolutionType::Excluded };
+    ffi_result
   }
 }
 
@@ -1175,8 +1182,7 @@ pub trait Plugin: Sized + Send + Sync {
     _specifier: &str,
     _pipeline: Option<&str>,
     _options: &Options,
-    _result: &mut ResolveResult,
-  ) -> Result<(), Diagnostic> {
+  ) -> Result<ResolveResult, Diagnostic> {
     Err(Diagnostic::new("resolve not implemented"))
   }
 
@@ -1317,7 +1323,6 @@ macro_rules! register_plugin {
       };
       let dep = unsafe { $crate::Dependency::from_raw(raw_dep, raw_options) };
       let options = unsafe { $crate::Options::from_raw(raw_options) };
-      let mut result = unsafe { $crate::ResolveResult::from_raw(raw_result) };
       let plugin = unsafe { &*(state as *const $type) };
       let __parcel_panic_message =
         |payload: ::std::boxed::Box<dyn ::std::any::Any + Send>| -> String {
@@ -1330,10 +1335,19 @@ macro_rules! register_plugin {
           }
         };
       let result = ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {
-        $crate::Plugin::resolve(plugin, &dep, specifier, pipeline, &options, &mut result)
+        $crate::Plugin::resolve(plugin, &dep, specifier, pipeline, &options)
       }));
       match result {
-        Ok(Ok(())) => {}
+        Ok(Ok(result)) => {
+          if raw_result != 0 {
+            unsafe {
+              ::core::ptr::write(
+                raw_result as *mut $crate::ffi::ResolveResult,
+                $crate::ffi::ResolveResult::from(result),
+              )
+            };
+          }
+        }
         Ok(Err(e)) => e.write_to_raw(raw_diagnostic),
         Err(payload) => $crate::Diagnostic::new(format!(
           "plugin panicked in resolve: {}",
