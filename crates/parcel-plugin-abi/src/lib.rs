@@ -21,3 +21,6 @@ pub use handles::*;
 pub use options::*;
 pub use plugin::*;
 pub use target::*;
+
+#[cfg(test)]
+mod tests;
