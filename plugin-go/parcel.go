@@ -10,7 +10,8 @@
 // plugin.h is auto-copied here from crates/parcel-plugin-abi/plugin.h by that
 // crate's build.rs whenever the Rust crate is rebuilt.  To sync it manually
 // without a full Cargo build, run from the repo root:
-//   cp crates/parcel-plugin-abi/plugin.h plugin-go/
+//
+//	cp crates/parcel-plugin-abi/plugin.h plugin-go/
 package parcel
 
 /*
@@ -168,7 +169,7 @@ type Asset struct {
 // Content returns the asset's source bytes as a UTF-8 string.
 func (a *Asset) Content() string {
 	var buf C.Buffer
-	C.parcel_asset_get_content(&buf, a.ptr)
+	C.parcel_asset_get_content_utf8(&buf, a.ptr)
 	if buf.data == nil {
 		return ""
 	}
@@ -176,20 +177,33 @@ func (a *Asset) Content() string {
 	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
 }
 
+// ContentBytes returns a copy of the asset's raw source bytes.
+func (a *Asset) ContentBytes() []byte {
+	var buf C.Buffer
+	C.parcel_asset_get_content(&buf, a.ptr)
+	if buf.data == nil {
+		return nil
+	}
+	defer C.parcel_free_buffer(&buf)
+	return C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.len))
+}
+
 // SetContent replaces the asset content with the given string.
 func (a *Asset) SetContent(content string) {
 	if len(content) == 0 {
-		C.parcel_asset_set_content(a.ptr, nil, 0)
+		empty := byte(0)
+		C.parcel_asset_set_content_utf8(a.ptr, (*C.uint8_t)(unsafe.Pointer(&empty)), 0)
 		return
 	}
 	ptr := (*C.uint8_t)(unsafe.Pointer(unsafe.StringData(content)))
-	C.parcel_asset_set_content(a.ptr, ptr, C.uint32_t(len(content)))
+	C.parcel_asset_set_content_utf8(a.ptr, ptr, C.uint32_t(len(content)))
 }
 
 // SetContentBytes replaces the asset content with the given byte slice.
 func (a *Asset) SetContentBytes(content []byte) {
 	if len(content) == 0 {
-		C.parcel_asset_set_content(a.ptr, nil, 0)
+		empty := byte(0)
+		C.parcel_asset_set_content(a.ptr, (*C.uint8_t)(unsafe.Pointer(&empty)), 0)
 		return
 	}
 	ptr := (*C.uint8_t)(unsafe.Pointer(&content[0]))
@@ -327,7 +341,7 @@ func (a *Asset) AddExportSymbol(name string) {
 
 // ── Dependency ─────────────────────────────────────────────────────────────
 
-// Dependency provides read-only access to a Parcel dependency being resolved.
+// Dependency provides read-only access to a Parcel dependency.
 type Dependency struct {
 	ptr     C.Dependency
 	options C.Options
@@ -556,19 +570,19 @@ const (
 type AssetFlags uint32
 
 const (
-	AssetFlagIsSource           AssetFlags = 1 << 0
-	AssetFlagSideEffects        AssetFlags = 1 << 1
-	AssetFlagIsBundleSplittable AssetFlags = 1 << 2
-	AssetFlagLargeBlob          AssetFlags = 1 << 3
-	AssetFlagHasCjsExports      AssetFlags = 1 << 4
-	AssetFlagStaticExports      AssetFlags = 1 << 5
-	AssetFlagShouldWrap         AssetFlags = 1 << 6
-	AssetFlagIsConstantModule   AssetFlags = 1 << 7
+	AssetFlagIsSource            AssetFlags = 1 << 0
+	AssetFlagSideEffects         AssetFlags = 1 << 1
+	AssetFlagIsBundleSplittable  AssetFlags = 1 << 2
+	AssetFlagLargeBlob           AssetFlags = 1 << 3
+	AssetFlagHasCjsExports       AssetFlags = 1 << 4
+	AssetFlagStaticExports       AssetFlags = 1 << 5
+	AssetFlagShouldWrap          AssetFlags = 1 << 6
+	AssetFlagIsConstantModule    AssetFlags = 1 << 7
 	AssetFlagHasNodeReplacements AssetFlags = 1 << 8
-	AssetFlagHasSymbols         AssetFlags = 1 << 9
-	AssetFlagIsHtmlAttr         AssetFlags = 1 << 10
-	AssetFlagIsHtmlTag          AssetFlags = 1 << 11
-	AssetFlagIsEsm              AssetFlags = 1 << 12
+	AssetFlagHasSymbols          AssetFlags = 1 << 9
+	AssetFlagIsHtmlAttr          AssetFlags = 1 << 10
+	AssetFlagIsHtmlTag           AssetFlags = 1 << 11
+	AssetFlagIsEsm               AssetFlags = 1 << 12
 )
 
 // DependencyFlags is a bitfield of dependency flags.
@@ -596,24 +610,24 @@ type DependencySpec struct {
 type Environment uint8
 
 const (
-	EnvironmentBrowser         Environment = 0
-	EnvironmentWebWorker       Environment = 1
-	EnvironmentServiceWorker   Environment = 2
-	EnvironmentWorklet         Environment = 3
-	EnvironmentNode            Environment = 4
-	EnvironmentElectronMain    Environment = 5
+	EnvironmentBrowser          Environment = 0
+	EnvironmentWebWorker        Environment = 1
+	EnvironmentServiceWorker    Environment = 2
+	EnvironmentWorklet          Environment = 3
+	EnvironmentNode             Environment = 4
+	EnvironmentElectronMain     Environment = 5
 	EnvironmentElectronRenderer Environment = 6
-	EnvironmentReactClient     Environment = 7
-	EnvironmentReactServer     Environment = 8
+	EnvironmentReactClient      Environment = 7
+	EnvironmentReactServer      Environment = 8
 )
 
 // OutputFormat represents the output module format.
 type OutputFormat uint8
 
 const (
-	OutputFormatGlobal    OutputFormat = 0
-	OutputFormatCommonjs  OutputFormat = 1
-	OutputFormatEsmodule  OutputFormat = 2
+	OutputFormatGlobal   OutputFormat = 0
+	OutputFormatCommonjs OutputFormat = 1
+	OutputFormatEsmodule OutputFormat = 2
 )
 
 // SourceType indicates whether the target expects ES module or script source.
@@ -663,8 +677,8 @@ func (o *Options) Env(key string) (string, bool) {
 type EnvironmentFlags uint8
 
 const (
-	EnvFlagIsLibrary          EnvironmentFlags = 1 << 0
-	EnvFlagShouldOptimize     EnvironmentFlags = 1 << 1
-	EnvFlagShouldScopeHoist   EnvironmentFlags = 1 << 2
+	EnvFlagIsLibrary           EnvironmentFlags = 1 << 0
+	EnvFlagShouldOptimize      EnvironmentFlags = 1 << 1
+	EnvFlagShouldScopeHoist    EnvironmentFlags = 1 << 2
 	EnvFlagModuleTypeExtension EnvironmentFlags = 1 << 3
 )

@@ -1,0 +1,13 @@
+[workspace]
+
+[package]
+name = "custom-content-transformer-rs"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "custom_content_transformer_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+parcel-plugin = { path = "../../../crates/parcel-plugin" }

@@ -99,7 +99,7 @@ impl Printer {
       })?;
       Ok(Arc::new(ContentWithSourceMap::new_string(self.output, map)))
     } else {
-      Ok(Arc::new(BufferContent::new(self.output.into_bytes())))
+      Ok(Arc::new(BufferContent::new_string(self.output)))
     }
   }
 }

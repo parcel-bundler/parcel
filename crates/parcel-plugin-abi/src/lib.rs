@@ -400,38 +400,35 @@ pub extern "C" fn parcel_buffer_alloc(data: *const u8, len: usize) -> Buffer {
 /// Copies the given bytes into a `Buffer`, replacing the existing content if any.
 #[unsafe(no_mangle)]
 pub extern "C" fn parcel_buffer_write(buf: *mut Buffer, data: *const u8, len: usize) {
-  if data.is_null() {
-    return;
-  }
-
-  unsafe {
-    let slice = std::slice::from_raw_parts(data, len);
-    let buf = &mut *buf;
-    let vec = if !buf.data.is_null() {
-      // Reuse the existing allocation.
-      let mut vec = Vec::from_raw_parts(buf.data, buf.len, buf.cap);
-      vec.clear();
-      vec.extend_from_slice(slice);
-      vec
-    } else {
-      slice.to_vec()
-    };
-
-    write_buffer(buf as *mut Buffer, vec, false)
-  }
+  parcel_buffer_write_inner(buf, data, len, false);
 }
 
 /// Copies the given UTF-8 encoded string into a `Buffer`, replacing the existing content if any.
 /// It is the caller's responsibility to ensure that the UTF-8 data is valid.
 #[unsafe(no_mangle)]
 pub extern "C" fn parcel_buffer_write_utf8(buf: *mut Buffer, data: *const u8, len: usize) {
+  parcel_buffer_write_inner(buf, data, len, true);
+}
+
+fn parcel_buffer_write_inner(buf: *mut Buffer, data: *const u8, len: usize, is_utf8: bool) {
   if data.is_null() {
     return;
   }
 
   unsafe {
-    let slice = std::slice::from_raw_parts(data, len);
     let buf = &mut *buf;
+    if len == 0 {
+      if !buf.data.is_null() {
+        parcel_free_buffer(buf as *mut Buffer);
+        buf.data = std::ptr::null_mut();
+        buf.len = 0;
+        buf.cap = 0;
+        buf.is_utf8 = false;
+      }
+      return;
+    }
+
+    let slice = std::slice::from_raw_parts(data, len);
     let vec = if !buf.data.is_null() {
       // Reuse the existing allocation.
       let mut vec = Vec::from_raw_parts(buf.data, buf.len, buf.cap);
@@ -442,7 +439,7 @@ pub extern "C" fn parcel_buffer_write_utf8(buf: *mut Buffer, data: *const u8, le
       slice.to_vec()
     };
 
-    write_buffer(buf as *mut Buffer, vec, true)
+    write_buffer(buf as *mut Buffer, vec, is_utf8)
   }
 }
 
@@ -477,6 +474,9 @@ pub extern "C" fn parcel_asset_get_content_utf8(buf: *mut Buffer, asset: Asset) 
 /// Replaces the asset content with the given bytes.
 #[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_set_content(asset: Asset, data: *const u8, len: u32) {
+  if data.is_null() {
+    return;
+  }
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
   let vec = unsafe { std::slice::from_raw_parts(data, len as usize).to_vec() };
   asset.content = Arc::new(BufferContent::new(vec));
@@ -486,6 +486,9 @@ pub extern "C" fn parcel_asset_set_content(asset: Asset, data: *const u8, len: u
 /// It is the caller's responsibility to validate that the data is valid UTF-8.
 #[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_set_content_utf8(asset: Asset, data: *const u8, len: u32) {
+  if data.is_null() {
+    return;
+  }
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
   let string =
     unsafe { String::from_utf8_unchecked(std::slice::from_raw_parts(data, len as usize).to_vec()) };
@@ -650,15 +653,15 @@ pub extern "C" fn parcel_asset_set_custom_content(
   asset.content = Arc::new(content);
 }
 
-/// Returns the asset content into `*buf`. Caller must `parcel_free_buffer(buf)`.
+/// Gets the custom content and type identifier for `asset`. Returns true if the output parameters were set.
 #[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_get_custom_content(
   ty: *mut [u8; 16],
   content: *mut *mut c_void,
   asset: Asset,
-) {
-  if content.is_null() {
-    return;
+) -> bool {
+  if content.is_null() || ty.is_null() {
+    return false;
   }
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
   if let Some(value) = asset.content.downcast_ref::<CContent>() {
@@ -666,6 +669,9 @@ pub extern "C" fn parcel_asset_get_custom_content(
       *ty = value.ty;
       *content = value.ptr
     };
+    true
+  } else {
+    false
   }
 }
 

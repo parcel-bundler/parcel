@@ -468,12 +468,12 @@ unsafe extern "C" {
   );
 }
 unsafe extern "C" {
-  #[doc = " Returns the asset content into `*buf`. Caller must `parcel_free_buffer(buf)`."]
+  #[doc = " Gets the custom content and type identifier for `asset`. Returns true if the output parameters were set."]
   pub fn parcel_asset_get_custom_content(
     ty: *mut [u8; 16usize],
     content: *mut *mut ::std::os::raw::c_void,
     asset: Asset,
-  );
+  ) -> bool;
 }
 unsafe extern "C" {
   #[doc = " Returns the number of assets in the graph."]

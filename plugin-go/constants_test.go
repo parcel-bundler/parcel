@@ -78,7 +78,11 @@ func TestConstantsMatchHeader(t *testing.T) {
 		}
 	}
 
-	pairs := []struct{ goName, cName string; goVal int }{
+	pairs := []struct {
+		goName, cName string
+		goVal         int
+	}{
+		{"InvalidAssetIndex", "PARCEL_INVALID_ASSET_INDEX", int(parcel.InvalidAssetIndex)},
 		// SpecifierType
 		{"SpecifierTypeEsm", "PARCEL_SPECIFIER_ESM", int(parcel.SpecifierTypeEsm)},
 		{"SpecifierTypeCommonjs", "PARCEL_SPECIFIER_COMMONJS", int(parcel.SpecifierTypeCommonjs)},
@@ -92,6 +96,14 @@ func TestConstantsMatchHeader(t *testing.T) {
 		{"BundleBehaviorNone", "PARCEL_BUNDLE_BEHAVIOR_NONE", int(parcel.BundleBehaviorNone)},
 		{"BundleBehaviorInline", "PARCEL_BUNDLE_BEHAVIOR_INLINE", int(parcel.BundleBehaviorInline)},
 		{"BundleBehaviorIsolated", "PARCEL_BUNDLE_BEHAVIOR_ISOLATED", int(parcel.BundleBehaviorIsolated)},
+		// BundleGraphResolutionType
+		{"BundleGraphResolutionInvalid", "PARCEL_BUNDLE_GRAPH_RESOLUTION_INVALID", int(parcel.BundleGraphResolutionInvalid)},
+		{"BundleGraphResolutionNone", "PARCEL_BUNDLE_GRAPH_RESOLUTION_NONE", int(parcel.BundleGraphResolutionNone)},
+		{"BundleGraphResolutionDeferred", "PARCEL_BUNDLE_GRAPH_RESOLUTION_DEFERRED", int(parcel.BundleGraphResolutionDeferred)},
+		{"BundleGraphResolutionExternal", "PARCEL_BUNDLE_GRAPH_RESOLUTION_EXTERNAL", int(parcel.BundleGraphResolutionExternal)},
+		{"BundleGraphResolutionExcluded", "PARCEL_BUNDLE_GRAPH_RESOLUTION_EXCLUDED", int(parcel.BundleGraphResolutionExcluded)},
+		{"BundleGraphResolutionAsset", "PARCEL_BUNDLE_GRAPH_RESOLUTION_ASSET", int(parcel.BundleGraphResolutionAsset)},
+		{"BundleGraphResolutionBundle", "PARCEL_BUNDLE_GRAPH_RESOLUTION_BUNDLE", int(parcel.BundleGraphResolutionBundle)},
 		// DependencyFlags
 		{"DependencyFlagEntry", "PARCEL_DEP_ENTRY", int(parcel.DependencyFlagEntry)},
 		{"DependencyFlagOptional", "PARCEL_DEP_OPTIONAL", int(parcel.DependencyFlagOptional)},
@@ -113,6 +125,11 @@ func TestConstantsMatchHeader(t *testing.T) {
 		{"AssetFlagIsHtmlAttr", "PARCEL_ASSET_IS_HTML_ATTR", int(parcel.AssetFlagIsHtmlAttr)},
 		{"AssetFlagIsHtmlTag", "PARCEL_ASSET_IS_HTML_TAG", int(parcel.AssetFlagIsHtmlTag)},
 		{"AssetFlagIsEsm", "PARCEL_ASSET_IS_ESM", int(parcel.AssetFlagIsEsm)},
+		// BundleFlags
+		{"BundleFlagNeedsStableName", "PARCEL_BUNDLE_FLAG_NEEDS_STABLE_NAME", int(parcel.BundleFlagNeedsStableName)},
+		{"BundleFlagIsSplittable", "PARCEL_BUNDLE_FLAG_IS_SPLITTABLE", int(parcel.BundleFlagIsSplittable)},
+		{"BundleFlagIsPlaceholder", "PARCEL_BUNDLE_FLAG_IS_PLACEHOLDER", int(parcel.BundleFlagIsPlaceholder)},
+		{"BundleFlagEntry", "PARCEL_BUNDLE_FLAG_ENTRY", int(parcel.BundleFlagEntry)},
 		// Environment
 		{"EnvironmentBrowser", "PARCEL_ENV_BROWSER", int(parcel.EnvironmentBrowser)},
 		{"EnvironmentWebWorker", "PARCEL_ENV_WEB_WORKER", int(parcel.EnvironmentWebWorker)},

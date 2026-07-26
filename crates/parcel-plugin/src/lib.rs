@@ -452,7 +452,9 @@ impl Asset {
     let mut ty = [0; 16];
     let mut content = std::ptr::null_mut();
     unsafe {
-      ffi::parcel_asset_get_custom_content(&mut ty, &mut content, self.raw);
+      if !ffi::parcel_asset_get_custom_content(&mut ty, &mut content, self.raw) {
+        return None;
+      }
       if !content.is_null() {
         let expected_ty = type_id::<T>();
         if ty != expected_ty {
@@ -715,7 +717,9 @@ impl<'a> AssetRef<'a> {
     let mut ty = [0; 16];
     let mut content = std::ptr::null_mut();
     unsafe {
-      ffi::parcel_asset_get_custom_content(&mut ty, &mut content, self.raw);
+      if !ffi::parcel_asset_get_custom_content(&mut ty, &mut content, self.raw) {
+        return None;
+      }
       if !content.is_null() {
         let expected_ty = type_id::<T>();
         if ty != expected_ty {

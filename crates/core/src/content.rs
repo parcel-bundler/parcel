@@ -231,6 +231,10 @@ impl Content for ContentWithSourceMap {
     Ok(self.code.to_vec())
   }
 
+  fn read_string(&self) -> Result<Cow<'_, str>, Diagnostic> {
+    self.code.as_str()
+  }
+
   fn write(&self, fs: &dyn FileSystem, path: PathId) -> Result<(), Diagnostic> {
     fs.write(path, self.code.as_bytes())?;
     fs.write(path.add_extension("map"), &self.map)?;

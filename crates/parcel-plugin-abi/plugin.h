@@ -452,9 +452,11 @@ void parcel_asset_set_custom_content(Asset asset,
                                      void (*free)(void *content));
 
 /**
- * Returns the asset content into `*buf`. Caller must `parcel_free_buffer(buf)`.
+ * Gets the custom content and type identifier for `asset`. Returns true if the output parameters were set.
  */
-void parcel_asset_get_custom_content(uint8_t (*ty)[16], void **content, Asset asset);
+bool parcel_asset_get_custom_content(uint8_t (*ty)[16],
+                                     void **content,
+                                     Asset asset);
 
 /**
  * Returns the number of assets in the graph.
