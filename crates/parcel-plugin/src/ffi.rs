@@ -497,6 +497,23 @@ const _: () = {
   ["Offset of field: ResolveResult::pipeline"]
     [::std::mem::offset_of!(ResolveResult, pipeline) - 40usize];
 };
+#[doc = " Result filled by an optimizer plugin's `parcel_plugin_optimize()`.\n The struct is zero-initialised by the host before the call. Fill `contents`\n and optionally `source_map` using `parcel_buffer_write()` or\n `parcel_buffer_write_utf8()`."]
+#[repr(C)]
+#[derive(Debug)]
+pub struct OptimizeResult {
+  pub contents: Buffer,
+  #[doc = " Leave empty to remove the source map from the optimized output."]
+  pub source_map: Buffer,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+  ["Size of OptimizeResult"][::std::mem::size_of::<OptimizeResult>() - 64usize];
+  ["Alignment of OptimizeResult"][::std::mem::align_of::<OptimizeResult>() - 8usize];
+  ["Offset of field: OptimizeResult::contents"]
+    [::std::mem::offset_of!(OptimizeResult, contents) - 0usize];
+  ["Offset of field: OptimizeResult::source_map"]
+    [::std::mem::offset_of!(OptimizeResult, source_map) - 32usize];
+};
 unsafe extern "C" {
   #[doc = " Release a `Buffer` previously filled by a getter or `parcel_buffer_alloc()`."]
   pub fn parcel_free_buffer(buf: *mut Buffer);

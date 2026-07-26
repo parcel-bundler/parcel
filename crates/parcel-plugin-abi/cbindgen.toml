@@ -5,7 +5,7 @@ no_includes = true
 sys_includes = ["stdint.h", "stdbool.h"]
 
 [export]
-include = ["Diagnostic", "ResolveResult", "DependencyFlags", "ExportsConditions", "AssetFlags", "EnvironmentFlags", "BundleFlags", "BundleGraphDependencyResolution", "PARCEL_INVALID_ASSET_INDEX"]
+include = ["Diagnostic", "ResolveResult", "OptimizeResult", "DependencyFlags", "ExportsConditions", "AssetFlags", "EnvironmentFlags", "BundleFlags", "BundleGraphDependencyResolution", "PARCEL_INVALID_ASSET_INDEX"]
 exclude = ["CPlugin", "AssetFlagsFFI", "DependencyFlagsFFI", "ExportsConditionsFFI", "EnvironmentFlagsFFI", "BundleFlagsFFI"]
 
 [export.rename]

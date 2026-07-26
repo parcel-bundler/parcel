@@ -423,6 +423,20 @@ typedef struct ResolveResult {
   struct Buffer pipeline;
 } ResolveResult;
 
+/**
+ * Result filled by an optimizer plugin's `parcel_plugin_optimize()`.
+ * The struct is zero-initialised by the host before the call. Fill `contents`
+ * and optionally `source_map` using `parcel_buffer_write()` or
+ * `parcel_buffer_write_utf8()`.
+ */
+typedef struct OptimizeResult {
+  struct Buffer contents;
+  /**
+   * Leave empty to remove the source map from the optimized output.
+   */
+  struct Buffer source_map;
+} OptimizeResult;
+
 #define PARCEL_INVALID_ASSET_INDEX 4294967295
 
 #ifdef __cplusplus

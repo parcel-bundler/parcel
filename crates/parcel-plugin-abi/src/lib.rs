@@ -7,12 +7,12 @@ use parcel_core::{
   Asset as CoreAsset, AssetFlags as CoreAssetFlags, AssetIndex as CoreAssetIndex, AssetRequest,
   AssetType, BufferContent, BundleBehavior as CoreBundleBehavior, BundleFlags as CoreBundleFlags,
   BundleGraphDependencyResolution as CoreBundleGraphDependencyResolution, CodeFrame, CodeHighlight,
-  Content, ContentType, Dependency as CoreDependency, DependencyFlags as CoreDependencyFlags,
-  DependencyResolution, Diagnostic as CoreDiagnostic, DiagnosticList,
-  DiagnosticSeverity as CoreDiagnosticSeverity, EnvironmentFlags as CoreEnvironmentFlags,
-  ExportsCondition as CoreExportsCondition, FileContent, LocalSymbol, Location, ParcelOptions,
-  PathId, Priority as CorePriority, Resolver, SourceLocation, SourceUrl,
-  SpecifierType as CoreSpecifierType, SymbolName, Transformer,
+  Content, ContentType, ContentWithSourceMap, Dependency as CoreDependency,
+  DependencyFlags as CoreDependencyFlags, DependencyResolution, Diagnostic as CoreDiagnostic,
+  DiagnosticList, DiagnosticSeverity as CoreDiagnosticSeverity,
+  EnvironmentFlags as CoreEnvironmentFlags, ExportsCondition as CoreExportsCondition, FileContent,
+  LocalSymbol, Location, Optimizer, ParcelOptions, PathId, Priority as CorePriority, Resolver,
+  SourceLocation, SourceUrl, SpecifierType as CoreSpecifierType, SymbolName, Transformer,
 };
 
 // ── Opaque handle type aliases ────────────────────────────────────────────────
@@ -446,6 +446,18 @@ pub struct ResolveResult {
   pub resolution_type: ResolutionType,
   pub file_path: Buffer,
   pub pipeline: Buffer,
+}
+
+/// Result filled by an optimizer plugin's `parcel_plugin_optimize()`.
+/// The struct is zero-initialised by the host before the call. Fill `contents`
+/// and optionally `source_map` using `parcel_buffer_write()` or
+/// `parcel_buffer_write_utf8()`.
+#[repr(C)]
+#[derive(Default)]
+pub struct OptimizeResult {
+  pub contents: Buffer,
+  /// Leave empty to remove the source map from the optimized output.
+  pub source_map: Buffer,
 }
 
 /// Diagnostic written by a plugin to report an error or warning.
@@ -1911,5 +1923,99 @@ impl parcel_core::Namer for CPlugin {
 
     parcel_free_buffer(&mut name);
     res
+  }
+}
+
+impl Optimizer for CPlugin {
+  fn optimize(
+    &self,
+    bundle_graph: &parcel_core::BundleGraph,
+    bundle: &parcel_core::Bundle,
+    contents: Arc<dyn Content>,
+    options: &ParcelOptions,
+  ) -> Result<Arc<dyn Content>, DiagnosticList> {
+    type OptimizeFn = extern "C" fn(
+      BundleGraph,
+      Bundle,
+      *const u8,
+      usize, // contents
+      *const u8,
+      usize, // source map (null ptr = no source map)
+      Options,
+      *mut OptimizeResult,
+      *mut c_void,
+      *mut Diagnostic,
+    );
+    let optimize: Symbol<OptimizeFn> = unsafe {
+      self
+        .lib
+        .get(b"parcel_plugin_optimize")
+        .expect("Failed to find parcel_plugin_optimize symbol")
+    };
+
+    let source_map = contents
+      .downcast_ref::<ContentWithSourceMap>()
+      .map(|contents| contents.source_map().to_vec());
+    let contents = contents.read()?;
+    let mut result = OptimizeResult::default();
+    let mut diagnostic = Diagnostic::default();
+
+    optimize(
+      bundle_graph as *const parcel_core::BundleGraph as BundleGraph,
+      bundle as *const parcel_core::Bundle as Bundle,
+      contents.as_ptr(),
+      contents.len(),
+      source_map.as_ref().map_or(ptr::null(), |map| map.as_ptr()),
+      source_map.as_ref().map_or(0, Vec::len),
+      options as *const ParcelOptions as Options,
+      &mut result,
+      self.state,
+      &mut diagnostic,
+    );
+
+    if let Some(diag) = read_cdiagnostic(&mut diagnostic, Some(&options.project_root)) {
+      parcel_free_buffer(&mut result.contents);
+      parcel_free_buffer(&mut result.source_map);
+      return Err(DiagnosticList(vec![diag]));
+    }
+
+    let optimized_source_map = if result.source_map.data.is_null() {
+      None
+    } else {
+      let source_map = unsafe {
+        std::slice::from_raw_parts(result.source_map.data, result.source_map.len).to_vec()
+      };
+      parcel_free_buffer(&mut result.source_map);
+      Some(source_map)
+    };
+
+    if result.contents.data.is_null() {
+      if let Some(source_map) = optimized_source_map {
+        Ok(Arc::new(ContentWithSourceMap::new(Vec::new(), source_map)))
+      } else {
+        Ok(Arc::new(BufferContent::new(Vec::new())))
+      }
+    } else {
+      let contents =
+        unsafe { std::slice::from_raw_parts(result.contents.data, result.contents.len).to_vec() };
+      parcel_free_buffer(&mut result.contents);
+
+      if result.contents.is_utf8 {
+        let string = unsafe { String::from_utf8_unchecked(contents) };
+        if let Some(source_map) = optimized_source_map {
+          Ok(Arc::new(ContentWithSourceMap::new_string(
+            string, source_map,
+          )))
+        } else {
+          Ok(Arc::new(BufferContent::new_string(string)))
+        }
+      } else {
+        if let Some(source_map) = optimized_source_map {
+          Ok(Arc::new(ContentWithSourceMap::new(contents, source_map)))
+        } else {
+          Ok(Arc::new(BufferContent::new(contents)))
+        }
+      }
+    }
   }
 }

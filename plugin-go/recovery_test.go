@@ -22,6 +22,10 @@ func (*panickingPlugin) Name(*BundleGraph, *Bundle, *Options) (string, error) {
 	panic("name panic")
 }
 
+func (*panickingPlugin) Optimize(*BundleGraph, *Bundle, []byte, []byte, *Options) (OptimizeResult, error) {
+	panic("optimize panic")
+}
+
 type panickingContent struct{}
 
 func (*panickingContent) Read() (Content, error) {
@@ -70,6 +74,7 @@ func TestPluginPanicsDoNotCrossCBoundary(t *testing.T) {
 	parcel_plugin_transform(0, 0, state, nil)
 	parcel_plugin_resolve(0, nil, 0, nil, 0, 0, nil, state, nil)
 	parcel_plugin_name(0, 0, 0, nil, state, nil)
+	parcel_plugin_optimize(0, 0, nil, 0, nil, 0, 0, nil, state, nil)
 }
 
 func TestCustomContentPanicsDoNotCrossCBoundary(t *testing.T) {

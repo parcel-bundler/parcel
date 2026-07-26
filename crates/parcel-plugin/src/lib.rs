@@ -1,4 +1,4 @@
-//! Rust SDK for building Parcel transformer, resolver, and namer plugins.
+//! Rust SDK for building Parcel transformer, resolver, namer, and optimizer plugins.
 //!
 //! Plugins are compiled as `cdylib` crates.  Implement the [`Plugin`] trait on
 //! a struct that holds your parsed config, then call [`register_plugin!`] once
@@ -23,11 +23,11 @@
 //! register_plugin!(MyPlugin);
 //! ```
 //!
-//! The macro generates all five ABI symbols: `parcel_plugin_init` (calls
+//! The macro generates all six ABI symbols: `parcel_plugin_init` (calls
 //! `MyPlugin::new`), `parcel_plugin_deinit` (drops the boxed value),
-//! `parcel_plugin_transform`, `parcel_plugin_resolve`, and `parcel_plugin_name`.
-//! Override only the methods you need; the default implementations return an
-//! error so misconfiguration is visible immediately.
+//! `parcel_plugin_transform`, `parcel_plugin_resolve`, `parcel_plugin_name`, and
+//! `parcel_plugin_optimize`. Override only the methods you need; the default
+//! implementations return an error so misconfiguration is visible immediately.
 //!
 //! Plugin crates must configure the linker to allow Parcel's ABI symbols to be
 //! resolved at load time.  Add a `build.rs` containing:
@@ -644,6 +644,33 @@ pub enum ContentBuffer {
   String(String),
 }
 
+/// Output returned by an optimizer plugin.
+pub struct OptimizeResult {
+  pub contents: ContentBuffer,
+  /// A replacement source map, or `None` to remove the source map.
+  pub source_map: Option<Vec<u8>>,
+}
+
+impl OptimizeResult {
+  pub fn new(contents: ContentBuffer) -> Self {
+    Self {
+      contents,
+      source_map: None,
+    }
+  }
+
+  pub fn with_source_map(mut self, source_map: impl Into<Vec<u8>>) -> Self {
+    self.source_map = Some(source_map.into());
+    self
+  }
+}
+
+impl From<ContentBuffer> for OptimizeResult {
+  fn from(contents: ContentBuffer) -> Self {
+    Self::new(contents)
+  }
+}
+
 pub trait AssetContent: Send + Sync + 'static {
   fn read(&self) -> Result<ContentBuffer, Diagnostic>;
 
@@ -1137,13 +1164,14 @@ impl From<ResolveResult> for ffi::ResolveResult {
 /// The single trait to implement for any Parcel plugin.
 ///
 /// Override [`transform`] to act as a transformer, [`resolve`] to act as a
-/// resolver, or [`name`] to act as a namer. The default implementations return
-/// an error, so Parcel surfaces a clear message if a method is unexpectedly
-/// called.
+/// resolver, [`name`] to act as a namer, or [`optimize`] to act as an optimizer.
+/// The default implementations return an error, so Parcel surfaces a clear
+/// message if a method is unexpectedly called.
 ///
 /// [`transform`]: Plugin::transform
 /// [`resolve`]: Plugin::resolve
 /// [`name`]: Plugin::name
+/// [`optimize`]: Plugin::optimize
 ///
 /// ```rust,ignore
 /// use parcel_plugin::{Asset, Diagnostic, Plugin, register_plugin};
@@ -1196,13 +1224,27 @@ pub trait Plugin: Sized + Send + Sync {
   ) -> Result<Option<String>, Diagnostic> {
     Err(Diagnostic::new("name not implemented"))
   }
+
+  /// Called for each bundle selected by the optimizer pipeline. `contents`
+  /// contains the packaged bundle bytes, and `source_map` contains the current
+  /// source map when one exists.
+  fn optimize(
+    &self,
+    _bundle_graph: &BundleGraph,
+    _bundle: &Bundle,
+    _contents: &[u8],
+    _source_map: Option<&[u8]>,
+    _options: &Options,
+  ) -> Result<OptimizeResult, Diagnostic> {
+    Err(Diagnostic::new("optimize not implemented"))
+  }
 }
 
 // ── register_plugin! macro ────────────────────────────────────────────────
 
-/// Generates all five ABI exports for a type that implements [`Plugin`]:
+/// Generates all six ABI exports for a type that implements [`Plugin`]:
 /// `parcel_plugin_init`, `parcel_plugin_deinit`, `parcel_plugin_transform`,
-/// `parcel_plugin_resolve`, and `parcel_plugin_name`.
+/// `parcel_plugin_resolve`, `parcel_plugin_name`, and `parcel_plugin_optimize`.
 ///
 /// ```rust,ignore
 /// register_plugin!(MyPlugin);
@@ -1393,6 +1435,94 @@ macro_rules! register_plugin {
         Ok(Err(e)) => e.write_to_raw(raw_diagnostic),
         Err(payload) => $crate::Diagnostic::new(format!(
           "plugin panicked in name: {}",
+          __parcel_panic_message(payload)
+        ))
+        .write_to_raw(raw_diagnostic),
+      }
+    }
+
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn parcel_plugin_optimize(
+      raw_bundle_graph: u64,
+      raw_bundle: u64,
+      raw_contents: *const u8,
+      raw_contents_len: usize,
+      raw_source_map: *const u8,
+      raw_source_map_len: usize,
+      raw_options: u64,
+      raw_result: *mut $crate::ffi::OptimizeResult,
+      state: *mut ::core::ffi::c_void,
+      raw_diagnostic: *mut $crate::ffi::Diagnostic,
+    ) {
+      let bundle_graph = unsafe { $crate::BundleGraph::from_raw(raw_bundle_graph, raw_options) };
+      let bundle = unsafe { $crate::Bundle::from_raw(raw_bundle, raw_options) };
+      let contents = if raw_contents.is_null() || raw_contents_len == 0 {
+        &[]
+      } else {
+        unsafe { ::core::slice::from_raw_parts(raw_contents, raw_contents_len) }
+      };
+      let source_map = if raw_source_map.is_null() {
+        None
+      } else if raw_source_map_len == 0 {
+        Some(&[][..])
+      } else {
+        Some(unsafe { ::core::slice::from_raw_parts(raw_source_map, raw_source_map_len) })
+      };
+      let options = unsafe { $crate::Options::from_raw(raw_options) };
+      let plugin = unsafe { &*(state as *const $type) };
+      let __parcel_panic_message =
+        |payload: ::std::boxed::Box<dyn ::std::any::Any + Send>| -> String {
+          if let Some(s) = payload.downcast_ref::<&str>() {
+            (*s).to_string()
+          } else if let Some(s) = payload.downcast_ref::<String>() {
+            s.clone()
+          } else {
+            "unknown panic".to_string()
+          }
+        };
+      let result = ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {
+        $crate::Plugin::optimize(
+          plugin,
+          &bundle_graph,
+          &bundle,
+          contents,
+          source_map,
+          &options,
+        )
+      }));
+      match result {
+        Ok(Ok(result)) => {
+          if !raw_result.is_null() {
+            match result.contents {
+              $crate::ContentBuffer::Bytes(contents) => unsafe {
+                $crate::ffi::parcel_buffer_write(
+                  &mut (*raw_result).contents,
+                  contents.as_ptr(),
+                  contents.len(),
+                )
+              },
+              $crate::ContentBuffer::String(contents) => unsafe {
+                $crate::ffi::parcel_buffer_write_utf8(
+                  &mut (*raw_result).contents,
+                  contents.as_ptr(),
+                  contents.len(),
+                )
+              },
+            }
+            if let Some(source_map) = result.source_map {
+              unsafe {
+                $crate::ffi::parcel_buffer_write(
+                  &mut (*raw_result).source_map,
+                  source_map.as_ptr(),
+                  source_map.len(),
+                )
+              };
+            }
+          }
+        }
+        Ok(Err(e)) => e.write_to_raw(raw_diagnostic),
+        Err(payload) => $crate::Diagnostic::new(format!(
+          "plugin panicked in optimize: {}",
           __parcel_panic_message(payload)
         ))
         .write_to_raw(raw_diagnostic),

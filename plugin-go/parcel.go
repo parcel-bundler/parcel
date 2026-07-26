@@ -1,6 +1,6 @@
 // Package parcel provides an idiomatic Go API for building Parcel transformer,
-// resolver, and namer plugins. Plugins import this package, register a plugin
-// with [RegisterPlugin], and export the compiled shared library:
+// resolver, namer, and optimizer plugins. Plugins import this package, register
+// a plugin with [RegisterPlugin], and export the compiled shared library:
 //
 //	go build -buildmode=c-shared -o plugin.dylib .
 //
@@ -29,15 +29,15 @@ import (
 	"unsafe"
 )
 
-// Plugin is the interface that transformer, resolver, and namer plugins implement.
+// Plugin is the interface that transformer, resolver, namer, and optimizer plugins implement.
 // Override Transform to act as a transformer, Resolve to act as a resolver,
-// Name to act as a namer, or any combination. Embed [DefaultPlugin] to get
-// error-returning defaults for whichever
-// methods you don't need.
+// Name to act as a namer, Optimize to act as an optimizer, or any combination.
+// Embed [DefaultPlugin] to get error-returning defaults for methods you don't need.
 type Plugin interface {
 	Transform(asset *Asset, options *Options) error
 	Resolve(dep *Dependency, specifier, pipeline string, options *Options) (ResolveResult, error)
 	Name(bundleGraph *BundleGraph, bundle *Bundle, options *Options) (string, error)
+	Optimize(bundleGraph *BundleGraph, bundle *Bundle, contents, sourceMap []byte, options *Options) (OptimizeResult, error)
 }
 
 // DefaultPlugin provides error-returning default implementations of [Plugin].
@@ -65,13 +65,24 @@ func (DefaultPlugin) Name(*BundleGraph, *Bundle, *Options) (string, error) {
 	return "", errors.New("name not implemented")
 }
 
+// OptimizeResult is the content and optional source map returned by an optimizer.
+// A nil SourceMap removes the source map from the optimized output.
+type OptimizeResult struct {
+	Contents  Content
+	SourceMap []byte
+}
+
+func (DefaultPlugin) Optimize(*BundleGraph, *Bundle, []byte, []byte, *Options) (OptimizeResult, error) {
+	return OptimizeResult{}, errors.New("optimize not implemented")
+}
+
 // pluginFactory is the registered plugin factory function.
 var pluginFactory func([]byte) (Plugin, error)
 
 // RegisterPlugin sets the factory that Parcel calls once when the plugin is
 // loaded.  The factory receives the JSON-encoded plugin config and returns a
-// Plugin instance whose Transform and/or Resolve methods Parcel calls for each
-// matching asset or dependency.
+// Plugin instance whose method Parcel calls for each matching asset, dependency,
+// or bundle.
 // Call RegisterPlugin once from an init() function in your plugin's main package.
 func RegisterPlugin(factory func([]byte) (Plugin, error)) {
 	pluginFactory = factory
@@ -174,6 +185,49 @@ func parcel_plugin_name(rawGraph C.BundleGraph, rawBundle C.Bundle, rawOptions C
 	if len(name) > 0 && result != nil {
 		ptr := (*C.uint8_t)(unsafe.Pointer(unsafe.StringData(name)))
 		C.parcel_buffer_write_utf8(result, ptr, C.uintptr_t(len(name)))
+	}
+}
+
+//export parcel_plugin_optimize
+func parcel_plugin_optimize(rawGraph C.BundleGraph, rawBundle C.Bundle, contents *C.uint8_t, contentsLen C.uintptr_t, sourceMap *C.uint8_t, sourceMapLen C.uintptr_t, rawOptions C.Options, rawResult *C.OptimizeResult, state unsafe.Pointer, diag *C.Diagnostic) {
+	defer recoverDiagnostic("optimize", diag)
+	if state == nil {
+		writeDiagnostic(diag, errors.New("plugin not registered: call parcel.RegisterPlugin in init()"))
+		return
+	}
+
+	var contentBytes []byte
+	if contents != nil && contentsLen > 0 {
+		contentBytes = C.GoBytes(unsafe.Pointer(contents), C.int(contentsLen))
+	}
+	var sourceMapBytes []byte
+	if sourceMap != nil {
+		sourceMapBytes = C.GoBytes(unsafe.Pointer(sourceMap), C.int(sourceMapLen))
+	}
+
+	plugin := cgo.Handle(*(*C.uintptr_t)(state)).Value().(Plugin)
+	result, err := plugin.Optimize(
+		&BundleGraph{ptr: rawGraph, options: rawOptions},
+		&Bundle{ptr: rawBundle, options: rawOptions},
+		contentBytes,
+		sourceMapBytes,
+		&Options{ptr: rawOptions},
+	)
+	if err != nil {
+		writeDiagnostic(diag, err)
+		return
+	}
+	if rawResult == nil {
+		return
+	}
+	if err := writeContentBuffer(&rawResult.contents, result.Contents); err != nil {
+		writeDiagnostic(diag, err)
+		return
+	}
+	if result.SourceMap != nil {
+		if err := writeContentBuffer(&rawResult.source_map, BytesContent(result.SourceMap)); err != nil {
+			writeDiagnostic(diag, err)
+		}
 	}
 }
 

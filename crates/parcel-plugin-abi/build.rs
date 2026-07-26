@@ -113,7 +113,7 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
     .allowlist_function("parcel_.*")
     .allowlist_var("PARCEL_.*")
     .allowlist_type(
-      "SpecifierType|Priority|BundleBehavior|Environment|OutputFormat|SourceType|Diagnostic|DiagnosticSeverity|ResolveResult|ResolutionType|DependencyFlags|ExportsConditions|AssetFlags|EnvironmentFlags|BundleFlags|BundleGraphResolutionType|BundleGraphDependencyResolution|AssetIndex|BundleIndex",
+      "SpecifierType|Priority|BundleBehavior|Environment|OutputFormat|SourceType|Diagnostic|DiagnosticSeverity|ResolveResult|OptimizeResult|ResolutionType|DependencyFlags|ExportsConditions|AssetFlags|EnvironmentFlags|BundleFlags|BundleGraphResolutionType|BundleGraphDependencyResolution|AssetIndex|BundleIndex",
     )
     .rustified_enum("SpecifierType")
     .rustified_enum("Priority")

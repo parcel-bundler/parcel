@@ -182,12 +182,32 @@ impl PluginFactory for DefaultPluginFactory {
   ) -> Result<Arc<dyn Optimizer>, DiagnosticList> {
     match name {
       "@parcel/optimizer-data-url" => Ok(Arc::new(DataUrlOptimizer {})),
+      "@parcel/optimizer-native" => {
+        if let Some(config) = config {
+          if let Some(serde_json::Value::String(lib)) = config.get("lib") {
+            return Ok(Arc::new(CPlugin::new(
+              PathId::new(Path::new(lib)),
+              Some(&config),
+            )?));
+          }
+        }
+        Err(Diagnostic::from_message(format!("Could not find optimizer {}", name)).into())
+      }
       _ => match self
         .resolver
         .resolve(name, from, parcel_resolver::SpecifierType::Esm, &*self.fs)
       {
         Ok(resolution) => match resolution.resolution {
-          Resolution::Path(path) => Ok(Arc::new(JsPlugin::new(path, config))),
+          Resolution::Path(path) => {
+            if matches!(
+              path.extension().map(|s| s.as_bytes()),
+              Some(b"so" | b"dylib" | b"dll")
+            ) {
+              Ok(Arc::new(CPlugin::new(path, config.as_ref())?))
+            } else {
+              Ok(Arc::new(JsPlugin::new(path, config)))
+            }
+          }
           _ => Err(Diagnostic::from_message(format!("Could not find optimizer {}", name)).into()),
         },
         Err(_) => {

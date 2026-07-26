@@ -2,7 +2,7 @@
 name = "parcel-plugin"
 version = "0.1.0"
 edition = "2024"
-description = "Rust SDK for building Parcel transformer plugins"
+description = "Rust SDK for building native Parcel plugins"
 
 [dev-dependencies]
 parcel = { path = "../parcel" }
