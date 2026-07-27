@@ -291,7 +291,7 @@ fn test_resolve_excluded() {
   )
   .unwrap();
 
-  assert_eq!(result, DependencyResolution::External);
+  assert_eq!(result, DependencyResolution::Excluded);
 }
 
 #[test]

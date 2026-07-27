@@ -65,9 +65,9 @@ fn run(
     bundle_behavior: BundleBehavior::None,
     flags: BundleFlags::ENTRY | BundleFlags::NEEDS_STABLE_NAME,
     dist_path: None,
-    assets: vec![AssetIndex(1)],
-    entry_assets: vec![AssetIndex(1)],
-    main_entry_asset: Some(AssetIndex(1)),
+    assets: vec![AssetIndex::from_index(0)],
+    entry_assets: vec![AssetIndex::from_index(0)],
+    main_entry_asset: Some(AssetIndex::from_index(0)),
     referenced_bundles: vec![],
   }];
   let graph = BundleGraph::new(
