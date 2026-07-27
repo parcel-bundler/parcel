@@ -3240,7 +3240,6 @@ dependencies = [
  "parcel_sourcemap",
  "rquickjs",
  "rquickjs-extra-console",
- "rquickjs-serde",
  "rquickjs-sys",
  "rust-embed",
  "serde",

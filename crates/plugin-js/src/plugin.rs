@@ -30,13 +30,7 @@ impl JsPlugin {
 
   fn config_to_js<'js>(&self, ctx: &Ctx<'js>) -> rquickjs::Result<rquickjs::Value<'js>> {
     match &self.config {
-      Some(config) => rquickjs_serde::to_value(ctx.clone(), config).map_err(|error| {
-        rquickjs::Error::new_into_js_message(
-          "serde_json::Value",
-          "JavaScript value",
-          error.to_string(),
-        )
-      }),
+      Some(config) => ctx.json_parse(config.to_string()),
       None => Ok(rquickjs::Value::new_undefined(ctx.clone())),
     }
   }

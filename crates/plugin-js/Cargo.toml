@@ -7,7 +7,6 @@ edition = "2024"
 [dependencies]
 parcel-core = { path = "../core" }
 rquickjs = { version = "0.11.0", features = ["full", "rust-alloc"] }
-rquickjs-serde = "0.4.0"
 rquickjs-extra-console = "0.2.1"
 rquickjs-sys = "0.11.0"
 serde_json = { version = "1.0.91", features = ["preserve_order"] }
