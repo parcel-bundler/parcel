@@ -12,6 +12,7 @@ enum Command {
   Build,
   Serve,
   Watch,
+  Run,
   Targets,
 }
 
@@ -23,6 +24,7 @@ pub fn main() -> ExitCode {
       "build" => Command::Build,
       "serve" => Command::Serve,
       "watch" => Command::Watch,
+      "run" => Command::Run,
       "targets" => Command::Targets,
       _ => {
         eprintln!("Unknown command {}", cmd);
@@ -109,6 +111,7 @@ pub fn main() -> ExitCode {
     Command::Build => parcel::build(&entries, options).map(|_| ()),
     Command::Watch => parcel::watch(&entries, options),
     Command::Serve => parcel::serve(&entries, options, server_options),
+    Command::Run => parcel::run(&entries, options),
     Command::Targets => {
       let entries = parcel_core::resolve_entries(&entries, &options).unwrap();
       println!("{:#?}", entries);

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use parcel_core::{BuildOptions, BundleGraph, DiagnosticList, PathId, PluginFactory};
+use parcel_core::{BuildOptions, BundleFlags, BundleGraph, DiagnosticList, PathId, PluginFactory};
 
-use crate::plugin_factory::DefaultPluginFactory;
+use crate::{plugin_factory::DefaultPluginFactory, run::run_node};
 
 pub use server::ServerOptions;
 
@@ -16,6 +16,7 @@ mod namer;
 mod plugin_factory;
 mod raw;
 mod resolver;
+mod run;
 mod server;
 mod toml;
 mod yaml;
@@ -131,6 +132,47 @@ pub fn serve(
         print_diagnostics(&e);
         server.emit_hmr_error(&e);
       }
+    }
+  }
+
+  Ok(())
+}
+
+pub fn run(entries: &Vec<String>, options: BuildOptions) -> Result<(), DiagnosticList> {
+  let mut parcel = make_parcel(entries, options)?;
+  let project_root = parcel.project_root();
+
+  let start = std::time::Instant::now();
+  let graph = parcel.build()?;
+  println!("Built in {:?}", start.elapsed());
+
+  let entry = graph
+    .bundles
+    .iter()
+    .find(|b| b.flags.contains(BundleFlags::ENTRY) && b.target.environment.is_node());
+  if let Some(entry) = entry {
+    run_node(entry.dist_path());
+  }
+
+  let watcher = parcel_watcher::watch(&project_root.to_path_buf());
+  while let Ok(events) = watcher.recv() {
+    let (changed_paths, created_paths) = split_events(&events);
+
+    let result = match parcel.invalidate(&changed_paths, &created_paths) {
+      Ok(result) => result,
+      Err(e) => {
+        print_diagnostics(&e);
+        continue;
+      }
+    };
+    if !result.needs_rebuild() {
+      continue;
+    }
+
+    let start = std::time::Instant::now();
+    match parcel.build() {
+      Ok(_) => println!("Rebuilt in {:?}", start.elapsed()),
+      Err(e) => print_diagnostics(&e),
     }
   }
 
