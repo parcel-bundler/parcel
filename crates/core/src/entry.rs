@@ -61,73 +61,106 @@ pub fn resolve_entries(
         }
       }
 
-      let (context, engines, include_node_modules) =
-        if let Some(pkg) = find_package(path, &*options.input_fs) {
-          let engines = pkg.get("engines");
-          let default_target = pkg
-            .get("targets")
-            .and_then(|targets| targets.get("default"))
-            .and_then(Value::as_object);
-          let is_non_js = path
-            .extension()
-            .map(|ext| AssetType::from_extension(ext))
-            .is_some_and(|ty| !ty.is_js() || ty == AssetType::Svg);
-          let context = if let Some(Value::String(context)) =
-            default_target.and_then(|target| target.get("context"))
-          {
-            Environment::try_from(context.as_str())?
-          } else if engines.and_then(|e| e.get("electron")).is_some() {
-            if is_non_js {
-              Environment::ElectronRenderer
+      if let Some(pkg) = find_package(path, &*options.input_fs) {
+        let engines = pkg.get("engines");
+        let is_non_js = path
+          .extension()
+          .map(|ext| AssetType::from_extension(ext))
+          .is_some_and(|ty| !ty.is_js() || ty == AssetType::Svg);
+        let empty = serde_json::Map::new();
+        let targets = pkg
+          .get("targets")
+          .and_then(Value::as_object)
+          .unwrap_or(&empty);
+
+        let iter = if targets.is_empty() {
+          either::Either::Left(std::iter::once(None))
+        } else {
+          either::Either::Right(targets.values().map(Value::as_object))
+        };
+
+        // Build all targets.
+        // TODO: support --target CLI option.
+        for target in iter {
+          let context =
+            if let Some(Value::String(context)) = target.and_then(|target| target.get("context")) {
+              Environment::try_from(context.as_str())?
+            } else if engines.and_then(|e| e.get("electron")).is_some() {
+              if is_non_js {
+                Environment::ElectronRenderer
+              } else {
+                Environment::ElectronMain
+              }
+            } else if !is_non_js && engines.and_then(|e| e.get("node")).is_some() {
+              Environment::Node
             } else {
-              Environment::ElectronMain
-            }
-          } else if !is_non_js && engines.and_then(|e| e.get("node")).is_some() {
-            Environment::Node
-          } else {
-            Environment::Browser
-          };
-          if let Some(Value::String(format)) =
-            default_target.and_then(|target| target.get("outputFormat"))
+              Environment::Browser
+            };
+
+          let output_format = if let Some(Value::String(format)) =
+            target.and_then(|target| target.get("outputFormat"))
           {
-            output_format = OutputFormat::try_from(format.as_str())?;
+            OutputFormat::try_from(format.as_str())?
           } else if !matches!(path.extension(), Some("mjs" | "cjs")) {
-            output_format = match context {
+            match context {
               Environment::ReactServer => OutputFormat::Commonjs,
               Environment::ReactClient => OutputFormat::Esmodule,
               _ => output_format,
-            };
-          }
+            }
+          } else {
+            output_format
+          };
+
           let engines = package_engines(&pkg, engines, context, output_format);
-          let include_node_modules = default_target
+          let include_node_modules = target
             .and_then(|t| t.get("includeNodeModules"))
             .and_then(|t| serde_json::from_value(t.clone()).ok())
             .unwrap_or_default();
-          (context, engines, include_node_modules)
-        } else {
-          (Environment::Browser, Default::default(), Default::default())
-        };
 
-      let env = entries.target(Target {
-        environment: context,
-        engines,
-        flags,
-        output_format,
-        include_node_modules,
-        dist_dir: options
-          .dist_dir
-          .unwrap_or_else(|| project_root.child("dist")),
-        source_map: options.source_map.clone(),
-        ..Default::default()
-      });
+          let env = entries.target(Target {
+            environment: context,
+            engines,
+            flags,
+            output_format,
+            include_node_modules,
+            // TODO: support target.distDir?
+            dist_dir: options
+              .dist_dir
+              .unwrap_or_else(|| project_root.child("dist")),
+            source_map: options.source_map.clone(), // TODO
+            ..Default::default()                    // TODO
+          });
 
-      entries.add_entry(Entry {
-        url: SourceUrl::from_path(&path),
-        target: env,
-        dist_entry: None,
-        loc: None,
-        asset: None,
-      });
+          entries.add_entry(Entry {
+            url: SourceUrl::from_path(&path),
+            target: env,
+            dist_entry: None,
+            loc: None,
+            asset: None,
+          });
+        }
+      } else {
+        let env = entries.target(Target {
+          environment: Environment::Browser,
+          engines: Default::default(),
+          flags,
+          output_format,
+          include_node_modules: Default::default(),
+          dist_dir: options
+            .dist_dir
+            .unwrap_or_else(|| project_root.child("dist")),
+          source_map: options.source_map.clone(),
+          ..Default::default()
+        });
+
+        entries.add_entry(Entry {
+          url: SourceUrl::from_path(&path),
+          target: env,
+          dist_entry: None,
+          loc: None,
+          asset: None,
+        });
+      };
     }
   }
 
