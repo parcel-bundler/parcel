@@ -536,7 +536,18 @@ impl<'a> ExportsContext<'a> {
     let include_node_modules = if let Some(include) = self.include_node_modules {
       serde_json::from_value(include.clone())?
     } else if let Some(Value::Object(deps)) = pkg.get("devDependencies") {
-      IncludeNodeModules::Array(deps.keys().cloned().collect())
+      let empty = serde_json::Map::new();
+      let peers = pkg
+        .get("peerDependencies")
+        .and_then(Value::as_object)
+        .unwrap_or(&empty);
+      IncludeNodeModules::Array(
+        deps
+          .keys()
+          .filter(|k| !peers.contains_key(*k))
+          .cloned()
+          .collect(),
+      )
     } else {
       IncludeNodeModules::Bool(false)
     };
