@@ -31,7 +31,7 @@ pub struct AssetKey {
   pub target: Arc<Target>,
   pub pipeline: Option<hstr::Atom>,
   pub bundle_behavior: BundleBehavior,
-  pub flags: AssetFlags,
+  // pub flags: AssetFlags,
 }
 
 impl Asset {
@@ -54,7 +54,7 @@ impl Asset {
       target: self.target.clone(),
       pipeline: self.pipeline.clone(),
       bundle_behavior: self.bundle_behavior.clone(),
-      flags: self.flags.clone(),
+      // flags: self.flags.clone(),
     }
   }
 }

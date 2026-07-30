@@ -185,7 +185,7 @@ impl AssetGraphBuilder {
           )),
           target: entry.target.clone(),
           pipeline: None,
-          side_effects: true,
+          side_effects: true, // TODO: resolve this for real?
         });
 
         let index = AssetNodeIndex::from_index(self.asset_nodes.len());
