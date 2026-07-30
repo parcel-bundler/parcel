@@ -30,6 +30,7 @@ rayon = "1.7.0"
 papaya = "0.2.4"
 boxcar = "0.2.14"
 smallvec = "1.13.2"
+crossbeam-channel = "0.5.6"
 
 tree-sitter = "0.25.10"
 tree-sitter-highlight = "0.25.10"

@@ -23,9 +23,13 @@ mod transformer;
 use std::{
   collections::{HashMap, HashSet},
   path::Path,
-  sync::{Arc, Mutex},
+  sync::{
+    Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
+  },
 };
 
+use crossbeam_channel::bounded;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 pub use asset::*;
@@ -56,6 +60,8 @@ pub use transformer::Transformer;
 /// alongside the files core reads directly. The builder is stored so `Parcel` can rebuild itself
 /// from scratch when a configuration file changes.
 pub type FactoryBuilder = dyn Fn(Arc<dyn FileSystem>) -> Box<dyn PluginFactory>;
+
+const OUTPUT_WRITER_THREADS: usize = 4;
 
 pub struct Parcel {
   asset_graph_builder: AssetGraphBuilder,
@@ -340,27 +346,78 @@ fn bundle_and_package<'a>(
 
   *prev_bundles = new_prev;
 
+  // Create each output directory once before packaging starts. Library builds can emit thousands
+  // of bundles into a much smaller number of shared directories, so calling create_dir_all for
+  // every bundle adds significant filesystem metadata overhead.
+  let mut output_dirs = HashSet::new();
+  for &bundle_index in &dirty {
+    let path = bundle_graph.bundles[bundle_index].dist_path();
+    let parent = path
+      .parent()
+      .ok_or_else(|| Diagnostic::from_message(format!("{:?} has no parent directory", path)))?;
+    output_dirs.insert(parent);
+  }
+
+  for dir in output_dirs {
+    options
+      .output_fs
+      .create_dir_all(dir)
+      .map_err(|e| Diagnostic::from_message(format!("Failed to create {:?}: {}", dir, e)))?;
+  }
+
+  if dirty.is_empty() {
+    return Ok(bundle_graph);
+  }
+
   let cache = papaya::HashMap::new();
 
-  bundle_graph.bundles.par_iter().enumerate().try_for_each(
-    |(bundle_index, bundle)| -> Result<(), DiagnosticList> {
-      if dirty.contains(&bundle_index) {
-        let content = get_bundle_content(config, &bundle_graph, bundle_index, options, &cache)?;
-        let path = bundle.dist_path();
-        let parent = path
-          .parent()
-          .ok_or_else(|| Diagnostic::from_message(format!("{:?} has no parent directory", path)))?;
-        options
-          .output_fs
-          .create_dir_all(parent)
-          .map_err(|e| Diagnostic::from_message(format!("Failed to create {:?}: {}", parent, e)))?;
-        content
-          .write(&*options.output_fs, path)
-          .map_err(|e| Diagnostic::from_message(e.to_string()))?;
+  std::thread::scope(|scope| -> Result<(), DiagnosticList> {
+    let writer_count = dirty.len().min(OUTPUT_WRITER_THREADS);
+    let (sender, receiver) = bounded::<(Arc<dyn Content>, PathId)>(writer_count * 2);
+    let mut writers = Vec::with_capacity(writer_count);
+
+    for _ in 0..writer_count {
+      let receiver = receiver.clone();
+      let output_fs = &options.output_fs;
+      writers.push(scope.spawn(move || -> Result<(), DiagnosticList> {
+        while let Ok((content, path)) = receiver.recv() {
+          if let Err(error) = content.write(&**output_fs, path) {
+            return Err(error.into());
+          }
+        }
+
+        Ok(())
+      }));
+    }
+    drop(receiver);
+
+    let package_result = bundle_graph.bundles.par_iter().enumerate().try_for_each(
+      |(bundle_index, bundle)| -> Result<(), DiagnosticList> {
+        if dirty.contains(&bundle_index) {
+          let content = get_bundle_content(config, &bundle_graph, bundle_index, options, &cache)?;
+          let path = bundle.dist_path();
+
+          if sender.send((content, path)).is_err() {
+            return Err(
+              Diagnostic::from_message("Output writer pool stopped unexpectedly".into()).into(),
+            );
+          }
+        }
+        Ok(())
+      },
+    );
+    drop(sender);
+
+    for writer in writers {
+      match writer.join() {
+        Ok(Ok(())) => {}
+        Ok(Err(error)) => return Err(error),
+        Err(panic) => std::panic::resume_unwind(panic),
       }
-      Ok(())
-    },
-  )?;
+    }
+
+    package_result
+  })?;
 
   Ok(bundle_graph)
 }

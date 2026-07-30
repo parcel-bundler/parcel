@@ -3186,6 +3186,7 @@ dependencies = [
  "bitflags",
  "boxcar",
  "browserslist-rs",
+ "crossbeam-channel",
  "dotenvy",
  "either",
  "fixedbitset",
