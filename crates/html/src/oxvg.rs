@@ -1,1228 +1,467 @@
-use std::{
-  borrow::Cow,
-  cell::{Cell, RefCell, RefMut},
-  collections::VecDeque,
-  fmt::Debug,
-  hash::Hash,
+use std::cell::RefCell;
+
+use crate::arena::{Arena, Node, NodeData, Ref};
+use html5ever::{Attribute, QualName};
+use lightningcss::{
+  rules::CssRuleList,
+  stylesheet::{ParserFlags, ParserOptions, StyleSheet},
 };
-
-use crate::arena::{Arena, Node, NodeData, Ref, SelectorFlags};
-use ref_cast::RefCast;
+use oxvg_ast::{
+  arena::Allocator as OxvgAllocator,
+  document::Document as OxvgDocument,
+  node::{NodeData as OxvgNodeData, Ref as OxvgRef, Type as OxvgNodeType},
+  visitor::Info,
+};
+use oxvg_collections::{
+  atom::Atom as OxvgAtom,
+  attribute::{Attr as OxvgAttr, AttrId as OxvgAttrId, xml::XmlSpace},
+  element::ElementId,
+  name::Prefix as OxvgPrefix,
+};
+use oxvg_serialize::{PrinterOptions, ToValue};
 use serde::Deserialize;
-use xml5ever::{Attribute, QualName, local_name, tendril::StrTendril};
-
-use oxvg_ast::{attribute::Attr as _, element::Element as _, name::Name, node::Node as _};
 use xxhash_rust::xxh3::xxh3_64;
 
-impl<'arena> oxvg_ast::node::Node<'arena> for Ref<'arena> {
-  type Arena = Arena<'arena>;
-  type Name = QName;
-  type Atom = StrTendril;
-  type Child = Ref<'arena>;
-  type ParentChild = Ref<'arena>;
-  type Parent = Element<'arena>;
+/// Translate a Parcel DOM into OXVG's typed SVG AST, run the optimiser, and
+/// translate the result back into the Parcel arena.
+pub fn optimize<'arena>(
+  arena: Arena<'arena>,
+  root: Ref<'arena>,
+  jobs: &oxvg_optimiser::Jobs,
+) -> Result<(), String> {
+  let values = OxvgAllocator::new_values();
+  let mut oxvg_arena = OxvgAllocator::new_arena();
+  let allocator = OxvgAllocator::new(&mut oxvg_arena, &values);
+  let dom = parcel_to_oxvg(root, &allocator)?;
 
-  fn id(&self) -> usize {
-    *self as *const _ as usize
-  }
-
-  fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child> {
-    ChildNodes {
-      front: self.first_child(),
-      end: self.last_child(),
-    }
-  }
-
-  #[allow(refining_impl_trait)]
-  fn element(&self) -> Option<Element<'arena>> {
-    match self.node_type() {
-      oxvg_ast::node::Type::Element | oxvg_ast::node::Type::Document => Element::new(*self),
-      _ => None,
-    }
-  }
-
-  fn empty(&self) {
-    self.first_child.set(None);
-    self.last_child.set(None);
-  }
-
-  #[allow(refining_impl_trait)]
-  fn find_element(&self) -> Option<Element<'arena>> {
-    <Element as oxvg_ast::element::Element<'arena>>::find_element(*self)
-  }
-
-  fn first_child(&self) -> Option<Self::Child> {
-    self.first_child.get()
-  }
-
-  fn insert_before(&mut self, new_node: Self::Child, reference_node: &Self::Child) {
-    new_node.remove();
-    new_node.parent.set(Some(self));
-    let Some(prev_child) = reference_node.previous_sibling.replace(Some(new_node)) else {
-      self.first_child.set(Some(new_node));
-      new_node.next_sibling.set(Some(reference_node));
-      return;
-    };
-    prev_child.next_sibling.set(Some(new_node));
-    new_node.previous_sibling.set(Some(prev_child));
-    new_node.next_sibling.set(Some(reference_node));
-    debug_assert!(new_node.parent.get() == Some(*self));
-    debug_assert!(new_node.next_sibling.get() == Some(*reference_node));
-    debug_assert!(reference_node.previous_sibling.get() == Some(new_node));
-  }
-
-  fn insert_after(&mut self, new_node: Self::Child, reference_node: &Self::Child) {
-    new_node.remove();
-    new_node.parent.set(Some(self));
-    let Some(next_child) = reference_node.next_sibling.replace(Some(new_node)) else {
-      self.last_child.set(Some(new_node));
-      new_node.previous_sibling.set(Some(reference_node));
-      return;
-    };
-    next_child.previous_sibling.set(Some(new_node));
-    new_node.next_sibling.set(Some(next_child));
-    new_node.previous_sibling.set(Some(reference_node));
-    debug_assert!(new_node.parent.get() == Some(*self));
-    debug_assert!(new_node.previous_sibling.get() == Some(*reference_node));
-    debug_assert!(reference_node.next_sibling.get() == Some(new_node));
-  }
-
-  fn retain_children<F>(&self, mut f: F)
-  where
-    F: FnMut(Self::Child) -> bool,
+  if jobs.add_classes_to_s_v_g_element.is_some()
+    && let Some(element) = dom.find_element()
+    && matches!(element.qual_name().unaliased(), ElementId::Svg)
+    && !element.has_attribute(&OxvgAttrId::Class)
   {
-    self.last_child.set(None);
-    let mut current = self.first_child.take();
-    let mut previously_retained = None;
-    while let Some(child) = current {
-      current = child.next_sibling.get();
-      let retain = f(child);
-      if retain {
-        child.previous_sibling.set(previously_retained);
-        if previously_retained.is_none() {
-          self.first_child.set(Some(child));
-        }
-        previously_retained = Some(child);
-        self.last_child.set(Some(child));
+    // OXVG only mutates an existing class attribute.
+    element.set_attribute(OxvgAttr::new(OxvgAttrId::Class, ""));
+  }
+
+  jobs
+    .run(dom, &Info::new(allocator))
+    .map_err(|error| format!("OXVG optimization failed: {error}"))?;
+
+  let translated = oxvg_to_parcel(arena, dom)?;
+
+  match &root.data {
+    NodeData::Document => replace_document(root, translated, jobs.remove_doctype.is_none()),
+    NodeData::Element { .. } => replace_element(root, translated),
+    _ => return Err("OXVG can only optimize documents and elements".into()),
+  }
+
+  Ok(())
+}
+
+fn parcel_to_oxvg<'input, 'oxvg>(
+  root: Ref<'_>,
+  allocator: &OxvgAllocator<'input, 'oxvg>,
+) -> Result<OxvgRef<'input, 'oxvg>, String> {
+  let dom = allocator.alloc(OxvgNodeData::Document);
+  let document = dom
+    .element()
+    .ok_or_else(|| "Could not create OXVG document".to_owned())?
+    .as_document();
+
+  if matches!(root.data, NodeData::Document) {
+    for child in children(root) {
+      if let Some(child) = parcel_node_to_oxvg(child, &document, allocator)? {
+        dom.append_child(child);
+      }
+    }
+  } else if let Some(root) = parcel_node_to_oxvg(root, &document, allocator)? {
+    dom.append_child(root);
+  }
+
+  Ok(dom)
+}
+
+fn parcel_node_to_oxvg<'input, 'oxvg>(
+  node: Ref<'_>,
+  document: &OxvgDocument<'input, 'oxvg>,
+  allocator: &OxvgAllocator<'input, 'oxvg>,
+) -> Result<Option<OxvgRef<'input, 'oxvg>>, String> {
+  let translated = match &node.data {
+    NodeData::Document => return Err("Unexpected nested Parcel document".into()),
+    // OXVG's concrete AST cannot represent doctypes. They are retained from
+    // the Parcel document when the removeDoctype job is disabled.
+    NodeData::Doctype { .. } => return Ok(None),
+    NodeData::Text { contents } => document.create_text_node(
+      allocate_atom(allocator, contents.borrow().as_ref()),
+      allocator,
+    ),
+    NodeData::Comment { contents } => allocator.alloc(OxvgNodeData::Comment(RefCell::new(Some(
+      allocate_atom(allocator, contents.as_ref()),
+    )))),
+    NodeData::ProcessingInstruction { target, contents } => document.create_processing_instruction(
+      allocate_atom(allocator, target.as_ref()),
+      allocate_atom(allocator, contents.borrow().as_ref()),
+      allocator,
+    ),
+    NodeData::Element { name, attrs, .. } => {
+      let element_id = ElementId::new(
+        parcel_name_to_oxvg_prefix(name, allocator),
+        allocate_atom(allocator, name.local.as_ref()),
+      );
+      let element = document.create_element(element_id, allocator);
+      let parse_style = matches!(element.qual_name().unaliased(), ElementId::Style)
+        && !attrs.borrow().iter().any(|attr| {
+          attr.name.prefix.is_none()
+            && attr.name.ns.is_empty()
+            && attr.name.local.as_ref() == "type"
+            && !attr.value.is_empty()
+            && attr.value.as_ref() != "text/css"
+        });
+
+      for attr in attrs.borrow().iter() {
+        let attr_id = if is_default_xmlns(&attr.name) {
+          OxvgAttrId::XMLNS
+        } else {
+          element.qual_name().parse_attr_id(
+            &parcel_name_to_oxvg_prefix(&attr.name, allocator),
+            allocate_atom(allocator, attr.name.local.as_ref()),
+          )
+        };
+        let value = allocator.alloc_str(attr.value.as_ref());
+        element.set_attribute(OxvgAttr::new(attr_id, value));
+      }
+
+      if parse_style && let Some(style) = parcel_style_to_oxvg(node, allocator) {
+        element.append(document.create_style_node(style, allocator));
       } else {
-        child.parent.set(None);
-        child.previous_sibling.set(None);
-        child.next_sibling.set(None);
+        for child in children(node) {
+          if let Some(child) = parcel_node_to_oxvg(child, document, allocator)? {
+            element.append(child);
+          }
+        }
       }
+
+      element.0
+    }
+  };
+
+  Ok(Some(translated))
+}
+
+fn parcel_style_to_oxvg<'input, 'oxvg>(
+  element: Ref<'_>,
+  allocator: &OxvgAllocator<'input, 'oxvg>,
+) -> Option<CssRuleList<'input>> {
+  let mut rules = CssRuleList(Vec::new());
+  for child in children(element) {
+    let NodeData::Text { contents } = &child.data else {
+      continue;
+    };
+    let contents = contents.borrow();
+    let source = allocator.alloc_str(contents.as_ref());
+    let options = ParserOptions {
+      flags: ParserFlags::all(),
+      ..ParserOptions::default()
+    };
+    if let Ok(style) = StyleSheet::parse(source, options) {
+      rules.0.extend(style.rules.0);
     }
   }
+  (!rules.0.is_empty()).then_some(rules)
+}
 
-  fn last_child(&self) -> Option<Self::Child> {
-    self.last_child.get()
-  }
+fn allocate_atom<'input>(allocator: &OxvgAllocator<'input, '_>, value: &str) -> OxvgAtom<'input> {
+  OxvgAtom::from(&*allocator.alloc_str(value))
+}
 
-  fn next_sibling(&self) -> Option<Self::ParentChild> {
-    self.next_sibling.get()
-  }
-
-  fn node_type(&self) -> oxvg_ast::node::Type {
-    match &self.data {
-      NodeData::Document => oxvg_ast::node::Type::Document,
-      NodeData::Element { .. } => oxvg_ast::node::Type::Element,
-      NodeData::ProcessingInstruction { .. } => oxvg_ast::node::Type::ProcessingInstruction,
-      NodeData::Text { .. } => oxvg_ast::node::Type::Text,
-      NodeData::Comment { .. } => oxvg_ast::node::Type::Comment,
-      NodeData::Doctype { .. } => oxvg_ast::node::Type::DocumentType,
-    }
-  }
-
-  fn previous_sibling(&self) -> Option<Self::ParentChild> {
-    self.previous_sibling.get()
-  }
-
-  fn parent_node(&self) -> Option<Self::Parent> {
-    self.parent.get().and_then(Element::new)
-  }
-
-  fn set_parent_node(&self, new_parent: &Self::Parent) -> Option<Self::Parent> {
-    self
-      .parent
-      .replace(Some(new_parent.node))
-      .and_then(Element::new)
-  }
-
-  fn append_child(&self, a_child: Self::Child) {
-    a_child.parent.set(Some(self));
-    if let Some(child) = self.last_child.replace(Some(a_child)) {
-      child.next_sibling.set(Some(a_child));
-      a_child.previous_sibling.set(Some(child));
-    } else {
-      self.first_child.set(Some(a_child));
-    }
-    debug_assert!(a_child.parent.get() == Some(*self));
-    debug_assert!(a_child.next_sibling.get().is_none());
-    debug_assert!(self.last_child.get() == Some(a_child));
-  }
-
-  fn item(&self, index: usize) -> Option<Self::Child> {
-    self.child_nodes_iter().nth(index)
-  }
-
-  fn node_name(&self) -> Self::Atom {
-    match &self.data {
-      NodeData::Comment { .. } => "#comment".into(),
-      NodeData::Doctype { name, .. } => name.clone(),
-      NodeData::Document => "#document".into(),
-      NodeData::Element { name, .. } => name.local.to_uppercase().into(),
-      NodeData::ProcessingInstruction { target, .. } => target.clone(),
-      NodeData::Text { .. } => "#text".into(),
-    }
-  }
-
-  fn node_value(&self) -> Option<Self::Atom> {
-    Some(match &self.data {
-      NodeData::Comment { contents } => contents.clone(),
-      NodeData::ProcessingInstruction { contents, .. } => contents.borrow().clone(),
-      NodeData::Text { contents } => contents.borrow().clone(),
-      _ => return None,
-    })
-  }
-
-  fn processing_instruction(&self) -> Option<(Self::Atom, Self::Atom)> {
-    match &self.data {
-      NodeData::ProcessingInstruction { target, contents } => {
-        Some((target.clone(), contents.borrow().clone()))
-      }
+fn parcel_name_to_oxvg_prefix<'input>(
+  name: &QualName,
+  allocator: &OxvgAllocator<'input, '_>,
+) -> OxvgPrefix<'input> {
+  let prefix = name
+    .prefix
+    .as_ref()
+    .filter(|prefix| !prefix.is_empty())
+    .map(|prefix| prefix.as_ref())
+    .or_else(|| match name.ns.as_ref() {
+      // html5ever often represents these as namespace-only attributes. XML
+      // syntax requires their canonical prefixes, which OXVG also expects.
+      "http://www.w3.org/XML/1998/namespace" => Some("xml"),
+      "http://www.w3.org/1999/xlink" => Some("xlink"),
+      "http://www.w3.org/2000/xmlns/" if name.local.as_ref() != "xmlns" => Some("xmlns"),
       _ => None,
-    }
-  }
-
-  fn try_set_node_value(&self, value: Self::Atom) -> Option<()> {
-    match &self.data {
-      NodeData::Text { contents } => {
-        contents.replace(value);
-        Some(())
-      }
-      _ => None,
-    }
-  }
-
-  fn text_content(&self) -> Option<Self::Atom> {
-    match &self.data {
-      NodeData::Text { contents: value }
-      | NodeData::ProcessingInstruction {
-        contents: value, ..
-      } => Some(value.borrow().clone()),
-      NodeData::Comment { contents: value } => Some(value.clone()),
-      NodeData::Document | NodeData::Doctype { .. } => None,
-      NodeData::Element { .. } => Some(
-        self
-          .child_nodes_iter()
-          .filter_map(|el| Self::text_content(&el))
-          .fold(StrTendril::default(), |mut acc, item| {
-            acc.push_tendril(&item);
-            acc
-          }),
-      ),
-    }
-  }
-
-  fn set_text_content(&self, content: Self::Atom, arena: &Self::Arena) {
-    match self.data {
-      NodeData::Text { ref contents } => {
-        contents.replace(content);
-      }
-      NodeData::Element { .. } => {
-        self.empty();
-        self.append_child(self.text(content, arena));
-      }
-      _ => {}
-    }
-  }
-
-  fn text(&self, content: Self::Atom, arena: &Self::Arena) -> Self::Child {
-    arena.alloc(Node::new(
-      NodeData::Text {
-        contents: RefCell::new(content),
-      },
-      0,
-    ))
-  }
-
-  fn remove(&self) {
-    let parent = self.parent.take();
-    let previous_sibling = self.previous_sibling.take();
-    let next_sibling = self.next_sibling.take();
-    if let Some(previous_sibling) = previous_sibling {
-      if let Some(next_sibling) = next_sibling {
-        // prev -> ~self~ -> next
-        next_sibling.previous_sibling.set(Some(previous_sibling));
-      } else if let Some(parent) = parent {
-        // prev -> ~self~ -> None
-        parent.last_child.set(Some(previous_sibling));
-      }
-      previous_sibling.next_sibling.set(next_sibling);
-    } else if let Some(next_sibling) = next_sibling {
-      next_sibling.previous_sibling.set(None);
-      if let Some(parent) = parent {
-        // None -> ~self~ -> next
-        parent.first_child.set(Some(next_sibling));
-      }
-    } else if let Some(parent) = parent {
-      // None -> ~self~ -> None
-      parent.first_child.set(None);
-      parent.last_child.set(None);
-    }
-    debug_assert!(previous_sibling.is_none_or(|n| n.next_sibling.get() == next_sibling));
-    debug_assert!(next_sibling.is_none_or(|n| n.previous_sibling.get() == previous_sibling));
-    debug_assert!(parent.is_none_or(|n| n.first_child.get() != Some(*self)));
-    debug_assert!(parent.is_none_or(|n| n.last_child.get() != Some(*self)));
-  }
-
-  fn remove_child_at(&mut self, index: usize) -> Option<Self::Child> {
-    let child = self.child_nodes_iter().nth(index);
-    child?.remove();
-    child
-  }
-
-  fn clone_node(&self) -> Self {
-    todo!("needs arena")
-  }
-
-  fn replace_child(
-    &mut self,
-    new_child: Self::Child,
-    old_child: &Self::Child,
-  ) -> Option<Self::Child> {
-    debug_assert_eq!(old_child.parent.get(), Some(*self));
-    // debug_assert!(self.child_nodes_iter().contains(old_child));
-
-    let previous_sibling = old_child.previous_sibling.take();
-    let next_sibling = old_child.next_sibling.take();
-    old_child.parent.set(None);
-
-    new_child.previous_sibling.set(previous_sibling);
-    new_child.next_sibling.set(next_sibling);
-    new_child.parent.set(Some(*self));
-
-    if let Some(previous_sibling) = previous_sibling {
-      previous_sibling.next_sibling.set(Some(new_child));
-    } else {
-      self.first_child.set(Some(new_child));
-    }
-    if let Some(next_sibling) = next_sibling {
-      next_sibling.previous_sibling.set(Some(new_child));
-    } else {
-      self.last_child.set(Some(new_child));
-    }
-    Some(*old_child)
-  }
-
-  // TODO: deprecate
-  fn to_owned(&self) -> Self {
-    self
-  }
-
-  fn as_child(&self) -> Self::Child {
-    self
-  }
-
-  fn as_impl(&self) -> impl oxvg_ast::node::Node<'arena> {
-    *self
-  }
-
-  fn as_parent_child(&self) -> Self::ParentChild {
-    self
-  }
-}
-
-#[derive(RefCast, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone)]
-#[repr(transparent)]
-pub struct QName(QualName);
-
-impl oxvg_ast::name::Name for QName {
-  type LocalName = xml5ever::LocalName;
-  type Prefix = xml5ever::Prefix;
-  type Namespace = xml5ever::Namespace;
-
-  fn new(prefix: Option<Self::Prefix>, local: Self::LocalName) -> Self {
-    QName(QualName {
-      prefix,
-      local,
-      ns: Self::Namespace::default(),
-    })
-  }
-
-  fn local_name(&self) -> &Self::LocalName {
-    &self.0.local
-  }
-
-  fn prefix(&self) -> &Option<Self::Prefix> {
-    &self.0.prefix
-  }
-
-  fn ns(&self) -> &Self::Namespace {
-    &self.0.ns
-  }
-}
-
-#[derive(RefCast, Clone, Debug, PartialEq)]
-#[repr(transparent)]
-pub struct Attr(Attribute);
-
-impl<'arena> oxvg_ast::attribute::Attr for Attr {
-  type Atom = StrTendril;
-  type Name = QName;
-
-  fn new(name: Self::Name, value: Self::Atom) -> Self {
-    Attr(Attribute {
-      name: name.0,
-      value,
-    })
-  }
-
-  fn name(&self) -> &Self::Name {
-    QName::ref_cast(&self.0.name)
-  }
-
-  fn name_mut(&mut self) -> &mut Self::Name {
-    QName::ref_cast_mut(&mut self.0.name)
-  }
-
-  fn local_name(&self) -> &<Self::Name as Name>::LocalName {
-    &self.0.name.local
-  }
-
-  fn prefix(&self) -> &Option<<Self::Name as Name>::Prefix> {
-    &self.0.name.prefix
-  }
-
-  fn value(&self) -> &Self::Atom {
-    &self.0.value
-  }
-
-  fn value_mut(&mut self) -> &mut Self::Atom {
-    &mut self.0.value
-  }
-
-  fn set_value(&mut self, value: Self::Atom) -> Self::Atom {
-    std::mem::replace(&mut self.0.value, value)
-  }
-
-  fn push(&mut self, value: &Self::Atom) {
-    self.0.value.push_tendril(value);
-  }
-
-  fn sub_value(&self, offset: u32, length: u32) -> Self::Atom {
-    self.0.value.subtendril(offset, length)
-  }
-}
-#[derive(Debug, Clone)]
-/// The list of attributes of an element.
-pub struct Attributes<'arena>(pub &'arena RefCell<Vec<Attribute>>);
-
-impl<'arena> oxvg_ast::attribute::Attributes<'arena> for Attributes<'arena> {
-  type Attribute = Attr;
-
-  fn len(&self) -> usize {
-    self.0.borrow().len()
-  }
-
-  fn item(&self, index: usize) -> Option<std::cell::Ref<'arena, Self::Attribute>> {
-    std::cell::Ref::filter_map(self.0.borrow(), |v| v.get(index).map(Attr::ref_cast)).ok()
-  }
-
-  fn item_mut(&self, index: usize) -> Option<std::cell::RefMut<'arena, Self::Attribute>> {
-    std::cell::RefMut::filter_map(self.0.borrow_mut(), |v| {
-      v.get_mut(index).map(Attr::ref_cast_mut)
-    })
-    .ok()
-  }
-
-  fn get_named_item(
-    &self,
-    name: &<Self::Attribute as oxvg_ast::attribute::Attr>::Name,
-  ) -> Option<std::cell::Ref<'arena, Self::Attribute>> {
-    std::cell::Ref::filter_map(self.0.borrow(), |v| {
-      v.iter()
-        .find(|a| a.name.prefix == *name.prefix() && a.name.local == *name.local_name())
-        .map(Attr::ref_cast)
-    })
-    .ok()
-  }
-
-  fn get_named_item_mut(
-    &self,
-    name: &<Self::Attribute as oxvg_ast::attribute::Attr>::Name,
-  ) -> Option<RefMut<'arena, Self::Attribute>> {
-    RefMut::filter_map(self.0.borrow_mut(), |v| {
-      v.iter_mut()
-        .find(|a| a.name.prefix == *name.prefix() && a.name.local == *name.local_name())
-        .map(Attr::ref_cast_mut)
-    })
-    .ok()
-  }
-
-  fn get_named_item_local(
-    &self,
-    name: &<<Self::Attribute as oxvg_ast::attribute::Attr>::Name as Name>::LocalName,
-  ) -> Option<std::cell::Ref<'arena, Self::Attribute>> {
-    std::cell::Ref::filter_map(self.0.borrow(), |v| {
-      v.iter()
-        .find(|a| a.name.prefix.is_none() && a.name.local == *name)
-        .map(Attr::ref_cast)
-    })
-    .ok()
-  }
-
-  fn get_named_item_local_mut(
-    &self,
-    name: &<<Self::Attribute as oxvg_ast::attribute::Attr>::Name as Name>::LocalName,
-  ) -> Option<RefMut<'arena, Self::Attribute>> {
-    RefMut::filter_map(self.0.borrow_mut(), |v| {
-      v.iter_mut()
-        .find(|a| a.name.prefix.is_none() && a.name.local == *name)
-        .map(Attr::ref_cast_mut)
-    })
-    .ok()
-  }
-
-  fn get_named_item_ns(
-    &self,
-    namespace: &<<Self::Attribute as oxvg_ast::attribute::Attr>::Name as Name>::Namespace,
-    name: &<<Self::Attribute as oxvg_ast::attribute::Attr>::Name as Name>::LocalName,
-  ) -> Option<std::cell::Ref<'arena, Self::Attribute>> {
-    std::cell::Ref::filter_map(self.0.borrow(), |v| {
-      v.iter()
-        .find(|a| a.name.local == *name && a.name.ns == *namespace)
-        .map(Attr::ref_cast)
-    })
-    .ok()
-  }
-
-  fn remove_named_item(
-    &self,
-    name: &<Self::Attribute as oxvg_ast::attribute::Attr>::Name,
-  ) -> Option<Self::Attribute> {
-    let mut attrs = self.0.borrow_mut();
-    let index = attrs
-      .iter()
-      .position(|a| a.name.prefix == *name.prefix() && a.name.local == *name.local_name())?;
-    Some(Attr(attrs.remove(index)))
-  }
-
-  fn remove_named_item_local(
-    &self,
-    name: &<<Self::Attribute as oxvg_ast::attribute::Attr>::Name as Name>::LocalName,
-  ) -> Option<Self::Attribute> {
-    let mut attrs = self.0.borrow_mut();
-    let index = attrs
-      .iter()
-      .position(|a| a.name.prefix.is_none() && a.name.local == *name)?;
-    Some(Attr(attrs.remove(index)))
-  }
-
-  fn set_named_item(&self, attr: Self::Attribute) -> Option<Self::Attribute> {
-    let attrs = &mut *self.0.borrow_mut();
-    if let Some(index) = attrs
-      .iter()
-      .position(|a| a.name.prefix == *attr.prefix() && a.name.local == *attr.local_name())
-    {
-      Some(Attr(std::mem::replace(&mut attrs[index], attr.0)))
-    } else {
-      attrs.push(attr.0);
-      None
-    }
-  }
-
-  fn sort(&self, order: &[String], xmlns_front: bool) {
-    fn get_ns_priority(name: &QualName, xmlns_front: bool) -> usize {
-      if xmlns_front {
-        if name.prefix.is_none() && name.local.as_ref() == "xmlns" {
-          return 3;
-        }
-        if name.prefix.as_ref().is_some_and(|p| p.as_ref() == "xmlns") {
-          return 2;
-        }
-      }
-      if name.prefix.is_some() {
-        return 1;
-      }
-      0
-    }
-
-    self.0.borrow_mut().sort_by(|a, b| {
-      let a_priority = get_ns_priority(&a.name, xmlns_front);
-      let b_priority = get_ns_priority(&b.name, xmlns_front);
-      let priority_ord = b_priority.cmp(&a_priority);
-      if priority_ord != std::cmp::Ordering::Equal {
-        return priority_ord;
-      }
-
-      let a_part = a
-        .name
-        .local
-        .split_once('-')
-        .map_or_else(|| a.name.local.as_ref(), |p| p.0);
-      let b_part = b
-        .name
-        .local
-        .split_once('-')
-        .map_or_else(|| b.name.local.as_ref(), |p| p.0);
-      if a_part != b_part {
-        let a_in_order = order.iter().position(|x| x == a_part);
-        let b_in_order = order.iter().position(|x| x == b_part);
-        if a_in_order.is_some() && b_in_order.is_some() {
-          return a_in_order.cmp(&b_in_order);
-        }
-        if a_in_order.is_some() {
-          return std::cmp::Ordering::Less;
-        }
-        if b_in_order.is_some() {
-          return std::cmp::Ordering::Greater;
-        }
-      }
-
-      a.name.cmp(&b.name)
     });
-  }
-
-  fn retain<F>(&self, mut f: F)
-  where
-    F: FnMut(&Self::Attribute) -> bool,
-  {
-    self.0.borrow_mut().retain(|attr| f(Attr::ref_cast(attr)));
-  }
+  OxvgPrefix::new(
+    allocate_atom(allocator, name.ns.as_ref()),
+    prefix.map(|prefix| allocate_atom(allocator, prefix)),
+  )
 }
 
-impl<'arena> oxvg_ast::node::Node<'arena> for Element<'arena> {
-  type Arena = Arena<'arena>;
-  type Name = QName;
-  type Atom = StrTendril;
-  type Child = Ref<'arena>;
-  type ParentChild = Ref<'arena>;
-  type Parent = Element<'arena>;
-
-  fn id(&self) -> usize {
-    self.node.id()
-  }
-
-  fn child_nodes_iter(&self) -> impl DoubleEndedIterator<Item = Self::Child> {
-    self.node.child_nodes_iter()
-  }
-
-  fn element(&self) -> Option<impl oxvg_ast::element::Element<'arena, Name = QName>> {
-    Some(self.clone())
-  }
-
-  fn empty(&self) {
-    self.node.empty();
-  }
-
-  #[allow(refining_impl_trait)]
-  fn find_element(&self) -> Option<Self> {
-    if self.node_type() == oxvg_ast::node::Type::Element {
-      Some(self.clone())
-    } else {
-      self.node.find_element()
-    }
-  }
-
-  fn first_child(&self) -> Option<Self::Child> {
-    self.node.first_child()
-  }
-
-  fn insert_before(&mut self, new_node: Self::Child, reference_node: &Self::Child) {
-    oxvg_ast::node::Node::insert_before(&mut self.node, new_node, reference_node);
-  }
-
-  fn insert_after(&mut self, new_node: Self::Child, reference_node: &Self::Child) {
-    oxvg_ast::node::Node::insert_after(&mut self.node, new_node, reference_node);
-  }
-
-  fn retain_children<F>(&self, f: F)
-  where
-    F: FnMut(Self::Child) -> bool,
-  {
-    self.node.retain_children(f);
-  }
-
-  fn last_child(&self) -> Option<Self::Child> {
-    self.node.last_child()
-  }
-
-  fn node_type(&self) -> oxvg_ast::node::Type {
-    self.node.node_type()
-  }
-
-  fn next_sibling(&self) -> Option<Self::ParentChild> {
-    self.node.next_sibling()
-  }
-
-  fn parent_node(&self) -> Option<Self::Parent> {
-    self.node.parent_node()
-  }
-
-  fn previous_sibling(&self) -> Option<Self::ParentChild> {
-    self.node.previous_sibling()
-  }
-
-  fn set_parent_node(&self, new_parent: &Self::Parent) -> Option<Self::Parent> {
-    self.node.set_parent_node(new_parent)
-  }
-
-  fn append_child(&self, a_child: Self::Child) {
-    self.node.append_child(a_child);
-  }
-
-  fn item(&self, index: usize) -> Option<Self::Child> {
-    self.node.item(index)
-  }
-
-  fn node_name(&self) -> Self::Atom {
-    self.node.node_name()
-  }
-
-  fn node_value(&self) -> Option<Self::Atom> {
-    None
-  }
-
-  fn processing_instruction(&self) -> Option<(Self::Atom, Self::Atom)> {
-    None
-  }
-
-  fn try_set_node_value(&self, _value: Self::Atom) -> Option<()> {
-    None
-  }
-
-  fn text_content(&self) -> Option<Self::Atom> {
-    oxvg_ast::node::Node::text_content(&self.node)
-  }
-
-  fn set_text_content(&self, content: Self::Atom, arena: &Self::Arena) {
-    oxvg_ast::node::Node::set_text_content(&self.node, content, arena);
-  }
-
-  fn text(&self, content: Self::Atom, arena: &Self::Arena) -> Self::Child {
-    self.node.text(content, arena)
-  }
-
-  fn remove(&self) {
-    self.node.remove();
-  }
-
-  fn remove_child_at(&mut self, index: usize) -> Option<Self::Child> {
-    self.node.remove_child_at(index)
-  }
-
-  fn clone_node(&self) -> Self {
-    oxvg_ast::element::Element::new(self.node.clone_node()).unwrap()
-  }
-
-  fn replace_child(
-    &mut self,
-    new_child: Self::Child,
-    old_child: &Self::Child,
-  ) -> Option<Self::Child> {
-    self.node.replace_child(new_child, old_child)
-  }
-
-  fn to_owned(&self) -> Self {
-    self.clone()
-  }
-
-  fn as_child(&self) -> Self::Child {
-    self.node.as_child()
-  }
-
-  fn as_impl(&self) -> impl oxvg_ast::node::Node<'arena> {
-    self.node.as_impl()
-  }
-
-  fn as_parent_child(&self) -> Self::ParentChild {
-    self.node.as_parent_child()
-  }
+fn is_default_xmlns(name: &QualName) -> bool {
+  name.ns.as_ref() == "http://www.w3.org/2000/xmlns/"
+    && name.prefix.as_ref().is_none_or(|prefix| prefix.is_empty())
+    && name.local.as_ref() == "xmlns"
 }
 
-#[derive(Clone)]
-/// An XML element type.
-pub struct Element<'arena> {
-  node: Ref<'arena>,
+fn oxvg_to_parcel<'arena>(
+  arena: Arena<'arena>,
+  dom: OxvgRef<'_, '_>,
+) -> Result<Ref<'arena>, String> {
+  let mut preserve_whitespace = false;
+  oxvg_node_to_parcel(arena, dom, &mut preserve_whitespace, true, true)?
+    .ok_or_else(|| "OXVG produced an empty document".to_owned())
 }
 
-impl<'arena> oxvg_ast::element::Element<'arena> for Element<'arena> {
-  type Attributes<'a> = Attributes<'a>;
-  type Attr = Attr;
-  type Lifetimed<'a> = Element<'a>;
-
-  fn new(node: Ref<'arena>) -> Option<Self> {
-    if !matches!(
-      node.node_type(),
-      oxvg_ast::node::Type::Element | oxvg_ast::node::Type::Document
-    ) {
-      return None;
+fn oxvg_node_to_parcel<'arena>(
+  arena: Arena<'arena>,
+  source: OxvgRef<'_, '_>,
+  preserve_whitespace: &mut bool,
+  is_first: bool,
+  is_last: bool,
+) -> Result<Option<Ref<'arena>>, String> {
+  let translated = match source.node_type() {
+    OxvgNodeType::Document | OxvgNodeType::DocumentFragment => {
+      arena.alloc(Node::new(NodeData::Document, 0))
     }
-    Some(Self { node })
-  }
-
-  fn as_document(&self) -> impl oxvg_ast::document::Document<'arena, Root = Self> {
-    Document(self.clone())
-  }
-
-  fn from_parent(node: Self::ParentChild) -> Option<Self> {
-    Self::new(node)
-  }
-
-  fn tag_name(&self) -> Self::Atom {
-    self.node.node_name()
-  }
-
-  fn qual_name(&self) -> &Self::Name {
-    if let NodeData::Element { name, .. } = &self.node.data {
-      QName::ref_cast(&name)
-    } else {
-      unreachable!()
-    }
-  }
-
-  fn replace_children(&self, children: Vec<Self::Child>) {
-    self.node.first_child.set(children.first().copied());
-    self.node.last_child.set(children.last().copied());
-    for i in 0..children.len() {
-      let current = children.get(i).expect("`i` should be within len");
-      current.parent.set(Some(self.node));
-      if i > 0 {
-        current.previous_sibling.set(children.get(i - 1).copied());
-      } else {
-        current.previous_sibling.set(None);
-      }
-      current.next_sibling.set(children.get(i + 1).copied());
-    }
-  }
-
-  fn set_local_name(&self, new_name: <Self::Name as Name>::LocalName, arena: &Self::Arena) {
-    let NodeData::Element { attrs, .. } = &self.node.data else {
-      panic!("expected an element!");
-    };
-    let replacement = arena.alloc(Node::new(
-      NodeData::Element {
-        name: QualName::new(None, Default::default(), new_name),
-        attrs: attrs.clone(),
-        selector_flags: SelectorFlags(Cell::new(None)),
-        mathml_annotation_xml_integration_point: false,
-        template_contents: None,
-      },
-      0,
-    ));
-    self.replace_with(replacement);
-  }
-
-  fn append(&self, node: Self::Child) {
-    node.remove();
-    if let Some(last_node) = self.node.last_child.get() {
-      last_node.next_sibling.set(Some(node));
-      self.node.last_child.set(Some(node));
-    } else {
-      debug_assert!(self.node.first_child.get().is_none());
-      self.node.first_child.set(Some(node));
-      self.node.last_child.set(Some(node));
-    }
-  }
-
-  fn attributes(&self) -> Self::Attributes<'_> {
-    if let NodeData::Element { attrs, .. } = &self.node.data {
-      Attributes(attrs)
-    } else {
-      unreachable!()
-    }
-  }
-
-  fn set_attributes(&self, new_attrs: Self::Attributes<'_>) {
-    if let NodeData::Element { attrs, .. } = &self.node.data {
-      attrs.replace(new_attrs.0.take());
-    }
-  }
-
-  fn parent_element(&self) -> Option<Self> {
-    self.node.parent_node()
-  }
-
-  fn class_list(
-    &self,
-  ) -> impl oxvg_ast::class_list::ClassList<
-    Attribute = <Self::Attributes<'_> as oxvg_ast::attribute::Attributes>::Attribute,
-  > {
-    use oxvg_ast::attribute::Attributes;
-    ClassList {
-      attrs: self.attributes(),
-      tokens: self
-        .attributes()
-        .get_named_item_local(&local_name!("class"))
-        .map(|a| a.value().split_whitespace().map(Into::into).collect())
-        .unwrap_or_default(),
-    }
-  }
-
-  fn document(&self) -> Option<Self> {
-    let Some(parent) = self.parent_node() else {
-      return Some(self.clone());
-    };
-    match self.node.data {
-      NodeData::Element { .. } => parent.document(),
-      NodeData::Document => Some(parent),
-      _ => None,
-    }
-  }
-
-  fn flatten(&self) {
-    let parent = self.node.parent.take();
-    let mut current = self.node.first_child.get();
-    while let Some(current_child) = current {
-      current_child.parent.set(parent);
-      current = current_child.next_sibling.get();
-    }
-
-    let previous_sibling = self.node.previous_sibling.take();
-    let next_sibling = self.node.next_sibling.take();
-    let first_child = self.node.first_child.take();
-    let last_child = self.node.last_child.take();
-
-    if let Some(first_child) = first_child {
-      if let Some(previous_sibling) = previous_sibling {
-        previous_sibling.next_sibling.set(Some(first_child));
-        first_child.previous_sibling.set(Some(previous_sibling));
-      } else if let Some(parent) = parent {
-        parent.first_child.set(Some(first_child));
-      }
-    } else if let Some(previous_sibling) = previous_sibling {
-      previous_sibling.next_sibling.set(next_sibling);
-      next_sibling.inspect(|n| n.previous_sibling.set(Some(previous_sibling)));
-    } else if let Some(parent) = parent {
-      parent.first_child.set(next_sibling);
-    }
-    if let Some(last_child) = last_child {
-      if let Some(next_sibling) = next_sibling {
-        last_child.next_sibling.set(Some(next_sibling));
-        next_sibling.previous_sibling.set(Some(last_child));
-      } else if let Some(parent) = parent {
-        parent.last_child.set(Some(last_child));
-      }
-    } else if let Some(next_sibling) = next_sibling {
-      next_sibling.previous_sibling.set(previous_sibling);
-    } else if let Some(parent) = parent {
-      parent.last_child.set(previous_sibling);
-    }
-  }
-
-  fn find_element(node: <Self as oxvg_ast::node::Node<'arena>>::ParentChild) -> Option<Self> {
-    let mut queue = VecDeque::new();
-    queue.push_back(node);
-
-    while let Some(current) = queue.pop_front() {
-      let maybe_element = current.element();
-      if maybe_element
-        .as_ref()
-        .is_some_and(|n| n.node_type() == oxvg_ast::node::Type::Element)
-      {
-        return maybe_element;
-      }
-
-      for child in current.child_nodes_iter() {
-        queue.push_back(child);
-      }
-    }
-    None
-  }
-
-  fn sort_child_elements<F>(&self, mut f: F)
-  where
-    F: FnMut(Self, Self) -> std::cmp::Ordering,
-  {
-    let mut children: Vec<_> = self.child_nodes_iter().collect();
-    children.sort_by(|a, b| {
-      let Some(a) = Element::new(a) else {
-        return std::cmp::Ordering::Less;
-      };
-      let Some(b) = Element::new(b) else {
-        return std::cmp::Ordering::Greater;
-      };
-      f(a, b)
-    });
-
-    self.node.first_child.set(children.first().copied());
-    self.node.last_child.set(children.last().copied());
-    for i in 0..children.len() {
-      let child = children[i];
-      if i > 0 {
-        child.previous_sibling.set(children.get(i - 1).copied());
-      }
-      child.next_sibling.set(children.get(i + 1).copied());
-    }
-  }
-
-  fn set_selector_flags(&self, flags: selectors::matching::ElementSelectorFlags) {
-    let NodeData::Element {
-      ref selector_flags, ..
-    } = self.node.data
-    else {
-      return;
-    };
-    selector_flags.0.set(Some(flags));
-  }
-}
-
-impl Debug for Element<'_> {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    if self.node_type() != oxvg_ast::node::Type::Element {
-      return (&self.node).fmt(f);
-    }
-    let name = self.qual_name().formatter();
-    let attributes = self.attributes();
-    let child_node_count = self.child_node_count();
-    let text = match child_node_count {
-      1 => self
-        .text_content()
-        .map(|s| s.trim().to_string())
-        .map(Cow::Owned)
-        .unwrap_or_default(),
-      _ => Cow::Borrowed(""),
-    };
-    let child_count = match child_node_count {
-      0 => String::from("/>"),
-      len => format!(">{len} child nodes</{name}>"),
-    };
-    f.debug_tuple("Element")
-      .field(&format!("<{name} {attributes:?}{child_count} {text}"))
-      .finish()
-  }
-}
-
-impl std::hash::Hash for Element<'_> {
-  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-    self.node.id().hash(state);
-  }
-}
-
-impl Eq for Element<'_> {}
-
-impl PartialEq for Element<'_> {
-  fn eq(&self, other: &Self) -> bool {
-    self.id_eq(other)
-  }
-}
-
-/// A whitespace seperated set of tokens of a class attribute's value.
-pub struct ClassList<'arena> {
-  attrs: Attributes<'arena>,
-  tokens: Vec<StrTendril>,
-}
-
-impl oxvg_ast::class_list::ClassList for ClassList<'_> {
-  type Attribute = Attr;
-
-  fn length(&self) -> usize {
-    self.tokens.len()
-  }
-
-  fn value(&self) -> <Self::Attribute as oxvg_ast::attribute::Attr>::Atom {
-    use oxvg_ast::attribute::Attributes;
-    self
-      .attrs
-      .get_named_item_local(&"class".into())
-      .map(|a| a.value().clone())
-      .unwrap_or_default()
-  }
-
-  fn add(&mut self, token: <Self::Attribute as oxvg_ast::attribute::Attr>::Atom) {
-    use oxvg_ast::attribute::Attributes;
-    if self.contains(&token) {
-      return;
-    };
-    let Some(mut attr) = self.attrs.get_named_item_local_mut(&"class".into()) else {
-      self
-        .attrs
-        .set_named_item(Attr::new(Name::new(None, "class".into()), token.clone()));
-      self.tokens.push(token);
-      return;
-    };
-
-    attr.push(&token);
-  }
-
-  fn contains(&self, token: &<Self::Attribute as oxvg_ast::attribute::Attr>::Atom) -> bool {
-    self.tokens.contains(token)
-  }
-
-  fn item(&self, index: usize) -> Option<&<Self::Attribute as oxvg_ast::attribute::Attr>::Atom> {
-    self.tokens.get(index)
-  }
-
-  fn remove(&mut self, token: &<Self::Attribute as oxvg_ast::attribute::Attr>::Atom) {
-    use oxvg_ast::attribute::Attributes;
-    let Some(index) = self.tokens.iter().position(|t| t == token) else {
-      return;
-    };
-    self.tokens.remove(index);
-
-    let mut attr = self
-      .attrs
-      .get_named_item_local_mut(&"class".into())
-      .expect("had token");
-    if self.tokens.is_empty() {
-      drop(attr);
-      self.attrs.remove_named_item_local(&"class".into());
-    } else {
-      let mut s = StrTendril::with_capacity(attr.value().len() as u32);
-      let mut first = false;
-      for token in &self.tokens {
-        if !first {
-          s.push_char(' ');
+    OxvgNodeType::DocumentType => return Ok(None),
+    OxvgNodeType::Element => {
+      let element = source
+        .element()
+        .ok_or_else(|| "OXVG element had no element data".to_owned())?;
+      let mut attrs = Vec::with_capacity(element.attributes().len());
+      for attr in element.attributes() {
+        if let OxvgAttr::XmlSpace(space) = attr.unaliased() {
+          *preserve_whitespace = matches!(space, XmlSpace::Preserve);
         }
-        s.push_tendril(token);
-        first = false;
+        let name = if matches!(attr.name().unaliased(), OxvgAttrId::XMLNS) {
+          QualName::new(None, "http://www.w3.org/2000/xmlns/".into(), "xmlns".into())
+        } else {
+          oxvg_attr_name_to_parcel(attr.prefix(), attr.local_name())
+        };
+        let value = attr
+          .to_value_string(PrinterOptions {
+            minify: true,
+            ..PrinterOptions::default()
+          })
+          .map_err(|error| format!("Could not format OXVG attribute: {error}"))?;
+        attrs.push(Attribute {
+          name,
+          value: value.into(),
+        });
       }
-      attr.set_value(s);
+
+      arena.alloc(Node::new(
+        NodeData::Element {
+          name: oxvg_name_to_parcel(element.prefix(), element.local_name()),
+          attrs: RefCell::new(attrs),
+          template_contents: None,
+          mathml_annotation_xml_integration_point: false,
+        },
+        0,
+      ))
+    }
+    OxvgNodeType::Text | OxvgNodeType::CDataSection => {
+      let Some(text) = source.text_content() else {
+        return Ok(None);
+      };
+      let Some(text) = normalize_oxvg_text(&text, *preserve_whitespace, is_first, is_last) else {
+        return Ok(None);
+      };
+      arena.alloc(Node::new(
+        NodeData::Text {
+          contents: RefCell::new(text.into()),
+        },
+        0,
+      ))
+    }
+    OxvgNodeType::Style => {
+      let Some(style) = source.style() else {
+        return Ok(None);
+      };
+      let text = style
+        .borrow()
+        .to_value_string(PrinterOptions {
+          minify: true,
+          ..PrinterOptions::default()
+        })
+        .map_err(|error| format!("Could not format OXVG style: {error}"))?;
+      arena.alloc(Node::new(
+        NodeData::Text {
+          contents: RefCell::new(text.into()),
+        },
+        0,
+      ))
+    }
+    OxvgNodeType::Comment => {
+      let contents = source.text_content().unwrap_or_default().to_string();
+      arena.alloc(Node::new(
+        NodeData::Comment {
+          contents: contents.into(),
+        },
+        0,
+      ))
+    }
+    OxvgNodeType::ProcessingInstruction => {
+      let (target, contents) = source
+        .processing_instruction()
+        .ok_or_else(|| "OXVG processing instruction had no data".to_owned())?;
+      arena.alloc(Node::new(
+        NodeData::ProcessingInstruction {
+          target: target.to_string().into(),
+          contents: RefCell::new(
+            contents
+              .map(|contents| contents.to_string())
+              .unwrap_or_default()
+              .into(),
+          ),
+        },
+        0,
+      ))
+    }
+  };
+
+  for child in source.child_nodes_iter() {
+    let child_is_first = source.first_child().is_none_or(|node| node == child)
+      || child
+        .previous_sibling()
+        .is_some_and(|node| node.node_type() == OxvgNodeType::Text);
+    let child_is_last = source.last_child().is_none_or(|node| node == child)
+      || child
+        .next_sibling()
+        .is_some_and(|node| node.node_type() == OxvgNodeType::Text);
+    if let Some(child) = oxvg_node_to_parcel(
+      arena,
+      child,
+      preserve_whitespace,
+      child_is_first,
+      child_is_last,
+    )? {
+      translated.append(child);
     }
   }
 
-  fn replace(
-    &mut self,
-    old_token: <Self::Attribute as oxvg_ast::attribute::Attr>::Atom,
-    new_token: <Self::Attribute as oxvg_ast::attribute::Attr>::Atom,
-  ) -> bool {
-    use oxvg_ast::attribute::Attributes;
-    let Some(index) = self.tokens.iter().position(|t| t == &old_token) else {
-      return false;
-    };
+  Ok(Some(translated))
+}
 
-    let mut attr = self
-      .attrs
-      .get_named_item_local_mut(&"class".into())
-      .expect("had token");
+fn oxvg_name_to_parcel(prefix: &OxvgPrefix<'_>, local: &OxvgAtom<'_>) -> QualName {
+  QualName::new(
+    prefix.value().map(|prefix| prefix.as_str().into()),
+    prefix.ns().uri().as_str().into(),
+    local.as_str().into(),
+  )
+}
 
-    let mut s = StrTendril::with_capacity(attr.value().len() as u32);
-    let mut first = false;
-    for token in &self.tokens {
-      if !first {
-        s.push_char(' ');
+fn oxvg_attr_name_to_parcel(prefix: &OxvgPrefix<'_>, local: &OxvgAtom<'_>) -> QualName {
+  let Some(prefix_value) = prefix.value() else {
+    // Default namespaces do not apply to attributes in XML.
+    return QualName::new(None, "".into(), local.as_str().into());
+  };
+  QualName::new(
+    Some(prefix_value.as_str().into()),
+    prefix.ns().uri().as_str().into(),
+    local.as_str().into(),
+  )
+}
+
+fn normalize_oxvg_text(
+  text: &str,
+  preserve_whitespace: bool,
+  is_first: bool,
+  is_last: bool,
+) -> Option<String> {
+  if preserve_whitespace {
+    return Some(
+      text
+        .chars()
+        .map(|character| match character {
+          '\n' | '\t' => ' ',
+          character => character,
+        })
+        .collect(),
+    );
+  }
+  if text.trim_start().is_empty() {
+    return None;
+  }
+
+  let mut output = String::new();
+  if !is_first && text.starts_with(char::is_whitespace) {
+    output.push(' ');
+  }
+  let mut parts = text.split_whitespace();
+  output.push_str(parts.next()?);
+  for part in parts {
+    output.push(' ');
+    output.push_str(part);
+  }
+  if !is_last && text.ends_with(char::is_whitespace) {
+    output.push(' ');
+  }
+  Some(output)
+}
+
+fn first_element<'arena>(root: Ref<'arena>) -> Option<Ref<'arena>> {
+  if matches!(root.data, NodeData::Element { .. }) {
+    return Some(root);
+  }
+  let mut child = root.first_child.get();
+  while let Some(node) = child {
+    if let Some(element) = first_element(node) {
+      return Some(element);
+    }
+    child = node.next_sibling.get();
+  }
+  None
+}
+
+fn children<'arena>(root: Ref<'arena>) -> impl Iterator<Item = Ref<'arena>> {
+  let mut child = root.first_child.get();
+  std::iter::from_fn(move || {
+    let res = child;
+    if let Some(node) = child {
+      child = node.next_sibling.get();
+    }
+    res
+  })
+}
+
+fn replace_document<'arena>(root: Ref<'arena>, translated: Ref<'arena>, preserve_doctype: bool) {
+  let doctypes = preserve_doctype
+    .then(|| {
+      children(root)
+        .into_iter()
+        .filter(|node| matches!(node.data, NodeData::Doctype { .. }))
+        .collect::<Vec<_>>()
+    })
+    .unwrap_or_default();
+  let translated_children = children(translated);
+
+  for child in children(root) {
+    child.detach();
+  }
+
+  let mut inserted_doctype = false;
+  for child in translated_children {
+    if !inserted_doctype && matches!(child.data, NodeData::Element { .. }) {
+      for doctype in &doctypes {
+        root.append(doctype);
       }
-      s.push_tendril(token);
-      first = false;
+      inserted_doctype = true;
     }
-    attr.set_value(s);
-
-    drop(attr);
-    self.tokens[index] = new_token;
-    true
+    root.append(child);
   }
-
-  fn iter(
-    &self,
-  ) -> impl DoubleEndedIterator<Item = &<Self::Attribute as oxvg_ast::attribute::Attr>::Atom> {
-    self.tokens.iter()
-  }
-}
-
-#[derive(Clone)]
-/// An XML document type with a root element
-pub struct Document<'arena>(Element<'arena>);
-
-impl<'arena> oxvg_ast::document::Document<'arena> for Document<'arena> {
-  type Root = Element<'arena>;
-
-  fn document_element(&self) -> &Self::Root {
-    &self.0
-  }
-
-  fn create_c_data_section(
-    &self,
-    data: <Self::Root as oxvg_ast::node::Node<'arena>>::Atom,
-    arena: &<Self::Root as oxvg_ast::node::Node<'arena>>::Arena,
-  ) -> <Self::Root as oxvg_ast::node::Node<'arena>>::Child {
-    self.create_text_node(data, arena)
-  }
-
-  fn create_element(
-    &self,
-    tag_name: <Self::Root as oxvg_ast::node::Node<'arena>>::Name,
-    arena: &<Self::Root as oxvg_ast::node::Node<'arena>>::Arena,
-  ) -> Self::Root {
-    Element::new(arena.alloc(Node::new(
-      NodeData::Element {
-        name: tag_name.0,
-        attrs: RefCell::new(vec![]),
-        selector_flags: SelectorFlags(Cell::new(None)),
-        mathml_annotation_xml_integration_point: false,
-        template_contents: None,
-      },
-      0,
-    )))
-    .expect("created element should be an element")
-  }
-
-  fn create_processing_instruction(
-    &self,
-    target: <Self::Root as oxvg_ast::node::Node<'arena>>::Atom,
-    data: <Self::Root as oxvg_ast::node::Node<'arena>>::Atom,
-    arena: &<Self::Root as oxvg_ast::node::Node<'arena>>::Arena,
-  ) -> <<Self::Root as oxvg_ast::node::Node<'arena>>::Child as oxvg_ast::node::Node<'arena>>::ParentChild{
-    arena.alloc(Node::new(
-      NodeData::ProcessingInstruction {
-        target,
-        contents: RefCell::new(data),
-      },
-      0,
-    ))
-  }
-
-  fn create_text_node(
-    &self,
-    data: <Self::Root as oxvg_ast::node::Node<'arena>>::Atom,
-    arena: <Self::Root as oxvg_ast::node::Node<'arena>>::Arena,
-  ) -> <Self::Root as oxvg_ast::node::Node<'arena>>::Child {
-    arena.alloc(Node::new(
-      NodeData::Text {
-        contents: RefCell::new(data),
-      },
-      0,
-    ))
-  }
-}
-
-struct ChildNodes<'arena> {
-  front: Option<Ref<'arena>>,
-  end: Option<Ref<'arena>>,
-}
-
-impl<'arena> Iterator for ChildNodes<'arena> {
-  type Item = Ref<'arena>;
-
-  fn next(&mut self) -> Option<Self::Item> {
-    if let Some(current) = self.front {
-      self.front = current.next_sibling();
-      return Some(current);
+  if !inserted_doctype {
+    for doctype in doctypes {
+      root.append(doctype);
     }
-
-    None
   }
 }
 
-impl DoubleEndedIterator for ChildNodes<'_> {
-  fn next_back(&mut self) -> Option<Self::Item> {
-    if let Some(current) = self.end {
-      self.end = current.previous_sibling();
-      return Some(current);
-    }
-
-    None
+fn replace_element<'arena>(root: Ref<'arena>, translated: Ref<'arena>) {
+  if let Some(element) = first_element(translated) {
+    root.insert_before(element);
   }
-}
-
-impl ExactSizeIterator for ChildNodes<'_> {
-  fn len(&self) -> usize {
-    let mut current = self.front;
-    let mut len = 0;
-    while let Some(node) = current {
-      current = node.next_sibling();
-      len += 1;
-    }
-    len
-  }
+  root.detach();
 }
 
 #[derive(Deserialize, Default, Debug, Clone)]
@@ -1249,7 +488,7 @@ pub struct OxvgConfig {
     deserialize_with = "ok_or_default",
     rename = "addClassesToSVGElement"
   )]
-  pub add_classes_to_svg: ConfigItem<oxvg_optimiser::AddClassesToSVG>,
+  pub add_classes_to_svg: ConfigItem<oxvg_optimiser::AddClassesToSVGElement>,
   #[serde(default, deserialize_with = "ok_or_default")]
   pub cleanup_list_of_values: ConfigItem<oxvg_optimiser::CleanupListOfValues>,
   #[serde(default, deserialize_with = "ok_or_default")]
@@ -1287,7 +526,7 @@ pub struct OxvgConfig {
   #[serde(default, deserialize_with = "ok_or_default")]
   pub remove_metadata: ConfigItem<oxvg_optimiser::RemoveMetadata>,
   #[serde(default, deserialize_with = "ok_or_default", rename = "cleanupAttrs")]
-  pub cleanup_attributes: ConfigItem<oxvg_optimiser::CleanupAttributes>,
+  pub cleanup_attributes: ConfigItem<oxvg_optimiser::CleanupAttrs>,
   #[serde(default, deserialize_with = "ok_or_default")]
   pub merge_styles: ConfigItem<()>,
   #[serde(default, deserialize_with = "ok_or_default")]
@@ -1363,7 +602,7 @@ pub struct DefaultTrue(bool);
 
 impl Default for DefaultTrue {
   fn default() -> Self {
-    DefaultTrue(true)
+    Self(true)
   }
 }
 
@@ -1379,11 +618,7 @@ pub enum ConfigItem<C> {
 
 impl<C> ConfigItem<C> {
   fn is_some(&self) -> bool {
-    match self {
-      ConfigItem::Bool(true) => true,
-      ConfigItem::Config(_) => true,
-      _ => false,
-    }
+    matches!(self, Self::Bool(true) | Self::Config(_))
   }
 }
 
@@ -1404,85 +639,51 @@ impl OxvgConfig {
   pub fn into_jobs(&self, kind: OxvgKind, path: &str) -> oxvg_optimiser::Jobs {
     let mut jobs = if self.default.0 {
       match kind {
-        OxvgKind::Html => {
-          oxvg_optimiser::Jobs {
-            // These defaults can break CSS selectors.
-            convert_shape_to_path: None,
-            // Additional defaults to preserve accessibility information.
-            remove_title: None,
-            remove_desc: None,
-            remove_unknowns_and_defaults: Some(oxvg_optimiser::RemoveUnknownsAndDefaults {
-              keep_aria_attrs: true,
-              keep_role_attr: true,
-              ..Default::default()
-            }),
-            // Do not minify ids or remove unreferenced elements in
-            // inline SVGs because they could actually be referenced
-            // by a separate inline SVG.
-            cleanup_ids: None,
-            remove_hidden_elems: None,
+        OxvgKind::Html => oxvg_optimiser::Jobs {
+          convert_shape_to_path: None,
+          remove_title: None,
+          remove_desc: None,
+          remove_unknowns_and_defaults: Some(oxvg_optimiser::RemoveUnknownsAndDefaults {
+            keep_aria_attrs: true,
+            keep_role_attr: true,
             ..Default::default()
-          }
-        }
-        OxvgKind::Svg => {
-          oxvg_optimiser::Jobs {
-            // Removing ids could break SVG sprites.
-            cleanup_ids: None,
-            ..Default::default()
-          }
-        }
+          }),
+          cleanup_ids: None,
+          remove_hidden_elems: None,
+          ..Default::default()
+        },
+        OxvgKind::Svg => oxvg_optimiser::Jobs {
+          cleanup_ids: None,
+          ..Default::default()
+        },
       }
     } else {
       oxvg_optimiser::Jobs::none()
     };
 
     macro_rules! job {
-      ($name: ident) => {
-        jobs.$name = match &self.$name {
-          ConfigItem::None => jobs.$name,
+      ($config:ident => $job:ident) => {
+        jobs.$job = match &self.$config {
+          ConfigItem::None => jobs.$job,
           ConfigItem::Bool(true) => Some(Default::default()),
           ConfigItem::Bool(false) => None,
-          ConfigItem::Config(c) => Some(c.clone().into()),
+          ConfigItem::Config(config) => Some(config.clone().into()),
         };
+      };
+      ($name:ident) => {
+        job!($name => $name);
       };
     }
 
-    job!(add_attributes_to_svg_element);
-    job!(add_classes_to_svg);
+    job!(add_attributes_to_svg_element => add_attributes_to_s_v_g_element);
+    job!(add_classes_to_svg => add_classes_to_s_v_g_element);
     job!(cleanup_list_of_values);
-
     jobs.prefix_ids = match &self.prefix_ids {
       ConfigItem::None => jobs.prefix_ids,
-      ConfigItem::Bool(true) => Some(oxvg_optimiser::PrefixIds {
-        prefix: {
-          let hash = format!("{:x}", xxh3_64(path.as_bytes()));
-          oxvg_optimiser::PrefixGenerator::Prefix(hash[hash.len() - 6..].to_owned())
-        },
-        ..Default::default()
-      }),
       ConfigItem::Bool(false) => None,
-      ConfigItem::Config(c) => Some(oxvg_optimiser::PrefixIds {
-        delim: c
-          .delim
-          .as_ref()
-          .map(|c| c.clone())
-          .unwrap_or_else(|| oxvg_optimiser::PrefixIds::default().delim),
-        prefix: match &c.prefix {
-          None => {
-            let hash = format!("{:x}", xxh3_64(path.as_bytes()));
-            oxvg_optimiser::PrefixGenerator::Prefix(hash[hash.len() - 6..].to_owned())
-          }
-          Some(c) => oxvg_optimiser::PrefixGenerator::Prefix(c.clone()),
-        },
-        prefix_ids: c
-          .prefix_ids
-          .unwrap_or_else(|| oxvg_optimiser::PrefixIds::default().prefix_ids),
-        prefix_class_names: c
-          .prefix_class_names
-          .unwrap_or_else(|| oxvg_optimiser::PrefixIds::default().prefix_class_names),
-      }),
+      ConfigItem::Bool(true) => Some(prefix_ids(path, None)),
+      ConfigItem::Config(config) => Some(prefix_ids(path, Some(config))),
     };
-
     job!(remove_attributes_by_selector);
     job!(remove_attrs);
     job!(remove_dimensions);
@@ -1493,28 +694,14 @@ impl OxvgConfig {
     job!(remove_style_element);
     job!(remove_title);
     job!(remove_view_box);
-
-    jobs.reuse_paths = match self.reuse_paths {
-      ConfigItem::None => jobs.reuse_paths,
-      ConfigItem::Bool(true) => Some(Default::default()),
-      ConfigItem::Bool(false) => None,
-      ConfigItem::Config(()) => unreachable!(),
-    };
-
+    bool_job(&self.reuse_paths, &mut jobs.reuse_paths);
     job!(remove_doctype);
-    job!(remove_xml_proc_inst);
+    job!(remove_xml_proc_inst => remove_x_m_l_proc_inst);
     job!(remove_comments);
     job!(remove_deprecated_attrs);
     job!(remove_metadata);
-    job!(cleanup_attributes);
-
-    jobs.merge_styles = match self.merge_styles {
-      ConfigItem::None => jobs.merge_styles,
-      ConfigItem::Bool(true) => Some(Default::default()),
-      ConfigItem::Bool(false) => None,
-      ConfigItem::Config(()) => unreachable!(),
-    };
-
+    job!(cleanup_attributes => cleanup_attrs);
+    bool_job(&self.merge_styles, &mut jobs.merge_styles);
     job!(inline_styles);
     job!(minify_styles);
     job!(cleanup_ids);
@@ -1541,16 +728,15 @@ impl OxvgConfig {
     job!(sort_attrs);
     job!(sort_defs_children);
     job!(remove_desc);
-    job!(remove_editors_ns_data);
+    job!(remove_editors_ns_data => remove_editors_n_s_data);
     job!(remove_unused_n_s);
     job!(remove_x_m_l_n_s);
     job!(remove_xlink);
-
     jobs
   }
 
   pub fn has_any_jobs(&self) -> bool {
-    return self.default.0
+    self.default.0
       || self.add_attributes_to_svg_element.is_some()
       || self.add_classes_to_svg.is_some()
       || self.cleanup_list_of_values.is_some()
@@ -1602,6 +788,37 @@ impl OxvgConfig {
       || self.remove_editors_ns_data.is_some()
       || self.remove_unused_n_s.is_some()
       || self.remove_x_m_l_n_s.is_some()
-      || self.remove_xlink.is_some();
+      || self.remove_xlink.is_some()
   }
+}
+
+fn bool_job<T: Default>(config: &ConfigItem<()>, job: &mut Option<T>) {
+  *job = match config {
+    ConfigItem::None => job.take(),
+    ConfigItem::Bool(true) => Some(Default::default()),
+    ConfigItem::Bool(false) => None,
+    ConfigItem::Config(()) => unreachable!(),
+  };
+}
+
+fn prefix_ids(path: &str, config: Option<&PrefixIdsOptions>) -> oxvg_optimiser::PrefixIds {
+  let hash = format!("{:x}", xxh3_64(path.as_bytes()));
+  let mut value = serde_json::Map::new();
+  value.insert(
+    "prefix".into(),
+    config
+      .and_then(|config| config.prefix.clone())
+      .unwrap_or_else(|| hash[hash.len() - 6..].to_owned())
+      .into(),
+  );
+  if let Some(delim) = config.and_then(|config| config.delim.clone()) {
+    value.insert("delim".into(), delim.into());
+  }
+  if let Some(prefix_ids) = config.and_then(|config| config.prefix_ids) {
+    value.insert("prefixIds".into(), prefix_ids.into());
+  }
+  if let Some(prefix_class_names) = config.and_then(|config| config.prefix_class_names) {
+    value.insert("prefixClassNames".into(), prefix_class_names.into());
+  }
+  serde_json::from_value(value.into()).unwrap_or_default()
 }

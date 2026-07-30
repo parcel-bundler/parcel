@@ -1,6 +1,5 @@
 use std::{
   collections::{HashMap, HashSet},
-  path::PathBuf,
   sync::Arc,
 };
 

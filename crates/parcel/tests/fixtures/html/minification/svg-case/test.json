@@ -5,7 +5,7 @@
   "bundles": [
     {"type": "html", "assets": ["index.html"], "contains": [
       "<x-custom stddeviation=0.5",
-      "<svg preserveAspectRatio=\"xMinYMin meet\" role=img viewBox=\"1.8 2.4 2 2\"",
+      "<svg preserveAspectRatio=xMinYMin role=img viewBox=\"1.8 2.4 2 2\"",
       "<filter",
       "<feGaussianBlur in=SourceGraphic stdDeviation"
     ]},

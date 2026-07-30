@@ -6,6 +6,6 @@ edition = "2024"
 
 [dependencies]
 parcel-core = { path = "../core" }
-lightningcss = { git = "https://github.com/parcel-bundler/lightningcss.git", features = ["into_owned", "visitor"] }
+lightningcss = { version = "1.0.0-alpha.72", features = ["into_owned", "visitor"] }
 serde = { version = "1.0.228", features = ["derive", "rc"] }
 parcel_sourcemap = "*"

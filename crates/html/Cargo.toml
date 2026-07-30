@@ -11,19 +11,21 @@ serde_bytes = "0.11.5"
 serde_json = "1.0.91"
 typed-arena = "2.0.2"
 xml5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "xmlns-attrs" }
-cssparser = "0.34.0"
-oxvg_ast = { git = "https://github.com/noahbald/oxvg.git" }
-oxvg_optimiser = { git = "https://github.com/noahbald/oxvg.git" }
+cssparser = "0.37.0"
+oxvg_ast = { version = "0.0.6", git = "https://github.com/devongovett/oxvg.git", branch = "update-lightningcss" }
+oxvg_collections =  { version = "0.0.6", git = "https://github.com/devongovett/oxvg.git", branch = "update-lightningcss" }
+oxvg_optimiser =  { version = "0.0.6", git = "https://github.com/devongovett/oxvg.git", branch = "update-lightningcss" }
+oxvg_serialize =  { version = "0.0.6", git = "https://github.com/devongovett/oxvg.git", branch = "update-lightningcss" }
+lightningcss = "1.0.0-alpha.72"
 anyhow = "*"
-selectors = "0.26"
 swc_core = { version = "66", features = [
   "common",
   "ecma_parser",
   "ecma_ast",
   "ecma_codegen",
   "ecma_quote",
+  "ecma_visit",
 ] }
-lightningcss = { git = "https://github.com/parcel-bundler/lightningcss.git" }
 convert_case = "0.6.0"
 indexmap = { version = "1.9.2", features = ["serde"] }
 ref-cast = "1.0"

@@ -390,28 +390,8 @@ pub fn optimize<'arena>(
           remove_whitespace(node, &options);
 
           if should_optimize_svg {
-            // Detach the node to prevent Oxvg from altering following siblings.
-            let parent = node.parent.take();
-            let previous_sibling = node.previous_sibling.take();
-            let next_sibling = node.next_sibling.take();
-
-            // Synthesize a fake document node to act as the root of the SVG.
-            let document = arena.alloc(Node::new(NodeData::Document, 0));
-            document.append(node);
-
             let jobs = options.minify_svg.into_jobs(OxvgKind::Html, path);
-            match jobs.run(
-              &&*document,
-              &oxvg_ast::visitor::Info::<crate::oxvg::Element>::new(arena),
-            ) {
-              Err(_err) => {}
-              Ok(()) => {}
-            }
-
-            // Reattach in original position.
-            node.parent.set(parent);
-            node.previous_sibling.set(previous_sibling);
-            node.next_sibling.set(next_sibling);
+            let _ = crate::oxvg::optimize(arena, node, &jobs);
           }
         }
         _ => {
@@ -470,13 +450,7 @@ pub fn optimize_svg<'arena>(
 ) {
   if options.has_any_jobs() {
     let jobs = options.into_jobs(OxvgKind::Svg, path);
-    match jobs.run(
-      &dom,
-      &oxvg_ast::visitor::Info::<crate::oxvg::Element>::new(arena),
-    ) {
-      Err(_err) => {}
-      Ok(()) => {}
-    }
+    let _ = crate::oxvg::optimize(arena, dom, &jobs);
   }
 
   dom.walk(&mut |node| match &node.data {

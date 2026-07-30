@@ -72,21 +72,11 @@ pub enum NodeData<'arena> {
     attrs: RefCell<Vec<Attribute>>,
     template_contents: Option<Ref<'arena>>,
     mathml_annotation_xml_integration_point: bool,
-    selector_flags: SelectorFlags,
   },
   ProcessingInstruction {
     target: StrTendril,
     contents: RefCell<StrTendril>,
   },
-}
-
-#[derive(Clone)]
-pub struct SelectorFlags(pub Cell<Option<selectors::matching::ElementSelectorFlags>>);
-
-impl PartialEq<SelectorFlags> for SelectorFlags {
-  fn eq(&self, _other: &SelectorFlags) -> bool {
-    true
-  }
 }
 
 impl<'arena> std::fmt::Debug for Node<'arena> {
@@ -147,7 +137,6 @@ impl<'arena> Node<'arena> {
         attrs: RefCell::new(Vec::new()),
         template_contents: None,
         mathml_annotation_xml_integration_point: false,
-        selector_flags: SelectorFlags(Cell::new(None)),
       },
       1,
     )
@@ -500,7 +489,6 @@ impl<'arena> TreeSink for Sink<'arena> {
         None
       },
       mathml_annotation_xml_integration_point: flags.mathml_annotation_xml_integration_point,
-      selector_flags: SelectorFlags(Cell::new(None)),
     })
   }
 
