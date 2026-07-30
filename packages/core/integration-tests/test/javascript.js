@@ -1767,6 +1767,53 @@ describe('javascript', function () {
     assert.equal(output(), true);
   });
 
+  it('should replace process.platform imports for target browser', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/process-platform/index.js'),
+      {
+        targets: {
+          main: {
+            context: 'browser',
+            distDir: path.join(
+              __dirname,
+              '/integration/process-platform/dist.js',
+            ),
+          },
+        },
+      },
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.js'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(output, 'browser');
+  });
+
+  it('should preserve process.platform imports for target node', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/process-platform/index.js'),
+      {
+        targets: {
+          main: {
+            context: 'node',
+            distDir: path.join(
+              __dirname,
+              '/integration/process-platform/dist.js',
+            ),
+          },
+        },
+      },
+    );
+
+    let output = await run(b);
+    assert.equal(output, process.platform);
+  });
+
   it('should not touch process.browser for target node', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/process/index.js'),
