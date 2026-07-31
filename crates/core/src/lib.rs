@@ -21,6 +21,7 @@ mod target;
 mod transformer;
 
 use std::{
+  borrow::Cow,
   collections::{HashMap, HashSet},
   path::Path,
   sync::{
@@ -481,9 +482,9 @@ pub fn get_bundle_content(
   let name = bundle.dist_path().relative(&bundle.target.dist_dir);
   let optimizers = config
     .optimizers
-    .get(name.to_str().unwrap(), &pipeline, false);
+    .get(Cow::Borrowed(name.to_str().unwrap()), &pipeline, false);
 
-  for optimizer in optimizers.0 {
+  for optimizer in optimizers {
     content = optimizer.optimize(&bundle_graph, &bundle, content, options)?;
   }
 

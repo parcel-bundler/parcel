@@ -2,7 +2,7 @@ use either::Either;
 use glob_match::glob_match;
 use indexmap::IndexMap;
 use serde::Deserialize;
-use std::{ffi::OsStr, path::Path, sync::Arc};
+use std::{borrow::Cow, collections::HashSet, ffi::OsStr, path::Path, slice, sync::Arc};
 
 use crate::{
   Diagnostic, DiagnosticList, FileSystem, PathId, bundler::Bundler, namer::Namer,
@@ -84,83 +84,42 @@ pub enum PipelineNode<T: ?Sized> {
   Spread,
 }
 
-pub struct Pipeline<T: ?Sized>(pub Vec<Arc<T>>);
-
-impl<T: ?Sized> PartialEq for Pipeline<T> {
-  fn eq(&self, other: &Self) -> bool {
-    if self.0.len() != other.0.len() {
-      return false;
-    }
-
-    let mut idx = 0;
-    while idx < self.0.len() {
-      if !Arc::ptr_eq(&self.0[idx], &other.0[idx]) {
-        return false;
-      }
-      idx += 1;
-    }
-
-    true
-  }
-}
-
 impl<T: ?Sized> PipelineMap<T> {
-  pub fn get<P: AsRef<str>>(
-    &self,
-    path: &str,
+  pub fn get<'a, P: AsRef<str>>(
+    &'a self,
+    path: Cow<'a, str>,
     pipeline: &Option<P>,
     _allow_empty: bool,
-  ) -> Pipeline<T> {
-    let basename = Path::new(path)
+  ) -> Pipeline<'a, T> {
+    let basename = Path::new(&*path)
       .file_name()
-      .unwrap_or_else(|| OsStr::new(path))
+      .unwrap_or_else(|| OsStr::new(&*path))
       .to_str()
-      .unwrap();
+      .unwrap()
+      .to_owned();
 
-    let mut matches = Vec::new();
-    if let Some(pipeline) = pipeline {
-      let exact_match = self
+    let current = pipeline.as_ref().and_then(|pipeline| {
+      self
         .0
         .iter()
-        .find(|(pattern, _)| is_match(pattern, path, basename, pipeline.as_ref()));
-      if let Some((_, m)) = exact_match {
-        matches.push(m);
+        .find(|(pattern, _)| is_match(pattern, &path, &basename, pipeline.as_ref()))
+        .map(|(_, pipeline)| pipeline.iter())
+    });
+
+    Pipeline {
+      pipelines: &self.0,
+      path,
+      basename: basename,
+      // A missing named pipeline must not fall back to a default pipeline.
+      pipeline_index: if pipeline.is_some() && current.is_none() {
+        self.0.len()
       } else {
-        return Pipeline(Vec::new());
-      }
+        0
+      },
+      current,
+      stack: Vec::new(),
+      seen: HashSet::new(),
     }
-
-    for (pattern, pipeline) in self.0.iter() {
-      if is_match(pattern, path, basename, "") {
-        matches.push(pipeline);
-      }
-    }
-
-    if matches.is_empty() {
-      return Pipeline(Vec::new());
-    }
-
-    fn flatten<T: ?Sized>(matches: &mut Vec<&Vec<PipelineNode<T>>>) -> Vec<Arc<T>> {
-      if matches.is_empty() {
-        return Vec::new();
-      }
-
-      matches
-        .remove(0)
-        .into_iter()
-        .flat_map(|node| {
-          match node {
-            PipelineNode::Plugin(plugin) => vec![plugin.clone()],
-            PipelineNode::Spread => {
-              // TODO: error if more than one spread
-              flatten(matches)
-            }
-          }
-        })
-        .collect()
-    }
-
-    Pipeline(flatten(&mut matches))
   }
 
   pub fn named_pipelines(&self) -> Vec<&str> {
@@ -175,6 +134,87 @@ impl<T: ?Sized> PipelineMap<T> {
 fn is_match(pattern: &str, path: &str, basename: &str, pipeline: &str) -> bool {
   let (pattern_pipeline, glob) = pattern.split_once(':').unwrap_or(("", pattern));
   pipeline == pattern_pipeline && (glob_match(glob, basename) || glob_match(glob, path))
+}
+
+pub struct Pipeline<'a, T: ?Sized> {
+  pipelines: &'a [(String, Vec<PipelineNode<T>>)],
+  pipeline_index: usize,
+  path: Cow<'a, str>,
+  basename: String,
+  current: Option<slice::Iter<'a, PipelineNode<T>>>,
+  stack: Vec<slice::Iter<'a, PipelineNode<T>>>,
+  seen: HashSet<*const T>,
+}
+
+impl<'a, T: ?Sized> Pipeline<'a, T> {
+  pub fn change_type(&mut self, path: String, pipeline: &mut Option<hstr::Atom>) {
+    self.basename = Path::new(&path)
+      .file_name()
+      .unwrap_or_else(|| OsStr::new(&path))
+      .to_str()
+      .unwrap()
+      .to_owned();
+    self.path = Cow::Owned(path);
+
+    self.stack.clear();
+    self.current = pipeline.as_ref().and_then(|pipeline| {
+      self
+        .pipelines
+        .iter()
+        .find(|(pattern, _)| is_match(pattern, &self.path, &self.basename, pipeline.as_ref()))
+        .map(|(_, pipeline)| pipeline.iter())
+    });
+
+    // For type changes, we do fall back to a default pipeline if a named pipeline does not exist.
+    self.pipeline_index = 0;
+    if pipeline.is_some() && self.current.is_none() {
+      *pipeline = None;
+    }
+  }
+
+  fn next_pipeline(&mut self) -> Option<&'a [PipelineNode<T>]> {
+    while let Some((pattern, pipeline)) = self.pipelines.get(self.pipeline_index) {
+      self.pipeline_index += 1;
+      if is_match(pattern, &self.path, &self.basename, "") {
+        return Some(pipeline);
+      }
+    }
+
+    None
+  }
+}
+
+impl<T: ?Sized> Iterator for Pipeline<'_, T> {
+  type Item = Arc<T>;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    loop {
+      if self.current.is_none() {
+        self.current = Some(self.next_pipeline()?.iter());
+      }
+
+      match self.current.as_mut().unwrap().next() {
+        Some(PipelineNode::Plugin(plugin)) => {
+          if self.seen.insert(Arc::as_ptr(plugin)) {
+            return Some(plugin.clone());
+          }
+        }
+        Some(PipelineNode::Spread) => {
+          if let Some(pipeline) = self.next_pipeline() {
+            self.stack.push(self.current.take().unwrap());
+            self.current = Some(pipeline.iter());
+          }
+        }
+        None => {
+          if let Some(parent) = self.stack.pop() {
+            self.current = Some(parent);
+          } else {
+            return None;
+          }
+        }
+      }
+    }
+  }
 }
 
 // impl Default for ParcelConfig {
@@ -433,5 +473,109 @@ impl RawPipelineMap {
         })
         .collect::<Result<_, DiagnosticList>>()?,
     ))
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn plugin(name: &str) -> PipelineNode<str> {
+    PipelineNode::Plugin(Arc::from(name))
+  }
+
+  fn names(pipeline: Pipeline<'_, str>) -> Vec<String> {
+    pipeline.map(|plugin| plugin.to_string()).collect()
+  }
+
+  #[test]
+  fn recursively_expands_matching_pipelines_at_spreads() {
+    let pipelines = PipelineMap(vec![
+      (
+        "*.js".into(),
+        vec![plugin("first"), PipelineNode::Spread, plugin("last")],
+      ),
+      (
+        "*.js".into(),
+        vec![plugin("second"), PipelineNode::Spread, plugin("fourth")],
+      ),
+      ("src/*.js".into(), vec![plugin("third")]),
+    ]);
+
+    assert_eq!(
+      names(pipelines.get::<&str>("src/app.js".into(), &None, false)),
+      ["first", "second", "third", "fourth", "last"]
+    );
+  }
+
+  #[test]
+  fn expands_defaults_from_a_named_pipeline() {
+    let pipelines = PipelineMap(vec![
+      (
+        "custom:*.js".into(),
+        vec![plugin("named"), PipelineNode::Spread],
+      ),
+      ("*.js".into(), vec![plugin("default")]),
+    ]);
+
+    assert_eq!(
+      names(pipelines.get("app.js".into(), &Some("custom"), false)),
+      ["named", "default"]
+    );
+    assert!(
+      pipelines
+        .get("app.js".into(), &Some("missing"), false)
+        .next()
+        .is_none()
+    );
+  }
+
+  #[test]
+  fn change_type_continues_after_seen_plugins() {
+    let pipelines = PipelineMap(vec![(
+      "*.{js,css}".into(),
+      vec![plugin("type-changer"), plugin("after")],
+    )]);
+    let mut pipeline = pipelines.get::<&str>("app.js".into(), &None, false);
+
+    assert_eq!(pipeline.next().unwrap().as_ref(), "type-changer");
+    pipeline.change_type("app.css".into(), &mut None);
+
+    assert_eq!(names(pipeline), ["after"]);
+  }
+
+  #[test]
+  fn change_type_preserves_the_first_named_plugin() {
+    let pipelines = PipelineMap(vec![
+      (
+        "custom:*.css".into(),
+        vec![plugin("named-first"), plugin("named-second")],
+      ),
+      ("*.js".into(), vec![plugin("type-changer")]),
+      ("*.css".into(), vec![plugin("default")]),
+    ]);
+    let mut pipeline = pipelines.get::<&str>("app.js".into(), &None, false);
+    pipeline.next();
+
+    let mut named_pipeline = Some(hstr::Atom::from("custom"));
+    pipeline.change_type("app.css".into(), &mut named_pipeline);
+
+    assert_eq!(names(pipeline), ["named-first", "named-second"]);
+  }
+
+  #[test]
+  fn change_type_falls_back_when_named_pipeline_is_missing() {
+    let pipelines = PipelineMap(vec![
+      ("*.js".into(), vec![plugin("type-changer")]),
+      ("*.css".into(), vec![plugin("default")]),
+    ]);
+    let mut pipeline = pipelines.get::<&str>("app.js".into(), &None, false);
+    pipeline.next();
+
+    let mut named_pipeline = Some(hstr::Atom::from("missing"));
+    pipeline.change_type("app.css".into(), &mut named_pipeline);
+
+    assert!(named_pipeline.is_none());
+    assert_eq!(names(pipeline), ["default"]);
   }
 }

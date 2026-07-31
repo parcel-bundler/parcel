@@ -1,11 +1,9 @@
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use crate::{
   Asset, AssetFlags, AssetNodeIndex, AssetRequest, AssetSymbols, AssetType, DependencyFlags,
   DependencyResolution, Diagnostic, DiagnosticList, FileSystem, Invalidations, ParcelOptions,
-  PathId, Pipeline, SourceUrl, Target, TrackingFileSystem,
-  config::{ParcelConfig, PipelineMap},
-  resolver::resolve,
+  PathId, Pipeline, SourceUrl, Target, TrackingFileSystem, config::ParcelConfig, resolver::resolve,
 };
 
 pub trait Transformer: Send + Sync {
@@ -65,10 +63,11 @@ impl TransformRequest {
   fn transform(&self, invalidations: &mut Invalidations) -> Result<Asset, DiagnosticList> {
     let req = &self.req;
     let relative_path = relative_path(&req.loc.url, &self.options.project_root, &req.ty)?;
-    let transformer_pipeline = self
-      .config
-      .transformers
-      .get(&relative_path, &req.pipeline, false);
+    let transformer_pipeline =
+      self
+        .config
+        .transformers
+        .get(Cow::Borrowed(&relative_path), &req.pipeline, false);
 
     let mut flags = AssetFlags::empty();
     flags.set(AssetFlags::SIDE_EFFECTS, req.side_effects);
@@ -97,14 +96,7 @@ impl TransformRequest {
     let fs: Arc<dyn FileSystem> = tracker.clone();
 
     let result = {
-      let mut asset = transform(
-        asset,
-        transformer_pipeline,
-        &self.config.transformers,
-        &self.options,
-        &fs,
-      )?;
-
+      let mut asset = transform(asset, transformer_pipeline, &self.options, &fs)?;
       asset.target = Target::normalize(&asset.target, &asset.ty);
 
       let resolvers = &self.config.resolvers;
@@ -131,30 +123,20 @@ impl TransformRequest {
   }
 }
 
-pub fn transform(
+fn transform(
   asset: Asset,
-  pipeline: Pipeline<dyn Transformer>,
-  transformers: &PipelineMap<dyn Transformer>,
+  mut pipeline: Pipeline<'_, dyn Transformer>,
   options: &ParcelOptions,
   fs: &Arc<dyn FileSystem>,
 ) -> Result<Asset, DiagnosticList> {
   let mut input = asset;
 
-  for plugin in &pipeline.0 {
+  while let Some(plugin) = pipeline.next() {
     let ty: AssetType = input.ty.clone();
     let mut result = plugin.transform(input, options, fs)?;
     if result.ty != ty {
       let next_path = relative_path(&result.loc.url, &options.project_root, &result.ty)?;
-
-      let mut next_pipeline = transformers.get(&next_path, &result.pipeline, false);
-      if result.pipeline.is_some() && next_pipeline.0.is_empty() {
-        result.pipeline = None;
-        next_pipeline = transformers.get(&next_path, &result.pipeline, false);
-      }
-
-      if next_pipeline != pipeline {
-        return transform(result, next_pipeline, transformers, options, fs);
-      }
+      pipeline.change_type(next_path, &mut result.pipeline);
     }
 
     input = result;

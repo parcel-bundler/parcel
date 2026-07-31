@@ -1,0 +1,5 @@
+{
+  "description": "should not run the JS transformer twice when an extended MDX pipeline uses spread",
+  "input": "index.js",
+  "output": "<pre><code class=\"language-tsx\">&lt;div&gt;Hello&lt;/div&gt;</code></pre><div>Hello</div>"
+}
