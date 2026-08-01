@@ -976,7 +976,12 @@ pub fn to_component<'arena>(dom: &'arena Node<'arena>, options: &JsxOptions) -> 
 
   let module = if let Some(mut template) = template {
     if let Some(import) = import {
-      template.body.insert(0, import);
+      let index = template
+        .body
+        .iter()
+        .position(|p| !is_directive(p))
+        .unwrap_or(0);
+      template.body.insert(index, import);
     }
     template.visit_mut_with(&mut TemplateReplacer { expr: Some(expr) });
     template
@@ -999,6 +1004,14 @@ pub fn to_component<'arena>(dom: &'arena Node<'arena>, options: &JsxOptions) -> 
   };
 
   Program::Module(module)
+}
+
+fn is_directive(item: &ModuleItem) -> bool {
+  if let ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) = item {
+    matches!(&**expr, Expr::Lit(Lit::Str(Str { .. })))
+  } else {
+    false
+  }
 }
 
 fn conditional_el(name: &str, children: Ident) -> JSXElementChild {
