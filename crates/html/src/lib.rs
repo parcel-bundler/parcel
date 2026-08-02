@@ -552,10 +552,6 @@ impl Transformer for SvgToJsxTransformer {
   ) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let mut config = self.config.clone();
-    config.svgo = asset
-      .target
-      .flags
-      .contains(EnvironmentFlags::SHOULD_OPTIMIZE);
     if matches!(config.svgo_config.prefix_ids, ConfigItem::None) {
       config.svgo_config.prefix_ids = ConfigItem::Bool(true);
     }
