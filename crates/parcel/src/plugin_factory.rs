@@ -267,6 +267,26 @@ impl DefaultPluginFactory {
       );
     }
 
+    // A locally built library wins over the published artifacts outright. The key
+    // does not survive publishing, so a package that has it is a working tree, and
+    // treating it as a fallback would only muddy the "artifact not installed"
+    // diagnostic below.
+    if let Some(library) = package.dev_library() {
+      let path = dir.join(Path::new(&library));
+      if !self.fs.kind(path).contains(FileKind::IS_FILE) {
+        return Err(
+          Diagnostic::from_message(format!(
+            "{} declares `parcel.devLibrary` {:?}, but {:?} does not exist. Build the plugin first.",
+            module,
+            package.parcel.dev_library.as_deref().unwrap_or_default(),
+            path
+          ))
+          .into(),
+        );
+      }
+      return Ok(Some(Arc::new(CPlugin::new(path, config)?)));
+    }
+
     let Some(artifact) = package.artifact() else {
       return Err(
         Diagnostic::from_message(format!(
@@ -351,6 +371,7 @@ impl DefaultPluginFactory {
       .resolver
       .resolve_package_dir(module, from, &*self.fs)
       .ok()?;
+    let dir = self.fs.canonicalize(dir).ok()?;
     let contents = self.fs.read_to_string(dir.child("package.json")).ok()?;
     let package = PluginPackage::parse(&contents).ok()?;
     Some((dir, package))

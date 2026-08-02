@@ -43,12 +43,21 @@ use serde::{Deserialize, Serialize};
 /// construction — unlike [`std::env::consts`], it distinguishes gnu from musl.
 pub const TARGET: &str = env!("PARCEL_TARGET");
 
+/// Extension of a shared library on the platform Parcel is running on.
+pub const LIBRARY_EXTENSION: &str = if cfg!(target_os = "macos") {
+  "dylib"
+} else if cfg!(target_os = "windows") {
+  "dll"
+} else {
+  "so"
+};
+
 /// The `parcel` key of a plugin's package.json.
 ///
 /// One type covers both kinds of package: `artifacts` identifies the public
 /// package of a native plugin, and `library` an artifact package.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, rename_all = "camelCase")]
 pub struct PluginManifest {
   /// The plugin ABI the shared libraries were built against.
   pub abi: Option<u32>,
@@ -56,6 +65,15 @@ pub struct PluginManifest {
   pub artifacts: BTreeMap<String, String>,
   /// Path to the shared library, relative to the package root.
   pub library: Option<String>,
+  /// Path to a locally built library, relative to the package root, used in place
+  /// of `artifacts` while developing the plugin.
+  ///
+  /// Publishing strips this, so a package that still has it is by definition a
+  /// working tree rather than something a consumer installed. That is what makes
+  /// it safe for it to win over `artifacts` outright, instead of being a fallback
+  /// for when they cannot be resolved — a fallback would turn a genuinely missing
+  /// artifact package into a confusing second failure.
+  pub dev_library: Option<String>,
 }
 
 /// The package.json fields consulted when loading a plugin.
@@ -81,6 +99,26 @@ impl PluginPackage {
   /// The artifact package to load on the platform Parcel is running on.
   pub fn artifact(&self) -> Option<&str> {
     self.parcel.artifacts.get(TARGET).map(|name| name.as_str())
+  }
+
+  /// The locally built library to load instead of an artifact package, with this
+  /// platform's extension applied.
+  ///
+  /// The extension is appended rather than written by the author, so one entry
+  /// works for everyone on the team: `cargo build` produces `libplugin.dylib`,
+  /// `.so`, or `.dll` depending on who runs it. An extension that is already
+  /// there is left alone.
+  pub fn dev_library(&self) -> Option<String> {
+    let library = self.parcel.dev_library.as_deref()?;
+    let has_extension = ["so", "dylib", "dll"]
+      .iter()
+      .any(|ext| library.to_ascii_lowercase().ends_with(&format!(".{ext}")));
+
+    Some(if has_extension {
+      library.to_owned()
+    } else {
+      format!("{library}.{LIBRARY_EXTENSION}")
+    })
   }
 }
 

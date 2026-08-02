@@ -207,3 +207,60 @@ fn test_missing_artifact_file_reports_a_useful_error() {
     "error should name the missing library, got:\n{error}"
   );
 }
+
+/// Writes a plugin package whose artifacts point at a package that is not
+/// installed, plus a devLibrary pointing at a local build. Only the devLibrary
+/// can possibly resolve, which is what makes it visible in the assertion.
+fn write_plugin_package_with_dev_library(root: &Path, dev_library: &str) {
+  fs::write(
+    root.join("node_modules").join(PLUGIN).join("package.json"),
+    format!(
+      r#"{{"name":"{PLUGIN}","version":"1.0.0","parcel":{{"abi":1,"artifacts":{{"{TARGET}":"{ARTIFACT}"}},"devLibrary":"{dev_library}"}}}}"#
+    ),
+  )
+  .expect("write plugin package.json");
+}
+
+/// A locally built library takes precedence over the published artifacts, so a
+/// plugin author can iterate without installing anything or editing the artifact
+/// map. Publishing strips the key, so it can only ever apply in a working tree.
+#[test]
+fn test_dev_library_wins_over_artifacts() {
+  let library = build_rust_plugin();
+  let root = test_root("parcel-rust-plugin-dev-library-test");
+
+  // Deliberately left without an extension: Parcel appends this platform's, so
+  // one entry works for everyone on a team regardless of what they build on.
+  let plugin_dir = root.join("node_modules").join(PLUGIN);
+  fs::create_dir_all(plugin_dir.join("build")).expect("create build dir");
+  fs::copy(
+    &library,
+    plugin_dir.join("build").join(format!("local.{LIB_EXT}")),
+  )
+  .expect("copy library");
+  write_plugin_package_with_dev_library(&root, "./build/local");
+
+  let content = build_fixture(&write_parcelrc(&root)).expect("build should have succeeded");
+  assert!(
+    content.contains("Hello from Go!"),
+    "expected the local build to have transformed greeting.txt, got:\n{content}"
+  );
+}
+
+/// Falling through to the artifacts here would be the worst outcome available: a
+/// stale published binary loads and the author's changes appear to do nothing.
+#[test]
+fn test_missing_dev_library_reports_a_useful_error() {
+  let root = test_root("parcel-rust-plugin-dev-library-missing-test");
+  write_plugin_package_with_dev_library(&root, "./build/local");
+
+  let error = build_fixture(&write_parcelrc(&root)).expect_err("build should have failed");
+  assert!(
+    error.contains("devLibrary") && error.contains("./build/local"),
+    "error should name the devLibrary that is missing, got:\n{error}"
+  );
+  assert!(
+    error.contains("Build the plugin first"),
+    "error should say what to do about it, got:\n{error}"
+  );
+}

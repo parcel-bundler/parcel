@@ -51,6 +51,30 @@ picks the artifact to load at runtime. A Go plugin's package.json has exactly th
 The workflow detects the toolchain from the plugin directory — `Cargo.toml` means Rust,
 `go.mod` means Go — or takes the `language` input if a repository has both.
 
+## Developing a plugin
+
+The artifact packages only exist once you have published, which is awkward while you are
+still writing the plugin. Point `parcel.devLibrary` at your local build instead:
+
+```json
+"parcel": {
+  "abi": 2,
+  "artifacts": { "…": "…" },
+  "devLibrary": "./target/debug/libmy_plugin"
+}
+```
+
+Parcel loads that in place of the artifact for the current platform, so a `.parcelrc` can
+name the plugin the way consumers will — `"@acme/my-plugin"` — with no edit-and-revert
+cycle before publishing. Leave the extension off and Parcel appends this platform's, so
+one entry works for everyone regardless of what they build on.
+
+It wins over `artifacts` outright rather than acting as a fallback, and if the file is
+missing the build fails saying so. Falling back would mean a stale published binary
+loading while your changes appear to do nothing. This is safe because the workflow
+**strips `devLibrary` when it publishes**, so a package that has it is by definition a
+working tree rather than something a consumer installed.
+
 A Rust plugin's `Cargo.toml` must build a `cdylib`:
 
 ```toml
@@ -179,7 +203,8 @@ Fields that describe your wrapper package's own code — `scripts`, dependencies
 package contains nothing but the binary.
 
 Your own package is published as-is apart from `optionalDependencies`, which the workflow
-adds with an exact-version entry for each artifact package. Your checked-in package.json
+adds with an exact-version entry for each artifact package, and `parcel.devLibrary`, which
+it drops. Your checked-in package.json
 is not modified: the edit is made against a temporary copy while packing.
 
 ### Keeping Rust sources out of your package

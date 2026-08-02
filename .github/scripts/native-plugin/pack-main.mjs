@@ -51,15 +51,27 @@ for (let target of targets) {
   optionalDependencies[pkg.parcel.artifacts[target]] = pkg.version;
 }
 
+// parcel.devLibrary points at a build inside the author's working tree, so it is
+// meaningless to a consumer. Dropping it here is also what lets Parcel treat the
+// key as authoritative when it *is* present: it can only be present in a checkout.
+let parcel = {...pkg.parcel};
+let devLibrary = parcel.devLibrary;
+delete parcel.devLibrary;
+
 let original = fs.readFileSync(file, 'utf8');
 let out = path.resolve(values.out);
 fs.mkdirSync(out, {recursive: true});
 
 let packed;
 try {
-  writeJson(file, {...pkg, optionalDependencies});
+  writeJson(file, {...pkg, parcel, optionalDependencies});
   console.log('Added optionalDependencies:');
   console.log(JSON.stringify(optionalDependencies, null, 2));
+  if (devLibrary != null) {
+    console.log(
+      `Dropped parcel.devLibrary (${devLibrary}) from the published package`,
+    );
+  }
 
   packed = npmPack(dir, out);
 } finally {
