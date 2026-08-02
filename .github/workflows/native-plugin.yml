@@ -1,0 +1,292 @@
+# Reusable workflow that builds a native (Rust) Parcel plugin for every target
+# listed in its package.json, and publishes the results to npm.
+#
+# See .github/scripts/native-plugin/README.md for usage.
+name: native-plugin
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: 'Path to the plugin directory, containing package.json and Cargo.toml'
+        required: false
+        default: '.'
+        type: string
+      publish:
+        description: 'Publish to npm once every target has built successfully'
+        required: false
+        default: false
+        type: boolean
+      rust-toolchain:
+        description: 'Rust toolchain to build with'
+        required: false
+        default: 'stable'
+        type: string
+      cargo-args:
+        description: 'Extra arguments passed to cargo build (e.g. --features foo)'
+        required: false
+        default: ''
+        type: string
+      node-version:
+        description: 'Node.js version used to run the packaging scripts and npm publish'
+        required: false
+        default: '24'
+        type: string
+      zig-version:
+        description: 'Zig version used by cargo-zigbuild for Linux targets'
+        required: false
+        default: '0.14.0'
+        type: string
+    outputs:
+      name:
+        description: 'Name of the plugin package'
+        value: ${{ jobs.matrix.outputs.name }}
+      version:
+        description: 'Version that was built (and published, if enabled)'
+        value: ${{ jobs.matrix.outputs.version }}
+
+jobs:
+  matrix:
+    name: Read targets
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      name: ${{ steps.matrix.outputs.name }}
+      version: ${{ steps.matrix.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # job.workflow_repository/job.workflow_sha identify this reusable workflow
+      # file, so the scripts are always the ones belonging to the ref the caller
+      # pinned - including when a fork is being tested.
+      - name: Check out packaging scripts
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .parcel-native-plugin-scripts
+          sparse-checkout: .github/scripts/native-plugin
+          sparse-checkout-cone-mode: false
+          filter: blob:none
+      - name: Move packaging scripts out of the workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/native-plugin"
+          mv .parcel-native-plugin-scripts/.github/scripts/native-plugin/* "$RUNNER_TEMP/native-plugin/"
+          rm -rf .parcel-native-plugin-scripts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Compute build matrix
+        id: matrix
+        shell: bash
+        env:
+          PLUGIN_DIR: ${{ inputs.path }}
+        run: node "$RUNNER_TEMP/native-plugin/matrix.mjs" --dir "$PLUGIN_DIR"
+
+  build:
+    name: ${{ matrix.target }}
+    needs: matrix
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out packaging scripts
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .parcel-native-plugin-scripts
+          sparse-checkout: .github/scripts/native-plugin
+          sparse-checkout-cone-mode: false
+          filter: blob:none
+      - name: Move packaging scripts out of the workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/native-plugin"
+          mv .parcel-native-plugin-scripts/.github/scripts/native-plugin/* "$RUNNER_TEMP/native-plugin/"
+          rm -rf .parcel-native-plugin-scripts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ inputs.rust-toolchain }}
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ${{ inputs.path }}
+          shared-key: ${{ matrix.target }}
+
+      # Linux targets are cross compiled with Zig so that glibc builds link
+      # against an old enough glibc to run on distros older than the runner.
+      - name: Install Zig
+        if: ${{ matrix.builder == 'zig' }}
+        uses: goto-bus-stop/setup-zig@v1
+        with:
+          version: ${{ inputs.zig-version }}
+      - name: Install cargo-zigbuild
+        if: ${{ matrix.builder == 'zig' }}
+        uses: taiki-e/install-action@v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          tool: cargo-zigbuild
+
+      - name: Build
+        shell: bash
+        working-directory: ${{ inputs.path }}
+        env:
+          TARGET: ${{ matrix.target }}
+          ZIG_TARGET: ${{ matrix.zigTarget }}
+          BUILDER: ${{ matrix.builder }}
+          CARGO_ARGS: ${{ inputs.cargo-args }}
+        run: |
+          set -euo pipefail
+          # The JSON message stream tells the packaging script exactly which file
+          # cargo produced; diagnostics still go to stderr and stay readable.
+          if [ "$BUILDER" = 'zig' ]; then
+            cargo zigbuild --release --target "$ZIG_TARGET" --message-format json-render-diagnostics $CARGO_ARGS > "$RUNNER_TEMP/cargo-messages.json"
+          else
+            cargo build --release --target "$TARGET" --message-format json-render-diagnostics $CARGO_ARGS > "$RUNNER_TEMP/cargo-messages.json"
+          fi
+
+      - name: Pack ${{ matrix.package }}
+        shell: bash
+        env:
+          PLUGIN_DIR: ${{ inputs.path }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          node "$RUNNER_TEMP/native-plugin/pack-artifact.mjs" \
+            --dir "$PLUGIN_DIR" \
+            --target "$TARGET" \
+            --cargo-messages "$RUNNER_TEMP/cargo-messages.json" \
+            --out "$RUNNER_TEMP/artifacts"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-artifact-${{ matrix.target }}
+          path: ${{ runner.temp }}/artifacts/${{ matrix.target }}.tgz
+          if-no-files-found: error
+
+  pack:
+    name: Pack ${{ needs.matrix.outputs.name }}
+    needs: [matrix, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out packaging scripts
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .parcel-native-plugin-scripts
+          sparse-checkout: .github/scripts/native-plugin
+          sparse-checkout-cone-mode: false
+          filter: blob:none
+      - name: Move packaging scripts out of the workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/native-plugin"
+          mv .parcel-native-plugin-scripts/.github/scripts/native-plugin/* "$RUNNER_TEMP/native-plugin/"
+          rm -rf .parcel-native-plugin-scripts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Download artifact packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: native-artifact-*
+          path: ${{ runner.temp }}/artifacts
+          merge-multiple: true
+
+      # Also verifies that every target declared in parcel.artifacts produced a
+      # tarball, before anything is published.
+      - name: Pack plugin package
+        shell: bash
+        env:
+          PLUGIN_DIR: ${{ inputs.path }}
+        run: |
+          node "$RUNNER_TEMP/native-plugin/pack-main.mjs" \
+            --dir "$PLUGIN_DIR" \
+            --artifacts "$RUNNER_TEMP/artifacts" \
+            --out "$RUNNER_TEMP/main"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-plugin-main
+          path: ${{ runner.temp }}/main/*.tgz
+          if-no-files-found: error
+
+  publish:
+    name: Publish to npm
+    if: ${{ inputs.publish }}
+    needs: [matrix, pack]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          registry-url: 'https://registry.npmjs.org'
+
+      # Trusted publishing (and the provenance attestation it generates)
+      # requires npm 11.5.1 or later.
+      - name: Update npm
+        shell: bash
+        run: npm install -g npm@latest
+
+      - name: Download artifact packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: native-artifact-*
+          path: ${{ runner.temp }}/artifacts
+          merge-multiple: true
+
+      - name: Download plugin package
+        uses: actions/download-artifact@v4
+        with:
+          name: native-plugin-main
+          path: ${{ runner.temp }}/main
+
+      # Platform packages go first: the plugin package's optionalDependencies
+      # point at exact versions of them, so it must never be resolvable before
+      # they are.
+      - name: Publish artifact packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          for tarball in "$RUNNER_TEMP"/artifacts/*.tgz; do
+            echo "::group::npm publish $(basename "$tarball")"
+            npm publish "$tarball" --access public
+            echo '::endgroup::'
+          done
+
+      - name: Publish ${{ needs.matrix.outputs.name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm publish "$RUNNER_TEMP"/main/*.tgz --access public
