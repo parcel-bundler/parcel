@@ -57,7 +57,6 @@ assert_flag_values! {
 // ── Content ───────────────────────────────────────────────────────────────────
 
 /// Returns the asset content into `*buf`. Caller must `parcel_free_buffer(buf)`.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_get_content(buf: *mut Buffer, asset: Asset) {
   if buf.is_null() {
     return;
@@ -70,7 +69,6 @@ pub extern "C" fn parcel_asset_get_content(buf: *mut Buffer, asset: Asset) {
 }
 
 /// Returns the asset content as a UTF-8 string into `*buf`. Caller must `parcel_free_buffer(buf)`.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_get_content_utf8(buf: *mut Buffer, asset: Asset) {
   if buf.is_null() {
     return;
@@ -83,7 +81,6 @@ pub extern "C" fn parcel_asset_get_content_utf8(buf: *mut Buffer, asset: Asset) 
 }
 
 /// Replaces the asset content with the given bytes.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_set_content(asset: Asset, data: *const u8, len: u32) {
   if data.is_null() {
     return;
@@ -95,7 +92,6 @@ pub extern "C" fn parcel_asset_set_content(asset: Asset, data: *const u8, len: u
 
 /// Replaces the asset content with the given UTF-8 bytes.
 /// It is the caller's responsibility to validate that the data is valid UTF-8.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_set_content_utf8(asset: Asset, data: *const u8, len: u32) {
   if data.is_null() {
     return;
@@ -231,7 +227,6 @@ impl Content for CContent {
 }
 
 /// Replaces the asset content with a custom content type.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_set_custom_content(
   asset: Asset,
   ty: *const [u8; 16],
@@ -265,7 +260,6 @@ pub extern "C" fn parcel_asset_set_custom_content(
 }
 
 /// Gets the custom content and type identifier for `asset`. Returns true if the output parameters were set.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_get_custom_content(
   ty: *mut [u8; 16],
   content: *mut *mut c_void,
@@ -290,7 +284,6 @@ pub extern "C" fn parcel_asset_get_custom_content(
 
 /// Returns the asset type extension (e.g. `"js"`, `"css"`) into `*buf`.
 /// Caller must `parcel_free_buffer(buf)`.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_get_type(buf: *mut Buffer, asset: Asset) {
   if buf.is_null() {
     return;
@@ -300,7 +293,6 @@ pub extern "C" fn parcel_asset_get_type(buf: *mut Buffer, asset: Asset) {
 }
 
 /// Changes the asset type to the given file-extension bytes (e.g. `"js"`).
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_set_type(asset: Asset, ty: *const u8, ty_len: usize) {
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
   let ext = unsafe { bytes_to_str(ty, ty_len) };
@@ -312,7 +304,6 @@ pub extern "C" fn parcel_asset_set_type(asset: Asset, ty: *const u8, ty_len: usi
 /// Returns the absolute filesystem path of the source asset into `*buf`.
 /// `options` is the handle received from `parcel_plugin_transform()`.
 /// Caller must `parcel_free_buffer(buf)`.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_get_file_path(buf: *mut Buffer, asset: Asset, _options: Options) {
   if buf.is_null() {
     return;
@@ -338,7 +329,6 @@ pub extern "C" fn parcel_asset_get_file_path(buf: *mut Buffer, asset: Asset, _op
 
 /// Returns the named pipeline into `*buf`, or leaves `buf->data == NULL` if none is set.
 /// Caller must `parcel_free_buffer(buf)` when `data != NULL`.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_get_pipeline(buf: *mut Buffer, asset: Asset) {
   if buf.is_null() {
     return;
@@ -351,7 +341,6 @@ pub extern "C" fn parcel_asset_get_pipeline(buf: *mut Buffer, asset: Asset) {
 }
 
 /// Sets the named pipeline. Pass `NULL` / `0` to clear.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_set_pipeline(
   asset: Asset,
   pipeline: *const u8,
@@ -369,14 +358,12 @@ pub extern "C" fn parcel_asset_set_pipeline(
 // ── BundleBehavior ────────────────────────────────────────────────────────────
 
 /// Returns the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`).
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_get_bundle_behavior(asset: Asset) -> BundleBehavior {
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
   asset.bundle_behavior.into()
 }
 
 /// Sets the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`).
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_set_bundle_behavior(asset: Asset, behavior: BundleBehavior) {
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
   asset.bundle_behavior = behavior.into();
@@ -385,14 +372,12 @@ pub extern "C" fn parcel_asset_set_bundle_behavior(asset: Asset, behavior: Bundl
 // ── Flags ─────────────────────────────────────────────────────────────────────
 
 /// Returns the raw `AssetFlags` bitfield (`PARCEL_ASSET_*` bits).
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_get_flags(asset: Asset) -> AssetFlagsFFI {
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
   asset.flags.bits()
 }
 
 /// Replaces the `AssetFlags` bitfield.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_set_flags(asset: Asset, flags: AssetFlagsFFI) {
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
   asset.flags = CoreAssetFlags::from_bits_truncate(flags);
@@ -402,7 +387,6 @@ pub extern "C" fn parcel_asset_set_flags(asset: Asset, flags: AssetFlagsFFI) {
 
 /// Returns the unique key into `*buf`, or leaves `buf->data == NULL` if not set.
 /// Caller must `parcel_free_buffer(buf)` when `data != NULL`.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_get_unique_key(buf: *mut Buffer, asset: Asset) {
   if buf.is_null() {
     return;
@@ -415,7 +399,6 @@ pub extern "C" fn parcel_asset_get_unique_key(buf: *mut Buffer, asset: Asset) {
 }
 
 /// Sets the unique key. Pass `NULL` / `0` to clear.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_set_unique_key(asset: Asset, key: *const u8, key_len: usize) {
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
   if key.is_null() {
@@ -429,7 +412,6 @@ pub extern "C" fn parcel_asset_set_unique_key(asset: Asset, key: *const u8, key_
 // ── Symbols ───────────────────────────────────────────────────────────────────
 
 /// Registers an exported symbol name (e.g. `"default"`, `"foo"`, `"*"`).
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_add_export_symbol(asset: Asset, name: *const u8, name_len: usize) {
   if name.is_null() {
     return;

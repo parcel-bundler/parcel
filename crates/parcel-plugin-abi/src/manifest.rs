@@ -35,13 +35,6 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-/// The plugin ABI implemented by this build of Parcel.
-///
-/// A plugin records the ABI it was built against as `parcel.abi`. This is bumped
-/// whenever the C ABI in this crate changes in a way that would make an older
-/// plugin binary unsafe to load.
-pub const PLUGIN_ABI_VERSION: u32 = 1;
-
 /// The Rust target triple this build of Parcel was compiled for, e.g.
 /// `aarch64-apple-darwin`. Used to select an artifact package from a plugin's
 /// `parcel.artifacts` map.
@@ -112,7 +105,7 @@ mod tests {
   fn reads_a_native_plugin_package() {
     let package = PluginPackage::parse(PLUGIN).unwrap();
     assert_eq!(package.name.as_deref(), Some("@acme/plugin"));
-    assert_eq!(package.parcel.abi, Some(PLUGIN_ABI_VERSION));
+    assert_eq!(package.parcel.abi, Some(crate::PARCEL_ABI_VERSION));
     assert!(package.is_native_plugin());
     assert_eq!(
       package.parcel.artifacts.get("aarch64-apple-darwin"),

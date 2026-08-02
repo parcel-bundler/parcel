@@ -3370,6 +3370,7 @@ version = "0.1.0"
 dependencies = [
  "parcel",
  "parcel-core",
+ "parcel-plugin-abi",
 ]
 
 [[package]]
@@ -3381,6 +3382,7 @@ dependencies = [
  "hstr 1.0.0",
  "libloading 0.9.0",
  "parcel-core",
+ "serde",
  "serde_json",
 ]
 

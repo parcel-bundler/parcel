@@ -3,6 +3,7 @@
 #[macro_use]
 mod macros;
 
+mod api;
 mod asset;
 mod buffer;
 mod bundle;
@@ -16,6 +17,7 @@ mod options;
 mod plugin;
 mod target;
 
+pub use api::*;
 pub use asset::*;
 pub use buffer::*;
 pub use bundle::*;

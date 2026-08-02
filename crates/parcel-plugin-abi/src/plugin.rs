@@ -14,6 +14,24 @@ use crate::{
   parcel_free_buffer, read_cdiagnostic,
 };
 
+/// Result of a plugin's `parcel_plugin_init()`.
+///
+/// A plugin that cannot use the [`ParcelApi`](crate::ParcelApi) table it was
+/// handed returns `PARCEL_INIT_INCOMPATIBLE` without writing a diagnostic — it
+/// has no way to allocate one, since allocating goes through the very table it
+/// just rejected. Parcel writes that diagnostic instead.
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum InitStatus {
+  /// The plugin initialized. Its state, if any, is in the `state` out param.
+  PARCEL_INIT_OK = 0,
+  /// The plugin failed and wrote a diagnostic describing why.
+  PARCEL_INIT_ERROR = 1,
+  /// The plugin cannot run against this build of Parcel. No diagnostic was
+  /// written; Parcel reports the mismatch.
+  PARCEL_INIT_INCOMPATIBLE = 2,
+}
+
 // ResolveResult.resolution_type field
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -67,7 +85,7 @@ impl CPlugin {
     let lib = path
       .with_path(|path| unsafe { Library::new(path) })
       .map_err(|e| DiagnosticList(vec![CoreDiagnostic::from_message(e.to_string())]))?;
-    let state = Self::call_init(&lib, config)?;
+    let state = Self::call_init(&lib, path, config)?;
     Ok(CPlugin {
       lib: ManuallyDrop::new(lib),
       state,
@@ -76,25 +94,66 @@ impl CPlugin {
 
   fn call_init(
     lib: &Library,
+    path: PathId,
     config: Option<&serde_json::Value>,
   ) -> Result<*mut c_void, DiagnosticList> {
-    type InitFn = extern "C" fn(*const u8, usize, *mut Diagnostic) -> *mut c_void;
+    type InitFn = extern "C" fn(
+      *const crate::ParcelApi,
+      *const u8,
+      usize,
+      *mut *mut c_void,
+      *mut Diagnostic,
+    ) -> InitStatus;
     let sym: Result<Symbol<InitFn>, _> = unsafe { lib.get(b"parcel_plugin_init") };
     let Ok(init_fn) = sym else {
-      return Ok(ptr::null_mut());
+      return Err(
+        CoreDiagnostic::from_message("Plugin did not have a parcel_plugin_init function".into())
+          .into(),
+      );
     };
 
     let config_bytes = config
       .and_then(|v| serde_json::to_vec(v).ok())
       .unwrap_or_default();
 
+    let mut state = ptr::null_mut();
     let mut diagnostic = Diagnostic::default();
-    let state = init_fn(config_bytes.as_ptr(), config_bytes.len(), &mut diagnostic);
+    let status = init_fn(
+      &crate::PARCEL_API,
+      config_bytes.as_ptr(),
+      config_bytes.len(),
+      &mut state,
+      &mut diagnostic,
+    );
 
-    if let Some(diag) = read_cdiagnostic(&mut diagnostic, None) {
-      return Err(DiagnosticList(vec![diag]));
+    match status {
+      // A plugin may legitimately have no state, so `state` says nothing about
+      // whether initialization succeeded. Only the status does.
+      InitStatus::PARCEL_INIT_OK => Ok(state),
+
+      // The plugin rejected our function table, which is also the only way it
+      // could have allocated a diagnostic. Describe the mismatch here instead.
+      InitStatus::PARCEL_INIT_INCOMPATIBLE => Err(
+        CoreDiagnostic::from_message(format!(
+          "{} was built for a different version of Parcel's plugin ABI. Rebuild it \
+           against the SDK matching this version of Parcel, which implements plugin \
+           ABI {}.",
+          path.to_path_buf().display(),
+          crate::PARCEL_ABI_VERSION,
+        ))
+        .into(),
+      ),
+
+      InitStatus::PARCEL_INIT_ERROR => {
+        let diag = read_cdiagnostic(&mut diagnostic, None).unwrap_or_else(|| {
+          CoreDiagnostic::from_message(format!(
+            "{} failed to initialize, without reporting why.",
+            path.to_path_buf().display()
+          ))
+        });
+        Err(DiagnosticList(vec![diag]))
+      }
     }
-    Ok(state)
   }
 }
 
@@ -120,10 +179,9 @@ impl Transformer for CPlugin {
   ) -> Result<CoreAsset, DiagnosticList> {
     type TransformFn = extern "C" fn(Asset, Options, *mut c_void, *mut Diagnostic);
     let transform: Symbol<TransformFn> = unsafe {
-      self
-        .lib
-        .get(b"parcel_plugin_transform")
-        .expect("Failed to find parcel_plugin_transform symbol")
+      self.lib.get(b"parcel_plugin_transform").map_err(|_| {
+        CoreDiagnostic::from_message("Failed to find parcel_plugin_transform symbol".into())
+      })?
     };
 
     let mut diagnostic = Diagnostic::default();
@@ -162,10 +220,9 @@ impl Resolver for CPlugin {
       *mut Diagnostic,
     );
     let resolve: Symbol<ResolveFn> = unsafe {
-      self
-        .lib
-        .get(b"parcel_plugin_resolve")
-        .expect("Failed to find parcel_plugin_resolve symbol")
+      self.lib.get(b"parcel_plugin_resolve").map_err(|_| {
+        CoreDiagnostic::from_message("Failed to find parcel_plugin_resolve symbol".into())
+      })?
     };
 
     let mut result = ResolveResult {
@@ -294,10 +351,9 @@ impl parcel_core::Namer for CPlugin {
     type NameFn =
       extern "C" fn(BundleGraph, Bundle, Options, *mut Buffer, *mut c_void, *mut Diagnostic);
     let name_fn: Symbol<NameFn> = unsafe {
-      self
-        .lib
-        .get(b"parcel_plugin_name")
-        .expect("Failed to find parcel_plugin_name symbol")
+      self.lib.get(b"parcel_plugin_name").map_err(|_| {
+        CoreDiagnostic::from_message("Failed to find parcel_plugin_name symbol".into())
+      })?
     };
 
     let mut name = Buffer::default();
@@ -361,10 +417,9 @@ impl Optimizer for CPlugin {
       *mut Diagnostic,
     );
     let optimize: Symbol<OptimizeFn> = unsafe {
-      self
-        .lib
-        .get(b"parcel_plugin_optimize")
-        .expect("Failed to find parcel_plugin_optimize symbol")
+      self.lib.get(b"parcel_plugin_optimize").map_err(|_| {
+        CoreDiagnostic::from_message("Failed to find parcel_plugin_optimize symbol".into())
+      })?
     };
 
     let source_map = contents

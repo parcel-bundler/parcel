@@ -44,7 +44,6 @@ impl Default for BundleGraphDependencyResolution {
 // ── Bundle graph (read-only) ─────────────────────────────────────────────────
 
 /// Returns the number of assets in the graph.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_graph_get_asset_count(bundle_graph: BundleGraph) -> usize {
   if bundle_graph == 0 {
     return 0;
@@ -57,7 +56,6 @@ pub extern "C" fn parcel_bundle_graph_get_asset_count(bundle_graph: BundleGraph)
 /// Returns a borrowed, read-only asset handle, or zero when `index` is out of bounds.
 /// The handle is valid only for the lifetime of the bundle graph and must only be
 /// passed to `parcel_asset_get_*` functions.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_graph_get_asset(
   bundle_graph: BundleGraph,
   index: AssetIndex,
@@ -75,7 +73,6 @@ pub extern "C" fn parcel_bundle_graph_get_asset(
 }
 
 /// Returns the number of bundles in the graph.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_graph_get_bundle_count(bundle_graph: BundleGraph) -> usize {
   if bundle_graph == 0 {
     return 0;
@@ -86,7 +83,6 @@ pub extern "C" fn parcel_bundle_graph_get_bundle_count(bundle_graph: BundleGraph
 }
 
 /// Returns a borrowed bundle handle, or zero when `index` is out of bounds.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_graph_get_bundle(
   bundle_graph: BundleGraph,
   index: BundleIndex,
@@ -104,7 +100,6 @@ pub extern "C" fn parcel_bundle_graph_get_bundle(
 
 /// Returns the resolution of one dependency belonging to an asset.
 /// Returns `PARCEL_BUNDLE_GRAPH_RESOLUTION_INVALID` for invalid indices.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_graph_get_dependency_resolution(
   bundle_graph: BundleGraph,
   asset: AssetIndex,

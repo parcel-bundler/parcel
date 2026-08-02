@@ -9,8 +9,8 @@ use parcel_html::{HtmlTransformer, SvgToJsxTransformer, SvgTransformer};
 use parcel_image::ImageTransformer;
 use parcel_js::JsTransformer;
 use parcel_plugin_abi::{
-  CPlugin,
-  manifest::{PLUGIN_ABI_VERSION, PluginPackage, TARGET},
+  CPlugin, PARCEL_ABI_VERSION,
+  manifest::{PluginPackage, TARGET},
 };
 use parcel_plugin_js::JsPlugin;
 use parcel_resolver::{Resolution, Specifier, SpecifierType};
@@ -253,7 +253,7 @@ impl DefaultPluginFactory {
       return Ok(None);
     }
 
-    if package.parcel.abi != Some(PLUGIN_ABI_VERSION) {
+    if package.parcel.abi != Some(PARCEL_ABI_VERSION) {
       let abi = package.parcel.abi.map_or_else(
         || "an unknown ABI".to_string(),
         |abi| format!("ABI {}", abi),
@@ -261,7 +261,7 @@ impl DefaultPluginFactory {
       return Err(
         Diagnostic::from_message(format!(
           "{} was built for {}, but this version of Parcel supports ABI {}",
-          module, abi, PLUGIN_ABI_VERSION
+          module, abi, PARCEL_ABI_VERSION
         ))
         .into(),
       );

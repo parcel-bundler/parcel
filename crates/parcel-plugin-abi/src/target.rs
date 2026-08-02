@@ -97,42 +97,36 @@ assert_flag_values! {
 // ── Target (read-only) ────────────────────────────────────────────────────────
 
 /// Returns an opaque `Target` handle. Valid for the duration of the transform call.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_get_target(asset: Asset) -> Target {
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
   Arc::as_ptr(&asset.target) as u64
 }
 
 /// Returns the target environment (`PARCEL_ENV_*`).
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_target_get_environment(target: Target) -> Environment {
   let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };
   target.environment.into()
 }
 
 /// Returns the output format (`PARCEL_OUTPUT_FORMAT_*`).
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_target_get_output_format(target: Target) -> OutputFormat {
   let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };
   target.output_format.into()
 }
 
 /// Returns the source type (`PARCEL_SOURCE_TYPE_*`).
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_target_get_source_type(target: Target) -> SourceType {
   let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };
   target.source_type.into()
 }
 
 /// Returns the `EnvironmentFlags` bitfield (`PARCEL_ENV_FLAG_*` bits).
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_target_get_env_flags(target: Target) -> EnvironmentFlagsFFI {
   let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };
   target.flags.bits()
 }
 
 /// Returns the public URL (e.g. `"/"`) into `*buf`. Caller must `parcel_free_buffer(buf)`.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_target_get_public_url(buf: *mut Buffer, target: Target) {
   if buf.is_null() {
     return;
@@ -144,7 +138,6 @@ pub extern "C" fn parcel_target_get_public_url(buf: *mut Buffer, target: Target)
 /// Returns the absolute path of the dist directory into `*buf`.
 /// `options` is the handle received from `parcel_plugin_transform()`.
 /// Caller must `parcel_free_buffer(buf)`.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_target_get_dist_dir(buf: *mut Buffer, target: Target, _options: Options) {
   if buf.is_null() {
     return;

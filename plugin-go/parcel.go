@@ -18,8 +18,10 @@ package parcel
 #include <stdlib.h>
 #include "plugin.h"
 
-#cgo darwin LDFLAGS: -Wl,-undefined,dynamic_lookup
-#cgo linux  LDFLAGS: -Wl,--allow-shlib-undefined
+// parcel_api is defined in api.c and assigned by parcel_plugin_init below.
+// Plugins link against no Parcel symbols, so no linker flags are needed on any
+// platform. This preamble must stay free of definitions: the file has //export
+// directives, so cgo copies it into more than one translation unit.
 */
 import "C"
 import (
@@ -89,15 +91,22 @@ func RegisterPlugin(factory func([]byte) (Plugin, error)) {
 }
 
 //export parcel_plugin_init
-func parcel_plugin_init(config *C.uint8_t, configLen C.uintptr_t, diag *C.Diagnostic) (state unsafe.Pointer) {
+func parcel_plugin_init(api *C.struct_ParcelApi, config *C.uint8_t, configLen C.uintptr_t, outState *unsafe.Pointer, diag *C.Diagnostic) (status C.InitStatus) {
 	defer func() {
 		if value := recover(); value != nil {
-			state = nil
+			status = C.InitStatus(C.PARCEL_INIT_ERROR)
 			writeDiagnostic(diag, panicError("init", value))
 		}
 	}()
+
+	if api == nil || !C.parcel_api_compatible(&api.header) || (C.parcel_api != nil && C.parcel_api != api) {
+		return C.InitStatus(C.PARCEL_INIT_INCOMPATIBLE)
+	}
+	C.parcel_api = api
+
 	if pluginFactory == nil {
-		return nil
+		writeDiagnostic(diag, errors.New("plugin not registered: call parcel.RegisterPlugin in init()"))
+		return C.InitStatus(C.PARCEL_INIT_ERROR)
 	}
 	var data []byte
 	if configLen > 0 && config != nil {
@@ -106,7 +115,7 @@ func parcel_plugin_init(config *C.uint8_t, configLen C.uintptr_t, diag *C.Diagno
 	plugin, err := pluginFactory(data)
 	if err != nil {
 		writeDiagnostic(diag, err)
-		return nil
+		return C.InitStatus(C.PARCEL_INIT_ERROR)
 	}
 	// Store the Plugin interface value in a cgo.Handle so it can safely
 	// round-trip through C memory. The handle ID lives in a C-allocated block
@@ -115,7 +124,10 @@ func parcel_plugin_init(config *C.uint8_t, configLen C.uintptr_t, diag *C.Diagno
 	handle := cgo.NewHandle(plugin)
 	p := (*C.uintptr_t)(C.malloc(C.size_t(unsafe.Sizeof(C.uintptr_t(0)))))
 	*p = C.uintptr_t(handle)
-	return unsafe.Pointer(p)
+	if outState != nil {
+		*outState = unsafe.Pointer(p)
+	}
+	return C.InitStatus(C.PARCEL_INIT_OK)
 }
 
 //export parcel_plugin_deinit

@@ -1,6 +1,26 @@
+// A transformer written directly against the C ABI, without an SDK.
+//
+//   cc -shared -o plugin.dylib plugin.c
+
 #include <string.h>
 #include <stdlib.h>
 #include "crates/parcel-plugin-abi/plugin.h"
+
+// The single definition of the table declared by plugin.h. The wrappers it
+// declares — parcel_asset_get_content() and friends — call through this.
+const struct ParcelApi *parcel_api = 0;
+
+InitStatus parcel_plugin_init(const struct ParcelApi *api, const uint8_t *config,
+                              uintptr_t config_len, void **state,
+                              Diagnostic *diagnostic) {
+  if (!parcel_api_compatible(&api->header)) {
+    return PARCEL_INIT_INCOMPATIBLE;
+  }
+  parcel_api = api;
+
+  // This plugin keeps no state, so *state is left as Parcel initialized it.
+  return PARCEL_INIT_OK;
+}
 
 void parcel_plugin_transform(Asset asset, Options options, void *state, Diagnostic *diagnostic) {
   Buffer buf = {0};

@@ -34,7 +34,6 @@ pub(crate) unsafe fn write_buffer(buffer: *mut Buffer, mut bytes: Vec<u8>, is_ut
 // ── Buffer functions ──────────────────────────────────────────────────────────
 
 /// Release a `Buffer` previously filled by a getter or `parcel_buffer_alloc()`.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_free_buffer(buf: *mut Buffer) {
   if buf.is_null() {
     return;
@@ -48,7 +47,6 @@ pub extern "C" fn parcel_free_buffer(buf: *mut Buffer) {
 /// Allocates a new `Buffer` containing a copy of `[data, data+len)`.
 /// The plugin calls this to fill `ResolveResult` or `Diagnostic` fields.
 /// Returns a zero `Buffer` when `data` is NULL or `len` is 0.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_buffer_alloc(data: *const u8, len: usize) -> Buffer {
   let mut buf = Buffer::default();
   parcel_buffer_write(&mut buf, data, len);
@@ -56,14 +54,12 @@ pub extern "C" fn parcel_buffer_alloc(data: *const u8, len: usize) -> Buffer {
 }
 
 /// Copies the given bytes into a `Buffer`, replacing the existing content if any.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_buffer_write(buf: *mut Buffer, data: *const u8, len: usize) {
   parcel_buffer_write_inner(buf, data, len, false);
 }
 
 /// Copies the given UTF-8 encoded string into a `Buffer`, replacing the existing content if any.
 /// It is the caller's responsibility to ensure that the UTF-8 data is valid.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_buffer_write_utf8(buf: *mut Buffer, data: *const u8, len: usize) {
   parcel_buffer_write_inner(buf, data, len, true);
 }

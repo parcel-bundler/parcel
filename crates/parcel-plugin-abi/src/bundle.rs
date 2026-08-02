@@ -49,7 +49,6 @@ assert_flag_values! {
 // ── Bundle (read-only) ───────────────────────────────────────────────────────
 
 /// Returns the bundle type extension (for example, `"js"`) into `*buf`.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_get_type(buf: *mut Buffer, bundle: Bundle) {
   if buf.is_null() || bundle == 0 {
     return;
@@ -59,7 +58,6 @@ pub extern "C" fn parcel_bundle_get_type(buf: *mut Buffer, bundle: Bundle) {
 }
 
 /// Returns the bundle target as a borrowed handle.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_get_target(bundle: Bundle) -> Target {
   if bundle == 0 {
     return 0;
@@ -69,7 +67,6 @@ pub extern "C" fn parcel_bundle_get_target(bundle: Bundle) -> Target {
 }
 
 /// Returns the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`).
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_get_bundle_behavior(bundle: Bundle) -> BundleBehavior {
   if bundle == 0 {
     return BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_NONE;
@@ -79,7 +76,6 @@ pub extern "C" fn parcel_bundle_get_bundle_behavior(bundle: Bundle) -> BundleBeh
 }
 
 /// Returns the raw `BundleFlags` bitfield (`PARCEL_BUNDLE_FLAG_*` bits).
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_get_flags(bundle: Bundle) -> BundleFlagsFFI {
   if bundle == 0 {
     return 0;
@@ -89,7 +85,6 @@ pub extern "C" fn parcel_bundle_get_flags(bundle: Bundle) -> BundleFlagsFFI {
 }
 
 /// Returns the absolute output path into `*buf`, or leaves it empty when unnamed.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_get_dist_path(buf: *mut Buffer, bundle: Bundle) {
   if buf.is_null() || bundle == 0 {
     return;
@@ -111,7 +106,6 @@ pub extern "C" fn parcel_bundle_get_dist_path(buf: *mut Buffer, bundle: Bundle) 
   };
 }
 
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_get_asset_count(bundle: Bundle) -> usize {
   if bundle == 0 {
     return 0;
@@ -121,7 +115,6 @@ pub extern "C" fn parcel_bundle_get_asset_count(bundle: Bundle) -> usize {
 }
 
 /// Returns an asset index, or `PARCEL_INVALID_ASSET_INDEX` when out of bounds.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_get_asset(bundle: Bundle, index: usize) -> AssetIndex {
   if bundle == 0 {
     return PARCEL_INVALID_ASSET_INDEX;
@@ -133,7 +126,6 @@ pub extern "C" fn parcel_bundle_get_asset(bundle: Bundle, index: usize) -> Asset
     .map_or(PARCEL_INVALID_ASSET_INDEX, |asset| asset.0)
 }
 
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_get_entry_asset_count(bundle: Bundle) -> usize {
   if bundle == 0 {
     return 0;
@@ -143,7 +135,6 @@ pub extern "C" fn parcel_bundle_get_entry_asset_count(bundle: Bundle) -> usize {
 }
 
 /// Returns an entry asset index, or `PARCEL_INVALID_ASSET_INDEX` when out of bounds.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_get_entry_asset(bundle: Bundle, index: usize) -> AssetIndex {
   if bundle == 0 {
     return PARCEL_INVALID_ASSET_INDEX;
@@ -156,7 +147,6 @@ pub extern "C" fn parcel_bundle_get_entry_asset(bundle: Bundle, index: usize) ->
 }
 
 /// Returns the main entry asset, or `PARCEL_INVALID_ASSET_INDEX` when absent.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_get_main_entry_asset(bundle: Bundle) -> AssetIndex {
   if bundle == 0 {
     return PARCEL_INVALID_ASSET_INDEX;
@@ -168,7 +158,6 @@ pub extern "C" fn parcel_bundle_get_main_entry_asset(bundle: Bundle) -> AssetInd
 }
 
 /// Returns the dist-relative bundle name into `*buf`, or leaves it empty when unnamed.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_get_name(buf: *mut Buffer, bundle: Bundle) {
   if buf.is_null() || bundle == 0 {
     return;
@@ -180,7 +169,6 @@ pub extern "C" fn parcel_bundle_get_name(buf: *mut Buffer, bundle: Bundle) {
 }
 
 /// Returns the public bundle URL into `*buf`, or leaves it empty when unnamed.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_get_absolute_url(buf: *mut Buffer, bundle: Bundle) {
   if buf.is_null() || bundle == 0 {
     return;
@@ -192,7 +180,6 @@ pub extern "C" fn parcel_bundle_get_absolute_url(buf: *mut Buffer, bundle: Bundl
 }
 
 /// Returns `bundle`'s URL relative to `from`, or leaves `*buf` empty when unavailable.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_get_relative_url(buf: *mut Buffer, bundle: Bundle, from: Bundle) {
   if buf.is_null() || bundle == 0 || from == 0 {
     return;
@@ -205,7 +192,6 @@ pub extern "C" fn parcel_bundle_get_relative_url(buf: *mut Buffer, bundle: Bundl
 }
 
 /// Returns `bundle`'s module specifier relative to `from`, or leaves `*buf` empty when unavailable.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_bundle_get_relative_specifier(
   buf: *mut Buffer,
   bundle: Bundle,

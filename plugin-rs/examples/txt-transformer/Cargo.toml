@@ -11,3 +11,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 parcel-plugin = { path = "../../../crates/parcel-plugin" }
+serde_json = "1"

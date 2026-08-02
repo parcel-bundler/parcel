@@ -150,7 +150,6 @@ pub struct DependencyOptions {
 // ── Dependencies ──────────────────────────────────────────────────────────────
 
 /// Returns the number of dependencies belonging to an asset.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_get_dependency_count(asset: Asset) -> usize {
   if asset == 0 {
     return 0;
@@ -161,7 +160,6 @@ pub extern "C" fn parcel_asset_get_dependency_count(asset: Asset) -> usize {
 
 /// Returns a borrowed, read-only dependency handle, or zero when `index` is out of bounds.
 /// The handle is valid only for the lifetime of the asset.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_get_dependency(asset: Asset, index: usize) -> Dependency {
   if asset == 0 {
     return 0;
@@ -173,7 +171,6 @@ pub extern "C" fn parcel_asset_get_dependency(asset: Asset, index: usize) -> Dep
 }
 
 /// Appends a dependency to the asset. The new dependency inherits the asset's target.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_asset_add_dependency(asset: Asset, dep: *const DependencyOptions) {
   if dep.is_null() {
     return;
@@ -210,7 +207,6 @@ pub extern "C" fn parcel_asset_add_dependency(asset: Asset, dep: *const Dependen
 // ── Dependency accessors (read-only) ──────────────────────────────────────────
 
 /// Returns the raw specifier string (e.g. `"custom:greeting"`) into `*buf`.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_dep_get_specifier(buf: *mut Buffer, dep: Dependency) {
   if buf.is_null() {
     return;
@@ -220,42 +216,36 @@ pub extern "C" fn parcel_dep_get_specifier(buf: *mut Buffer, dep: Dependency) {
 }
 
 /// Returns the specifier type (`PARCEL_SPECIFIER_*`).
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_dep_get_specifier_type(dep: Dependency) -> SpecifierType {
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
   dep.specifier_type.into()
 }
 
 /// Returns the priority (`PARCEL_PRIORITY_*`).
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_dep_get_priority(dep: Dependency) -> Priority {
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
   dep.priority.into()
 }
 
 /// Returns the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`).
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_dep_get_bundle_behavior(dep: Dependency) -> BundleBehavior {
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
   dep.bundle_behavior.into()
 }
 
 /// Returns the raw `DependencyFlags` bitfield (`PARCEL_DEP_*` bits).
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_dep_get_flags(dep: Dependency) -> DependencyFlagsFFI {
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
   dep.flags.bits()
 }
 
 /// Returns the raw `ExportsConditions` bitfield (`PARCEL_EXPORTS_CONDITION_*` bits).
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_dep_get_conditions(dep: Dependency) -> ExportsConditionsFFI {
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
   dep.conditions.bits()
 }
 
 /// Returns the absolute path of the file containing this import into `*buf`.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_dep_get_source_path(buf: *mut Buffer, dep: Dependency, _options: Options) {
   if buf.is_null() {
     return;
@@ -280,7 +270,6 @@ pub extern "C" fn parcel_dep_get_source_path(buf: *mut Buffer, dep: Dependency, 
 
 /// Returns the base path for resolving the specifier into `*buf`.
 /// Falls back to the source file path when `resolve_from` is not set.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_dep_get_resolve_from(
   buf: *mut Buffer,
   dep: Dependency,
@@ -312,7 +301,6 @@ pub extern "C" fn parcel_dep_get_resolve_from(
 }
 
 /// Returns an opaque `Target` handle for the dependency.
-#[unsafe(no_mangle)]
 pub extern "C" fn parcel_dep_get_target(dep: Dependency) -> Target {
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
   Arc::as_ptr(&dep.target) as u64

@@ -29,17 +29,15 @@
 //! `parcel_plugin_optimize`. Override only the methods you need; the default
 //! implementations return an error so misconfiguration is visible immediately.
 //!
-//! Plugin crates must configure the linker to allow Parcel's ABI symbols to be
-//! resolved at load time.  Add a `build.rs` containing:
+//! Plugins need no linker configuration. Parcel passes a table of host functions
+//! to `parcel_plugin_init`, which [`register_plugin!`] stores before calling your
+//! [`Plugin::new`], so the library has no undefined symbols to resolve at load
+//! time on any platform.
 //!
-//! ```rust,ignore
-//! fn main() {
-//!     #[cfg(target_os = "macos")]
-//!     println!("cargo:rustc-link-arg=-Wl,-undefined,dynamic_lookup");
-//!     #[cfg(target_os = "linux")]
-//!     println!("cargo:rustc-link-arg=-Wl,--allow-shlib-undefined");
-//! }
-//! ```
+//! `register_plugin!` checks at startup that Parcel implements the same plugin
+//! ABI this SDK was built against, and that its table is at least as large, so a
+//! plugin built against a newer SDK reports a version mismatch instead of
+//! reading a field Parcel never filled in.
 
 use std::any::{Any, TypeId};
 use std::marker::PhantomData;
@@ -47,7 +45,11 @@ use std::os::raw::c_void;
 use std::path::PathBuf;
 use std::ptr;
 
+pub mod api;
 pub mod ffi;
+
+use api::host;
+pub use api::init_api;
 
 // ── Buffer ─────────────────────────────────────────────────────────────────
 
@@ -67,7 +69,7 @@ impl Default for Buffer {
 impl Drop for Buffer {
   fn drop(&mut self) {
     if !self.data.is_null() {
-      unsafe { ffi::parcel_free_buffer(self as *mut Buffer) };
+      unsafe { host!(free_buffer)(self as *mut Buffer) };
     }
   }
 }
@@ -108,7 +110,7 @@ impl Options {
   /// Returns the absolute project root path.
   pub fn project_root(&self) -> String {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_options_get_project_root(&mut buf, self.raw) };
+    unsafe { host!(options_get_project_root)(&mut buf, self.raw) };
     buf.to_string().unwrap_or_default()
   }
 
@@ -116,7 +118,7 @@ impl Options {
   pub fn env(&self, key: &str) -> Option<String> {
     let mut buf = Buffer::default();
     let b = key.as_bytes();
-    unsafe { ffi::parcel_options_get_env(&mut buf, self.raw, b.as_ptr(), b.len()) };
+    unsafe { host!(options_get_env)(&mut buf, self.raw, b.as_ptr(), b.len()) };
     buf.to_string()
   }
 }
@@ -320,15 +322,15 @@ impl Diagnostic {
       return;
     }
     unsafe {
-      (*raw).message = ffi::parcel_buffer_alloc(self.message.as_ptr(), self.message.len());
+      (*raw).message = host!(buffer_alloc)(self.message.as_ptr(), self.message.len());
       (*raw).severity = self.severity;
       if let Some(fp) = &self.file_path {
-        (*raw).file_path = ffi::parcel_buffer_alloc(fp.as_ptr(), fp.len());
+        (*raw).file_path = host!(buffer_alloc)(fp.as_ptr(), fp.len());
       }
       (*raw).line = self.line;
       (*raw).column = self.column;
       if let Some(hint) = &self.hint {
-        (*raw).hint = ffi::parcel_buffer_alloc(hint.as_ptr(), hint.len());
+        (*raw).hint = host!(buffer_alloc)(hint.as_ptr(), hint.len());
       }
     }
   }
@@ -381,26 +383,26 @@ impl Asset {
   /// Returns the asset source content as a UTF-8 string.
   pub fn content(&self) -> String {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_asset_get_content(&mut buf, self.raw) };
+    unsafe { host!(asset_get_content)(&mut buf, self.raw) };
     buf.to_string().unwrap_or_default()
   }
 
   /// Returns the asset source content as raw bytes.
   pub fn content_bytes(&self) -> Vec<u8> {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_asset_get_content(&mut buf, self.raw) };
+    unsafe { host!(asset_get_content)(&mut buf, self.raw) };
     buf.to_bytes().unwrap_or_default()
   }
 
   /// Replaces the asset content with a UTF-8 string.
   pub fn set_content(&mut self, content: impl AsRef<str>) {
     let bytes = content.as_ref().as_bytes();
-    unsafe { ffi::parcel_asset_set_content_utf8(self.raw, bytes.as_ptr(), bytes.len() as u32) };
+    unsafe { host!(asset_set_content_utf8)(self.raw, bytes.as_ptr(), bytes.len() as u32) };
   }
 
   /// Replaces the asset content with raw bytes.
   pub fn set_content_bytes(&mut self, bytes: &[u8]) {
-    unsafe { ffi::parcel_asset_set_content(self.raw, bytes.as_ptr(), bytes.len() as u32) };
+    unsafe { host!(asset_set_content)(self.raw, bytes.as_ptr(), bytes.len() as u32) };
   }
 
   pub fn set_custom_content<T: AssetContent>(&mut self, content: T) {
@@ -413,10 +415,10 @@ impl Asset {
       let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| content.read()));
       match result {
         Ok(Ok(ContentBuffer::Bytes(b))) => {
-          unsafe { ffi::parcel_buffer_write(buf, b.as_ptr(), b.len()) };
+          unsafe { host!(buffer_write)(buf, b.as_ptr(), b.len()) };
         }
         Ok(Ok(ContentBuffer::String(s))) => {
-          unsafe { ffi::parcel_buffer_write_utf8(buf, s.as_bytes().as_ptr(), s.len()) };
+          unsafe { host!(buffer_write_utf8)(buf, s.as_bytes().as_ptr(), s.len()) };
         }
         Ok(Err(e)) => {
           e.write_to_raw(diagnostic);
@@ -446,10 +448,10 @@ impl Asset {
       }));
       match result {
         Ok(Ok(ContentBuffer::Bytes(b))) => {
-          unsafe { ffi::parcel_buffer_write(buf, b.as_ptr(), b.len()) };
+          unsafe { host!(buffer_write)(buf, b.as_ptr(), b.len()) };
         }
         Ok(Ok(ContentBuffer::String(s))) => {
-          unsafe { ffi::parcel_buffer_write_utf8(buf, s.as_bytes().as_ptr(), s.len()) };
+          unsafe { host!(buffer_write_utf8)(buf, s.as_bytes().as_ptr(), s.len()) };
         }
         Ok(Err(e)) => {
           e.write_to_raw(diagnostic);
@@ -468,7 +470,7 @@ impl Asset {
 
     let ty = type_id::<T>();
     unsafe {
-      ffi::parcel_asset_set_custom_content(
+      host!(asset_set_custom_content)(
         self.raw,
         &ty,
         Box::leak(Box::new(content)) as *mut T as *mut c_void,
@@ -483,7 +485,7 @@ impl Asset {
     let mut ty = [0; 16];
     let mut content = std::ptr::null_mut();
     unsafe {
-      if !ffi::parcel_asset_get_custom_content(&mut ty, &mut content, self.raw) {
+      if !host!(asset_get_custom_content)(&mut ty, &mut content, self.raw) {
         return None;
       }
       if !content.is_null() {
@@ -503,14 +505,14 @@ impl Asset {
   /// Returns the asset type extension (e.g. `"js"`, `"css"`).
   pub fn asset_type(&self) -> String {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_asset_get_type(&mut buf, self.raw) };
+    unsafe { host!(asset_get_type)(&mut buf, self.raw) };
     buf.to_string().unwrap_or_default()
   }
 
   /// Changes the asset type to the given file extension.
   pub fn set_type(&mut self, ty: &str) {
     let b = ty.as_bytes();
-    unsafe { ffi::parcel_asset_set_type(self.raw, b.as_ptr(), b.len()) };
+    unsafe { host!(asset_set_type)(self.raw, b.as_ptr(), b.len()) };
   }
 
   // ── File path (read-only) ─────────────────────────────────────────────────
@@ -518,7 +520,7 @@ impl Asset {
   /// Returns the absolute filesystem path of the source asset.
   pub fn file_path(&self) -> String {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_asset_get_file_path(&mut buf, self.raw, self.options) };
+    unsafe { host!(asset_get_file_path)(&mut buf, self.raw, self.options) };
     buf.to_string().unwrap_or_default()
   }
 
@@ -527,17 +529,17 @@ impl Asset {
   /// Returns the named pipeline, or `None` if not set.
   pub fn pipeline(&self) -> Option<String> {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_asset_get_pipeline(&mut buf, self.raw) };
+    unsafe { host!(asset_get_pipeline)(&mut buf, self.raw) };
     buf.to_string()
   }
 
   /// Sets the named pipeline.  Pass `None` to clear.
   pub fn set_pipeline(&mut self, pipeline: Option<&str>) {
     match pipeline {
-      None => unsafe { ffi::parcel_asset_set_pipeline(self.raw, ptr::null(), 0) },
+      None => unsafe { host!(asset_set_pipeline)(self.raw, ptr::null(), 0) },
       Some(p) => {
         let b = p.as_bytes();
-        unsafe { ffi::parcel_asset_set_pipeline(self.raw, b.as_ptr(), b.len()) };
+        unsafe { host!(asset_set_pipeline)(self.raw, b.as_ptr(), b.len()) };
       }
     }
   }
@@ -545,21 +547,21 @@ impl Asset {
   // ── BundleBehavior ────────────────────────────────────────────────────────
 
   pub fn bundle_behavior(&self) -> BundleBehavior {
-    unsafe { ffi::parcel_asset_get_bundle_behavior(self.raw) }
+    unsafe { host!(asset_get_bundle_behavior)(self.raw) }
   }
 
   pub fn set_bundle_behavior(&mut self, behavior: BundleBehavior) {
-    unsafe { ffi::parcel_asset_set_bundle_behavior(self.raw, behavior) };
+    unsafe { host!(asset_set_bundle_behavior)(self.raw, behavior) };
   }
 
   // ── Flags ─────────────────────────────────────────────────────────────────
 
   pub fn flags(&self) -> AssetFlags {
-    unsafe { ffi::parcel_asset_get_flags(self.raw) }
+    unsafe { host!(asset_get_flags)(self.raw) }
   }
 
   pub fn set_flags(&mut self, flags: AssetFlags) {
-    unsafe { ffi::parcel_asset_set_flags(self.raw, flags) };
+    unsafe { host!(asset_set_flags)(self.raw, flags) };
   }
 
   /// Returns `true` if all bits in `mask` are set.
@@ -572,17 +574,17 @@ impl Asset {
   /// Returns the unique key, or `None` if not set.
   pub fn unique_key(&self) -> Option<String> {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_asset_get_unique_key(&mut buf, self.raw) };
+    unsafe { host!(asset_get_unique_key)(&mut buf, self.raw) };
     buf.to_string()
   }
 
   /// Sets the unique key.  Pass `None` to clear.
   pub fn set_unique_key(&mut self, key: Option<&str>) {
     match key {
-      None => unsafe { ffi::parcel_asset_set_unique_key(self.raw, ptr::null(), 0) },
+      None => unsafe { host!(asset_set_unique_key)(self.raw, ptr::null(), 0) },
       Some(k) => {
         let b = k.as_bytes();
-        unsafe { ffi::parcel_asset_set_unique_key(self.raw, b.as_ptr(), b.len()) };
+        unsafe { host!(asset_set_unique_key)(self.raw, b.as_ptr(), b.len()) };
       }
     }
   }
@@ -592,7 +594,7 @@ impl Asset {
   /// Returns the target configuration for this asset.
   pub fn target(&self) -> Target {
     Target {
-      raw: unsafe { ffi::parcel_asset_get_target(self.raw) },
+      raw: unsafe { host!(asset_get_target)(self.raw) },
       options: self.options,
     }
   }
@@ -611,7 +613,7 @@ impl Asset {
       flags: dep.flags,
       conditions: dep.conditions,
     };
-    unsafe { ffi::parcel_asset_add_dependency(self.raw, &raw) };
+    unsafe { host!(asset_add_dependency)(self.raw, &raw) };
   }
 
   // ── Symbols ───────────────────────────────────────────────────────────────
@@ -619,7 +621,7 @@ impl Asset {
   /// Registers an exported symbol name (e.g. `"default"`, `"foo"`, `"*"`).
   pub fn add_export_symbol(&mut self, name: &str) {
     let b = name.as_bytes();
-    unsafe { ffi::parcel_asset_add_export_symbol(self.raw, b.as_ptr(), b.len()) };
+    unsafe { host!(asset_add_export_symbol)(self.raw, b.as_ptr(), b.len()) };
   }
 }
 
@@ -700,11 +702,11 @@ impl BundleGraph {
   }
 
   pub fn asset_count(&self) -> usize {
-    unsafe { ffi::parcel_bundle_graph_get_asset_count(self.raw) }
+    unsafe { host!(bundle_graph_get_asset_count)(self.raw) }
   }
 
   pub fn asset<'a>(&'a self, index: AssetIndex) -> Option<AssetRef<'a>> {
-    let raw = unsafe { ffi::parcel_bundle_graph_get_asset(self.raw, index) };
+    let raw = unsafe { host!(bundle_graph_get_asset)(self.raw, index) };
     (raw != 0).then_some(AssetRef {
       raw,
       options: self.options,
@@ -718,11 +720,11 @@ impl BundleGraph {
   }
 
   pub fn bundle_count(&self) -> usize {
-    unsafe { ffi::parcel_bundle_graph_get_bundle_count(self.raw) }
+    unsafe { host!(bundle_graph_get_bundle_count)(self.raw) }
   }
 
   pub fn bundle(&self, index: BundleIndex) -> Option<Bundle> {
-    let raw = unsafe { ffi::parcel_bundle_graph_get_bundle(self.raw, index) };
+    let raw = unsafe { host!(bundle_graph_get_bundle)(self.raw, index) };
     (raw != 0).then_some(Bundle {
       raw,
       options: self.options,
@@ -738,9 +740,8 @@ impl BundleGraph {
     asset: AssetIndex,
     dependency_index: usize,
   ) -> BundleGraphDependencyResolution {
-    let resolution = unsafe {
-      ffi::parcel_bundle_graph_get_dependency_resolution(self.raw, asset, dependency_index)
-    };
+    let resolution =
+      unsafe { host!(bundle_graph_get_dependency_resolution)(self.raw, asset, dependency_index) };
     match resolution.resolution_type {
       ffi::BundleGraphResolutionType::Invalid => BundleGraphDependencyResolution::Invalid,
       ffi::BundleGraphResolutionType::None => BundleGraphDependencyResolution::None,
@@ -772,13 +773,13 @@ impl<'a> AssetRef<'a> {
 
   pub fn content(&self) -> String {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_asset_get_content(&mut buf, self.raw) };
+    unsafe { host!(asset_get_content)(&mut buf, self.raw) };
     buf.to_string().unwrap_or_default()
   }
 
   pub fn content_bytes(&self) -> Vec<u8> {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_asset_get_content(&mut buf, self.raw) };
+    unsafe { host!(asset_get_content)(&mut buf, self.raw) };
     buf.to_bytes().unwrap_or_default()
   }
 
@@ -786,7 +787,7 @@ impl<'a> AssetRef<'a> {
     let mut ty = [0; 16];
     let mut content = std::ptr::null_mut();
     unsafe {
-      if !ffi::parcel_asset_get_custom_content(&mut ty, &mut content, self.raw) {
+      if !host!(asset_get_custom_content)(&mut ty, &mut content, self.raw) {
         return None;
       }
       if !content.is_null() {
@@ -803,28 +804,28 @@ impl<'a> AssetRef<'a> {
 
   pub fn asset_type(&self) -> String {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_asset_get_type(&mut buf, self.raw) };
+    unsafe { host!(asset_get_type)(&mut buf, self.raw) };
     buf.to_string().unwrap_or_default()
   }
 
   pub fn file_path(&self) -> String {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_asset_get_file_path(&mut buf, self.raw, self.options) };
+    unsafe { host!(asset_get_file_path)(&mut buf, self.raw, self.options) };
     buf.to_string().unwrap_or_default()
   }
 
   pub fn pipeline(&self) -> Option<String> {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_asset_get_pipeline(&mut buf, self.raw) };
+    unsafe { host!(asset_get_pipeline)(&mut buf, self.raw) };
     buf.to_string()
   }
 
   pub fn bundle_behavior(&self) -> BundleBehavior {
-    unsafe { ffi::parcel_asset_get_bundle_behavior(self.raw) }
+    unsafe { host!(asset_get_bundle_behavior)(self.raw) }
   }
 
   pub fn flags(&self) -> AssetFlags {
-    unsafe { ffi::parcel_asset_get_flags(self.raw) }
+    unsafe { host!(asset_get_flags)(self.raw) }
   }
 
   pub fn has_flag(&self, mask: AssetFlags) -> bool {
@@ -833,23 +834,23 @@ impl<'a> AssetRef<'a> {
 
   pub fn unique_key(&self) -> Option<String> {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_asset_get_unique_key(&mut buf, self.raw) };
+    unsafe { host!(asset_get_unique_key)(&mut buf, self.raw) };
     buf.to_string()
   }
 
   pub fn target(&self) -> Target {
     Target {
-      raw: unsafe { ffi::parcel_asset_get_target(self.raw) },
+      raw: unsafe { host!(asset_get_target)(self.raw) },
       options: self.options,
     }
   }
 
   pub fn dependency_count(&self) -> usize {
-    unsafe { ffi::parcel_asset_get_dependency_count(self.raw) }
+    unsafe { host!(asset_get_dependency_count)(self.raw) }
   }
 
   pub fn dependency(&self, index: usize) -> Option<Dependency> {
-    let raw = unsafe { ffi::parcel_asset_get_dependency(self.raw, index) };
+    let raw = unsafe { host!(asset_get_dependency)(self.raw, index) };
     (raw != 0).then_some(Dependency {
       raw,
       options: self.options,
@@ -891,23 +892,23 @@ impl Bundle {
 
   pub fn asset_type(&self) -> String {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_bundle_get_type(&mut buf, self.raw) };
+    unsafe { host!(bundle_get_type)(&mut buf, self.raw) };
     buf.to_string().unwrap_or_default()
   }
 
   pub fn target(&self) -> Target {
     Target {
-      raw: unsafe { ffi::parcel_bundle_get_target(self.raw) },
+      raw: unsafe { host!(bundle_get_target)(self.raw) },
       options: self.options,
     }
   }
 
   pub fn bundle_behavior(&self) -> BundleBehavior {
-    unsafe { ffi::parcel_bundle_get_bundle_behavior(self.raw) }
+    unsafe { host!(bundle_get_bundle_behavior)(self.raw) }
   }
 
   pub fn flags(&self) -> BundleFlags {
-    unsafe { ffi::parcel_bundle_get_flags(self.raw) }
+    unsafe { host!(bundle_get_flags)(self.raw) }
   }
 
   pub fn has_flag(&self, flag: BundleFlags) -> bool {
@@ -916,16 +917,16 @@ impl Bundle {
 
   pub fn dist_path(&self) -> Option<String> {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_bundle_get_dist_path(&mut buf, self.raw) };
+    unsafe { host!(bundle_get_dist_path)(&mut buf, self.raw) };
     buf.to_string()
   }
 
   pub fn asset_count(&self) -> usize {
-    unsafe { ffi::parcel_bundle_get_asset_count(self.raw) }
+    unsafe { host!(bundle_get_asset_count)(self.raw) }
   }
 
   pub fn asset(&self, index: usize) -> Option<AssetIndex> {
-    let asset = unsafe { ffi::parcel_bundle_get_asset(self.raw, index) };
+    let asset = unsafe { host!(bundle_get_asset)(self.raw, index) };
     (asset != ffi::PARCEL_INVALID_ASSET_INDEX).then_some(asset)
   }
 
@@ -934,11 +935,11 @@ impl Bundle {
   }
 
   pub fn entry_asset_count(&self) -> usize {
-    unsafe { ffi::parcel_bundle_get_entry_asset_count(self.raw) }
+    unsafe { host!(bundle_get_entry_asset_count)(self.raw) }
   }
 
   pub fn entry_asset(&self, index: usize) -> Option<AssetIndex> {
-    let asset = unsafe { ffi::parcel_bundle_get_entry_asset(self.raw, index) };
+    let asset = unsafe { host!(bundle_get_entry_asset)(self.raw, index) };
     (asset != ffi::PARCEL_INVALID_ASSET_INDEX).then_some(asset)
   }
 
@@ -947,31 +948,31 @@ impl Bundle {
   }
 
   pub fn main_entry_asset(&self) -> Option<AssetIndex> {
-    let asset = unsafe { ffi::parcel_bundle_get_main_entry_asset(self.raw) };
+    let asset = unsafe { host!(bundle_get_main_entry_asset)(self.raw) };
     (asset != ffi::PARCEL_INVALID_ASSET_INDEX).then_some(asset)
   }
 
   pub fn name(&self) -> Option<String> {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_bundle_get_name(&mut buf, self.raw) };
+    unsafe { host!(bundle_get_name)(&mut buf, self.raw) };
     buf.to_string()
   }
 
   pub fn absolute_url(&self) -> Option<String> {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_bundle_get_absolute_url(&mut buf, self.raw) };
+    unsafe { host!(bundle_get_absolute_url)(&mut buf, self.raw) };
     buf.to_string()
   }
 
   pub fn relative_url(&self, from: &Bundle) -> Option<String> {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_bundle_get_relative_url(&mut buf, self.raw, from.raw) };
+    unsafe { host!(bundle_get_relative_url)(&mut buf, self.raw, from.raw) };
     buf.to_string()
   }
 
   pub fn relative_specifier(&self, from: &Bundle) -> Option<String> {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_bundle_get_relative_specifier(&mut buf, self.raw, from.raw) };
+    unsafe { host!(bundle_get_relative_specifier)(&mut buf, self.raw, from.raw) };
     buf.to_string()
   }
 }
@@ -989,35 +990,35 @@ pub struct Target {
 impl Target {
   /// Returns the target execution environment.
   pub fn environment(&self) -> Environment {
-    unsafe { ffi::parcel_target_get_environment(self.raw) }
+    unsafe { host!(target_get_environment)(self.raw) }
   }
 
   /// Returns the output module format.
   pub fn output_format(&self) -> OutputFormat {
-    unsafe { ffi::parcel_target_get_output_format(self.raw) }
+    unsafe { host!(target_get_output_format)(self.raw) }
   }
 
   /// Returns the source type (module or script).
   pub fn source_type(&self) -> SourceType {
-    unsafe { ffi::parcel_target_get_source_type(self.raw) }
+    unsafe { host!(target_get_source_type)(self.raw) }
   }
 
   /// Returns the environment flags bitfield.
   pub fn env_flags(&self) -> EnvironmentFlags {
-    unsafe { ffi::parcel_target_get_env_flags(self.raw) }
+    unsafe { host!(target_get_env_flags)(self.raw) }
   }
 
   /// Returns the public URL (e.g. `"/"` or `"https://cdn.example.com/"`).
   pub fn public_url(&self) -> String {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_target_get_public_url(&mut buf, self.raw) };
+    unsafe { host!(target_get_public_url)(&mut buf, self.raw) };
     buf.to_string().unwrap_or_default()
   }
 
   /// Returns the absolute path of the dist directory.
   pub fn dist_dir(&self) -> String {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_target_get_dist_dir(&mut buf, self.raw, self.options) };
+    unsafe { host!(target_get_dist_dir)(&mut buf, self.raw, self.options) };
     buf.to_string().unwrap_or_default()
   }
 }
@@ -1046,39 +1047,39 @@ impl Dependency {
   /// Returns the raw specifier string (e.g. `"custom:greeting"`).
   pub fn specifier(&self) -> String {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_dep_get_specifier(&mut buf, self.raw) };
+    unsafe { host!(dep_get_specifier)(&mut buf, self.raw) };
     buf.to_string().unwrap_or_default()
   }
 
   /// Returns the specifier type.
   pub fn specifier_type(&self) -> SpecifierType {
-    unsafe { ffi::parcel_dep_get_specifier_type(self.raw) }
+    unsafe { host!(dep_get_specifier_type)(self.raw) }
   }
 
   /// Returns the dependency priority.
   pub fn priority(&self) -> Priority {
-    unsafe { ffi::parcel_dep_get_priority(self.raw) }
+    unsafe { host!(dep_get_priority)(self.raw) }
   }
 
   /// Returns the bundle behavior.
   pub fn bundle_behavior(&self) -> BundleBehavior {
-    unsafe { ffi::parcel_dep_get_bundle_behavior(self.raw) }
+    unsafe { host!(dep_get_bundle_behavior)(self.raw) }
   }
 
   /// Returns the raw `DependencyFlags` bitfield.
   pub fn flags(&self) -> DependencyFlags {
-    unsafe { ffi::parcel_dep_get_flags(self.raw) }
+    unsafe { host!(dep_get_flags)(self.raw) }
   }
 
   /// Returns the package `exports` and `imports` conditions bitfield.
   pub fn conditions(&self) -> ExportsConditions {
-    unsafe { ffi::parcel_dep_get_conditions(self.raw) }
+    unsafe { host!(dep_get_conditions)(self.raw) }
   }
 
   /// Returns the absolute path of the file that contains this import.
   pub fn source_path(&self) -> String {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_dep_get_source_path(&mut buf, self.raw, self.options) };
+    unsafe { host!(dep_get_source_path)(&mut buf, self.raw, self.options) };
     buf.to_string().unwrap_or_default()
   }
 
@@ -1086,14 +1087,14 @@ impl Dependency {
   /// source file path when `resolve_from` is not explicitly set).
   pub fn resolve_from(&self) -> String {
     let mut buf = Buffer::default();
-    unsafe { ffi::parcel_dep_get_resolve_from(&mut buf, self.raw, self.options) };
+    unsafe { host!(dep_get_resolve_from)(&mut buf, self.raw, self.options) };
     buf.to_string().unwrap_or_default()
   }
 
   /// Returns the target configuration for this dependency.
   pub fn target(&self) -> Target {
     Target {
-      raw: unsafe { ffi::parcel_dep_get_target(self.raw) },
+      raw: unsafe { host!(dep_get_target)(self.raw) },
       options: self.options,
     }
   }
@@ -1135,7 +1136,7 @@ impl From<ResolveResult> for ffi::ResolveResult {
         ffi_result.resolution_type = ffi::ResolutionType::FilePath;
         let path_bytes = file_path.as_os_str().as_encoded_bytes();
         unsafe {
-          ffi::parcel_buffer_write(
+          host!(buffer_write)(
             &mut ffi_result.file_path,
             path_bytes.as_ptr(),
             path_bytes.len(),
@@ -1143,11 +1144,7 @@ impl From<ResolveResult> for ffi::ResolveResult {
         };
         if let Some(pipeline) = pipeline {
           unsafe {
-            ffi::parcel_buffer_write_utf8(
-              &mut ffi_result.pipeline,
-              pipeline.as_ptr(),
-              pipeline.len(),
-            )
+            host!(buffer_write_utf8)(&mut ffi_result.pipeline, pipeline.as_ptr(), pipeline.len())
           };
         }
       }
@@ -1259,10 +1256,19 @@ macro_rules! register_plugin {
   ($type:ty) => {
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn parcel_plugin_init(
+      api: *const $crate::ffi::ParcelApi,
       config: *const u8,
       config_len: usize,
+      out_state: *mut *mut ::core::ffi::c_void,
       raw_diagnostic: *mut $crate::ffi::Diagnostic,
-    ) -> *mut ::core::ffi::c_void {
+    ) -> $crate::ffi::InitStatus {
+      // Must come first: every other SDK call, including writing a diagnostic,
+      // goes through this table. Returning Incompatible rather than a message is
+      // what keeps that from being circular — Parcel writes the message.
+      if !unsafe { $crate::init_api(api) } {
+        return $crate::ffi::InitStatus::Incompatible;
+      }
+
       let config = if config.is_null() || config_len == 0 {
         &[] as &[u8]
       } else {
@@ -1283,11 +1289,17 @@ macro_rules! register_plugin {
       }));
       match result {
         Ok(Ok(plugin)) => {
-          ::std::boxed::Box::into_raw(::std::boxed::Box::new(plugin)) as *mut ::core::ffi::c_void
+          if !out_state.is_null() {
+            unsafe {
+              *out_state = ::std::boxed::Box::into_raw(::std::boxed::Box::new(plugin))
+                as *mut ::core::ffi::c_void
+            };
+          }
+          $crate::ffi::InitStatus::Ok
         }
         Ok(Err(e)) => {
           e.write_to_raw(raw_diagnostic);
-          ::core::ptr::null_mut()
+          $crate::ffi::InitStatus::Error
         }
         Err(payload) => {
           $crate::Diagnostic::new(format!(
@@ -1295,7 +1307,7 @@ macro_rules! register_plugin {
             __parcel_panic_message(payload)
           ))
           .write_to_raw(raw_diagnostic);
-          ::core::ptr::null_mut()
+          $crate::ffi::InitStatus::Error
         }
       }
     }
@@ -1428,7 +1440,15 @@ macro_rules! register_plugin {
       match result {
         Ok(Ok(Some(name))) => {
           if !raw_name.is_null() {
-            unsafe { $crate::ffi::parcel_buffer_write_utf8(raw_name, name.as_ptr(), name.len()) };
+            unsafe {
+              $crate::api::api()
+                .buffer_write_utf8
+                .expect("Parcel did not provide buffer_write_utf8")(
+                raw_name,
+                name.as_ptr(),
+                name.len(),
+              )
+            };
           }
         }
         Ok(Ok(None)) => {}
@@ -1495,14 +1515,18 @@ macro_rules! register_plugin {
           if !raw_result.is_null() {
             match result.contents {
               $crate::ContentBuffer::Bytes(contents) => unsafe {
-                $crate::ffi::parcel_buffer_write(
+                $crate::api::api()
+                  .buffer_write
+                  .expect("Parcel did not provide buffer_write")(
                   &mut (*raw_result).contents,
                   contents.as_ptr(),
                   contents.len(),
                 )
               },
               $crate::ContentBuffer::String(contents) => unsafe {
-                $crate::ffi::parcel_buffer_write_utf8(
+                $crate::api::api()
+                  .buffer_write_utf8
+                  .expect("Parcel did not provide buffer_write_utf8")(
                   &mut (*raw_result).contents,
                   contents.as_ptr(),
                   contents.len(),
@@ -1511,7 +1535,9 @@ macro_rules! register_plugin {
             }
             if let Some(source_map) = result.source_map {
               unsafe {
-                $crate::ffi::parcel_buffer_write(
+                $crate::api::api()
+                  .buffer_write
+                  .expect("Parcel did not provide buffer_write")(
                   &mut (*raw_result).source_map,
                   source_map.as_ptr(),
                   source_map.len(),
