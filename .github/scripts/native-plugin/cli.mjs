@@ -8,9 +8,10 @@ import {execSync} from 'node:child_process';
  * and sh.
  */
 export function npmPack(cwd, destination) {
-  let command = ['npm', 'pack', '--json', '--pack-destination', destination]
+  let args = ['pack', '--json', '--pack-destination', destination]
     .map(arg => `"${arg}"`)
     .join(' ');
+  let command = `npm ${args}`;
 
   let output = execSync(command, {
     cwd,
