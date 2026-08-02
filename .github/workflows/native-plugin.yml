@@ -1,5 +1,5 @@
-# Reusable workflow that builds a native (Rust) Parcel plugin for every target
-# listed in its package.json, and publishes the results to npm.
+# Reusable workflow that builds a native Parcel plugin — Rust or Go — for every
+# target listed in its package.json, and publishes the results to npm.
 #
 # See .github/scripts/native-plugin/README.md for usage.
 name: native-plugin
@@ -8,7 +8,7 @@ on:
   workflow_call:
     inputs:
       path:
-        description: 'Path to the plugin directory, containing package.json and Cargo.toml'
+        description: 'Path to the plugin directory, containing package.json and Cargo.toml or go.mod'
         required: false
         default: '.'
         type: string
@@ -17,10 +17,25 @@ on:
         required: false
         default: false
         type: boolean
+      language:
+        description: 'Toolchain that builds the plugin: rust or go. Detected from Cargo.toml / go.mod when empty.'
+        required: false
+        default: ''
+        type: string
       rust-toolchain:
         description: 'Rust toolchain to build with'
         required: false
         default: 'stable'
+        type: string
+      go-version:
+        description: 'Go version to build with'
+        required: false
+        default: 'stable'
+        type: string
+      go-args:
+        description: 'Extra arguments passed to go build (e.g. -tags foo)'
+        required: false
+        default: ''
         type: string
       cargo-args:
         description: 'Extra arguments passed to cargo build (e.g. --features foo)'
@@ -38,7 +53,7 @@ on:
         default: '24'
         type: string
       zig-version:
-        description: 'Zig version used by cargo-zigbuild for Linux targets'
+        description: 'Zig version used to cross compile Linux targets'
         required: false
         default: '0.14.0'
         type: string
@@ -49,6 +64,9 @@ on:
       version:
         description: 'Version that was built (and published, if enabled)'
         value: ${{ jobs.matrix.outputs.version }}
+      language:
+        description: 'Toolchain the plugin was built with'
+        value: ${{ jobs.matrix.outputs.language }}
 
 jobs:
   matrix:
@@ -60,6 +78,7 @@ jobs:
       matrix: ${{ steps.matrix.outputs.matrix }}
       name: ${{ steps.matrix.outputs.name }}
       version: ${{ steps.matrix.outputs.version }}
+      language: ${{ steps.matrix.outputs.language }}
     steps:
       - uses: actions/checkout@v4
 
@@ -92,7 +111,8 @@ jobs:
         shell: bash
         env:
           PLUGIN_DIR: ${{ inputs.path }}
-        run: node "$RUNNER_TEMP/native-plugin/matrix.mjs" --dir "$PLUGIN_DIR"
+          LANGUAGE: ${{ inputs.language }}
+        run: node "$RUNNER_TEMP/native-plugin/matrix.mjs" --dir "$PLUGIN_DIR" --language "$LANGUAGE"
 
   build:
     name: ${{ matrix.target }}
@@ -128,32 +148,43 @@ jobs:
           node-version: ${{ inputs.node-version }}
 
       - name: Install Rust
+        if: ${{ needs.matrix.outputs.language == 'rust' }}
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ inputs.rust-toolchain }}
           targets: ${{ matrix.target }}
 
-      - uses: Swatinem/rust-cache@v2
+      - if: ${{ needs.matrix.outputs.language == 'rust' }}
+        uses: Swatinem/rust-cache@v2
         with:
           workspaces: ${{ inputs.path }}
           shared-key: ${{ matrix.target }}
 
+      - name: Install Go
+        if: ${{ needs.matrix.outputs.language == 'go' }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache-dependency-path: ${{ inputs.path }}/go.sum
+
       # Linux targets are cross compiled with Zig so that glibc builds link
       # against an old enough glibc to run on distros older than the runner.
+      # Rust reaches it through cargo-zigbuild; cgo uses `zig cc` as its compiler.
       - name: Install Zig
         if: ${{ matrix.builder == 'zig' }}
         uses: goto-bus-stop/setup-zig@v1
         with:
           version: ${{ inputs.zig-version }}
       - name: Install cargo-zigbuild
-        if: ${{ matrix.builder == 'zig' }}
+        if: ${{ matrix.builder == 'zig' && needs.matrix.outputs.language == 'rust' }}
         uses: taiki-e/install-action@v2
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           tool: cargo-zigbuild
 
-      - name: Build
+      - name: Build (Rust)
+        if: ${{ needs.matrix.outputs.language == 'rust' }}
         shell: bash
         working-directory: ${{ inputs.path }}
         env:
@@ -162,6 +193,7 @@ jobs:
           BUILDER: ${{ matrix.builder }}
           CARGO_ARGS: ${{ inputs.cargo-args }}
           EXTRA_RUSTFLAGS: ${{ inputs.rustflags }} ${{ matrix.rustflags }}
+          EXT: ${{ matrix.ext }}
         run: |
           set -euo pipefail
 
@@ -172,13 +204,44 @@ jobs:
             echo "RUSTFLAGS=$RUSTFLAGS"
           fi
 
-          # The JSON message stream tells the packaging script exactly which file
-          # cargo produced; diagnostics still go to stderr and stay readable.
+          # The JSON message stream says exactly which file cargo produced;
+          # diagnostics still go to stderr and stay readable.
           if [ "$BUILDER" = 'zig' ]; then
             cargo zigbuild --release --target "$ZIG_TARGET" --message-format json-render-diagnostics $CARGO_ARGS > "$RUNNER_TEMP/cargo-messages.json"
           else
             cargo build --release --target "$TARGET" --message-format json-render-diagnostics $CARGO_ARGS > "$RUNNER_TEMP/cargo-messages.json"
           fi
+
+          LIBRARY="$(node "$RUNNER_TEMP/native-plugin/cargo-library.mjs" --dir . --messages "$RUNNER_TEMP/cargo-messages.json" --ext "$EXT")"
+          echo "LIBRARY=$LIBRARY" >> "$GITHUB_ENV"
+
+      - name: Build (Go)
+        if: ${{ needs.matrix.outputs.language == 'go' }}
+        shell: bash
+        working-directory: ${{ inputs.path }}
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          # Set as a step env rather than interpolated into the script: it carries
+          # spaces (`zig cc -target ...`) and would need quoting in every shell.
+          TARGET_CC: ${{ matrix.cc }}
+          GO_ARGS: ${{ inputs.go-args }}
+          EXT: ${{ matrix.ext }}
+        run: |
+          set -euo pipefail
+
+          # c-shared is only possible through cgo, so a missing or wrong compiler
+          # has to fail here rather than silently produce a library with no entry
+          # points.
+          export CGO_ENABLED=1
+          if [ -n "$TARGET_CC" ]; then
+            export CC="$TARGET_CC"
+          fi
+          echo "CC=${CC:-<runner default>}"
+
+          LIBRARY="$RUNNER_TEMP/plugin.$EXT"
+          go build -buildmode=c-shared -o "$LIBRARY" $GO_ARGS .
+          echo "LIBRARY=$LIBRARY" >> "$GITHUB_ENV"
 
       - name: Pack ${{ matrix.package }}
         shell: bash
@@ -189,7 +252,7 @@ jobs:
           node "$RUNNER_TEMP/native-plugin/pack-artifact.mjs" \
             --dir "$PLUGIN_DIR" \
             --target "$TARGET" \
-            --cargo-messages "$RUNNER_TEMP/cargo-messages.json" \
+            --library "$LIBRARY" \
             --out "$RUNNER_TEMP/artifacts"
 
       - uses: actions/upload-artifact@v4

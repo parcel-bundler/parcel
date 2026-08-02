@@ -1,8 +1,8 @@
 # Building and publishing native Parcel plugins
 
 `parcel-bundler/parcel/.github/workflows/native-plugin.yml` is a reusable GitHub Actions
-workflow that builds a Rust Parcel plugin for every platform it declares, and publishes
-the results to npm.
+workflow that builds a native Parcel plugin — written in Rust or Go — for every platform
+it declares, and publishes the results to npm.
 
 A native plugin is published as one package per platform, plus a plugin package that
 depends on all of them as `optionalDependencies`. npm installs only the artifact package
@@ -44,12 +44,23 @@ package instead of one per platform — simpler for a small plugin, at the cost 
 every user downloading every binary. This workflow always builds the per-platform
 form; the path form is meant for plugins that don't need to publish this way.
 
-Your `Cargo.toml` must build a `cdylib`:
+Nothing in that file says which language the plugin is written in, and nothing needs to:
+`parcel.artifacts` is keyed by the target triple **Parcel** was built for, which is what
+picks the artifact to load at runtime. A Go plugin's package.json has exactly this shape.
+
+The workflow detects the toolchain from the plugin directory — `Cargo.toml` means Rust,
+`go.mod` means Go — or takes the `language` input if a repository has both.
+
+A Rust plugin's `Cargo.toml` must build a `cdylib`:
 
 ```toml
 [lib]
 crate-type = ["cdylib"]
 ```
+
+A Go plugin needs nothing beyond its `go.mod`; the workflow builds it with
+`go build -buildmode=c-shared`, which requires cgo and therefore a C compiler for the
+target. That is supplied for you — see the targets table below.
 
 ## Using the workflow
 
@@ -82,7 +93,10 @@ published.
 | ---------------- | -------- | ------------------------------------------------------------------ |
 | `path`           | `.`      | Directory containing the plugin's `package.json` and `Cargo.toml`. |
 | `publish`        | `false`  | Publish to npm once every target has built successfully.           |
+| `language`       | detected | `rust` or `go`. Detected from `Cargo.toml` / `go.mod` when empty.  |
 | `rust-toolchain` | `stable` | Rust toolchain to build with.                                      |
+| `go-version`     | `stable` | Go version to build with.                                          |
+| `go-args`        | `''`     | Extra arguments for `go build`, e.g. `-tags foo`.                  |
 | `cargo-args`     | `''`     | Extra arguments for cargo, e.g. `--features foo`.                  |
 | `rustflags`      | `''`     | Extra `RUSTFLAGS`. See the note on musl below.                     |
 | `node-version`   | `24`     | Node.js version used for packaging and publishing.                 |
@@ -90,7 +104,7 @@ published.
 
 ### Outputs
 
-`name` and `version` of the plugin package that was built.
+`name`, `version`, and `language` of the plugin package that was built.
 
 ## Publishing
 
@@ -193,8 +207,11 @@ containing only the cdylib and its generated package.json.
 
 The workflow runs these directly; they are also runnable locally.
 
-- [`matrix.mjs`](matrix.mjs) — prints the build matrix derived from `parcel.artifacts`.
-- [`pack-artifact.mjs`](pack-artifact.mjs) — packs one target's cdylib into a tarball.
+- [`matrix.mjs`](matrix.mjs) — prints the build matrix derived from `parcel.artifacts`,
+  and detects the plugin's language.
+- [`cargo-library.mjs`](cargo-library.mjs) — resolves which file cargo produced. The one
+  Rust-specific step; a Go build already knows, having named it with `-o`.
+- [`pack-artifact.mjs`](pack-artifact.mjs) — packs one target's library into a tarball.
 - [`pack-main.mjs`](pack-main.mjs) — packs the plugin package with `optionalDependencies`,
   failing if any declared target is missing a build.
 - [`targets.mjs`](targets.mjs) — the supported target registry.
@@ -203,10 +220,11 @@ The workflow runs these directly; they are also runnable locally.
 ```sh
 node matrix.mjs --dir path/to/plugin
 node pack-artifact.mjs --dir path/to/plugin --target aarch64-apple-darwin \
-  --cargo-messages cargo.json --out ./artifacts
+  --library path/to/libplugin.dylib --out ./artifacts
 node pack-main.mjs --dir path/to/plugin --artifacts ./artifacts --out ./main
 ```
 
-`--cargo-messages` is the JSON stream from
-`cargo build --message-format json-render-diagnostics`, which is how the packing script
-locates the cdylib cargo produced rather than guessing its path.
+`cargo-library.mjs` reads the JSON stream from
+`cargo build --message-format json-render-diagnostics`, which is how a Rust build locates
+the cdylib cargo produced rather than guessing its path. Everything downstream of that
+takes a plain `--library` path and does not care what built it.

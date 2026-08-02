@@ -12,7 +12,12 @@
  *   os/cpu  - Node.js `process.platform` / `process.arch` names, used for the
  *             npm `os` and `cpu` fields.
  *   libc    - npm `libc` field. Only meaningful on linux.
- *   ext     - extension of the cdylib cargo produces for this target.
+ *   ext     - extension of the shared library produced for this target.
+ *   go      - GOOS/GOARCH, and the C compiler cgo needs. Empty `cc` means the
+ *             runner's own compiler; Linux fills it in from `zigCcTarget`.
+ *   zigCcTarget - target for `zig cc`, which speaks arch-os-abi and does not
+ *             accept a Rust triple. cargo-zigbuild translates `zigTarget` for
+ *             itself; invoking zig directly for cgo means doing it here.
  */
 /**
  * musl targets link the CRT statically by default, and a static CRT cannot produce
@@ -30,6 +35,7 @@ export const TARGETS = {
     os: 'darwin',
     cpu: 'arm64',
     ext: 'dylib',
+    go: {os: 'darwin', arch: 'arm64', cc: ''},
   },
   'x86_64-apple-darwin': {
     runner: 'macos-latest',
@@ -37,6 +43,7 @@ export const TARGETS = {
     os: 'darwin',
     cpu: 'x64',
     ext: 'dylib',
+    go: {os: 'darwin', arch: 'amd64', cc: 'clang -arch x86_64'},
   },
   'aarch64-pc-windows-msvc': {
     runner: 'windows-latest',
@@ -44,6 +51,7 @@ export const TARGETS = {
     os: 'win32',
     cpu: 'arm64',
     ext: 'dll',
+    go: {os: 'windows', arch: 'arm64', cc: ''},
   },
   'x86_64-pc-windows-msvc': {
     runner: 'windows-latest',
@@ -51,6 +59,7 @@ export const TARGETS = {
     os: 'win32',
     cpu: 'x64',
     ext: 'dll',
+    go: {os: 'windows', arch: 'amd64', cc: ''},
   },
   'i686-pc-windows-msvc': {
     runner: 'windows-latest',
@@ -58,6 +67,7 @@ export const TARGETS = {
     os: 'win32',
     cpu: 'ia32',
     ext: 'dll',
+    go: {os: 'windows', arch: '386', cc: ''},
   },
   'x86_64-unknown-linux-gnu': {
     runner: 'ubuntu-latest',
@@ -67,6 +77,8 @@ export const TARGETS = {
     cpu: 'x64',
     libc: 'glibc',
     ext: 'so',
+    zigCcTarget: 'x86_64-linux-gnu.2.26',
+    go: {os: 'linux', arch: 'amd64'},
   },
   'aarch64-unknown-linux-gnu': {
     runner: 'ubuntu-latest',
@@ -76,6 +88,8 @@ export const TARGETS = {
     cpu: 'arm64',
     libc: 'glibc',
     ext: 'so',
+    zigCcTarget: 'aarch64-linux-gnu.2.26',
+    go: {os: 'linux', arch: 'arm64'},
   },
   'armv7-unknown-linux-gnueabihf': {
     runner: 'ubuntu-latest',
@@ -85,6 +99,8 @@ export const TARGETS = {
     cpu: 'arm',
     libc: 'glibc',
     ext: 'so',
+    zigCcTarget: 'arm-linux-gnueabihf.2.26',
+    go: {os: 'linux', arch: 'arm'},
   },
   'x86_64-unknown-linux-musl': {
     runner: 'ubuntu-latest',
@@ -94,6 +110,8 @@ export const TARGETS = {
     libc: 'musl',
     ext: 'so',
     rustflags: MUSL_RUSTFLAGS,
+    zigCcTarget: 'x86_64-linux-musl',
+    go: {os: 'linux', arch: 'amd64'},
   },
   'aarch64-unknown-linux-musl': {
     runner: 'ubuntu-latest',
@@ -103,6 +121,8 @@ export const TARGETS = {
     libc: 'musl',
     ext: 'so',
     rustflags: MUSL_RUSTFLAGS,
+    zigCcTarget: 'aarch64-linux-musl',
+    go: {os: 'linux', arch: 'arm64'},
   },
 };
 

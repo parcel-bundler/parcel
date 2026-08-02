@@ -1,9 +1,15 @@
 /**
- * Packs the cdylib built for a single target into a publishable npm tarball.
+ * Packs the shared library built for a single target into a publishable npm
+ * tarball.
  *
  * Usage:
  *   node pack-artifact.mjs --dir <plugin dir> --target <rust triple>
- *                          --cargo-messages <cargo json output> --out <dir>
+ *                          --library <path to .so/.dylib/.dll> --out <dir>
+ *
+ * Nothing here is specific to the language the plugin is written in: whatever
+ * produced the library, the artifact package is the same. Rust builds locate
+ * their library with cargo-library.mjs first; Go builds already know the path,
+ * since they chose it with `-o`.
  *
  * The tarball is written to <out>/<target>.tgz so later steps can find it
  * without having to reconstruct npm's naming scheme.
@@ -28,12 +34,12 @@ let {values} = parseArgs({
   options: {
     dir: {type: 'string', default: '.'},
     target: {type: 'string'},
-    'cargo-messages': {type: 'string'},
+    library: {type: 'string'},
     out: {type: 'string'},
   },
 });
 
-for (let required of ['target', 'cargo-messages', 'out']) {
+for (let required of ['target', 'library', 'out']) {
   if (!values[required]) {
     throw new Error(`Missing required argument --${required}`);
   }
@@ -56,77 +62,15 @@ if (!Object.hasOwn(pkg.parcel.artifacts, target)) {
   );
 }
 
-/**
- * Finds the cdylib cargo just built by reading its JSON message stream, rather
- * than guessing at target/<triple>/release/lib<crate>.<ext>. Cargo already
- * knows the answer, including how the crate name was mangled and where the
- * target directory is.
- */
-function findLibrary(messagesFile, pluginDir, ext) {
-  let manifest = path.resolve(pluginDir, 'Cargo.toml');
-  let matches = [];
-
-  for (let line of fs.readFileSync(messagesFile, 'utf8').split('\n')) {
-    if (!line.startsWith('{')) {
-      continue;
-    }
-
-    let message;
-    try {
-      message = JSON.parse(line);
-    } catch {
-      continue;
-    }
-
-    if (
-      message.reason !== 'compiler-artifact' ||
-      !message.target?.kind?.includes('cdylib')
-    ) {
-      continue;
-    }
-
-    let files = (message.filenames ?? []).filter(file =>
-      file.toLowerCase().endsWith(`.${ext}`),
-    );
-    if (files.length > 0) {
-      matches.push({
-        manifestPath: message.manifest_path,
-        file: files[files.length - 1],
-      });
-    }
-  }
-
-  if (matches.length === 0) {
-    throw new Error(
-      `cargo did not produce a .${ext} for ${target}. Does the crate in ${pluginDir} set crate-type = ["cdylib"]?`,
-    );
-  }
-
-  // A dependency may also be a cdylib, so prefer the plugin's own crate.
-  let samePath = (a, b) =>
-    process.platform === 'win32'
-      ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase()
-      : path.resolve(a) === path.resolve(b);
-  let own = matches.filter(
-    match => match.manifestPath && samePath(match.manifestPath, manifest),
-  );
-  if (own.length > 0) {
-    return own[own.length - 1].file;
-  }
-
-  if (matches.length > 1) {
-    throw new Error(
-      `cargo produced multiple cdylibs and none belong to ${manifest}:\n${matches
-        .map(m => `  - ${m.file}`)
-        .join('\n')}`,
-    );
-  }
-
-  return matches[0].file;
+let library = path.resolve(values.library);
+if (!fs.existsSync(library)) {
+  throw new Error(`No library at ${library}`);
 }
-
-let library = findLibrary(values['cargo-messages'], dir, info.ext);
-console.log(`Found ${library}`);
+if (!library.toLowerCase().endsWith(`.${info.ext}`)) {
+  throw new Error(
+    `${library} is not a .${info.ext}, which is what ${target} loads`,
+  );
+}
 
 // Stage the package outside the repo so `npm pack` only ever sees the two files
 // we put there.
