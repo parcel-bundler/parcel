@@ -27,6 +27,7 @@ let include = targets.map(target => {
     // Empty for native builds. cargo-zigbuild is the only consumer.
     zigTarget: info.builder === 'zig' ? zigTarget(target) : '',
     ext: info.ext,
+    rustflags: info.rustflags ?? '',
   };
 });
 

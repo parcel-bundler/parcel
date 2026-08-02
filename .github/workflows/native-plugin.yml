@@ -27,6 +27,11 @@ on:
         required: false
         default: ''
         type: string
+      rustflags:
+        description: 'Extra RUSTFLAGS. Note that setting this shadows build.rustflags in .cargo/config.toml, as musl builds already do.'
+        required: false
+        default: ''
+        type: string
       node-version:
         description: 'Node.js version used to run the packaging scripts and npm publish'
         required: false
@@ -156,8 +161,17 @@ jobs:
           ZIG_TARGET: ${{ matrix.zigTarget }}
           BUILDER: ${{ matrix.builder }}
           CARGO_ARGS: ${{ inputs.cargo-args }}
+          EXTRA_RUSTFLAGS: ${{ inputs.rustflags }} ${{ matrix.rustflags }}
         run: |
           set -euo pipefail
+
+          # Setting RUSTFLAGS at all shadows build.rustflags from .cargo/config.toml,
+          # so only export it when a target actually needs extra flags.
+          if [ -n "$(printf '%s' "$EXTRA_RUSTFLAGS" | tr -d '[:space:]')" ]; then
+            export RUSTFLAGS="$EXTRA_RUSTFLAGS"
+            echo "RUSTFLAGS=$RUSTFLAGS"
+          fi
+
           # The JSON message stream tells the packaging script exactly which file
           # cargo produced; diagnostics still go to stderr and stay readable.
           if [ "$BUILDER" = 'zig' ]; then

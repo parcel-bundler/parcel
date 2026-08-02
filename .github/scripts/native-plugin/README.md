@@ -84,6 +84,7 @@ published.
 | `publish`        | `false`  | Publish to npm once every target has built successfully.           |
 | `rust-toolchain` | `stable` | Rust toolchain to build with.                                      |
 | `cargo-args`     | `''`     | Extra arguments for cargo, e.g. `--features foo`.                  |
+| `rustflags`      | `''`     | Extra `RUSTFLAGS`. See the note on musl below.                     |
 | `node-version`   | `24`     | Node.js version used for packaging and publishing.                 |
 | `zig-version`    | `0.14.0` | Zig version used by `cargo-zigbuild` for Linux targets.            |
 
@@ -120,6 +121,19 @@ resolvable before the binaries its `optionalDependencies` pin.
 Apple and Windows targets build on their native runners. Linux targets are cross compiled
 with `cargo-zigbuild`; glibc targets link against glibc 2.26 so the binaries run on
 distributions older than the runner image.
+
+musl targets are built with `RUSTFLAGS=-C target-feature=-crt-static`. musl links the CRT
+statically by default, and a static CRT cannot produce a dynamic library, so without it
+cargo refuses the build outright:
+
+```
+error: cannot produce cdylib for `your-plugin` as the target `x86_64-unknown-linux-musl`
+does not support these crate types
+```
+
+Because cargo lets `RUSTFLAGS` shadow `build.rustflags` rather than merging them, any
+flags you set in `.cargo/config.toml` are ignored on musl targets. Pass them through the
+`rustflags` input if you need them there — it is prepended to the target's own flags.
 
 To add a target, add it to [`targets.mjs`](targets.mjs).
 
