@@ -56,8 +56,8 @@ fn test_rust_resolver_plugin() {
   let tmp = std::env::temp_dir().join("parcel-rust-resolver-test");
   let parcelrc_path = tmp.join("rust-resolver.parcelrc");
   let parcelrc = format!(
-    r#"{{"extends":"@parcel/config-default","resolvers":[{{"plugin":"@parcel/resolver-native","config":{{"lib":"{}"}}}}, "..."]}}"#,
-    plugin_path.display()
+    r#"{{"extends":"@parcel/config-default","resolvers":["./target/debug/libcustom_resolver_rs.{}", "..."]}}"#,
+    LIB_EXT
   );
   std::fs::write(&parcelrc_path, &parcelrc).expect("write parcelrc");
 

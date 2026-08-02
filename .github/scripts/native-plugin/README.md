@@ -38,6 +38,12 @@ seven. The workflow derives all of that from a single `parcel` key in your packa
   triple to the npm package name its binary is published under. The build matrix is
   these keys; add or remove a line to add or drop a platform.
 
+An artifact can also be a relative path to a library inside the plugin package
+itself, e.g. `"./plugin-darwin-arm64.dylib"`. That ships every platform in one
+package instead of one per platform — simpler for a small plugin, at the cost of
+every user downloading every binary. This workflow always builds the per-platform
+form; the path form is meant for plugins that don't need to publish this way.
+
 Your `Cargo.toml` must build a `cdylib`:
 
 ```toml

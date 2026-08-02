@@ -60,9 +60,8 @@ fn plugin_config() -> &'static PathBuf {
     std::fs::create_dir_all(&tmp).expect("create tmp dir");
     let parcelrc_path = tmp.join("native-plugin.parcelrc");
     let parcelrc = format!(
-      r#"{{"extends":"@parcel/config-default","transformers":{{"*.upper":[{{"plugin":"@parcel/transformer-native","config":{{"lib":"{}"}}}}],"*.upper.js":[{{"plugin":"@parcel/transformer-native","config":{{"lib":"{}"}}}}]}}}}"#,
-      plugin_path.display(),
-      plugin_path.display(),
+      r#"{{"extends":"@parcel/config-default","transformers":{{"*.upper":["./target/debug/libcustom_content_transformer_rs.{}"],"*.upper.js":["./target/debug/libcustom_content_transformer_rs.{}"]}}}}"#,
+      LIB_EXT, LIB_EXT,
     );
     std::fs::write(&parcelrc_path, &parcelrc).expect("write parcelrc");
     parcelrc_path

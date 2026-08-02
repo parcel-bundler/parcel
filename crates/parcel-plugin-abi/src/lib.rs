@@ -10,6 +10,8 @@ mod bundle_graph;
 mod dependency;
 mod diagnostic;
 mod handles;
+/// cbindgen:ignore
+pub mod manifest;
 mod options;
 mod plugin;
 mod target;

@@ -61,8 +61,8 @@ fn test_go_transformer_plugin() {
   let tmp = std::env::temp_dir().join("parcel-go-test");
   let parcelrc_path = tmp.join("native-plugin.parcelrc");
   let parcelrc = format!(
-    r#"{{"extends":"@parcel/config-default","transformers":{{"*.txt":[{{"plugin":"@parcel/transformer-native","config":{{"lib":"{}"}}}}]}}}}"#,
-    plugin_path.display()
+    r#"{{"extends":"@parcel/config-default","transformers":{{"*.txt":["./txt-transformer.{}"]}}}}"#,
+    LIB_EXT
   );
   std::fs::write(&parcelrc_path, &parcelrc).expect("write parcelrc");
 

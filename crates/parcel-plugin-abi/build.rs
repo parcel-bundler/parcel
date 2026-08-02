@@ -3,6 +3,14 @@ use bindgen::callbacks::ParseCallbacks;
 fn main() {
   let crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
 
+  // The triple this build targets, used to pick the artifact package of a native
+  // plugin. Cargo only exposes it to build scripts, and unlike std::env::consts it
+  // distinguishes gnu from musl.
+  println!(
+    "cargo:rustc-env=PARCEL_TARGET={}",
+    std::env::var("TARGET").unwrap()
+  );
+
   // Only re-run when inputs that affect the generated output change.
   println!("cargo:rerun-if-changed=build.rs");
   println!("cargo:rerun-if-changed=src");

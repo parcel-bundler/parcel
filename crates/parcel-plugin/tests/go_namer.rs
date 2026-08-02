@@ -53,8 +53,8 @@ fn test_go_namer_plugin() {
   let tmp = std::env::temp_dir().join("parcel-go-namer-test");
   let parcelrc_path = tmp.join("go-namer.parcelrc");
   let parcelrc = format!(
-    r#"{{"extends":"@parcel/config-default","namers":[{{"plugin":"@parcel/namer-native","config":{{"lib":"{}"}}}}, "..."]}}"#,
-    plugin_path.display()
+    r#"{{"extends":"@parcel/config-default","namers":["./custom-namer.{}", "..."]}}"#,
+    LIB_EXT
   );
   std::fs::write(&parcelrc_path, parcelrc).expect("write parcelrc");
 

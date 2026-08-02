@@ -316,6 +316,51 @@ impl<'a> Resolver<'a> {
     Ok(ModuleType::CommonJs)
   }
 
+  /// Finds the directory of a package in node_modules, without resolving an entry point.
+  ///
+  /// Unlike [`Resolver::resolve`], this consults neither the `main`/`exports` fields nor
+  /// index files, so it also finds packages that have no entry point to resolve at all —
+  /// for example a native Parcel plugin, whose implementation is a shared library named
+  /// in its package.json rather than a JavaScript module.
+  pub fn resolve_package_dir(
+    &self,
+    module: &str,
+    from: PathId,
+    fs: &dyn FileSystem,
+  ) -> Result<PathId, ResolverError> {
+    // If there is a custom module directory resolver (e.g. Yarn PnP), use that.
+    if let Some(module_dir_resolver) = &self.module_dir_resolver {
+      let package_dir = module_dir_resolver(module, &from.to_path_buf())?;
+      return Ok(PathId::new(&package_dir));
+    }
+
+    // TODO: add file create above invalidation via fs
+
+    // for dir in from.ancestors() {
+    //   // Skip over node_modules directories
+    //   if dir.is_node_modules() {
+    //     continue;
+    //   }
+
+    //   let package_dir = dir.join_module(module, &self.cache);
+    //   if package_dir.is_dir(fs) {
+    //     return Ok(package_dir);
+    //   }
+    // }
+
+    // NODE_PATH??
+
+    fs.find_ancestor(
+      from,
+      &SubPath::module(module),
+      FileKind::IS_DIR,
+      PathId::root(),
+    )
+    .ok_or_else(|| ResolverError::ModuleNotFound {
+      module: module.to_owned(),
+    })
+  }
+
   pub fn find_package(
     &self,
     from: PathId,
@@ -713,39 +758,10 @@ impl<'a> ResolveRequest<'a> {
   }
 
   fn resolve_node_module(&self, module: &str, subpath: &str) -> Result<Resolution, ResolverError> {
-    // If there is a custom module directory resolver (e.g. Yarn PnP), use that.
-    if let Some(module_dir_resolver) = &self.resolver.module_dir_resolver {
-      let package_dir = module_dir_resolver(module, &self.from.to_path_buf())?;
-      return self.resolve_package(PathId::new(&package_dir), module, subpath);
-    } else {
-      // TODO: add file create above invalidation via fs
-
-      // for dir in self.from.ancestors() {
-      //   // Skip over node_modules directories
-      //   if dir.is_node_modules() {
-      //     continue;
-      //   }
-
-      //   let package_dir = dir.join_module(module, &self.resolver.cache);
-      //   if package_dir.is_dir(self.fs) {
-      //     return self.resolve_package(package_dir, module, subpath);
-      //   }
-      // }
-      if let Some(package_dir) = self.fs.find_ancestor(
-        *self.from,
-        &SubPath::module(module),
-        FileKind::IS_DIR,
-        PathId::root(),
-      ) {
-        return self.resolve_package(package_dir, module, subpath);
-      }
-    }
-
-    // NODE_PATH??
-
-    Err(ResolverError::ModuleNotFound {
-      module: module.to_owned(),
-    })
+    let package_dir = self
+      .resolver
+      .resolve_package_dir(module, *self.from, self.fs)?;
+    self.resolve_package(package_dir, module, subpath)
   }
 
   fn resolve_package(

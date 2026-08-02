@@ -51,8 +51,8 @@ fn test_rust_namer_plugin() {
   let tmp = std::env::temp_dir().join("parcel-rust-namer-test");
   let parcelrc_path = tmp.join("rust-namer.parcelrc");
   let parcelrc = format!(
-    r#"{{"extends":"@parcel/config-default","namers":[{{"plugin":"@parcel/namer-native","config":{{"lib":"{}"}}}}, "..."]}}"#,
-    plugin_path.display()
+    r#"{{"extends":"@parcel/config-default","namers":["./target/debug/libcustom_namer_rs.{}", "..."]}}"#,
+    LIB_EXT
   );
   std::fs::write(&parcelrc_path, parcelrc).expect("write parcelrc");
 

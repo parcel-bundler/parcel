@@ -59,8 +59,8 @@ fn test_rust_transformer_plugin() {
   let tmp = std::env::temp_dir().join("parcel-rust-plugin-test");
   let parcelrc_path = tmp.join("rust-plugin.parcelrc");
   let parcelrc = format!(
-    r#"{{"extends":"@parcel/config-default","transformers":{{"*.txt":[{{"plugin":"@parcel/transformer-native","config":{{"lib":"{}"}}}}]}}}}"#,
-    plugin_path.display()
+    r#"{{"extends":"@parcel/config-default","transformers":{{"*.txt":["./target/debug/libtxt_transformer_rs.{}"]}}}}"#,
+    LIB_EXT
   );
   std::fs::write(&parcelrc_path, &parcelrc).expect("write parcelrc");
 

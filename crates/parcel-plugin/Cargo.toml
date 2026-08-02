@@ -7,3 +7,4 @@ description = "Rust SDK for building native Parcel plugins"
 [dev-dependencies]
 parcel = { path = "../parcel" }
 parcel-core = { path = "../core" }
+parcel-plugin-abi = { path = "../parcel-plugin-abi" }

@@ -59,9 +59,8 @@ fn plugin_config() -> Option<&'static PathBuf> {
       let tmp = std::env::temp_dir().join("parcel-go-custom-content-test");
       let parcelrc_path = tmp.join("native-plugin.parcelrc");
       let parcelrc = format!(
-        r#"{{"extends":"@parcel/config-default","transformers":{{"*.upper":[{{"plugin":"@parcel/transformer-native","config":{{"lib":"{}"}}}}],"*.upper.js":[{{"plugin":"@parcel/transformer-native","config":{{"lib":"{}"}}}}]}}}}"#,
-        plugin_path.display(),
-        plugin_path.display(),
+        r#"{{"extends":"@parcel/config-default","transformers":{{"*.upper":["./custom-content-transformer.{}"],"*.upper.js":["./custom-content-transformer.{}"]}}}}"#,
+        LIB_EXT, LIB_EXT,
       );
       std::fs::write(&parcelrc_path, &parcelrc).expect("write parcelrc");
       Some(parcelrc_path)

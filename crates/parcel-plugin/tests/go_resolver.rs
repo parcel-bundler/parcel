@@ -59,8 +59,8 @@ fn test_go_resolver_plugin() {
   let tmp = std::env::temp_dir().join("parcel-go-resolver-test");
   let parcelrc_path = tmp.join("native-resolver.parcelrc");
   let parcelrc = format!(
-    r#"{{"extends":"@parcel/config-default","resolvers":[{{"plugin":"@parcel/resolver-native","config":{{"lib":"{}"}}}}, "..."]}}"#,
-    plugin_path.display()
+    r#"{{"extends":"@parcel/config-default","resolvers":["./custom-resolver.{}", "..."]}}"#,
+    LIB_EXT
   );
   std::fs::write(&parcelrc_path, &parcelrc).expect("write parcelrc");
 

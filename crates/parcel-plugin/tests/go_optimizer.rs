@@ -53,8 +53,8 @@ fn test_go_optimizer_plugin() {
   let tmp = std::env::temp_dir().join("parcel-go-optimizer-test");
   let parcelrc_path = tmp.join("go-optimizer.parcelrc");
   let parcelrc = format!(
-    r#"{{"extends":"@parcel/config-default","optimizers":{{"*.css":[{{"plugin":"@parcel/optimizer-native","config":{{"lib":"{}"}}}}]}}}}"#,
-    plugin_path.display()
+    r#"{{"extends":"@parcel/config-default","optimizers":{{"*.css":["./custom-optimizer.{}"]}}}}"#,
+    LIB_EXT
   );
   std::fs::write(&parcelrc_path, parcelrc).expect("write parcelrc");
 
