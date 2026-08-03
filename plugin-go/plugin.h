@@ -564,6 +564,7 @@ typedef struct ParcelApi {
   EnvironmentFlags (*target_get_env_flags)(Target target);
   void (*target_get_public_url)(struct Buffer *buf, Target target);
   void (*target_get_dist_dir)(struct Buffer *buf, Target target, Options _options);
+  void (*asset_get_query)(struct Buffer *buf, Asset asset);
 } ParcelApi;
 
 /**
@@ -864,6 +865,10 @@ static inline void parcel_target_get_public_url(struct Buffer *buf, Target targe
 
 static inline void parcel_target_get_dist_dir(struct Buffer *buf, Target target, Options _options) {
   parcel_api->target_get_dist_dir(buf, target, _options);
+}
+
+static inline void parcel_asset_get_query(struct Buffer *buf, Asset asset) {
+  parcel_api->asset_get_query(buf, asset);
 }
 
 #endif  /* PARCEL_PLUGIN_H */

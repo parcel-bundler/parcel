@@ -669,10 +669,11 @@ pub struct ParcelApi {
   pub target_get_dist_dir: ::std::option::Option<
     unsafe extern "C" fn(buf: *mut Buffer, target: Target, _options: Options),
   >,
+  pub asset_get_query: ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: Asset)>,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 512usize];
+  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 520usize];
   ["Alignment of ParcelApi"][::std::mem::align_of::<ParcelApi>() - 8usize];
   ["Offset of field: ParcelApi::header"][::std::mem::offset_of!(ParcelApi, header) - 0usize];
   ["Offset of field: ParcelApi::asset_get_content"]
@@ -799,6 +800,8 @@ const _: () = {
     [::std::mem::offset_of!(ParcelApi, target_get_public_url) - 496usize];
   ["Offset of field: ParcelApi::target_get_dist_dir"]
     [::std::mem::offset_of!(ParcelApi, target_get_dist_dir) - 504usize];
+  ["Offset of field: ParcelApi::asset_get_query"]
+    [::std::mem::offset_of!(ParcelApi, asset_get_query) - 512usize];
 };
 #[doc = " Result filled by a resolver plugin's `parcel_plugin_resolve()`.\n The struct is zero-initialised by the host before the call.\n\n When type == PARCEL_RESOLUTION_FILE_PATH, fill `file_path` (and optionally `pipeline`) via `parcel_buffer_alloc()`."]
 #[repr(C)]

@@ -524,6 +524,13 @@ impl Asset {
     buf.to_string().unwrap_or_default()
   }
 
+  /// Returns the query string from the asset's source URL.
+  pub fn query(&self) -> String {
+    let mut buf = Buffer::default();
+    unsafe { host!(asset_get_query)(&mut buf, self.raw) };
+    buf.to_string().unwrap_or_default()
+  }
+
   // ── Pipeline ─────────────────────────────────────────────────────────────
 
   /// Returns the named pipeline, or `None` if not set.
@@ -811,6 +818,12 @@ impl<'a> AssetRef<'a> {
   pub fn file_path(&self) -> String {
     let mut buf = Buffer::default();
     unsafe { host!(asset_get_file_path)(&mut buf, self.raw, self.options) };
+    buf.to_string().unwrap_or_default()
+  }
+
+  pub fn query(&self) -> String {
+    let mut buf = Buffer::default();
+    unsafe { host!(asset_get_query)(&mut buf, self.raw) };
     buf.to_string().unwrap_or_default()
   }
 

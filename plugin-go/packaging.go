@@ -362,6 +362,17 @@ func (a *AssetRef) FilePath() string {
 	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
 }
 
+// Query returns the query string from the asset's source URL.
+func (a *AssetRef) Query() string {
+	var buf C.Buffer
+	C.parcel_asset_get_query(&buf, a.ptr)
+	if buf.data == nil {
+		return ""
+	}
+	defer C.parcel_free_buffer(&buf)
+	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+}
+
 // Pipeline returns the named pipeline, or an empty string if absent.
 func (a *AssetRef) Pipeline() string {
 	var buf C.Buffer

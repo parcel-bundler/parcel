@@ -153,6 +153,7 @@ pub struct ParcelApi {
   pub target_get_public_url: unsafe extern "C" fn(buf: *mut Buffer, target: Target),
   pub target_get_dist_dir:
     unsafe extern "C" fn(buf: *mut Buffer, target: Target, _options: Options),
+  pub asset_get_query: unsafe extern "C" fn(buf: *mut Buffer, asset: Asset),
 }
 
 /// The instance passed to every plugin. Const-initialized, so it is in the
@@ -225,6 +226,7 @@ pub static PARCEL_API: ParcelApi = ParcelApi {
   target_get_env_flags: parcel_target_get_env_flags,
   target_get_public_url: parcel_target_get_public_url,
   target_get_dist_dir: parcel_target_get_dist_dir,
+  asset_get_query: parcel_asset_get_query,
 };
 
 #[cfg(test)]

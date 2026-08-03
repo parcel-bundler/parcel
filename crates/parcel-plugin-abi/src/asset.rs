@@ -355,6 +355,22 @@ pub extern "C" fn parcel_asset_set_pipeline(
   }
 }
 
+// ── Query (read-only) ─────────────────────────────────────────────────────────
+
+/// Returns the query string from the asset's source URL into `*buf`, or leaves
+/// `buf->data == NULL` if the URL has no query.
+/// Caller must `parcel_free_buffer(buf)` when `data != NULL`.
+pub extern "C" fn parcel_asset_get_query(buf: *mut Buffer, asset: Asset) {
+  if buf.is_null() {
+    return;
+  }
+  let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
+  let Some(query) = asset.loc.url.query() else {
+    return;
+  };
+  unsafe { write_buffer(buf, query.as_bytes().to_vec(), true) };
+}
+
 // ── BundleBehavior ────────────────────────────────────────────────────────────
 
 /// Returns the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`).

@@ -53,7 +53,10 @@ fn dependency_fixture(target: Arc<CoreTarget>) -> CoreDependency {
 fn asset_fixture(target: Arc<CoreTarget>) -> CoreAsset {
   CoreAsset {
     loc: SourceLocation {
-      url: SourceUrl::from_path(&path("/project/src/index.css")),
+      url: SourceUrl::from_path_and_query(
+        &path("/project/src/index.css"),
+        Some("transform=true&lang=en"),
+      ),
       ..Default::default()
     },
     ty: AssetType::Css,
@@ -173,6 +176,10 @@ fn asset_accessors_return_content_metadata_and_optional_values() {
     Some("/project/src/index.css")
   );
   assert_eq!(
+    string_output(|buffer| parcel_asset_get_query(buffer, handle)).as_deref(),
+    Some("transform=true&lang=en")
+  );
+  assert_eq!(
     string_output(|buffer| parcel_asset_get_pipeline(buffer, handle)).as_deref(),
     Some("test-pipeline")
   );
@@ -212,13 +219,16 @@ fn asset_accessors_return_content_metadata_and_optional_values() {
 
   asset.pipeline = None;
   asset.unique_key = None;
+  asset.loc.url = SourceUrl::from_path(&path("/project/src/index.css"));
   let handle = asset_handle(&asset);
+  assert!(string_output(|buffer| parcel_asset_get_query(buffer, handle)).is_none());
   assert!(string_output(|buffer| parcel_asset_get_pipeline(buffer, handle)).is_none());
   assert!(string_output(|buffer| parcel_asset_get_unique_key(buffer, handle)).is_none());
 
   parcel_asset_get_content(ptr::null_mut(), handle);
   parcel_asset_get_type(ptr::null_mut(), handle);
   parcel_asset_get_file_path(ptr::null_mut(), handle, 0);
+  parcel_asset_get_query(ptr::null_mut(), handle);
   parcel_asset_get_pipeline(ptr::null_mut(), handle);
   parcel_asset_get_unique_key(ptr::null_mut(), handle);
 }
