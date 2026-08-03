@@ -457,11 +457,6 @@ impl Transformer for JsTransformer {
         });
       }
 
-      asset
-        .symbols
-        .imports
-        .sort_by(|a, b| a.dep_index.cmp(&b.dep_index));
-
       for export in symbols.exports {
         if let Some(source) = export.source {
           let dep_index = dep_map[&source];
@@ -486,6 +481,24 @@ impl Transformer for JsTransformer {
           requested: false,
         });
       }
+
+      // Unknown require or dynamic import usage must retain
+      // the full namespace because any export could be observed at runtime.
+      for source in symbols.non_static_requires {
+        let dep_index = dep_map[&source];
+        if !asset
+          .symbols
+          .imports
+          .iter()
+          .any(|symbol| symbol.dep_index == dep_index && symbol.symbol == SymbolName::Namespace)
+        {
+          asset.symbols.imports.push(ImportedSymbol {
+            dep_index,
+            symbol: SymbolName::Namespace,
+            resolved: SymbolResolution::None,
+          });
+        }
+      }
     } else {
       // Could not statically analyze symbols. Assume everything is imported.
       for (dep_index, dep) in asset.dependencies.iter().enumerate() {
@@ -501,6 +514,11 @@ impl Transformer for JsTransformer {
         }
       }
     }
+
+    asset
+      .symbols
+      .imports
+      .sort_by(|a, b| a.dep_index.cmp(&b.dep_index));
 
     let rsc_runtime_dep = if !is_rsc_runtime {
       let specifier = match asset.target.environment {

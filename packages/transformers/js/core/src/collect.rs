@@ -131,6 +131,7 @@ pub struct CollectResult {
   pub imports: Vec<CollectImportedSymbol>,
   pub exports: Vec<CollectExportedSymbol>,
   pub exports_all: Vec<CollectExportedAll>,
+  pub non_static_requires: Vec<JsWord>,
   pub should_wrap: bool,
   pub has_cjs_exports: bool,
   pub static_cjs_exports: bool,
@@ -267,10 +268,14 @@ impl From<Collect> for CollectResult {
       ))
     });
 
+    let mut non_static_requires: Vec<JsWord> = collect.non_static_requires.into_iter().collect();
+    non_static_requires.sort();
+
     CollectResult {
       imports,
       exports,
       exports_all,
+      non_static_requires,
       should_wrap: collect.should_wrap,
       has_cjs_exports: collect.has_cjs_exports,
       static_cjs_exports: collect.static_cjs_exports,

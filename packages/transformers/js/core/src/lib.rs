@@ -607,7 +607,14 @@ pub fn transform_to_ast(
           let mut diagnostics = vec![];
           if let Some(call_macro) = call_macro {
             let mut errors = Vec::new();
-            module = module.fold_with(&mut Macros::new(call_macro, &source_map, &mut errors));
+            let mut macros = Macros::new(call_macro, &source_map, &mut errors);
+            module = module.fold_with(&mut macros);
+            if macros.has_macro_functions() {
+              // Macro return values are parsed after the initial resolver pass. Resolve the
+              // generated bindings so that minification cannot give declarations in the same
+              // scope colliding names.
+              module.visit_mut_with(&mut (hygiene(), resolver(unresolved_mark, global_mark, false)));
+            }
             for error in errors {
               diagnostics.push(macro_error_to_diagnostic(error, &source_map));
             }
@@ -997,5 +1004,71 @@ fn macro_error_to_diagnostic(error: MacroError, source_map: &SourceMap) -> Diagn
       let mut diagnostics = error_buffer_to_diagnostics(&error_buffer, source_map);
       return diagnostics.pop().unwrap();
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use swc_core::{
+    common::SyntaxContext,
+    ecma::{
+      ast::{Function, Pat},
+      visit::{Visit, VisitWith},
+    },
+  };
+
+  #[test]
+  fn resolves_bindings_returned_by_macros() {
+    let callback = |_, _, _, _| {
+      Ok::<_, MacroError>(JsValue::Function(
+        "function(first, second) { let result = first + second; return result; }".into(),
+      ))
+    };
+    let result = transform_to_ast(
+      Config {
+        filename: "index.js".into(),
+        project_root: "/".into(),
+        module_id: "index".into(),
+        code: br#"
+          import {makeFunction} from './macro.js' with {type: 'macro'};
+          output = makeFunction();
+        "#
+        .to_vec(),
+        minify: true,
+        ..Default::default()
+      },
+      Some(&callback),
+    )
+    .unwrap();
+
+    struct FunctionBindingContexts(Vec<SyntaxContext>);
+    impl Visit for FunctionBindingContexts {
+      fn visit_function(&mut self, function: &Function) {
+        if function.params.len() == 2
+          && matches!(&function.params[0].pat, Pat::Ident(id) if id.id.sym == "first")
+          && matches!(&function.params[1].pat, Pat::Ident(id) if id.id.sym == "second")
+        {
+          self.0.extend(function.params.iter().filter_map(|param| {
+            if let Pat::Ident(id) = &param.pat {
+              Some(id.id.ctxt)
+            } else {
+              None
+            }
+          }));
+        }
+        function.visit_children_with(self);
+      }
+    }
+
+    let mut contexts = FunctionBindingContexts(Vec::new());
+    result.ast.program.visit_with(&mut contexts);
+    assert_eq!(contexts.0.len(), 2);
+    assert!(
+      contexts
+        .0
+        .iter()
+        .all(|context| *context != SyntaxContext::empty())
+    );
   }
 }

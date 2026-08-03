@@ -1,7 +1,10 @@
 #![deny(unused_crate_dependencies)]
 
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::{
+  cell::Cell,
+  collections::{HashMap, HashSet},
+};
 use swc_core::ecma::utils::stack_size::maybe_grow_default;
 
 use indexmap::IndexMap;
@@ -74,6 +77,10 @@ impl<'a> Macros<'a> {
       assignment_span: None,
       in_call: false,
     }
+  }
+
+  pub fn has_macro_functions(&self) -> bool {
+    self.evaluator.has_macro_functions.get()
   }
 
   fn add_macro(&mut self, import: &ImportDecl) {
@@ -375,6 +382,7 @@ pub enum JsValue {
 pub struct Evaluator<'a> {
   pub constants: HashMap<Id, Result<JsValue, Span>>,
   source_map: &'a SourceMap,
+  has_macro_functions: Cell<bool>,
 }
 
 impl<'a> Evaluator<'a> {
@@ -382,6 +390,7 @@ impl<'a> Evaluator<'a> {
     Evaluator {
       constants: HashMap::new(),
       source_map,
+      has_macro_functions: Cell::new(false),
     }
   }
 
@@ -755,6 +764,7 @@ impl<'a> Evaluator<'a> {
           .collect::<Result<Vec<_>, MacroError>>()?,
       }),
       JsValue::Function(source) => {
+        self.has_macro_functions.set(true);
         let source_file = self
           .source_map
           .new_source_file(Lrc::new(swc_core::common::FileName::MacroExpansion), source);

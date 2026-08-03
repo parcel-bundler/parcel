@@ -1,0 +1,25 @@
+{
+  "description": "tree shaking: dynamic import namespace preserves named re-exports",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["index.js"]
+    },
+    {
+      "type": "js",
+      "assets": ["barrel.js"]
+    },
+    {
+      "type": "js",
+      "assets": ["preview.js"]
+    },
+    {
+      "type": "js",
+      "assets": ["esmodule-helpers.js", "renderer.js"],
+      "contains": ["\"renderToCanvas\",()=>"],
+      "notContains": ["unused-renderer-export-sentinel"]
+    }
+  ]
+}

@@ -1901,6 +1901,14 @@ mod tests {
   fn collect_dynamic_import() {
     let (collect, _code, _hoist) = parse(
       r#"
+    Promise.all([import('other')]);
+    "#,
+    );
+    assert_eq!(collect.non_static_requires, set! {w!("other")});
+    assert_eq!(collect.wrapped_requires, set! {String::from("other")});
+
+    let (collect, _code, _hoist) = parse(
+      r#"
     async function test() {
       const x = await import('other');
       x.foo;
