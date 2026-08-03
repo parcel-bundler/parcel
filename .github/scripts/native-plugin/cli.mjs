@@ -27,13 +27,18 @@ export function npmPack(cwd, destination) {
     throw new Error(`Could not parse the output of npm pack: ${output}`);
   }
 
-  if (!Array.isArray(packed) || packed.length !== 1) {
+  // npm 11 and earlier report an array; npm 12 reports an object keyed by package
+  // name. Both carry the same per-tarball fields, and a runner's default npm is
+  // whatever its image happens to ship, so accept either.
+  let tarballs = Array.isArray(packed) ? packed : Object.values(packed ?? {});
+
+  if (tarballs.length !== 1) {
     throw new Error(
       `Expected npm pack to produce exactly one tarball, got: ${output}`,
     );
   }
 
-  return packed[0];
+  return tarballs[0];
 }
 
 /**

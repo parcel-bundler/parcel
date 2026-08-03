@@ -102,7 +102,7 @@ jobs:
       id-token: write # required for npm trusted publishing
     uses: parcel-bundler/parcel/.github/workflows/native-plugin.yml@v2
     with:
-      path: .
+      paths: .
       publish: true
 ```
 
@@ -111,11 +111,33 @@ To use it as a build check on pull requests, call it the same way with `publish:
 workflow artifacts so you can download and inspect exactly what would have been
 published.
 
+## Monorepos
+
+Pass every plugin to a single call rather than calling the workflow once per plugin:
+
+```yaml
+jobs:
+  release:
+    permissions:
+      contents: read
+      id-token: write
+    uses: parcel-bundler/parcel/.github/workflows/native-plugin.yml@v2
+    with:
+      paths: |
+        packages/transformer-a
+        packages/transformer-b
+      publish: true
+```
+
+Calling the workflow once per plugin does not work. All calls in a workflow run share one
+artifact namespace, so the uploads collide, and the publish step would find another
+plugin's tarballs alongside its own.
+
 ### Inputs
 
 | Input            | Default  | Description                                                        |
 | ---------------- | -------- | ------------------------------------------------------------------ |
-| `path`           | `.`      | Directory containing the plugin's `package.json` and `Cargo.toml`. |
+| `paths`          | `''`     | Directories containing the `package.json` and `Cargo.toml` files.  |
 | `publish`        | `false`  | Publish to npm once every target has built successfully.           |
 | `language`       | detected | `rust` or `go`. Detected from `Cargo.toml` / `go.mod` when empty.  |
 | `rust-toolchain` | `stable` | Rust toolchain to build with.                                      |
@@ -128,7 +150,8 @@ published.
 
 ### Outputs
 
-`name`, `version`, and `language` of the plugin package that was built.
+`name`, `version`, and `language` of the plugin package that was built. They are empty
+when several plugins were built in one run, rather than describing an arbitrary one.
 
 ## Publishing
 

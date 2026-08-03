@@ -7,7 +7,7 @@
 use std::{
   fs,
   path::{Path, PathBuf},
-  sync::Arc,
+  sync::{Arc, OnceLock},
 };
 
 use parcel_core::{BuildOptions, FileSystem, LogLevel, OsFileSystem, OverlayFileSystem, PathId};
@@ -24,9 +24,19 @@ const PLUGIN: &str = "@parcel-test/txt-transformer";
 const ARTIFACT: &str = "@parcel-test/txt-transformer-native";
 
 /// Compiles the Rust txt-transformer example into a cdylib and returns its path.
+///
+/// Built once per test binary. Tests run on parallel threads, and letting several
+/// of them invoke cargo against the same `--target-dir` means one can copy the
+/// library while another rewrites it, producing a truncated file that fails to
+/// load.
+fn build_rust_plugin() -> &'static Path {
+  static LIBRARY: OnceLock<PathBuf> = OnceLock::new();
+  LIBRARY.get_or_init(build_rust_plugin_once)
+}
+
 /// Uses an isolated `--target-dir` so this subprocess does not contend on the
 /// Cargo lock held by the parent test runner.
-fn build_rust_plugin() -> PathBuf {
+fn build_rust_plugin_once() -> PathBuf {
   let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
 
   let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));

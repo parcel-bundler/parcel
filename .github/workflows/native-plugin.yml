@@ -7,10 +7,14 @@ name: native-plugin
 on:
   workflow_call:
     inputs:
-      path:
-        description: 'Path to the plugin directory, containing package.json and Cargo.toml or go.mod'
+      paths:
+        description: |
+          Newline or comma separated plugin directories, for a monorepo publishing
+          several at once. Building them in one run is what lets
+          publishing wait for all of them, instead of pushing half a release when
+          one fails to build.
         required: false
-        default: '.'
+        default: ''
         type: string
       publish:
         description: 'Publish to npm once every target has built successfully'
@@ -76,6 +80,7 @@ jobs:
       contents: read
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
+      plugins: ${{ steps.matrix.outputs.plugins }}
       name: ${{ steps.matrix.outputs.name }}
       version: ${{ steps.matrix.outputs.version }}
       language: ${{ steps.matrix.outputs.language }}
@@ -110,12 +115,12 @@ jobs:
         id: matrix
         shell: bash
         env:
-          PLUGIN_DIR: ${{ inputs.path }}
+          PLUGIN_DIRS: ${{ inputs.paths }}
           LANGUAGE: ${{ inputs.language }}
-        run: node "$RUNNER_TEMP/native-plugin/matrix.mjs" --dir "$PLUGIN_DIR" --language "$LANGUAGE"
+        run: node "$RUNNER_TEMP/native-plugin/matrix.mjs" --dirs "$PLUGIN_DIRS" --language "$LANGUAGE"
 
   build:
-    name: ${{ matrix.target }}
+    name: ${{ matrix.plugin }} (${{ matrix.target }})
     needs: matrix
     runs-on: ${{ matrix.runner }}
     permissions:
@@ -148,24 +153,24 @@ jobs:
           node-version: ${{ inputs.node-version }}
 
       - name: Install Rust
-        if: ${{ needs.matrix.outputs.language == 'rust' }}
+        if: ${{ matrix.language == 'rust' }}
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ inputs.rust-toolchain }}
           targets: ${{ matrix.target }}
 
-      - if: ${{ needs.matrix.outputs.language == 'rust' }}
+      - if: ${{ matrix.language == 'rust' }}
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: ${{ inputs.path }}
-          shared-key: ${{ matrix.target }}
+          workspaces: ${{ matrix.dir }}
+          shared-key: ${{ matrix.plugin }}-${{ matrix.target }}
 
       - name: Install Go
-        if: ${{ needs.matrix.outputs.language == 'go' }}
+        if: ${{ matrix.language == 'go' }}
         uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go-version }}
-          cache-dependency-path: ${{ inputs.path }}/go.sum
+          cache-dependency-path: ${{ matrix.dir }}/go.sum
 
       # Linux targets are cross compiled with Zig so that glibc builds link
       # against an old enough glibc to run on distros older than the runner.
@@ -176,7 +181,7 @@ jobs:
         with:
           version: ${{ inputs.zig-version }}
       - name: Install cargo-zigbuild
-        if: ${{ matrix.builder == 'zig' && needs.matrix.outputs.language == 'rust' }}
+        if: ${{ matrix.builder == 'zig' && matrix.language == 'rust' }}
         uses: taiki-e/install-action@v2
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -184,9 +189,9 @@ jobs:
           tool: cargo-zigbuild
 
       - name: Build (Rust)
-        if: ${{ needs.matrix.outputs.language == 'rust' }}
+        if: ${{ matrix.language == 'rust' }}
         shell: bash
-        working-directory: ${{ inputs.path }}
+        working-directory: ${{ matrix.dir }}
         env:
           TARGET: ${{ matrix.target }}
           ZIG_TARGET: ${{ matrix.zigTarget }}
@@ -216,9 +221,9 @@ jobs:
           echo "LIBRARY=$LIBRARY" >> "$GITHUB_ENV"
 
       - name: Build (Go)
-        if: ${{ needs.matrix.outputs.language == 'go' }}
+        if: ${{ matrix.language == 'go' }}
         shell: bash
-        working-directory: ${{ inputs.path }}
+        working-directory: ${{ matrix.dir }}
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -246,7 +251,7 @@ jobs:
       - name: Pack ${{ matrix.package }}
         shell: bash
         env:
-          PLUGIN_DIR: ${{ inputs.path }}
+          PLUGIN_DIR: ${{ matrix.dir }}
           TARGET: ${{ matrix.target }}
         run: |
           node "$RUNNER_TEMP/native-plugin/pack-artifact.mjs" \
@@ -255,18 +260,23 @@ jobs:
             --library "$LIBRARY" \
             --out "$RUNNER_TEMP/artifacts"
 
+      # Namespaced by plugin: several plugins in one run would otherwise collide
+      # on both the artifact name and the <target>.tgz inside it.
       - uses: actions/upload-artifact@v4
         with:
-          name: native-artifact-${{ matrix.target }}
+          name: native-artifact-${{ matrix.plugin }}-${{ matrix.target }}
           path: ${{ runner.temp }}/artifacts/${{ matrix.target }}.tgz
           if-no-files-found: error
 
   pack:
-    name: Pack ${{ needs.matrix.outputs.name }}
+    name: Pack ${{ matrix.name }}
     needs: [matrix, build]
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.matrix.outputs.plugins) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -291,10 +301,12 @@ jobs:
         with:
           node-version: ${{ inputs.node-version }}
 
+      # This plugin's artifacts only. Merging them is safe here because the names
+      # inside are <target>.tgz, unique within a plugin.
       - name: Download artifact packages
         uses: actions/download-artifact@v4
         with:
-          pattern: native-artifact-*
+          pattern: native-artifact-${{ matrix.plugin }}-*
           path: ${{ runner.temp }}/artifacts
           merge-multiple: true
 
@@ -303,7 +315,7 @@ jobs:
       - name: Pack plugin package
         shell: bash
         env:
-          PLUGIN_DIR: ${{ inputs.path }}
+          PLUGIN_DIR: ${{ matrix.dir }}
         run: |
           node "$RUNNER_TEMP/native-plugin/pack-main.mjs" \
             --dir "$PLUGIN_DIR" \
@@ -312,7 +324,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: native-plugin-main
+          name: native-plugin-main-${{ matrix.plugin }}
           path: ${{ runner.temp }}/main/*.tgz
           if-no-files-found: error
 
@@ -336,34 +348,40 @@ jobs:
         shell: bash
         run: npm install -g npm@latest
 
+      # Left unmerged: across plugins the tarballs inside share names, so each
+      # artifact keeps its own subdirectory.
       - name: Download artifact packages
         uses: actions/download-artifact@v4
         with:
           pattern: native-artifact-*
           path: ${{ runner.temp }}/artifacts
-          merge-multiple: true
 
-      - name: Download plugin package
+      - name: Download plugin packages
         uses: actions/download-artifact@v4
         with:
-          name: native-plugin-main
+          pattern: native-plugin-main-*
           path: ${{ runner.temp }}/main
 
-      # Platform packages go first: the plugin package's optionalDependencies
-      # point at exact versions of them, so it must never be resolvable before
-      # they are.
+      # Platform packages go first, across every plugin: a plugin package's
+      # optionalDependencies point at exact versions of its own artifacts, so it
+      # must never be resolvable before they are. Ordering all artifacts ahead of
+      # all plugin packages satisfies that for each of them.
       - name: Publish artifact packages
         shell: bash
         run: |
           set -euo pipefail
-          for tarball in "$RUNNER_TEMP"/artifacts/*.tgz; do
+          for tarball in "$RUNNER_TEMP"/artifacts/*/*.tgz; do
             echo "::group::npm publish $(basename "$tarball")"
             npm publish "$tarball" --access public
             echo '::endgroup::'
           done
 
-      - name: Publish ${{ needs.matrix.outputs.name }}
+      - name: Publish plugin packages
         shell: bash
         run: |
           set -euo pipefail
-          npm publish "$RUNNER_TEMP"/main/*.tgz --access public
+          for tarball in "$RUNNER_TEMP"/main/*/*.tgz; do
+            echo "::group::npm publish $(basename "$tarball")"
+            npm publish "$tarball" --access public
+            echo '::endgroup::'
+          done
