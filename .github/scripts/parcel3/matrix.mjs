@@ -23,7 +23,9 @@ reportErrors();
  * adding a target means touching neither.
  */
 function packageName(info) {
-  return `parcel3-${info.os}-${info.cpu}${info.libc === 'musl' ? '-musl' : ''}`;
+  return `@parcel/parcel3-${info.os}-${info.cpu}${
+    info.libc === 'musl' ? '-musl' : ''
+  }`;
 }
 
 let include = Object.entries(TARGETS).map(([target, info]) => ({

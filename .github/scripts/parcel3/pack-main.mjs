@@ -70,7 +70,7 @@ fs.copyFileSync(
 fs.chmodSync(path.join(stage, 'bin', 'parcel3'), 0o755);
 
 let pkg = {
-  name: 'parcel3',
+  name: '@parcel/parcel3',
   version: values.version,
   description: 'Blazing fast, zero configuration web application bundler',
   license: 'MIT',

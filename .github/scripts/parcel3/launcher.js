@@ -19,7 +19,12 @@
 const fs = require('fs');
 const path = require('path');
 
+/** The command, which is also the `node_modules/.bin` entry `optimize` rewrites. */
 const NAME = 'parcel3';
+
+/** Prefix of the platform packages. Scoped; only `parcel3` itself is not. */
+const PLATFORM_PACKAGE = '@parcel/parcel3';
+
 const EXECUTABLE = process.platform === 'win32' ? 'parcel3.exe' : 'parcel3';
 
 /**
@@ -36,7 +41,7 @@ const EXECUTABLE = process.platform === 'win32' ? 'parcel3.exe' : 'parcel3';
  * ignore `libc` and install both.
  */
 function candidates() {
-  const base = `${NAME}-${process.platform}-${process.arch}`;
+  const base = `${PLATFORM_PACKAGE}-${process.platform}-${process.arch}`;
   if (process.platform !== 'linux') return [base];
   return isMusl() ? [`${base}-musl`, base] : [base, `${base}-musl`];
 }
