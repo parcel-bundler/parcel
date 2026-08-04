@@ -12,9 +12,6 @@ on:
         required: false
         default: false
         type: boolean
-  push:
-    branches:
-      - core-rs3
 
 permissions:
   contents: read
