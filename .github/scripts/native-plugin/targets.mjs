@@ -61,14 +61,6 @@ export const TARGETS = {
     ext: 'dll',
     go: {os: 'windows', arch: 'amd64', cc: ''},
   },
-  'i686-pc-windows-msvc': {
-    runner: 'windows-latest',
-    builder: 'native',
-    os: 'win32',
-    cpu: 'ia32',
-    ext: 'dll',
-    go: {os: 'windows', arch: '386', cc: ''},
-  },
   'x86_64-unknown-linux-gnu': {
     runner: 'ubuntu-latest',
     builder: 'zig',
@@ -90,17 +82,6 @@ export const TARGETS = {
     ext: 'so',
     zigCcTarget: 'aarch64-linux-gnu.2.26',
     go: {os: 'linux', arch: 'arm64'},
-  },
-  'armv7-unknown-linux-gnueabihf': {
-    runner: 'ubuntu-latest',
-    builder: 'zig',
-    glibc: '2.26',
-    os: 'linux',
-    cpu: 'arm',
-    libc: 'glibc',
-    ext: 'so',
-    zigCcTarget: 'arm-linux-gnueabihf.2.26',
-    go: {os: 'linux', arch: 'arm'},
   },
   'x86_64-unknown-linux-musl': {
     runner: 'ubuntu-latest',
