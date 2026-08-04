@@ -1,0 +1,245 @@
+name: parcel3
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish, e.g. 3.0.0-alpha.1'
+        required: true
+        type: string
+      publish:
+        description: 'Publish to npm once every target has built successfully'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '24'
+  ZIG_VERSION: '0.14.0'
+
+jobs:
+  # The target list lives in .github/scripts/native-plugin/targets.mjs, shared
+  # with the plugin workflow: Parcel and the plugins it loads are built for the
+  # same targets, so adding one should mean editing one file.
+  matrix:
+    name: Read targets
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - id: matrix
+        run: node .github/scripts/parcel3/matrix.mjs
+
+  build:
+    name: ${{ matrix.target }}
+    needs: matrix
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      # One broken target should still report the others, rather than cancelling
+      # them and hiding whether they would have built.
+      fail-fast: false
+      matrix: ${{ fromJson(needs.matrix.outputs.matrix) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: yarn
+
+      # crates/plugin-js builds its Node builtin shims from node_modules at
+      # compile time, so the workspace has to be installed before cargo runs.
+      - run: yarn --immutable
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: parcel3-${{ matrix.target }}
+
+      # crates/parcel-plugin-abi generates its FFI bindings with bindgen, which
+      # needs libclang on the machine doing the building - including when that
+      # machine is cross compiling.
+      - name: Install libclang
+        if: ${{ runner.os == 'Linux' }}
+        run: sudo apt-get update && sudo apt-get install -y libclang-dev
+
+      # LLVM ships with the Windows runner image, but bindgen does not look there
+      # on its own. Set through the environment file rather than on the build
+      # step, because clang-sys searches only this directory when the variable is
+      # set at all - an empty value on the other runners would break the search.
+      - name: Point bindgen at LLVM
+        if: ${{ runner.os == 'Windows' }}
+        shell: bash
+        run: echo 'LIBCLANG_PATH=C:\Program Files\LLVM\bin' >> "$GITHUB_ENV"
+
+      - name: Install Zig
+        if: ${{ matrix.builder == 'zig' }}
+        uses: goto-bus-stop/setup-zig@v1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - name: Install cargo-zigbuild
+        if: ${{ matrix.builder == 'zig' }}
+        uses: taiki-e/install-action@v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          tool: cargo-zigbuild
+
+      - name: Build
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          ZIG_TARGET: ${{ matrix.zigTarget }}
+          BUILDER: ${{ matrix.builder }}
+          EXTRA_RUSTFLAGS: ${{ matrix.rustflags }}
+          # Matches the deployment target the rest of Parcel's macOS builds use.
+          MACOSX_DEPLOYMENT_TARGET: ${{ runner.os == 'macOS' && '11.0' || '' }}
+        run: |
+          set -euo pipefail
+
+          # Setting RUSTFLAGS at all shadows the config in .cargo/config.toml, so
+          # only export it for the targets that actually need extra flags.
+          if [ -n "$EXTRA_RUSTFLAGS" ]; then
+            export RUSTFLAGS="$EXTRA_RUSTFLAGS"
+            echo "RUSTFLAGS=$RUSTFLAGS"
+          fi
+
+          if [ "$BUILDER" = 'zig' ]; then
+            cargo zigbuild --release --target "$ZIG_TARGET" -p parcel --bin parcel
+          else
+            cargo build --release --target "$TARGET" -p parcel --bin parcel
+          fi
+
+      - name: Pack ${{ matrix.package }}
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          PACKAGE: ${{ matrix.package }}
+          VERSION: ${{ inputs.version }}
+          PKG_OS: ${{ matrix.os }}
+          PKG_CPU: ${{ matrix.cpu }}
+          PKG_LIBC: ${{ matrix.libc }}
+        run: |
+          set -euo pipefail
+
+          # cargo-zigbuild encodes the minimum glibc version in the target it is
+          # given, but still writes to the plain triple's directory.
+          BINARY="target/$TARGET/release/parcel"
+          if [ "$PKG_OS" = 'win32' ]; then
+            BINARY="$BINARY.exe"
+          fi
+
+          node .github/scripts/parcel3/pack-platform.mjs \
+            --package "$PACKAGE" \
+            --version "$VERSION" \
+            --binary "$BINARY" \
+            --os "$PKG_OS" \
+            --cpu "$PKG_CPU" \
+            --libc "$PKG_LIBC" \
+            --target "$TARGET" \
+            --out "$RUNNER_TEMP/artifacts"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: parcel3-platform-${{ matrix.target }}
+          path: ${{ runner.temp }}/artifacts/*
+          if-no-files-found: error
+
+  pack:
+    name: Pack parcel3
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Merging is safe: the files inside are named after the target, so they are
+      # unique across the matrix.
+      - name: Download platform packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: parcel3-platform-*
+          path: ${{ runner.temp }}/artifacts
+          merge-multiple: true
+
+      - name: Pack parcel3
+        run: |
+          node .github/scripts/parcel3/pack-main.mjs \
+            --version "${{ inputs.version }}" \
+            --artifacts "$RUNNER_TEMP/artifacts" \
+            --out "$RUNNER_TEMP/main"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: parcel3-main
+          path: ${{ runner.temp }}/main/*.tgz
+          if-no-files-found: error
+
+  publish:
+    name: Publish to npm
+    if: ${{ inputs.publish }}
+    needs: pack
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: 'https://registry.npmjs.org'
+
+      # Trusted publishing, and the provenance attestation it generates, needs
+      # npm 11.5.1 or later.
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - name: Download platform packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: parcel3-platform-*
+          path: ${{ runner.temp }}/artifacts
+          merge-multiple: true
+
+      - name: Download parcel3
+        uses: actions/download-artifact@v4
+        with:
+          name: parcel3-main
+          path: ${{ runner.temp }}/main
+
+      # Platform packages first: parcel3's optionalDependencies pin exact
+      # versions of them, so it must never be resolvable before they are.
+      - name: Publish platform packages
+        run: |
+          set -euo pipefail
+          for tarball in "$RUNNER_TEMP"/artifacts/*.tgz; do
+            echo "::group::npm publish $(basename "$tarball")"
+            npm publish "$tarball" --access public
+            echo '::endgroup::'
+          done
+
+      - name: Publish parcel3
+        run: |
+          set -euo pipefail
+          for tarball in "$RUNNER_TEMP"/main/*.tgz; do
+            echo "::group::npm publish $(basename "$tarball")"
+            npm publish "$tarball" --access public
+            echo '::endgroup::'
+          done
