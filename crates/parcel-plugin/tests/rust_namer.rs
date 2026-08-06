@@ -72,6 +72,7 @@ fn test_rust_namer_plugin() {
       source_map: Some(Default::default()),
       dist_dir: None,
       public_url: Default::default(),
+      hmr: None,
     },
   )
   .unwrap_or_else(|error| panic!("parcel build failed: {:?}", error));

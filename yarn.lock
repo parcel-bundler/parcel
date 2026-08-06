@@ -4476,20 +4476,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@parcel/rsc@npm:2.16.3":
-  version: 2.16.3
-  resolution: "@parcel/rsc@npm:2.16.3"
-  dependencies:
-    react-server-dom-parcel: "npm:^19.1.1"
-    rsc-html-stream: "npm:^0.0.6"
-  peerDependencies:
-    react: ^19.1.0
-    react-dom: ^19.1.0
-  checksum: 10c0/84c14f8c3064c990c2b42ee42cb4d1fa18f7f6e1c69e14f1a182c1db610fc790e461fa9d1af360ae01895685cd5f453da773a288a164cb86f762223403e8d492
-  languageName: node
-  linkType: hard
-
-"@parcel/rsc@workspace:packages/utils/rsc":
+"@parcel/rsc@npm:3.0.0-alpha.0, @parcel/rsc@workspace:packages/utils/rsc":
   version: 0.0.0-use.local
   resolution: "@parcel/rsc@workspace:packages/utils/rsc"
   dependencies:
@@ -16903,7 +16890,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "parcel-react-server-components-example@workspace:packages/examples/react-server-components"
   dependencies:
-    "@parcel/rsc": "npm:2.16.3"
+    "@parcel/rsc": "npm:3.0.0-alpha.0"
     express: "npm:^4.21.2"
     react: "npm:^19.1.0"
     react-dom: "npm:^19.1.0"
@@ -16914,7 +16901,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "parcel-rsc-client@workspace:packages/examples/rsc-client"
   dependencies:
-    "@parcel/rsc": "npm:2.16.3"
+    "@parcel/rsc": "npm:3.0.0-alpha.0"
     cors: "npm:^2.8.5"
     express: "npm:^4.21.2"
     react: "npm:^19.1.0"
@@ -16926,7 +16913,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "parcel-rsc-static-example@workspace:packages/examples/react-static"
   dependencies:
-    "@parcel/rsc": "npm:2.16.3"
+    "@parcel/rsc": "npm:3.0.0-alpha.0"
     react: "npm:^19.1.0"
     react-dom: "npm:^19.1.0"
   languageName: unknown

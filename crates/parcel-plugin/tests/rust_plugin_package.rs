@@ -121,6 +121,7 @@ fn build_fixture(parcelrc_path: &Path) -> Result<String, String> {
       source_map: Some(Default::default()),
       dist_dir: None,
       public_url: Default::default(),
+      hmr: None,
     },
   )
   .map_err(|e| format!("{e:?}"))?;

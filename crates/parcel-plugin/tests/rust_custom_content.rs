@@ -88,6 +88,7 @@ fn build_fixture(
       source_map: Some(Default::default()),
       dist_dir: None,
       public_url: Default::default(),
+      hmr: None,
     },
   )
 }

@@ -82,6 +82,7 @@ fn test_rust_transformer_plugin() {
       source_map: Some(Default::default()),
       dist_dir: None,
       public_url: Default::default(),
+      hmr: None,
     },
   )
   .unwrap_or_else(|e| panic!("parcel build failed: {:?}", e));

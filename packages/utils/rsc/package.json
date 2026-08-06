@@ -14,7 +14,10 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "sideEffects": false,
-  "files": ["lib", "src"],
+  "files": [
+    "lib",
+    "src"
+  ],
   "exports": {
     ".": {
       "types": "./src/ssg.d.ts"
