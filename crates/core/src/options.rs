@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
 use serde::Deserialize;
 
@@ -17,6 +17,7 @@ pub struct BuildOptions {
   pub cwd: PathId,
   pub dist_dir: Option<PathId>,
   pub public_url: String,
+  pub hmr: Option<HmrOptions>,
 }
 
 pub struct ParcelOptions {
@@ -27,6 +28,7 @@ pub struct ParcelOptions {
   pub input_fs: Arc<dyn FileSystem>,
   pub output_fs: Arc<dyn FileSystem>,
   pub cwd: PathId,
+  pub hmr: Option<HmrOptions>,
 }
 
 impl Default for ParcelOptions {
@@ -39,8 +41,15 @@ impl Default for ParcelOptions {
       input_fs: Arc::new(OsFileSystem {}),
       output_fs: Arc::new(OsFileSystem {}),
       cwd: PathId::new(&std::env::current_dir().unwrap()),
+      hmr: None,
     }
   }
+}
+
+#[derive(Clone)]
+pub struct HmrOptions {
+  pub host: Cow<'static, str>,
+  pub port: u16,
 }
 
 #[derive(Clone, PartialEq, Debug, Default, Deserialize)]

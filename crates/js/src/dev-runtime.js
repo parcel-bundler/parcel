@@ -1,5 +1,5 @@
 /* eslint-env browser */
-/* global parcelRequireName, modules, mainEntry, entries, externals, distDir, publicUrl */
+/* global parcelRequireName, modules, mainEntry, entries, externals, distDir, publicUrl, HMR_HOST, HMR_PORT */
 /* eslint-disable no-unused-vars */
 
 // Save the require from previous bundle to this closure if any
@@ -230,8 +230,6 @@ if (mainEntry) {
   }
 }
 
-var HMR_HOST = null;
-var HMR_PORT = '1234';
 var HMR_SERVER_PORT = null;
 var HMR_SECURE = false;
 var HMR_ENV_HASH = "TODO";

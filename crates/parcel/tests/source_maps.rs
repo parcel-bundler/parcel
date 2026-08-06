@@ -54,6 +54,7 @@ fn assert_bundle_source_maps(mode: BuildMode, minify: Option<bool>) {
       cwd,
       dist_dir: None,
       public_url: Default::default(),
+      hmr: None,
     },
   )
   .unwrap();

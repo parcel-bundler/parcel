@@ -175,6 +175,7 @@ impl JsContent {
       &externals,
       &options.project_root,
       should_optimize,
+      options,
     )?;
 
     printer.write_str(if should_optimize {
@@ -543,6 +544,7 @@ fn write_runtime_globals(
   externals: &IndexSet<String>,
   project_root: &PathId,
   should_optimize: bool,
+  options: &ParcelOptions,
 ) -> Result<(), DiagnosticList> {
   printer.write_var(
     runtime_name(
@@ -617,6 +619,16 @@ fn write_runtime_globals(
     )?;
   } else {
     printer.write_var(runtime_main_entry, "null", true)?;
+  }
+
+  if !should_optimize {
+    if let Some(hmr) = &options.hmr {
+      printer.write_var("HMR_HOST", &serde_json::to_string(&hmr.host)?, true)?;
+      printer.write_var("HMR_PORT", &serde_json::to_string(&hmr.port)?, true)?;
+    } else {
+      printer.write_var("HMR_HOST", "null", true)?;
+      printer.write_var("HMR_PORT", "'1234'", true)?;
+    }
   }
 
   Ok(())

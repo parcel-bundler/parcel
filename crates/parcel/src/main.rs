@@ -1,5 +1,5 @@
 use parcel::ServerOptions;
-use parcel_core::{BuildOptions, OsFileSystem, PathId};
+use parcel_core::{BuildOptions, HmrOptions, OsFileSystem, PathId};
 use std::borrow::Cow;
 use std::path::Path;
 use std::process::ExitCode;
@@ -48,6 +48,7 @@ pub fn main() -> ExitCode {
     },
   );
 
+  let mut server_options = ServerOptions::default();
   let mut options = BuildOptions {
     env,
     input_fs: Arc::new(OsFileSystem {}),
@@ -60,9 +61,8 @@ pub fn main() -> ExitCode {
     cwd: PathId::new(&std::env::current_dir().unwrap()),
     dist_dir: None,
     public_url: Default::default(),
+    hmr: None,
   };
-
-  let mut server_options = ServerOptions::default();
 
   let mut entries = Vec::new();
   while let Some(arg) = args.next() {
@@ -105,6 +105,13 @@ pub fn main() -> ExitCode {
     } else {
       entries.push(arg);
     }
+  }
+
+  if matches!(cmd, Command::Serve) {
+    options.hmr = Some(HmrOptions {
+      host: server_options.host.clone(),
+      port: server_options.port,
+    });
   }
 
   let res = match cmd {

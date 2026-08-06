@@ -39,7 +39,7 @@ pub fn serve_dir(path: &Path, options: ServerOptions) -> DevServer {
   let sockets_clone = Arc::clone(&sockets);
   std::thread::spawn(move || {
     let server = Server::http((&*options.host, options.port)).unwrap();
-    println!("Server listening on http://localhost:1234");
+    println!("Server listening on http://localhost:{}", options.port);
 
     for request in server.incoming_requests() {
       if is_websocket_upgrade(&request) {

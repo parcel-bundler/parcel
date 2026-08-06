@@ -141,10 +141,11 @@ fn bundle_with_options(
     input_fs: Arc::new(OsFileSystem {}),
     output_fs: output_fs.clone(),
     log_level: parcel_core::LogLevel::Verbose,
-    config: None,
+    config: options.config,
     cwd: PathId::new(cwd),
     dist_dir: None,
     public_url: Default::default(),
+    hmr: None,
   };
 
   parcel::build(&entries, options)
@@ -551,6 +552,7 @@ struct TestOptions {
   #[serde(default)]
   env: HashMap<String, String>,
   cwd: Option<String>,
+  config: Option<String>,
 }
 
 fn run_test_json(path: &Path) {

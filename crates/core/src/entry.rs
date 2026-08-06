@@ -715,6 +715,7 @@ mod tests {
         source_map: Some(Default::default()),
         dist_dir: None,
         public_url: Default::default(),
+        hmr: None,
       },
     )
     .unwrap();
@@ -1335,6 +1336,7 @@ mod tests {
         source_map: Some(Default::default()),
         dist_dir: None,
         public_url: Default::default(),
+        hmr: None,
       },
     );
     assert!(result.is_err());
@@ -1366,6 +1368,7 @@ mod tests {
         source_map: None,
         dist_dir: None,
         public_url: Default::default(),
+        hmr: None,
       },
     )
     .unwrap();

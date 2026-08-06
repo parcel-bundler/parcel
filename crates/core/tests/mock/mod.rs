@@ -56,6 +56,7 @@ pub fn build_options(
     cwd: PathId::new(Path::new("/project")),
     dist_dir: None,
     public_url: Default::default(),
+    hmr: None,
   }
 }
 

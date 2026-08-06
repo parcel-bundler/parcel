@@ -181,6 +181,7 @@ impl Parcel {
       input_fs: cached_fs.clone(),
       output_fs: options.output_fs,
       cwd: options.cwd,
+      hmr: options.hmr,
     });
 
     Ok(Parcel {

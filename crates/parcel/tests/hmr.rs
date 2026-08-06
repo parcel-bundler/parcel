@@ -41,6 +41,10 @@ fn setup(files: &[(&str, &str)]) -> (Parcel, Arc<MemoryFileSystem>) {
     cwd: PathId::new(Path::new("/project")),
     dist_dir: None,
     public_url: Default::default(),
+    hmr: Some(HmrOptions {
+      host: "0.0.0.0".into(),
+      port: 1234,
+    }),
   };
 
   let entries = vec!["/project/index.js".to_string()];
