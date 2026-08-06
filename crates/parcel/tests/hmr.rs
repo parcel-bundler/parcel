@@ -1,8 +1,8 @@
 use parcel::make_parcel;
 use parcel_core::{
   AssetType, BuildMode, BuildOptions, CodeFrame, CodeHighlight, Diagnostic, DiagnosticList,
-  DiagnosticSeverity, Environment, FileSystem, Location, LogLevel, MemoryFileSystem, Parcel,
-  PathId,
+  DiagnosticSeverity, Environment, FileSystem, HmrOptions, Location, LogLevel, MemoryFileSystem,
+  Parcel, PathId,
 };
 use parcel_js::hmr::get_hmr_update;
 use parcel_plugin_js::{await_promise, create_runtime};
@@ -83,6 +83,51 @@ fn hmr_update_after_change(
     affected_count,
     changed_count,
   )
+}
+
+#[test]
+fn hmr_update_reloads_for_esm_sync_bundle_imports() {
+  let (mut parcel, input_fs) = setup(&[
+    (
+      "/project/.parcelrc",
+      r#"{
+        "extends": "@parcel/config-default",
+        "transformers": {
+          "raw-json:*.json": ["@parcel/transformer-raw"]
+        }
+      }"#,
+    ),
+    (
+      "/project/package.json",
+      r#"{
+        "targets": {
+          "default": {
+            "context": "node",
+            "outputFormat": "esmodule"
+          }
+        }
+      }"#,
+    ),
+    (
+      "/project/index.js",
+      "const data = require('raw-json:./data.json'); output(data.value);",
+    ),
+    ("/project/data.json", r#"{"value":42}"#),
+  ]);
+
+  let (update, _, _) = hmr_update_after_change(
+    &mut parcel,
+    &input_fs,
+    "/project/index.js",
+    "const data = require('raw-json:./data.json'); output(data.value + 1);",
+  );
+  let assets = update["assets"].as_array().unwrap();
+  let sync_bundle = assets
+    .iter()
+    .find(|asset| asset["id"].as_str().is_some_and(|id| id.starts_with('b')))
+    .expect("expected a sync bundle HMR asset");
+  assert_eq!(sync_bundle["type"], "json");
+  assert_eq!(sync_bundle["output"], "");
 }
 
 struct HmrRuntimeTest {

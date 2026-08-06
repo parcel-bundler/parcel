@@ -1,0 +1,22 @@
+{
+  "description": "should retain synchronous JSON bundle shims in CommonJS output",
+  "input": "index.js",
+  "options": {
+    "config": ".parcelrc"
+  },
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["index.js"],
+      "contains": [
+        "'b1':[function",
+        "module.exports=module.bundle.nodeRequire("
+      ],
+      "notContains": ["import __parcelSyncBundle"]
+    },
+    {
+      "type": "json",
+      "assets": ["data.json"]
+    }
+  ]
+}

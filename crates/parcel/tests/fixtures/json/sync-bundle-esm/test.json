@@ -1,0 +1,23 @@
+{
+  "description": "should hoist synchronous JSON bundles as ESM imports",
+  "input": "index.js",
+  "options": {
+    "config": ".parcelrc"
+  },
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["esmodule-helpers.js", "index.js"],
+      "contains": [
+        "import __parcelSyncBundle1 from",
+        "with {type:\"json\"};",
+        "\"b1\":__parcelSyncBundle1,"
+      ],
+      "notContains": ["'b1':[function"]
+    },
+    {
+      "type": "json",
+      "assets": ["data.json"]
+    }
+  ]
+}

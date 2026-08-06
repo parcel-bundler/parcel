@@ -165,7 +165,8 @@ pub(super) fn resolve_dependency(
         .referenced_bundles(bundle_index as usize)
         .filter_map(|bundle_index| {
           let bundle = &bundle_graph.bundles[bundle_index];
-          (bundle.ty == AssetType::Css).then(|| bundle.absolute_url())
+          (bundle.ty == AssetType::Css && bundle.bundle_behavior != BundleBehavior::Inline)
+            .then(|| bundle.absolute_url())
         })
         .collect()
     } else {
@@ -267,6 +268,10 @@ fn resource_plan(
 
   for bundle_index in bundle_graph.referenced_bundles(bundle_index as usize) {
     let bundle = &bundle_graph.bundles[bundle_index];
+    if bundle.bundle_behavior == BundleBehavior::Inline {
+      continue;
+    }
+
     if bundle.ty == AssetType::Css {
       let url = bundle.absolute_url();
       plan.resources.push(RscResource {
@@ -353,7 +358,9 @@ fn client_bundle_names(bundle_graph: &BundleGraph, bundle_index: u32) -> Vec<Str
     .referenced_bundles(bundle_index as usize)
     .filter_map(|bundle_index| {
       let bundle = &bundle_graph.bundles[bundle_index];
-      (bundle.ty == AssetType::Js && bundle.target.environment == Environment::ReactClient)
+      (bundle.ty == AssetType::Js
+        && bundle.target.environment == Environment::ReactClient
+        && bundle.bundle_behavior != BundleBehavior::Inline)
         .then(|| bundle.name())
     })
     .collect()

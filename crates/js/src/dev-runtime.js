@@ -19,7 +19,7 @@ var nodeRequire =
 function parcelRequire(name, jumped) {
   if (!cache[name]) {
     if (!modules[name]) {
-      if (externals[name]) {
+      if (Object.prototype.hasOwnProperty.call(externals, name)) {
         return externals[name];
       }
       // if we cannot find the module within our internal map or
@@ -201,6 +201,7 @@ function parcelLoadCSS(bundleId) {
 
 parcelRequire.loadJS = parcelLoadJS;
 parcelRequire.load = parcelLoadJS;
+parcelRequire.nodeRequire = nodeRequire;
 parcelRequire.loadCSS = parcelLoadCSS;
 parcelRequire.resolve = parcelResolve;
 parcelRequire.extendImportMap = function (map) {

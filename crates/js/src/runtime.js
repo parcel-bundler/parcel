@@ -19,7 +19,7 @@ var nodeRequire =
 function require(name, jumped) {
   if (!cache[name]) {
     if (!modules[name]) {
-      if (externals[name]) {
+      if (Object.prototype.hasOwnProperty.call(externals, name)) {
         return externals[name];
       }
       // if we cannot find the module within our internal map or
@@ -137,6 +137,7 @@ function parcelLoadCSS(bundleId) {
 }
 
 require.loadJS = parcelLoadJS;
+require.nodeRequire = nodeRequire;
 require.load = parcelLoadJS;
 require.loadCSS = parcelLoadCSS;
 require.resolve = parcelResolve;

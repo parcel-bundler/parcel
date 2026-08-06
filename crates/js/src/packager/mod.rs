@@ -1,6 +1,6 @@
 use std::{fmt::Write, sync::Arc};
 
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 use parcel_core::*;
 use parcel_js_swc_core::{Ast, tree_shake::tree_shake};
 use swc_core::{
@@ -93,6 +93,34 @@ impl JsContent {
       .flags
       .contains(EnvironmentFlags::SHOULD_OPTIMIZE);
 
+    // Resolve dependencies before writing the bundle preamble. Some dependency
+    // resolutions, such as synchronous bundles in ESM output, must be emitted
+    // as top-level imports before the module table.
+    let mut synthetic_assets = IndexSet::new();
+    let mut asset_plans = Vec::with_capacity(bundle.assets.len());
+    for asset_index in &bundle.assets {
+      let asset = &bundle_graph.asset_graph.asset(*asset_index);
+      let dependencies = asset_dependencies(
+        *asset_index,
+        asset,
+        bundle_graph,
+        Some(bundle),
+        &mut synthetic_assets,
+        get_inline_bundle_content,
+        &options.project_root,
+      )?;
+      asset_plans.push((*asset_index, dependencies));
+    }
+
+    let rsc_server_entry =
+      if let Some(module) = rsc::server_entry(bundle, bundle_graph, &options.project_root)? {
+        let id = module.id();
+        synthetic_assets.insert(SyntheticAsset::Rsc(module));
+        Some(id)
+      } else {
+        None
+      };
+
     let mut printer = Printer::new(should_build_source_map, should_optimize);
     if let Some(main) = bundle.main_entry_asset {
       let asset = &bundle_graph.asset_graph.asset(main);
@@ -105,6 +133,8 @@ impl JsContent {
 
     write_node_replacement_helpers(&mut printer, bundle_graph, bundle)?;
     let externals = write_external_imports(&mut printer, bundle_graph, bundle)?;
+    let sync_bundles =
+      write_sync_bundle_imports(&mut printer, bundle_graph, bundle, &synthetic_assets)?;
     write_bundle_references(&mut printer, bundle_graph, bundle)?;
 
     printer.write_var(
@@ -114,10 +144,9 @@ impl JsContent {
     )?;
 
     let mut first: bool = true;
-    let mut synthetic_assets = IndexSet::new();
 
-    for asset_index in &bundle.assets {
-      let asset = &bundle_graph.asset_graph.asset(*asset_index);
+    for (asset_index, dependencies) in asset_plans {
+      let asset = &bundle_graph.asset_graph.asset(asset_index);
       if !first {
         printer.write_char(',')?;
       }
@@ -125,28 +154,28 @@ impl JsContent {
 
       write_asset_module(
         &mut printer,
-        *asset_index,
         asset,
-        bundle_graph,
         bundle,
-        &mut synthetic_assets,
-        get_inline_bundle_content,
+        dependencies,
         options,
         should_build_source_map,
         should_optimize,
       )?;
     }
 
-    let rsc_server_entry =
-      if let Some(module) = rsc::server_entry(bundle, bundle_graph, &options.project_root)? {
-        let id = module.id();
-        synthetic_assets.insert(SyntheticAsset::Rsc(module));
-        Some(id)
-      } else {
-        None
-      };
-
     for synthetic_asset in synthetic_assets {
+      if bundle.target.output_format == OutputFormat::Esmodule
+        && matches!(
+          &synthetic_asset,
+          SyntheticAsset::Bundle {
+            kind: BundleShim::Sync,
+            ..
+          }
+        )
+      {
+        continue;
+      }
+
       if !first {
         printer.write_char(',')?;
       }
@@ -173,6 +202,7 @@ impl JsContent {
       bundle,
       rsc_server_entry,
       &externals,
+      &sync_bundles,
       &options.project_root,
       should_optimize,
       options,
@@ -185,6 +215,53 @@ impl JsContent {
     })?;
     printer.into_content()
   }
+}
+
+fn sync_bundle_binding(bundle_index: u32) -> String {
+  format!("__parcelSyncBundle{}", bundle_index)
+}
+
+/// Hoists synchronous bundle dependencies in ESM output. They are registered
+/// in the runtime's external value map under the synthetic bundle id, allowing
+/// transformed `require` calls to resolve them without a nested shim module.
+fn write_sync_bundle_imports(
+  printer: &mut Printer,
+  bundle_graph: &BundleGraph,
+  bundle: &Bundle,
+  synthetic_assets: &IndexSet<SyntheticAsset>,
+) -> Result<IndexSet<u32>, DiagnosticList> {
+  let mut sync_bundles = IndexSet::new();
+  if bundle.target.output_format != OutputFormat::Esmodule {
+    return Ok(sync_bundles);
+  }
+
+  for synthetic_asset in synthetic_assets {
+    let SyntheticAsset::Bundle {
+      bundle: bundle_index,
+      kind: BundleShim::Sync,
+    } = synthetic_asset
+    else {
+      continue;
+    };
+
+    let resolved_bundle = &bundle_graph.bundles[*bundle_index as usize];
+    let specifier = resolved_bundle.relative_specifier(bundle).unwrap();
+    write!(
+      printer,
+      "import {} from {}",
+      sync_bundle_binding(*bundle_index),
+      serde_json::to_string(&specifier)?,
+    )?;
+    if resolved_bundle.ty == AssetType::Json {
+      printer.write_str(" with {type:\"json\"};")?;
+    } else {
+      printer.write_char(';')?;
+    }
+    printer.newline()?;
+    sync_bundles.insert(*bundle_index);
+  }
+
+  Ok(sync_bundles)
 }
 
 /// Hoists external modules because `require` is unavailable in ESM output.
@@ -247,28 +324,15 @@ fn write_bundle_references(
   Ok(())
 }
 
-fn write_asset_module(
+fn write_asset_module<'a>(
   printer: &mut Printer,
-  asset_index: AssetIndex,
   asset: &Asset,
-  bundle_graph: &BundleGraph,
   bundle: &Bundle,
-  synthetic_assets: &mut IndexSet<SyntheticAsset>,
-  get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+  dependencies: IndexMap<String, Resolution<'a>>,
   options: &ParcelOptions,
   should_build_source_map: bool,
   should_optimize: bool,
 ) -> Result<(), DiagnosticList> {
-  let dependencies = asset_dependencies(
-    asset_index,
-    asset,
-    bundle_graph,
-    Some(bundle),
-    synthetic_assets,
-    get_inline_bundle_content,
-    &options.project_root,
-  )?;
-
   if let Some(content) = asset.content.downcast_ref::<JsContent>() {
     let mut ast = content.ast.clone();
     insert_node_replacements(&mut ast, content, asset, bundle, should_optimize);
@@ -542,6 +606,7 @@ fn write_runtime_globals(
   bundle: &Bundle,
   rsc_server_entry: Option<String>,
   externals: &IndexSet<String>,
+  sync_bundles: &IndexSet<u32>,
   project_root: &PathId,
   should_optimize: bool,
   options: &ParcelOptions,
@@ -566,6 +631,14 @@ fn write_runtime_globals(
       "{}:__parcelExternal{},",
       serde_json::to_string(external)?,
       index
+    )?;
+  }
+  for bundle_index in sync_bundles {
+    write!(
+      printer,
+      "\"b{}\":{},",
+      bundle_index,
+      sync_bundle_binding(*bundle_index),
     )?;
   }
   printer.write_str("};")?;

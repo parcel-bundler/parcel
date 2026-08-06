@@ -253,6 +253,11 @@ pub fn asset_dependencies<'a>(
                 kind: BundleShim::AsyncInterop,
               });
             }
+          } else if resolved_bundle.ty == AssetType::Json {
+            additional_assets.insert(SyntheticAsset::Bundle {
+              bundle: bundle_index,
+              kind: BundleShim::Sync,
+            });
           } else {
             additional_assets.insert(SyntheticAsset::Bundle {
               bundle: bundle_index,

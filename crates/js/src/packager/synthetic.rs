@@ -28,12 +28,16 @@ pub enum BundleShim {
   Url,
   /// Resolves to the inlined content of the bundle.
   Inline,
+  /// Loads the bundle synchronously.
+  Sync,
 }
 
 impl BundleShim {
   fn id(&self, bundle: u32) -> String {
     match self {
-      BundleShim::Async | BundleShim::Url | BundleShim::Inline => format!("b{}", bundle),
+      BundleShim::Async | BundleShim::Url | BundleShim::Inline | BundleShim::Sync => {
+        format!("b{}", bundle)
+      }
       BundleShim::AsyncInterop => format!("b{}i", bundle),
     }
   }
@@ -143,12 +147,16 @@ impl SyntheticAsset {
         BundleShim::Inline => {
           let content = get_inline_bundle_content(*bundle_index as usize)?;
           let content = content.read_string()?;
-          if bundle_graph.bundles[*bundle_index as usize].ty == AssetType::Other("docs".into()) {
-            dest.write_str("module.exports=")?;
-            dest.write_str(&content)?;
-          } else {
-            write!(dest, "module.exports={:?}", content)?;
-          }
+          write!(dest, "module.exports={:?}", content)?;
+        }
+        BundleShim::Sync => {
+          let resolved_bundle = &bundle_graph.bundles[*bundle_index as usize];
+          let specifier = resolved_bundle.relative_specifier(bundle).unwrap();
+          write!(
+            dest,
+            "module.exports=module.bundle.nodeRequire({:?})",
+            specifier
+          )?;
         }
       },
       SyntheticAsset::Rsc(module) => {

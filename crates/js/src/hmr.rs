@@ -6,7 +6,7 @@ use parcel_core::{
   get_bundle_content,
 };
 
-use crate::packager::{Resolution, SyntheticAsset, asset_dependencies};
+use crate::packager::{BundleShim, Resolution, SyntheticAsset, asset_dependencies};
 
 #[derive(serde::Serialize, Debug)]
 #[serde(tag = "type", rename_all = "lowercase")]
@@ -45,14 +45,16 @@ pub fn get_hmr_update<'a>(
   options: &'a ParcelOptions,
 ) -> HmrUpdate<'a> {
   let mut synthetic_assets = IndexSet::new();
+  let mut esm_sync_bundles = IndexSet::new();
   let mut assets = Vec::with_capacity(changed_assets.len());
   for (id, asset) in changed_assets {
+    let mut additional_assets = IndexSet::new();
     let dependencies = asset_dependencies(
       id,
       asset,
       bundle_graph,
       None,
-      &mut synthetic_assets,
+      &mut additional_assets,
       &|bundle_index| {
         get_bundle_content(
           config,
@@ -65,6 +67,19 @@ pub fn get_hmr_update<'a>(
       &bundle_graph.project_root,
     )
     .unwrap();
+
+    if asset.target.output_format == OutputFormat::Esmodule {
+      for synthetic_asset in &additional_assets {
+        if let SyntheticAsset::Bundle {
+          bundle,
+          kind: BundleShim::Sync,
+        } = synthetic_asset
+        {
+          esm_sync_bundles.insert(*bundle);
+        }
+      }
+    }
+    synthetic_assets.extend(additional_assets);
 
     // TODO: I think we don't need this anymore. Was added in https://github.com/parcel-bundler/parcel/pull/4311
     // due to runtimes producing different dependencies per bundle.
@@ -93,6 +108,13 @@ pub fn get_hmr_update<'a>(
 
   // TODO: only changed ones??
   for synthetic_asset in synthetic_assets {
+    let esm_sync_bundle = match &synthetic_asset {
+      SyntheticAsset::Bundle {
+        bundle,
+        kind: BundleShim::Sync,
+      } if esm_sync_bundles.contains(bundle) => Some(*bundle),
+      _ => None,
+    };
     let asset_id = synthetic_asset.id(bundle_graph, &bundle_graph.project_root);
     let id = if matches!(synthetic_asset, SyntheticAsset::CssModuleExports(_)) {
       Id::Asset(asset_id.clone())
@@ -101,28 +123,30 @@ pub fn get_hmr_update<'a>(
     };
 
     let mut output = String::new();
-    write!(&mut output, "parcelHotUpdate[").unwrap();
-    write!(&mut output, "'{}'", asset_id).unwrap();
-    write!(&mut output, "] = function (module, exports, require) {{").unwrap();
-    synthetic_asset
-      .write_content(
-        &mut output,
-        false,
-        bundle_graph,
-        &bundle_graph.bundles[0], // TODO
-        &|bundle_index| {
-          get_bundle_content(
-            config,
-            bundle_graph,
-            bundle_index,
-            options,
-            &Default::default(),
-          )
-        },
-        &bundle_graph.project_root,
-      )
-      .unwrap();
-    write!(&mut output, "}}").unwrap();
+    if esm_sync_bundle.is_none() {
+      write!(&mut output, "parcelHotUpdate[").unwrap();
+      write!(&mut output, "'{}'", asset_id).unwrap();
+      write!(&mut output, "] = function (module, exports, require) {{").unwrap();
+      synthetic_asset
+        .write_content(
+          &mut output,
+          false,
+          bundle_graph,
+          &bundle_graph.bundles[0], // TODO
+          &|bundle_index| {
+            get_bundle_content(
+              config,
+              bundle_graph,
+              bundle_index,
+              options,
+              &Default::default(),
+            )
+          },
+          &bundle_graph.project_root,
+        )
+        .unwrap();
+      write!(&mut output, "}}").unwrap();
+    }
 
     let mut deps_by_bundle = HashMap::new();
     deps_by_bundle.insert(
@@ -132,7 +156,11 @@ pub fn get_hmr_update<'a>(
 
     assets.push(HmrAsset {
       id,
-      ty: AssetType::Js,
+      // ESM updates cannot introduce a new top-level import. Sending the
+      // referenced bundle's non-JS type makes the runtime perform a full reload.
+      ty: esm_sync_bundle
+        .map(|bundle| bundle_graph.bundles[bundle as usize].ty.clone())
+        .unwrap_or(AssetType::Js),
       output,
       env_hash: "TODO".into(),
       output_format: OutputFormat::Esmodule,
