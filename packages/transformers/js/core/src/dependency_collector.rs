@@ -605,7 +605,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                   ))));
                 } else {
                   call.callee = ast::Callee::Expr(Box::new(ast::Expr::Member(member_expr!(
-                    Default::default(),
+                    SyntaxContext::empty().apply_mark(self.unresolved_mark),
                     call.span,
                     module.require
                   ))));
@@ -647,7 +647,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                 let mut call = node.fold_children_with(self);
                 if !self.config.scope_hoist {
                   call.callee = ast::Callee::Expr(Box::new(ast::Expr::Member(member_expr!(
-                    Default::default(),
+                    SyntaxContext::empty().apply_mark(self.unresolved_mark),
                     call.span,
                     module.bundle.root
                   ))));
@@ -664,7 +664,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                 ast::Expr::Ident(ast::Ident::new_no_ctxt("$parcel$import".into(), call.span))
               } else {
                 ast::Expr::Member(member_expr!(
-                  Default::default(),
+                  SyntaxContext::empty().apply_mark(self.unresolved_mark),
                   call.span,
                   module.bundle.load
                 ))
@@ -682,7 +682,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                 ast::Expr::Ident(ast::Ident::new_no_ctxt("$parcel$resolve".into(), call.span))
               } else {
                 ast::Expr::Member(member_expr!(
-                  Default::default(),
+                  SyntaxContext::empty().apply_mark(self.unresolved_mark),
                   call.span,
                   module.bundle.resolve
                 ))
@@ -703,7 +703,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                 ))
               } else {
                 ast::Expr::Member(member_expr!(
-                  Default::default(),
+                  SyntaxContext::empty().apply_mark(self.unresolved_mark),
                   call.span,
                   module.bundle.extendImportMap
                 ))
@@ -1559,13 +1559,13 @@ impl<'a> DependencyCollector<'a> {
               if self.config.is_library {
                 return if self.config.is_esm_output {
                   Some(Expr::Member(member_expr!(
-                    Default::default(),
+                    SyntaxContext::empty().apply_mark(self.unresolved_mark),
                     span,
                     import.meta.distDir
                   )))
                 } else {
                   Some(Expr::Member(member_expr!(
-                    Default::default(),
+                    SyntaxContext::empty().apply_mark(self.unresolved_mark),
                     span,
                     parcelRequire.meta.distDir
                   )))
@@ -1580,7 +1580,7 @@ impl<'a> DependencyCollector<'a> {
                 )))
               } else {
                 Some(Expr::Member(member_expr!(
-                  Default::default(),
+                  SyntaxContext::empty().apply_mark(self.unresolved_mark),
                   span,
                   module.bundle.distDir
                 )))
@@ -1590,13 +1590,13 @@ impl<'a> DependencyCollector<'a> {
               if self.config.is_library {
                 return if self.config.is_esm_output {
                   Some(Expr::Member(member_expr!(
-                    Default::default(),
+                    SyntaxContext::empty().apply_mark(self.unresolved_mark),
                     span,
                     import.meta.publicUrl
                   )))
                 } else {
                   Some(Expr::Member(member_expr!(
-                    Default::default(),
+                    SyntaxContext::empty().apply_mark(self.unresolved_mark),
                     span,
                     parcelRequire.meta.publicUrl
                   )))
@@ -1611,7 +1611,7 @@ impl<'a> DependencyCollector<'a> {
                 )))
               } else {
                 Some(Expr::Member(member_expr!(
-                  Default::default(),
+                  SyntaxContext::empty().apply_mark(self.unresolved_mark),
                   span,
                   module.bundle.publicUrl
                 )))
@@ -1627,7 +1627,7 @@ impl<'a> DependencyCollector<'a> {
                   )))
                 } else {
                   Some(Expr::Member(member_expr!(
-                    Default::default(),
+                    SyntaxContext::empty().apply_mark(self.unresolved_mark),
                     span,
                     parcelRequire.meta.devServer
                   )))
@@ -1642,7 +1642,7 @@ impl<'a> DependencyCollector<'a> {
                 )))
               } else {
                 Some(Expr::Member(member_expr!(
-                  Default::default(),
+                  SyntaxContext::empty().apply_mark(self.unresolved_mark),
                   span,
                   module.bundle.devServer
                 )))
