@@ -1,0 +1,19 @@
+.w7yKLq_button.w7yKLq_is-hovered {
+  color: red;
+}
+
+.w7yKLq_button.w7yKLq_is-active {
+  color: orange;
+}
+
+.w7yKLq_button.w7yKLq_is-focused {
+  color: #ff0;
+}
+
+.w7yKLq_button.w7yKLq_is-focus-visible {
+  color: green;
+}
+
+.w7yKLq_button.w7yKLq_has-focus-within {
+  color: #00f;
+}

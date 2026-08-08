@@ -168,6 +168,15 @@ impl CssContent {
         } else {
           None
         },
+        pseudo_classes: self.pseudo_classes.as_ref().map(|p| {
+          lightningcss::printer::PseudoClasses {
+            active: p.active.as_ref().map(|s| s.as_str()),
+            focus: p.focus.as_ref().map(|s| s.as_str()),
+            focus_visible: p.focus_visible.as_ref().map(|s| s.as_str()),
+            focus_within: p.focus_within.as_ref().map(|s| s.as_str()),
+            hover: p.hover.as_ref().map(|s| s.as_str()),
+          }
+        }),
         ..Default::default()
       })
       .map_err(|err| convert_error(None, err))?;

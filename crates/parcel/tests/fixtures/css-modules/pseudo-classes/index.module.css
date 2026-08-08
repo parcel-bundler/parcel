@@ -1,0 +1,19 @@
+.button:hover {
+  color: red;
+}
+
+.button:active {
+  color: orange;
+}
+
+.button:focus {
+  color: yellow;
+}
+
+.button:focus-visible {
+  color: green;
+}
+
+.button:focus-within {
+  color: blue;
+}

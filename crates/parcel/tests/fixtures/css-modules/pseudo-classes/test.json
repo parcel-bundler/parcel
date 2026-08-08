@@ -1,0 +1,8 @@
+{
+  "description": "should hash replaced pseudo classes in css modules",
+  "input": "index.js",
+  "bundles": [
+    {"type": "js", "assets": ["index.js"]},
+    {"type": "css", "assets": ["index.module.css"]}
+  ]
+}

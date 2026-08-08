@@ -2,6 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use lightningcss::{
   css_modules::CssModuleReference,
+  printer::PrinterOptions,
   rules::CssRule,
   stylesheet::{MinifyOptions, ParserOptions, StyleAttribute, StyleSheet},
   targets::{Browsers, Targets},
@@ -16,6 +17,7 @@ use crate::{CssContent, StyleAttrContent, convert_error, convert_version};
 #[serde(rename_all = "camelCase")]
 struct Config {
   css_modules: Option<CssModulesOption>,
+  pseudo_classes: Option<PseudoClasses>,
 }
 
 #[derive(serde::Deserialize)]
@@ -37,9 +39,20 @@ struct CssModulesConfig {
   pure: Option<bool>,
 }
 
+#[derive(serde::Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PseudoClasses {
+  pub hover: Option<String>,
+  pub active: Option<String>,
+  pub focus: Option<String>,
+  pub focus_visible: Option<String>,
+  pub focus_within: Option<String>,
+}
+
 #[derive(Default)]
 pub struct CssTransformer {
   pub css_modules: Option<lightningcss::css_modules::Config>,
+  pub pseudo_classes: Option<Arc<PseudoClasses>>,
 }
 
 impl<'de> serde::Deserialize<'de> for CssTransformer {
@@ -73,6 +86,7 @@ impl<'de> serde::Deserialize<'de> for CssTransformer {
       } else {
         None
       },
+      pseudo_classes: config.pseudo_classes.map(Arc::new),
     })
   }
 }
@@ -133,7 +147,18 @@ impl Transformer for CssTransformer {
     if self.css_modules.is_some() && asset.loc.start.line == 0 {
       // TODO: transform AST instead of printing and re-parsing.
       let res = stylesheet
-        .to_css(Default::default())
+        .to_css(PrinterOptions {
+          pseudo_classes: self.pseudo_classes.as_ref().map(|p| {
+            lightningcss::printer::PseudoClasses {
+              active: p.active.as_ref().map(|s| s.as_str()),
+              focus: p.focus.as_ref().map(|s| s.as_str()),
+              focus_visible: p.focus_visible.as_ref().map(|s| s.as_str()),
+              focus_within: p.focus_within.as_ref().map(|s| s.as_str()),
+              hover: p.hover.as_ref().map(|s| s.as_str()),
+            }
+          }),
+          ..Default::default()
+        })
         .map_err(|err| convert_error(Some(asset.loc.url.clone()), err))?;
       let exports = res.exports.clone().unwrap_or(HashMap::new());
       let mut refs = HashMap::new();
@@ -221,12 +246,14 @@ impl Transformer for CssTransformer {
         stylesheet: stylesheet.into_owned(),
         exports,
         references: refs,
+        pseudo_classes: None,
       });
     } else {
       asset.content = Arc::new(CssContent {
         stylesheet: stylesheet.into_owned(),
         exports: HashMap::new(),
         references: HashMap::new(),
+        pseudo_classes: self.pseudo_classes.clone(),
       });
     }
 

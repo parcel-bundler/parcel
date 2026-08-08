@@ -15,11 +15,14 @@ mod transformer;
 
 pub use transformer::{CssTransformer, StyleAttrTransformer};
 
+use crate::transformer::PseudoClasses;
+
 #[derive(Debug)]
 pub struct CssContent {
   stylesheet: StyleSheet<'static>,
   exports: HashMap<String, CssModuleExport>,
   references: HashMap<String, usize>,
+  pseudo_classes: Option<Arc<PseudoClasses>>,
 }
 
 impl Content for CssContent {

@@ -1,0 +1,19 @@
+.button.is-hovered {
+  color: red;
+}
+
+.button.is-active {
+  color: orange;
+}
+
+.button.is-focused {
+  color: #ff0;
+}
+
+.button.is-focus-visible {
+  color: green;
+}
+
+.button.has-focus-within {
+  color: #00f;
+}

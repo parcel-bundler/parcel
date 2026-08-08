@@ -1,0 +1,19 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "*.css": [
+      {
+        "plugin": "@parcel/transformer-css",
+        "config": {
+          "pseudoClasses": {
+            "hover": "is-hovered",
+            "active": "is-active",
+            "focus": "is-focused",
+            "focusVisible": "is-focus-visible",
+            "focusWithin": "has-focus-within"
+          }
+        }
+      }
+    ]
+  }
+}

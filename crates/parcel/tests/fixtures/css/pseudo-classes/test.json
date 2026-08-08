@@ -1,0 +1,7 @@
+{
+  "description": "should replace pseudo classes with regular classes",
+  "input": "index.css",
+  "bundles": [
+    {"type": "css", "assets": ["index.css"]}
+  ]
+}
