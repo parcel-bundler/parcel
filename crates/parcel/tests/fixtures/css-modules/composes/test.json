@@ -12,7 +12,9 @@
     }
   ],
   "output": {
-    "composes1": "l1xgsq_composes1 foo0yq_test",
+    "composes1": "l1xgsq_composes1 l1xgsq_composes-local l1xgsq_composes-local2 foo0yq_test",
+    "composes-local": "l1xgsq_composes-local l1xgsq_composes-local2",
+    "composes-local2": "l1xgsq_composes-local2",
     "composes2": "vfpr5G_composes2 foo0yq_test"
   }
 }

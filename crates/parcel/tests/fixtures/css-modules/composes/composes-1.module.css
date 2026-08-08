@@ -1,4 +1,14 @@
 .composes1 {
+  composes: composes-local;
   composes: test from './mixins.module.css';
   border: 3px solid orange;
+}
+
+.composes-local {
+  composes: composes-local2;
+  background: green;
+}
+
+.composes-local2 {
+  color: white;
 }

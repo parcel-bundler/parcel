@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+  collections::{HashMap, HashSet},
+  sync::Arc,
+};
 
 use lightningcss::{
   css_modules::{CssModuleExport, CssModuleReference},
@@ -40,12 +43,27 @@ pub fn resolve_css_module_export(
   asset_index: AssetIndex,
   name: &str,
 ) -> Option<String> {
+  resolve_css_module_export_inner(asset_graph, asset_index, name, &mut HashSet::new())
+}
+
+fn resolve_css_module_export_inner<'a>(
+  asset_graph: &'a AssetGraph,
+  asset_index: AssetIndex,
+  name: &'a str,
+  seen: &mut HashSet<(AssetIndex, &'a str)>,
+) -> Option<String> {
+  let key = (asset_index, name);
+  if !seen.insert(key) {
+    return None;
+  }
+
   let asset = &asset_graph.asset(asset_index);
   let Some(content) = asset.content.downcast_ref::<CssContent>() else {
+    seen.remove(&key);
     return None;
   };
 
-  if let Some(export) = content.exports.get(name) {
+  let res = if let Some(export) = content.exports.get(name) {
     let mut res = export.name.clone();
     for composes in &export.composes {
       res.push(' ');
@@ -54,8 +72,16 @@ pub fn resolve_css_module_export(
           res.push_str(name);
         }
         CssModuleReference::Local { name } => {
-          if let Some(resolved) = resolve_css_module_export(asset_graph, asset_index, name) {
+          if let Some((local_name, _)) = content
+            .exports
+            .iter()
+            .find(|(_, export)| export.name == name.as_str())
+            && let Some(resolved) =
+              resolve_css_module_export_inner(asset_graph, asset_index, local_name, seen)
+          {
             res.push_str(&resolved);
+          } else {
+            res.push_str(name);
           }
         }
         CssModuleReference::Dependency { name, specifier } => {
@@ -65,7 +91,9 @@ pub fn resolve_css_module_export(
             .find(|d| d.specifier == *specifier && d.specifier_type == SpecifierType::Esm)
           {
             if let Some((resolved, _)) = asset_graph.resolved_asset(dep) {
-              if let Some(resolved) = resolve_css_module_export(asset_graph, resolved, name) {
+              if let Some(resolved) =
+                resolve_css_module_export_inner(asset_graph, resolved, name, seen)
+              {
                 res.push_str(&resolved);
               }
             }
@@ -74,10 +102,13 @@ pub fn resolve_css_module_export(
       }
     }
 
-    return Some(res);
-  }
+    Some(res)
+  } else {
+    None
+  };
 
-  None
+  seen.remove(&key);
+  res
 }
 
 fn convert_version(c: Version) -> u32 {
