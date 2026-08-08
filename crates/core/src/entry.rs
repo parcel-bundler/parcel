@@ -128,7 +128,8 @@ pub fn resolve_entries(
               .dist_dir
               .unwrap_or_else(|| project_root.child("dist")),
             source_map: options.source_map.clone(), // TODO
-            ..Default::default()                    // TODO
+            public_url: options.public_url.clone(),
+            ..Default::default() // TODO
           });
 
           entries.add_entry(Entry {
@@ -150,6 +151,7 @@ pub fn resolve_entries(
             .dist_dir
             .unwrap_or_else(|| project_root.child("dist")),
           source_map: options.source_map.clone(),
+          public_url: options.public_url.clone(),
           ..Default::default()
         });
 
