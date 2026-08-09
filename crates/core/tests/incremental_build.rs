@@ -18,9 +18,12 @@ use std::{
 
 mod mock;
 
-use mock::{MOCK_CONFIG, MockPluginFactory, RecordingFileSystem, build_options, write_file};
+use mock::{
+  MOCK_CONFIG, MockPluginFactory, MockReporter, RecordingFileSystem, build_options, write_file,
+};
 use parcel_core::{
-  AssetNode, FactoryBuilder, FileSystem, MemoryFileSystem, Parcel, PathId, PluginFactory,
+  Diagnostic, FactoryBuilder, FileSystem, LogLevel, MemoryFileSystem, Parcel, PathId,
+  PluginFactory, Reporter,
 };
 
 /// Builds a `Parcel` over an in-memory project containing `files`, using `entries`.
@@ -29,6 +32,16 @@ use parcel_core::{
 fn setup(
   files: &[(&str, &str)],
   entries: &[&str],
+) -> (Parcel, Arc<MemoryFileSystem>, Arc<RecordingFileSystem>) {
+  setup_with_reporter(files, entries, None)
+}
+
+/// As [`setup`], with a reporter installed. Passing `None` leaves the build with
+/// no reporters at all, which is what every other test here wants.
+fn setup_with_reporter(
+  files: &[(&str, &str)],
+  entries: &[&str],
+  reporter: Option<Arc<dyn Reporter>>,
 ) -> (Parcel, Arc<MemoryFileSystem>, Arc<RecordingFileSystem>) {
   let input_fs = Arc::new(MemoryFileSystem::new());
   for (path, contents) in files {
@@ -39,8 +52,11 @@ fn setup(
   let options = build_options(input_fs.clone(), output_fs.clone());
 
   let entries: Vec<String> = entries.iter().map(|e| e.to_string()).collect();
-  let make_factory: Arc<FactoryBuilder> =
-    Arc::new(|_fs| Box::new(MockPluginFactory) as Box<dyn PluginFactory>);
+  let make_factory: Arc<FactoryBuilder> = Arc::new(move |_fs| {
+    Box::new(MockPluginFactory {
+      reporter: reporter.clone(),
+    }) as Box<dyn PluginFactory>
+  });
   let parcel = Parcel::new(&entries, options, make_factory).expect("Parcel::new failed");
   (parcel, input_fs, output_fs)
 }
@@ -715,5 +731,98 @@ fn incremental_rebuild_removing_async_bundle_deletes_output() {
   assert!(
     removed_names.contains(&"page.js".to_string()),
     "expected page.js to be removed, got: {removed_names:?}"
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Reporters
+// ---------------------------------------------------------------------------
+
+#[test]
+fn reports_the_build_lifecycle() {
+  let (reporter, events) = MockReporter::new();
+  let (mut parcel, input, _output) = setup_with_reporter(
+    &[
+      ("/project/index.js", "@import ./foo.js"),
+      ("/project/foo.js", "console.log('foo v1')"),
+    ],
+    &["/project/index.js"],
+    Some(reporter),
+  );
+
+  parcel.build().expect("initial build failed");
+
+  // No flush: `build_success` does not return until every reporter has run.
+  assert_eq!(
+    *events.lock().unwrap(),
+    ["buildStart", "buildSuccess: 1 bundles, 2 changed assets"]
+  );
+
+  write_file(&input, "/project/foo.js", "console.log('foo v2')");
+  parcel
+    .invalidate(&[path_id("/project/foo.js")], &[])
+    .unwrap();
+  parcel.build().expect("incremental build failed");
+
+  // The rebuild reports only the asset it re-transformed.
+  assert_eq!(
+    *events.lock().unwrap(),
+    [
+      "buildStart",
+      "buildSuccess: 1 bundles, 2 changed assets",
+      "buildStart",
+      "buildSuccess: 1 bundles, 1 changed assets",
+    ]
+  );
+}
+
+#[test]
+fn reports_a_failed_build() {
+  let (reporter, events) = MockReporter::new();
+  let (mut parcel, _input, _output) = setup_with_reporter(
+    &[("/project/index.js", "@import #missing")],
+    &["/project/index.js"],
+    Some(reporter),
+  );
+
+  parcel.build().expect_err("build should have failed");
+
+  // The exact diagnostic count belongs to the mock resolver, not to reporting.
+  let events = events.lock().unwrap();
+  assert_eq!(events[0], "buildStart");
+  assert!(
+    events[1].starts_with("buildFailure: "),
+    "a failed build reports the diagnostics it returns, got: {}",
+    events[1]
+  );
+  assert_eq!(events.len(), 2, "got: {events:?}");
+}
+
+#[test]
+fn plugins_log_through_the_options() {
+  let (reporter, events) = MockReporter::new();
+  let (parcel, _input, _output) = setup_with_reporter(
+    &[("/project/index.js", "console.log('index')")],
+    &["/project/index.js"],
+    Some(reporter),
+  );
+
+  parcel
+    .options
+    .log(LogLevel::Error, "a failure worth mentioning");
+  parcel.options.log_diagnostic(
+    LogLevel::Error,
+    Diagnostic::from_message("something worth knowing".into()),
+  );
+  // `build_options` builds with LogLevel::Error, so this never reaches a
+  // reporter — the threshold comes from the build, not from the reporter.
+  parcel.options.log(LogLevel::Warn, "below the log level");
+
+  assert_eq!(
+    *events.lock().unwrap(),
+    [
+      "log error: a failure worth mentioning",
+      "log error: 1 diagnostics"
+    ]
   );
 }

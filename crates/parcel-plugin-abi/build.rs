@@ -199,6 +199,8 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
         "PARCEL_SEVERITY_",
         "PARCEL_RESOLUTION_",
         "PARCEL_BUNDLE_GRAPH_RESOLUTION_",
+        "PARCEL_EVENT_",
+        "PARCEL_LOG_",
       ]
       .iter()
       .find_map(|prefix| original_variant_name.strip_prefix(prefix));
@@ -232,7 +234,7 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
     .allowlist_function("parcel_.*")
     .allowlist_var("PARCEL_.*")
     .allowlist_type(
-      "ParcelApi|InitStatus|SpecifierType|Priority|BundleBehavior|Environment|OutputFormat|SourceType|Diagnostic|DiagnosticSeverity|ResolveResult|OptimizeResult|ResolutionType|DependencyFlags|ExportsConditions|AssetFlags|EnvironmentFlags|BundleFlags|BundleGraphResolutionType|BundleGraphDependencyResolution|AssetIndex|BundleIndex",
+      "ParcelApi|InitStatus|SpecifierType|Priority|BundleBehavior|Environment|OutputFormat|SourceType|Diagnostic|DiagnosticSeverity|Diagnostics|ResolveResult|OptimizeResult|ReportEvent|ReportEventType|LogLevel|ResolutionType|DependencyFlags|ExportsConditions|AssetFlags|EnvironmentFlags|BundleFlags|BundleGraphResolutionType|BundleGraphDependencyResolution|AssetIndex|BundleIndex",
     )
     .rustified_enum("InitStatus")
     .rustified_enum("SpecifierType")
@@ -244,6 +246,8 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
     .rustified_enum("DiagnosticSeverity")
     .rustified_enum("ResolutionType")
     .rustified_enum("BundleGraphResolutionType")
+    .rustified_enum("ReportEventType")
+    .rustified_enum("LogLevel")
     .bitfield_enum("DependencyFlags")
     .bitfield_enum("ExportsConditions")
     .bitfield_enum("AssetFlags")

@@ -173,6 +173,28 @@ typedef uint8_t SourceType;
 #endif // __cplusplus
 
 /**
+ * The level of a log event, and of a message passed to `parcel_options_log()`.
+ */
+enum LogLevel
+#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+  : uint8_t
+#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+ {
+  PARCEL_LOG_NONE = 0,
+  PARCEL_LOG_ERROR = 1,
+  PARCEL_LOG_WARN = 2,
+  PARCEL_LOG_INFO = 3,
+  PARCEL_LOG_VERBOSE = 4,
+};
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef enum LogLevel LogLevel;
+#else
+typedef uint8_t LogLevel;
+#endif // __STDC_VERSION__ >= 202311L
+#endif // __cplusplus
+
+/**
  * Result of a plugin's `parcel_plugin_init()`.
  *
  * A plugin that cannot use the [`ParcelApi`](crate::ParcelApi) table it was
@@ -222,6 +244,27 @@ enum ResolutionType
 typedef enum ResolutionType ResolutionType;
 #else
 typedef uint8_t ResolutionType;
+#endif // __STDC_VERSION__ >= 202311L
+#endif // __cplusplus
+
+/**
+ * The kind of event passed to `parcel_plugin_report()`.
+ */
+enum ReportEventType
+#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+  : uint8_t
+#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+ {
+  PARCEL_EVENT_BUILD_START = 0,
+  PARCEL_EVENT_BUILD_SUCCESS = 1,
+  PARCEL_EVENT_BUILD_FAILURE = 2,
+  PARCEL_EVENT_LOG = 3,
+};
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef enum ReportEventType ReportEventType;
+#else
+typedef uint8_t ReportEventType;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
@@ -481,6 +524,12 @@ typedef struct DependencyOptions {
 } DependencyOptions;
 
 /**
+ * Opaque handle to the diagnostics attached to a reporter event. Pass to the
+ * `parcel_diagnostics_*` and `parcel_diagnostic_*` functions.
+ */
+typedef uint64_t Diagnostics;
+
+/**
  * The host functions available to a plugin.
  */
 typedef struct ParcelApi {
@@ -565,6 +614,17 @@ typedef struct ParcelApi {
   void (*target_get_public_url)(struct Buffer *buf, Target target);
   void (*target_get_dist_dir)(struct Buffer *buf, Target target, Options _options);
   void (*asset_get_query)(struct Buffer *buf, Asset asset);
+  uintptr_t (*diagnostics_get_count)(Diagnostics diagnostics);
+  void (*diagnostic_get_message)(struct Buffer *buf, Diagnostics diagnostics, uintptr_t index);
+  DiagnosticSeverity (*diagnostic_get_severity)(Diagnostics diagnostics, uintptr_t index);
+  void (*diagnostic_get_origin)(struct Buffer *buf, Diagnostics diagnostics, uintptr_t index);
+  uintptr_t (*diagnostic_get_hint_count)(Diagnostics diagnostics, uintptr_t index);
+  void (*diagnostic_get_hint)(struct Buffer *buf,
+                              Diagnostics diagnostics,
+                              uintptr_t index,
+                              uintptr_t hint);
+  void (*options_log)(Options options, LogLevel level, const uint8_t *message, uintptr_t message_len);
+  void (*options_log_diagnostic)(Options options, const struct Diagnostic *diagnostic);
 } ParcelApi;
 
 /**
@@ -595,6 +655,53 @@ typedef struct OptimizeResult {
    */
   struct Buffer source_map;
 } OptimizeResult;
+
+/**
+ * An event passed to a reporter plugin's `parcel_plugin_report()`.
+ *
+ * Which fields are filled in depends on `event_type`; the rest are zeroed.
+ * Every handle and pointer here is valid only for the duration of the call.
+ *
+ * Check `size` before reading a field this header declares but an older Parcel
+ * may not have written. Unlike `ParcelApi`, whose `size` a plugin verifies once
+ * at startup, this struct is filled in per call and carries its own.
+ */
+typedef struct ReportEvent {
+  /**
+   * `sizeof(struct ReportEvent)` as the host was built.
+   */
+  uintptr_t size;
+  ReportEventType event_type;
+  /**
+   * `PARCEL_EVENT_LOG` only.
+   */
+  LogLevel level;
+  /**
+   * `PARCEL_EVENT_LOG` only, and NULL when the event carries diagnostics
+   * instead of a message. Not NUL-terminated; use `message_len`.
+   */
+  const uint8_t *message;
+  uintptr_t message_len;
+  /**
+   * `PARCEL_EVENT_BUILD_FAILURE` and `PARCEL_EVENT_LOG`. 0 when the event
+   * carries no diagnostics.
+   */
+  Diagnostics diagnostics;
+  /**
+   * `PARCEL_EVENT_BUILD_SUCCESS` only; 0 otherwise.
+   */
+  BundleGraph bundle_graph;
+  /**
+   * `PARCEL_EVENT_BUILD_SUCCESS` only. How long the build took.
+   */
+  uint64_t build_time_ms;
+  /**
+   * `PARCEL_EVENT_BUILD_SUCCESS` only. The assets re-transformed by this
+   * build; empty after a full build, which transformed all of them.
+   */
+  const AssetIndex *changed_assets;
+  uintptr_t changed_asset_count;
+} ReportEvent;
 
 #define PARCEL_INVALID_ASSET_INDEX 4294967295
 
@@ -869,6 +976,38 @@ static inline void parcel_target_get_dist_dir(struct Buffer *buf, Target target,
 
 static inline void parcel_asset_get_query(struct Buffer *buf, Asset asset) {
   parcel_api->asset_get_query(buf, asset);
+}
+
+static inline uintptr_t parcel_diagnostics_get_count(Diagnostics diagnostics) {
+  return parcel_api->diagnostics_get_count(diagnostics);
+}
+
+static inline void parcel_diagnostic_get_message(struct Buffer *buf, Diagnostics diagnostics, uintptr_t index) {
+  parcel_api->diagnostic_get_message(buf, diagnostics, index);
+}
+
+static inline DiagnosticSeverity parcel_diagnostic_get_severity(Diagnostics diagnostics, uintptr_t index) {
+  return parcel_api->diagnostic_get_severity(diagnostics, index);
+}
+
+static inline void parcel_diagnostic_get_origin(struct Buffer *buf, Diagnostics diagnostics, uintptr_t index) {
+  parcel_api->diagnostic_get_origin(buf, diagnostics, index);
+}
+
+static inline uintptr_t parcel_diagnostic_get_hint_count(Diagnostics diagnostics, uintptr_t index) {
+  return parcel_api->diagnostic_get_hint_count(diagnostics, index);
+}
+
+static inline void parcel_diagnostic_get_hint(struct Buffer *buf, Diagnostics diagnostics, uintptr_t index, uintptr_t hint) {
+  parcel_api->diagnostic_get_hint(buf, diagnostics, index, hint);
+}
+
+static inline void parcel_options_log(Options options, LogLevel level, const uint8_t *message, uintptr_t message_len) {
+  parcel_api->options_log(options, level, message, message_len);
+}
+
+static inline void parcel_options_log_diagnostic(Options options, const struct Diagnostic *diagnostic) {
+  parcel_api->options_log_diagnostic(options, diagnostic);
 }
 
 #endif  /* PARCEL_PLUGIN_H */

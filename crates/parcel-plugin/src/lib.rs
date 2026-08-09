@@ -23,11 +23,12 @@
 //! register_plugin!(MyPlugin);
 //! ```
 //!
-//! The macro generates all six ABI symbols: `parcel_plugin_init` (calls
+//! The macro generates all seven ABI symbols: `parcel_plugin_init` (calls
 //! `MyPlugin::new`), `parcel_plugin_deinit` (drops the boxed value),
-//! `parcel_plugin_transform`, `parcel_plugin_resolve`, `parcel_plugin_name`, and
-//! `parcel_plugin_optimize`. Override only the methods you need; the default
-//! implementations return an error so misconfiguration is visible immediately.
+//! `parcel_plugin_transform`, `parcel_plugin_resolve`, `parcel_plugin_name`,
+//! `parcel_plugin_optimize`, and `parcel_plugin_report`. Override only the
+//! methods you need; the default implementations return an error so
+//! misconfiguration is visible immediately.
 //!
 //! Plugins need no linker configuration. Parcel passes a table of host functions
 //! to `parcel_plugin_init`, which [`register_plugin!`] stores before calling your
@@ -98,13 +99,17 @@ impl Buffer {
 // ── Options ────────────────────────────────────────────────────────────────
 
 /// Read-only view of the Parcel build options. Passed to every plugin call.
-pub struct Options {
+pub struct Options<'a> {
   raw: u64,
+  lifetime: PhantomData<&'a ()>,
 }
 
-impl Options {
+impl<'a> Options<'a> {
   pub unsafe fn from_raw(raw: u64) -> Self {
-    Options { raw }
+    Options {
+      raw,
+      lifetime: PhantomData,
+    }
   }
 
   /// Returns the absolute project root path.
@@ -120,6 +125,35 @@ impl Options {
     let b = key.as_bytes();
     unsafe { host!(options_get_env)(&mut buf, self.raw, b.as_ptr(), b.len()) };
     buf.to_string()
+  }
+
+  /// Logs a message to whatever reporters the build has configured.
+  ///
+  /// Available from every plugin method, not just [`Plugin::report`]. Dropped
+  /// when the build has no reporters, or when `level` is below its log level.
+  pub fn log(&self, level: LogLevel, message: impl AsRef<str>) {
+    let message = message.as_ref().as_bytes();
+    unsafe { host!(options_log)(self.raw, level, message.as_ptr(), message.len()) };
+  }
+
+  /// Logs a diagnostic without failing the build — how a plugin raises a
+  /// warning, as opposed to returning `Err`, which ends the build.
+  ///
+  /// The log level comes from the diagnostic's own severity.
+  pub fn log_diagnostic(&self, diagnostic: &Diagnostic) {
+    // Filled and dropped here: the host copies what it needs rather than taking
+    // ownership, unlike the diagnostic a plugin method returns. Dropping the
+    // `Buffer`s is what frees them.
+    let mut raw = ffi::Diagnostic {
+      message: Buffer::default(),
+      file_path: Buffer::default(),
+      line: 0,
+      column: 0,
+      hint: Buffer::default(),
+      severity: DiagnosticSeverity::default(),
+    };
+    diagnostic.write_to_raw(&mut raw);
+    unsafe { host!(options_log_diagnostic)(self.raw, &raw) };
   }
 }
 
@@ -356,18 +390,168 @@ impl From<&str> for Diagnostic {
   }
 }
 
+// ── Reporter events ────────────────────────────────────────────────────────
+
+/// The level of a log event.
+pub use ffi::LogLevel;
+
+impl Default for LogLevel {
+  fn default() -> Self {
+    Self::Info
+  }
+}
+
+/// Something that happened during the build, passed to [`Plugin::report`].
+///
+/// Non-exhaustive: match with a catch-all arm, so a plugin keeps working when
+/// Parcel adds an event it does not know about.
+#[non_exhaustive]
+pub enum ReportEvent<'a> {
+  /// A build is about to start. Emitted once per build, including rebuilds.
+  BuildStart,
+  BuildSuccess {
+    bundle_graph: BundleGraph<'a>,
+    /// How long the build took.
+    build_time: std::time::Duration,
+    /// The assets re-transformed by this build. Empty after a full build,
+    /// which transformed all of them.
+    changed_assets: &'a [AssetIndex],
+  },
+  BuildFailure {
+    diagnostics: Diagnostics<'a>,
+  },
+  Log {
+    level: LogLevel,
+    /// `None` when the event carries diagnostics instead.
+    message: Option<&'a str>,
+    diagnostics: Option<Diagnostics<'a>>,
+  },
+}
+
+impl<'a> ReportEvent<'a> {
+  /// Reads the event Parcel passed to `parcel_plugin_report`.
+  ///
+  /// Returns `None` for an event kind this SDK does not know about, which a
+  /// plugin built against an older Parcel can be handed.
+  ///
+  /// # Safety
+  ///
+  /// `raw` must be the event pointer Parcel supplied, valid for the call.
+  pub unsafe fn from_raw(raw: *const ffi::ReportEvent) -> Option<ReportEvent<'a>> {
+    if raw.is_null() {
+      return None;
+    }
+    let event = unsafe { &*raw };
+
+    let diagnostics = (event.diagnostics != 0).then(|| Diagnostics {
+      raw: event.diagnostics,
+      lifetime: PhantomData,
+    });
+
+    Some(match event.event_type {
+      ffi::ReportEventType::BuildStart => ReportEvent::BuildStart,
+      ffi::ReportEventType::BuildSuccess => ReportEvent::BuildSuccess {
+        bundle_graph: unsafe { BundleGraph::from_raw(event.bundle_graph, 0) },
+        build_time: std::time::Duration::from_millis(event.build_time_ms),
+        changed_assets: if event.changed_assets.is_null() {
+          &[]
+        } else {
+          unsafe { std::slice::from_raw_parts(event.changed_assets, event.changed_asset_count) }
+        },
+      },
+      ffi::ReportEventType::BuildFailure => ReportEvent::BuildFailure {
+        diagnostics: diagnostics?,
+      },
+      ffi::ReportEventType::Log => ReportEvent::Log {
+        level: event.level,
+        message: (!event.message.is_null()).then(|| unsafe {
+          std::str::from_utf8_unchecked(std::slice::from_raw_parts(
+            event.message,
+            event.message_len,
+          ))
+        }),
+        diagnostics,
+      },
+    })
+  }
+}
+
+/// The diagnostics carried by a [`ReportEvent`].
+pub struct Diagnostics<'a> {
+  raw: ffi::Diagnostics,
+  lifetime: PhantomData<&'a ()>,
+}
+
+impl<'a> Diagnostics<'a> {
+  pub fn len(&self) -> usize {
+    unsafe { host!(diagnostics_get_count)(self.raw) }
+  }
+
+  pub fn is_empty(&self) -> bool {
+    self.len() == 0
+  }
+
+  pub fn get(&self, index: usize) -> Option<DiagnosticInfo<'_>> {
+    (index < self.len()).then(|| DiagnosticInfo {
+      diagnostics: self,
+      index,
+    })
+  }
+
+  pub fn iter(&self) -> impl Iterator<Item = DiagnosticInfo<'_>> + '_ {
+    (0..self.len()).filter_map(|index| self.get(index))
+  }
+}
+
+/// One diagnostic within a [`Diagnostics`] list.
+pub struct DiagnosticInfo<'a> {
+  diagnostics: &'a Diagnostics<'a>,
+  index: usize,
+}
+
+impl DiagnosticInfo<'_> {
+  pub fn message(&self) -> String {
+    let mut buf = Buffer::default();
+    unsafe { host!(diagnostic_get_message)(&mut buf, self.diagnostics.raw, self.index) };
+    buf.to_string().unwrap_or_default()
+  }
+
+  pub fn severity(&self) -> DiagnosticSeverity {
+    unsafe { host!(diagnostic_get_severity)(self.diagnostics.raw, self.index) }
+  }
+
+  /// The plugin the diagnostic came from, if it recorded one.
+  pub fn origin(&self) -> Option<String> {
+    let mut buf = Buffer::default();
+    unsafe { host!(diagnostic_get_origin)(&mut buf, self.diagnostics.raw, self.index) };
+    buf.to_string()
+  }
+
+  pub fn hints(&self) -> Vec<String> {
+    let count = unsafe { host!(diagnostic_get_hint_count)(self.diagnostics.raw, self.index) };
+    (0..count)
+      .map(|hint| {
+        let mut buf = Buffer::default();
+        unsafe { host!(diagnostic_get_hint)(&mut buf, self.diagnostics.raw, self.index, hint) };
+        buf.to_string().unwrap_or_default()
+      })
+      .collect()
+  }
+}
+
 // ── Asset ──────────────────────────────────────────────────────────────────
 
 /// A handle to the asset being transformed.
 ///
 /// Every method forwards to the corresponding `parcel_asset_*` ABI function.
 /// The handle is valid only for the duration of the transformer call.
-pub struct Asset {
+pub struct Asset<'a> {
   raw: u64,
   options: u64,
+  lifetime: PhantomData<&'a ()>,
 }
 
-impl Asset {
+impl<'a> Asset<'a> {
   /// Wraps the raw Parcel asset handle. Called by [`register_plugin!`].
   ///
   /// # Safety
@@ -375,7 +559,11 @@ impl Asset {
   /// `raw` must be the opaque asset pointer supplied by Parcel, and
   /// `options` must be the opaque options handle supplied alongside it.
   pub unsafe fn from_raw(raw: u64, options: u64) -> Self {
-    Asset { raw, options }
+    Asset {
+      raw,
+      options,
+      lifetime: PhantomData,
+    }
   }
 
   // ── Content ──────────────────────────────────────────────────────────────
@@ -599,10 +787,11 @@ impl Asset {
   // ── Target (read-only) ────────────────────────────────────────────────────
 
   /// Returns the target configuration for this asset.
-  pub fn target(&self) -> Target {
+  pub fn target(&self) -> Target<'a> {
     Target {
       raw: unsafe { host!(asset_get_target)(self.raw) },
       options: self.options,
+      lifetime: PhantomData,
     }
   }
 
@@ -694,25 +883,30 @@ pub trait AssetContent: Send + Sync + 'static {
 // ── Bundle graph ───────────────────────────────────────────────────────────
 
 /// Read-only view of the bundle graph during packaging or naming.
-pub struct BundleGraph {
+pub struct BundleGraph<'a> {
   raw: ffi::BundleGraph,
   options: ffi::Options,
+  lifetime: PhantomData<&'a ()>,
 }
 
-impl BundleGraph {
+impl<'a> BundleGraph<'a> {
   /// Wraps the raw bundle graph handle supplied by Parcel.
   ///
   /// # Safety
   /// `raw` and `options` must be the handles supplied to the package callback.
   pub unsafe fn from_raw(raw: ffi::BundleGraph, options: ffi::Options) -> Self {
-    Self { raw, options }
+    Self {
+      raw,
+      options,
+      lifetime: PhantomData,
+    }
   }
 
   pub fn asset_count(&self) -> usize {
     unsafe { host!(bundle_graph_get_asset_count)(self.raw) }
   }
 
-  pub fn asset<'a>(&'a self, index: AssetIndex) -> Option<AssetRef<'a>> {
+  pub fn asset(&'a self, index: AssetIndex) -> Option<AssetRef<'a>> {
     let raw = unsafe { host!(bundle_graph_get_asset)(self.raw, index) };
     (raw != 0).then_some(AssetRef {
       raw,
@@ -722,7 +916,7 @@ impl BundleGraph {
     })
   }
 
-  pub fn assets<'a>(&'a self) -> impl Iterator<Item = AssetRef<'a>> + 'a {
+  pub fn assets(&'a self) -> impl Iterator<Item = AssetRef<'a>> + 'a {
     (0..self.asset_count()).filter_map(|index| self.asset(index as AssetIndex))
   }
 
@@ -730,15 +924,16 @@ impl BundleGraph {
     unsafe { host!(bundle_graph_get_bundle_count)(self.raw) }
   }
 
-  pub fn bundle(&self, index: BundleIndex) -> Option<Bundle> {
+  pub fn bundle(&'a self, index: BundleIndex) -> Option<Bundle<'a>> {
     let raw = unsafe { host!(bundle_graph_get_bundle)(self.raw, index) };
     (raw != 0).then_some(Bundle {
       raw,
       options: self.options,
+      lifetime: PhantomData,
     })
   }
 
-  pub fn bundles(&self) -> impl Iterator<Item = Bundle> + '_ {
+  pub fn bundles(&'a self) -> impl Iterator<Item = Bundle<'a>> + 'a {
     (0..self.bundle_count()).filter_map(|index| self.bundle(index))
   }
 
@@ -851,10 +1046,11 @@ impl<'a> AssetRef<'a> {
     buf.to_string()
   }
 
-  pub fn target(&self) -> Target {
+  pub fn target(&'a self) -> Target<'a> {
     Target {
       raw: unsafe { host!(asset_get_target)(self.raw) },
       options: self.options,
+      lifetime: PhantomData,
     }
   }
 
@@ -862,15 +1058,16 @@ impl<'a> AssetRef<'a> {
     unsafe { host!(asset_get_dependency_count)(self.raw) }
   }
 
-  pub fn dependency(&self, index: usize) -> Option<Dependency> {
+  pub fn dependency(&'a self, index: usize) -> Option<Dependency<'a>> {
     let raw = unsafe { host!(asset_get_dependency)(self.raw, index) };
     (raw != 0).then_some(Dependency {
       raw,
       options: self.options,
+      lifetime: PhantomData,
     })
   }
 
-  pub fn dependencies(&self) -> impl Iterator<Item = Dependency> + '_ {
+  pub fn dependencies(&'a self) -> impl Iterator<Item = Dependency<'a>> + 'a {
     (0..self.dependency_count()).filter_map(|index| self.dependency(index))
   }
 }
@@ -889,18 +1086,23 @@ pub enum BundleGraphDependencyResolution {
 // ── Bundle ─────────────────────────────────────────────────────────────────
 
 /// Read-only view of a bundle during packaging or naming.
-pub struct Bundle {
+pub struct Bundle<'a> {
   raw: ffi::Bundle,
   options: ffi::Options,
+  lifetime: PhantomData<&'a ()>,
 }
 
-impl Bundle {
+impl<'a> Bundle<'a> {
   /// Wraps the raw bundle handle supplied by Parcel.
   ///
   /// # Safety
   /// `raw` and `options` must be the handles supplied to the package callback.
   pub unsafe fn from_raw(raw: ffi::Bundle, options: ffi::Options) -> Self {
-    Self { raw, options }
+    Self {
+      raw,
+      options,
+      lifetime: PhantomData,
+    }
   }
 
   pub fn asset_type(&self) -> String {
@@ -909,10 +1111,11 @@ impl Bundle {
     buf.to_string().unwrap_or_default()
   }
 
-  pub fn target(&self) -> Target {
+  pub fn target(&'a self) -> Target<'a> {
     Target {
       raw: unsafe { host!(bundle_get_target)(self.raw) },
       options: self.options,
+      lifetime: PhantomData,
     }
   }
 
@@ -995,12 +1198,13 @@ impl Bundle {
 /// Read-only view of the build target associated with an asset.
 ///
 /// Obtain via [`Asset::target`].
-pub struct Target {
+pub struct Target<'a> {
   raw: u64,
   options: u64,
+  lifetime: PhantomData<&'a ()>,
 }
 
-impl Target {
+impl<'a> Target<'a> {
   /// Returns the target execution environment.
   pub fn environment(&self) -> Environment {
     unsafe { host!(target_get_environment)(self.raw) }
@@ -1042,19 +1246,24 @@ impl Target {
 ///
 /// Passed to the function registered with [`register_resolver!`] and returned
 /// by [`AssetRef::dependency`].
-pub struct Dependency {
+pub struct Dependency<'a> {
   raw: u64,
   options: u64,
+  lifetime: PhantomData<&'a ()>,
 }
 
-impl Dependency {
+impl<'a> Dependency<'a> {
   /// Wraps the raw dependency handle supplied by Parcel.
   ///
   /// # Safety
   /// `raw` must be the pointer supplied by Parcel and `options` must be the
   /// opaque options handle supplied alongside it.
   pub unsafe fn from_raw(raw: u64, options: u64) -> Self {
-    Dependency { raw, options }
+    Dependency {
+      raw,
+      options,
+      lifetime: PhantomData,
+    }
   }
 
   /// Returns the raw specifier string (e.g. `"custom:greeting"`).
@@ -1105,10 +1314,11 @@ impl Dependency {
   }
 
   /// Returns the target configuration for this dependency.
-  pub fn target(&self) -> Target {
+  pub fn target(&'a self) -> Target<'a> {
     Target {
       raw: unsafe { host!(dep_get_target)(self.raw) },
       options: self.options,
+      lifetime: PhantomData,
     }
   }
 }
@@ -1174,14 +1384,15 @@ impl From<ResolveResult> for ffi::ResolveResult {
 /// The single trait to implement for any Parcel plugin.
 ///
 /// Override [`transform`] to act as a transformer, [`resolve`] to act as a
-/// resolver, [`name`] to act as a namer, or [`optimize`] to act as an optimizer.
-/// The default implementations return an error, so Parcel surfaces a clear
-/// message if a method is unexpectedly called.
+/// resolver, [`name`] to act as a namer, [`optimize`] to act as an optimizer, or
+/// [`report`] to act as a reporter. The default implementations return an error,
+/// so Parcel surfaces a clear message if a method is unexpectedly called.
 ///
 /// [`transform`]: Plugin::transform
 /// [`resolve`]: Plugin::resolve
 /// [`name`]: Plugin::name
 /// [`optimize`]: Plugin::optimize
+/// [`report`]: Plugin::report
 ///
 /// ```rust,ignore
 /// use parcel_plugin::{Asset, Diagnostic, Plugin, register_plugin};
@@ -1248,13 +1459,22 @@ pub trait Plugin: Sized + Send + Sync {
   ) -> Result<OptimizeResult, Diagnostic> {
     Err(Diagnostic::new("optimize not implemented"))
   }
+
+  /// Called for each build event. Override when acting as a reporter.
+  ///
+  /// Returning `Err` reports the diagnostic and moves on: a reporter cannot fail
+  /// the build.
+  fn report(&self, _event: &ReportEvent, _options: &Options) -> Result<(), Diagnostic> {
+    Err(Diagnostic::new("report not implemented"))
+  }
 }
 
 // ── register_plugin! macro ────────────────────────────────────────────────
 
-/// Generates all six ABI exports for a type that implements [`Plugin`]:
+/// Generates all seven ABI exports for a type that implements [`Plugin`]:
 /// `parcel_plugin_init`, `parcel_plugin_deinit`, `parcel_plugin_transform`,
-/// `parcel_plugin_resolve`, `parcel_plugin_name`, and `parcel_plugin_optimize`.
+/// `parcel_plugin_resolve`, `parcel_plugin_name`, `parcel_plugin_optimize`, and
+/// `parcel_plugin_report`.
 ///
 /// ```rust,ignore
 /// register_plugin!(MyPlugin);
@@ -1562,6 +1782,44 @@ macro_rules! register_plugin {
         Ok(Err(e)) => e.write_to_raw(raw_diagnostic),
         Err(payload) => $crate::Diagnostic::new(format!(
           "plugin panicked in optimize: {}",
+          __parcel_panic_message(payload)
+        ))
+        .write_to_raw(raw_diagnostic),
+      }
+    }
+
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn parcel_plugin_report(
+      raw_event: *const $crate::ffi::ReportEvent,
+      raw_options: u64,
+      state: *mut ::core::ffi::c_void,
+      raw_diagnostic: *mut $crate::ffi::Diagnostic,
+    ) {
+      // An event kind this SDK predates. Reporting nothing is the only correct
+      // thing to do with it.
+      let Some(event) = (unsafe { $crate::ReportEvent::from_raw(raw_event) }) else {
+        return;
+      };
+      let options = unsafe { $crate::Options::from_raw(raw_options) };
+      let plugin = unsafe { &*(state as *const $type) };
+      let __parcel_panic_message =
+        |payload: ::std::boxed::Box<dyn ::std::any::Any + Send>| -> String {
+          if let Some(s) = payload.downcast_ref::<&str>() {
+            (*s).to_string()
+          } else if let Some(s) = payload.downcast_ref::<String>() {
+            s.clone()
+          } else {
+            "unknown panic".to_string()
+          }
+        };
+      let result = ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {
+        $crate::Plugin::report(plugin, &event, &options)
+      }));
+      match result {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => e.write_to_raw(raw_diagnostic),
+        Err(payload) => $crate::Diagnostic::new(format!(
+          "plugin panicked in report: {}",
           __parcel_panic_message(payload)
         ))
         .write_to_raw(raw_diagnostic),

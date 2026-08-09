@@ -15,12 +15,12 @@ use std::{
 };
 
 use parcel_core::{
-  Asset, AssetGraph, AssetIndex, AssetNode, AssetNodeIndex, AssetRequest, AssetType, BufferContent,
-  BuildMode, BuildOptions, Bundle, BundleBehavior, BundleFlags, BundleGraph, Bundler, Content,
-  Dependency, DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList, DirEntry,
-  ExportsCondition, FileKind, FileStat, FileSystem, LogLevel, MemoryFileSystem, Namer, Optimizer,
-  ParcelConfig, ParcelOptions, PathId, PluginFactory, Priority, Resolver, SourceLocation,
-  SourceUrl, SpecifierType, SubPath, Transformer,
+  Asset, AssetGraph, AssetIndex, AssetRequest, AssetType, BufferContent, BuildMode, BuildOptions,
+  Bundle, BundleBehavior, BundleFlags, BundleGraph, Bundler, Content, Dependency, DependencyFlags,
+  DependencyResolution, Diagnostic, DiagnosticList, DirEntry, ExportsCondition, FileKind, FileStat,
+  FileSystem, LogLevel, LogMessage, MemoryFileSystem, Namer, Optimizer, ParcelConfig,
+  ParcelOptions, PathId, PluginFactory, Priority, Reporter, ReporterEvent, Resolver,
+  SourceLocation, SourceUrl, SpecifierType, SubPath, Transformer,
 };
 
 // ===========================================================================
@@ -508,7 +508,13 @@ impl Namer for MockNamer {
 
 /// A `PluginFactory` wiring up the mock plugins. The default config is built from an inline
 /// `.parcelrc`-style JSON that references each mock plugin by name.
-pub struct MockPluginFactory;
+#[derive(Default)]
+pub struct MockPluginFactory {
+  /// Returned for every name in the config's `reporters`. When this is set, the
+  /// config gains a `reporters` entry — a build with no reporters starts no
+  /// dispatch thread, so tests that do not care about reporting pay nothing.
+  pub reporter: Option<Arc<dyn Reporter>>,
+}
 
 pub const MOCK_CONFIG: &str = r#"{
   "resolvers": ["@mock/resolver"],
@@ -518,9 +524,81 @@ pub const MOCK_CONFIG: &str = r#"{
   "optimizers": {}
 }"#;
 
+pub const MOCK_CONFIG_WITH_REPORTER: &str = r#"{
+  "resolvers": ["@mock/resolver"],
+  "transformers": { "*": ["@mock/transformer"] },
+  "bundler": "@mock/bundler",
+  "namers": ["@mock/namer"],
+  "optimizers": {},
+  "reporters": ["@mock/reporter"]
+}"#;
+
+/// Records the name of every event it is given.
+pub struct MockReporter {
+  pub events: Arc<Mutex<Vec<String>>>,
+}
+
+impl MockReporter {
+  pub fn new() -> (Arc<MockReporter>, Arc<Mutex<Vec<String>>>) {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    (
+      Arc::new(MockReporter {
+        events: events.clone(),
+      }),
+      events,
+    )
+  }
+}
+
+impl Reporter for MockReporter {
+  fn report(&self, event: &ReporterEvent, options: &ParcelOptions) -> Result<(), DiagnosticList> {
+    let name = match event {
+      ReporterEvent::BuildStart => "buildStart".to_owned(),
+      ReporterEvent::BuildSuccess(success) => format!(
+        "buildSuccess: {} bundles, {} changed assets",
+        success.bundle_graph.bundles.len(),
+        success.changed_assets.len()
+      ),
+      ReporterEvent::BuildFailure { diagnostics } => {
+        format!("buildFailure: {}", diagnostics.0.len())
+      }
+      ReporterEvent::Log(log) => match log.message {
+        LogMessage::Text(text) => format!("log {}: {}", log.level, text),
+        LogMessage::Diagnostics(diagnostics) => {
+          format!("log {}: {} diagnostics", log.level, diagnostics.len())
+        }
+      },
+      _ => "unknown".to_owned(),
+    };
+
+    // Proves the options reached the reporter rather than the event being
+    // dispatched against a dead `Weak`.
+    assert_eq!(options.project_root, PathId::new(Path::new("/project")));
+
+    self.events.lock().unwrap().push(name);
+    Ok(())
+  }
+}
+
 impl PluginFactory for MockPluginFactory {
   fn config(&self, _specifier: &str, from: PathId) -> Result<ParcelConfig, DiagnosticList> {
-    ParcelConfig::from_json(from, MOCK_CONFIG.as_bytes(), self)
+    let config = match self.reporter {
+      Some(_) => MOCK_CONFIG_WITH_REPORTER,
+      None => MOCK_CONFIG,
+    };
+    ParcelConfig::from_json(from, config.as_bytes(), self)
+  }
+
+  fn reporter(
+    &self,
+    name: &str,
+    _config: Option<serde_json::Value>,
+    _from: PathId,
+  ) -> Result<Arc<dyn Reporter>, DiagnosticList> {
+    self
+      .reporter
+      .clone()
+      .ok_or_else(|| Diagnostic::from_message(format!("no mock reporter named {}", name)).into())
   }
 
   fn resolver(

@@ -1,11 +1,18 @@
-use std::{cell::Cell, marker::PhantomData, path::Path, ptr::NonNull, rc::Rc, sync::Arc};
+use std::{
+  cell::Cell,
+  marker::PhantomData,
+  path::Path,
+  ptr::NonNull,
+  rc::Rc,
+  sync::{Arc, atomic::AtomicU8},
+};
 
 use parcel_core::{
-  Asset, AssetFlags, AssetNode, AssetRequest, AssetType, BufferContent, Bundle, BundleBehavior,
-  BundleFlags, BundleGraph, Content, ContentWithSourceMap, DependencyFlags, DependencyResolution,
-  Environment, EnvironmentFlags, ExportsCondition, FileContent, Namer, Optimizer, OutputFormat,
-  PathId, Priority, Resolver, SourceLocation, SourceType, SourceUrl, SpecifierType, Target,
-  Transformer,
+  Asset, AssetFlags, AssetRequest, AssetType, BufferContent, Bundle, BundleBehavior, BundleFlags,
+  BundleGraph, Content, ContentWithSourceMap, DependencyFlags, DependencyResolution, Environment,
+  EnvironmentFlags, ExportsCondition, FileContent, LogMessage, Namer, Optimizer, OutputFormat,
+  PathId, Priority, Reporter, ReporterEvent, Resolver, SourceLocation, SourceType, SourceUrl,
+  SpecifierType, Target, Transformer,
 };
 use rquickjs::{
   Class, Coerced, Ctx, FromJs, Function, IntoJs, JsLifetime, Object, Symbol, TypedArray,
@@ -18,6 +25,39 @@ use crate::{await_promise, cjs::CjsLoader, with_js_env};
 pub struct JsPlugin {
   path: String,
   config: Option<serde_json::Value>,
+  reporter_methods: ReporterMethods,
+}
+
+pub struct ReporterMethods(AtomicU8);
+
+impl ReporterMethods {
+  const UNINITIALIZED: u8 = 1 << 0;
+  const BUILD_START: u8 = 1 << 1;
+  const BUILD_SUCCESS: u8 = 1 << 2;
+  const BUILD_FAILURE: u8 = 1 << 3;
+  const LOG: u8 = 1 << 4;
+
+  pub fn new() -> Self {
+    ReporterMethods(AtomicU8::new(ReporterMethods::UNINITIALIZED))
+  }
+
+  pub fn is_empty(&self) -> bool {
+    self.0.load(std::sync::atomic::Ordering::Acquire) == 0
+  }
+
+  pub fn contains(&self, flag: u8) -> bool {
+    (self.0.load(std::sync::atomic::Ordering::Acquire) & flag) != 0
+  }
+
+  pub fn set(&self, flags: u8) {
+    self.0.store(flags, std::sync::atomic::Ordering::Release);
+  }
+}
+
+impl ReporterMethods {
+  /// The methods looked for, in the order they are reported to a plugin that
+  /// exports none of them.
+  const NAMES: [&'static str; 4] = ["buildStart", "buildSuccess", "buildFailure", "log"];
 }
 
 impl JsPlugin {
@@ -25,6 +65,7 @@ impl JsPlugin {
     JsPlugin {
       path: path.with_path(|path| path.to_str().unwrap().to_owned()),
       config,
+      reporter_methods: ReporterMethods::new(),
     }
   }
 
@@ -72,15 +113,7 @@ impl Optimizer for JsPlugin {
       );
 
       with_js_env(options.input_fs.clone(), &options.env, options.cwd, |ctx| {
-        let module = load_module(ctx, &self.path)?;
-        let symbol: Object = ctx.globals().get("Symbol")?;
-        let symbol_for: Function = symbol.get("for")?;
-        let sym: Symbol = symbol_for.call(("parcel-plugin-config",))?;
-        let config: Object = module.get::<_, Object>(sym.clone()).or_else(|_| {
-          module
-            .get::<_, Object>("default")
-            .and_then(|o| o.get::<_, Object>(sym))
-        })?;
+        let config = plugin_config(ctx, &self.path)?;
         let optimize: Function = config.get("optimize")?;
         let args = Object::new(ctx.clone())?;
         args.set(
@@ -133,6 +166,22 @@ pub fn load_module<'js>(ctx: &Ctx<'js>, path: &str) -> rquickjs::Result<Object<'
   let cjs = ctx.userdata::<CjsLoader>().unwrap();
   let module = cjs.load(ctx, path)?;
   module.into_object().ok_or(rquickjs::Error::Unknown)
+}
+
+/// Loads the plugin and returns the object it registered under
+/// `Symbol.for('parcel-plugin-config')` — the one holding `transform`,
+/// `resolve`, `name`, `optimize` or `report` — from the module itself or from
+/// its default export.
+fn plugin_config<'js>(ctx: &Ctx<'js>, path: &str) -> rquickjs::Result<Object<'js>> {
+  let module = load_module(ctx, path)?;
+  let symbol: Object = ctx.globals().get("Symbol")?;
+  let symbol_for: Function = symbol.get("for")?;
+  let sym: Symbol = symbol_for.call(("parcel-plugin-config",))?;
+  module.get::<_, Object>(sym.clone()).or_else(|_| {
+    module
+      .get::<_, Object>("default")
+      .and_then(|o| o.get::<_, Object>(sym))
+  })
 }
 
 /// A non-owning reference which may be retained by JavaScript, but can only be
@@ -209,15 +258,7 @@ impl Transformer for JsPlugin {
     fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
   ) -> std::result::Result<Asset, parcel_core::DiagnosticList> {
     let asset = with_js_env(fs.clone(), &options.env, options.cwd, |ctx| {
-      let module = load_module(&ctx, &self.path)?;
-      let symbol: Object = ctx.globals().get("Symbol")?;
-      let symbol_for: Function = symbol.get("for")?;
-      let sym: Symbol = symbol_for.call(("parcel-plugin-config",))?;
-      let config: Object = module.get::<_, Object>(sym.clone()).or_else(|_| {
-        module
-          .get::<_, Object>("default")
-          .and_then(|o| o.get::<_, Object>(sym))
-      })?;
+      let config = plugin_config(&ctx, &self.path)?;
       let transform: Function = config.get("transform")?;
       let asset = JsAsset::owned(asset);
       let value = asset.into_js(&ctx)?;
@@ -247,15 +288,7 @@ impl Resolver for JsPlugin {
   ) -> Result<parcel_core::DependencyResolution, parcel_core::DiagnosticList> {
     with_call_scope(|scope| {
       with_js_env(fs.clone(), &options.env, options.cwd, |ctx| {
-        let module = load_module(&ctx, &self.path)?;
-        let symbol: Object = ctx.globals().get("Symbol")?;
-        let symbol_for: Function = symbol.get("for")?;
-        let sym: Symbol = symbol_for.call(("parcel-plugin-config",))?;
-        let config: Object = module.get::<_, Object>(sym.clone()).or_else(|_| {
-          module
-            .get::<_, Object>("default")
-            .and_then(|o| o.get::<_, Object>(sym))
-        })?;
+        let config = plugin_config(&ctx, &self.path)?;
         let resolve: Function = config.get("resolve")?;
         let js_dep = JsDependency {
           dep: scope.wrap(dep),
@@ -357,15 +390,7 @@ impl Namer for JsPlugin {
       );
 
       with_js_env(options.input_fs.clone(), &options.env, options.cwd, |ctx| {
-        let module = load_module(&ctx, &self.path)?;
-        let symbol: Object = ctx.globals().get("Symbol")?;
-        let symbol_for: Function = symbol.get("for")?;
-        let sym: Symbol = symbol_for.call(("parcel-plugin-config",))?;
-        let config: Object = module.get::<_, Object>(sym.clone()).or_else(|_| {
-          module
-            .get::<_, Object>("default")
-            .and_then(|o| o.get::<_, Object>(sym))
-        })?;
+        let config = plugin_config(&ctx, &self.path)?;
         let name: Function = config.get("name")?;
         let args = Object::new(ctx.clone())?;
         args.set(
@@ -385,6 +410,185 @@ impl Namer for JsPlugin {
 
     Ok(name.map(|name| bundle.target.dist_dir.join(Path::new(&name))))
   }
+}
+
+impl JsPlugin {
+  /// The reporter methods this plugin exports, resolved once and cached.
+  fn reporter_methods(
+    &self,
+    options: &parcel_core::ParcelOptions,
+  ) -> Result<&ReporterMethods, parcel_core::DiagnosticList> {
+    if !self
+      .reporter_methods
+      .contains(ReporterMethods::UNINITIALIZED)
+    {
+      return Ok(&self.reporter_methods);
+    }
+
+    let methods = with_js_env(options.input_fs.clone(), &options.env, options.cwd, |ctx| {
+      let config = plugin_config(ctx, &self.path)?;
+      let exports = |name: &str| -> rquickjs::Result<bool> {
+        Ok(
+          config
+            .get::<_, rquickjs::Value>(name)?
+            .as_function()
+            .is_some(),
+        )
+      };
+      let mut flags: u8 = 0;
+      if exports("buildStart")? {
+        flags |= ReporterMethods::BUILD_START;
+      }
+      if exports("buildSuccess")? {
+        flags |= ReporterMethods::BUILD_SUCCESS;
+      }
+      if exports("buildFailure")? {
+        flags |= ReporterMethods::BUILD_FAILURE;
+      }
+      if exports("log")? {
+        flags |= ReporterMethods::LOG;
+      }
+      Ok(flags)
+    })?;
+
+    self.reporter_methods.set(methods);
+
+    if self.reporter_methods.is_empty() {
+      // Reported once: the cached empty set makes every later event a no-op,
+      // rather than repeating this for every event of every build.
+      return Err(
+        parcel_core::Diagnostic::from_message(format!(
+          "{} is configured as a reporter but exports none of {}",
+          self.path,
+          ReporterMethods::NAMES.join(", ")
+        ))
+        .into(),
+      );
+    }
+
+    Ok(&self.reporter_methods)
+  }
+}
+
+impl Reporter for JsPlugin {
+  fn report(
+    &self,
+    event: &ReporterEvent,
+    options: &parcel_core::ParcelOptions,
+  ) -> Result<(), parcel_core::DiagnosticList> {
+    let methods = self.reporter_methods(options)?;
+
+    // Checked before anything is marshalled: building a `buildSuccess` payload
+    // means wrapping every bundle and asset in the graph, which is wasted on a
+    // plugin that only implements `buildFailure`.
+    let method = match event {
+      ReporterEvent::BuildStart => methods
+        .contains(ReporterMethods::BUILD_START)
+        .then_some("buildStart"),
+      ReporterEvent::BuildSuccess(_) => methods
+        .contains(ReporterMethods::BUILD_SUCCESS)
+        .then_some("buildSuccess"),
+      ReporterEvent::BuildFailure { .. } => methods
+        .contains(ReporterMethods::BUILD_FAILURE)
+        .then_some("buildFailure"),
+      ReporterEvent::Log(_) => methods.contains(ReporterMethods::LOG).then_some("log"),
+      // An event added after this build of Parcel.
+      _ => None,
+    };
+    let Some(method) = method else {
+      return Ok(());
+    };
+
+    with_call_scope(|scope| {
+      // Only a successful build carries a graph to expose.
+      let graph = match event {
+        ReporterEvent::BuildSuccess(success) => Some((
+          Arc::new(
+            success
+              .bundle_graph
+              .bundles
+              .iter()
+              .map(|bundle| scope.wrap(bundle))
+              .collect::<Vec<_>>(),
+          ),
+          Arc::new(
+            success
+              .bundle_graph
+              .asset_graph
+              .assets
+              .iter()
+              .map(|asset| scope.wrap(asset))
+              .collect::<Vec<_>>(),
+          ),
+        )),
+        _ => None,
+      };
+
+      with_js_env(options.input_fs.clone(), &options.env, options.cwd, |ctx| {
+        let args = Object::new(ctx.clone())?;
+        match event {
+          ReporterEvent::BuildStart => {}
+
+          ReporterEvent::BuildSuccess(success) => {
+            let (bundles, assets) = graph
+              .as_ref()
+              .expect("a buildSuccess event always wraps its graph");
+            args.set(
+              "bundleGraph",
+              JsBundleGraph::new(bundles.clone(), assets.clone()),
+            )?;
+            args.set("buildTime", success.build_time.as_secs_f64() * 1000.0)?;
+            args.set(
+              "changedAssets",
+              success
+                .changed_assets
+                .iter()
+                .filter_map(|index| assets.get(index.index()).cloned())
+                .map(JsAsset::borrowed)
+                .collect::<Vec<_>>(),
+            )?;
+          }
+
+          ReporterEvent::BuildFailure { diagnostics } => {
+            args.set("diagnostics", diagnostics_to_js(ctx, &diagnostics.0)?)?;
+          }
+
+          ReporterEvent::Log(log) => {
+            args.set("level", log.level.as_str())?;
+            match log.message {
+              LogMessage::Text(text) => args.set("message", text)?,
+              LogMessage::Diagnostics(diagnostics) => {
+                args.set("diagnostics", diagnostics_to_js(ctx, diagnostics)?)?
+              }
+            }
+          }
+
+          // Ruled out above, where the method for this event was resolved.
+          _ => return Ok(()),
+        }
+
+        args.set("config", self.config_to_js(ctx)?)?;
+
+        let config = plugin_config(ctx, &self.path)?;
+        let report: Function = config.get(method)?;
+        let result: rquickjs::Value = report.call((args,))?;
+        await_promise(ctx, result)?;
+        Ok(())
+      })
+    })
+  }
+}
+
+/// Converts diagnostics to plain JavaScript objects, in the shape their
+/// `serde` representation already defines.
+fn diagnostics_to_js<'js>(
+  ctx: &Ctx<'js>,
+  diagnostics: &[parcel_core::Diagnostic],
+) -> rquickjs::Result<rquickjs::Value<'js>> {
+  let json = serde_json::to_string(diagnostics).map_err(|error| {
+    rquickjs::Error::new_from_js_message("diagnostics", "JSON", error.to_string())
+  })?;
+  ctx.json_parse(json)
 }
 
 #[derive(JsLifetime)]

@@ -1,5 +1,5 @@
 // Package parcel provides an idiomatic Go API for building Parcel transformer,
-// resolver, namer, and optimizer plugins. Plugins import this package, register
+// resolver, namer, optimizer, and reporter plugins. Plugins import this package, register
 // a plugin with [RegisterPlugin], and export the compiled shared library:
 //
 //	go build -buildmode=c-shared -o plugin.dylib .
@@ -28,18 +28,22 @@ import (
 	"errors"
 	"fmt"
 	"runtime/cgo"
+	"time"
 	"unsafe"
 )
 
-// Plugin is the interface that transformer, resolver, namer, and optimizer plugins implement.
+// Plugin is the interface that transformer, resolver, namer, optimizer, and
+// reporter plugins implement.
 // Override Transform to act as a transformer, Resolve to act as a resolver,
-// Name to act as a namer, Optimize to act as an optimizer, or any combination.
+// Name to act as a namer, Optimize to act as an optimizer, Report to act as a
+// reporter, or any combination.
 // Embed [DefaultPlugin] to get error-returning defaults for methods you don't need.
 type Plugin interface {
 	Transform(asset *Asset, options *Options) error
 	Resolve(dep *Dependency, specifier, pipeline string, options *Options) (ResolveResult, error)
 	Name(bundleGraph *BundleGraph, bundle *Bundle, options *Options) (string, error)
 	Optimize(bundleGraph *BundleGraph, bundle *Bundle, contents, sourceMap []byte, options *Options) (OptimizeResult, error)
+	Report(event ReportEvent, options *Options) error
 }
 
 // DefaultPlugin provides error-returning default implementations of [Plugin].
@@ -76,6 +80,10 @@ type OptimizeResult struct {
 
 func (DefaultPlugin) Optimize(*BundleGraph, *Bundle, []byte, []byte, *Options) (OptimizeResult, error) {
 	return OptimizeResult{}, errors.New("optimize not implemented")
+}
+
+func (DefaultPlugin) Report(ReportEvent, *Options) error {
+	return errors.New("report not implemented")
 }
 
 // pluginFactory is the registered plugin factory function.
@@ -240,6 +248,65 @@ func parcel_plugin_optimize(rawGraph C.BundleGraph, rawBundle C.Bundle, contents
 		if err := writeContentBuffer(&rawResult.source_map, BytesContent(result.SourceMap)); err != nil {
 			writeDiagnostic(diag, err)
 		}
+	}
+}
+
+//export parcel_plugin_report
+func parcel_plugin_report(rawEvent *C.ReportEvent, rawOptions C.Options, state unsafe.Pointer, diag *C.Diagnostic) {
+	defer recoverDiagnostic("report", diag)
+	if state == nil {
+		writeDiagnostic(diag, errors.New("plugin not registered: call parcel.RegisterPlugin in init()"))
+		return
+	}
+	if rawEvent == nil {
+		return
+	}
+
+	// Only set for the events that carry them, so reading the field on any
+	// other event is a nil the plugin cannot reach in the first place.
+	var diagnostics *Diagnostics
+	if rawEvent.diagnostics != 0 {
+		diagnostics = &Diagnostics{ptr: rawEvent.diagnostics}
+	}
+
+	var event ReportEvent
+	switch rawEvent.event_type {
+	case C.ReportEventType(C.PARCEL_EVENT_BUILD_START):
+		event = &BuildStart{}
+
+	case C.ReportEventType(C.PARCEL_EVENT_BUILD_SUCCESS):
+		success := &BuildSuccess{
+			BundleGraph: &BundleGraph{ptr: rawEvent.bundle_graph, options: rawOptions},
+			BuildTime:   time.Duration(rawEvent.build_time_ms) * time.Millisecond,
+		}
+		if rawEvent.changed_assets != nil && rawEvent.changed_asset_count > 0 {
+			raw := unsafe.Slice(rawEvent.changed_assets, int(rawEvent.changed_asset_count))
+			success.ChangedAssets = make([]AssetIndex, len(raw))
+			for i, index := range raw {
+				success.ChangedAssets[i] = AssetIndex(index)
+			}
+		}
+		event = success
+
+	case C.ReportEventType(C.PARCEL_EVENT_BUILD_FAILURE):
+		event = &BuildFailure{Diagnostics: diagnostics}
+
+	case C.ReportEventType(C.PARCEL_EVENT_LOG):
+		log := &Log{Level: LogLevel(rawEvent.level), Diagnostics: diagnostics}
+		if rawEvent.message != nil {
+			log.Message = C.GoStringN((*C.char)(unsafe.Pointer(rawEvent.message)), C.int(rawEvent.message_len))
+		}
+		event = log
+
+	default:
+		// An event added to Parcel after this SDK was built. Reporting nothing
+		// beats reporting it as the wrong kind of event.
+		return
+	}
+
+	plugin := cgo.Handle(*(*C.uintptr_t)(state)).Value().(Plugin)
+	if err := plugin.Report(event, &Options{ptr: rawOptions}); err != nil {
+		writeDiagnostic(diag, err)
 	}
 }
 
@@ -832,6 +899,168 @@ const (
 	SourceTypeScript SourceType = 1
 )
 
+// ── Reporter events ─────────────────────────────────────────────────────────
+
+// LogLevel is the level of a log event, and of a message passed to
+// [Options.Log].
+type LogLevel uint8
+
+const (
+	LogNone    LogLevel = 0
+	LogError   LogLevel = 1
+	LogWarn    LogLevel = 2
+	LogInfo    LogLevel = 3
+	LogVerbose LogLevel = 4
+)
+
+// String returns the level's lowercase name.
+func (l LogLevel) String() string {
+	switch l {
+	case LogError:
+		return "error"
+	case LogWarn:
+		return "warn"
+	case LogInfo:
+		return "info"
+	case LogVerbose:
+		return "verbose"
+	}
+	return "unknown"
+}
+
+// ReportEvent is something that happened during the build, passed to
+// [Plugin.Report]. Switch on its concrete type to handle the events you care
+// about:
+//
+//	switch event := event.(type) {
+//	case *parcel.BuildSuccess:
+//	    fmt.Println(event.BundleGraph.BundleCount(), event.BuildTime)
+//	case *parcel.BuildFailure:
+//	    for _, d := range event.Diagnostics.All() { fmt.Println(d.Message()) }
+//	}
+//
+// The set is closed — only this package can add events to it — so a switch that
+// handles every case today keeps compiling when Parcel adds one, and reports
+// nothing for it. Everything an event points at is valid only for the duration
+// of the Report call it was passed to.
+type ReportEvent interface {
+	isReportEvent()
+}
+
+// BuildStart reports that a build is about to start. Emitted once per build,
+// including rebuilds.
+type BuildStart struct{}
+
+// BuildSuccess reports a build that finished and wrote its output.
+type BuildSuccess struct {
+	BundleGraph *BundleGraph
+	// BuildTime is how long the build took.
+	BuildTime time.Duration
+	// ChangedAssets holds the assets re-transformed by this build. It is empty
+	// after a full build, which transformed all of them.
+	ChangedAssets []AssetIndex
+}
+
+// BuildFailure reports a build that failed. The same diagnostics are returned
+// to whoever asked for the build.
+type BuildFailure struct {
+	Diagnostics *Diagnostics
+}
+
+// Log reports a message from Parcel or from another plugin.
+type Log struct {
+	Level LogLevel
+	// Message is empty when the event carries diagnostics instead.
+	Message string
+	// Diagnostics is nil when the event carries a message instead.
+	Diagnostics *Diagnostics
+}
+
+func (*BuildStart) isReportEvent()   {}
+func (*BuildSuccess) isReportEvent() {}
+func (*BuildFailure) isReportEvent() {}
+func (*Log) isReportEvent()          {}
+
+// Diagnostics is the list of diagnostics a [ReportEvent] carries.
+type Diagnostics struct {
+	ptr C.Diagnostics
+}
+
+// Len returns how many diagnostics the event carries.
+func (d *Diagnostics) Len() int {
+	if d == nil || d.ptr == 0 {
+		return 0
+	}
+	return int(C.parcel_diagnostics_get_count(d.ptr))
+}
+
+// At returns the diagnostic at index, and false if index is out of range.
+func (d *Diagnostics) At(index int) (DiagnosticInfo, bool) {
+	if index < 0 || index >= d.Len() {
+		return DiagnosticInfo{}, false
+	}
+	return DiagnosticInfo{diagnostics: d.ptr, index: C.uintptr_t(index)}, true
+}
+
+// All returns every diagnostic in the list.
+func (d *Diagnostics) All() []DiagnosticInfo {
+	count := d.Len()
+	out := make([]DiagnosticInfo, 0, count)
+	for index := 0; index < count; index++ {
+		if info, ok := d.At(index); ok {
+			out = append(out, info)
+		}
+	}
+	return out
+}
+
+// DiagnosticInfo is one diagnostic within a [Diagnostics] list.
+type DiagnosticInfo struct {
+	diagnostics C.Diagnostics
+	index       C.uintptr_t
+}
+
+// Message returns the diagnostic's message.
+func (d DiagnosticInfo) Message() string {
+	var buf C.Buffer
+	C.parcel_diagnostic_get_message(&buf, d.diagnostics, d.index)
+	return takeBufferString(&buf)
+}
+
+// Severity returns the diagnostic's severity.
+func (d DiagnosticInfo) Severity() DiagnosticSeverity {
+	return DiagnosticSeverity(C.parcel_diagnostic_get_severity(d.diagnostics, d.index))
+}
+
+// Origin returns the name of the plugin the diagnostic came from, or an empty
+// string when it recorded none.
+func (d DiagnosticInfo) Origin() string {
+	var buf C.Buffer
+	C.parcel_diagnostic_get_origin(&buf, d.diagnostics, d.index)
+	return takeBufferString(&buf)
+}
+
+// Hints returns the diagnostic's hints.
+func (d DiagnosticInfo) Hints() []string {
+	count := int(C.parcel_diagnostic_get_hint_count(d.diagnostics, d.index))
+	out := make([]string, 0, count)
+	for hint := 0; hint < count; hint++ {
+		var buf C.Buffer
+		C.parcel_diagnostic_get_hint(&buf, d.diagnostics, d.index, C.uintptr_t(hint))
+		out = append(out, takeBufferString(&buf))
+	}
+	return out
+}
+
+// takeBufferString copies a host-filled buffer into a Go string and frees it.
+func takeBufferString(buf *C.Buffer) string {
+	if buf.data == nil {
+		return ""
+	}
+	defer C.parcel_free_buffer(buf)
+	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+}
+
 // ── Options ─────────────────────────────────────────────────────────────────
 
 // Options provides read-only access to the Parcel build options.
@@ -865,6 +1094,37 @@ func (o *Options) Env(key string) (string, bool) {
 	}
 	defer C.parcel_free_buffer(&buf)
 	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len)), true
+}
+
+// Log sends a message to whatever reporters the build has configured.
+//
+// Available from every plugin method, not just [Plugin.Report]. The message is
+// dropped when the build has no reporters, or when level is below its log level.
+func (o *Options) Log(level LogLevel, message string) {
+	if len(message) == 0 {
+		return
+	}
+	ptr := (*C.uint8_t)(unsafe.Pointer(unsafe.StringData(message)))
+	C.parcel_options_log(o.ptr, C.LogLevel(level), ptr, C.uintptr_t(len(message)))
+}
+
+// LogDiagnostic sends a diagnostic to the build's reporters without failing the
+// build — how a plugin raises a warning, as opposed to returning it as an error,
+// which ends the build.
+//
+// The log level comes from the diagnostic's own Severity.
+func (o *Options) LogDiagnostic(diagnostic *Diagnostic) {
+	if diagnostic == nil {
+		return
+	}
+	var raw C.Diagnostic
+	writeDiagnostic(&raw, diagnostic)
+	// The host copies what it needs rather than taking ownership, unlike the
+	// diagnostic a plugin returns as an error, so these are ours to free.
+	defer C.parcel_free_buffer(&raw.message)
+	defer C.parcel_free_buffer(&raw.file_path)
+	defer C.parcel_free_buffer(&raw.hint)
+	C.parcel_options_log_diagnostic(o.ptr, &raw)
 }
 
 // EnvironmentFlags is a bitfield of target environment flags.

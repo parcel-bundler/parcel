@@ -1,11 +1,4 @@
-use std::{
-  borrow::Cow,
-  cell::RefCell,
-  collections::HashMap,
-  path::{Path, PathBuf},
-  rc::Rc,
-  sync::Arc,
-};
+use std::{borrow::Cow, cell::RefCell, collections::HashMap, path::Path, rc::Rc, sync::Arc};
 
 use parcel_core::{
   CodeFrame, CodeHighlight, Diagnostic, DiagnosticList, Environment, FileSystem, Location, PathId,

@@ -176,6 +176,13 @@ func TestConstantsMatchHeader(t *testing.T) {
 		{"SeverityWarning", "PARCEL_SEVERITY_WARNING", int(parcel.SeverityWarning)},
 		{"SeveritySourceError", "PARCEL_SEVERITY_SOURCE_ERROR", int(parcel.SeveritySourceError)},
 		{"SeverityInfo", "PARCEL_SEVERITY_INFO", int(parcel.SeverityInfo)},
+		// ReportEventType is deliberately absent: the entry point switches on
+		// the C constants directly, so those values cannot drift.
+		// LogLevel
+		{"LogError", "PARCEL_LOG_ERROR", int(parcel.LogError)},
+		{"LogWarn", "PARCEL_LOG_WARN", int(parcel.LogWarn)},
+		{"LogInfo", "PARCEL_LOG_INFO", int(parcel.LogInfo)},
+		{"LogVerbose", "PARCEL_LOG_VERBOSE", int(parcel.LogVerbose)},
 	}
 	for _, p := range pairs {
 		check(p.goName, p.cName, p.goVal)

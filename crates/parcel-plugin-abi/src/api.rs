@@ -154,6 +154,20 @@ pub struct ParcelApi {
   pub target_get_dist_dir:
     unsafe extern "C" fn(buf: *mut Buffer, target: Target, _options: Options),
   pub asset_get_query: unsafe extern "C" fn(buf: *mut Buffer, asset: Asset),
+  pub diagnostics_get_count: unsafe extern "C" fn(diagnostics: Diagnostics) -> usize,
+  pub diagnostic_get_message:
+    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: Diagnostics, index: usize),
+  pub diagnostic_get_severity:
+    unsafe extern "C" fn(diagnostics: Diagnostics, index: usize) -> DiagnosticSeverity,
+  pub diagnostic_get_origin:
+    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: Diagnostics, index: usize),
+  pub diagnostic_get_hint_count:
+    unsafe extern "C" fn(diagnostics: Diagnostics, index: usize) -> usize,
+  pub diagnostic_get_hint:
+    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: Diagnostics, index: usize, hint: usize),
+  pub options_log:
+    unsafe extern "C" fn(options: Options, level: LogLevel, message: *const u8, message_len: usize),
+  pub options_log_diagnostic: unsafe extern "C" fn(options: Options, diagnostic: *const Diagnostic),
 }
 
 /// The instance passed to every plugin. Const-initialized, so it is in the
@@ -227,6 +241,14 @@ pub static PARCEL_API: ParcelApi = ParcelApi {
   target_get_public_url: parcel_target_get_public_url,
   target_get_dist_dir: parcel_target_get_dist_dir,
   asset_get_query: parcel_asset_get_query,
+  diagnostics_get_count: parcel_diagnostics_get_count,
+  diagnostic_get_message: parcel_diagnostic_get_message,
+  diagnostic_get_severity: parcel_diagnostic_get_severity,
+  diagnostic_get_origin: parcel_diagnostic_get_origin,
+  diagnostic_get_hint_count: parcel_diagnostic_get_hint_count,
+  diagnostic_get_hint: parcel_diagnostic_get_hint,
+  options_log: parcel_options_log,
+  options_log_diagnostic: parcel_options_log_diagnostic,
 };
 
 #[cfg(test)]
@@ -263,6 +285,7 @@ mod tests {
       include_str!("bundle.rs"),
       include_str!("bundle_graph.rs"),
       include_str!("dependency.rs"),
+      include_str!("diagnostics.rs"),
       include_str!("options.rs"),
       include_str!("target.rs"),
     ]

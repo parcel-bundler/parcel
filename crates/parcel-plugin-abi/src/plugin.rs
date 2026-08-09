@@ -6,12 +6,13 @@ use libloading::{Library, Symbol};
 use parcel_core::{
   Asset as CoreAsset, AssetRequest, AssetType, BufferContent, Content, ContentWithSourceMap,
   Dependency as CoreDependency, DependencyResolution, Diagnostic as CoreDiagnostic, DiagnosticList,
-  FileContent, Optimizer, ParcelOptions, PathId, Resolver, SourceLocation, SourceUrl, Transformer,
+  FileContent, LogLevel as CoreLogLevel, LogMessage, Optimizer, ParcelOptions, PathId, Reporter,
+  ReporterEvent, Resolver, SourceLocation, SourceUrl, Transformer,
 };
 
 use crate::{
-  Asset, Buffer, Bundle, BundleGraph, Dependency, Diagnostic, DiagnosticSeverity, Options,
-  parcel_free_buffer, read_cdiagnostic,
+  Asset, AssetIndex, Buffer, Bundle, BundleGraph, Dependency, Diagnostic, DiagnosticSeverity,
+  Diagnostics, Options, diagnostics::DiagnosticsView, parcel_free_buffer, read_cdiagnostic,
 };
 
 /// Result of a plugin's `parcel_plugin_init()`.
@@ -52,6 +53,72 @@ pub struct ResolveResult {
   pub resolution_type: ResolutionType,
   pub file_path: Buffer,
   pub pipeline: Buffer,
+}
+
+// ── Reporter events ───────────────────────────────────────────────────────────
+
+/// The kind of event passed to `parcel_plugin_report()`.
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum ReportEventType {
+  PARCEL_EVENT_BUILD_START = 0,
+  PARCEL_EVENT_BUILD_SUCCESS = 1,
+  PARCEL_EVENT_BUILD_FAILURE = 2,
+  PARCEL_EVENT_LOG = 3,
+}
+
+/// The level of a log event, and of a message passed to `parcel_options_log()`.
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Default)]
+pub enum LogLevel {
+  PARCEL_LOG_NONE = 0,
+  PARCEL_LOG_ERROR = 1,
+  PARCEL_LOG_WARN = 2,
+  #[default]
+  PARCEL_LOG_INFO = 3,
+  PARCEL_LOG_VERBOSE = 4,
+}
+
+impl_enum_conversion! {
+  CoreLogLevel => LogLevel {
+    CoreLogLevel::None => LogLevel::PARCEL_LOG_NONE,
+    CoreLogLevel::Error => LogLevel::PARCEL_LOG_ERROR,
+    CoreLogLevel::Warn => LogLevel::PARCEL_LOG_WARN,
+    CoreLogLevel::Info => LogLevel::PARCEL_LOG_INFO,
+    CoreLogLevel::Verbose => LogLevel::PARCEL_LOG_VERBOSE,
+  }
+}
+
+/// An event passed to a reporter plugin's `parcel_plugin_report()`.
+///
+/// Which fields are filled in depends on `event_type`; the rest are zeroed.
+/// Every handle and pointer here is valid only for the duration of the call.
+///
+/// Check `size` before reading a field this header declares but an older Parcel
+/// may not have written. Unlike `ParcelApi`, whose `size` a plugin verifies once
+/// at startup, this struct is filled in per call and carries its own.
+#[repr(C)]
+pub struct ReportEvent {
+  /// `sizeof(struct ReportEvent)` as the host was built.
+  pub size: usize,
+  pub event_type: ReportEventType,
+  /// `PARCEL_EVENT_LOG` only.
+  pub level: LogLevel,
+  /// `PARCEL_EVENT_LOG` only, and NULL when the event carries diagnostics
+  /// instead of a message. Not NUL-terminated; use `message_len`.
+  pub message: *const u8,
+  pub message_len: usize,
+  /// `PARCEL_EVENT_BUILD_FAILURE` and `PARCEL_EVENT_LOG`. 0 when the event
+  /// carries no diagnostics.
+  pub diagnostics: Diagnostics,
+  /// `PARCEL_EVENT_BUILD_SUCCESS` only; 0 otherwise.
+  pub bundle_graph: BundleGraph,
+  /// `PARCEL_EVENT_BUILD_SUCCESS` only. How long the build took.
+  pub build_time_ms: u64,
+  /// `PARCEL_EVENT_BUILD_SUCCESS` only. The assets re-transformed by this
+  /// build; empty after a full build, which transformed all of them.
+  pub changed_assets: *const AssetIndex,
+  pub changed_asset_count: usize,
 }
 
 /// Result filled by an optimizer plugin's `parcel_plugin_optimize()`.
@@ -393,6 +460,89 @@ impl parcel_core::Namer for CPlugin {
 
     parcel_free_buffer(&mut name);
     res
+  }
+}
+
+impl Reporter for CPlugin {
+  fn report(&self, event: &ReporterEvent, options: &ParcelOptions) -> Result<(), DiagnosticList> {
+    type ReportFn = extern "C" fn(*const ReportEvent, Options, *mut c_void, *mut Diagnostic);
+    let report: Symbol<ReportFn> = unsafe {
+      self.lib.get(b"parcel_plugin_report").map_err(|_| {
+        CoreDiagnostic::from_message("Failed to find parcel_plugin_report symbol".into())
+      })?
+    };
+
+    // Both of these are borrowed by `c_event` below, so they have to outlive it.
+    let diagnostics = match event {
+      ReporterEvent::BuildFailure { diagnostics } => Some(DiagnosticsView {
+        diagnostics: &diagnostics.0,
+      }),
+      ReporterEvent::Log(log) => match log.message {
+        LogMessage::Diagnostics(diagnostics) => Some(DiagnosticsView { diagnostics }),
+        LogMessage::Text(_) => None,
+      },
+      _ => None,
+    };
+    // Materialized rather than cast: `parcel_core::AssetIndex` is a newtype
+    // whose layout is not guaranteed to match the `uint32_t` the ABI uses.
+    let changed_assets: Vec<AssetIndex> = match event {
+      ReporterEvent::BuildSuccess(success) => {
+        success.changed_assets.iter().map(|index| index.0).collect()
+      }
+      _ => Vec::new(),
+    };
+
+    let mut c_event = ReportEvent {
+      size: size_of::<ReportEvent>(),
+      event_type: ReportEventType::PARCEL_EVENT_BUILD_START,
+      level: LogLevel::default(),
+      message: ptr::null(),
+      message_len: 0,
+      diagnostics: diagnostics
+        .as_ref()
+        .map_or(0, |view| view as *const DiagnosticsView as Diagnostics),
+      bundle_graph: 0,
+      build_time_ms: 0,
+      changed_assets: changed_assets.as_ptr(),
+      changed_asset_count: changed_assets.len(),
+    };
+
+    match event {
+      ReporterEvent::BuildStart => {}
+      ReporterEvent::BuildSuccess(success) => {
+        c_event.event_type = ReportEventType::PARCEL_EVENT_BUILD_SUCCESS;
+        c_event.bundle_graph =
+          success.bundle_graph as *const parcel_core::BundleGraph as BundleGraph;
+        c_event.build_time_ms = success.build_time.as_millis() as u64;
+      }
+      ReporterEvent::BuildFailure { .. } => {
+        c_event.event_type = ReportEventType::PARCEL_EVENT_BUILD_FAILURE;
+      }
+      ReporterEvent::Log(log) => {
+        c_event.event_type = ReportEventType::PARCEL_EVENT_LOG;
+        c_event.level = LogLevel::from(log.level);
+        if let LogMessage::Text(text) = log.message {
+          c_event.message = text.as_ptr();
+          c_event.message_len = text.len();
+        }
+      }
+      // An event this build of the ABI has no representation for. Reporting
+      // nothing is better than reporting it as the wrong kind of event.
+      _ => return Ok(()),
+    }
+
+    let mut diagnostic = Diagnostic::default();
+    report(
+      &c_event,
+      options as *const ParcelOptions as Options,
+      self.state,
+      &mut diagnostic,
+    );
+
+    if let Some(diag) = read_cdiagnostic(&mut diagnostic, Some(&options.project_root)) {
+      return Err(DiagnosticList(vec![diag]));
+    }
+    Ok(())
   }
 }
 

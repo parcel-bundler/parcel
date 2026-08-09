@@ -15,6 +15,9 @@ pub type Options = u64;
 pub type BundleGraph = u64;
 /// Opaque handle to Parcel bundle.
 pub type Bundle = u64;
+/// Opaque handle to the diagnostics attached to a reporter event. Pass to the
+/// `parcel_diagnostics_*` and `parcel_diagnostic_*` functions.
+pub type Diagnostics = u64;
 /// Index of an asset within the bundle graph.
 pub type AssetIndex = u32;
 /// Index of a bundle within the bundle graph.

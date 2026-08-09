@@ -15,6 +15,7 @@ mod namer;
 mod optimizer;
 mod options;
 mod path;
+mod reporter;
 mod request;
 mod resolver;
 mod target;
@@ -24,10 +25,7 @@ use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
   path::Path,
-  sync::{
-    Arc, Mutex,
-    atomic::{AtomicBool, Ordering},
-  },
+  sync::{Arc, Mutex},
 };
 
 use crossbeam_channel::bounded;
@@ -50,6 +48,7 @@ pub use namer::*;
 pub use optimizer::Optimizer;
 pub use options::*;
 pub use path::{PathId, SubPath};
+pub use reporter::*;
 pub use resolver::Resolver;
 pub use target::*;
 pub use transformer::Transformer;
@@ -173,6 +172,7 @@ impl Parcel {
       }
     }
 
+    let reporters = Reporters::new(config.reporters.clone(), options.log_level.clone());
     let options = Arc::new(ParcelOptions {
       env,
       mode: options.mode,
@@ -182,7 +182,12 @@ impl Parcel {
       output_fs: options.output_fs,
       cwd: options.cwd,
       hmr: options.hmr,
+      reporters: reporters.clone(),
     });
+
+    // Weak, so the options may own the reporters without the two keeping each
+    // other alive forever.
+    reporters.attach(Arc::downgrade(&options));
 
     Ok(Parcel {
       asset_graph_builder: AssetGraphBuilder::new(
@@ -255,6 +260,30 @@ impl Parcel {
   }
 
   pub fn build_with_changes(&mut self) -> Result<BuildResult<'_>, DiagnosticList> {
+    // Cloned up front so the events below borrow nothing from `self`, which the
+    // build result holds for as long as it lives.
+    let reporters = self.options.reporters.clone();
+    reporters.build_start();
+    let start = std::time::Instant::now();
+
+    match self.build_uninstrumented() {
+      Ok(result) => {
+        reporters.build_success(BuildSuccess {
+          bundle_graph: &result.bundle_graph,
+          changed_assets: &result.changed_assets,
+          build_time: start.elapsed(),
+        });
+        Ok(result)
+      }
+      Err(error) => {
+        reporters.build_failure(&error);
+        Err(error)
+      }
+    }
+  }
+
+  /// The build itself, without the reporter events around it.
+  fn build_uninstrumented(&mut self) -> Result<BuildResult<'_>, DiagnosticList> {
     let result = self.asset_graph_builder.build_with_changes()?;
     let changed_assets = result.changed_assets;
     let bundle_graph = bundle_and_package(
@@ -272,6 +301,10 @@ impl Parcel {
   }
 
   pub fn build_owned(self) -> Result<BundleGraph<'static>, DiagnosticList> {
+    let reporters = self.options.reporters.clone();
+    reporters.build_start();
+    let start = std::time::Instant::now();
+
     let Parcel {
       asset_graph_builder,
       config,
@@ -279,14 +312,36 @@ impl Parcel {
       mut prev_bundles,
       ..
     } = self;
-    let result = asset_graph_builder.build_owned_with_changes()?;
-    bundle_and_package(
+
+    let result = match asset_graph_builder.build_owned_with_changes() {
+      Ok(result) => result,
+      Err(error) => {
+        reporters.build_failure(&error);
+        return Err(error);
+      }
+    };
+
+    let bundle_graph = match bundle_and_package(
       result.asset_graph,
       &config,
       &options,
       &result.changed_assets,
       &mut prev_bundles,
-    )
+    ) {
+      Ok(bundle_graph) => bundle_graph,
+      Err(error) => {
+        reporters.build_failure(&error);
+        return Err(error);
+      }
+    };
+
+    reporters.build_success(BuildSuccess {
+      bundle_graph: &bundle_graph,
+      changed_assets: &result.changed_assets,
+      build_time: start.elapsed(),
+    });
+
+    Ok(bundle_graph)
   }
 }
 

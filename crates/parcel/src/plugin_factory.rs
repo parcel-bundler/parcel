@@ -2,7 +2,7 @@ use std::{path::Path, sync::Arc};
 
 use parcel_core::{
   Diagnostic, DiagnosticList, FileKind, FileSystem, Namer, Optimizer, ParcelConfig, PathId,
-  PluginFactory, Transformer,
+  PluginFactory, Reporter, Transformer,
 };
 use parcel_css::{CssTransformer, StyleAttrTransformer};
 use parcel_html::{HtmlTransformer, SvgToJsxTransformer, SvgTransformer};
@@ -148,6 +148,18 @@ impl PluginFactory for DefaultPluginFactory {
         ResolvedPlugin::Native(plugin) => plugin,
         ResolvedPlugin::Js(plugin) => plugin,
       },
+    })
+  }
+
+  fn reporter(
+    &self,
+    name: &str,
+    config: Option<serde_json::Value>,
+    from: PathId,
+  ) -> Result<Arc<dyn Reporter>, DiagnosticList> {
+    Ok(match self.resolve_plugin("reporter", name, from, config)? {
+      ResolvedPlugin::Native(plugin) => plugin,
+      ResolvedPlugin::Js(plugin) => plugin,
     })
   }
 

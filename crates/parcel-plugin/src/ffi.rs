@@ -70,6 +70,16 @@ pub enum SourceType {
   Script = 1,
 }
 #[repr(u8)]
+#[doc = " The level of a log event, and of a message passed to `parcel_options_log()`."]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum LogLevel {
+  None = 0,
+  Error = 1,
+  Warn = 2,
+  Info = 3,
+  Verbose = 4,
+}
+#[repr(u8)]
 #[doc = " Result of a plugin's `parcel_plugin_init()`.\n\n A plugin that cannot use the [`ParcelApi`](crate::ParcelApi) table it was\n handed returns `PARCEL_INIT_INCOMPATIBLE` without writing a diagnostic — it\n has no way to allocate one, since allocating goes through the very table it\n just rejected. Parcel writes that diagnostic instead."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum InitStatus {
@@ -87,6 +97,15 @@ pub enum ResolutionType {
   FilePath = 1,
   External = 2,
   Excluded = 3,
+}
+#[repr(u8)]
+#[doc = " The kind of event passed to `parcel_plugin_report()`."]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum ReportEventType {
+  BuildStart = 0,
+  BuildSuccess = 1,
+  BuildFailure = 2,
+  Log = 3,
 }
 impl DependencyFlags {
   pub const ENTRY: DependencyFlags = DependencyFlags(1);
@@ -509,6 +528,8 @@ const _: () = {
   ["Offset of field: DependencyOptions::conditions"]
     [::std::mem::offset_of!(DependencyOptions, conditions) - 20usize];
 };
+#[doc = " Opaque handle to the diagnostics attached to a reporter event. Pass to the\n `parcel_diagnostics_*` and `parcel_diagnostic_*` functions."]
+pub type Diagnostics = u64;
 #[doc = " The host functions available to a plugin."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -670,10 +691,31 @@ pub struct ParcelApi {
     unsafe extern "C" fn(buf: *mut Buffer, target: Target, _options: Options),
   >,
   pub asset_get_query: ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: Asset)>,
+  pub diagnostics_get_count:
+    ::std::option::Option<unsafe extern "C" fn(diagnostics: Diagnostics) -> usize>,
+  pub diagnostic_get_message: ::std::option::Option<
+    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: Diagnostics, index: usize),
+  >,
+  pub diagnostic_get_severity: ::std::option::Option<
+    unsafe extern "C" fn(diagnostics: Diagnostics, index: usize) -> DiagnosticSeverity,
+  >,
+  pub diagnostic_get_origin: ::std::option::Option<
+    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: Diagnostics, index: usize),
+  >,
+  pub diagnostic_get_hint_count:
+    ::std::option::Option<unsafe extern "C" fn(diagnostics: Diagnostics, index: usize) -> usize>,
+  pub diagnostic_get_hint: ::std::option::Option<
+    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: Diagnostics, index: usize, hint: usize),
+  >,
+  pub options_log: ::std::option::Option<
+    unsafe extern "C" fn(options: Options, level: LogLevel, message: *const u8, message_len: usize),
+  >,
+  pub options_log_diagnostic:
+    ::std::option::Option<unsafe extern "C" fn(options: Options, diagnostic: *const Diagnostic)>,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 520usize];
+  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 584usize];
   ["Alignment of ParcelApi"][::std::mem::align_of::<ParcelApi>() - 8usize];
   ["Offset of field: ParcelApi::header"][::std::mem::offset_of!(ParcelApi, header) - 0usize];
   ["Offset of field: ParcelApi::asset_get_content"]
@@ -802,6 +844,22 @@ const _: () = {
     [::std::mem::offset_of!(ParcelApi, target_get_dist_dir) - 504usize];
   ["Offset of field: ParcelApi::asset_get_query"]
     [::std::mem::offset_of!(ParcelApi, asset_get_query) - 512usize];
+  ["Offset of field: ParcelApi::diagnostics_get_count"]
+    [::std::mem::offset_of!(ParcelApi, diagnostics_get_count) - 520usize];
+  ["Offset of field: ParcelApi::diagnostic_get_message"]
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_message) - 528usize];
+  ["Offset of field: ParcelApi::diagnostic_get_severity"]
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_severity) - 536usize];
+  ["Offset of field: ParcelApi::diagnostic_get_origin"]
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_origin) - 544usize];
+  ["Offset of field: ParcelApi::diagnostic_get_hint_count"]
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_hint_count) - 552usize];
+  ["Offset of field: ParcelApi::diagnostic_get_hint"]
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_hint) - 560usize];
+  ["Offset of field: ParcelApi::options_log"]
+    [::std::mem::offset_of!(ParcelApi, options_log) - 568usize];
+  ["Offset of field: ParcelApi::options_log_diagnostic"]
+    [::std::mem::offset_of!(ParcelApi, options_log_diagnostic) - 576usize];
 };
 #[doc = " Result filled by a resolver plugin's `parcel_plugin_resolve()`.\n The struct is zero-initialised by the host before the call.\n\n When type == PARCEL_RESOLUTION_FILE_PATH, fill `file_path` (and optionally `pipeline`) via `parcel_buffer_alloc()`."]
 #[repr(C)]
@@ -839,4 +897,48 @@ const _: () = {
     [::std::mem::offset_of!(OptimizeResult, contents) - 0usize];
   ["Offset of field: OptimizeResult::source_map"]
     [::std::mem::offset_of!(OptimizeResult, source_map) - 32usize];
+};
+#[doc = " An event passed to a reporter plugin's `parcel_plugin_report()`.\n\n Which fields are filled in depends on `event_type`; the rest are zeroed.\n Every handle and pointer here is valid only for the duration of the call.\n\n Check `size` before reading a field this header declares but an older Parcel\n may not have written. Unlike `ParcelApi`, whose `size` a plugin verifies once\n at startup, this struct is filled in per call and carries its own."]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ReportEvent {
+  #[doc = " `sizeof(struct ReportEvent)` as the host was built."]
+  pub size: usize,
+  pub event_type: ReportEventType,
+  #[doc = " `PARCEL_EVENT_LOG` only."]
+  pub level: LogLevel,
+  #[doc = " `PARCEL_EVENT_LOG` only, and NULL when the event carries diagnostics\n instead of a message. Not NUL-terminated; use `message_len`."]
+  pub message: *const u8,
+  pub message_len: usize,
+  #[doc = " `PARCEL_EVENT_BUILD_FAILURE` and `PARCEL_EVENT_LOG`. 0 when the event\n carries no diagnostics."]
+  pub diagnostics: Diagnostics,
+  #[doc = " `PARCEL_EVENT_BUILD_SUCCESS` only; 0 otherwise."]
+  pub bundle_graph: BundleGraph,
+  #[doc = " `PARCEL_EVENT_BUILD_SUCCESS` only. How long the build took."]
+  pub build_time_ms: u64,
+  #[doc = " `PARCEL_EVENT_BUILD_SUCCESS` only. The assets re-transformed by this\n build; empty after a full build, which transformed all of them."]
+  pub changed_assets: *const AssetIndex,
+  pub changed_asset_count: usize,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+  ["Size of ReportEvent"][::std::mem::size_of::<ReportEvent>() - 72usize];
+  ["Alignment of ReportEvent"][::std::mem::align_of::<ReportEvent>() - 8usize];
+  ["Offset of field: ReportEvent::size"][::std::mem::offset_of!(ReportEvent, size) - 0usize];
+  ["Offset of field: ReportEvent::event_type"]
+    [::std::mem::offset_of!(ReportEvent, event_type) - 8usize];
+  ["Offset of field: ReportEvent::level"][::std::mem::offset_of!(ReportEvent, level) - 9usize];
+  ["Offset of field: ReportEvent::message"][::std::mem::offset_of!(ReportEvent, message) - 16usize];
+  ["Offset of field: ReportEvent::message_len"]
+    [::std::mem::offset_of!(ReportEvent, message_len) - 24usize];
+  ["Offset of field: ReportEvent::diagnostics"]
+    [::std::mem::offset_of!(ReportEvent, diagnostics) - 32usize];
+  ["Offset of field: ReportEvent::bundle_graph"]
+    [::std::mem::offset_of!(ReportEvent, bundle_graph) - 40usize];
+  ["Offset of field: ReportEvent::build_time_ms"]
+    [::std::mem::offset_of!(ReportEvent, build_time_ms) - 48usize];
+  ["Offset of field: ReportEvent::changed_assets"]
+    [::std::mem::offset_of!(ReportEvent, changed_assets) - 56usize];
+  ["Offset of field: ReportEvent::changed_asset_count"]
+    [::std::mem::offset_of!(ReportEvent, changed_asset_count) - 64usize];
 };

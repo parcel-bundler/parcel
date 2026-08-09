@@ -770,3 +770,178 @@ fn options_accessors_return_project_root_and_environment_values() {
   assert!(string_output(|buffer| parcel_options_get_env(buffer, handle, ptr::null(), 0)).is_none());
   parcel_options_get_project_root(ptr::null_mut(), handle);
 }
+
+// ── Reporter events ──────────────────────────────────────────────────────────
+
+fn diagnostics_fixture() -> Vec<parcel_core::Diagnostic> {
+  vec![
+    parcel_core::Diagnostic {
+      message: "something went wrong".into(),
+      origin: Some("@acme/plugin".into()),
+      hints: vec!["try turning it off and on again".into(), "or don't".into()],
+      severity: parcel_core::DiagnosticSeverity::Warning,
+      ..parcel_core::Diagnostic::from_message(String::new())
+    },
+    parcel_core::Diagnostic::from_message("and so did this".into()),
+  ]
+}
+
+/// Builds a handle the way `CPlugin::report` does, and runs `call` against it.
+fn with_diagnostics(diagnostics: &[parcel_core::Diagnostic], call: impl FnOnce(Diagnostics)) {
+  let view = crate::diagnostics::DiagnosticsView { diagnostics };
+  call(&view as *const crate::diagnostics::DiagnosticsView as Diagnostics);
+}
+
+#[test]
+fn diagnostics_accessors_read_the_list() {
+  let diagnostics = diagnostics_fixture();
+  with_diagnostics(&diagnostics, |handle| {
+    assert_eq!(parcel_diagnostics_get_count(handle), 2);
+
+    assert_eq!(
+      string_output(|buffer| parcel_diagnostic_get_message(buffer, handle, 0)).as_deref(),
+      Some("something went wrong")
+    );
+    assert_eq!(
+      parcel_diagnostic_get_severity(handle, 0),
+      DiagnosticSeverity::PARCEL_SEVERITY_WARNING
+    );
+    assert_eq!(
+      string_output(|buffer| parcel_diagnostic_get_origin(buffer, handle, 0)).as_deref(),
+      Some("@acme/plugin")
+    );
+
+    assert_eq!(parcel_diagnostic_get_hint_count(handle, 0), 2);
+    assert_eq!(
+      string_output(|buffer| parcel_diagnostic_get_hint(buffer, handle, 0, 1)).as_deref(),
+      Some("or don't")
+    );
+
+    // The second diagnostic has neither an origin nor hints.
+    assert_eq!(
+      string_output(|buffer| parcel_diagnostic_get_message(buffer, handle, 1)).as_deref(),
+      Some("and so did this")
+    );
+    assert_eq!(
+      string_output(|buffer| parcel_diagnostic_get_origin(buffer, handle, 1)),
+      None
+    );
+    assert_eq!(parcel_diagnostic_get_hint_count(handle, 1), 0);
+  });
+}
+
+#[test]
+fn diagnostics_accessors_tolerate_bad_handles_and_indices() {
+  // A null handle is what an event with no diagnostics carries.
+  assert_eq!(parcel_diagnostics_get_count(0), 0);
+  assert_eq!(parcel_diagnostic_get_hint_count(0, 0), 0);
+  assert_eq!(
+    string_output(|buffer| parcel_diagnostic_get_message(buffer, 0, 0)),
+    None
+  );
+  assert_eq!(
+    parcel_diagnostic_get_severity(0, 0),
+    DiagnosticSeverity::PARCEL_SEVERITY_ERROR
+  );
+
+  let diagnostics = diagnostics_fixture();
+  with_diagnostics(&diagnostics, |handle| {
+    assert_eq!(
+      string_output(|buffer| parcel_diagnostic_get_message(buffer, handle, 99)),
+      None
+    );
+    assert_eq!(
+      string_output(|buffer| parcel_diagnostic_get_hint(buffer, handle, 0, 99)),
+      None
+    );
+  });
+}
+
+/// Collects what plugins log through the options handle.
+struct LogRecorder {
+  events: Arc<std::sync::Mutex<Vec<String>>>,
+}
+
+impl parcel_core::Reporter for LogRecorder {
+  fn report(
+    &self,
+    event: &parcel_core::ReporterEvent,
+    _options: &ParcelOptions,
+  ) -> Result<(), parcel_core::DiagnosticList> {
+    if let parcel_core::ReporterEvent::Log(log) = event {
+      let message = match log.message {
+        parcel_core::LogMessage::Text(text) => text.to_owned(),
+        parcel_core::LogMessage::Diagnostics(diagnostics) => diagnostics
+          .iter()
+          .map(|d| d.message.clone())
+          .collect::<Vec<_>>()
+          .join(", "),
+      };
+      self
+        .events
+        .lock()
+        .unwrap()
+        .push(format!("{}: {}", log.level, message));
+    }
+    Ok(())
+  }
+}
+
+fn options_with_recorder() -> (Arc<ParcelOptions>, Arc<std::sync::Mutex<Vec<String>>>) {
+  let events = Arc::new(std::sync::Mutex::new(Vec::new()));
+  let reporters = parcel_core::Reporters::new(
+    vec![Arc::new(LogRecorder {
+      events: events.clone(),
+    })],
+    parcel_core::LogLevel::Verbose,
+  );
+  let options = Arc::new(ParcelOptions {
+    project_root: path("/project"),
+    reporters: reporters.clone(),
+    ..Default::default()
+  });
+  reporters.attach(Arc::downgrade(&options));
+  (options, events)
+}
+
+#[test]
+fn plugins_log_messages_through_the_options_handle() {
+  let (options, events) = options_with_recorder();
+  let handle = &*options as *const ParcelOptions as Options;
+
+  let message = b"a message from a plugin";
+  parcel_options_log(
+    handle,
+    LogLevel::PARCEL_LOG_WARN,
+    message.as_ptr(),
+    message.len(),
+  );
+
+  assert_eq!(*events.lock().unwrap(), ["warn: a message from a plugin"]);
+}
+
+#[test]
+fn plugins_log_diagnostics_without_giving_up_their_buffers() {
+  let (options, events) = options_with_recorder();
+  let handle = &*options as *const ParcelOptions as Options;
+
+  let message = b"a warning worth surfacing";
+  let mut diagnostic = Diagnostic {
+    message: parcel_buffer_alloc(message.as_ptr(), message.len()),
+    severity: DiagnosticSeverity::PARCEL_SEVERITY_WARNING,
+    ..Default::default()
+  };
+
+  parcel_options_log_diagnostic(handle, &diagnostic);
+
+  // The severity picked the log level, rather than the caller naming both.
+  assert_eq!(*events.lock().unwrap(), ["warn: a warning worth surfacing"]);
+
+  // The host copied rather than taking ownership, so the buffer is still the
+  // plugin's to read and to free.
+  assert_eq!(
+    unsafe { std::slice::from_raw_parts(diagnostic.message.data, diagnostic.message.len) },
+    message
+  );
+  parcel_free_buffer(&mut diagnostic.message);
+}

@@ -6,7 +6,7 @@ use std::{borrow::Cow, collections::HashSet, ffi::OsStr, path::Path, slice, sync
 
 use crate::{
   Diagnostic, DiagnosticList, FileSystem, PathId, bundler::Bundler, namer::Namer,
-  optimizer::Optimizer, resolver::Resolver, transformer::Transformer,
+  optimizer::Optimizer, reporter::Reporter, resolver::Resolver, transformer::Transformer,
 };
 
 pub struct ParcelConfig {
@@ -14,11 +14,9 @@ pub struct ParcelConfig {
   pub transformers: PipelineMap<dyn Transformer>,
   pub bundler: Arc<dyn Bundler>,
   pub namers: Vec<Arc<dyn Namer>>,
-  pub runtimes: Vec<Plugin<()>>,
   pub optimizers: PipelineMap<dyn Optimizer>,
   pub compressors: PipelineMap<()>,
-  pub reporters: Vec<Plugin<()>>,
-  pub validators: PipelineMap<()>,
+  pub reporters: Vec<Arc<dyn Reporter>>,
 }
 
 impl ParcelConfig {
@@ -336,6 +334,12 @@ pub trait PluginFactory {
     config: Option<serde_json::Value>,
     from: PathId,
   ) -> Result<Arc<dyn Optimizer>, DiagnosticList>;
+  fn reporter(
+    &self,
+    name: &str,
+    config: Option<serde_json::Value>,
+    from: PathId,
+  ) -> Result<Arc<dyn Reporter>, DiagnosticList>;
 }
 
 impl RawParcelConfig {
@@ -372,11 +376,11 @@ impl RawParcelConfig {
 
     let mut extended_resolvers = Vec::new();
     let mut extended_namers = Vec::new();
-    let mut extended_runtimes = Vec::new();
+    let mut extended_reporters = Vec::new();
     for config in extends {
       extended_resolvers.extend(config.resolvers);
       extended_namers.extend(config.namers);
-      extended_runtimes.extend(config.runtimes);
+      extended_reporters.extend(config.reporters);
       transformers.0.extend(config.transformers.0);
       optimizers.0.extend(config.optimizers.0);
     }
@@ -392,12 +396,12 @@ impl RawParcelConfig {
         &|name, config| factory.namer(name, config, from),
         extended_namers.into_iter(),
       )?,
-      runtimes: Vec::new(),
-      // packagers,
       optimizers,
-      validators: Default::default(),
       compressors: Default::default(),
-      reporters: Default::default(),
+      reporters: self.reporters.unwrap_or_default().resolve_extended(
+        &|name, config| factory.reporter(name, config, from),
+        extended_reporters.into_iter(),
+      )?,
     })
   }
 }

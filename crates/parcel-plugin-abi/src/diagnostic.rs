@@ -20,6 +20,15 @@ pub enum DiagnosticSeverity {
   PARCEL_SEVERITY_INFO = 3,
 }
 
+impl_enum_conversion! {
+  CoreDiagnosticSeverity => DiagnosticSeverity {
+    CoreDiagnosticSeverity::Error => DiagnosticSeverity::PARCEL_SEVERITY_ERROR,
+    CoreDiagnosticSeverity::Warning => DiagnosticSeverity::PARCEL_SEVERITY_WARNING,
+    CoreDiagnosticSeverity::SourceError => DiagnosticSeverity::PARCEL_SEVERITY_SOURCE_ERROR,
+    CoreDiagnosticSeverity::Info => DiagnosticSeverity::PARCEL_SEVERITY_INFO,
+  }
+}
+
 /// Diagnostic written by a plugin to report an error or warning.
 /// The host zero-initialises this before every plugin call.
 /// Fill via `parcel_buffer_alloc()`; host frees all `Buffer` fields after the call.
@@ -38,34 +47,48 @@ pub struct Diagnostic {
 
 // ── Internal diagnostic helpers ───────────────────────────────────────────────
 
+/// Reads a diagnostic a plugin wrote, then frees the buffers it allocated.
+///
+/// Used for the `Diagnostic` out-param of an entry point, which the host takes
+/// ownership of. To read one the plugin still owns — a logged diagnostic, say —
+/// use [`copy_cdiagnostic`].
 pub(crate) fn read_cdiagnostic(
   diag: &mut Diagnostic,
+  project_root: Option<&PathId>,
+) -> Option<CoreDiagnostic> {
+  let diagnostic = copy_cdiagnostic(diag, project_root);
+
+  // Unconditionally, including when there was no message to read: a plugin that
+  // filled in a file path but no message would otherwise leak it.
+  parcel_free_buffer(&mut diag.message);
+  parcel_free_buffer(&mut diag.file_path);
+  parcel_free_buffer(&mut diag.hint);
+
+  diagnostic
+}
+
+/// Reads a diagnostic a plugin wrote without taking ownership of its buffers.
+pub(crate) fn copy_cdiagnostic(
+  diag: &Diagnostic,
   project_root: Option<&PathId>,
 ) -> Option<CoreDiagnostic> {
   if diag.message.data.is_null() {
     return None;
   }
 
-  let read_buf = |buf: &mut Buffer| -> String {
-    let s = unsafe {
+  let read_buf = |buf: &Buffer| -> String {
+    unsafe {
       std::str::from_utf8(std::slice::from_raw_parts(buf.data, buf.len))
         .unwrap_or("")
         .to_owned()
-    };
-    parcel_free_buffer(buf);
-    s
+    }
   };
 
-  let message = read_buf(&mut diag.message);
-  let severity = match diag.severity {
-    DiagnosticSeverity::PARCEL_SEVERITY_ERROR => CoreDiagnosticSeverity::Error,
-    DiagnosticSeverity::PARCEL_SEVERITY_WARNING => CoreDiagnosticSeverity::Warning,
-    DiagnosticSeverity::PARCEL_SEVERITY_SOURCE_ERROR => CoreDiagnosticSeverity::SourceError,
-    DiagnosticSeverity::PARCEL_SEVERITY_INFO => CoreDiagnosticSeverity::Info,
-  };
+  let message = read_buf(&diag.message);
+  let severity = CoreDiagnosticSeverity::from(diag.severity);
 
   let code_frames = if !diag.file_path.data.is_null() {
-    let path_str = read_buf(&mut diag.file_path);
+    let path_str = read_buf(&diag.file_path);
     if project_root.is_some() {
       let url = Some(SourceUrl::from_path(&PathId::new(Path::new(&path_str))));
       let code_highlights = if diag.line > 0 {
@@ -96,7 +119,7 @@ pub(crate) fn read_cdiagnostic(
   };
 
   let hints = if !diag.hint.data.is_null() {
-    vec![read_buf(&mut diag.hint)]
+    vec![read_buf(&diag.hint)]
   } else {
     vec![]
   };
