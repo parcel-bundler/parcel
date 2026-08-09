@@ -1,0 +1,15 @@
+{
+  "description": "should use ES modules for globs in ES module libraries",
+  "input": ".",
+  "bundles": [
+    {"assets": ["index.js"]},
+    {
+      "assets": ["glob-c7f8bef360ed4c5d.js"],
+      "contains": ["import ", "export default"],
+      "notContains": ["module.exports", "require("]
+    },
+    {"assets": ["a.js"]},
+    {"assets": ["b.js"]}
+  ],
+  "output": 3
+}

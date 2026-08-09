@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::BTreeMap, fmt::Write, sync::Arc};
 use glob_match::glob_match_with_captures;
 use parcel_core::{
   AssetRequest, AssetType, BufferContent, Dependency, DependencyResolution, DiagnosticList,
-  FileSystem, ParcelOptions, Priority, Resolver, SourceLocation, SourceUrl, is_glob,
+  FileSystem, OutputFormat, ParcelOptions, Resolver, SourceLocation, SourceUrl, is_glob,
 };
 use xxhash_rust::xxh3::xxh3_64;
 
@@ -77,9 +77,19 @@ impl Resolver for GlobResolver {
       };
     }
 
-    let mut code = String::new();
-    code.push_str("module.exports = ");
-    root.write_js(&mut code);
+    let output_format = dep.target.output_format;
+    let mut imports = String::new();
+    let mut value = String::new();
+    let mut import_count = 0;
+    root.write_js(&mut value, &mut imports, output_format, &mut import_count);
+
+    let mut code = imports;
+    if output_format == OutputFormat::Esmodule {
+      code.push_str("export default ");
+    } else {
+      code.push_str("module.exports = ");
+    }
+    code.push_str(&value);
     code.push_str(";\n");
 
     let hash = format!("glob-{:016x}.js", xxh3_64(specifier.as_bytes()));
@@ -139,14 +149,29 @@ impl GlobEntry {
     }
   }
 
-  fn write_js(&self, code: &mut String) {
+  fn write_js(
+    &self,
+    code: &mut String,
+    imports: &mut String,
+    output_format: OutputFormat,
+    import_count: &mut usize,
+  ) {
     match self {
-      GlobEntry::Require(f) => write!(
-        code,
-        "(function(m){{return m&&m.__esModule?m.default:m}})(require({:?}))",
-        f
-      )
-      .ok(),
+      GlobEntry::Require(f) => {
+        if output_format == OutputFormat::Esmodule {
+          let import_id = *import_count;
+          *import_count += 1;
+          write!(imports, "import _glob{} from {:?};\n", import_id, f).ok();
+          write!(code, "_glob{}", import_id).ok()
+        } else {
+          write!(
+            code,
+            "(function(m){{return m&&m.__esModule?m.default:m}})(require({:?}))",
+            f
+          )
+          .ok()
+        }
+      }
       GlobEntry::Import(f) => write!(code, "() => import({:?})", f).ok(),
       GlobEntry::Dir(map) => {
         code.push('{');
@@ -156,7 +181,7 @@ impl GlobEntry {
             code.push_str(", ");
           }
           write!(code, "{:?}: ", key).ok();
-          value.write_js(code);
+          value.write_js(code, imports, output_format, import_count);
           first = false;
         }
         code.push('}');
