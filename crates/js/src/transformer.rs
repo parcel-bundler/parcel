@@ -42,7 +42,8 @@ impl Transformer for JsTransformer {
     fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
   ) -> Result<Asset, DiagnosticList> {
     let config = config(&mut asset, options, fs, self)?;
-    let resolver = parcel_resolver::Resolver::parcel(options.project_root);
+    let mut resolver = parcel_resolver::Resolver::parcel(options.project_root);
+    resolver.conditions |= ExportsCondition::SOURCE;
 
     let url = asset.loc.url.clone();
     let env = asset.target.clone();

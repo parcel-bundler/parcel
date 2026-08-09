@@ -4,7 +4,7 @@ use std::{
   sync::Arc,
 };
 
-use parcel_core::{FileSystem, PathId, resolve_path};
+use parcel_core::{ExportsCondition, FileSystem, PathId, resolve_path};
 use parcel_resolver::ModuleType;
 use rquickjs::{Ctx, FromJs, Function, IntoJs, JsLifetime, Module, Object, Value, function};
 use rust_embed::Embed;
@@ -35,6 +35,7 @@ impl CjsLoader {
     let mut resolver = parcel_resolver::Resolver::node(project_root);
     resolver.flags |= parcel_resolver::Flags::TYPESCRIPT;
     resolver.entries |= parcel_resolver::Fields::BROWSER;
+    resolver.conditions |= ExportsCondition::SOURCE;
     CjsLoader { resolver, fs }
   }
 

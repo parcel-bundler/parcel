@@ -4,7 +4,7 @@ use std::{
   sync::Arc,
 };
 
-use parcel_core::{Environment, FileSystem, PathId};
+use parcel_core::{Environment, ExportsCondition, FileSystem, PathId};
 use parcel_resolver::ModuleType;
 use rquickjs::{
   Ctx, Module,
@@ -50,6 +50,7 @@ impl ModuleResolver {
   pub fn new(project_root: PathId, fs: Arc<dyn FileSystem>) -> Self {
     let mut resolver = parcel_resolver::Resolver::node_esm(project_root);
     resolver.flags |= parcel_resolver::Flags::TYPESCRIPT;
+    resolver.conditions |= ExportsCondition::SOURCE;
 
     ModuleResolver {
       resolver: Rc::new(resolver),
