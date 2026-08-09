@@ -1,0 +1,7 @@
+{
+  "targets": {
+    "default": {
+      "outputFormat": "esmodule"
+    }
+  }
+}

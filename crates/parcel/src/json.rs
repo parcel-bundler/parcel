@@ -31,30 +31,13 @@ pub fn json_to_js(
     if let serde_json::Value::Object(obj) = json {
       let mut js = String::new();
       let mut default = String::new();
-      let mut count = 0;
-      for (k, v) in &obj {
-        if is_valid_js_identifier(&k) {
-          write!(
-            &mut js,
-            "export const {} = {};\n",
-            k,
-            serde_json::to_string(&v)?
-          )?;
-          write!(&mut default, "{},", k)?;
-        } else {
-          let mut key = format!("_export{}", count);
-          while obj.contains_key(&key) {
-            count += 1;
-            key = format!("_export{}", count);
-          }
-
-          write!(&mut js, "const {} = {};\n", key, serde_json::to_string(&v)?)?;
-          if k != "default" {
-            write!(&mut js, "export {{{} as {:?}}}\n;", key, k)?;
-          }
-          write!(&mut default, "{:?}: {},", k, key)?;
-          count += 1;
+      for (count, (k, v)) in obj.iter().enumerate() {
+        let key = format!("_export{}", count);
+        write!(&mut js, "const {} = {};\n", key, serde_json::to_string(&v)?)?;
+        if k != "default" {
+          write!(&mut js, "export {{{} as {:?}}};\n", key, k)?;
         }
+        write!(&mut default, "{:?}: {},", k, key)?;
       }
       js.push_str("export default {");
       js.push_str(&default);
@@ -72,66 +55,4 @@ pub fn json_to_js(
       serde_json::to_string(&json)?
     ))
   }
-}
-
-fn is_valid_js_identifier(s: &str) -> bool {
-  // Reserved keywords (partial list)
-  const RESERVED: &[&str] = &[
-    "break",
-    "case",
-    "catch",
-    "class",
-    "const",
-    "continue",
-    "debugger",
-    "default",
-    "delete",
-    "do",
-    "else",
-    "export",
-    "extends",
-    "finally",
-    "for",
-    "function",
-    "if",
-    "import",
-    "in",
-    "instanceof",
-    "new",
-    "return",
-    "super",
-    "switch",
-    "this",
-    "throw",
-    "try",
-    "typeof",
-    "var",
-    "void",
-    "while",
-    "with",
-    "yield",
-    "let",
-    "static",
-    "enum",
-    "await",
-  ];
-
-  if RESERVED.contains(&s) {
-    return false;
-  }
-
-  let mut chars = s.chars();
-
-  let first = match chars.next() {
-    Some(c) => c,
-    None => return false,
-  };
-
-  // First character
-  if !(first.is_ascii_alphabetic() || first == '_' || first == '$') {
-    return false;
-  }
-
-  // Remaining characters
-  chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
 }

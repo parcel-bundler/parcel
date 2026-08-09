@@ -1,0 +1,6 @@
+{
+  "exports": 1,
+  "module": 2,
+  "private": 3,
+  "var": 4
+}

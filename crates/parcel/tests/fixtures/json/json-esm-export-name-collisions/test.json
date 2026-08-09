@@ -1,0 +1,11 @@
+{
+  "description": "should avoid local binding collisions for JSON exports in ESM output",
+  "input": "index.js",
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["esmodule-helpers.js", "index.js", "local.json"]
+    }
+  ],
+  "output": [1, 2, 3, 4, 1, 2, 3, 4]
+}
