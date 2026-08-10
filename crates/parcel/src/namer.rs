@@ -45,8 +45,12 @@ impl Namer for DefaultNamer {
     if let Some(entry) = bundle.main_entry_asset {
       let asset = &bundle_graph.asset_graph.asset(entry);
       if bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
-        let relative =
-          relative_path(asset, &bundle.target.dist_dir.parent().unwrap())?.with_extension("");
+        let relative = relative_path(
+          asset,
+          &bundle.target.dist_dir.parent().unwrap(),
+          bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME),
+        )?
+        .with_extension("");
         let name = relative.to_str().unwrap();
         return Ok(Some(format_name(
           prefix,
@@ -78,7 +82,7 @@ impl Namer for DefaultNamer {
               }),
           );
           if let Some(entry_root) = entry_root {
-            let relative = relative_path(asset, &entry_root)?.with_extension("");
+            let relative = relative_path(asset, &entry_root, true)?.with_extension("");
             let name = relative.to_str().unwrap();
             return Ok(Some(format_name(
               prefix,
@@ -123,8 +127,15 @@ fn hash_bundle(asset_graph: &AssetGraph, bundle: &Bundle, project_root: &PathId)
   hash.digest()
 }
 
-fn relative_path(asset: &Asset, from: &PathId) -> Result<PathBuf, Diagnostic> {
+fn relative_path(
+  asset: &Asset,
+  from: &PathId,
+  needs_stable_name: bool,
+) -> Result<PathBuf, Diagnostic> {
   let path = asset.loc.url.to_file_path()?;
+  if path.in_node_modules() && !needs_stable_name {
+    return Ok(path.file_name().into());
+  }
   Ok(
     path
       .relative(from)
