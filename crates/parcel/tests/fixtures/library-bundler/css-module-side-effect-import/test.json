@@ -1,0 +1,14 @@
+{
+  "description": "should rewrite a side-effect import of a CSS module used by another module",
+  "input": ".",
+  "options": {"mode": "production"},
+  "bundles": [
+    {
+      "assets": ["index.js"],
+      "contains": ["./styles.module-"],
+      "notContains": ["dep/styles.module.css"]
+    },
+    {"assets": ["input.js"]},
+    {"type": "css", "assets": ["styles.module.css"]}
+  ]
+}

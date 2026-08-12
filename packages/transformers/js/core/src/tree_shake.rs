@@ -426,6 +426,8 @@ impl<'a> VisitMut for TreeShake<'a> {
                 }
               }
               Resolution::CssModule(specifier, object) => {
+                import.src.value = specifier.as_str().into();
+                import.src.raw = None;
                 let name = import
                   .specifiers
                   .iter()
@@ -446,8 +448,6 @@ impl<'a> VisitMut for TreeShake<'a> {
                       .collect(),
                   });
                   let assign = quote!("const $name = $value" as ModuleItem, name: Ident = name.clone(), value: Expr = value.into());
-                  import.src.value = specifier.as_str().into();
-                  import.src.raw = None;
                   import.specifiers.clear();
                   nodes.insert(i + 1, assign);
                 }
