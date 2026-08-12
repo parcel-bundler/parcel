@@ -172,27 +172,35 @@ impl Loader for ModuleLoader {
             if name.ends_with(".ts") || name.ends_with(".tsx") {
               let cm = Arc::<swc_core::common::SourceMap>::default();
               let compiler = swc::Compiler::new(cm.clone());
-              source = swc::try_with_handler(cm.clone(), Default::default(), |handler| {
-                let filename = Arc::new(FileName::Real(PathBuf::from(name)));
-                let file = cm.new_source_file(filename, source);
-                let result = compiler.process_js_file(
-                  file,
-                  handler,
-                  &swc::config::Options {
-                    swcrc: false,
-                    config: swc::config::Config {
-                      jsc: swc::config::JscConfig {
-                        syntax: Some(Syntax::Typescript(TsSyntax::default())),
+              let globals = swc_core::common::Globals::new();
+
+              source = swc_core::common::GLOBALS
+                .set(&globals, || {
+                  swc::try_with_handler(cm.clone(), Default::default(), |handler| {
+                    let filename = Arc::new(FileName::Real(PathBuf::from(name)));
+                    let file = cm.new_source_file(filename, source);
+                    let result = compiler.process_js_file(
+                      file,
+                      handler,
+                      &swc::config::Options {
+                        swcrc: false,
+                        config: swc::config::Config {
+                          jsc: swc::config::JscConfig {
+                            syntax: Some(Syntax::Typescript(TsSyntax::default())),
+                            ..Default::default()
+                          },
+                          ..Default::default()
+                        },
                         ..Default::default()
                       },
-                      ..Default::default()
-                    },
-                    ..Default::default()
-                  },
-                )?;
-                Ok(result.code)
-              })
-              .unwrap();
+                    )?;
+                    Ok(result.code)
+                  })
+                })
+                .map_err(|e| rquickjs::Error::Loading {
+                  name: name.into(),
+                  message: Some(e.to_pretty_string()),
+                })?;
             }
 
             let module = Module::declare(ctx.clone(), name, source)?;
