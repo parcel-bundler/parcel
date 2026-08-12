@@ -597,11 +597,15 @@ fn resolve_symbol<G: SymbolGraph>(
     .position(|export| export.exported == name)
   {
     let export = &asset.symbols.indirect[indirect_index];
+    let dep_index = export.dep_index;
+    let imported = export.imported.clone();
+    // Preserve the re-export even when its dependency is external and cannot be followed.
+    graph.mark_indirect_requested(asset_node_index, indirect_index);
+
+    let asset = graph.asset(asset_index);
     if let DependencyResolution::Asset(resolved_asset_index) =
-      asset.dependencies[export.dep_index as usize].resolution
+      asset.dependencies[dep_index as usize].resolution
     {
-      let imported = export.imported.clone();
-      graph.mark_indirect_requested(asset_node_index, indirect_index);
       let resolution = resolve_symbol(
         graph,
         resolved_asset_index,

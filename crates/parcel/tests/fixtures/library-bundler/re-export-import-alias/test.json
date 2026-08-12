@@ -1,0 +1,15 @@
+{
+  "description": "should preserve re-exports alongside an aliased imported export",
+  "input": ".",
+  "options": { "mode": "production" },
+  "output": {
+    "Cell": "cell",
+    "Column": "column",
+    "TableHeader": "table-header"
+  },
+  "bundles": [
+    { "assets": ["index.js"] },
+    { "assets": ["impl.js"] },
+    { "assets": ["esmodule-helpers.js"] }
+  ]
+}
