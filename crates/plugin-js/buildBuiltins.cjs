@@ -65,3 +65,56 @@ for (let dir of dirs) {
 fs.mkdirSync(__dirname + '/builtins/constants');
 fs.writeFileSync(__dirname + '/builtins/constants/index.js', `module.exports = ${JSON.stringify(require('constants'), null, 2)};\n`);
 fs.writeFileSync(__dirname + '/builtins/util/util.js', fs.readFileSync(__dirname + '/builtins/util/util.js', 'utf8') + '\nexports.TextDecoder = TextDecoder;\nexports.TextEncoder = TextEncoder;\n');
+
+// These files are embedded in the binary (see `Builtins` in src/cjs.rs), so minify
+// them. Top-level names are left alone: each module is evaluated inside a CommonJS
+// wrapper, and some of these packages depend on `fn.name` / `constructor.name`.
+const {minifySync} = require('@swc/core');
+
+function walk(dir, out = []) {
+  for (let entry of fs.readdirSync(dir, {withFileTypes: true})) {
+    let p = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      walk(p, out);
+    } else if (entry.name.endsWith('.js')) {
+      out.push(p);
+    }
+  }
+  return out;
+}
+
+let before = 0;
+let after = 0;
+let failed = [];
+for (let file of walk(__dirname + '/builtins')) {
+  let source = fs.readFileSync(file, 'utf8');
+  before += source.length;
+  let opts = {
+    compress: true,
+    mangle: {toplevel: false, keep_classnames: true},
+    sourceMap: false
+  };
+  let code;
+  try {
+    ({code} = minifySync(source, opts));
+  } catch (err) {
+    try {
+      // A few of these ship an ESM build, which won't parse as a script.
+      ({code} = minifySync(source, {...opts, module: true}));
+    } catch (err2) {
+      failed.push(path.relative(__dirname, file));
+    }
+  }
+  // Fall back to the original if minification failed or made the file bigger.
+  if (code && code.length < source.length) {
+    fs.writeFileSync(file, code);
+    after += code.length;
+  } else {
+    after += source.length;
+  }
+}
+
+console.log(`builtins: minified ${(before / 1e6).toFixed(2)}MB -> ${(after / 1e6).toFixed(2)}MB`);
+if (failed.length) {
+  console.log(`builtins: could not minify ${failed.length} file(s), kept as-is: ${failed.join(', ')}`);
+}
