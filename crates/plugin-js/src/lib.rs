@@ -14,6 +14,7 @@ pub use crate::{cjs::CjsLoader, esm::create_esm_loader, macros::call_macro};
 pub use plugin::JsPlugin;
 
 mod bytecode;
+mod transpile;
 mod cjs;
 mod console;
 mod encoding;

@@ -17,6 +17,16 @@ parcel_sourcemap = { version = "*", features = ["json"] }
 indexmap = { version = "2.11.0", features = ["serde"] }
 data-encoding = "2.3.2"
 url = "*"
-swc = "64"
-swc_core = "66"
+swc_core = { version = "66", features = [
+  "common",
+  "ecma_ast",
+  "ecma_codegen",
+  "ecma_parser",
+  "ecma_parser_typescript",
+  "ecma_transforms",
+  "ecma_transforms_module",
+  "ecma_transforms_typescript",
+  "ecma_visit",
+  "ecma_helpers_inline",
+] }
 rust-embed = { version = "8.11.0", features = ["compression"] }
