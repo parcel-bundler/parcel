@@ -12,7 +12,7 @@ edition = "2024"
 bitflags = { version = "2.7.0", features = ["serde"] }
 papaya = "0.2.4"
 glob-match = "0.2.1"
-indexmap = { version = "1.9.2", features = ["serde"] }
+indexmap = { version = "2.11.0", features = ["serde"] }
 itertools = "0.10.5"
 parking_lot = "0.12"
 percent-encoding = "2.2.0"

@@ -27,7 +27,7 @@ swc_core = { version = "66", features = [
   "ecma_visit",
 ] }
 convert_case = "0.6.0"
-indexmap = { version = "1.9.2", features = ["serde"] }
+indexmap = { version = "2.11.0", features = ["serde"] }
 ref-cast = "1.0"
 parcel-core = { path = "../core" }
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }

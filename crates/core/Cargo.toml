@@ -22,7 +22,7 @@ xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 rustc-hash = "2.0.0"
 parcel_sourcemap = "*"
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
-hstr = { version = "1.0.0", features = ["serde"] }
+hstr = { version = "3.0.5", features = ["serde"] }
 either = "1.15.0"
 anstyle = "*"
 dotenvy = "0.15.7"

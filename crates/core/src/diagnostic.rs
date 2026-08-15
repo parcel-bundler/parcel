@@ -875,12 +875,30 @@ fn render_highlighted<R: CodeFrameRenderer>(code: &str, lang: AssetType, rendere
   res
 }
 
+/// The single tree-sitter grammar used for every JS dialect: JS, JSX, TS and TSX.
+///
+/// TSX is a superset of the other three, so one grammar highlights them all, and
+/// the query sets below still differ per dialect. This matters for binary size: a
+/// tree-sitter parse table costs `LARGE_STATE_COUNT * SYMBOL_COUNT * 2` bytes, and
+/// the TypeScript grammars are an order of magnitude larger than the JavaScript one
+/// (1193x376 and 1167x393, versus 387x261). Referencing only this one lets the
+/// linker dead-strip `LANGUAGE_TYPESCRIPT` and `tree_sitter_javascript::LANGUAGE`,
+/// which is worth ~1.8MB. `tree_sitter_javascript` is still a dependency because we
+/// use its queries, but none of its tables are linked in.
+///
+/// The one thing TSX cannot parse is a `.ts` angle-bracket type assertion
+/// (`<T>expr`), which it reads as a JSX element. That syntax is discouraged in
+/// favour of `as`, and the cost is a mis-highlighted span in a code frame.
+fn ts_grammar() -> tree_sitter::Language {
+  tree_sitter_typescript::LANGUAGE_TSX.into()
+}
+
 fn highlight_tokens(code: &str, lang: AssetType) -> Vec<HighlightToken<'_>> {
   use tree_sitter_highlight::{HighlightConfiguration, HighlightEvent, Highlighter};
 
   let mut config = match lang {
     AssetType::Js => HighlightConfiguration::new(
-      tree_sitter_javascript::LANGUAGE.into(),
+      ts_grammar(),
       "javascript",
       tree_sitter_javascript::HIGHLIGHT_QUERY,
       tree_sitter_javascript::INJECTIONS_QUERY,
@@ -891,7 +909,7 @@ fn highlight_tokens(code: &str, lang: AssetType) -> Vec<HighlightToken<'_>> {
       let mut highlights = tree_sitter_javascript::JSX_HIGHLIGHT_QUERY.to_owned();
       highlights.push_str(tree_sitter_javascript::HIGHLIGHT_QUERY);
       HighlightConfiguration::new(
-        tree_sitter_javascript::LANGUAGE.into(),
+        ts_grammar(),
         "jsx",
         &highlights,
         tree_sitter_javascript::INJECTIONS_QUERY,
@@ -907,7 +925,7 @@ fn highlight_tokens(code: &str, lang: AssetType) -> Vec<HighlightToken<'_>> {
       locals.push_str(tree_sitter_javascript::LOCALS_QUERY);
 
       HighlightConfiguration::new(
-        tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
+        ts_grammar(),
         "typescript",
         &highlights,
         tree_sitter_javascript::INJECTIONS_QUERY,
@@ -924,7 +942,7 @@ fn highlight_tokens(code: &str, lang: AssetType) -> Vec<HighlightToken<'_>> {
       locals.push_str(tree_sitter_javascript::LOCALS_QUERY);
 
       HighlightConfiguration::new(
-        tree_sitter_typescript::LANGUAGE_TSX.into(),
+        ts_grammar(),
         "tsx",
         &highlights,
         tree_sitter_javascript::INJECTIONS_QUERY,
