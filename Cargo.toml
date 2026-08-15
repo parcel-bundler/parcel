@@ -16,6 +16,9 @@ panic = 'abort'
 strip = true
 
 [patch.crates-io]
+# Swap browserslist-rs for the oxc fork (compressed caniuse data) everywhere,
+# including inside swc's preset_env_base.
+browserslist-rs = { path = "crates/browserslist-compat" }
 html5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "xmlns-attrs" }
 xml5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "xmlns-attrs" }
 markup5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "xmlns-attrs" }
