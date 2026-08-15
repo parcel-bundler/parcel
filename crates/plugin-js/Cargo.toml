@@ -19,4 +19,4 @@ data-encoding = "2.3.2"
 url = "*"
 swc = "64"
 swc_core = "66"
-rust-embed = "8.11.0"
+rust-embed = { version = "8.11.0", features = ["compression"] }
