@@ -1,0 +1,10 @@
+{
+  "description": "should support scss imports in html for more than one target",
+  "input": ["target1.html", "target2.html"],
+  "bundles": [
+    {"name": "target1.html", "type": "html", "assets": ["target1.html"]},
+    {"type": "css", "assets": ["style.scss"]},
+    {"name": "target2.html", "type": "html", "assets": ["target2.html"]},
+    {"type": "ttf", "assets": ["fa-regular-400.ttf"]}
+  ]
+}

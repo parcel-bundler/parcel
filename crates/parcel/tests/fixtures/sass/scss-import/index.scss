@@ -1,0 +1,7 @@
+@use 'foo' as *;
+@use './bar.scss' as *;
+
+.index {
+  color: $foo;
+  background-color: $bar;
+}

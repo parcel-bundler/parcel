@@ -1,0 +1,13 @@
+{
+  "description": "should support scss imports",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js"]},
+    {
+      "type": "css",
+      "assets": ["index.scss"],
+      "contains": [".index", ".foo", ".bar"]
+    }
+  ],
+  "output": 2
+}

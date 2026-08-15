@@ -1,0 +1,8 @@
+{
+  "description": "should support npm scheme",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js"]},
+    {"type": "css", "assets": ["main.scss"], "contains": [".foo"]}
+  ]
+}

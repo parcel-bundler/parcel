@@ -15,6 +15,7 @@
     ],
     "*.css": ["@parcel/transformer-css"],
     "*.style": ["@parcel/transformer-style-attr"],
+    "*.{sass,scss}": ["@parcel/transformer-sass"],
     "*.{html,xhtml}": ["@parcel/transformer-html"],
     "*.svg": ["@parcel/transformer-svg"],
     "*.{png,jpeg,jpg,gif,webp,tiff,bmp,ico,avif}": [

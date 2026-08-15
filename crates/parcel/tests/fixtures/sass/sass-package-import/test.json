@@ -1,0 +1,12 @@
+{
+  "description": "should import from packages with a string sass key in package.json",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js"]},
+    {
+      "type": "css",
+      "assets": ["main.css", "main.scss"],
+      "contains": [".foo .bar", "color: green"]
+    }
+  ]
+}

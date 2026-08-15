@@ -1,0 +1,15 @@
+{
+  "description": "should support linking to assets with url() from scss",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js"]},
+    {"type": "jpeg", "assets": ["image.jpeg"]},
+    {
+      "type": "css",
+      "assets": ["index.scss"],
+      "contains": ["test-", ".woff2", "http://google.com", ".index"]
+    },
+    {"type": "woff2", "assets": ["test.woff2"]}
+  ],
+  "output": 2
+}

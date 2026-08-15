@@ -1,0 +1,12 @@
+{
+  "description": "should support absolute imports",
+  "input": "style.scss",
+  "bundles": [
+    {
+      "name": "style.css",
+      "type": "css",
+      "assets": ["style.scss"],
+      "contains": [".a", ".b"]
+    }
+  ]
+}

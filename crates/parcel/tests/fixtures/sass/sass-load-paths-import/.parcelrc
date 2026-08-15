@@ -1,0 +1,13 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "*.{sass,scss}": [
+      {
+        "plugin": "@parcel/transformer-sass",
+        "config": {
+          "loadPaths": ["include-path"]
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "description": "should support node_modules imports",
+  "input": "index.sass",
+  "bundles": [
+    {
+      "name": "index.css",
+      "type": "css",
+      "assets": ["index.sass"],
+      "contains": [".external"]
+    }
+  ]
+}

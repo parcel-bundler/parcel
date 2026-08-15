@@ -3159,6 +3159,7 @@ dependencies = [
  "parcel-plugin-abi",
  "parcel-plugin-js",
  "parcel-resolver",
+ "parcel-sass",
  "parcel-tailwind",
  "parcel-watcher",
  "parcel_sourcemap",
@@ -3426,6 +3427,17 @@ dependencies = [
  "serde",
  "serde_json",
  "url",
+]
+
+[[package]]
+name = "parcel-sass"
+version = "0.1.1"
+dependencies = [
+ "parcel-core",
+ "parcel-resolver",
+ "sasso",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -4391,6 +4403,12 @@ checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
 ]
+
+[[package]]
+name = "sasso"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5e4d4c8fdf9fa1f39de89fd0ea47754257d03166aab2fa151f1da9e826faf70"
 
 [[package]]
 name = "schemars"

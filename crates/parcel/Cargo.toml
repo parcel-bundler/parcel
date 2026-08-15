@@ -19,6 +19,7 @@ serde = { version = "1.0.228", features = ["derive", "rc"] }
 parcel-watcher = { git = "https://github.com/parcel-bundler/watcher.git", branch = "rust" }
 parcel-plugin-js = { path = "../plugin-js" }
 parcel-tailwind = { path = "../tailwind" }
+parcel-sass = { path = "../sass" }
 tiny_http = "0.12.0"
 tungstenite = "0.28.0"
 url = "*"

@@ -1,0 +1,12 @@
+{
+  "description": "should support the custom webpack/sass node_modules syntax",
+  "input": "index.sass",
+  "bundles": [
+    {
+      "name": "index.css",
+      "type": "css",
+      "assets": ["index.sass"],
+      "contains": [".external"]
+    }
+  ]
+}

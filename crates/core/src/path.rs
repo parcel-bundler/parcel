@@ -8,6 +8,7 @@ use std::sync::{Arc, LazyLock};
 
 use papaya::HashMap;
 use rustc_hash::FxHasher;
+use smallvec::smallvec;
 
 static GLOBAL_INTERNER: LazyLock<PathInterner> = LazyLock::new(|| PathInterner::new());
 static NODE_MODULES: LazyLock<SegmentId> =
@@ -268,6 +269,50 @@ impl SubPath {
 
   pub fn file(name: &str) -> SubPath {
     SubPath(smallvec::smallvec![GLOBAL_INTERNER.intern_segment(name)])
+  }
+
+  pub fn file_name(&self) -> &str {
+    let last = self.0.last().unwrap();
+    &GLOBAL_INTERNER.segments[last.0 as usize]
+  }
+
+  pub fn parent(&self) -> SubPath {
+    if self.0.len() == 0 {
+      SubPath(smallvec![])
+    } else {
+      let slice = self.0[0..self.0.len() - 1].into();
+      SubPath(slice)
+    }
+  }
+
+  pub fn child(&self, name: &str) -> SubPath {
+    let mut child = self.0.clone();
+    child.push(GLOBAL_INTERNER.intern_segment(name));
+    SubPath(child)
+  }
+
+  pub fn add_extension(&self, ext: &str) -> SubPath {
+    SCRATCH_NAME.with(|scratch| {
+      let scratch = unsafe { &mut *scratch.get() };
+      scratch.clear();
+      scratch.push_str(self.file_name());
+      scratch.push('.');
+      scratch.push_str(ext);
+
+      self.parent().child(&scratch)
+    })
+  }
+
+  pub fn to_url_path(&self) -> String {
+    let mut s = String::new();
+    for part in &self.0 {
+      let p = &GLOBAL_INTERNER.segments[part.0 as usize];
+      if !s.is_empty() {
+        s.push('/');
+      }
+      s.push_str(p);
+    }
+    s
   }
 }
 

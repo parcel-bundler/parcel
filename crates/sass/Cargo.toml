@@ -1,0 +1,14 @@
+[package]
+authors = ["Devon Govett <devongovett@gmail.com>"]
+name = "parcel-sass"
+version = "0.1.1"
+license = "MIT"
+repository = "https://github.com/parcel-bundler/parcel"
+edition = "2024"
+
+[dependencies]
+parcel-core = { path = "../core" }
+parcel-resolver = { path = "../parcel-resolver" }
+sasso = "0.8.1"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1.0.91", features = ["preserve_order"] }

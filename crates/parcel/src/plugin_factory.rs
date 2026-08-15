@@ -14,6 +14,7 @@ use parcel_plugin_abi::{
 };
 use parcel_plugin_js::JsPlugin;
 use parcel_resolver::{Resolution, Specifier, SpecifierType};
+use parcel_sass::SassTransformer;
 use parcel_tailwind::TailwindTransformer;
 
 use crate::{
@@ -76,6 +77,7 @@ impl PluginFactory for DefaultPluginFactory {
       "@parcel/transformer-yaml" => Arc::new(YamlTransformer {}),
       "@parcel/transformer-tailwind" => Arc::new(TailwindTransformer {}),
       "@parcel/transformer-inline" => Arc::new(InlineTransformer {}),
+      "@parcel/transformer-sass" => Arc::new(SassTransformer::new(config, from)?),
       "@parcel/transformer-raw" => Arc::new(RawTransformer {}),
       _ => match self.resolve_plugin("transformer", name, from, config)? {
         ResolvedPlugin::Native(plugin) => plugin,
