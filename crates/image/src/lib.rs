@@ -44,12 +44,9 @@ impl Transformer for ImageTransformer {
       } else if key == "as" {
         format = match &*val {
           "png" => Some(AssetType::Png),
-          "jpeg" => Some(AssetType::Jpeg),
-          "jpg" => Some(AssetType::Jpeg),
+          "jpeg" | "jpg" => Some(AssetType::Jpeg),
           "gif" => Some(AssetType::Gif),
           "webp" => Some(AssetType::WebP),
-          "tiff" => Some(AssetType::Tiff),
-          "bmp" => Some(AssetType::Bmp),
           "ico" => Some(AssetType::Ico),
           "avif" => Some(AssetType::Avif),
           _ => None,
@@ -187,11 +184,6 @@ impl Transformer for ImageTransformer {
           output.get_mut().extend_from_slice(&mem);
           Ok(())
         }
-        AssetType::Tiff => {
-          img.write_with_encoder(image::codecs::tiff::TiffEncoder::new(&mut output))
-        }
-        AssetType::Bmp => img.write_with_encoder(image::codecs::bmp::BmpEncoder::new(&mut output)),
-        AssetType::Ico => img.write_with_encoder(image::codecs::ico::IcoEncoder::new(&mut output)),
         AssetType::Avif => {
           img.write_with_encoder(image::codecs::avif::AvifEncoder::new_with_speed_quality(
             &mut output,
@@ -199,7 +191,12 @@ impl Transformer for ImageTransformer {
             quality.unwrap_or(80),
           ))
         }
-        _ => unreachable!(),
+        format => {
+          return Err(
+            Diagnostic::from_message(format!("unsupported image format {}", format.extension()))
+              .into(),
+          );
+        }
       }
       .unwrap();
 
