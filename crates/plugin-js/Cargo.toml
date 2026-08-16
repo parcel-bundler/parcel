@@ -16,6 +16,13 @@ parcel-macros = { path = "../macros" }
 parcel_sourcemap = { version = "*", features = ["json"] }
 indexmap = { version = "2.11.0", features = ["serde"] }
 data-encoding = "2.3.2"
+flate2 = { version = "1.1.9", default-features = false, features = [
+  "rust_backend",
+] }
+getrandom = "0.3"
+md-5 = "0.10"
+sha1 = "0.10"
+sha2 = "0.10"
 url = "*"
 swc_core = { version = "77", features = [
   "common",

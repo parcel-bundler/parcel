@@ -13,19 +13,23 @@ use crate::fs::FileSystemData;
 pub use crate::{cjs::CjsLoader, esm::create_esm_loader, macros::call_macro};
 pub use plugin::JsPlugin;
 
+mod buffer;
 mod bytecode;
-mod transpile;
 mod cjs;
 mod console;
+mod crypto;
 mod encoding;
 mod esm;
 mod fs;
 mod macros;
+mod path;
 mod plugin;
 mod process;
 mod structured_clone;
+mod transpile;
 mod url;
 mod url_search_params;
+mod zlib;
 
 pub struct JsEnv {
   pub context: Context,
@@ -157,6 +161,7 @@ pub fn create_runtime(
       "structuredClone",
       Function::new(ctx.clone(), structured_clone::structured_clone)?,
     )?;
+    global.set("crypto", crypto::webcrypto_module(&ctx)?)?;
 
     if environment != Environment::Browser {
       let req = Function::new(ctx.clone(), cjs::require)?;

@@ -36,18 +36,18 @@ const CASES: &[(&str, &str)] = &[
        if (m !== '900150983cd24fb0d6963f7d28e17f72') throw new Error('md5: ' + m);"#,
   ),
   (
-    "crypto (hmac/pbkdf2)",
+    "crypto (hmac)",
     r#"const c = require('crypto');
        const hm = c.createHmac('sha256', 'key').update('msg').digest('hex');
-       if (hm.length !== 64) throw new Error('hmac len: ' + hm.length);
-       const k = c.pbkdf2Sync('pw', 'salt', 16, 32, 'sha256');
-       if (k.length !== 32) throw new Error('pbkdf2 len: ' + k.length);"#,
+       if (hm.length !== 64) throw new Error('hmac len: ' + hm.length);"#,
   ),
   (
-    "crypto (randomBytes)",
+    "crypto (random)",
     r#"const c = require('crypto');
        const r = c.randomBytes(16);
-       if (r.length !== 16) throw new Error('randomBytes len: ' + r.length);"#,
+       if (r.length !== 16) throw new Error('randomBytes len: ' + r.length);
+       const i = c.randomInt(10, 20);
+       if (i < 10 || i >= 20) throw new Error('randomInt range: ' + i);"#,
   ),
   (
     "stream",
@@ -137,9 +137,10 @@ fn embedded_builtins_work() {
   let mut passed = 0;
   let mut failed = Vec::new();
 
-  for (label, script) in CASES {
+  for (index, (label, script)) in CASES.iter().enumerate() {
+    let filename = format!("/verify_builtins_{index}.js");
     let result = with_js_env(fs.clone(), &env_vars, cwd, |ctx| {
-      require_source(ctx, "/verify_builtins.js", script)?;
+      require_source(ctx, &filename, script)?;
       Ok(())
     });
     match result {

@@ -394,6 +394,26 @@ fn test_url_module() {
 }
 
 #[test]
+fn test_path_module() {
+  run(
+    r#"
+    import path, {join, normalize, parse, posix, win32, sep, delimiter} from 'path';
+    import nodePath, {relative as nodeRelative} from 'node:path';
+
+    if (join !== path.join || normalize !== path.normalize || parse !== path.parse)
+      throw new Error('path named exports do not match the default export');
+    if (join('/a/b', '../c') !== '/a/c') throw new Error('path.join');
+    if (normalize('/a//b/../c') !== '/a/c') throw new Error('path.normalize');
+    if (parse('/a/file.js').ext !== '.js') throw new Error('path.parse');
+    if (posix !== path || win32 !== null || sep !== '/' || delimiter !== ':')
+      throw new Error('path platform exports');
+    if (nodePath.join('/a', 'b') !== '/a/b' || nodeRelative('/a/b', '/a/c') !== '../c')
+      throw new Error('node:path import');
+    "#,
+  );
+}
+
+#[test]
 fn test_atob() {
   run(
     r#"

@@ -2554,6 +2554,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "md-5"
+version = "0.10.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d89e7ee0cfbedfc4da3340218492196241d89eefb6dab27de5df917a6d2e78cf"
+dependencies = [
+ "cfg-if",
+ "digest 0.10.7",
+]
+
+[[package]]
 name = "mdxjs"
 version = "1.0.4"
 source = "git+https://github.com/vercel-labs/mdxjs-rs-turbopack.git?branch=turbopack#e527df80a17e5b38a93130c21662b1e9e55af501"
@@ -3386,7 +3396,10 @@ name = "parcel-plugin-js"
 version = "0.1.0"
 dependencies = [
  "data-encoding",
+ "flate2",
+ "getrandom 0.3.4",
  "indexmap 2.14.0",
+ "md-5",
  "parcel-core",
  "parcel-macros",
  "parcel-resolver",
@@ -3397,6 +3410,8 @@ dependencies = [
  "rust-embed",
  "serde",
  "serde_json",
+ "sha1",
+ "sha2 0.10.9",
  "swc_core",
  "url",
 ]
@@ -4409,7 +4424,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42ffa149f6aa81b58a5b3011d01a857c4ed12c7a732d2c51947a4c7c692185f0"
 dependencies = [
  "include-flate",
- "sha2",
+ "sha2 0.11.0",
  "walkdir",
 ]
 
@@ -4705,6 +4720,17 @@ name = "sha1"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a978451301f4db1d02937a4ab3ccce137717b81826e79b7d49ffe3244a13c3b8"
+dependencies = [
+ "cfg-if",
+ "cpufeatures 0.2.17",
+ "digest 0.10.7",
+]
+
+[[package]]
+name = "sha2"
+version = "0.10.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
 dependencies = [
  "cfg-if",
  "cpufeatures 0.2.17",

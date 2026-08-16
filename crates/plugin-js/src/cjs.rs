@@ -1,8 +1,4 @@
-use std::{
-  borrow::Cow,
-  path::Path,
-  sync::Arc,
-};
+use std::{borrow::Cow, path::Path, sync::Arc};
 
 use parcel_core::{ExportsCondition, FileSystem, PathId, resolve_path};
 use parcel_resolver::ModuleType;
@@ -10,10 +6,11 @@ use rquickjs::{Ctx, FromJs, Function, IntoJs, JsLifetime, Module, Object, Value,
 use rust_embed::Embed;
 
 use crate::{
-  bytecode,
-  transpile::ModuleKind,
+  buffer, bytecode, crypto,
   fs::{Fs, FsPromises},
-  url,
+  path,
+  transpile::ModuleKind,
+  url, zlib,
 };
 
 #[derive(Embed)]
@@ -38,14 +35,29 @@ impl CjsLoader {
   pub fn resolve(&self, ctx: &Ctx, base: &str, name: &str) -> rquickjs::Result<String> {
     if base.starts_with("builtin:") {
       if name.starts_with(".") {
-        let mut resolved = resolve_path(Path::new(base), Path::new(name));
-        if !resolved.as_os_str().as_encoded_bytes().contains(&b'/') {
-          resolved.push("index.js");
+        let builtin_base = base.strip_prefix("builtin:").unwrap();
+        let resolved = resolve_path(Path::new(builtin_base), Path::new(name));
+        let mut candidates = vec![resolved.clone()];
+        if resolved.extension().is_none() {
+          let mut file = resolved.clone();
+          file.add_extension("js");
+          candidates.push(file);
+          candidates.push(resolved.join("index.js"));
+          candidates.push(resolved.join("index.json"));
         }
-        if !resolved.as_os_str().as_encoded_bytes().ends_with(b".js") {
+
+        for candidate in candidates {
+          let candidate = candidate.to_str().unwrap();
+          if Builtins::get(candidate).is_some() {
+            return Ok(format!("builtin:{candidate}"));
+          }
+        }
+
+        let mut resolved = resolved;
+        if resolved.extension().is_none() {
           resolved.add_extension("js");
         }
-        return Ok(resolved.to_str().unwrap().to_string());
+        return Ok(format!("builtin:{}", resolved.to_str().unwrap()));
       } else if name.starts_with("builtin:") {
         return Ok(name.to_string());
       } else {
@@ -84,13 +96,13 @@ impl CjsLoader {
       "buffer" => "buffer",
       "console" => return Ok("builtin:console".into()),
       "constants" => "constants",
-      "crypto" => "crypto-browserify",
+      "crypto" => return Ok("builtin:crypto".into()),
       "domain" => "domain-browser",
       "events" => "events",
       "fs" => return Ok("builtin:fs".into()),
       "fs/promises" => return Ok("builtin:fs/promises".into()),
       "os" => "os-browserify",
-      "path" => "path-browserify",
+      "path" => return Ok("builtin:path".into()),
       "process" => return Ok("builtin:process".into()),
       "punycode" => "punycode",
       "querystring" => "querystring-es3",
@@ -100,7 +112,7 @@ impl CjsLoader {
       "tty" => "tty-browserify",
       "url" => return Ok("builtin:url".into()),
       "util" => "util",
-      "zlib" => "browserify-zlib",
+      "zlib" => "native-zlib",
       _ => {
         if error {
           return Err(rquickjs::Exception::throw_message(
@@ -135,6 +147,9 @@ impl CjsLoader {
         "console" => {
           return globals.get("console");
         }
+        "crypto" => {
+          return Ok(crypto::crypto_module(ctx)?.into_value());
+        }
         "fs" => {
           return Fs {}.into_js(ctx);
         }
@@ -144,8 +159,20 @@ impl CjsLoader {
         "process" => {
           return globals.get("process");
         }
+        "path" => {
+          return Ok(path::path_module(ctx)?.into_value());
+        }
         "url" => {
           return Ok(url::url_module(ctx)?.into_value());
+        }
+        "base64-js/index.js" => {
+          return Ok(buffer::base64_module(ctx)?.into_value());
+        }
+        "buffer-native/index.js" => {
+          return Ok(buffer::native_module(ctx)?.into_value());
+        }
+        "zlib-native" | "zlib-native/index.js" => {
+          return Ok(zlib::native_module(ctx)?.into_value());
         }
         module => {
           let embedded_module = module
@@ -153,6 +180,12 @@ impl CjsLoader {
             .map(|module| format!("url/{module}"));
           let embedded_module = embedded_module.as_deref().unwrap_or(module);
           if let Some(file) = Builtins::get(embedded_module) {
+            if embedded_module.ends_with(".json") {
+              let module = Object::new(ctx.clone())?;
+              cache.set(resolved, module.clone())?;
+              module.set("exports", ctx.json_parse(file.data.as_ref())?)?;
+              return module.get("exports");
+            }
             let source = match file.data {
               Cow::Borrowed(data) => Cow::Borrowed(std::str::from_utf8(data).unwrap()),
               Cow::Owned(data) => Cow::Owned(String::from_utf8(data).unwrap()),
@@ -211,7 +244,7 @@ impl CjsLoader {
     &self,
     ctx: &Ctx<'js>,
     resolved: &str,
-    mut source: Cow<'_, str>,
+    source: Cow<'_, str>,
   ) -> rquickjs::Result<Value<'js>> {
     let globals = ctx.globals();
     let require: Object = globals.get("require")?;

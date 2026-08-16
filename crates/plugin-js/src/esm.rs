@@ -1,23 +1,21 @@
-use std::{
-  path::Path,
-  rc::Rc,
-  sync::Arc,
-};
+use std::{path::Path, rc::Rc, sync::Arc};
 
+use crate::{
+  CjsLoader, bytecode,
+  console::Console,
+  crypto::Crypto,
+  fs::{Fs, FsPromises},
+  path::PathModule,
+  process::Process,
+  transpile::ModuleKind,
+  url::UrlModule,
+};
 use parcel_core::{Environment, ExportsCondition, FileSystem, PathId};
 use parcel_resolver::ModuleType;
 use rquickjs::{
   Ctx, Module,
   loader::{Loader, Resolver},
   module::WriteOptions,
-};
-use crate::{
-  CjsLoader, bytecode,
-  transpile::ModuleKind,
-  console::Console,
-  fs::{Fs, FsPromises},
-  process::Process,
-  url::UrlModule,
 };
 
 pub fn create_esm_loader(
@@ -121,8 +119,10 @@ impl Loader for ModuleLoader {
     if name.starts_with("builtin:") && self.environment != Environment::Browser {
       match &name[8..] {
         "console" => return Module::declare_def::<Console, _>(ctx.clone(), "console"),
+        "crypto" => return Module::declare_def::<Crypto, _>(ctx.clone(), "crypto"),
         "fs" => return Module::declare_def::<Fs, _>(ctx.clone(), "fs"),
         "fs/promises" => return Module::declare_def::<FsPromises, _>(ctx.clone(), "fs/promises"),
+        "path" => return Module::declare_def::<PathModule, _>(ctx.clone(), "path"),
         "process" => return Module::declare_def::<Process, _>(ctx.clone(), "process"),
         "url" => return Module::declare_def::<UrlModule, _>(ctx.clone(), "url"),
         name => {
