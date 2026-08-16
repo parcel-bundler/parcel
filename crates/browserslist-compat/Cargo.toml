@@ -3,7 +3,7 @@
 # workspace root can substitute this crate for the real one everywhere in the
 # graph, including inside swc (`preset_env_base`).
 name = "browserslist-rs"
-version = "0.19.0"
+version = "0.20.0"
 edition = "2024"
 
 [lib]

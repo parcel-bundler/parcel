@@ -1156,8 +1156,8 @@ impl<'a> DependencyCollector<'a> {
           Arrow(f) => {
             let param = f.params.first();
             let body = match &*f.body {
-              ast::BlockStmtOrExpr::Expr(expr) => Some(&**expr),
-              ast::BlockStmtOrExpr::BlockStmt(block) => self.match_block_stmt_expr(block),
+              ast::ArrowFunctionBody::Expr(expr) => Some(&**expr),
+              ast::ArrowFunctionBody::FunctionBody(block) => self.match_block_stmt_expr(block),
             };
             (param, body)
           }
@@ -1194,7 +1194,7 @@ impl<'a> DependencyCollector<'a> {
     node.fold_children_with(self)
   }
 
-  fn match_block_stmt_expr<'x>(&self, block: &'x ast::BlockStmt) -> Option<&'x ast::Expr> {
+  fn match_block_stmt_expr<'x>(&self, block: &'x ast::FunctionBody) -> Option<&'x ast::Expr> {
     match block.stmts.last() {
       Some(ast::Stmt::Expr(ast::ExprStmt { expr, .. })) => Some(&**expr),
       Some(ast::Stmt::Return(ast::ReturnStmt { arg, .. })) => {
@@ -1265,13 +1265,12 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
               expr: Box::new(ast::Expr::Fn(ast::FnExpr {
                 ident: None,
                 function: Box::new(ast::Function {
-                  body: Some(ast::BlockStmt {
+                  body: Some(ast::FunctionBody {
                     span: DUMMY_SP,
                     stmts: vec![ast::Stmt::Return(ast::ReturnStmt {
                       span: DUMMY_SP,
                       arg: Some(Box::new(ast::Expr::Call(require_node.clone()))),
                     })],
-                    ctxt: SyntaxContext::empty(),
                   }),
                   params: vec![],
                   decorators: vec![],
@@ -1281,6 +1280,7 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
                   type_params: None,
                   span: DUMMY_SP,
                   ctxt: SyntaxContext::empty(),
+                  this_param: None,
                 }),
               })),
               spread: None,

@@ -17,7 +17,7 @@ parcel_sourcemap = { version = "*", features = ["json"] }
 indexmap = { version = "2.11.0", features = ["serde"] }
 data-encoding = "2.3.2"
 url = "*"
-swc_core = { version = "66", features = [
+swc_core = { version = "77", features = [
   "common",
   "ecma_ast",
   "ecma_codegen",
@@ -29,4 +29,4 @@ swc_core = { version = "66", features = [
   "ecma_visit",
   "ecma_helpers_inline",
 ] }
-rust-embed = { version = "8.11.0", features = ["compression"] }
+rust-embed = { version = "8.12.0", features = ["compression"] }

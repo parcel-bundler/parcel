@@ -13,12 +13,12 @@ typed-arena = "2.0.2"
 xml5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "xmlns-attrs" }
 cssparser = "0.37.0"
 oxvg_ast = { version = "0.0.6", git = "https://github.com/devongovett/oxvg.git", branch = "update-lightningcss" }
-oxvg_collections =  { version = "0.0.6", git = "https://github.com/devongovett/oxvg.git", branch = "update-lightningcss" }
-oxvg_optimiser =  { version = "0.0.6", git = "https://github.com/devongovett/oxvg.git", branch = "update-lightningcss" }
-oxvg_serialize =  { version = "0.0.6", git = "https://github.com/devongovett/oxvg.git", branch = "update-lightningcss" }
-lightningcss = "1.0.0-alpha.72"
+oxvg_collections = { version = "0.0.6", git = "https://github.com/devongovett/oxvg.git", branch = "update-lightningcss" }
+oxvg_optimiser = { version = "0.0.6", git = "https://github.com/devongovett/oxvg.git", branch = "update-lightningcss" }
+oxvg_serialize = { version = "0.0.6", git = "https://github.com/devongovett/oxvg.git", branch = "update-lightningcss" }
+lightningcss = { version = "1.0.0-alpha.72", default-features = false }
 anyhow = "*"
-swc_core = { version = "66", features = [
+swc_core = { version = "77", features = [
   "common",
   "ecma_parser",
   "ecma_ast",
@@ -26,7 +26,7 @@ swc_core = { version = "66", features = [
   "ecma_quote",
   "ecma_visit",
 ] }
-convert_case = "0.6.0"
+convert_case = "0.10.0"
 indexmap = { version = "2.11.0", features = ["serde"] }
 ref-cast = "1.0"
 parcel-core = { path = "../core" }

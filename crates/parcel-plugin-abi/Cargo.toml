@@ -6,11 +6,11 @@ edition = "2024"
 
 [build-dependencies]
 cbindgen = "0.29"
-bindgen = "0.70"
+bindgen = "0.72.1"
 
 [dependencies]
 parcel-core = { path = "../core" }
-libloading = "0.9"
+libloading = "0.8.5"
 hstr = { version = "3.0.5", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }

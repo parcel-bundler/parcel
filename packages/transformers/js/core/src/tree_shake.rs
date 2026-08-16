@@ -104,7 +104,7 @@ pub fn tree_shake<'a>(
           Ident::new("module".into(), DUMMY_SP, wrapper_ctxt).into(),
           Ident::new("exports".into(), DUMMY_SP, wrapper_ctxt).into(),
         ],
-        body: Some(BlockStmt {
+        body: Some(FunctionBody {
           stmts: module
             .body
             .into_iter()
@@ -335,25 +335,27 @@ impl<'a> VisitMut for TreeShake<'a> {
                       Prop::Getter(GetterProp {
                         span: DUMMY_SP,
                         key: PropName::Str((*key).into()),
-                        type_ann: None,
-                        body: Some(BlockStmt {
-                          stmts: if *exp == "default" {
-                            vec![
-                              quote!(
-                                "var m = $require($id);" as Stmt,
+                        function: Box::new(Function {
+                          body: Some(FunctionBody {
+                            stmts: if *exp == "default" {
+                              vec![
+                                quote!(
+                                  "var m = $require($id);" as Stmt,
+                                  require: Ident = self.require_ident(),
+                                  id: Expr = id.clone().into(),
+                                ),
+                                quote!("return m.__esModule ? m.default : m;" as Stmt),
+                              ]
+                            } else {
+                              vec![quote!(
+                                "return $require($id)[$exp];" as Stmt,
                                 require: Ident = self.require_ident(),
                                 id: Expr = id.clone().into(),
-                              ),
-                              quote!("return m.__esModule ? m.default : m;" as Stmt),
-                            ]
-                          } else {
-                            vec![quote!(
-                              "return $require($id)[$exp];" as Stmt,
-                              require: Ident = self.require_ident(),
-                              id: Expr = id.clone().into(),
-                              exp: Expr = (*exp).into()
-                            )]
-                          },
+                                exp: Expr = (*exp).into()
+                              )]
+                            },
+                            ..Default::default()
+                          }),
                           ..Default::default()
                         }),
                       })

@@ -60,7 +60,7 @@ fn to_jsx<'arena>(dom: &'arena Node<'arena>) -> JSXElementChild {
     NodeData::Text { contents } => {
       let value: Atom = contents.borrow().as_ref().into();
       JSXElementChild::JSXText(JSXText {
-        value: value.clone(),
+        value: value.clone().into(),
         raw: value,
         span: DUMMY_SP,
       })
@@ -889,7 +889,7 @@ pub fn to_component<'arena>(dom: &'arena Node<'arena>, options: &JsxOptions) -> 
     ident: Some(Ident::new_private("SvgComponent".into(), DUMMY_SP)),
     function: Box::new(Function {
       params,
-      body: Some(BlockStmt {
+      body: Some(FunctionBody {
         stmts: vec![Stmt::Return(ReturnStmt {
           arg: Some(Box::new(expr)),
           ..Default::default()

@@ -9,16 +9,20 @@ napi = ["dep:napi", "dep:napi-derive", "dep:crossbeam-channel"]
 
 [dependencies]
 indexmap = { version = "2.11.0", features = ["serde"] }
-swc_core = { version = "66", features = [
+swc_core = { version = "77", features = [
   "common",
   "common_sourcemap",
   "ecma_ast",
   "ecma_parser",
   "ecma_visit",
   "stacker",
-  "__utils"
+  "__utils",
 ] }
 serde = "1.0.228"
 napi-derive = { version = "2.12.5", optional = true }
-napi = { version =  "2.16.4", features = ["serde-json", "napi4", "napi5"], optional = true }
+napi = { version = "2.16.4", features = [
+  "serde-json",
+  "napi4",
+  "napi5",
+], optional = true }
 crossbeam-channel = { version = "0.5.6", optional = true }

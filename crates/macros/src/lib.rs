@@ -402,7 +402,7 @@ impl<'a> Evaluator<'a> {
         Lit::Bool(v) => Ok(JsValue::Bool(v.value)),
         Lit::Num(v) => Ok(JsValue::Number(v.value)),
         Lit::Str(v) => Ok(JsValue::String(v.value.to_string_lossy().into_owned())),
-        Lit::JSXText(v) => Ok(JsValue::String(v.value.to_string())),
+        Lit::JSXText(v) => Ok(JsValue::String(v.value.to_string_lossy().into_owned())),
         Lit::Regex(v) => Ok(JsValue::Regex {
           source: v.exp.to_string(),
           flags: v.flags.to_string(),

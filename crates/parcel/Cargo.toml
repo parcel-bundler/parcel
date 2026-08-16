@@ -23,7 +23,7 @@ parcel-sass = { path = "../sass" }
 tiny_http = "0.12.0"
 tungstenite = "0.28.0"
 url = "*"
-toml = "1.1.2"
+toml = "0.9.12+spec-1.1.0"
 serde_yaml_ng = "0.10"
 base64-url = "3.0.2"
 data-encoding = "2.3.2"
@@ -37,7 +37,7 @@ percent-encoding = "2.2.0"
 parcel_sourcemap = { version = "*", features = ["json"] }
 rquickjs = { version = "0.11.0", features = ["full"] }
 rquickjs-serde = "0.4.0"
-testing_macros = "1.0.1"
+testing_macros = "1.0.2"
 pretty_assertions = "1.4.1"
 criterion = { version = "*", features = ["html_reports"] }
 

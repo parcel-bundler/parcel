@@ -16,10 +16,18 @@ parcel-resolver = { path = "../parcel-resolver" }
 parcel-macros = { path = "../macros" }
 node-semver = "2.2.0"
 glob-match = "*"
-swc_core = { version = "66", features = ["ecma_ast", "ecma_quote"] }
+swc_core = { version = "77", features = ["ecma_ast", "ecma_quote"] }
 fixedbitset = "0.5.7"
 bytecount = "0.6.9"
 simd-utf16-len = "0.1.0"
 
 [build-dependencies]
-swc_core = { version = "66", features = ["common", "ecma_ast", "ecma_codegen", "ecma_minifier", "ecma_parser", "ecma_transforms", "ecma_visit"] }
+swc_core = { version = "77", features = [
+  "common",
+  "ecma_ast",
+  "ecma_codegen",
+  "ecma_minifier",
+  "ecma_parser",
+  "ecma_transforms",
+  "ecma_visit",
+] }

@@ -187,9 +187,8 @@ impl ESMFold {
           Expr::Fn(FnExpr {
             ident: None,
             function: Box::new(Function {
-              body: Some(BlockStmt {
+              body: Some(FunctionBody {
                 span: DUMMY_SP,
-                ctxt: SyntaxContext::empty(),
                 stmts: vec![Stmt::Return({
                   ReturnStmt {
                     span: DUMMY_SP,
@@ -205,6 +204,7 @@ impl ESMFold {
               ctxt: SyntaxContext::empty(),
               return_type: None,
               type_params: None,
+              this_param: None
             }),
           })
         } else {
