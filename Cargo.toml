@@ -22,3 +22,4 @@ browserslist-rs = { path = "crates/browserslist-compat" }
 html5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "xmlns-attrs" }
 xml5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "xmlns-attrs" }
 markup5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "xmlns-attrs" }
+ravif = { git = "https://github.com/devongovett/cavif-rs.git", branch = "bit_depth_10" }
