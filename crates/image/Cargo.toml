@@ -17,7 +17,9 @@ image = { version = "0.25.9", default-features = false, features = [
   "tiff",
   "webp",
 ] }
-fast_image_resize = { version = "5.4.0", features = ["image"] }
+fast_image_resize = { version = "5.4.0", default-features = false, features = [
+  "only_u8x4",
+] }
 webp = "0.3.1"
 oxipng = { version = "9.1.2", default-features = false, features = [
   "parallel",

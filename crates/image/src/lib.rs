@@ -1,10 +1,7 @@
 use std::{io::Cursor, sync::Arc};
 
-use fast_image_resize::{IntoImageView, PixelType, ResizeOptions, Resizer, images::Image};
-use image::{
-  DynamicImage, GrayAlphaImage, GrayImage, ImageDecoder, ImageFormat, ImageReader, RgbImage,
-  RgbaImage,
-};
+use fast_image_resize::{PixelType, ResizeOptions, Resizer, images::Image};
+use image::{ColorType, DynamicImage, ImageDecoder, ImageFormat, ImageReader, RgbaImage};
 use parcel_core::*;
 
 use crate::jpeg::{MozJpegEncoder, optimize_jpeg_lossless};
@@ -69,7 +66,9 @@ impl Transformer for ImageTransformer {
         _ => return Ok(asset),
       });
 
-      let mut decoder = reader.into_decoder().unwrap();
+      let mut decoder = reader
+        .into_decoder()
+        .map_err(|e| Diagnostic::from_message(e.to_string()))?;
       let orientation = decoder.orientation();
       let mut img = DynamicImage::from_decoder(decoder).map_err(|err| Diagnostic {
         message: err.to_string(),
@@ -92,10 +91,22 @@ impl Transformer for ImageTransformer {
         let h = height.unwrap_or_else(|| {
           ((width.unwrap() as f32) / (img.width() as f32) * (img.height() as f32)) as u32
         });
-        let mut dest_image = Image::new(w, h, img.pixel_type().unwrap());
+        // fast_image_resize is built with `only_u8x4`, which drops every pixel
+        // layout except RGBA8, so convert first and resize in one layout. The
+        // source layout is restored afterwards -- encoders branch on it (a Luma8
+        // image must still reach mozjpeg as JCS_GRAYSCALE, not a 3x larger colour
+        // JPEG), and oxipng only reduces colour types for PNG output.
+        let src_color = img.color();
+        // `into_` not `to_`: this moves when the source is already RGBA8 instead of
+        // copying the full-size source buffer.
+        let src = img.into_rgba8();
+        let src_image =
+          Image::from_vec_u8(src.width(), src.height(), src.into_raw(), PixelType::U8x4)
+            .map_err(|e| Diagnostic::from_message(e.to_string()))?;
+        let mut dest_image = Image::new(w, h, PixelType::U8x4);
         resizer
           .resize(
-            &img,
+            &src_image,
             &mut dest_image,
             Some(&ResizeOptions {
               algorithm: fast_image_resize::ResizeAlg::Convolution(
@@ -104,19 +115,20 @@ impl Transformer for ImageTransformer {
               ..Default::default()
             }),
           )
-          .unwrap();
+          .map_err(|e| Diagnostic::from_message(e.to_string()))?;
 
-        let w = dest_image.width();
-        let h = dest_image.height();
-        let pixel_type = dest_image.pixel_type();
-        let data = dest_image.into_vec();
-        img = match pixel_type {
-          PixelType::U8 => DynamicImage::ImageLuma8(GrayImage::from_raw(w, h, data).unwrap()),
-          PixelType::U8x2 => {
-            DynamicImage::ImageLumaA8(GrayAlphaImage::from_raw(w, h, data).unwrap())
+        let resized = DynamicImage::ImageRgba8(
+          RgbaImage::from_raw(w, h, dest_image.into_vec()).expect("resized buffer is RGBA8"),
+        );
+        img = match src_color {
+          ColorType::L8 | ColorType::L16 => DynamicImage::ImageLuma8(resized.to_luma8()),
+          ColorType::La8 | ColorType::La16 => DynamicImage::ImageLumaA8(resized.to_luma_alpha8()),
+          ColorType::Rgb8 | ColorType::Rgb16 | ColorType::Rgb32F => {
+            DynamicImage::ImageRgb8(resized.to_rgb8())
           }
-          PixelType::U8x3 => DynamicImage::ImageRgb8(RgbImage::from_raw(w, h, data).unwrap()),
-          _ => DynamicImage::ImageRgba8(RgbaImage::from_raw(w, h, data).unwrap()),
+          // 16-bit and float sources come back as 8-bit. Resizing them was a hard
+          // panic before this (the old code reinterpreted a u16 buffer as u8).
+          _ => resized,
         };
       }
 
@@ -162,13 +174,15 @@ impl Transformer for ImageTransformer {
               },
               img.into_bytes(),
             )
-            .unwrap();
-            let res = png.create_optimized_png(&Default::default()).unwrap();
+            .map_err(|e| Diagnostic::from_message(e.to_string()))?;
+            let res = png
+              .create_optimized_png(&Default::default())
+              .map_err(|e| Diagnostic::from_message(e.to_string()))?;
             *output.get_mut() = res;
           } else {
             img
               .write_with_encoder(image::codecs::png::PngEncoder::new(&mut output))
-              .unwrap();
+              .map_err(|e| Diagnostic::from_message(e.to_string()))?;
           }
           Ok(())
         }
@@ -179,7 +193,7 @@ impl Transformer for ImageTransformer {
         AssetType::WebP => {
           // Built-in webp encoder in the `image` crate only supports lossless, so we use libwebp.
           let mem = webp::Encoder::from_image(&img)
-            .unwrap()
+            .map_err(|e| Diagnostic::from_message(e.to_string()))?
             .encode(quality.unwrap_or(80) as f32);
           output.get_mut().extend_from_slice(&mem);
           Ok(())
@@ -198,7 +212,7 @@ impl Transformer for ImageTransformer {
           );
         }
       }
-      .unwrap();
+      .map_err(|e| Diagnostic::from_message(e.to_string()))?;
 
       asset.content = Arc::new(BufferContent::new(output.into_inner()));
       if let Some(format) = format {
