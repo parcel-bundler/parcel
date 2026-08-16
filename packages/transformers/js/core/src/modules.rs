@@ -19,7 +19,12 @@ use crate::{
   utils::{get_undefined_ident, match_export_name, match_export_name_ident},
 };
 
-pub fn esm2cjs(node: Module, unresolved_mark: Mark, versions: Option<Versions>) -> (Module, bool) {
+pub fn esm2cjs(
+  node: Module,
+  unresolved_mark: Mark,
+  versions: Option<Versions>,
+  esm_helpers: &str,
+) -> (Module, bool) {
   let mut fold = ESMFold {
     imports: HashMap::new(),
     require_names: HashMap::new(),
@@ -34,6 +39,7 @@ pub fn esm2cjs(node: Module, unresolved_mark: Mark, versions: Option<Versions>) 
     unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
     versions,
     is_esm: false,
+    esm_helpers: esm_helpers.into(),
   };
 
   let module = node.fold_with(&mut fold);
@@ -59,6 +65,7 @@ struct ESMFold {
   unresolved_ctxt: SyntaxContext,
   versions: Option<Versions>,
   is_esm: bool,
+  esm_helpers: JsWord,
 }
 
 fn local_name_for_src(src: &JsWord) -> JsWord {
@@ -588,7 +595,7 @@ impl Fold for ESMFold {
               .into(),
             ),
             init: Some(Box::new(Expr::Call(crate::utils::create_require(
-              "@parcel/transformer-js/src/esmodule-helpers.js".into(),
+              self.esm_helpers.clone(),
               self.unresolved_mark,
             )))),
             definite: false,
@@ -665,4 +672,28 @@ impl Fold for ESMFold {
   }
 
   fold_member_expr_skip_prop! {}
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::test_utils::run_with_transformation;
+
+  #[test]
+  fn uses_configured_esm_helpers() {
+    let (output, needs_helpers) =
+      run_with_transformation("export default 42", |context, module| {
+        let (result, needs_helpers) = esm2cjs(
+          module.clone(),
+          context.unresolved_mark,
+          None,
+          "@parcel/parcel3/src/esmodule-helpers.js",
+        );
+        *module = result;
+        needs_helpers
+      });
+
+    assert!(needs_helpers);
+    assert!(output.contains(r#"require("@parcel/parcel3/src/esmodule-helpers.js")"#));
+  }
 }

@@ -4195,6 +4195,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@parcel/parcel3@workspace:packages/core/parcel3":
+  version: 0.0.0-use.local
+  resolution: "@parcel/parcel3@workspace:packages/core/parcel3"
+  languageName: unknown
+  linkType: soft
+
 "@parcel/plugin@npm:2.16.3, @parcel/plugin@workspace:packages/core/plugin":
   version: 0.0.0-use.local
   resolution: "@parcel/plugin@workspace:packages/core/plugin"

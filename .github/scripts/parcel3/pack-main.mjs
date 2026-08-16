@@ -68,6 +68,11 @@ fs.copyFileSync(
   path.join(stage, 'bin', 'parcel3'),
 );
 fs.chmodSync(path.join(stage, 'bin', 'parcel3'), 0o755);
+fs.cpSync(
+  path.join(import.meta.dirname, '../../../packages/core/parcel3/src'),
+  path.join(stage, 'src'),
+  {recursive: true},
+);
 
 let pkg = {
   name: '@parcel/parcel3',
@@ -79,7 +84,7 @@ let pkg = {
     url: 'https://github.com/parcel-bundler/parcel.git',
   },
   bin: {parcel3: 'bin/parcel3'},
-  files: ['bin'],
+  files: ['bin', 'src'],
   // The launcher uses process.execve where it can, added in Node 23.11, and
   // falls back to spawnSync everywhere else.
   engines: {node: '>= 18'},

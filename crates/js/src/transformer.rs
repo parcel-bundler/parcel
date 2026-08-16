@@ -416,7 +416,7 @@ impl Transformer for JsTransformer {
     if res.needs_esm_helpers {
       let index = asset.dependencies.len() as u32;
       asset.dependencies.push(Dependency {
-        specifier: "@parcel/transformer-js/src/esmodule-helpers.js".into(),
+        specifier: "@parcel/parcel3/src/esmodule-helpers.js".into(),
         specifier_type: SpecifierType::Esm,
         priority: Priority::Sync,
         bundle_behavior: BundleBehavior::None,
@@ -965,5 +965,7 @@ fn config(
       .query()
       .map_or(false, |q| q.contains("standalone=true")), // TODO: use a real parser
     inline_constants: transformer.inline_constants,
+    esm_helpers: Some("@parcel/parcel3/src/esmodule-helpers.js".into()),
+    mdx_components: Some("@parcel/parcel3/src/mdx-components".into()),
   })
 }

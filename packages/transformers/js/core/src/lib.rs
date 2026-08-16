@@ -78,6 +78,9 @@ pub use utils::{Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
+const DEFAULT_ESM_HELPERS: &str = "@parcel/transformer-js/src/esmodule-helpers.js";
+pub(crate) const DEFAULT_MDX_COMPONENTS: &str = "@parcel/transformer-js/src/mdx-components";
+
 #[derive(Default, Serialize, Debug, Deserialize)]
 pub struct Config {
   pub filename: String,
@@ -110,6 +113,8 @@ pub struct Config {
   pub is_swc_helpers: bool,
   pub standalone: bool,
   pub inline_constants: bool,
+  pub esm_helpers: Option<String>,
+  pub mdx_components: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -781,7 +786,13 @@ pub fn transform_to_ast(
             }
 
             if !config.is_library || !config.is_esm_output {
-              let (module, needs_helpers) = esm2cjs(module, unresolved_mark, versions);
+              let (module, needs_helpers) =
+                esm2cjs(
+                  module,
+                  unresolved_mark,
+                  versions,
+                  config.esm_helpers.as_deref().unwrap_or(DEFAULT_ESM_HELPERS),
+                );
               result.needs_esm_helpers = needs_helpers;
               module
             } else {

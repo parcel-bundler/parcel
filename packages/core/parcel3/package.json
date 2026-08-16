@@ -1,0 +1,13 @@
+{
+  "name": "@parcel/parcel3",
+  "version": "3.0.0",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "files": [
+    "src"
+  ]
+}
