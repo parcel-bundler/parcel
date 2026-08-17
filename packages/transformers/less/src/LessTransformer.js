@@ -2,8 +2,9 @@
 import {typeof default as Less} from 'less';
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
-import SourceMap from '@parcel/source-map';
+// import SourceMap from '@parcel/source-map';
 import less from 'less';
+import fs from 'fs';
 
 import {load} from './loadConfig';
 
@@ -24,21 +25,28 @@ export default (new Transformer({
 
   async transform({asset, options, config, resolve}) {
     asset.type = 'css';
-    asset.meta.hasDependencies = false;
+    // asset.meta.hasDependencies = false;
 
     let code = await asset.getCode();
     let result;
     try {
-      let lessConfig: LessConfig = config ? {...config.config} : {};
+      let lessConfig: LessConfig = {};
 
-      if (asset.env.sourceMap) {
-        lessConfig.sourceMap = {};
+      if (config?.paths) {
+        lessConfig.paths = config?.paths.map(p => path.join(options.projectRoot, p));
       }
 
+
+      // if (asset.env.sourceMap) {
+      //   lessConfig.sourceMap = {};
+      // }
+
       lessConfig.filename = asset.filePath;
+      lessConfig.relativeUrls = true;
+      console.log(lessConfig);
       lessConfig.plugins = [
-        ...(lessConfig.plugins || []),
-        urlPlugin({asset}),
+        // ...(lessConfig.plugins || []),
+        // urlPlugin({asset}),
         resolvePathPlugin({asset, resolve}),
       ];
 
@@ -53,15 +61,15 @@ export default (new Transformer({
       throw err;
     }
 
-    if (result.map != null) {
-      let map = new SourceMap(options.projectRoot);
-      let rawMap = JSON.parse(result.map);
-      map.addVLQMap({
-        ...rawMap,
-        sources: rawMap.sources.map(s => path.relative(options.projectRoot, s)),
-      });
-      asset.setMap(map);
-    }
+    // if (result.map != null) {
+    //   let map = new SourceMap(options.projectRoot);
+    //   let rawMap = JSON.parse(result.map);
+    //   map.addVLQMap({
+    //     ...rawMap,
+    //     sources: rawMap.sources.map(s => path.relative(options.projectRoot, s)),
+    //   });
+    //   asset.setMap(map);
+    // }
 
     asset.setCode(result.css);
 
@@ -142,10 +150,10 @@ function resolvePathPlugin({asset, resolve}) {
                 }
 
                 try {
-                  contents = await asset.fs.readFile(filePath, 'utf8');
+                  contents = fs.readFileSync(filePath, 'utf8');
                   break outer;
                 } catch (err) {
-                  asset.invalidateOnFileCreate({filePath});
+                  // asset.invalidateOnFileCreate({filePath});
                 }
               }
             }
@@ -155,11 +163,11 @@ function resolvePathPlugin({asset, resolve}) {
             filePath = await resolve(asset.filePath, filename, {
               packageConditions: ['less', 'style'],
             });
-            contents = await asset.fs.readFile(filePath, 'utf8');
+            contents = fs.readFileSync(filePath, 'utf8');
           }
 
           if (filePath) {
-            asset.invalidateOnFileChange(filePath);
+            // asset.invalidateOnFileChange(filePath);
           }
 
           return {

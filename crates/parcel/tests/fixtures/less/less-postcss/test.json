@@ -1,0 +1,13 @@
+{
+  "description": "should support css modules in less",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js"]},
+    {
+      "type": "css",
+      "assets": ["index.module.less"],
+      "contains": ["_index"]
+    },
+    {"type": "svg", "assets": ["img.svg"]}
+  ]
+}

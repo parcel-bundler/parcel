@@ -1,0 +1,13 @@
+{
+  "description": "should support less imports",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js"]},
+    {
+      "type": "css",
+      "assets": ["index.less"],
+      "contains": [".a", ".b", ".c", ".d"]
+    }
+  ],
+  "output": 2
+}

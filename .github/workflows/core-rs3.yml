@@ -27,4 +27,5 @@ jobs:
         with:
           shared-key: ${{ matrix.os }}
       - run: yarn --immutable
+      - run: yarn gulp
       - run: cargo test --workspace --exclude parcel-node-bindings --tests

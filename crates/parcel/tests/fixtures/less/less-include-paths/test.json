@@ -1,0 +1,13 @@
+{
+  "description": "should support configuring less include paths",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js"]},
+    {
+      "type": "css",
+      "assets": ["index.less"],
+      "contains": [".a", ".b"]
+    }
+  ],
+  "output": 2
+}

@@ -1,0 +1,12 @@
+{
+  "description": "should ignore url() with IE behavior specifiers",
+  "input": "index.less",
+  "bundles": [
+    {
+      "name": "index.css",
+      "type": "css",
+      "assets": ["index.less"],
+      "contains": ["url(\"#default#VML\")"]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "description": "should support the less package exports condition",
+  "input": "index.less",
+  "bundles": [
+    {
+      "name": "index.css",
+      "type": "css",
+      "assets": ["index.less"],
+      "contains": [".a"]
+    }
+  ]
+}

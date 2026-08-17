@@ -1,0 +1,19 @@
+{
+  "description": "should support advanced less imports",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js"]},
+    {
+      "type": "css",
+      "assets": ["index.less"],
+      "contains": [
+        ".a",
+        ".external-index",
+        ".external-a",
+        ".external-with-main",
+        ".explicit-external-a"
+      ]
+    }
+  ],
+  "output": 2
+}

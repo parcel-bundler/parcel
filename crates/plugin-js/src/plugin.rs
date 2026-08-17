@@ -257,23 +257,63 @@ impl Transformer for JsPlugin {
     options: &parcel_core::ParcelOptions,
     fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
   ) -> std::result::Result<Asset, parcel_core::DiagnosticList> {
-    let asset = with_js_env(fs.clone(), &options.env, options.cwd, |ctx| {
-      let config = plugin_config(&ctx, &self.path)?;
-      let transform: Function = config.get("transform")?;
-      let asset = JsAsset::owned(asset);
-      let value = asset.into_js(&ctx)?;
-      let options = Object::new(ctx.clone())?;
-      options.set("asset", value.clone())?;
-      options.set("config", self.config_to_js(ctx)?)?;
-      let res: rquickjs::Value = transform.call((options,))?;
-      await_promise(ctx, res)?;
-      let obj = Class::<JsAsset>::from_js(&ctx, value)?;
-      let js_asset = &mut *obj.borrow_mut();
-      let asset = js_asset.take_owned().expect("Asset already taken");
-      Ok(asset)
-    })?;
+    with_call_scope(|scope| {
+      let asset = with_js_env(fs.clone(), &options.env, options.cwd, |ctx| {
+        let config = plugin_config(&ctx, &self.path)?;
+        let transform: Function = config.get("transform")?;
+        let asset = JsAsset::owned(asset);
+        let value = asset.into_js(&ctx)?;
+        let opts = Object::new(ctx.clone())?;
+        opts.set("asset", value.clone())?;
+        opts.set("config", self.config_to_js(ctx)?)?;
+        opts.set(
+          "options",
+          JsOptions {
+            options: scope.wrap(options),
+          },
+        )?;
+        let project_root = options.project_root;
+        let resolver_fs = fs.clone();
+        opts.set(
+          "resolve",
+          Function::new(
+            ctx.clone(),
+            move |from: String, specifier: String| -> rquickjs::Result<String> {
+              // TODO: this should use the configured resolver plugins.
+              let resolver = parcel_resolver::Resolver::parcel(project_root);
+              let res = resolver.resolve_with_options(
+                &specifier,
+                PathId::new(Path::new(&from)),
+                parcel_resolver::SpecifierType::Esm,
+                &*resolver_fs,
+                parcel_resolver::ResolveOptions {
+                  conditions: ExportsCondition::LESS | ExportsCondition::STYLE, // TODO: get from options
+                  custom_conditions: Vec::new(),
+                },
+              );
+              match res {
+                Ok(resolved) => {
+                  if let parcel_resolver::Resolution::Path(p) = resolved.resolution {
+                    return Ok(p.to_path_buf().to_string_lossy().into_owned());
+                  } else {
+                    todo!()
+                  }
+                }
+                Err(_) => todo!(),
+              }
+            },
+          ),
+        )?;
+        let res: rquickjs::Value = transform.call((opts,))?;
+        await_promise(ctx, res)?;
+        let obj = Class::<JsAsset>::from_js(&ctx, value)?;
+        let js_asset = &mut *obj.borrow_mut();
+        let asset = js_asset.take_owned().expect("Asset already taken");
+        Ok(asset)
+      })?;
 
-    Ok(asset)
+      Ok(asset)
+    })
   }
 }
 
@@ -298,6 +338,12 @@ impl Resolver for JsPlugin {
         opts.set("specifier", specifier)?;
         opts.set("pipeline", pipeline)?;
         opts.set("config", self.config_to_js(ctx)?)?;
+        opts.set(
+          "options",
+          JsOptions {
+            options: scope.wrap(options),
+          },
+        )?;
 
         let res: rquickjs::Value = resolve.call((opts,))?;
         let res = await_promise(ctx, res)?;
@@ -402,6 +448,12 @@ impl Namer for JsPlugin {
           JsBundleGraph::new(bundles.clone(), assets.clone()),
         )?;
         args.set("config", self.config_to_js(ctx)?)?;
+        args.set(
+          "options",
+          JsOptions {
+            options: scope.wrap(options),
+          },
+        )?;
         let result: rquickjs::Value = name.call((args,))?;
         let result = await_promise(&ctx, result)?;
         Option::<String>::from_js(&ctx, result)
@@ -526,6 +578,12 @@ impl Reporter for JsPlugin {
 
       with_js_env(options.input_fs.clone(), &options.env, options.cwd, |ctx| {
         let args = Object::new(ctx.clone())?;
+        args.set(
+          "options",
+          JsOptions {
+            options: scope.wrap(options),
+          },
+        )?;
         match event {
           ReporterEvent::BuildStart => {}
 
@@ -827,6 +885,20 @@ impl JsAsset {
   #[qjs(get)]
   fn url(&self) -> rquickjs::Result<String> {
     self.with_asset(|asset| asset.loc.url.to_string())
+  }
+
+  #[qjs(get)]
+  fn file_path(&self) -> rquickjs::Result<String> {
+    self.with_asset(|asset| {
+      asset
+        .loc
+        .url
+        .to_file_path()
+        .unwrap()
+        .to_path_buf()
+        .to_string_lossy()
+        .into_owned()
+    })
   }
 
   #[qjs(get, rename = "type")]
@@ -1153,6 +1225,30 @@ impl JsDependency {
   #[qjs(get)]
   pub fn range(&self) -> rquickjs::Result<Option<String>> {
     self.dep.with(|dep| dep.range.clone())
+  }
+}
+
+#[derive(JsLifetime)]
+#[rquickjs::class]
+pub struct JsOptions {
+  options: ScopedRef<parcel_core::ParcelOptions>,
+}
+
+impl<'js> Trace<'js> for JsOptions {
+  fn trace<'a>(&self, _tracer: class::Tracer<'a, 'js>) {}
+}
+
+#[methods(rename_all = "camelCase")]
+impl JsOptions {
+  #[qjs(get)]
+  pub fn project_root(&self) -> rquickjs::Result<String> {
+    self.options.with(|options| {
+      options
+        .project_root
+        .to_path_buf()
+        .to_string_lossy()
+        .into_owned()
+    })
   }
 }
 

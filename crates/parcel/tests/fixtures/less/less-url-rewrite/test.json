@@ -1,0 +1,15 @@
+{
+  "description": "should support less url rewrites",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js"]},
+    {
+      "type": "css",
+      "assets": ["index.less"],
+      "contains": [".a", ".b"]
+    },
+    {"type": "woff2", "assets": ["a.woff2"]},
+    {"type": "woff2", "assets": ["b.woff2"]}
+  ],
+  "output": 2
+}

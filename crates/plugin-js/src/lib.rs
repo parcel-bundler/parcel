@@ -5,7 +5,8 @@ use parcel_core::{
   SourceUrl,
 };
 use rquickjs::{
-  Context, Ctx, Function, Object, Persistent, Runtime, Value, class::JsClass, object::Accessor,
+  Coerced, Context, Ctx, Function, Object, Persistent, Runtime, Value, class::JsClass,
+  function::This, object::Accessor,
 };
 use rquickjs_extra_console::Formatter;
 
@@ -195,40 +196,29 @@ pub fn create_runtime(
 }
 
 fn error_to_diagnostic<'js>(e: Value<'js>) -> Diagnostic {
-  let mut file: Option<String> = None;
-  let mut line_number: Option<u32> = None;
-  let mut column_number: Option<u32> = None;
+  let object = e.as_object();
+  let mut stack = None;
   let message = if let Some(exception) = e.as_exception() {
     let message = exception.message().unwrap_or_else(|| exception.to_string());
-    if let Some(stack) = exception.stack() {
-      let mut line = stack.split('\n').next().unwrap();
-      if line.ends_with(')') {
-        line = &line[0..line.len() - 1];
-      }
-      if let Some(column_pos) = line.rfind(':') {
-        column_number = line[column_pos + 1..].parse().ok();
-        line = &line[0..column_pos];
-        if let Some(line_pos) = line.rfind(':') {
-          line_number = line[line_pos + 1..].parse().ok();
-          line = &line[0..line_pos];
-        }
-      }
-      if let Some(pos) = line.find('(') {
-        file = Some(line[pos + 1..].to_string());
-      }
-    }
+    stack = exception.stack();
     message
   } else if let Some(message) = e.as_string() {
     message.to_string().unwrap_or_else(|e| e.to_string())
+  } else if let Some(object) = object {
+    stack = object_string(object, "stack");
+    object_string(object, "message").unwrap_or_else(|| "Unknown error".into())
   } else {
     "Unknown error".into()
   };
 
+  let location = object
+    .and_then(object_location)
+    .or_else(|| stack.as_deref().and_then(stack_location));
+
   Diagnostic {
     origin: None,
     message,
-    code_frames: if let (Some(file), Some(line), Some(column)) = (file, line_number, column_number)
-    {
+    code_frames: if let Some((file, line, column)) = location {
       vec![CodeFrame {
         url: Some(SourceUrl::from_path(&PathId::new(Path::new(&file)))),
         code: None,
@@ -246,6 +236,39 @@ fn error_to_diagnostic<'js>(e: Value<'js>) -> Diagnostic {
     hints: Vec::new(),
     severity: parcel_core::DiagnosticSeverity::Error,
   }
+}
+
+fn object_string(object: &Object, property: &str) -> Option<String> {
+  object
+    .get::<_, Option<Coerced<String>>>(property)
+    .ok()
+    .flatten()
+    .map(|value| value.0)
+}
+
+fn object_location(object: &Object) -> Option<(String, u32, u32)> {
+  let file = object_string(object, "filename").or_else(|| object_string(object, "fileName"))?;
+  let line = object.get::<_, Option<u32>>("line").ok().flatten()?;
+  let column = object.get::<_, Option<u32>>("column").ok().flatten()?;
+  Some((file, line, column))
+}
+
+fn stack_location(stack: &str) -> Option<(String, u32, u32)> {
+  let mut frame = stack.split('\n').next()?;
+  if frame.ends_with(')') {
+    frame = &frame[0..frame.len() - 1];
+  }
+
+  let column_pos = frame.rfind(':')?;
+  let column = frame[column_pos + 1..].parse().ok()?;
+  frame = &frame[0..column_pos];
+
+  let line_pos = frame.rfind(':')?;
+  let line = frame[line_pos + 1..].parse().ok()?;
+  frame = &frame[0..line_pos];
+
+  let file_pos = frame.find('(')?;
+  Some((frame[file_pos + 1..].to_string(), line, column))
 }
 
 fn collect_rejected_promises(ctx: &Ctx, env: &JsEnv) -> Vec<Diagnostic> {
@@ -266,9 +289,26 @@ fn collect_rejected_promises(ctx: &Ctx, env: &JsEnv) -> Vec<Diagnostic> {
 
 pub fn await_promise<'a, 'js>(ctx: &'a Ctx<'js>, res: Value<'js>) -> rquickjs::Result<Value<'js>> {
   if let Some(promise) = res.as_promise() {
+    let result = Rc::new(RefCell::new(None));
+    let resolved_result = result.clone();
+    let resolved = Function::new(ctx.clone(), move |value: Value<'js>| {
+      *resolved_result.borrow_mut() = Some(Ok(value));
+    })?;
+    let rejected_result = result.clone();
+    let rejected = Function::new(ctx.clone(), move |reason: Value<'js>| {
+      *rejected_result.borrow_mut() = Some(Err(reason));
+    })?;
+
+    promise
+      .then()?
+      .call::<_, ()>((This(promise.clone()), resolved, rejected))?;
+
     loop {
-      if let Some(result) = promise.result::<rquickjs::Value>() {
-        return result;
+      if let Some(result) = result.borrow_mut().take() {
+        return match result {
+          Ok(value) => Ok(value),
+          Err(reason) => Err(ctx.throw(reason)),
+        };
       }
 
       if !ctx.execute_pending_job() {
@@ -295,4 +335,133 @@ pub fn require_source<'js>(
 ) -> rquickjs::Result<Value<'js>> {
   let cjs = ctx.userdata::<CjsLoader>().unwrap();
   cjs.load_source(&ctx, path, Cow::Borrowed(source))
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn converts_error_like_objects_to_diagnostics() {
+    let runtime = Runtime::new().unwrap();
+    let context = Context::full(&runtime).unwrap();
+
+    context.with(|ctx| {
+      let error = ctx
+        .eval::<Value, _>(
+          r#"({
+            message: 42,
+            filename: "/tmp/source.less",
+            line: 3,
+            column: 7,
+            stack: "    at fallback (/tmp/fallback.js:10:20)"
+          })"#,
+        )
+        .unwrap();
+      let diagnostic = error_to_diagnostic(error);
+
+      assert_eq!(diagnostic.message, "42");
+      assert_location(&diagnostic, "/tmp/source.less", 3, 7);
+    });
+  }
+
+  #[test]
+  fn falls_back_to_stack_locations_for_error_like_objects() {
+    let runtime = Runtime::new().unwrap();
+    let context = Context::full(&runtime).unwrap();
+
+    context.with(|ctx| {
+      let error = ctx
+        .eval::<Value, _>(
+          r#"({
+            message: "failed",
+            stack: "    at transform (/tmp/plugin.js:12:8)"
+          })"#,
+        )
+        .unwrap();
+      let diagnostic = error_to_diagnostic(error);
+
+      assert_eq!(diagnostic.message, "failed");
+      assert_location(&diagnostic, "/tmp/plugin.js", 12, 8);
+    });
+  }
+
+  #[test]
+  fn converts_native_errors_to_diagnostics() {
+    let runtime = Runtime::new().unwrap();
+    let context = Context::full(&runtime).unwrap();
+
+    context.with(|ctx| {
+      let error = ctx.eval::<Value, _>("new Error('failed')").unwrap();
+      let diagnostic = error_to_diagnostic(error);
+
+      assert_eq!(diagnostic.message, "failed");
+    });
+  }
+
+  #[test]
+  fn awaited_rejections_are_not_reported_as_unhandled() {
+    let env = promise_env();
+    let diagnostics = env
+      .with(|ctx| {
+        let promise = ctx.eval::<Value, _>("Promise.reject({message: 'failed'})")?;
+        await_promise(ctx, promise)?;
+        Ok(())
+      })
+      .unwrap_err();
+
+    assert_eq!(diagnostics.0.len(), 1);
+    assert_eq!(diagnostics.0[0].message, "failed");
+  }
+
+  #[test]
+  fn unhandled_rejections_are_still_reported() {
+    let env = promise_env();
+    let diagnostics = env
+      .with(|ctx| {
+        ctx.eval::<Value, _>("Promise.reject({message: 'unhandled'})")?;
+        while ctx.execute_pending_job() {}
+        Ok(())
+      })
+      .unwrap_err();
+
+    assert_eq!(diagnostics.0.len(), 1);
+    assert_eq!(diagnostics.0[0].message, "unhandled");
+  }
+
+  #[test]
+  fn awaited_resolutions_return_their_value() {
+    let env = promise_env();
+    let result = env
+      .with(|ctx| {
+        let promise = ctx.eval::<Value, _>("Promise.resolve(42)")?;
+        Ok(await_promise(ctx, promise)?.as_int().unwrap())
+      })
+      .unwrap();
+
+    assert_eq!(result, 42);
+  }
+
+  fn promise_env() -> JsEnv {
+    create_runtime(
+      Arc::new(parcel_core::MemoryFileSystem::new()),
+      &HashMap::new(),
+      PathId::root(),
+      Environment::Browser,
+    )
+    .unwrap()
+  }
+
+  fn assert_location(diagnostic: &Diagnostic, file: &str, line: u32, column: u32) {
+    assert_eq!(diagnostic.code_frames.len(), 1);
+    let frame = &diagnostic.code_frames[0];
+    assert_eq!(
+      frame.url,
+      Some(SourceUrl::from_path(&PathId::new(Path::new(file))))
+    );
+    assert_eq!(frame.code_highlights.len(), 1);
+    let highlight = &frame.code_highlights[0];
+    assert_eq!(highlight.start, Location { line, column });
+    assert_eq!(highlight.end, Location { line, column });
+  }
 }
