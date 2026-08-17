@@ -27,6 +27,69 @@ pub struct EnvReplacer<'a> {
 }
 
 impl<'a> VisitMut for EnvReplacer<'a> {
+  fn visit_mut_module_items(&mut self, items: &mut Vec<ModuleItem>) {
+    let mut result = Vec::with_capacity(items.len());
+
+    for mut item in std::mem::take(items) {
+      let mut platform_declarations = vec![];
+
+      if self.is_browser {
+        if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = &mut item {
+          // The browser process polyfill intentionally omits platform. Inline named
+          // imports so the polyfill is not included solely for an undefined value.
+          if !import.type_only && import.src.value == "process" {
+            import.specifiers.retain(|specifier| {
+              let ImportSpecifier::Named(named) = specifier else {
+                return true;
+              };
+              let imported = named
+                .imported
+                .as_ref()
+                .map(|name| match_export_name(name).0)
+                .unwrap_or_else(|| named.local.sym.clone());
+
+              if imported != "platform" {
+                return true;
+              }
+
+              platform_declarations.push(VarDeclarator {
+                span: named.span,
+                name: Pat::Ident(BindingIdent::from(named.local.clone())),
+                init: Some(Box::new(Expr::Ident(get_undefined_ident(
+                  self.unresolved_mark,
+                )))),
+                definite: false,
+              });
+              false
+            });
+          }
+        }
+      }
+
+      if platform_declarations.is_empty() {
+        item.visit_mut_children_with(self);
+        result.push(item);
+        continue;
+      }
+
+      if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = &item {
+        if !import.specifiers.is_empty() {
+          result.push(item);
+        }
+      }
+
+      result.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
+        span: DUMMY_SP,
+        kind: VarDeclKind::Const,
+        declare: false,
+        decls: platform_declarations,
+        ctxt: Default::default(),
+      })))));
+    }
+
+    *items = result;
+  }
+
   fn visit_mut_expr(&mut self, node: &mut Expr) {
     // Replace assignments to process.browser with `true`
     // TODO: this seems questionable but we did it in the JS version??
@@ -566,6 +629,37 @@ function run(enabled = true) {}
 "#
     );
     // tracks that the variable was used
+    assert_eq!(used_env, HashSet::new());
+    assert_eq!(diagnostics, vec![]);
+  }
+
+  #[test]
+  fn test_replace_process_platform_imports() {
+    let env: HashMap<JsWord, JsWord> = HashMap::new();
+    let mut used_env = HashSet::new();
+    let mut diagnostics = Vec::new();
+
+    let RunVisitResult { output_code, .. } = run_visit(
+      r#"
+import process, {
+  env,
+  platform,
+  platform as currentPlatform
+} from "process";
+console.log(process, env, platform, currentPlatform);
+    "#,
+      |run_test_context: RunTestContext| {
+        make_env_replacer(run_test_context, &env, &mut used_env, &mut diagnostics)
+      },
+    );
+
+    assert_eq!(
+      output_code,
+      r#"import process, { env } from "process";
+const platform = undefined, currentPlatform = undefined;
+console.log(process, env, platform, currentPlatform);
+"#
+    );
     assert_eq!(used_env, HashSet::new());
     assert_eq!(diagnostics, vec![]);
   }
