@@ -1,0 +1,12 @@
+{
+  "description": "should support filters",
+  "input": "index.pug",
+  "bundles": [
+    {
+      "type": "html",
+      "name": "index.html",
+      "assets": ["index.pug"],
+      "contains": ["FILTERED: Hello!"]
+    }
+  ]
+}

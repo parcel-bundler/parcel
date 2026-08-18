@@ -1,0 +1,16 @@
+{
+  "description": "should support include and extends files, connect files",
+  "input": "index.pug",
+  "bundles": [
+    {
+      "type": "html",
+      "name": "index.html",
+      "assets": ["index.pug"],
+      "contains": [
+        "<!DOCTYPE html>",
+        "<h1>Yep, it's working!</h1>",
+        "<p>And for nested.</p>"
+      ]
+    }
+  ]
+}

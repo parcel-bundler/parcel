@@ -1,0 +1,12 @@
+{
+  "description": "should support locals with config",
+  "input": "index.pug",
+  "bundles": [
+    {
+      "type": "html",
+      "name": "index.html",
+      "assets": ["index.pug"],
+      "contains": ["It's a great!"]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "description": "should support bundling HTML",
+  "input": "index.pug",
+  "bundles": [
+    {
+      "type": "html",
+      "name": "index.html",
+      "assets": ["index.pug"],
+      "contains": ["100x100", "icons", ".css", ".js"]
+    },
+    {"type": "png", "assets": ["100x100.png"]},
+    {"type": "svg", "assets": ["icons.svg"]},
+    {"type": "css", "assets": ["index.css"]},
+    {"type": "js", "assets": ["index.js"]}
+  ]
+}

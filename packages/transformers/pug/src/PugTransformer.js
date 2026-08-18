@@ -30,9 +30,10 @@ export default (new Transformer({
       pretty: pugConfig.pretty || false,
     });
 
-    for (let filePath of render.dependencies) {
-      asset.invalidateOnFileChange(filePath);
-    }
+    // TODO: Re-enable once invalidateOnFileChange is supported by the JS plugin bridge.
+    // for (let filePath of render.dependencies) {
+    //   asset.invalidateOnFileChange(filePath);
+    // }
 
     asset.type = 'html';
     asset.setCode(render(pugConfig.locals));

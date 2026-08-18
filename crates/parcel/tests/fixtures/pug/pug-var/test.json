@@ -1,0 +1,13 @@
+{
+  "description": "should support variables",
+  "input": "index.pug",
+  "bundles": [
+    {
+      "type": "html",
+      "name": "index.html",
+      "assets": ["index.pug"],
+      "contains": ["src=\"100x100", ".png\""]
+    },
+    {"type": "png", "assets": ["100x100.png"]}
+  ]
+}

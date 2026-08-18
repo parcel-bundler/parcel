@@ -1,0 +1,13 @@
+{
+  "description": "should minify HTML in production mode",
+  "input": "index.pug",
+  "options": {"mode": "production"},
+  "bundles": [
+    {
+      "type": "html",
+      "name": "index.html",
+      "assets": ["index.pug"],
+      "contains": ["Minified"]
+    }
+  ]
+}

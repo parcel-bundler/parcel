@@ -1,0 +1,15 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "*.pug": [
+      {
+        "plugin": "@parcel/transformer-pug",
+        "config": {
+          "locals": {
+            "data": "great"
+          }
+        }
+      }
+    ]
+  }
+}
