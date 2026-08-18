@@ -91,6 +91,7 @@
   "resolutions": {
     "@parcel/watcher": "~2.2.0",
     "@vue/compiler-sfc": "~3.2.47",
-    "vue": "~3.2.47"
+    "vue": "~3.2.47",
+    "pbkdf2": "3.1.3"
   }
 }
