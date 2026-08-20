@@ -1,0 +1,13 @@
+{
+  "description": "should ignore paths starting with # when resolving with stylus url()",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js"]},
+    {
+      "type": "css",
+      "assets": ["index.styl"],
+      "contains": ["#clip-path", ".svg-background"]
+    }
+  ],
+  "output": 2
+}

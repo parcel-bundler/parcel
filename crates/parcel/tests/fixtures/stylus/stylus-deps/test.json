@@ -1,0 +1,13 @@
+{
+  "description": "should support requiring stylus files with dependencies",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js"]},
+    {
+      "type": "css",
+      "assets": ["index.styl"],
+      "contains": [".index", ".a", ".b", "-webkit-box", ".foo"]
+    }
+  ],
+  "output": 2
+}

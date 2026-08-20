@@ -1,6 +1,6 @@
 use std::{path::Path, sync::Arc};
 
-use parcel_core::{DirEntry, FileKind, FileSystem};
+use parcel_core::{DirEntry, FileKind, FileSystem, PathId};
 use rquickjs::{
   Ctx, Exception, FromAtom, Function, IntoJs, JsLifetime, Promise, Value,
   class::{JsClass, Trace},
@@ -179,6 +179,34 @@ impl Fs {
       Err(e) => Ok(Err(Exception::from_message(ctx, &e.to_string())?)),
     }
   }
+
+  fn glob_internal<'js>(
+    ctx: Ctx<'js>,
+    glob: String,
+    options: Option<&Value>,
+  ) -> rquickjs::Result<Result<Vec<String>, Exception<'js>>> {
+    let fs = ctx.userdata::<FileSystemData>().unwrap().0.clone();
+    let mut cwd = std::env::current_dir().unwrap();
+    if let Some(options) = options {
+      if let Some(obj) = options.as_object() {
+        cwd = obj
+          .get::<_, Value>("cwd")
+          .ok()
+          .and_then(|v| v.as_string().and_then(|s| s.to_string().ok()))
+          .map(|s| s.into())
+          .unwrap_or_default();
+      }
+    };
+
+    let cwd = PathId::new(&cwd);
+    let entries = fs.glob(&glob, cwd);
+    Ok(Ok(
+      entries
+        .into_iter()
+        .map(|e| e.relative(&cwd).to_string_lossy().into_owned())
+        .collect(),
+    ))
+  }
 }
 
 fn handle_sync<'js, V: IntoJs<'js>>(
@@ -344,6 +372,37 @@ impl Fs {
     handle_async(&callback, Fs::readdir_internal(ctx.clone(), path, options)?)
   }
 
+  pub fn glob_sync<'js>(
+    ctx: Ctx<'js>,
+    glob: String,
+    options: rquickjs::function::Opt<Value<'js>>,
+  ) -> rquickjs::Result<Value<'js>> {
+    handle_sync(
+      &ctx,
+      Fs::glob_internal(ctx.clone(), glob, options.0.as_ref())?,
+    )
+  }
+
+  pub fn glob<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    rest: rquickjs::function::Rest<Value<'js>>,
+  ) -> rquickjs::Result<()> {
+    let (options, callback) = if rest.0.len() >= 2 {
+      (Some(&rest.0[0]), rest.0[1].as_function())
+    } else {
+      (None, rest.0.first().and_then(|v| v.as_function()))
+    };
+    let Some(callback) = callback else {
+      return Err(rquickjs::Exception::throw_message(
+        &ctx,
+        "Required callback not provided",
+      ));
+    };
+
+    handle_async(&callback, Fs::glob_internal(ctx.clone(), path, options)?)
+  }
+
   pub fn open<'js>(_ctx: Ctx<'js>, path: String, _rest: rquickjs::function::Rest<Value<'js>>) {
     println!("Open {}", path);
   }
@@ -410,6 +469,17 @@ impl FsPromises {
     to_promise(
       &ctx,
       Fs::readdir_internal(ctx.clone(), path, options.0.as_ref())?,
+    )
+  }
+
+  pub fn glob<'js>(
+    ctx: Ctx<'js>,
+    glob: String,
+    options: rquickjs::function::Opt<Value<'js>>,
+  ) -> rquickjs::Result<Promise<'js>> {
+    to_promise(
+      &ctx,
+      Fs::glob_internal(ctx.clone(), glob, options.0.as_ref())?,
     )
   }
 

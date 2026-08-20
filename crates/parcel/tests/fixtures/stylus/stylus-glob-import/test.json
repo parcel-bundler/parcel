@@ -1,0 +1,13 @@
+{
+  "description": "should support requiring stylus files with glob dependencies",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js"]},
+    {
+      "type": "css",
+      "assets": ["index.styl"],
+      "contains": [".index", ".main", ".foo", ".bar"]
+    }
+  ],
+  "output": 2
+}

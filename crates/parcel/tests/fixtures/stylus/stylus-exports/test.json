@@ -1,0 +1,12 @@
+{
+  "description": "should support the stylus package exports condition",
+  "input": "index.styl",
+  "bundles": [
+    {
+      "name": "index.css",
+      "type": "css",
+      "assets": ["index.styl"],
+      "contains": [".a"]
+    }
+  ]
+}

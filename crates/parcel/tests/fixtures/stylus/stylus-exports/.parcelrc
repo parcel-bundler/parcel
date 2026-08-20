@@ -1,0 +1,6 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "*.{styl,stylus}": ["@parcel/transformer-stylus"]
+  }
+}

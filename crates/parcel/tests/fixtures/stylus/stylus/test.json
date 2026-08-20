@@ -1,0 +1,9 @@
+{
+  "description": "should support requiring stylus files",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js"]},
+    {"type": "css", "assets": ["index.styl"], "contains": [".index"]}
+  ],
+  "output": 2
+}

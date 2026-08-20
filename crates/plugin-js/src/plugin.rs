@@ -10,12 +10,12 @@ use std::{
 use parcel_core::{
   Asset, AssetFlags, AssetRequest, AssetType, BufferContent, Bundle, BundleBehavior, BundleFlags,
   BundleGraph, Content, ContentWithSourceMap, DependencyFlags, DependencyResolution, Environment,
-  EnvironmentFlags, ExportsCondition, FileContent, LogMessage, Namer, Optimizer, OutputFormat,
-  PathId, Priority, Reporter, ReporterEvent, Resolver, SourceLocation, SourceType, SourceUrl,
-  SpecifierType, Target, Transformer,
+  EnvironmentFlags, ExportsCondition, FileContent, FileSystem, LogMessage, Namer, Optimizer,
+  OutputFormat, PathId, Priority, Reporter, ReporterEvent, Resolver, SourceLocation, SourceType,
+  SourceUrl, SpecifierType, Target, Transformer,
 };
 use rquickjs::{
-  Class, Coerced, Ctx, FromJs, Function, IntoJs, JsLifetime, Object, Symbol, TypedArray,
+  Array, Class, Coerced, Ctx, FromJs, Function, IntoJs, JsLifetime, Object, Symbol, TypedArray,
   class::{self, Trace},
   methods,
 };
@@ -276,33 +276,9 @@ impl Transformer for JsPlugin {
         let resolver_fs = fs.clone();
         opts.set(
           "resolve",
-          Function::new(
-            ctx.clone(),
-            move |from: String, specifier: String| -> rquickjs::Result<String> {
-              // TODO: this should use the configured resolver plugins.
-              let resolver = parcel_resolver::Resolver::parcel(project_root);
-              let res = resolver.resolve_with_options(
-                &specifier,
-                PathId::new(Path::new(&from)),
-                parcel_resolver::SpecifierType::Esm,
-                &*resolver_fs,
-                parcel_resolver::ResolveOptions {
-                  conditions: ExportsCondition::LESS | ExportsCondition::STYLE, // TODO: get from options
-                  custom_conditions: Vec::new(),
-                },
-              );
-              match res {
-                Ok(resolved) => {
-                  if let parcel_resolver::Resolution::Path(p) = resolved.resolution {
-                    return Ok(p.to_path_buf().to_string_lossy().into_owned());
-                  } else {
-                    todo!()
-                  }
-                }
-                Err(_) => todo!(),
-              }
-            },
-          ),
+          Function::new(ctx.clone(), move |ctx, specifier, from, options| {
+            resolve(ctx, specifier, from, options, project_root, &resolver_fs)
+          }),
         )?;
         let res: rquickjs::Value = transform.call((opts,))?;
         await_promise(ctx, res)?;
@@ -314,6 +290,62 @@ impl Transformer for JsPlugin {
 
       Ok(asset)
     })
+  }
+}
+
+fn resolve<'js>(
+  ctx: Ctx<'js>,
+  from: String,
+  specifier: String,
+  options: rquickjs::function::Opt<Object>,
+  project_root: PathId,
+  resolver_fs: &Arc<dyn FileSystem>,
+) -> rquickjs::Result<rquickjs::Promise<'js>> {
+  // TODO: this should use the configured resolver plugins.
+  let resolver = parcel_resolver::Resolver::parcel(project_root);
+  let mut conditions = ExportsCondition::empty();
+  let mut custom_conditions = Vec::new();
+  if let Some(options) = options.0 {
+    if let Ok(package_conditions) = options.get::<_, Array>("packageConditions") {
+      for cond in package_conditions.iter() {
+        let cond: String = cond?;
+        if let Ok(cond) = ExportsCondition::try_from(cond.as_str()) {
+          conditions |= cond;
+        } else {
+          custom_conditions.push(cond);
+        }
+      }
+    }
+  }
+  let res = resolver.resolve_with_options(
+    &specifier,
+    PathId::new(Path::new(&from)),
+    parcel_resolver::SpecifierType::Esm,
+    &**resolver_fs,
+    parcel_resolver::ResolveOptions {
+      conditions,
+      custom_conditions,
+    },
+  );
+  match res {
+    Ok(resolved) => {
+      if let parcel_resolver::Resolution::Path(p) = resolved.resolution {
+        let (promise, resolve, _) = rquickjs::Promise::new(&ctx)?;
+        let _: rquickjs::Value = resolve.call((p.to_path_buf().to_string_lossy().into_owned(),))?;
+        return Ok(promise);
+      } else {
+        let (promise, _, reject) = rquickjs::Promise::new(&ctx)?;
+        let _: rquickjs::Value =
+          reject.call((rquickjs::Exception::from_message(ctx, "Could not resolve")?,))?;
+        return Ok(promise);
+      }
+    }
+    Err(e) => {
+      let (promise, _, reject) = rquickjs::Promise::new(&ctx)?;
+      let _: rquickjs::Value =
+        reject.call((rquickjs::Exception::from_message(ctx, &e.to_string())?,))?;
+      return Ok(promise);
+    }
   }
 }
 

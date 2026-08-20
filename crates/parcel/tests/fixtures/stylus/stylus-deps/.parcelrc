@@ -1,0 +1,14 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "*.{styl,stylus}": [
+      {
+        "plugin": "@parcel/transformer-stylus",
+        "config": {
+          "paths": ["deps", "global"],
+          "imports": ["b"]
+        }
+      }
+    ]
+  }
+}

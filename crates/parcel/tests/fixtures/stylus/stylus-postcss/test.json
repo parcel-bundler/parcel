@@ -1,0 +1,12 @@
+{
+  "description": "should support transforming stylus with css modules",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js"]},
+    {
+      "type": "css",
+      "assets": ["index.module.styl"],
+      "contains": ["_index"]
+    }
+  ]
+}
