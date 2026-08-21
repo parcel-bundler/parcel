@@ -1,0 +1,11 @@
+[package]
+authors = ["Devon Govett <devongovett@gmail.com>"]
+name = "parcel-highlight"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+swc_ecma_parser = { version = "45.0.0", features = ["unstable"] }
+swc_common = "26.0.0"
+swc_ecma_ast = "29.0.0"
+cssparser = "0.37.0"

@@ -717,34 +717,6 @@ struct HighlightToken<'a> {
   text: &'a str,
 }
 
-const HIGHLIGHT_NAMES: &[&str] = &[
-  "attribute",
-  "comment",
-  "constant",
-  "constant.builtin",
-  "constructor",
-  "function",
-  "function.builtin",
-  "keyword",
-  "module",
-  "number",
-  "boolean",
-  "operator",
-  "title",
-  "label",
-  "name",
-  "property",
-  "property.builtin",
-  "punctuation",
-  "string",
-  "string.special",
-  "tag",
-  "type",
-  "type.builtin",
-  "variable",
-  "variable.builtin",
-  "variable.parameter",
-];
 
 macro_rules! syntax_style {
   ($ansi: literal, $html: literal) => {
@@ -875,105 +847,18 @@ fn render_highlighted<R: CodeFrameRenderer>(code: &str, lang: AssetType, rendere
   res
 }
 
-/// The single tree-sitter grammar used for every JS dialect: JS, JSX, TS and TSX.
-///
-/// TSX is a superset of the other three, so one grammar highlights them all, and
-/// the query sets below still differ per dialect. This matters for binary size: a
-/// tree-sitter parse table costs `LARGE_STATE_COUNT * SYMBOL_COUNT * 2` bytes, and
-/// the TypeScript grammars are an order of magnitude larger than the JavaScript one
-/// (1193x376 and 1167x393, versus 387x261). Referencing only this one lets the
-/// linker dead-strip `LANGUAGE_TYPESCRIPT` and `tree_sitter_javascript::LANGUAGE`,
-/// which is worth ~1.8MB. `tree_sitter_javascript` is still a dependency because we
-/// use its queries, but none of its tables are linked in.
-///
-/// The one thing TSX cannot parse is a `.ts` angle-bracket type assertion
-/// (`<T>expr`), which it reads as a JSX element. That syntax is discouraged in
-/// favour of `as`, and the cost is a mis-highlighted span in a code frame.
-fn ts_grammar() -> tree_sitter::Language {
-  tree_sitter_typescript::LANGUAGE_TSX.into()
-}
-
 fn highlight_tokens(code: &str, lang: AssetType) -> Vec<HighlightToken<'_>> {
-  use tree_sitter_highlight::{HighlightConfiguration, HighlightEvent, Highlighter};
+  use parcel_highlight::Language;
 
-  let mut config = match lang {
-    AssetType::Js => HighlightConfiguration::new(
-      ts_grammar(),
-      "javascript",
-      tree_sitter_javascript::HIGHLIGHT_QUERY,
-      tree_sitter_javascript::INJECTIONS_QUERY,
-      tree_sitter_javascript::LOCALS_QUERY,
-    )
-    .unwrap(),
-    AssetType::Jsx => {
-      let mut highlights = tree_sitter_javascript::JSX_HIGHLIGHT_QUERY.to_owned();
-      highlights.push_str(tree_sitter_javascript::HIGHLIGHT_QUERY);
-      HighlightConfiguration::new(
-        ts_grammar(),
-        "jsx",
-        &highlights,
-        tree_sitter_javascript::INJECTIONS_QUERY,
-        tree_sitter_javascript::LOCALS_QUERY,
-      )
-      .unwrap()
-    }
-    AssetType::Ts => {
-      let mut highlights = tree_sitter_typescript::HIGHLIGHTS_QUERY.to_owned();
-      highlights.push_str(tree_sitter_javascript::HIGHLIGHT_QUERY);
-
-      let mut locals = tree_sitter_typescript::LOCALS_QUERY.to_owned();
-      locals.push_str(tree_sitter_javascript::LOCALS_QUERY);
-
-      HighlightConfiguration::new(
-        ts_grammar(),
-        "typescript",
-        &highlights,
-        tree_sitter_javascript::INJECTIONS_QUERY,
-        &locals,
-      )
-      .unwrap()
-    }
-    AssetType::Tsx => {
-      let mut highlights = tree_sitter_javascript::JSX_HIGHLIGHT_QUERY.to_owned();
-      highlights.push_str(tree_sitter_typescript::HIGHLIGHTS_QUERY);
-      highlights.push_str(tree_sitter_javascript::HIGHLIGHT_QUERY);
-
-      let mut locals = tree_sitter_typescript::LOCALS_QUERY.to_owned();
-      locals.push_str(tree_sitter_javascript::LOCALS_QUERY);
-
-      HighlightConfiguration::new(
-        ts_grammar(),
-        "tsx",
-        &highlights,
-        tree_sitter_javascript::INJECTIONS_QUERY,
-        &locals,
-      )
-      .unwrap()
-    }
-    AssetType::Css | AssetType::StyleAttribute => HighlightConfiguration::new(
-      tree_sitter_css::LANGUAGE.into(),
-      "css",
-      tree_sitter_css::HIGHLIGHTS_QUERY,
-      "",
-      "",
-    )
-    .unwrap(),
-    AssetType::Json | AssetType::Jsonld => HighlightConfiguration::new(
-      tree_sitter_json::LANGUAGE.into(),
-      "json",
-      tree_sitter_json::HIGHLIGHTS_QUERY,
-      "",
-      "",
-    )
-    .unwrap(),
-    AssetType::Html | AssetType::Xhtml | AssetType::Svg => HighlightConfiguration::new(
-      tree_sitter_html::LANGUAGE.into(),
-      "html",
-      tree_sitter_html::HIGHLIGHTS_QUERY,
-      "",
-      "",
-    )
-    .unwrap(),
+  let language = match lang {
+    AssetType::Js => Language::Js,
+    AssetType::Jsx => Language::Jsx,
+    AssetType::Ts => Language::Ts,
+    AssetType::Tsx => Language::Tsx,
+    AssetType::Css => Language::Css,
+    AssetType::StyleAttribute => Language::CssDeclarations,
+    AssetType::Json | AssetType::Jsonld => Language::Json,
+    AssetType::Html | AssetType::Xhtml | AssetType::Svg => Language::Html,
     _ => {
       return vec![HighlightToken {
         style: None,
@@ -982,37 +867,49 @@ fn highlight_tokens(code: &str, lang: AssetType) -> Vec<HighlightToken<'_>> {
     }
   };
 
-  config.configure(HIGHLIGHT_NAMES);
-
-  let mut highlighter = Highlighter::new();
-  let Ok(highlights) = highlighter.highlight(&config, code.as_bytes(), None, |_lang| None) else {
-    return vec![HighlightToken {
-      style: None,
-      text: code,
-    }];
-  };
-
   let mut tokens = Vec::new();
-  let mut style_stack = vec![None];
-  for event in highlights {
-    match event {
-      Ok(HighlightEvent::HighlightStart(highlight)) => {
-        style_stack.push((highlight.0 < HIGHLIGHT_STYLES.len()).then_some(highlight.0))
-      }
-      Ok(HighlightEvent::HighlightEnd) => {
-        style_stack.pop();
-      }
-      Ok(HighlightEvent::Source { start, end }) => {
-        tokens.push(HighlightToken {
-          style: *style_stack.last().unwrap_or(&None),
-          text: &code[start..end],
-        });
-      }
-      Err(_) => {}
+  let mut pos = 0;
+  for span in parcel_highlight::highlight(code, language) {
+    if span.start > pos {
+      tokens.push(HighlightToken {
+        style: None,
+        text: &code[pos..span.start],
+      });
     }
+    tokens.push(HighlightToken {
+      style: Some(class_style(span.class)),
+      text: &code[span.start..span.end],
+    });
+    pos = span.end;
   }
-
+  if pos < code.len() {
+    tokens.push(HighlightToken {
+      style: None,
+      text: &code[pos..],
+    });
+  }
   tokens
+}
+
+/// Index into [`HIGHLIGHT_STYLES`] for each highlight class.
+fn class_style(class: parcel_highlight::Class) -> usize {
+  use parcel_highlight::Class;
+  match class {
+    Class::Attribute => 0,
+    Class::Comment => 1,
+    Class::CapsConst => 2,
+    Class::Constructor => 4,
+    Class::Function => 5,
+    Class::Keyword => 7,
+    Class::Number => 9,
+    Class::Constant => 10,
+    Class::Operator => 11,
+    Class::Property => 15,
+    Class::Punctuation => 17,
+    Class::String => 18,
+    Class::Regex => 19,
+    Class::Tag => 20,
+  }
 }
 
 fn escape_html(value: &str) -> Cow<'_, str> {
@@ -1042,6 +939,23 @@ fn escape_html(value: &str) -> Cow<'_, str> {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn highlights_code_frames() {
+    let html = render_highlighted("const x = 1;", AssetType::Js, &HtmlRenderer);
+    assert!(html.contains(">const</span>"), "{html}");
+    assert!(html.contains("#ea580c"), "{html}");
+
+    // Broken code (the usual code frame subject) keeps highlighting: the
+    // unterminated string stops at end of line and the next line still styles.
+    let html = render_highlighted("const s = 'oops\nreturn 1;", AssetType::Js, &HtmlRenderer);
+    assert!(html.contains(">&#39;oops</span>"), "{html}");
+    assert!(html.contains(">return</span>"), "{html}");
+
+    // Unhighlighted languages pass through unstyled.
+    let plain = render_highlighted("a = 1", AssetType::Toml, &HtmlRenderer);
+    assert_eq!(plain, "a = 1");
+  }
 
   #[test]
   fn gets_json_source_locations() {
