@@ -11,6 +11,6 @@ bindgen = "0.72.1"
 [dependencies]
 parcel-core = { path = "../core" }
 libloading = "0.8.5"
-hstr = { version = "3.0.5", features = ["serde"] }
+hstr = { version = "4.0.1", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }

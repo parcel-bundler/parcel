@@ -5,6 +5,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+# No logger or tracing subscriber is ever installed in this binary, so log and
+# tracing output is discarded at runtime anyway. Compiling the macros out lets
+# the linker drop the Debug formatting they reference — e.g. a single
+# `log::debug!("visiting {element:?}")` in oxvg retained the entire
+# Element→Attr→lightningcss::Property Debug graph (hundreds of KiB).
+log = { version = "0.4", features = ["release_max_level_off"] }
+tracing = { version = "0.1", features = ["release_max_level_off"] }
 parcel-core = { path = "../core" }
 parcel-plugin-abi = { path = "../parcel-plugin-abi" }
 parcel-js = { path = "../js" }

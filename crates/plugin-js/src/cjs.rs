@@ -3,7 +3,6 @@ use std::{borrow::Cow, path::Path, sync::Arc};
 use parcel_core::{ExportsCondition, FileSystem, PathId, resolve_path};
 use parcel_resolver::ModuleType;
 use rquickjs::{Ctx, FromJs, Function, IntoJs, JsLifetime, Module, Object, Value, function};
-use rust_embed::Embed;
 
 use crate::{
   buffer, bytecode, crypto,
@@ -13,9 +12,33 @@ use crate::{
   url, zlib,
 };
 
-#[derive(Embed)]
-#[folder = "builtins/"]
+// (path, uncompressed length, deflated bytes), sorted by path; see build.rs.
+include!(concat!(env!("OUT_DIR"), "/builtins_gen.rs"));
+
 struct Builtins;
+
+struct EmbeddedFile {
+  data: Cow<'static, [u8]>,
+}
+
+impl Builtins {
+  fn contains(path: &str) -> bool {
+    BUILTINS.binary_search_by_key(&path, |(p, ..)| p).is_ok()
+  }
+
+  fn get(path: &str) -> Option<EmbeddedFile> {
+    use std::io::Read;
+    let i = BUILTINS.binary_search_by_key(&path, |(p, ..)| p).ok()?;
+    let (_, raw_len, compressed) = BUILTINS[i];
+    let mut data = Vec::with_capacity(raw_len);
+    flate2::read::DeflateDecoder::new(compressed)
+      .read_to_end(&mut data)
+      .ok()?;
+    Some(EmbeddedFile {
+      data: Cow::Owned(data),
+    })
+  }
+}
 
 #[derive(JsLifetime)]
 pub struct CjsLoader {
@@ -48,7 +71,7 @@ impl CjsLoader {
 
         for candidate in candidates {
           let candidate = candidate.to_str().unwrap();
-          if Builtins::get(candidate).is_some() {
+          if Builtins::contains(candidate) {
             return Ok(format!("builtin:{candidate}"));
           }
         }
@@ -321,4 +344,27 @@ pub fn require_resolve(ctx: Ctx<'_>, specifier: String) -> rquickjs::Result<Stri
   let cjs = ctx.userdata::<CjsLoader>().unwrap();
   let from = ctx.script_or_module_name(0).unwrap().to_string()?;
   cjs.resolve(&ctx, &from, &specifier)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn embedded_builtins_roundtrip() {
+    assert!(!BUILTINS.is_empty());
+    // The table must be sorted for the binary search in `get`/`contains`.
+    assert!(BUILTINS.windows(2).all(|w| w[0].0 < w[1].0));
+
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("builtins");
+    for (path, raw_len, _) in BUILTINS {
+      let file = Builtins::get(path).unwrap();
+      assert_eq!(file.data.len(), *raw_len, "{path}");
+      let on_disk = std::fs::read(root.join(path)).unwrap();
+      assert_eq!(*file.data, on_disk[..], "{path}");
+    }
+
+    assert!(!Builtins::contains("not/a/builtin.js"));
+    assert!(Builtins::get("not/a/builtin.js").is_none());
+  }
 }

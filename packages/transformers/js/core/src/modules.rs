@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-use inflector::Inflector;
 use swc_core::{
   common::{DUMMY_SP, Mark, Span, SyntaxContext},
   ecma::{
@@ -70,10 +69,39 @@ struct ESMFold {
 
 fn local_name_for_src(src: &JsWord) -> JsWord {
   if !src.contains('/') {
-    return format!("_{}", src.to_camel_case()).into();
+    return format!("_{}", to_camel_case(src)).into();
   }
 
-  format!("_{}", src.split('/').last().unwrap().to_camel_case()).into()
+  format!("_{}", to_camel_case(src.split('/').last().unwrap())).into()
+}
+
+/// Matches Inflector's `to_camel_case` (which this replaced): words split on
+/// non-alphanumeric characters and lower→upper case boundaries, the first word
+/// all lowercase, later words capitalized with the rest lowercase.
+fn to_camel_case(s: &str) -> String {
+  let mut out = String::with_capacity(s.len());
+  let mut new_word = false;
+  let mut prev_is_lower = false;
+  for c in s.chars() {
+    if !c.is_alphanumeric() {
+      new_word = true;
+      prev_is_lower = false;
+      continue;
+    }
+    if prev_is_lower && c.is_uppercase() {
+      new_word = true;
+    }
+    if out.is_empty() {
+      out.extend(c.to_lowercase());
+    } else if new_word {
+      out.extend(c.to_uppercase());
+    } else {
+      out.extend(c.to_lowercase());
+    }
+    new_word = false;
+    prev_is_lower = c.is_lowercase();
+  }
+  out
 }
 
 impl ESMFold {

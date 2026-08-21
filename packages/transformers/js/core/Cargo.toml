@@ -32,9 +32,7 @@ swc_node_comments = "27"
 indoc = "1.0.3"
 serde = "1.0.123"
 serde_bytes = "0.11.5"
-Inflector = "0.11.4"
 data-encoding = "2.3.2"
-sha-1 = "0.10.0"
 dunce = "1.0.1"
 pathdiff = "0.2.0"
 path-slash = "0.1.4"
@@ -43,5 +41,5 @@ parcel-macros = { path = "../../../../crates/macros" }
 parking_lot = "0.12"
 bitflags = { version = "2.7.0", features = ["serde"] }
 mdxjs = { git = "https://github.com/vercel-labs/mdxjs-rs-turbopack.git", branch = "turbopack" }
-markdown = { version = "1.0.0", features = ["serde"] }
+markdown = "1.0.0"
 rustc-hash = "2.1.3"

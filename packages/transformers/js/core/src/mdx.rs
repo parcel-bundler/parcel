@@ -50,7 +50,40 @@ pub struct MdxResult {
 pub struct MdxAsset {
   pub lang: String,
   pub code: String,
+  #[serde(serialize_with = "serialize_position")]
   pub position: Option<Position>,
+}
+
+/// Serializes identically to the derive that markdown's `serde` feature would
+/// provide; having it here keeps that feature (Serialize/Deserialize for the
+/// whole mdast node tree) out of the binary for this one field.
+fn serialize_position<S: serde::Serializer>(
+  position: &Option<Position>,
+  serializer: S,
+) -> Result<S::Ok, S::Error> {
+  #[derive(serde::Serialize)]
+  struct PointMirror {
+    line: usize,
+    column: usize,
+    offset: usize,
+  }
+  #[derive(serde::Serialize)]
+  struct PositionMirror {
+    start: PointMirror,
+    end: PointMirror,
+  }
+  let mirror = |p: &markdown::unist::Point| PointMirror {
+    line: p.line,
+    column: p.column,
+    offset: p.offset,
+  };
+  match position {
+    None => serializer.serialize_none(),
+    Some(p) => serializer.serialize_some(&PositionMirror {
+      start: mirror(&p.start),
+      end: mirror(&p.end),
+    }),
+  }
 }
 
 pub fn mdx(config: &Config) -> Result<MdxResult, Diagnostic> {

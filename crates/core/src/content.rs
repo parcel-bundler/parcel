@@ -13,7 +13,12 @@ pub enum ContentType {
   Custom([u8; 16]),
 }
 
-pub trait Content: Any + std::fmt::Debug + Send + Sync {
+// Deliberately NOT `std::fmt::Debug`: a Debug supertrait puts every content
+// type's full Debug impl in the `dyn Content` vtable, which retains the Debug
+// code for the entire embedded AST (the swc AST for JsContent, the
+// lightningcss StyleSheet for CssContent — several hundred KiB of formatting
+// code the linker otherwise strips).
+pub trait Content: Any + Send + Sync {
   /// Reads the content as a byte vector.
   fn read(&self) -> Result<Vec<u8>, Diagnostic>;
 
@@ -70,6 +75,12 @@ pub trait Content: Any + std::fmt::Debug + Send + Sync {
         .content
         .clone(),
     )
+  }
+}
+
+impl std::fmt::Debug for dyn Content {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.write_str("<content>")
   }
 }
 
