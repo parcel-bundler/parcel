@@ -1,4 +1,4 @@
-use parcel_highlight::{highlight, Class, HighlightSpan, Language};
+use parcel_highlight::{Class, HighlightSpan, Language, highlight};
 
 /// Highlight and validate the structural invariants every consumer relies on:
 /// spans are sorted, non-overlapping, in bounds, and on char boundaries.

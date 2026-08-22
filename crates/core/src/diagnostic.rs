@@ -583,6 +583,7 @@ impl CodeFrame {
       } else if !line_highlights.is_empty() {
         let mut last_col = 0;
         let mut highlight_has_ended = false;
+        let line_len = line.chars().count();
 
         write!(
           &mut res,
@@ -593,8 +594,19 @@ impl CodeFrame {
         .unwrap();
 
         for highlight in &line_highlights {
-          let start_col = highlight.start.column.saturating_sub(1) as usize;
-          let end_col = highlight.end.column.saturating_sub(1) as usize;
+          let start_col = if highlight.start.line == line_number {
+            highlight.start.column.saturating_sub(1) as usize
+          } else {
+            0
+          }
+          .min(line_len);
+          let end_col = if highlight.end.line == line_number {
+            highlight.end.column.saturating_sub(1) as usize
+          } else {
+            line_len.saturating_sub(1)
+          }
+          .min(line_len)
+          .max(start_col);
 
           // TODO: Replace tab with spaces?
 
@@ -604,17 +616,13 @@ impl CodeFrame {
 
           // If end_col is smaller than last_col it overlaps with another highlight and is no longer visible, we can skip those
           if end_col >= last_col {
-            let mut characters = end_col - start_col + 1;
-            if start_col > last_col {
-              // start_col is before last_col, so add spaces as padding before the highlight indicators
-              write!(&mut res, "{}", " ".repeat(start_col - last_col)).unwrap();
-            } else if last_col > start_col {
-              // If last column is larger than the start, there's overlap in highlights
-              // This line adjusts the characters count to ensure we don't add too many characters
-              characters += start_col - last_col;
+            let visible_start = start_col.max(last_col);
+            if visible_start > last_col {
+              // Add spaces before the next visible highlight segment.
+              write!(&mut res, "{}", " ".repeat(visible_start - last_col)).unwrap();
             }
 
-            characters = characters.max(1);
+            let characters = end_col - visible_start + 1;
             write!(&mut res, "{}", renderer.error(&"^".repeat(characters))).unwrap();
 
             last_col = end_col + 1;
@@ -955,6 +963,40 @@ mod tests {
     // Unhighlighted languages pass through unstyled.
     let plain = render_highlighted("a = 1", AssetType::Toml, &HtmlRenderer);
     assert_eq!(plain, "a = 1");
+  }
+
+  #[test]
+  fn renders_multiline_and_overlapping_code_highlights() {
+    let frame = CodeFrame {
+      code: Some("let result = macro(\n  first,\n  second,\n);\n".into()),
+      url: None,
+      language: Some(AssetType::Js),
+      code_highlights: vec![
+        CodeHighlight {
+          message: Some("macro failed".into()),
+          start: Location {
+            line: 1,
+            column: 14,
+          },
+          end: Location { line: 4, column: 2 },
+        },
+        CodeHighlight {
+          message: None,
+          start: Location {
+            line: 1,
+            column: 16,
+          },
+          end: Location {
+            line: 1,
+            column: u32::MAX,
+          },
+        },
+      ],
+    };
+
+    let rendered = frame.render_code(&HtmlRenderer);
+    assert!(rendered.contains("macro failed"), "{rendered}");
+    assert!(rendered.contains('^'), "{rendered}");
   }
 
   #[test]

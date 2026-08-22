@@ -59,7 +59,9 @@ pub fn highlight_css(src: &str, declarations: bool) -> Vec<HighlightSpan> {
         let next = raw[i + 1..].iter().find(|n| n.kind != Kind::Comment);
         let prev = raw[..i].iter().rev().find(|n| n.kind != Kind::Comment);
         if next.map_or(false, |n| n.kind == Kind::Colon)
-          && prev.map_or(declarations, |p| matches!(p.kind, Kind::BlockOpen | Kind::Semi))
+          && prev.map_or(declarations, |p| {
+            matches!(p.kind, Kind::BlockOpen | Kind::Semi)
+          })
         {
           // Declaration position: after `{`, `(` or `;`, followed by `:`.
           // Catches property names and media-query features; leaves

@@ -416,7 +416,9 @@ fn classify(src: &str, toks: &[RawTok], i: usize) -> Option<Class> {
       // Mirror tree-sitter's text heuristics: ALL_CAPS → constant,
       // Capitalized → constructor.
       else if text.len() > 1
-        && text.bytes().all(|b| matches!(b, b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'$'))
+        && text
+          .bytes()
+          .all(|b| matches!(b, b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'$'))
       {
         Class::CapsConst
       } else if text.as_bytes()[0].is_ascii_uppercase() {
