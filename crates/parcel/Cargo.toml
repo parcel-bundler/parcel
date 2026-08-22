@@ -12,6 +12,10 @@ edition = "2024"
 # Element→Attr→lightningcss::Property Debug graph (hundreds of KiB).
 log = { version = "0.4", features = ["release_max_level_off"] }
 tracing = { version = "0.1", features = ["release_max_level_off"] }
+# Not used directly: enables the feature on the is-macro proc macro (a
+# transitive dep via swc_ecma_ast) so generated expect_* panics skip Debug-
+# formatting the AST in release builds. See the [patch.crates-io] entry.
+is-macro = { version = "0.3.8", features = ["small-panic"] }
 parcel-core = { path = "../core" }
 parcel-plugin-abi = { path = "../parcel-plugin-abi" }
 parcel-js = { path = "../js" }

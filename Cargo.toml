@@ -23,3 +23,5 @@ html5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "xm
 xml5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "xmlns-attrs" }
 markup5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "xmlns-attrs" }
 ravif = { git = "https://github.com/devongovett/cavif-rs.git", branch = "bit_depth_10" }
+lightningcss = { git = "https://github.com/parcel-bundler/lightningcss", branch = "binary-size" }
+parcel_selectors = { git = "https://github.com/parcel-bundler/lightningcss", branch = "binary-size" }

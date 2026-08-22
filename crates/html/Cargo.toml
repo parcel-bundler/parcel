@@ -12,10 +12,10 @@ serde_json = "1.0.91"
 typed-arena = "2.0.2"
 xml5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "xmlns-attrs" }
 cssparser = "0.37.0"
-oxvg_ast = { version = "0.0.6", git = "https://github.com/devongovett/oxvg.git", branch = "update-lightningcss" }
-oxvg_collections = { version = "0.0.6", git = "https://github.com/devongovett/oxvg.git", branch = "update-lightningcss" }
-oxvg_optimiser = { version = "0.0.6", git = "https://github.com/devongovett/oxvg.git", branch = "update-lightningcss" }
-oxvg_serialize = { version = "0.0.6", git = "https://github.com/devongovett/oxvg.git", branch = "update-lightningcss" }
+oxvg_ast = { version = "0.0.7", git = "https://github.com/noahbald/oxvg.git" }
+oxvg_collections = { version = "0.0.7", git = "https://github.com/noahbald/oxvg.git" }
+oxvg_optimiser = { version = "0.0.7", git = "https://github.com/noahbald/oxvg.git" }
+oxvg_serialize = { version = "0.0.7", git = "https://github.com/noahbald/oxvg.git" }
 lightningcss = { version = "1.0.0-alpha.72", default-features = false }
 anyhow = "*"
 swc_core = { version = "77", features = [
