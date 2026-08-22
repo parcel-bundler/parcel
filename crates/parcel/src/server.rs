@@ -145,6 +145,11 @@ fn is_websocket_upgrade(request: &tiny_http::Request) -> bool {
 }
 
 impl DevServer {
+  pub fn emit_hmr_reload(&self) {
+    let serialized = serde_json::to_string(&HmrUpdate::Reload).unwrap();
+    self.broadcast(serialized);
+  }
+
   pub fn emit_hmr_update(
     &self,
     changed_assets: Vec<(AssetIndex, &Asset)>,

@@ -87,6 +87,8 @@ pub struct Parcel {
 pub struct BuildResult<'a> {
   pub bundle_graph: BundleGraph<'a>,
   pub changed_assets: Vec<AssetIndex>,
+  /// True when the set of bundle output paths changed compared with the previous build.
+  pub output_paths_changed: bool,
 }
 
 impl<'a> BuildResult<'a> {
@@ -286,7 +288,7 @@ impl Parcel {
   fn build_uninstrumented(&mut self) -> Result<BuildResult<'_>, DiagnosticList> {
     let result = self.asset_graph_builder.build_with_changes()?;
     let changed_assets = result.changed_assets;
-    let bundle_graph = bundle_and_package(
+    let (bundle_graph, output_paths_changed) = bundle_and_package(
       result.asset_graph,
       &self.config,
       &self.options,
@@ -297,6 +299,7 @@ impl Parcel {
     Ok(BuildResult {
       bundle_graph,
       changed_assets,
+      output_paths_changed,
     })
   }
 
@@ -321,7 +324,7 @@ impl Parcel {
       }
     };
 
-    let bundle_graph = match bundle_and_package(
+    let (bundle_graph, _) = match bundle_and_package(
       result.asset_graph,
       &config,
       &options,
@@ -351,7 +354,7 @@ fn bundle_and_package<'a>(
   options: &ParcelOptions,
   changed_assets: &Vec<AssetIndex>,
   prev_bundles: &mut HashMap<PathId, Vec<AssetIndex>>,
-) -> Result<BundleGraph<'a>, DiagnosticList> {
+) -> Result<(BundleGraph<'a>, bool), DiagnosticList> {
   // Group assets into bundles.
   let bundle_graph = bundle(asset_graph, config, options)?;
 
@@ -383,6 +386,24 @@ fn bundle_and_package<'a>(
     }
 
     new_prev.insert(dist_path, sorted_assets);
+  }
+
+  // Bundle filenames may be embedded in other bundles during packaging. If a filename changes,
+  // re-package every output bundle so none of those references are left pointing at a stale path.
+  let output_paths_changed = prev_bundles.len() != new_prev.len()
+    || prev_bundles
+      .keys()
+      .any(|dist_path| !new_prev.contains_key(dist_path));
+  if output_paths_changed {
+    dirty.extend(
+      bundle_graph
+        .bundles
+        .iter()
+        .enumerate()
+        .filter_map(|(index, bundle)| {
+          (bundle.bundle_behavior != BundleBehavior::Inline).then_some(index)
+        }),
+    );
   }
 
   // Delete output files for bundles that no longer exist.
@@ -423,7 +444,7 @@ fn bundle_and_package<'a>(
   }
 
   if dirty.is_empty() {
-    return Ok(bundle_graph);
+    return Ok((bundle_graph, output_paths_changed));
   }
 
   let cache = papaya::HashMap::new();
@@ -476,7 +497,7 @@ fn bundle_and_package<'a>(
     package_result
   })?;
 
-  Ok(bundle_graph)
+  Ok((bundle_graph, output_paths_changed))
 }
 
 pub fn build(

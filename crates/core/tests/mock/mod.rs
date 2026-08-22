@@ -4,7 +4,7 @@
 //! own test binary; it is included via `mod mock;` from the test files that need it.
 
 use std::{
-  collections::{HashMap, HashSet},
+  collections::{HashMap, HashSet, hash_map::DefaultHasher},
   hash::{Hash, Hasher},
   io::Result as IoResult,
   path::{Path, PathBuf},
@@ -175,6 +175,10 @@ impl Content for MockContent {
     _options: &ParcelOptions,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     let mut out = Vec::new();
+    for &index in &bundle.referenced_bundles {
+      let referenced = &bundle_graph.bundles[index];
+      out.extend_from_slice(format!("@bundle-ref {}\n", referenced.name()).as_bytes());
+    }
     for &index in &bundle.assets {
       let asset = &bundle_graph.asset_graph.asset(index);
       out.extend_from_slice(&asset.content.read()?);
@@ -384,6 +388,7 @@ impl Bundler for MockBundler {
     }
 
     let mut bundles = Vec::new();
+    let mut referenced_roots = Vec::new();
     let mut i = 0;
     while i < roots.len() {
       let (root, is_entry) = roots[i];
@@ -400,11 +405,13 @@ impl Bundler for MockBundler {
         &mut async_targets,
       );
 
-      for target in async_targets {
+      for &target in &async_targets {
         if seen_roots.insert(target) {
           roots.push((target, false));
         }
       }
+
+      referenced_roots.push(async_targets);
 
       let root_asset = &asset_graph.asset(root);
       let mut flags = BundleFlags::empty();
@@ -423,6 +430,18 @@ impl Bundler for MockBundler {
         main_entry_asset: Some(root),
         referenced_bundles: Vec::new(),
       });
+    }
+
+    let root_to_bundle: HashMap<AssetIndex, usize> = bundles
+      .iter()
+      .enumerate()
+      .map(|(index, bundle)| (bundle.main_entry_asset.unwrap(), index))
+      .collect();
+    for (bundle, roots) in bundles.iter_mut().zip(referenced_roots) {
+      bundle.referenced_bundles = roots
+        .into_iter()
+        .filter_map(|root| root_to_bundle.get(&root).copied())
+        .collect();
     }
 
     Ok(BundleGraph::new(
@@ -475,6 +494,34 @@ impl Namer for MockNamer {
     bundle: &Bundle,
     _options: &ParcelOptions,
   ) -> Result<Option<PathId>, DiagnosticList> {
+    // Model an anonymous shared CSS bundle. Like Parcel's default namer, its filename depends on
+    // the bundle's asset membership rather than the assets' contents.
+    if bundle.ty == AssetType::Css && !bundle.flags.contains(BundleFlags::ENTRY) {
+      let mut paths: Vec<_> = bundle
+        .assets
+        .iter()
+        .map(|index| {
+          bundle_graph
+            .asset_graph
+            .asset(*index)
+            .loc
+            .url
+            .to_file_path()
+            .unwrap()
+        })
+        .collect();
+      paths.sort_unstable();
+
+      let mut hasher = DefaultHasher::new();
+      paths.hash(&mut hasher);
+      return Ok(Some(
+        bundle
+          .target
+          .dist_dir
+          .child(&format!("{:016x}.css", hasher.finish())),
+      ));
+    }
+
     let main = bundle
       .main_entry_asset
       .expect("bundle has no main entry asset");

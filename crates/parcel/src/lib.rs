@@ -119,13 +119,19 @@ pub fn serve(
     match parcel.build_with_changes() {
       Ok(result) => {
         println!("Rebuilt in {:?}", start.elapsed());
-        let graph = &result.bundle_graph;
-        let changed_assets = result.changed_assets();
 
         // On a config change the Parcel was rebuilt from scratch, so HMR is skipped in favour of
         // the full rebuild's output.
-        if !config_changed && !changed_assets.is_empty() {
-          server.emit_hmr_update(changed_assets, graph, &*config, &*options);
+        if !config_changed {
+          if result.output_paths_changed {
+            server.emit_hmr_reload();
+          } else {
+            let graph = &result.bundle_graph;
+            let changed_assets = result.changed_assets();
+            if !changed_assets.is_empty() {
+              server.emit_hmr_update(changed_assets, graph, &*config, &*options);
+            }
+          }
         }
       }
       Err(e) => {

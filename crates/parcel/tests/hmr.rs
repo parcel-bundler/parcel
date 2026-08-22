@@ -4,7 +4,7 @@ use parcel_core::{
   DiagnosticSeverity, Environment, FileSystem, HmrOptions, Location, LogLevel, MemoryFileSystem,
   Parcel, PathId,
 };
-use parcel_js::hmr::get_hmr_update;
+use parcel_js::hmr::{HmrUpdate, get_hmr_update};
 use parcel_plugin_js::{await_promise, create_runtime};
 use rquickjs::{Function, Module, Object, Value};
 use std::{
@@ -83,6 +83,21 @@ fn hmr_update_after_change(
     affected_count,
     changed_count,
   )
+}
+
+#[test]
+fn hmr_reload_serializes_for_the_runtime() {
+  let update: HmrUpdate<'static> = HmrUpdate::Reload;
+  let message = serde_json::to_value(update).unwrap();
+  assert_eq!(message, serde_json::json!({"type": "reload"}));
+
+  let hmr = HmrRuntimeTest::new(&[(
+    "/project/index.js",
+    "output('initial'); if (module.hot) module.hot.accept();",
+  )]);
+  assert!(!hmr.reloaded());
+  hmr.handle_message(message);
+  assert!(hmr.reloaded());
 }
 
 #[test]

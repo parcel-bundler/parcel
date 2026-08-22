@@ -11,6 +11,7 @@ use crate::packager::{BundleShim, Resolution, SyntheticAsset, asset_dependencies
 #[derive(serde::Serialize, Debug)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum HmrUpdate<'a> {
+  Reload,
   Update {
     assets: Vec<HmrAsset<'a>>,
   },

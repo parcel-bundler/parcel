@@ -246,7 +246,13 @@ fn incremental_rebuild_repackages_only_affected_bundle() {
     "exactly one asset should be invalidated"
   );
 
-  parcel.build().expect("incremental build failed");
+  let result = parcel
+    .build_with_changes()
+    .expect("incremental build failed");
+  assert!(
+    !result.output_paths_changed,
+    "a content-only edit should not change output paths"
+  );
 
   // Only the index bundle is re-packaged; the page bundle is untouched.
   assert_eq!(written_names(&output), vec!["index.js"]);
@@ -351,6 +357,89 @@ fn incremental_rebuild_adding_dependency_changes_composition() {
   assert_eq!(written_names(&output), vec!["index.js"]);
   let out = read_dist(&output, "index.js");
   assert!(out.contains("console.log('bar')"), "got: {out}");
+}
+
+#[test]
+fn incremental_rebuild_repackages_referrer_when_referenced_bundle_name_changes() {
+  let (mut parcel, input, output) = setup(
+    &[
+      (
+        "/project/index.js",
+        "@async ./styles.css\nconsole.log('index')",
+      ),
+      ("/project/styles.css", ".styles { color: red; }"),
+      ("/project/theme.css", ".theme { color: blue; }"),
+    ],
+    &["/project/index.js"],
+  );
+
+  let bundle_graph = parcel.build().expect("initial build failed");
+  let old_css_name = bundle_graph
+    .bundles
+    .iter()
+    .find(|bundle| bundle.ty == parcel_core::AssetType::Css)
+    .expect("expected a CSS bundle")
+    .name();
+  assert!(
+    read_dist(&output, "index.js").contains(&old_css_name),
+    "entry bundle should reference {old_css_name}"
+  );
+  let _ = written_names(&output);
+
+  // Adding an import changes the anonymous CSS bundle's membership, which changes its filename.
+  // The entry asset itself is unchanged, but its packaged output must be rewritten with the new
+  // CSS bundle reference.
+  write_file(
+    &input,
+    "/project/styles.css",
+    "@import ./theme.css\n.styles { color: red; }",
+  );
+  parcel
+    .invalidate(&[path_id("/project/styles.css")], &[])
+    .unwrap();
+  let build_result = parcel
+    .build_with_changes()
+    .expect("incremental build failed");
+  assert!(
+    build_result.output_paths_changed,
+    "renaming the CSS bundle should be reported to HMR"
+  );
+  let new_css_name = build_result
+    .bundle_graph
+    .bundles
+    .iter()
+    .find(|bundle| bundle.ty == parcel_core::AssetType::Css)
+    .expect("expected a CSS bundle")
+    .name();
+
+  assert_ne!(old_css_name, new_css_name);
+  let removed_names: Vec<String> = output
+    .take_removes()
+    .into_iter()
+    .map(|path| path.file_name().unwrap().to_string_lossy().into_owned())
+    .collect();
+  assert!(
+    removed_names.contains(&old_css_name),
+    "old CSS bundle should be removed, got: {removed_names:?}"
+  );
+
+  let mut expected_writes = vec!["index.js".to_string(), new_css_name.clone()];
+  expected_writes.sort();
+  assert_eq!(
+    written_names(&output),
+    expected_writes,
+    "all output bundles should be repackaged when an output path changes"
+  );
+
+  let entry = read_dist(&output, "index.js");
+  assert!(
+    entry.contains(&new_css_name),
+    "entry bundle should reference {new_css_name}, got: {entry}"
+  );
+  assert!(
+    !entry.contains(&old_css_name),
+    "entry bundle should no longer reference {old_css_name}, got: {entry}"
+  );
 }
 
 #[test]
