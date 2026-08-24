@@ -153,6 +153,11 @@ export default async function loadPlugin<T>(
       diagnostic: {
         message: md`Cannot find Parcel plugin "${pluginName}"`,
         origin: '@parcel/core',
+        hints: options.shouldAutoInstall
+          ? undefined
+          : [
+              'Autoinstall is disabled, please install this package manually and restart Parcel.',
+            ],
         codeFrames: keyPath
           ? [
               {

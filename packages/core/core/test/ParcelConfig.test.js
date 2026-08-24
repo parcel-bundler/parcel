@@ -235,7 +235,7 @@ describe('ParcelConfig', () => {
       );
     });
 
-    it('should error with a codeframe if a plugin is not resolved', async () => {
+    it('should error with a codeframe and hint if a plugin is not resolved with autoinstall disabled', async () => {
       let configFilePath = path.join(
         __dirname,
         'fixtures',
@@ -257,6 +257,9 @@ describe('ParcelConfig', () => {
           {
             message: 'Cannot find Parcel plugin "@parcel/transformer-jj"',
             origin: '@parcel/core',
+            hints: [
+              'Autoinstall is disabled, please install this package manually and restart Parcel.',
+            ],
             codeFrames: [
               {
                 filePath: configFilePath,
