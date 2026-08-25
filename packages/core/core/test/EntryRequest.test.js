@@ -2,8 +2,9 @@
 import assert from 'assert';
 import path from 'path';
 import {md} from '@parcel/diagnostic';
-import {inputFS as fs} from '@parcel/test-utils';
+import {inputFS as fs, outputFS} from '@parcel/test-utils';
 import {EntryResolver} from '../src/requests/EntryRequest';
+import {toProjectPath} from '../src/projectPath';
 import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS} from './test-utils';
 
 const DEFAULT_OPTIONS = {
@@ -41,6 +42,29 @@ const GLOB_LIKE_FIXTURE_PATH = path.join(
 
 describe('EntryResolver', function () {
   let entryResolver = new EntryResolver({...DEFAULT_OPTIONS});
+
+  it('supports a UTF-8 BOM in package.json', async function () {
+    let fixturePath = path.join(__dirname, 'fixtures/package-bom');
+    await outputFS.mkdirp(fixturePath);
+    await outputFS.writeFile(
+      path.join(fixturePath, 'package.json'),
+      '\uFEFF' + JSON.stringify({source: 'index.js'}),
+    );
+    await outputFS.writeFile(path.join(fixturePath, 'index.js'), '');
+
+    let result = await new EntryResolver({
+      ...DEFAULT_OPTIONS,
+      inputFS: outputFS,
+      outputFS,
+      projectRoot: fixturePath,
+    }).resolveEntry(fixturePath);
+
+    assert.equal(result.entries.length, 1);
+    assert.equal(
+      result.entries[0].filePath,
+      toProjectPath(fixturePath, path.join(fixturePath, 'index.js')),
+    );
+  });
 
   it('rejects missing source in package.json', async function () {
     this.timeout(10000);
