@@ -353,7 +353,8 @@ impl PackageJson {
   }
 
   pub fn parse(path: CachedPath, data: String, cache: &Cache) -> serde_json::Result<PackageJson> {
-    let parsed: SerializedPackageJson = serde_json::from_str(&data)?;
+    let data = data.strip_prefix('\u{feff}').unwrap_or(&data);
+    let parsed: SerializedPackageJson = serde_json::from_str(data)?;
     Ok(PackageJson::from_serialized(path, parsed, cache))
   }
 
@@ -1989,5 +1990,18 @@ mod tests {
     assert_eq!(pkg.module_type, ModuleType::CommonJs);
     let pkg: SerializedPackageJson = serde_json::from_str(r#"{"main":false}"#).unwrap();
     assert_eq!(pkg.main, None);
+  }
+
+  #[test]
+  fn parses_utf8_bom() {
+    let cache = Cache::default();
+    let pkg = PackageJson::parse(
+      cache.get_normalized("/package.json"),
+      "\u{feff}{\"name\":\"foo\"}".into(),
+      &cache,
+    )
+    .unwrap();
+
+    assert_eq!(pkg.name, "foo");
   }
 }

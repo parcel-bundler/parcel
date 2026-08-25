@@ -82,6 +82,9 @@ impl TsConfig {
     mut data: String,
     cache: &Cache,
   ) -> serde_json::Result<TsConfigWrapper> {
+    if data.starts_with('\u{feff}') {
+      data.remove(0);
+    }
     let _ = strip_comments_in_place(data.as_mut_str(), Default::default(), true);
     let wrapper: SerializedTsConfigWrapper = serde_json::from_str(&data)?;
     Ok(TsConfigWrapper {
@@ -229,6 +232,22 @@ fn base_url_iter<'a>(
 mod tests {
   use super::*;
   use indexmap::indexmap;
+
+  #[test]
+  fn parses_utf8_bom() {
+    let cache = Cache::default();
+    let tsconfig = TsConfig::parse(
+      cache.get_normalized("/tsconfig.json"),
+      "\u{feff}{\"compilerOptions\":{\"moduleSuffixes\":[\".ios\"]}}".into(),
+      &cache,
+    )
+    .unwrap();
+
+    assert_eq!(
+      tsconfig.compiler_options.module_suffixes,
+      Some(vec![".ios".into()])
+    );
+  }
 
   #[test]
   fn test_paths() {

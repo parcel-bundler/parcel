@@ -362,6 +362,10 @@ export class EntryResolver {
       return null;
     }
 
+    if (content.charCodeAt(0) === 0xfeff) {
+      content = content.slice(1);
+    }
+
     try {
       pkg = JSON.parse(content);
     } catch (err) {
