@@ -1,5 +1,5 @@
 use std::{
-  any::{Any, TypeId},
+  any::Any,
   borrow::Cow,
   hash::{Hash, Hasher},
   sync::Arc,
@@ -8,9 +8,39 @@ use std::{
 use crate::{Bundle, BundleGraph, Diagnostic, DiagnosticList, FileSystem, ParcelOptions, PathId};
 
 #[derive(Hash, PartialEq, Eq, Clone, Debug)]
-pub enum ContentType {
-  Rust(TypeId),
-  Custom([u8; 16]),
+pub struct ContentType(u128);
+
+impl ContentType {
+  pub const fn new(name: &str) -> Self {
+    let digest = sha2_const_stable::Sha256::new()
+      .update(name.as_bytes())
+      .finalize();
+    ContentType::from_bytes([
+      digest[0], digest[1], digest[3], digest[4], digest[5], digest[6], digest[7], digest[8],
+      digest[9], digest[10], digest[11], digest[12], digest[13], digest[14], digest[15],
+      digest[16],
+    ])
+  }
+
+  pub const fn from_bytes(bytes: [u8; 16]) -> Self {
+    let id = u128::from_le_bytes(bytes);
+    ContentType(id)
+  }
+}
+
+/// Builds a stable content type id by prefixing the plugin crate's package name.
+#[macro_export]
+macro_rules! content_type {
+  ($name:literal) => {
+    const {
+      $crate::ContentType::new(concat!(
+        "parcel-core.content.v1\0",
+        env!("CARGO_PKG_NAME"),
+        "\0",
+        $name
+      ))
+    }
+  };
 }
 
 // Deliberately NOT `std::fmt::Debug`: a Debug supertrait puts every content
@@ -42,9 +72,8 @@ pub trait Content: Any + Send + Sync {
     a == b
   }
 
-  fn ty(&self) -> ContentType {
-    ContentType::Rust(self.type_id())
-  }
+  /// Stable id for this content type.
+  fn ty(&self) -> ContentType;
 
   #[allow(unused_variables)]
   fn package(
@@ -141,6 +170,10 @@ impl Content for FileContent {
   fn hash(&self, mut state: &mut dyn Hasher) {
     self.path.hash(&mut state);
   }
+
+  fn ty(&self) -> ContentType {
+    content_type!("FileContent")
+  }
 }
 
 impl std::fmt::Debug for FileContent {
@@ -209,6 +242,10 @@ impl Content for BufferContent {
   fn write(&self, fs: &dyn FileSystem, path: PathId) -> Result<(), Diagnostic> {
     Ok(fs.write(path, self.buf.as_bytes())?)
   }
+
+  fn ty(&self) -> ContentType {
+    content_type!("BufferContent")
+  }
 }
 
 #[derive(Debug)]
@@ -250,5 +287,9 @@ impl Content for ContentWithSourceMap {
     fs.write(path, self.code.as_bytes())?;
     fs.write(path.add_extension("map"), &self.map)?;
     Ok(())
+  }
+
+  fn ty(&self) -> ContentType {
+    content_type!("ContentWithSourceMap")
   }
 }

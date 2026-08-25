@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 description = "Rust SDK for building native Parcel plugins"
 
+[dependencies]
+sha2-const-stable = "0.1.0"
+
 [dev-dependencies]
 parcel = { path = "../parcel" }
 parcel-core = { path = "../core" }

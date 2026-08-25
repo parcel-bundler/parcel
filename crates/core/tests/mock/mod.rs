@@ -4,7 +4,7 @@
 //! own test binary; it is included via `mod mock;` from the test files that need it.
 
 use std::{
-  collections::{HashMap, HashSet, hash_map::DefaultHasher},
+  collections::{HashMap, HashSet},
   hash::{Hash, Hasher},
   io::Result as IoResult,
   path::{Path, PathBuf},
@@ -16,10 +16,10 @@ use std::{
 
 use parcel_core::{
   Asset, AssetGraph, AssetIndex, AssetRequest, AssetType, BufferContent, BuildMode, BuildOptions,
-  Bundle, BundleBehavior, BundleFlags, BundleGraph, Bundler, Content, Dependency, DependencyFlags,
-  DependencyResolution, Diagnostic, DiagnosticList, DirEntry, ExportsCondition, FileKind, FileStat,
-  FileSystem, LogLevel, LogMessage, MemoryFileSystem, Namer, Optimizer, ParcelConfig,
-  ParcelOptions, PathId, PluginFactory, Priority, Reporter, ReporterEvent, Resolver,
+  Bundle, BundleBehavior, BundleFlags, BundleGraph, Bundler, Content, ContentType, Dependency,
+  DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList, DirEntry, ExportsCondition,
+  FileKind, FileStat, FileSystem, LogLevel, LogMessage, MemoryFileSystem, Namer, Optimizer,
+  ParcelConfig, ParcelOptions, PathId, PluginFactory, Priority, Reporter, ReporterEvent, Resolver,
   SourceLocation, SourceUrl, SpecifierType, SubPath, Transformer,
 };
 
@@ -185,6 +185,10 @@ impl Content for MockContent {
       out.push(b'\n');
     }
     Ok(Arc::new(BufferContent::new(out)))
+  }
+
+  fn ty(&self) -> ContentType {
+    parcel_core::content_type!("MockContent")
   }
 }
 
@@ -373,7 +377,7 @@ impl Bundler for MockBundler {
   fn bundle<'a>(
     &self,
     asset_graph: AssetGraph<'a>,
-    _options: &ParcelOptions,
+    options: &ParcelOptions,
   ) -> Result<BundleGraph<'a>, DiagnosticList> {
     // Bundle roots: start with the entries (in order), then async targets discovered while
     // walking each bundle's synchronous subgraph.
@@ -420,6 +424,7 @@ impl Bundler for MockBundler {
       }
 
       bundles.push(Bundle {
+        id: root_asset.id_u64(&options.project_root),
         ty: root_asset.ty.clone(),
         target: root_asset.target.clone(),
         bundle_behavior: BundleBehavior::None,
@@ -494,31 +499,13 @@ impl Namer for MockNamer {
     bundle: &Bundle,
     _options: &ParcelOptions,
   ) -> Result<Option<PathId>, DiagnosticList> {
-    // Model an anonymous shared CSS bundle. Like Parcel's default namer, its filename depends on
-    // the bundle's asset membership rather than the assets' contents.
+    // Model an anonymous shared CSS bundle using its stable bundle id.
     if bundle.ty == AssetType::Css && !bundle.flags.contains(BundleFlags::ENTRY) {
-      let mut paths: Vec<_> = bundle
-        .assets
-        .iter()
-        .map(|index| {
-          bundle_graph
-            .asset_graph
-            .asset(*index)
-            .loc
-            .url
-            .to_file_path()
-            .unwrap()
-        })
-        .collect();
-      paths.sort_unstable();
-
-      let mut hasher = DefaultHasher::new();
-      paths.hash(&mut hasher);
       return Ok(Some(
         bundle
           .target
           .dist_dir
-          .child(&format!("{:016x}.css", hasher.finish())),
+          .child(&format!("{:016x}.css", bundle.id)),
       ));
     }
 

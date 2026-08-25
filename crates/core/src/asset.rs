@@ -1,4 +1,8 @@
-use std::{hash::Hash, path::Path, sync::Arc};
+use std::{
+  hash::{Hash, Hasher},
+  path::Path,
+  sync::Arc,
+};
 
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
@@ -31,20 +35,26 @@ pub struct AssetKey {
   pub target: Arc<Target>,
   pub pipeline: Option<hstr::Atom>,
   pub bundle_behavior: BundleBehavior,
-  // pub flags: AssetFlags,
 }
 
 impl Asset {
   pub fn id(&self, project_root: &PathId) -> String {
+    format!("{:016x}", self.id_u64(project_root))
+  }
+
+  pub fn id_u64(&self, project_root: &PathId) -> u64 {
     let mut hasher = xxhash_rust::xxh3::Xxh3Default::new();
-    self.loc.stable_hash(project_root, &mut hasher);
-    self.ty.hash(&mut hasher);
-    self.target.stable_hash(project_root, &mut hasher);
-    self.pipeline.hash(&mut hasher);
-    self.bundle_behavior.hash(&mut hasher);
-    self.flags.hash(&mut hasher);
-    self.unique_key.hash(&mut hasher);
-    format!("{:016x}", hasher.digest())
+    self.stable_hash(project_root, &mut hasher);
+    hasher.digest()
+  }
+
+  pub fn stable_hash<H: Hasher>(&self, project_root: &PathId, state: &mut H) {
+    self.loc.stable_hash(project_root, state);
+    self.ty.hash(state);
+    self.target.stable_hash(project_root, state);
+    self.pipeline.hash(state);
+    self.bundle_behavior.hash(state);
+    self.unique_key.hash(state);
   }
 
   pub fn key(&self) -> AssetKey {
@@ -54,7 +64,6 @@ impl Asset {
       target: self.target.clone(),
       pipeline: self.pipeline.clone(),
       bundle_behavior: self.bundle_behavior.clone(),
-      // flags: self.flags.clone(),
     }
   }
 }

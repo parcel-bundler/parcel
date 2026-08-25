@@ -11,6 +11,8 @@ struct UppercaseContent {
 }
 
 impl AssetContent for UppercaseContent {
+  const TYPE_ID: [u8; 16] = parcel_plugin::type_id!("UppercaseContent");
+
   fn read(&self) -> Result<ContentBuffer, Diagnostic> {
     if self.source == "PANIC_READ" {
       panic!("example custom content read panic");

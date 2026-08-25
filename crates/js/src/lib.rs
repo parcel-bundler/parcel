@@ -31,6 +31,10 @@ impl Content for JsContent {
     Ok(code)
   }
 
+  fn ty(&self) -> ContentType {
+    parcel_core::content_type!("JsContent")
+  }
+
   fn package(
     &self,
     bundle_graph: &BundleGraph,

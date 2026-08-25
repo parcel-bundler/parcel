@@ -73,6 +73,7 @@ fn asset_fixture(target: Arc<CoreTarget>) -> CoreAsset {
 
 fn bundle_fixture(target: Arc<CoreTarget>, dist_path: Option<&str>) -> CoreBundle {
   CoreBundle {
+    id: 0,
     ty: AssetType::Js,
     target,
     bundle_behavior: CoreBundleBehavior::Inline,

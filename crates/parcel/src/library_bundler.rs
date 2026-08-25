@@ -38,6 +38,7 @@ impl Bundler for LibraryBundler {
       } else {
         let bundle_index = bundles.len();
         bundles.push(Bundle {
+          id: asset.id_u64(&options.project_root),
           ty: asset.ty.clone(),
           assets: vec![id],
           bundle_behavior: asset.bundle_behavior,

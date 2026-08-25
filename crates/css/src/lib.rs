@@ -39,6 +39,10 @@ impl Content for CssContent {
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     self.package_impl(bundle_graph, bundle, get_inline_bundle_content, options)
   }
+
+  fn ty(&self) -> ContentType {
+    parcel_core::content_type!("CssContent")
+  }
 }
 
 pub fn resolve_css_module_export(
@@ -171,5 +175,9 @@ impl Content for StyleAttrContent {
     options: &ParcelOptions,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     self.package_impl(bundle_graph, bundle, get_inline_bundle_content, options)
+  }
+
+  fn ty(&self) -> ContentType {
+    parcel_core::content_type!("StyleAttrContent")
   }
 }

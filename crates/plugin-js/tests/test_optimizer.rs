@@ -60,6 +60,7 @@ fn run(
     symbols: Default::default(),
   }];
   let bundles = vec![Bundle {
+    id: 0,
     ty: AssetType::Js,
     target,
     bundle_behavior: BundleBehavior::None,

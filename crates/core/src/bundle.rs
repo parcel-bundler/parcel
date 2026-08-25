@@ -7,6 +7,7 @@ use crate::{AssetIndex, AssetType, PathId, SourceUrl, Target, impl_bitflags_serd
 
 #[derive(Debug)]
 pub struct Bundle {
+  pub id: u64,
   pub ty: AssetType,
   pub target: Arc<Target>,
   pub bundle_behavior: BundleBehavior,

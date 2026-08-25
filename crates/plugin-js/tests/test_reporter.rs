@@ -83,6 +83,7 @@ fn bundle_graph() -> BundleGraph<'static> {
     test_asset("file:///src/style.css", AssetType::Css, target.clone()),
   ];
   let bundles = vec![Bundle {
+    id: 0,
     ty: AssetType::Js,
     target,
     bundle_behavior: BundleBehavior::None,

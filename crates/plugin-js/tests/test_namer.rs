@@ -57,6 +57,7 @@ fn run_times(
   ];
   let bundles = vec![
     Bundle {
+      id: 0,
       ty: AssetType::Js,
       target: target.clone(),
       bundle_behavior: BundleBehavior::None,
@@ -68,6 +69,7 @@ fn run_times(
       referenced_bundles: vec![1],
     },
     Bundle {
+      id: 0,
       ty: AssetType::Css,
       target,
       bundle_behavior: BundleBehavior::Isolated,

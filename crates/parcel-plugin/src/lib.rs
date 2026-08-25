@@ -599,7 +599,7 @@ impl<'a> Asset<'a> {
       buf: *mut Buffer,
       diagnostic: *mut ffi::Diagnostic,
     ) {
-      let content = unsafe { &*(content as *const T) as &T };
+      let content = unsafe { &(*(content as *const ContentBox<T>)).content };
       let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| content.read()));
       match result {
         Ok(Ok(ContentBuffer::Bytes(b))) => {
@@ -627,7 +627,7 @@ impl<'a> Asset<'a> {
       buf: *mut Buffer,
       diagnostic: *mut ffi::Diagnostic,
     ) {
-      let content = unsafe { &*(content as *const T) as &T };
+      let content = unsafe { &(*(content as *const ContentBox<T>)).content };
       let bundle_graph = unsafe { BundleGraph::from_raw(bundle_graph, options) };
       let bundle = unsafe { Bundle::from_raw(bundle, options) };
       let options = unsafe { Options::from_raw(options) };
@@ -653,15 +653,18 @@ impl<'a> Asset<'a> {
     }
 
     unsafe extern "C" fn free_content<T: AssetContent>(content: *mut c_void) {
-      drop(unsafe { Box::from_raw(content as *mut T) })
+      drop(unsafe { Box::from_raw(content as *mut ContentBox<T>) })
     }
 
-    let ty = type_id::<T>();
+    let content = Box::leak(Box::new(ContentBox {
+      rust_type: rust_type_witness::<T>(),
+      content,
+    }));
     unsafe {
       host!(asset_set_custom_content)(
         self.raw,
-        &ty,
-        Box::leak(Box::new(content)) as *mut T as *mut c_void,
+        &T::TYPE_ID,
+        content as *mut ContentBox<T> as *mut c_void,
         Some(read_content::<T>),
         Some(package_content::<T>),
         Some(free_content::<T>),
@@ -677,11 +680,10 @@ impl<'a> Asset<'a> {
         return None;
       }
       if !content.is_null() {
-        let expected_ty = type_id::<T>();
-        if ty != expected_ty {
+        if ty != T::TYPE_ID {
           return None;
         }
-        return Some(&*(content as *const T));
+        return downcast_content::<T>(content);
       }
     }
 
@@ -821,10 +823,43 @@ impl<'a> Asset<'a> {
   }
 }
 
-fn type_id<T: 'static>() -> [u8; 16] {
-  let ty = TypeId::of::<T>();
-  let slice = unsafe { std::slice::from_raw_parts(&ty as *const TypeId as *const u8, 16) };
-  slice.try_into().unwrap()
+/// Custom content is boxed together with a witness of its concrete Rust type
+/// so `custom_content` can verify it before casting. The stable
+/// [`AssetContent::TYPE_ID`] is not proof of layout, since another copy of a
+/// plugin (e.g. a different version loaded as a separate library) can use the
+/// same id for a type that has changed; `TypeId` bytes only match within one
+/// compiled copy, which is exactly the guarantee the cast needs.
+///
+/// `repr(C)` keeps the witness at offset 0 in every SDK build. Reading it from
+/// a pointer another SDK copy created is sound because a [`TYPE_ID`] match
+/// implies that copy used this same header: the `parcel.content.v1` namespace
+/// in [`type_id!`] versions this layout — change it, bump the namespace.
+#[repr(C)]
+struct ContentBox<T> {
+  rust_type: [u8; 16],
+  content: T,
+}
+
+fn rust_type_witness<T: 'static>() -> [u8; 16] {
+  // TypeId's layout is unspecified; a size change fails this transmute at
+  // compile time — handle that (and bump the id namespace) if it ever happens.
+  unsafe { std::mem::transmute(TypeId::of::<T>()) }
+}
+
+/// Downcasts a custom content pointer to `T` after verifying its witness.
+///
+/// # Safety
+/// `content` must be non-null and point to a live `ContentBox` whose
+/// [`AssetContent::TYPE_ID`] matched `T`'s.
+unsafe fn downcast_content<'a, T: AssetContent>(content: *const c_void) -> Option<&'a T> {
+  // Read only the header: the pointee may be a ContentBox<U> smaller than
+  // ContentBox<T>, so no ContentBox<T> place may be formed before the witness
+  // matches.
+  let witness = unsafe { (content as *const [u8; 16]).read() };
+  if witness != rust_type_witness::<T>() {
+    return None;
+  }
+  Some(unsafe { &(*(content as *const ContentBox<T>)).content })
 }
 
 fn panic_message(payload: Box<dyn Any + Send>) -> String {
@@ -869,7 +904,41 @@ impl From<ContentBuffer> for OptimizeResult {
   }
 }
 
+/// Builds a stable content type id by prefixing the plugin crate's package name.
+#[macro_export]
+macro_rules! type_id {
+  ($name:literal) => {
+    $crate::content_type_id(concat!(
+      "parcel.content.v1\0",
+      env!("CARGO_PKG_NAME"),
+      "\0",
+      $name
+    ))
+  };
+}
+
+/// Derives the stable 16-byte content type id for an [`AssetContent::NAME`].
+pub const fn content_type_id(name: &str) -> [u8; 16] {
+  let digest = sha2_const_stable::Sha256::new()
+    .update(name.as_bytes())
+    .finalize();
+  let mut id = [0u8; 16];
+  let mut i = 0;
+  while i < 16 {
+    id[i] = digest[i];
+    i += 1;
+  }
+  id
+}
+
 pub trait AssetContent: Send + Sync + 'static {
+  /// Globally unique, stable id for this content type.
+  ///
+  /// ```rust,ignore
+  /// const TYPE_ID: [u8; 16] = parcel_plugin::type_id!("MyContent");
+  /// ```
+  const TYPE_ID: [u8; 16];
+
   fn read(&self) -> Result<ContentBuffer, Diagnostic>;
 
   fn package(
@@ -993,11 +1062,10 @@ impl<'a> AssetRef<'a> {
         return None;
       }
       if !content.is_null() {
-        let expected_ty = type_id::<T>();
-        if ty != expected_ty {
+        if ty != T::TYPE_ID {
           return None;
         }
-        return Some(&*(content as *const T));
+        return downcast_content::<T>(content);
       }
     }
 
@@ -1826,4 +1894,41 @@ macro_rules! register_plugin {
       }
     }
   };
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  struct TestContent;
+
+  impl AssetContent for TestContent {
+    const TYPE_ID: [u8; 16] = type_id!("TestContent");
+
+    fn read(&self) -> Result<ContentBuffer, Diagnostic> {
+      Ok(ContentBuffer::Bytes(Vec::new()))
+    }
+
+    fn package(
+      &self,
+      _bundle_graph: &BundleGraph,
+      _bundle: &Bundle,
+      _options: &Options,
+    ) -> Result<ContentBuffer, Diagnostic> {
+      Ok(ContentBuffer::Bytes(Vec::new()))
+    }
+  }
+
+  #[test]
+  fn content_type_id_derivation_is_stable() {
+    // Golden value. If this assertion ever fails, the id derivation changed,
+    // which invalidates every user's cache and changes their bundle ids.
+    assert_eq!(
+      TestContent::TYPE_ID,
+      [
+        0xd8, 0x71, 0x00, 0x6b, 0x60, 0x16, 0x0e, 0x55, 0xaf, 0xdc, 0xbb, 0x06, 0x0b, 0x0d, 0xb0,
+        0xd2,
+      ]
+    );
+  }
 }

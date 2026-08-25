@@ -131,7 +131,7 @@ impl Drop for CContent {
 
 impl Content for CContent {
   fn ty(&self) -> ContentType {
-    ContentType::Custom(self.ty.clone())
+    ContentType::from_bytes(self.ty)
   }
 
   fn read(&self) -> Result<Vec<u8>, CoreDiagnostic> {

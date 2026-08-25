@@ -379,6 +379,10 @@ impl Content for HtmlContent {
     Ok(self.code.clone())
   }
 
+  fn ty(&self) -> ContentType {
+    parcel_core::content_type!("HtmlContent")
+  }
+
   fn package(
     &self,
     bundle_graph: &BundleGraph,
@@ -581,6 +585,10 @@ pub struct SvgContent {
 impl Content for SvgContent {
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
     Ok(self.code.clone())
+  }
+
+  fn ty(&self) -> ContentType {
+    parcel_core::content_type!("SvgContent")
   }
 
   fn package(

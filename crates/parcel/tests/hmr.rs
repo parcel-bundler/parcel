@@ -101,6 +101,56 @@ fn hmr_reload_serializes_for_the_runtime() {
 }
 
 #[test]
+fn css_bundle_name_is_stable_when_its_assets_change() {
+  let (mut parcel, input_fs) = setup(&[
+    (
+      "/project/index.js",
+      "import './styles.css'; if (module.hot) module.hot.accept();",
+    ),
+    ("/project/styles.css", ".styles { color: red; }"),
+    ("/project/theme.css", ".theme { color: blue; }"),
+  ]);
+
+  let (old_name, old_asset_count) = {
+    let bundle_graph = parcel.build().expect("initial build failed");
+    let bundle = bundle_graph
+      .bundles
+      .iter()
+      .find(|bundle| bundle.ty == AssetType::Css)
+      .expect("expected a CSS bundle");
+    (bundle.name(), bundle.assets.len())
+  };
+
+  write_file(
+    &input_fs,
+    "/project/styles.css",
+    "@import './theme.css'; .styles { color: red; }",
+  );
+  parcel
+    .invalidate(&[PathId::new(Path::new("/project/styles.css"))], &[])
+    .expect("invalidate failed");
+  let result = parcel
+    .build_with_changes()
+    .expect("incremental build failed");
+  let bundle = result
+    .bundle_graph
+    .bundles
+    .iter()
+    .find(|bundle| bundle.ty == AssetType::Css)
+    .expect("expected a CSS bundle");
+
+  assert!(
+    bundle.assets.len() > old_asset_count,
+    "the CSS bundle should contain the newly imported asset"
+  );
+  assert_eq!(bundle.name(), old_name);
+  assert!(
+    !result.output_paths_changed,
+    "stable bundle names should avoid the correctness reload fallback"
+  );
+}
+
+#[test]
 fn hmr_update_reloads_for_esm_sync_bundle_imports() {
   let (mut parcel, input_fs) = setup(&[
     (

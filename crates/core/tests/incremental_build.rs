@@ -360,7 +360,47 @@ fn incremental_rebuild_adding_dependency_changes_composition() {
 }
 
 #[test]
-fn incremental_rebuild_repackages_referrer_when_referenced_bundle_name_changes() {
+fn incremental_rebuild_adding_async_bundle_reports_output_path_change() {
+  let (mut parcel, input, output) = setup(
+    &[
+      ("/project/index.js", "@import ./foo.js"),
+      ("/project/foo.js", "console.log('foo')"),
+      ("/project/page.js", "console.log('page')"),
+    ],
+    &["/project/index.js"],
+  );
+
+  let bundle_graph = parcel.build().expect("initial build failed");
+  assert_eq!(bundle_graph.bundles.len(), 1);
+  let _ = written_names(&output);
+
+  // Add an async import. The new page bundle changes the output-path set, so HMR must reload.
+  write_file(
+    &input,
+    "/project/index.js",
+    "@import ./foo.js\n@async ./page.js",
+  );
+  parcel
+    .invalidate(&[path_id("/project/index.js")], &[])
+    .unwrap();
+  let result = parcel
+    .build_with_changes()
+    .expect("incremental build failed");
+
+  assert_eq!(result.bundle_graph.bundles.len(), 2);
+  assert!(
+    result.output_paths_changed,
+    "adding an output bundle should trigger the HMR reload fallback"
+  );
+  assert_eq!(
+    written_names(&output),
+    vec!["index.js", "page.js"],
+    "all output bundles should be repackaged when the output-path set changes"
+  );
+}
+
+#[test]
+fn incremental_rebuild_keeps_referenced_bundle_name_when_composition_changes() {
   let (mut parcel, input, output) = setup(
     &[
       (
@@ -386,9 +426,7 @@ fn incremental_rebuild_repackages_referrer_when_referenced_bundle_name_changes()
   );
   let _ = written_names(&output);
 
-  // Adding an import changes the anonymous CSS bundle's membership, which changes its filename.
-  // The entry asset itself is unchanged, but its packaged output must be rewritten with the new
-  // CSS bundle reference.
+  // Adding an import changes the anonymous CSS bundle's membership, but not its identity or name.
   write_file(
     &input,
     "/project/styles.css",
@@ -401,8 +439,8 @@ fn incremental_rebuild_repackages_referrer_when_referenced_bundle_name_changes()
     .build_with_changes()
     .expect("incremental build failed");
   assert!(
-    build_result.output_paths_changed,
-    "renaming the CSS bundle should be reported to HMR"
+    !build_result.output_paths_changed,
+    "changing bundle composition should not change its output path or trigger an HMR reload"
   );
   let new_css_name = build_result
     .bundle_graph
@@ -412,33 +450,23 @@ fn incremental_rebuild_repackages_referrer_when_referenced_bundle_name_changes()
     .expect("expected a CSS bundle")
     .name();
 
-  assert_ne!(old_css_name, new_css_name);
+  assert_eq!(old_css_name, new_css_name);
   let removed_names: Vec<String> = output
     .take_removes()
     .into_iter()
     .map(|path| path.file_name().unwrap().to_string_lossy().into_owned())
     .collect();
-  assert!(
-    removed_names.contains(&old_css_name),
-    "old CSS bundle should be removed, got: {removed_names:?}"
-  );
-
-  let mut expected_writes = vec!["index.js".to_string(), new_css_name.clone()];
-  expected_writes.sort();
+  assert!(removed_names.is_empty(), "no bundles should be removed");
   assert_eq!(
     written_names(&output),
-    expected_writes,
-    "all output bundles should be repackaged when an output path changes"
+    vec![new_css_name.clone()],
+    "only the changed CSS bundle should be repackaged"
   );
 
   let entry = read_dist(&output, "index.js");
   assert!(
-    entry.contains(&new_css_name),
-    "entry bundle should reference {new_css_name}, got: {entry}"
-  );
-  assert!(
-    !entry.contains(&old_css_name),
-    "entry bundle should no longer reference {old_css_name}, got: {entry}"
+    entry.contains(&old_css_name),
+    "entry bundle should retain its reference to {old_css_name}, got: {entry}"
   );
 }
 
@@ -788,7 +816,7 @@ fn incremental_rebuild_when_resolver_glob_match_is_created() {
 }
 
 #[test]
-fn incremental_rebuild_removing_async_bundle_deletes_output() {
+fn incremental_rebuild_removing_async_bundle_reports_output_path_change() {
   let (mut parcel, input, output) = setup(
     &[
       ("/project/index.js", "@import ./foo.js\n@async ./page.js"),
@@ -807,9 +835,20 @@ fn incremental_rebuild_removing_async_bundle_deletes_output() {
   parcel
     .invalidate(&[path_id("/project/index.js")], &[])
     .unwrap();
-  let bundle_graph = parcel.build().expect("incremental build failed");
+  let result = parcel
+    .build_with_changes()
+    .expect("incremental build failed");
 
-  assert_eq!(bundle_graph.bundles.len(), 1);
+  assert_eq!(result.bundle_graph.bundles.len(), 1);
+  assert!(
+    result.output_paths_changed,
+    "removing an output bundle should trigger the HMR reload fallback"
+  );
+  assert_eq!(
+    written_names(&output),
+    vec!["index.js"],
+    "remaining output bundles should be repackaged when the output-path set changes"
+  );
 
   // The stale page bundle output was removed.
   let removed = output.take_removes();

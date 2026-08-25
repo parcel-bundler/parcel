@@ -4,10 +4,9 @@ use std::{
 };
 
 use parcel_core::{
-  Asset, AssetGraph, AssetType, Bundle, BundleFlags, BundleGraph, Diagnostic, DiagnosticList,
-  Environment, EnvironmentFlags, Namer, OutputFormat, PathId,
+  Asset, AssetType, Bundle, BundleFlags, BundleGraph, Diagnostic, DiagnosticList, Environment,
+  EnvironmentFlags, Namer, OutputFormat, PathId,
 };
-use xxhash_rust::xxh3::Xxh3Default;
 
 pub struct DefaultNamer {}
 
@@ -16,7 +15,7 @@ impl Namer for DefaultNamer {
     &self,
     bundle_graph: &BundleGraph,
     bundle: &parcel_core::Bundle,
-    options: &parcel_core::ParcelOptions,
+    _options: &parcel_core::ParcelOptions,
   ) -> Result<Option<PathId>, DiagnosticList> {
     let mut ext = bundle.ty.extension();
     if bundle.ty == AssetType::Js
@@ -52,14 +51,7 @@ impl Namer for DefaultNamer {
         )?
         .with_extension("");
         let name = relative.to_str().unwrap();
-        return Ok(Some(format_name(
-          prefix,
-          &bundle_graph.asset_graph,
-          bundle,
-          name,
-          ext,
-          &options.project_root,
-        )));
+        return Ok(Some(format_name(prefix, bundle, name, ext)));
       } else {
         if bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME) {
           let entry_root = common_root_path(
@@ -84,47 +76,18 @@ impl Namer for DefaultNamer {
           if let Some(entry_root) = entry_root {
             let relative = relative_path(asset, &entry_root, true)?.with_extension("");
             let name = relative.to_str().unwrap();
-            return Ok(Some(format_name(
-              prefix,
-              &bundle_graph.asset_graph,
-              bundle,
-              name,
-              ext,
-              &options.project_root,
-            )));
+            return Ok(Some(format_name(prefix, bundle, name, ext)));
           }
         }
 
         let file_path = asset.loc.url.to_file_path()?;
         let name = file_path.file_prefix().unwrap();
-        return Ok(Some(format_name(
-          prefix,
-          &bundle_graph.asset_graph,
-          bundle,
-          name,
-          ext,
-          &options.project_root,
-        )));
+        return Ok(Some(format_name(prefix, bundle, name, ext)));
       }
     }
 
-    Ok(Some(prefix.child(&format!(
-      "{:016x}.{}",
-      hash_bundle(&bundle_graph.asset_graph, bundle, &options.project_root),
-      ext
-    ))))
+    Ok(Some(prefix.child(&format!("{:016x}.{}", bundle.id, ext))))
   }
-}
-
-fn hash_bundle(asset_graph: &AssetGraph, bundle: &Bundle, project_root: &PathId) -> u64 {
-  let mut hash = Xxh3Default::new();
-  for asset in &bundle.assets {
-    let asset = &asset_graph.asset(*asset);
-    asset.loc.stable_hash(project_root, &mut hash);
-    asset.target.stable_hash(project_root, &mut hash);
-  }
-
-  hash.digest()
 }
 
 fn relative_path(
@@ -150,23 +113,11 @@ fn relative_path(
 
 /// Formats the final bundle name and joins it onto the target's dist dir. `name` may contain
 /// subdirectories (from relative entry paths), so it is joined as a path, not a single segment.
-fn format_name(
-  prefix: PathId,
-  asset_graph: &AssetGraph,
-  bundle: &Bundle,
-  name: &str,
-  ext: &str,
-  project_root: &PathId,
-) -> PathId {
+fn format_name(prefix: PathId, bundle: &Bundle, name: &str, ext: &str) -> PathId {
   let name = if bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME) {
     format!("{}.{}", name, ext)
   } else {
-    format!(
-      "{}-{:016x}.{}",
-      name,
-      hash_bundle(asset_graph, bundle, project_root),
-      ext
-    )
+    format!("{}-{:016x}.{}", name, bundle.id, ext)
   };
   prefix.join(Path::new(&name))
 }

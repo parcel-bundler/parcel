@@ -1,4 +1,7 @@
-use std::collections::{HashMap, VecDeque};
+use std::{
+  collections::{HashMap, VecDeque},
+  hash::Hash,
+};
 
 use fixedbitset::FixedBitSet;
 use glob_match::glob_match;
@@ -44,6 +47,48 @@ impl DefaultBundler {
 
       false
     })
+  }
+}
+
+#[derive(Hash, PartialEq, Eq)]
+enum BundleKey<'a> {
+  Default {
+    reachable_roots: &'a FixedBitSet,
+    context: Environment,
+    packager: ContentType,
+  },
+  Manual {
+    index: usize,
+    packager: ContentType,
+  },
+}
+
+impl<'a> BundleKey<'a> {
+  fn stable_hash(&self, bundles: &[Bundle]) -> u64 {
+    let mut hasher = xxhash_rust::xxh3::Xxh3Default::new();
+    match self {
+      BundleKey::Default {
+        reachable_roots,
+        context,
+        packager,
+      } => {
+        0.hash(&mut hasher);
+        let mut ids: Vec<u64> = reachable_roots
+          .ones()
+          .map(|bundle_root_index| bundles[bundle_root_index].id)
+          .collect();
+        ids.sort();
+        ids.hash(&mut hasher);
+        context.hash(&mut hasher);
+        packager.hash(&mut hasher);
+      }
+      BundleKey::Manual { index, packager } => {
+        1.hash(&mut hasher);
+        index.hash(&mut hasher);
+        packager.hash(&mut hasher);
+      }
+    }
+    hasher.digest()
   }
 }
 
@@ -134,19 +179,6 @@ impl Bundler for DefaultBundler {
       }
     }
 
-    #[derive(Hash, PartialEq, Eq)]
-    enum BundleKey<'a> {
-      Default {
-        reachable_roots: &'a FixedBitSet,
-        context: Environment,
-        packager: ContentType,
-      },
-      Manual {
-        index: usize,
-        packager: ContentType,
-      },
-    }
-
     let mut shared_bundles = HashMap::<BundleKey, usize>::new();
     let mut asset_index_to_bundle_index = HashMap::new();
 
@@ -154,7 +186,24 @@ impl Bundler for DefaultBundler {
     for bundle_root_asset_index in bundle_roots.ones() {
       let bundle_root_asset_index = AssetIndex::from_index(bundle_root_asset_index);
       let asset = &asset_graph.asset(bundle_root_asset_index);
+      let key = if let Some(index) = self.manual_shared_bundle(asset, options) {
+        BundleKey::Manual {
+          index,
+          packager: asset.content.ty(),
+        }
+      } else {
+        BundleKey::Default {
+          reachable_roots: &reachable_roots[bundle_root_asset_index.index()],
+          context: asset.target.environment, // TODO: other environment properties?
+          packager: asset.content.ty(),
+        }
+      };
+
       let bundle = Bundle {
+        id: match &key {
+          BundleKey::Default { .. } => asset.id_u64(&options.project_root),
+          BundleKey::Manual { .. } => key.stable_hash(&bundles),
+        },
         ty: asset.ty.clone(),
         target: asset.target.clone(),
         bundle_behavior: bundle_behaviors[bundle_root_asset_index.index()],
@@ -170,23 +219,10 @@ impl Bundler for DefaultBundler {
         referenced_bundles: Vec::new(),
       };
 
-      let key = if let Some(index) = self.manual_shared_bundle(asset, options) {
-        BundleKey::Manual {
-          index,
-          packager: asset.content.ty(),
-        }
-      } else {
-        BundleKey::Default {
-          reachable_roots: &reachable_roots[bundle_root_asset_index.index()],
-          context: asset.target.environment, // TODO: other environment properties?
-          packager: asset.content.ty(),
-        }
-      };
-
       let bundle_index = bundles.len();
-      shared_bundles.insert(key, bundle_index);
       asset_index_to_bundle_index.insert(bundle_root_asset_index, bundle_index);
       bundles.push(bundle);
+      shared_bundles.insert(key, bundle_index);
     }
 
     // Place assets into bundles, following depth-first order.
@@ -216,6 +252,7 @@ impl Bundler for DefaultBundler {
         *bundle_index
       } else {
         let bundle = Bundle {
+          id: key.stable_hash(&bundles),
           ty: asset.ty.clone(),
           target: asset.target.clone(),
           bundle_behavior: bundle_behaviors[asset_index.index()],
