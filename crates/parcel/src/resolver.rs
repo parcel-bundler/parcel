@@ -126,6 +126,7 @@ impl Resolver for DefaultResolver {
             pipeline: pipeline.map(|p| p.into()),
             ty,
             side_effects,
+            unique_key: None,
           })))
         }
         Resolution::External => Ok(DependencyResolution::External),
@@ -139,6 +140,7 @@ impl Resolver for DefaultResolver {
           target: dep.target.clone(),
           pipeline: pipeline.map(|p| p.into()),
           side_effects,
+          unique_key: None,
         }))),
         Resolution::Global(global) => Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
           ty: AssetType::Js,
@@ -153,6 +155,7 @@ impl Resolver for DefaultResolver {
           target: dep.target.clone(),
           pipeline: pipeline.map(|p| p.into()),
           side_effects,
+          unique_key: None,
         }))),
         Resolution::Builtin { module, .. } => {
           if dep.target.flags.contains(EnvironmentFlags::IS_LIBRARY)
@@ -197,6 +200,7 @@ impl Resolver for DefaultResolver {
                 target: dep.target.clone(),
                 pipeline: pipeline.map(|p| p.into()),
                 side_effects,
+                unique_key: None,
               })));
             }
           };

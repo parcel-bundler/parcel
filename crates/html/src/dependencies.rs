@@ -67,6 +67,7 @@ pub fn collect_dependencies<'arena>(
         pipeline: None,
         target: asset.target.clone(),
         side_effects: true,
+        unique_key: asset.unique_key.clone(),
       })),
     });
   }

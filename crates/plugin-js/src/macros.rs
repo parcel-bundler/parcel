@@ -64,6 +64,10 @@ impl MacroContext {
     let data_url = source_map.to_data_url(None).unwrap();
     content.push_str(&format!("\n/*# sourceMappingURL={} */\n", data_url));
 
+    // Multiple addAsset calls from one macro invocation share the same loc; the
+    // ordinal keeps their request identities distinct.
+    let ordinal = self.dependencies.borrow().len();
+
     self.dependencies.borrow_mut().push(Dependency {
       specifier: format!("macro"),
       specifier_type: SpecifierType::Esm,
@@ -103,6 +107,7 @@ impl MacroContext {
         ty,
         content: Arc::new(BufferContent::new_string(content)),
         side_effects: true,
+        unique_key: Some(ordinal.to_string()),
       })),
     })
   }

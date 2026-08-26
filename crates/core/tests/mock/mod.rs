@@ -5,7 +5,6 @@
 
 use std::{
   collections::{HashMap, HashSet},
-  hash::{Hash, Hasher},
   io::Result as IoResult,
   path::{Path, PathBuf},
   sync::{
@@ -161,10 +160,6 @@ struct MockContent {
 impl Content for MockContent {
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
     Ok(self.code.clone())
-  }
-
-  fn hash(&self, mut state: &mut dyn Hasher) {
-    self.code.hash(&mut state);
   }
 
   fn package(
@@ -359,6 +354,7 @@ impl Resolver for MockResolver {
       target: dep.target.clone(),
       content,
       side_effects: true,
+      unique_key: None,
     })))
   }
 }

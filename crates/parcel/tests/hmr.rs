@@ -151,6 +151,92 @@ fn css_bundle_name_is_stable_when_its_assets_change() {
 }
 
 #[test]
+fn macro_emitted_css_is_repackaged_when_content_returns_to_a_previous_value() {
+  let (mut parcel, input_fs) = setup(&[
+    (
+      "/project/index.js",
+      r#"import { css } from "./macro.mjs" with { type: "macro" };
+output(css("background: red"));"#,
+    ),
+    (
+      "/project/macro.mjs",
+      r#"export function css(code) {
+  let className = code.includes("red") ? "red_hash" : "green_hash";
+  this.addAsset({
+    type: "css",
+    content: `.${className} { ${code} }`
+  });
+  return className;
+}"#,
+    ),
+  ]);
+  let output_fs = parcel.options.output_fs.clone();
+
+  let assert_outputs = |graph: &parcel_core::BundleGraph<'_>, color, class_name| {
+    let js = graph
+      .bundles
+      .iter()
+      .find(|bundle| bundle.ty == AssetType::Js)
+      .expect("expected a JS bundle");
+    let css = graph
+      .bundles
+      .iter()
+      .find(|bundle| bundle.ty == AssetType::Css)
+      .expect("expected a CSS bundle");
+    let js = output_fs.read_to_string(js.dist_path()).unwrap();
+    let css = output_fs.read_to_string(css.dist_path()).unwrap();
+
+    assert!(
+      js.contains(class_name),
+      "JS bundle did not contain {class_name}: {js}"
+    );
+    assert!(
+      css.contains(color),
+      "CSS bundle did not contain {color}: {css}"
+    );
+    assert!(
+      css.contains(class_name),
+      "CSS bundle did not contain {class_name}: {css}"
+    );
+  };
+
+  {
+    let graph = parcel.build().expect("initial build failed");
+    assert_outputs(&graph, "background: red", "red_hash");
+  }
+
+  write_file(
+    &input_fs,
+    "/project/index.js",
+    r#"import { css } from "./macro.mjs" with { type: "macro" };
+output(css("background: green"));"#,
+  );
+  parcel
+    .invalidate(&[PathId::new(Path::new("/project/index.js"))], &[])
+    .expect("invalidate failed");
+  {
+    let result = parcel
+      .build_with_changes()
+      .expect("first incremental build failed");
+    assert_outputs(&result.bundle_graph, "background: green", "green_hash");
+  }
+
+  write_file(
+    &input_fs,
+    "/project/index.js",
+    r#"import { css } from "./macro.mjs" with { type: "macro" };
+output(css("background: red"));"#,
+  );
+  parcel
+    .invalidate(&[PathId::new(Path::new("/project/index.js"))], &[])
+    .expect("invalidate failed");
+  let result = parcel
+    .build_with_changes()
+    .expect("second incremental build failed");
+  assert_outputs(&result.bundle_graph, "background: red", "red_hash");
+}
+
+#[test]
 fn hmr_update_reloads_for_esm_sync_bundle_imports() {
   let (mut parcel, input_fs) = setup(&[
     (

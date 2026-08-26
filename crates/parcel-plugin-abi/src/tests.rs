@@ -652,6 +652,7 @@ fn bundle_graph_accessors_cover_every_dependency_resolution() {
     target: target.clone(),
     content: Arc::new(BufferContent::new(Vec::new())),
     side_effects: true,
+    unique_key: None,
   });
 
   for resolution in [

@@ -428,6 +428,7 @@ impl Resolver for JsPlugin {
               },
               ty,
               side_effects: side_effects.unwrap_or(true),
+              unique_key: None,
             })));
           }
         }

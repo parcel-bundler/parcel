@@ -93,6 +93,7 @@ fn spawn_workers(rx: mpsc::Receiver<Request>, tx: mpsc::Sender<RequestResult>) {
         let result = match request {
           Request::Transform(req) => {
             let index = req.index;
+            let request = req.req.clone();
             let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| req.run()));
             match outcome {
               Ok(r) => RequestResult::Transform(r),
@@ -104,6 +105,7 @@ fn spawn_workers(rx: mpsc::Receiver<Request>, tx: mpsc::Sender<RequestResult>) {
                   .unwrap_or_else(|| "transform panicked".to_string());
                 RequestResult::Transform(TransformResult {
                   index,
+                  req: request,
                   invalidations: Invalidations::default(),
                   result: Err(Diagnostic::from_message(msg).into()),
                 })

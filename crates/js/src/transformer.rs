@@ -406,6 +406,7 @@ impl Transformer for JsTransformer {
             pipeline: None,
             side_effects: true,
             target: asset.target.clone(),
+            unique_key: Some(dep.specifier.to_string()),
           }))
         } else {
           DependencyResolution::None

@@ -30,6 +30,9 @@ pub struct TransformRequest {
 
 pub struct TransformResult {
   pub index: AssetNodeIndex,
+  /// The request this result was produced from. Used to discard results that were
+  /// superseded while in flight (the node's request was replaced with new content).
+  pub req: Arc<AssetRequest>,
   pub invalidations: Invalidations,
   pub result: Result<Asset, DiagnosticList>,
 }
@@ -45,6 +48,7 @@ impl TransformRequest {
       Err(diagnostic) => {
         return TransformResult {
           index,
+          req: self.req.clone(),
           invalidations,
           result: Err(diagnostic.into()),
         };
@@ -55,6 +59,7 @@ impl TransformRequest {
 
     TransformResult {
       index,
+      req: self.req.clone(),
       invalidations,
       result,
     }
@@ -84,7 +89,7 @@ impl TransformRequest {
       pipeline: req.pipeline.clone(),
       bundle_behavior: crate::BundleBehavior::None,
       flags,
-      unique_key: None,
+      unique_key: req.unique_key.clone(),
       dependencies: Vec::new(),
       symbols: AssetSymbols::default(),
     };

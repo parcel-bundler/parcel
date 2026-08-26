@@ -176,6 +176,10 @@ pub struct AssetRequest {
   pub target: Arc<Target>,
   pub content: Arc<dyn Content>,
   pub side_effects: bool,
+  /// Discriminator for multiple inline assets emitted at the same source location
+  /// (e.g. inline scripts/styles on one HTML line, or multiple `addAsset` calls from
+  /// one macro invocation). Part of the request's stable identity.
+  pub unique_key: Option<String>,
 }
 
 impl PartialEq for AssetRequest {
@@ -186,18 +190,35 @@ impl PartialEq for AssetRequest {
       && self.target == other.target
       && self.content.eq(&*other.content)
       && self.side_effects == other.side_effects
+      && self.unique_key == other.unique_key
   }
 }
 
 impl Eq for AssetRequest {}
 
-impl std::hash::Hash for AssetRequest {
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    self.loc.hash(state);
-    self.ty.hash(state);
-    self.pipeline.hash(state);
-    self.target.hash(state);
-    self.content.hash(state);
-    self.side_effects.hash(state);
+/// Stable identity of an asset request: everything except the content. Two requests
+/// with the same key refer to the same logical asset (and asset graph node); a content
+/// difference between them means that asset needs re-transformation, not that a
+/// separate asset exists.
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct AssetRequestKey {
+  pub loc: SourceLocation,
+  pub ty: AssetType,
+  pub pipeline: Option<hstr::Atom>,
+  pub target: Arc<Target>,
+  pub side_effects: bool,
+  pub unique_key: Option<String>,
+}
+
+impl AssetRequest {
+  pub fn stable_key(&self) -> AssetRequestKey {
+    AssetRequestKey {
+      loc: self.loc.clone(),
+      ty: self.ty.clone(),
+      pipeline: self.pipeline.clone(),
+      target: self.target.clone(),
+      side_effects: self.side_effects,
+      unique_key: self.unique_key.clone(),
+    }
   }
 }

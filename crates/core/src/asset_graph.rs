@@ -8,9 +8,10 @@ use fixedbitset::FixedBitSet;
 use serde::Serialize;
 
 use crate::{
-  Asset, AssetFlags, AssetKey, AssetRequest, AssetType, Dependency, DependencyFlags,
-  DependencyResolution, DiagnosticList, Entry, Environment, EnvironmentFlags, FileContent,
-  InvalidationMap, ParcelOptions, PathId, Priority, SourceLocation, SymbolName, SymbolResolution,
+  Asset, AssetFlags, AssetKey, AssetRequest, AssetRequestKey, AssetType, Dependency,
+  DependencyFlags, DependencyResolution, DiagnosticList, Entry, Environment, EnvironmentFlags,
+  FileContent, InvalidationMap, ParcelOptions, PathId, Priority, SourceLocation, SymbolName,
+  SymbolResolution,
   config::ParcelConfig,
   request::{RequestResult, TransformQueue},
 };
@@ -90,10 +91,12 @@ pub struct AssetGraphBuilder {
   asset_nodes: Vec<AssetNode>,
   assets: Vec<Asset>,
   asset_keys: HashMap<AssetKey, AssetIndex>,
-  /// Deduplication map: AssetRequest → slot index in `asset_nodes`.
-  asset_requests: HashMap<Arc<AssetRequest>, AssetNodeIndex>,
-  /// Parallel to `asset_nodes`: the original AssetRequest for each slot.
-  /// Used to reset slots back to Deferred during invalidation.
+  /// Deduplication map: stable request identity (everything but content) → slot index
+  /// in `asset_nodes`.
+  asset_requests: HashMap<AssetRequestKey, AssetNodeIndex>,
+  /// Parallel to `asset_nodes`: the current AssetRequest for each slot.
+  /// Used to reset slots back to Deferred during invalidation. Invariant: this is
+  /// always the same `Arc` allocation as the request stored in the node itself.
   requests: Vec<Arc<AssetRequest>>,
   /// Reverse invalidation map: which assets to re-transform when a file changes.
   invalidation_map: InvalidationMap,
@@ -186,6 +189,7 @@ impl AssetGraphBuilder {
           target: entry.target.clone(),
           pipeline: None,
           side_effects: true, // TODO: resolve this for real?
+          unique_key: None,
         });
 
         let index = AssetNodeIndex::from_index(self.asset_nodes.len());
@@ -200,7 +204,7 @@ impl AssetGraphBuilder {
         });
         self.requests.push(req.clone());
         entry.asset = Some(index);
-        self.asset_requests.insert(req.clone(), index);
+        self.asset_requests.insert(req.stable_key(), index);
         queue.transform(index, req);
       }
     }
@@ -226,6 +230,13 @@ impl AssetGraphBuilder {
     while let Some(result) = queue.receive() {
       match result {
         RequestResult::Transform(res) => {
+          // Discard results that were superseded while in flight: if the node's request
+          // was replaced with new content after this transform was queued, a newer
+          // transform for the same node is pending and this result is stale.
+          if !Arc::ptr_eq(&self.requests[res.index.index()], &res.req) {
+            continue;
+          }
+
           // Always record invalidations, even when the transform errored.
           self.invalidation_map.add(res.index, res.invalidations);
 
@@ -251,8 +262,36 @@ impl AssetGraphBuilder {
           for dep in &mut asset.dependencies {
             let priority = dep.priority;
             if let DependencyResolution::Deferred(req) = &dep.resolution {
-              if let Some(&index) = self.asset_requests.get(req) {
+              let req = req.clone();
+              if let Some(&index) = self.asset_requests.get(&req.stable_key()) {
                 dep.resolution = DependencyResolution::Asset(index);
+
+                // Same logical asset. If the content changed (e.g. an inline/macro asset
+                // whose parent emitted a new snapshot), re-transform the node with the new
+                // request; any in-flight transform of the old request is discarded when its
+                // result arrives.
+                // TODO: evaluate if we can avoid having multiple in-flight requests for the same asset in the first place.
+                if !self.requests[index.index()].content.eq(&*req.content) {
+                  self.requests[index.index()] = req.clone();
+                  match &mut self.asset_nodes[index.index()] {
+                    AssetNode::Asset(_) => {
+                      self.asset_nodes[index.index()] = AssetNode::Deferred {
+                        request: req.clone(),
+                        symbols: Vec::new(),
+                        requested: true,
+                      };
+                      queue.transform(index, req.clone());
+                    }
+                    AssetNode::Deferred {
+                      request, requested, ..
+                    } => {
+                      *request = req.clone();
+                      if *requested {
+                        queue.transform(index, req.clone());
+                      }
+                    }
+                  }
+                }
 
                 // Lazy/parallel deps must be transformed even if the package has sideEffects: false,
                 // because the user explicitly requested this module via import().
@@ -268,12 +307,10 @@ impl AssetGraphBuilder {
                   }
                 }
               } else {
-                let req = req.clone();
-
                 // Allocate a new asset slot.
                 let index = AssetNodeIndex::from_index(self.asset_nodes.len());
                 dep.resolution = DependencyResolution::Asset(index);
-                self.asset_requests.insert(req.clone(), index);
+                self.asset_requests.insert(req.stable_key(), index);
 
                 // If the dependency has side effects or is loaded via dynamic import, always transform it.
                 let requested = req.side_effects || priority != Priority::Sync;

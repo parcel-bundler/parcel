@@ -399,6 +399,7 @@ impl Resolver for CPlugin {
             options.input_fs.clone(),
           )),
           side_effects: true,
+          unique_key: None,
         })))
       }
       ResolutionType::PARCEL_RESOLUTION_EXTERNAL => Ok(DependencyResolution::External),

@@ -147,6 +147,7 @@ mod tests {
           pipeline: None,
           side_effects: false,
           target: Default::default(),
+          unique_key: None,
         })))
       } else {
         Ok(DependencyResolution::None)
@@ -178,6 +179,7 @@ mod tests {
           pipeline: None,
           side_effects: false,
           target: Default::default(),
+          unique_key: None,
         })))
       } else {
         Ok(DependencyResolution::None)

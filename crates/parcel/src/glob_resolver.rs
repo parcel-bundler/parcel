@@ -103,6 +103,7 @@ impl Resolver for GlobResolver {
       target: dep.target.clone(),
       content: Arc::new(BufferContent::new_string(code)),
       side_effects: true,
+      unique_key: None,
     })))
   }
 }
