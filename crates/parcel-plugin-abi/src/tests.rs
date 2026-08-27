@@ -680,10 +680,13 @@ fn bundle_graph_accessors_cover_every_dependency_resolution() {
   );
   let graph = CoreBundleGraph::new(
     AssetGraph {
-      asset_nodes: Cow::Owned(vec![
-        AssetNode::Asset(CoreAssetIndex(0)),
-        AssetNode::Asset(CoreAssetIndex(1)),
-      ]),
+      asset_nodes: Cow::Owned(
+        assets
+          .iter()
+          .enumerate()
+          .map(|(index, asset)| AssetNode::from_asset(CoreAssetIndex::from_index(index), asset))
+          .collect(),
+      ),
       assets: Cow::Owned(assets),
       entries: Cow::Owned(Vec::new()),
     },

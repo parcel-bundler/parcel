@@ -59,13 +59,31 @@ impl std::fmt::Display for AssetIndex {
 }
 
 #[derive(Debug, Clone)]
-pub enum AssetNode {
-  Deferred {
-    request: Arc<AssetRequest>,
-    symbols: Vec<SymbolName>,
-    requested: bool,
-  },
-  Asset(AssetIndex),
+pub struct AssetNode {
+  pub request: Arc<AssetRequest>,
+  pub symbols: Vec<SymbolName>,
+  pub requested: bool,
+  pub asset: Option<AssetIndex>,
+}
+
+impl AssetNode {
+  /// Constructs a synthetic resolved node for an existing asset.
+  pub fn from_asset(asset_index: AssetIndex, asset: &Asset) -> Self {
+    AssetNode {
+      request: Arc::new(AssetRequest {
+        loc: asset.loc.clone(),
+        ty: asset.ty.clone(),
+        pipeline: asset.pipeline.clone(),
+        target: asset.target.clone(),
+        content: asset.content.clone(),
+        side_effects: asset.flags.contains(AssetFlags::SIDE_EFFECTS),
+        unique_key: asset.unique_key.clone(),
+      }),
+      symbols: Vec::new(),
+      requested: true,
+      asset: Some(asset_index),
+    }
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -94,10 +112,6 @@ pub struct AssetGraphBuilder {
   /// Deduplication map: stable request identity (everything but content) → slot index
   /// in `asset_nodes`.
   asset_requests: HashMap<AssetRequestKey, AssetNodeIndex>,
-  /// Parallel to `asset_nodes`: the current AssetRequest for each slot.
-  /// Used to reset slots back to Deferred during invalidation. Invariant: this is
-  /// always the same `Arc` allocation as the request stored in the node itself.
-  requests: Vec<Arc<AssetRequest>>,
   /// Reverse invalidation map: which assets to re-transform when a file changes.
   invalidation_map: InvalidationMap,
   /// Entry points. `entry.asset` is set after the first build.
@@ -113,7 +127,6 @@ impl AssetGraphBuilder {
       assets: Vec::new(),
       asset_keys: HashMap::new(),
       asset_requests: HashMap::new(),
-      requests: Vec::new(),
       invalidation_map: InvalidationMap::default(),
       entries,
       queue: TransformQueue::new(config, options.clone()),
@@ -135,13 +148,10 @@ impl AssetGraphBuilder {
   }
 
   fn reset_asset(&mut self, index: AssetNodeIndex) {
-    if let AssetNode::Asset(_) = &self.asset_nodes[index.index()] {
-      let request = self.requests[index.index()].clone();
-      self.asset_nodes[index.index()] = AssetNode::Deferred {
-        request,
-        symbols: Vec::new(),
-        requested: true,
-      };
+    let node = &mut self.asset_nodes[index.index()];
+    if node.asset.take().is_some() {
+      node.symbols.clear();
+      node.requested = true;
     }
   }
 
@@ -165,13 +175,9 @@ impl AssetGraphBuilder {
     for entry in &mut self.entries {
       if let Some(index) = entry.asset {
         // Slot exists — only re-queue if it was invalidated (reset to Deferred).
-        if let AssetNode::Deferred {
-          requested: true,
-          request,
-          ..
-        } = &self.asset_nodes[index.index()]
-        {
-          queue.transform(index, request.clone());
+        let node = &self.asset_nodes[index.index()];
+        if node.asset.is_none() && node.requested {
+          queue.transform(index, node.request.clone());
         }
       } else {
         // Initial build: create the slot.
@@ -193,7 +199,7 @@ impl AssetGraphBuilder {
         });
 
         let index = AssetNodeIndex::from_index(self.asset_nodes.len());
-        self.asset_nodes.push(AssetNode::Deferred {
+        self.asset_nodes.push(AssetNode {
           request: req.clone(),
           symbols: if entry.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
             vec![SymbolName::Namespace]
@@ -201,8 +207,8 @@ impl AssetGraphBuilder {
             Vec::new()
           },
           requested: true,
+          asset: None,
         });
-        self.requests.push(req.clone());
         entry.asset = Some(index);
         self.asset_requests.insert(req.stable_key(), index);
         queue.transform(index, req);
@@ -215,15 +221,8 @@ impl AssetGraphBuilder {
       self.entries.iter().filter_map(|e| e.asset).collect();
     for (index, node) in self.asset_nodes.iter().enumerate() {
       let index = AssetNodeIndex::from_index(index);
-      if let AssetNode::Deferred {
-        requested: true,
-        request,
-        ..
-      } = node
-      {
-        if !entry_indices.contains(&index) {
-          queue.transform(index, request.clone());
-        }
+      if node.asset.is_none() && node.requested && !entry_indices.contains(&index) {
+        queue.transform(index, node.request.clone());
       }
     }
 
@@ -233,7 +232,7 @@ impl AssetGraphBuilder {
           // Discard results that were superseded while in flight: if the node's request
           // was replaced with new content after this transform was queued, a newer
           // transform for the same node is pending and this result is stale.
-          if !Arc::ptr_eq(&self.requests[res.index.index()], &res.req) {
+          if !Arc::ptr_eq(&self.asset_nodes[res.index.index()].request, &res.req) {
             continue;
           }
 
@@ -271,39 +270,25 @@ impl AssetGraphBuilder {
                 // request; any in-flight transform of the old request is discarded when its
                 // result arrives.
                 // TODO: evaluate if we can avoid having multiple in-flight requests for the same asset in the first place.
-                if !self.requests[index.index()].content.eq(&*req.content) {
-                  self.requests[index.index()] = req.clone();
-                  match &mut self.asset_nodes[index.index()] {
-                    AssetNode::Asset(_) => {
-                      self.asset_nodes[index.index()] = AssetNode::Deferred {
-                        request: req.clone(),
-                        symbols: Vec::new(),
-                        requested: true,
-                      };
-                      queue.transform(index, req.clone());
-                    }
-                    AssetNode::Deferred {
-                      request, requested, ..
-                    } => {
-                      *request = req.clone();
-                      if *requested {
-                        queue.transform(index, req.clone());
-                      }
-                    }
+                let node = &mut self.asset_nodes[index.index()];
+                if !node.request.content.eq(&*req.content) {
+                  node.request = req.clone();
+                  if node.asset.take().is_some() {
+                    node.symbols.clear();
+                    node.requested = true;
+                  }
+                  if node.requested {
+                    queue.transform(index, req.clone());
                   }
                 }
 
                 // Lazy/parallel deps must be transformed even if the package has sideEffects: false,
                 // because the user explicitly requested this module via import().
                 if priority != Priority::Sync {
-                  if let AssetNode::Deferred {
-                    requested, request, ..
-                  } = &mut self.asset_nodes[index.index()]
-                  {
-                    if !*requested {
-                      *requested = true;
-                      queue.transform(index, request.clone());
-                    }
+                  let node = &mut self.asset_nodes[index.index()];
+                  if node.asset.is_none() && !node.requested {
+                    node.requested = true;
+                    queue.transform(index, node.request.clone());
                   }
                 }
               } else {
@@ -314,12 +299,12 @@ impl AssetGraphBuilder {
 
                 // If the dependency has side effects or is loaded via dynamic import, always transform it.
                 let requested = req.side_effects || priority != Priority::Sync;
-                self.asset_nodes.push(AssetNode::Deferred {
+                self.asset_nodes.push(AssetNode {
                   request: req.clone(),
                   symbols: Vec::new(),
                   requested,
+                  asset: None,
                 });
-                self.requests.push(req.clone());
 
                 if requested {
                   queue.transform(index, req);
@@ -329,15 +314,9 @@ impl AssetGraphBuilder {
           }
 
           let import_len = asset.symbols.imports.len();
-          let prev = std::mem::replace(
-            &mut self.asset_nodes[res.index.index()],
-            AssetNode::Asset(index),
-          );
-          let requested_symbols = if let AssetNode::Deferred { symbols, .. } = prev {
-            symbols
-          } else {
-            Vec::new()
-          };
+          let node = &mut self.asset_nodes[res.index.index()];
+          node.asset = Some(index);
+          let requested_symbols = std::mem::take(&mut node.symbols);
 
           // Propagate the requested symbols for this asset to un-defer dependencies.
           for name in requested_symbols {
@@ -354,10 +333,7 @@ impl AssetGraphBuilder {
 
           // Propagate this asset's imported symbols.
           for i in 0..import_len {
-            let AssetNode::Asset(asset) = &self.asset_nodes[res.index.index()] else {
-              unreachable!()
-            };
-
+            let asset = self.asset_nodes[res.index.index()].asset.unwrap();
             let asset = &self.assets[asset.index()];
             let symbol = &asset.symbols.imports[i];
             let dep = &asset.dependencies[symbol.dep_index as usize];
@@ -381,13 +357,10 @@ impl AssetGraphBuilder {
 
     // Finalize symbol resolutions for each imported symbol.
     for asset_index in 0..self.asset_nodes.len() {
-      if let AssetNode::Asset(asset) = &self.asset_nodes[asset_index] {
+      if let Some(asset) = self.asset_nodes[asset_index].asset {
         let asset = &self.assets[asset.index()];
         for import_index in 0..asset.symbols.imports.len() {
-          let AssetNode::Asset(asset) = &self.asset_nodes[asset_index] else {
-            unreachable!()
-          };
-
+          let asset = self.asset_nodes[asset_index].asset.unwrap();
           let asset = &self.assets[asset.index()];
           let symbol = &asset.symbols.imports[import_index];
           let dep = &asset.dependencies[symbol.dep_index as usize];
@@ -395,12 +368,9 @@ impl AssetGraphBuilder {
             let name = symbol.symbol.clone();
             let environment = asset.target.environment;
             let res = if dep.priority == Priority::Lazy
-              && let AssetNode::Asset(asset_index) = &self.asset_nodes[resolved_index.index()]
+              && let Some(asset_index) = self.asset_nodes[resolved_index.index()].asset
             {
-              SymbolResolution::Runtime {
-                asset_index: *asset_index,
-                name,
-              }
+              SymbolResolution::Runtime { asset_index, name }
             } else {
               request_symbol(
                 &mut self.asset_nodes,
@@ -413,10 +383,7 @@ impl AssetGraphBuilder {
               )
             };
 
-            let AssetNode::Asset(asset) = &mut self.asset_nodes[asset_index] else {
-              unreachable!()
-            };
-
+            let asset = self.asset_nodes[asset_index].asset.unwrap();
             let asset = &mut self.assets[asset.index()];
             let symbol = &mut asset.symbols.imports[import_index];
             symbol.resolved = res;
@@ -498,36 +465,26 @@ impl SymbolGraph for RequestSymbols<'_> {
     asset_index: AssetNodeIndex,
     name: SymbolName,
   ) -> SymbolResolution {
-    let AssetNode::Deferred {
-      request,
-      symbols,
-      requested,
-    } = &mut self.asset_nodes[asset_index.index()]
-    else {
-      unreachable!()
-    };
+    let node = &mut self.asset_nodes[asset_index.index()];
+    debug_assert!(node.asset.is_none());
 
-    symbols.push(name);
-    if !*requested {
-      *requested = true;
-      self.queue.transform(asset_index, request.clone());
+    node.symbols.push(name);
+    if !node.requested {
+      node.requested = true;
+      self.queue.transform(asset_index, node.request.clone());
     }
 
     SymbolResolution::Ambiguous
   }
 
   fn mark_export_requested(&mut self, asset_index: AssetNodeIndex, export_index: usize) {
-    let AssetNode::Asset(asset) = &mut self.asset_nodes[asset_index.index()] else {
-      unreachable!()
-    };
+    let asset = self.asset_nodes[asset_index.index()].asset.unwrap();
     let asset = &mut self.assets[asset.index()];
     asset.symbols.exports[export_index].requested = true;
   }
 
   fn mark_indirect_requested(&mut self, asset_index: AssetNodeIndex, indirect_index: usize) {
-    let AssetNode::Asset(asset) = &mut self.asset_nodes[asset_index.index()] else {
-      unreachable!()
-    };
+    let asset = self.asset_nodes[asset_index.index()].asset.unwrap();
     let asset = &mut self.assets[asset.index()];
     asset.symbols.indirect[indirect_index].requested = true;
   }
@@ -598,11 +555,8 @@ fn resolve_symbol<G: SymbolGraph>(
     return SymbolResolution::None;
   }
 
-  let asset_index = match graph.asset_node(asset_node_index) {
-    AssetNode::Deferred { .. } => {
-      return graph.resolve_deferred(asset_node_index, name);
-    }
-    AssetNode::Asset(asset_index) => *asset_index,
+  let Some(asset_index) = graph.asset_node(asset_node_index).asset else {
+    return graph.resolve_deferred(asset_node_index, name);
   };
 
   if name == SymbolName::Namespace {
@@ -720,7 +674,7 @@ fn request_all(
   asset_index: AssetNodeIndex,
   queue: &mut TransformQueue,
 ) {
-  let AssetNode::Asset(asset) = &mut asset_nodes[asset_index.index()] else {
+  let Some(asset) = asset_nodes[asset_index.index()].asset else {
     return;
   };
 
@@ -736,7 +690,7 @@ fn request_all(
   }
 
   for i in 0..asset.symbols.indirect.len() {
-    let AssetNode::Asset(asset) = &mut asset_nodes[asset_index.index()] else {
+    let Some(asset) = asset_nodes[asset_index.index()].asset else {
       continue;
     };
 
@@ -763,13 +717,13 @@ fn request_all(
     }
   }
 
-  let AssetNode::Asset(asset) = &mut asset_nodes[asset_index.index()] else {
+  let Some(asset) = asset_nodes[asset_index.index()].asset else {
     return;
   };
 
   let asset = &mut assets[asset.index()];
   for i in 0..asset.symbols.star.len() {
-    let AssetNode::Asset(asset) = &mut asset_nodes[asset_index.index()] else {
+    let Some(asset) = asset_nodes[asset_index.index()].asset else {
       continue;
     };
 
@@ -1031,19 +985,13 @@ impl<'a> AssetGraph<'a> {
 
   #[inline]
   pub fn resolved_entry(&self, entry: &Entry) -> Option<AssetIndex> {
-    entry.asset.and_then(|a| {
-      if let AssetNode::Asset(asset) = self.asset_nodes[a.index()] {
-        Some(asset)
-      } else {
-        None
-      }
-    })
+    entry.asset.and_then(|a| self.asset_nodes[a.index()].asset)
   }
 
   #[inline]
   pub fn resolved_asset(&self, dep: &Dependency) -> Option<(AssetIndex, &Asset)> {
     if let DependencyResolution::Asset(asset_node_index) = dep.resolution {
-      if let AssetNode::Asset(asset_index) = self.asset_nodes[asset_node_index.index()] {
+      if let Some(asset_index) = self.asset_nodes[asset_node_index.index()].asset {
         return Some((asset_index, self.asset(asset_index)));
       }
     }

@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-  AssetIndex, AssetNode, DependencyResolution, PathId, asset_graph::AssetGraph, bundle::Bundle,
+  AssetIndex, DependencyResolution, PathId, asset_graph::AssetGraph, bundle::Bundle,
 };
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -62,9 +62,9 @@ impl<'a> BundleGraph<'a> {
       DependencyResolution::External => BundleGraphDependencyResolution::External,
       DependencyResolution::Excluded => BundleGraphDependencyResolution::Excluded,
       DependencyResolution::Asset(asset_node_index) => {
-        match &self.asset_graph.asset_nodes[asset_node_index.index()] {
-          AssetNode::Asset(asset_index) => BundleGraphDependencyResolution::Asset(*asset_index),
-          _ => BundleGraphDependencyResolution::Deferred,
+        match self.asset_graph.asset_nodes[asset_node_index.index()].asset {
+          Some(asset_index) => BundleGraphDependencyResolution::Asset(asset_index),
+          None => BundleGraphDependencyResolution::Deferred,
         }
       }
     }

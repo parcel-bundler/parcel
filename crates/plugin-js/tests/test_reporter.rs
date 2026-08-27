@@ -98,8 +98,10 @@ fn bundle_graph() -> BundleGraph<'static> {
   BundleGraph::new(
     AssetGraph {
       asset_nodes: Cow::Owned(
-        (0..assets.len())
-          .map(|index| AssetNode::Asset(AssetIndex::from_index(index)))
+        assets
+          .iter()
+          .enumerate()
+          .map(|(index, asset)| AssetNode::from_asset(AssetIndex::from_index(index), asset))
           .collect(),
       ),
       assets: Cow::Owned(assets),
