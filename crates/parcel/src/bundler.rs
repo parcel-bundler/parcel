@@ -120,6 +120,13 @@ impl Bundler for DefaultBundler {
 
     // Step 1: Traverse the asset graph and find bundle roots.
     // A bundle root is created for entries, and lazy, parallel, isolated, or inline dependencies.
+    // Only assets reachable from an entry are considered: incremental builds retain orphaned
+    // asset slots (e.g. a formerly URL-referenced image) that must not create bundles.
+    let mut live_assets = FixedBitSet::with_capacity(asset_graph.assets.len());
+    for (asset_index, _, _) in asset_graph.dfs() {
+      live_assets.insert(asset_index.index());
+    }
+
     let mut bundle_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
     let mut entry_bundle_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
     for entry in asset_graph.entries.iter() {
@@ -130,6 +137,9 @@ impl Bundler for DefaultBundler {
     }
 
     for index in 0..asset_graph.assets.len() {
+      if !live_assets.contains(index) {
+        continue;
+      }
       let asset_index = AssetIndex::from_index(index);
       let asset = &asset_graph.asset(asset_index);
       if bundle_behaviors[index] != BundleBehavior::None {
@@ -310,6 +320,9 @@ impl Bundler for DefaultBundler {
     }
 
     for (asset_index, asset) in asset_graph.assets.iter().enumerate() {
+      if !live_assets.contains(asset_index) {
+        continue;
+      }
       let asset_index = AssetIndex::from_index(asset_index);
       let source_bundle_index = asset_to_bundle.get(&asset_index).copied();
       for (dep_index, dep) in asset.dependencies.iter().enumerate() {

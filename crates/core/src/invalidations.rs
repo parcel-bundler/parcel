@@ -20,6 +20,9 @@ pub struct Invalidations {
   pub invalidate_on_file_change: Vec<PathId>,
   /// Files/patterns that should trigger re-transformation when created.
   pub invalidate_on_file_create: Vec<FileCreateInvalidation>,
+  /// Files that should trigger re-transformation when deleted (but not when merely modified),
+  /// e.g. resolver existence probes whose disappearance changes resolution.
+  pub invalidate_on_file_delete: Vec<PathId>,
   /// Whether the result is non-deterministic and should invalidate on process restart.
   pub invalidate_on_startup: bool,
 }
@@ -37,6 +40,11 @@ impl Invalidations {
     self.invalidate_on_file_change.push(path);
   }
 
+  /// Invalidate if the given file is deleted.
+  pub fn invalidate_on_file_delete(&mut self, path: PathId) {
+    self.invalidate_on_file_delete.push(path);
+  }
+
   /// Invalidate whenever the process restarts.
   pub fn invalidate_on_startup(&mut self) {
     self.invalidate_on_startup = true;
@@ -49,6 +57,9 @@ impl Invalidations {
     self
       .invalidate_on_file_create
       .extend(other.invalidate_on_file_create.iter().cloned());
+    self
+      .invalidate_on_file_delete
+      .extend(other.invalidate_on_file_delete.iter().cloned());
     self.invalidate_on_startup |= other.invalidate_on_startup;
   }
 }
@@ -59,6 +70,8 @@ impl Invalidations {
 pub struct InvalidationMap {
   /// Assets to re-transform when a file at this URL changes.
   pub on_file_change: HashMap<PathId, Vec<AssetNodeIndex>>,
+  /// Assets to re-transform when a file at this URL is deleted (but not merely modified).
+  pub on_file_delete: HashMap<PathId, Vec<AssetNodeIndex>>,
   /// Assets to re-transform when a file at this exact URL is created.
   pub on_file_create_path: HashMap<PathId, Vec<AssetNodeIndex>>,
   /// Assets to re-transform when a file with the given name is created above the given directory.
@@ -74,6 +87,14 @@ impl InvalidationMap {
     for url in invalidations.invalidate_on_file_change {
       self
         .on_file_change
+        .entry(url)
+        .or_default()
+        .push(asset_index);
+    }
+
+    for url in invalidations.invalidate_on_file_delete {
+      self
+        .on_file_delete
         .entry(url)
         .or_default()
         .push(asset_index);
@@ -107,13 +128,29 @@ impl InvalidationMap {
   /// Returns the asset indices affected by the given file events.
   ///
   /// `changed` are files that were modified or deleted; they match `on_file_change`.
+  /// `deleted` is the subset of `changed` that no longer exists; those additionally match
+  /// `on_file_delete` (e.g. resolver existence probes whose disappearance changes resolution).
   /// `created` are newly created files; they match the `on_file_create_*` invalidations. Keeping
-  /// the two apart matters for patterns that cover many files (globs, file-name-above): modifying
+  /// the sets apart matters for patterns that cover many files (globs, file-name-above): modifying
   /// an existing file that happens to match such a pattern must not be mistaken for a creation.
-  pub fn invalidate(&self, changed: &[PathId], created: &[PathId]) -> HashSet<AssetNodeIndex> {
+  pub fn invalidate(
+    &self,
+    changed: &[PathId],
+    created: &[PathId],
+    deleted: &[PathId],
+  ) -> HashSet<AssetNodeIndex> {
     let mut affected: HashSet<AssetNodeIndex> = HashSet::new();
 
     for path in changed {
+      if let Some(indices) = self.on_file_change.get(path) {
+        affected.extend(indices);
+      }
+    }
+
+    for path in deleted {
+      if let Some(indices) = self.on_file_delete.get(path) {
+        affected.extend(indices);
+      }
       if let Some(indices) = self.on_file_change.get(path) {
         affected.extend(indices);
       }

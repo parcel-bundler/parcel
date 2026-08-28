@@ -55,6 +55,15 @@ impl TrackingFileSystem {
       .push(crate::FileCreateInvalidation::Path(path));
   }
 
+  fn record_exists(&self, path: PathId) {
+    self
+      .invalidations
+      .lock()
+      .unwrap()
+      .invalidate_on_file_delete
+      .push(path);
+  }
+
   /// Returns the accumulated invalidations, leaving the tracker empty.
   pub fn take(&self) -> crate::Invalidations {
     std::mem::take(&mut *self.invalidations.lock().unwrap())
@@ -77,8 +86,10 @@ impl FileSystem for TrackingFileSystem {
     if kind.is_empty() {
       self.record_missing(path);
     } else {
-      // Do NOT track file change here. We only care if the file exists, not what's inside it.
-      // TODO: track delete only.
+      // Do NOT track file change here: we only care whether the file exists, not what's
+      // inside it. Deleting it, however, changes the answer (e.g. resolution falls back to
+      // another candidate), so track deletion.
+      self.record_exists(path);
     }
     kind
   }

@@ -725,7 +725,6 @@ struct HighlightToken<'a> {
   text: &'a str,
 }
 
-
 macro_rules! syntax_style {
   ($ansi: literal, $html: literal) => {
     SyntaxStyle {

@@ -189,8 +189,13 @@ impl AssetGraphBuilder {
   /// Marks assets as needing re-transformation based on changed/created file URLs.
   /// `changed` are modified or deleted files; `created` are newly created files.
   /// Call before `build()` to trigger an incremental rebuild.
-  pub fn invalidate(&mut self, changed: &[PathId], created: &[PathId]) -> HashSet<AssetNodeIndex> {
-    let affected = self.invalidation_map.invalidate(changed, created);
+  pub fn invalidate(
+    &mut self,
+    changed: &[PathId],
+    created: &[PathId],
+    deleted: &[PathId],
+  ) -> HashSet<AssetNodeIndex> {
+    let affected = self.invalidation_map.invalidate(changed, created, deleted);
 
     for node_index in &affected {
       self.reset_asset(*node_index);
@@ -217,6 +222,7 @@ impl AssetGraphBuilder {
   pub fn build_with_changes(&mut self) -> Result<AssetGraphBuildResult<'_>, DiagnosticList> {
     let mut queue = &mut self.queue;
     let mut changed_assets = Vec::new();
+    let mut errors: Vec<(AssetNodeIndex, DiagnosticList)> = Vec::new();
 
     // Ensure every entry has an asset node. Existing entries retain their node across builds.
     for entry in &mut self.entries {
@@ -264,147 +270,212 @@ impl AssetGraphBuilder {
       }
     }
 
-    while let Some(request_result) = queue.receive() {
-      match request_result {
-        RequestResult::Transform(transform_result) => {
-          // Discard results that were superseded while in flight: if the node's request
-          // was replaced with new content after this transform was queued, a newer
-          // transform for the same node is pending and this result is stale.
-          if !self.asset_nodes[transform_result.index.index()]
-            .is_current_request(&transform_result.req)
-          {
-            continue;
-          }
+    let mut reachable;
+    loop {
+      while let Some(request_result) = queue.receive() {
+        match request_result {
+          RequestResult::Transform(transform_result) => {
+            // Discard results that were superseded while in flight: if the node's request
+            // was replaced with new content after this transform was queued, a newer
+            // transform for the same node is pending and this result is stale.
+            if !self.asset_nodes[transform_result.index.index()]
+              .is_current_request(&transform_result.req)
+            {
+              continue;
+            }
 
-          // Always record invalidations, even when the transform errored.
-          self
-            .invalidation_map
-            .add(transform_result.index, transform_result.invalidations);
+            // Always record invalidations, even when the transform errored.
+            self
+              .invalidation_map
+              .add(transform_result.index, transform_result.invalidations);
 
-          let asset = match transform_result.result {
-            Ok(asset) => asset,
-            Err(err) => return Err(err),
-          };
+            // Errors are collected rather than returned eagerly: a failed transform only fails
+            // the build if the node is still referenced once the graph has settled. This keeps
+            // the queue drained and lets e.g. a file deleted together with its last importer's
+            // edit rebuild cleanly.
+            let asset = match transform_result.result {
+              Ok(asset) => asset,
+              Err(err) => {
+                errors.push((transform_result.index, err));
+                continue;
+              }
+            };
 
-          let key = asset.key();
-          let asset_index = if let Some(&asset_index) = self.assets_by_key.get(&key) {
-            self.assets[asset_index.index()] = asset;
-            asset_index
-          } else {
-            let asset_index = AssetIndex::from_index(self.assets.len());
-            self.assets.push(asset);
-            self.assets_by_key.insert(key, asset_index);
-            asset_index
-          };
+            let key = asset.key();
+            let asset_index = if let Some(&asset_index) = self.assets_by_key.get(&key) {
+              self.assets[asset_index.index()] = asset;
+              asset_index
+            } else {
+              let asset_index = AssetIndex::from_index(self.assets.len());
+              self.assets.push(asset);
+              self.assets_by_key.insert(key, asset_index);
+              asset_index
+            };
 
-          changed_assets.push(asset_index);
+            changed_assets.push(asset_index);
 
-          let asset = &mut self.assets[asset_index.index()];
-          for dep in &mut asset.dependencies {
-            let priority = dep.priority;
-            if let DependencyResolution::Deferred(req) = &dep.resolution {
-              let req = req.clone();
-              if let Some(&node_index) = self.nodes_by_request.get(&req.stable_key()) {
-                dep.resolution = DependencyResolution::Asset(node_index);
+            let asset = &mut self.assets[asset_index.index()];
+            for dep in &mut asset.dependencies {
+              let priority = dep.priority;
+              if let DependencyResolution::Deferred(req) = &dep.resolution {
+                let req = req.clone();
+                if let Some(&node_index) = self.nodes_by_request.get(&req.stable_key()) {
+                  dep.resolution = DependencyResolution::Asset(node_index);
 
-                // Same logical asset. If the content changed (e.g. an inline/macro asset
-                // whose parent emitted a new snapshot), re-transform the node with the new
-                // request; any in-flight transform of the old request is discarded when its
-                // result arrives.
-                // TODO: evaluate if we can avoid having multiple in-flight requests for the same asset in the first place.
-                let node = &mut self.asset_nodes[node_index.index()];
-                if node.replace_request(req.clone()) && node.needs_transform() {
-                  queue.transform(node_index, req.clone());
-                }
-
-                // Lazy/parallel deps must be transformed even if the package has sideEffects: false,
-                // because the user explicitly requested this module via import().
-                if priority != Priority::Sync {
+                  // Same logical asset. If the content changed (e.g. an inline/macro asset
+                  // whose parent emitted a new snapshot), re-transform the node with the new
+                  // request; any in-flight transform of the old request is discarded when its
+                  // result arrives.
+                  // TODO: evaluate if we can avoid having multiple in-flight requests for the same asset in the first place.
                   let node = &mut self.asset_nodes[node_index.index()];
-                  if node.mark_requested() {
-                    queue.transform(node_index, node.request.clone());
+                  if node.replace_request(req.clone()) && node.needs_transform() {
+                    queue.transform(node_index, req.clone());
                   }
-                }
-              } else {
-                // Allocate a new asset slot.
-                let node_index = AssetNodeIndex::from_index(self.asset_nodes.len());
-                dep.resolution = DependencyResolution::Asset(node_index);
-                self.nodes_by_request.insert(req.stable_key(), node_index);
 
-                // If the dependency has side effects or is loaded via dynamic import, always transform it.
-                let requested = req.side_effects || priority != Priority::Sync;
-                self
-                  .asset_nodes
-                  .push(AssetNode::deferred(req.clone(), Vec::new(), requested));
+                  // Side-effectful and lazy/parallel deps must be transformed: matching the
+                  // requested-ness a brand-new node would get below. (An existing node can be
+                  // unrequested e.g. after its transform failed while unreachable.)
+                  if priority != Priority::Sync || req.side_effects {
+                    let node = &mut self.asset_nodes[node_index.index()];
+                    if node.mark_requested() {
+                      queue.transform(node_index, node.request.clone());
+                    }
+                  }
+                } else {
+                  // Allocate a new asset slot.
+                  let node_index = AssetNodeIndex::from_index(self.asset_nodes.len());
+                  dep.resolution = DependencyResolution::Asset(node_index);
+                  self.nodes_by_request.insert(req.stable_key(), node_index);
 
-                if requested {
-                  queue.transform(node_index, req);
+                  // If the dependency has side effects or is loaded via dynamic import, always transform it.
+                  let requested = req.side_effects || priority != Priority::Sync;
+                  self
+                    .asset_nodes
+                    .push(AssetNode::deferred(req.clone(), Vec::new(), requested));
+
+                  if requested {
+                    queue.transform(node_index, req);
+                  }
                 }
               }
             }
+
+            let import_len = asset.symbols.imports.len();
+            let node = &mut self.asset_nodes[transform_result.index.index()];
+            let pending_symbols = node.resolve(asset_index);
+
+            // Propagate the requested symbols for this asset to un-defer dependencies.
+            for name in pending_symbols {
+              request_symbol(
+                &mut self.asset_nodes,
+                &mut self.assets,
+                transform_result.index,
+                name,
+                None,
+                &mut HashSet::new(),
+                &mut queue,
+              );
+            }
+
+            // Propagate this asset's imported symbols.
+            for import_index in 0..import_len {
+              let asset_index = self.asset_nodes[transform_result.index.index()]
+                .asset
+                .unwrap();
+              let asset = &self.assets[asset_index.index()];
+              let symbol = &asset.symbols.imports[import_index];
+              let dep = &asset.dependencies[symbol.dep_index as usize];
+              if let DependencyResolution::Asset(resolved_node_index) = dep.resolution {
+                let name = symbol.symbol.clone();
+                let environment = asset.target.environment;
+                request_symbol(
+                  &mut self.asset_nodes,
+                  &mut self.assets,
+                  resolved_node_index,
+                  name,
+                  Some(environment),
+                  &mut HashSet::new(),
+                  &mut queue,
+                );
+              }
+            }
           }
+        }
+      }
 
-          let import_len = asset.symbols.imports.len();
-          let node = &mut self.asset_nodes[transform_result.index.index()];
-          let pending_symbols = node.resolve(asset_index);
+      reachable = reachable_nodes(&self.asset_nodes, &self.assets, &self.entries);
 
-          // Propagate the requested symbols for this asset to un-defer dependencies.
-          for name in pending_symbols {
-            request_symbol(
-              &mut self.asset_nodes,
-              &mut self.assets,
-              transform_result.index,
-              name,
-              None,
-              &mut HashSet::new(),
-              &mut queue,
-            );
-          }
+      // Recompute symbol request state from scratch. Requests recorded during previous builds
+      // may no longer exist — a symbol dropped from an unchanged module's import list, or an
+      // importer that became unreachable — and stale `requested` flags would keep dead exports
+      // alive. Resetting and re-deriving from the entries and every reachable asset's imports
+      // makes the request state identical to what a fresh build would compute.
+      //
+      // This must happen AFTER the transform queue has drained, not at the start of the build,
+      // so that the final flags are a pure function of the settled asset graph. During the
+      // drain, `request_symbol` calls propagate from each transform result as it arrives; their
+      // flag marks can be stale by the end of the build, because a result that was current when
+      // processed may later be superseded within the same build (`replace_request` — e.g. an
+      // inline or macro asset whose own invalidation queued it with last build's content before
+      // its re-transformed parent supplied the new content). Whether the superseded result's
+      // propagation ran at all depends on worker scheduling, so marks made during the drain are
+      // nondeterministic; resetting here wipes them and re-derives deterministically. The drain-
+      // time propagation still matters for its other side effect: queueing deferred transforms
+      // while the queue is live. If we ever guarantee a node cannot be transformed twice in one
+      // build (see the TODO on `replace_request` above), the reset could move to the start of
+      // the build and the library entry re-request could merge into the entry loop.
+      for asset in self.assets.iter_mut() {
+        asset.symbols.used_namespace = false;
+        for export in &mut asset.symbols.exports {
+          export.requested = false;
+        }
+        for indirect in &mut asset.symbols.indirect {
+          indirect.requested = false;
+        }
+        for star in &mut asset.symbols.star {
+          star.requested = false;
+        }
+      }
 
-          // Propagate this asset's imported symbols.
-          for import_index in 0..import_len {
-            let asset_index = self.asset_nodes[transform_result.index.index()]
-              .asset
-              .unwrap();
+      // Library entries request their entire namespace (originally requested via the entry
+      // node's pending symbols on the first build).
+      for entry_index in 0..self.entries.len() {
+        let entry = &self.entries[entry_index];
+        if !entry.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+          continue;
+        }
+        let Some(node_index) = entry.asset else {
+          continue;
+        };
+        request_symbol(
+          &mut self.asset_nodes,
+          &mut self.assets,
+          node_index,
+          SymbolName::Namespace,
+          None,
+          &mut HashSet::new(),
+          &mut queue,
+        );
+      }
+
+      // Finalize symbol resolutions for each imported symbol. Because the request state was
+      // reset above, resolving here also re-marks the requested flags for every import.
+      for node_offset in 0..self.asset_nodes.len() {
+        if !reachable.contains(&AssetNodeIndex::from_index(node_offset)) {
+          continue;
+        }
+        if let Some(asset_index) = self.asset_nodes[node_offset].asset {
+          let asset = &self.assets[asset_index.index()];
+          for import_index in 0..asset.symbols.imports.len() {
+            let asset_index = self.asset_nodes[node_offset].asset.unwrap();
             let asset = &self.assets[asset_index.index()];
             let symbol = &asset.symbols.imports[import_index];
             let dep = &asset.dependencies[symbol.dep_index as usize];
             if let DependencyResolution::Asset(resolved_node_index) = dep.resolution {
               let name = symbol.symbol.clone();
               let environment = asset.target.environment;
-              request_symbol(
-                &mut self.asset_nodes,
-                &mut self.assets,
-                resolved_node_index,
-                name,
-                Some(environment),
-                &mut HashSet::new(),
-                &mut queue,
-              );
-            }
-          }
-        }
-      }
-    }
-
-    // Finalize symbol resolutions for each imported symbol.
-    for node_offset in 0..self.asset_nodes.len() {
-      if let Some(asset_index) = self.asset_nodes[node_offset].asset {
-        let asset = &self.assets[asset_index.index()];
-        for import_index in 0..asset.symbols.imports.len() {
-          let asset_index = self.asset_nodes[node_offset].asset.unwrap();
-          let asset = &self.assets[asset_index.index()];
-          let symbol = &asset.symbols.imports[import_index];
-          let dep = &asset.dependencies[symbol.dep_index as usize];
-          if let DependencyResolution::Asset(resolved_node_index) = dep.resolution {
-            let name = symbol.symbol.clone();
-            let environment = asset.target.environment;
-            let resolution = if dep.priority == Priority::Lazy
-              && let Some(asset_index) = self.asset_nodes[resolved_node_index.index()].asset
-            {
-              SymbolResolution::Runtime { asset_index, name }
-            } else {
-              request_symbol(
+              let priority = dep.priority;
+              let requested = request_symbol(
                 &mut self.asset_nodes,
                 &mut self.assets,
                 resolved_node_index,
@@ -412,15 +483,49 @@ impl AssetGraphBuilder {
                 Some(environment),
                 &mut HashSet::new(),
                 &mut queue,
-              )
-            };
+              );
+              // Lazy imports resolve at runtime, but the request above still marks the
+              // target's symbols as used so its dependencies are packaged.
+              let resolution = if priority == Priority::Lazy
+                && let Some(asset_index) = self.asset_nodes[resolved_node_index.index()].asset
+              {
+                SymbolResolution::Runtime { asset_index, name }
+              } else {
+                requested
+              };
 
-            let asset_index = self.asset_nodes[node_offset].asset.unwrap();
-            let asset = &mut self.assets[asset_index.index()];
-            let symbol = &mut asset.symbols.imports[import_index];
-            symbol.resolved = resolution;
+              let asset_index = self.asset_nodes[node_offset].asset.unwrap();
+              let asset = &mut self.assets[asset_index.index()];
+              let symbol = &mut asset.symbols.imports[import_index];
+              symbol.resolved = resolution;
+            }
           }
         }
+      }
+
+      // Re-deriving requests can queue transforms for assets that were never needed before
+      // (e.g. a re-transformed module gained an `export *` of a side-effect-free module).
+      // Process them and derive again until the graph is stable.
+      if !queue.has_pending() {
+        break;
+      }
+    }
+
+    if !errors.is_empty() {
+      // Report errors only for nodes still reachable from an entry. A node whose file was
+      // deleted after everything stopped referencing it is no longer part of the build; it is
+      // left untransformed and unrequested so it is only re-queued if referenced again.
+      let mut reachable_errors = DiagnosticList(Vec::new());
+      for (node_index, err) in errors {
+        // TODO: if we didn't transform unreachable nodes in the first place this wouldn't happen
+        if reachable.contains(&node_index) {
+          reachable_errors.0.extend(err.0);
+        } else {
+          self.asset_nodes[node_index.index()].requested = false;
+        }
+      }
+      if !reachable_errors.0.is_empty() {
+        return Err(reachable_errors);
       }
     }
 
@@ -456,6 +561,29 @@ impl AssetGraphBuilder {
       changed_assets,
     })
   }
+}
+
+/// The set of asset nodes reachable from the entries through resolved dependencies.
+fn reachable_nodes(
+  asset_nodes: &[AssetNode],
+  assets: &[Asset],
+  entries: &[Entry],
+) -> HashSet<AssetNodeIndex> {
+  let mut visited = HashSet::new();
+  let mut stack: Vec<AssetNodeIndex> = entries.iter().filter_map(|e| e.asset).collect();
+  while let Some(node_index) = stack.pop() {
+    if !visited.insert(node_index) {
+      continue;
+    }
+    if let Some(asset_index) = asset_nodes[node_index.index()].asset {
+      for dep in &assets[asset_index.index()].dependencies {
+        if let DependencyResolution::Asset(target) = dep.resolution {
+          stack.push(target);
+        }
+      }
+    }
+  }
+  visited
 }
 
 /// Abstracts the side effects of symbol resolution so a single ResolveExport traversal

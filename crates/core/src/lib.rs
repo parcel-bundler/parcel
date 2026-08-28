@@ -73,6 +73,9 @@ pub struct Parcel {
   /// Metadata from the previous bundle pass used to detect which bundles need re-packaging.
   /// Keyed by bundle dist path; value is the bundle's sorted asset indices.
   prev_bundles: HashMap<PathId, Vec<AssetIndex>>,
+  /// As `prev_bundles`, for inline bundles (which have no dist path), keyed by bundle id.
+  /// A dirty inline bundle re-packages every bundle its content is embedded in.
+  prev_inline_bundles: HashMap<u64, Vec<AssetIndex>>,
   /// Original constructor inputs, retained so the build can be recreated from scratch when a
   /// configuration file changes.
   entries: Vec<String>,
@@ -171,6 +174,7 @@ impl Parcel {
       if let Ok(url) = entry.url.to_file_path() {
         config_invalidations.on_file_change.remove(&url);
         config_invalidations.on_file_create_path.remove(&url);
+        config_invalidations.on_file_delete.remove(&url);
       }
     }
 
@@ -201,6 +205,7 @@ impl Parcel {
       options,
       cached_fs,
       prev_bundles: HashMap::new(),
+      prev_inline_bundles: HashMap::new(),
       entries: entries.clone(),
       build_options,
       make_factory,
@@ -223,15 +228,20 @@ impl Parcel {
     &mut self,
     changed: &[PathId],
     created: &[PathId],
+    deleted: &[PathId],
   ) -> Result<InvalidateResult, DiagnosticList> {
-    if self.is_config_change(changed, created) {
+    if self.is_config_change(changed, created, deleted) {
       // Recreate first; on failure (e.g. an invalid config edit) leave `self` untouched so the
       // last good build remains usable.
-      let parcel = Parcel::new(
+      let mut parcel = Parcel::new(
         &self.entries,
         self.build_options.clone(),
         self.make_factory.clone(),
       )?;
+      // Keep the previous bundle metadata so the full rebuild still deletes output files whose
+      // bundles no longer exist.
+      parcel.prev_bundles = std::mem::take(&mut self.prev_bundles);
+      parcel.prev_inline_bundles = std::mem::take(&mut self.prev_inline_bundles);
       *self = parcel;
       return Ok(InvalidateResult {
         affected: HashSet::new(),
@@ -239,10 +249,17 @@ impl Parcel {
       });
     }
 
-    let paths: Vec<PathId> = changed.iter().chain(created).copied().collect();
+    let paths: Vec<PathId> = changed
+      .iter()
+      .chain(created)
+      .chain(deleted)
+      .copied()
+      .collect();
     self.cached_fs.invalidate(paths);
 
-    let affected = self.asset_graph_builder.invalidate(changed, created);
+    let affected = self
+      .asset_graph_builder
+      .invalidate(changed, created, deleted);
     Ok(InvalidateResult {
       affected,
       config_changed: false,
@@ -250,10 +267,15 @@ impl Parcel {
   }
 
   /// Returns true if any of the changed/created files was read while loading configuration.
-  pub fn is_config_change(&self, changed: &[PathId], created: &[PathId]) -> bool {
+  pub fn is_config_change(
+    &self,
+    changed: &[PathId],
+    created: &[PathId],
+    deleted: &[PathId],
+  ) -> bool {
     !self
       .config_invalidations
-      .invalidate(changed, created)
+      .invalidate(changed, created, deleted)
       .is_empty()
   }
 
@@ -294,6 +316,7 @@ impl Parcel {
       &self.options,
       &changed_assets,
       &mut self.prev_bundles,
+      &mut self.prev_inline_bundles,
     )?;
 
     Ok(BuildResult {
@@ -313,6 +336,7 @@ impl Parcel {
       config,
       options,
       mut prev_bundles,
+      mut prev_inline_bundles,
       ..
     } = self;
 
@@ -330,6 +354,7 @@ impl Parcel {
       &options,
       &result.changed_assets,
       &mut prev_bundles,
+      &mut prev_inline_bundles,
     ) {
       Ok(bundle_graph) => bundle_graph,
       Err(error) => {
@@ -354,27 +379,30 @@ fn bundle_and_package<'a>(
   options: &ParcelOptions,
   changed_assets: &Vec<AssetIndex>,
   prev_bundles: &mut HashMap<PathId, Vec<AssetIndex>>,
+  prev_inline_bundles: &mut HashMap<u64, Vec<AssetIndex>>,
 ) -> Result<(BundleGraph<'a>, bool), DiagnosticList> {
   // Group assets into bundles.
   let bundle_graph = bundle(asset_graph, config, options)?;
 
   // Diff the new bundle graph against the previous build's metadata to find dirty bundles.
   // A bundle is dirty if it's new, its asset composition changed, or any of its assets
-  // were re-transformed this build.
+  // were re-transformed this build. Inline bundles have no dist path, so they are tracked
+  // by bundle id instead.
   let mut new_prev: HashMap<PathId, Vec<AssetIndex>> = HashMap::new();
+  let mut new_prev_inline: HashMap<u64, Vec<AssetIndex>> = HashMap::new();
   let mut dirty: HashSet<usize> = HashSet::new();
 
   for (bundle_index, bundle) in bundle_graph.bundles.iter().enumerate() {
-    if bundle.bundle_behavior == BundleBehavior::Inline {
-      continue;
-    }
-
-    let dist_path = bundle.dist_path();
-
     let mut sorted_assets = bundle.assets.clone();
     sorted_assets.sort_unstable();
 
-    let is_dirty = match prev_bundles.get(&dist_path) {
+    let prev_assets = if bundle.bundle_behavior == BundleBehavior::Inline {
+      prev_inline_bundles.get(&bundle.id)
+    } else {
+      prev_bundles.get(&bundle.dist_path())
+    };
+
+    let is_dirty = match prev_assets {
       None => true,
       Some(prev_assets) => {
         *prev_assets != sorted_assets || bundle.assets.iter().any(|i| changed_assets.contains(i))
@@ -385,7 +413,46 @@ fn bundle_and_package<'a>(
       dirty.insert(bundle_index);
     }
 
-    new_prev.insert(dist_path, sorted_assets);
+    if bundle.bundle_behavior == BundleBehavior::Inline {
+      new_prev_inline.insert(bundle.id, sorted_assets);
+    } else {
+      new_prev.insert(bundle.dist_path(), sorted_assets);
+    }
+  }
+
+  // An inline bundle's content is embedded in the bundles referencing it rather than written
+  // to its own file, so a dirty inline bundle must re-package every bundle that embeds it,
+  // transitively (inline bundles can nest).
+  let mut inline_embeds: HashMap<AssetIndex, Vec<usize>> = HashMap::new();
+  for (asset_index, bundle_index) in bundle_graph.bundle_dependencies() {
+    if bundle_graph.bundles[bundle_index].bundle_behavior == BundleBehavior::Inline {
+      inline_embeds
+        .entry(asset_index)
+        .or_default()
+        .push(bundle_index);
+    }
+  }
+  if !inline_embeds.is_empty() {
+    loop {
+      let mut changed = false;
+      for (bundle_index, bundle) in bundle_graph.bundles.iter().enumerate() {
+        if dirty.contains(&bundle_index) {
+          continue;
+        }
+        let embeds_dirty_inline = bundle.assets.iter().any(|asset| {
+          inline_embeds
+            .get(asset)
+            .is_some_and(|embedded| embedded.iter().any(|index| dirty.contains(index)))
+        });
+        if embeds_dirty_inline {
+          dirty.insert(bundle_index);
+          changed = true;
+        }
+      }
+      if !changed {
+        break;
+      }
+    }
   }
 
   // Bundle filenames may be embedded in other bundles during packaging. If a filename changes,
@@ -395,34 +462,32 @@ fn bundle_and_package<'a>(
       .keys()
       .any(|dist_path| !new_prev.contains_key(dist_path));
   if output_paths_changed {
-    dirty.extend(
-      bundle_graph
-        .bundles
-        .iter()
-        .enumerate()
-        .filter_map(|(index, bundle)| {
-          (bundle.bundle_behavior != BundleBehavior::Inline).then_some(index)
-        }),
-    );
+    dirty.extend(0..bundle_graph.bundles.len());
   }
 
-  // Delete output files for bundles that no longer exist.
+  // Only non-inline bundles are packaged directly; inline content is produced on demand while
+  // packaging the bundles that embed it.
+  dirty.retain(|index| bundle_graph.bundles[*index].bundle_behavior != BundleBehavior::Inline);
+
+  // Delete output files (and their sourcemaps) for bundles that no longer exist.
   for dist_path in prev_bundles.keys() {
     if !new_prev.contains_key(dist_path) {
-      match options.output_fs.remove_file(*dist_path) {
-        Ok(()) => {}
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-        Err(e) => {
-          return Err(
-            Diagnostic::from_message(format!("Failed to remove stale {:?}: {}", dist_path, e))
-              .into(),
-          );
+      for stale in [*dist_path, dist_path.add_extension("map")] {
+        match options.output_fs.remove_file(stale) {
+          Ok(()) => {}
+          Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+          Err(e) => {
+            return Err(
+              Diagnostic::from_message(format!("Failed to remove stale {:?}: {}", stale, e)).into(),
+            );
+          }
         }
       }
     }
   }
 
   *prev_bundles = new_prev;
+  *prev_inline_bundles = new_prev_inline;
 
   // Create each output directory once before packaging starts. Library builds can emit thousands
   // of bundles into a much smaller number of shared directories, so calling create_dir_all for

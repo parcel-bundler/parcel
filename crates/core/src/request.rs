@@ -52,6 +52,11 @@ impl TransformQueue {
     self.request_sender.send(request).unwrap();
   }
 
+  /// Whether any transform requests are still in flight.
+  pub fn has_pending(&self) -> bool {
+    self.pending_requests > 0
+  }
+
   pub fn receive(&mut self) -> Option<RequestResult> {
     if self.pending_requests > 0 {
       match self.result_receiver.recv() {

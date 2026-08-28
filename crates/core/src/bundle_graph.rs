@@ -1,8 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{
-  AssetIndex, DependencyResolution, PathId, asset_graph::AssetGraph, bundle::Bundle,
-};
+use crate::{AssetIndex, DependencyResolution, PathId, asset_graph::AssetGraph, bundle::Bundle};
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct DependencyId {
@@ -68,6 +66,15 @@ impl<'a> BundleGraph<'a> {
         }
       }
     }
+  }
+
+  /// Iterates over `(referencing asset, resolved bundle index)` pairs for dependencies that
+  /// resolve to a bundle (inline bundles and URL references).
+  pub fn bundle_dependencies(&self) -> impl Iterator<Item = (AssetIndex, usize)> + '_ {
+    self
+      .dependency_resolutions
+      .iter()
+      .map(|(id, bundle_index)| (id.asset, *bundle_index as usize))
   }
 
   pub fn referenced_bundles(&self, bundle_index: usize) -> impl Iterator<Item = usize> + '_ {

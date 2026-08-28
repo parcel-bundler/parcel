@@ -57,9 +57,9 @@ pub fn watch(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {
-    let (changed_paths, created_paths) = split_events(&events);
+    let (changed_paths, created_paths, deleted_paths) = split_events(&events);
 
-    let result = match parcel.invalidate(&changed_paths, &created_paths) {
+    let result = match parcel.invalidate(&changed_paths, &created_paths, &deleted_paths) {
       Ok(result) => result,
       Err(e) => {
         print_diagnostics(&e);
@@ -99,9 +99,9 @@ pub fn serve(
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {
-    let (changed_paths, created_paths) = split_events(&events);
+    let (changed_paths, created_paths, deleted_paths) = split_events(&events);
 
-    let result = match parcel.invalidate(&changed_paths, &created_paths) {
+    let result = match parcel.invalidate(&changed_paths, &created_paths, &deleted_paths) {
       Ok(result) => result,
       Err(e) => {
         print_diagnostics(&e);
@@ -162,9 +162,9 @@ pub fn run(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnosti
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {
-    let (changed_paths, created_paths) = split_events(&events);
+    let (changed_paths, created_paths, deleted_paths) = split_events(&events);
 
-    let result = match parcel.invalidate(&changed_paths, &created_paths) {
+    let result = match parcel.invalidate(&changed_paths, &created_paths, &deleted_paths) {
       Ok(result) => result,
       Err(e) => {
         print_diagnostics(&e);
@@ -192,15 +192,17 @@ fn print_diagnostics(diagnostics: &DiagnosticList) {
 
 /// Splits watcher events into `(changed, created)` URL lists. Modified and deleted files are
 /// treated as changes; only newly created files count as creations.
-fn split_events(events: &[parcel_watcher::Event]) -> (Vec<PathId>, Vec<PathId>) {
+fn split_events(events: &[parcel_watcher::Event]) -> (Vec<PathId>, Vec<PathId>, Vec<PathId>) {
   let mut changed = Vec::new();
   let mut created = Vec::new();
+  let mut deleted = Vec::new();
   for event in events {
     let path = PathId::new(&event.path);
     match event.ty {
       parcel_watcher::EventType::Created => created.push(path),
-      parcel_watcher::EventType::Updated | parcel_watcher::EventType::Deleted => changed.push(path),
+      parcel_watcher::EventType::Updated => changed.push(path),
+      parcel_watcher::EventType::Deleted => deleted.push(path),
     }
   }
-  (changed, created)
+  (changed, created, deleted)
 }

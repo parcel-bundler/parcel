@@ -43,8 +43,15 @@ impl TransformRequest {
     let mut invalidations = Invalidations::default();
 
     // Add the source file itself as an invalidation so changes to it trigger re-transformation.
+    // Also register its creation: if the file is deleted (failing this transform) and later
+    // restored, the restore arrives as a create event and must re-run the transform.
     match self.req.loc.url.to_file_path() {
-      Ok(path) => invalidations.invalidate_on_file_change.push(path),
+      Ok(path) => {
+        invalidations.invalidate_on_file_change.push(path);
+        invalidations
+          .invalidate_on_file_create
+          .push(crate::FileCreateInvalidation::Path(path));
+      }
       Err(diagnostic) => {
         return TransformResult {
           index,

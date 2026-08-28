@@ -62,7 +62,7 @@ fn hmr_update_after_change(
   write_file(input_fs, path, contents);
   let path_id = PathId::new(Path::new(path));
   let invalidate_result = parcel
-    .invalidate(&[path_id], &[])
+    .invalidate(&[path_id], &[], &[])
     .expect("invalidate failed");
   assert!(!invalidate_result.config_changed);
   assert!(!invalidate_result.affected.is_empty());
@@ -127,7 +127,7 @@ fn css_bundle_name_is_stable_when_its_assets_change() {
     "@import './theme.css'; .styles { color: red; }",
   );
   parcel
-    .invalidate(&[PathId::new(Path::new("/project/styles.css"))], &[])
+    .invalidate(&[PathId::new(Path::new("/project/styles.css"))], &[], &[])
     .expect("invalidate failed");
   let result = parcel
     .build_with_changes()
@@ -212,7 +212,7 @@ output(css("background: red"));"#,
 output(css("background: green"));"#,
   );
   parcel
-    .invalidate(&[PathId::new(Path::new("/project/index.js"))], &[])
+    .invalidate(&[PathId::new(Path::new("/project/index.js"))], &[], &[])
     .expect("invalidate failed");
   {
     let result = parcel
@@ -228,7 +228,7 @@ output(css("background: green"));"#,
 output(css("background: red"));"#,
   );
   parcel
-    .invalidate(&[PathId::new(Path::new("/project/index.js"))], &[])
+    .invalidate(&[PathId::new(Path::new("/project/index.js"))], &[], &[])
     .expect("invalidate failed");
   let result = parcel
     .build_with_changes()
@@ -391,7 +391,7 @@ impl HmrRuntimeTest {
 
     let invalidate_result = self
       .parcel
-      .invalidate(&changed_paths, &[])
+      .invalidate(&changed_paths, &[], &[])
       .expect("invalidate failed");
     assert!(!invalidate_result.config_changed);
     assert!(!invalidate_result.affected.is_empty());
