@@ -271,6 +271,11 @@ impl SubPath {
     SubPath(smallvec::smallvec![GLOBAL_INTERNER.intern_segment(name)])
   }
 
+  /// The number of path segments (e.g. 2 for `node_modules/dep`).
+  pub fn segment_count(&self) -> usize {
+    self.0.len()
+  }
+
   pub fn file_name(&self) -> &str {
     let last = self.0.last().unwrap();
     &GLOBAL_INTERNER.segments[last.0 as usize]

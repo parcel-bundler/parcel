@@ -127,6 +127,19 @@ impl IncrementalTest {
     let mut deleted = Vec::new();
 
     for (path, contents) in write {
+      // A file watcher reports creation events for new directories as well as new files;
+      // resolver invalidations can be registered against a directory probe (e.g. a missing
+      // `node_modules`), so report ancestors that did not exist before this write.
+      let mut ancestor = Path::new(path).parent();
+      while let Some(dir) = ancestor {
+        let prefix = format!("{}/", dir.to_str().unwrap());
+        if self.files.keys().any(|file| file.starts_with(&prefix)) {
+          break;
+        }
+        created.push(PathId::new(dir));
+        ancestor = dir.parent();
+      }
+
       write_file(&self.input_fs, path, contents);
       let id = PathId::new(Path::new(path));
       if self
@@ -150,6 +163,25 @@ impl IncrementalTest {
         "deleted file {path} was not part of the project"
       );
       deleted.push(PathId::new(Path::new(path)));
+    }
+
+    // Prune directories left empty by the deletions, as `rm -rf` would, and report them as
+    // deleted the way a file watcher does. Resolution can depend on directory existence
+    // (e.g. a nested node_modules), so an empty leftover directory would be unrealistic.
+    for path in delete {
+      let mut ancestor = Path::new(path).parent();
+      while let Some(dir) = ancestor {
+        let prefix = format!("{}/", dir.to_str().unwrap());
+        if self.files.keys().any(|file| file.starts_with(&prefix)) {
+          break;
+        }
+        let id = PathId::new(dir);
+        if !deleted.contains(&id) {
+          let _ = self.input_fs.remove_file(id);
+          deleted.push(id);
+        }
+        ancestor = dir.parent();
+      }
     }
 
     let result = self.parcel.invalidate(&changed, &created, &deleted)?;
@@ -525,6 +557,63 @@ fn package_json_main_change_re_resolves() {
     out.contains("console.log(\"two\")") || out.contains("console.log('two')"),
     "got: {out}"
   );
+}
+
+#[test]
+fn nested_node_modules_takes_precedence_then_falls_back() {
+  // node_modules resolution walks up from the importing file, so a copy of a package created
+  // in a closer node_modules directory must win over the higher-level one — and deleting the
+  // closer copy must fall back to the higher-level version again.
+  let mut t = IncrementalTest::with_entries(
+    &[
+      (
+        "/project/src/index.js",
+        "import { value } from 'dep';\noutput(value);",
+      ),
+      (
+        "/project/node_modules/dep/package.json",
+        r#"{"name": "dep", "main": "index.js"}"#,
+      ),
+      (
+        "/project/node_modules/dep/index.js",
+        "export const value = 'root-dep';",
+      ),
+    ],
+    &["/project/src/index.js"],
+  );
+
+  let out = t.output(&t.find_output("index"));
+  assert!(out.contains("root-dep"), "got: {out}");
+
+  // Create a closer copy of the package: it must take precedence.
+  t.change(
+    &[
+      (
+        "/project/src/node_modules/dep/package.json",
+        r#"{"name": "dep", "main": "index.js"}"#,
+      ),
+      (
+        "/project/src/node_modules/dep/index.js",
+        "export const value = 'nested-dep';",
+      ),
+    ],
+    &[],
+  );
+  let out = t.output(&t.find_output("index"));
+  assert!(out.contains("nested-dep"), "got: {out}");
+  assert!(!out.contains("root-dep"), "got: {out}");
+
+  // Delete the closer copy: resolution must fall back to the higher-level version.
+  t.change(
+    &[],
+    &[
+      "/project/src/node_modules/dep/package.json",
+      "/project/src/node_modules/dep/index.js",
+    ],
+  );
+  let out = t.output(&t.find_output("index"));
+  assert!(out.contains("root-dep"), "got: {out}");
+  assert!(!out.contains("nested-dep"), "got: {out}");
 }
 
 // ---------------------------------------------------------------------------

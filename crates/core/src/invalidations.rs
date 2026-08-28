@@ -162,10 +162,18 @@ impl InvalidationMap {
       }
 
       // Check file-name-above invalidations: a file with a given name created anywhere within a
-      // directory subtree.
-      if let Some(parent) = path.parent() {
-        for (file_name, above, asset_index) in &self.on_file_create_above {
-          if above.is_inside(parent) && path.ends_with(file_name) {
+      // directory subtree. The name may span multiple segments (e.g. `node_modules/dep`), so the
+      // directory it was created in is the path with the entire name stripped, not just the
+      // immediate parent.
+      for (file_name, above, asset_index) in &self.on_file_create_above {
+        if path.ends_with(file_name) {
+          let mut base = Some(*path);
+          for _ in 0..file_name.segment_count() {
+            base = base.and_then(|p| p.parent());
+          }
+          if let Some(base) = base
+            && above.is_inside(base)
+          {
             affected.insert(*asset_index);
           }
         }
@@ -185,5 +193,51 @@ impl InvalidationMap {
     }
 
     affected
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::path::Path;
+
+  fn path(p: &str) -> PathId {
+    PathId::new(Path::new(p))
+  }
+
+  fn map_with_create_above(file_name: SubPath, above: &str) -> InvalidationMap {
+    let mut map = InvalidationMap::default();
+    let mut invalidations = Invalidations::default();
+    invalidations
+      .invalidate_on_file_create
+      .push(FileCreateInvalidation::FileName {
+        file_name,
+        above: path(above),
+      });
+    map.add(AssetNodeIndex(1), invalidations);
+    map
+  }
+
+  #[test]
+  fn file_create_above_matches_single_segment_name() {
+    let map = map_with_create_above(SubPath::file("aliases.json"), "/project/src/index.js");
+    let affected = map.invalidate(&[], &[path("/project/src/aliases.json")], &[]);
+    assert_eq!(affected.len(), 1);
+  }
+
+  #[test]
+  fn file_create_above_matches_multi_segment_module_dir() {
+    // The created path's *base* is the path with the entire multi-segment name stripped
+    // (/project/src), not its immediate parent (/project/src/node_modules).
+    let map = map_with_create_above(SubPath::module("dep"), "/project/src/index.js");
+    let affected = map.invalidate(&[], &[path("/project/src/node_modules/dep")], &[]);
+    assert_eq!(affected.len(), 1);
+  }
+
+  #[test]
+  fn file_create_above_ignores_unrelated_subtrees() {
+    let map = map_with_create_above(SubPath::module("dep"), "/project/src/index.js");
+    let affected = map.invalidate(&[], &[path("/project/other/node_modules/dep")], &[]);
+    assert!(affected.is_empty());
   }
 }
