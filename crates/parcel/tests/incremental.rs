@@ -1423,3 +1423,328 @@ fn env_file_change_produces_fresh_state() {
   assert!(out.contains("hello-v2"), "got: {out}");
   assert!(!out.contains("hello-v1"), "got: {out}");
 }
+
+// ---------------------------------------------------------------------------
+// Config file lifecycle
+// ---------------------------------------------------------------------------
+
+#[test]
+fn add_and_delete_parcelrc() {
+  // Parcel::new probes for a .parcelrc even when none exists, so creating one later must
+  // apply the new config, and deleting it must fall back to the default config.
+  let mut t = IncrementalTest::new(&[
+    (
+      "/project/index.js",
+      "import data from './data.json';\noutput(data.value);",
+    ),
+    ("/project/data.json", r#"{"value": 42}"#),
+  ]);
+
+  // Default config inlines JSON as a module: no separate .json output.
+  assert!(!t.all_outputs().keys().any(|path| path.ends_with(".json")));
+
+  // Route .json through the raw transformer instead: a separate output file appears.
+  t.change(
+    &[(
+      "/project/.parcelrc",
+      r#"{
+        "extends": "@parcel/config-default",
+        "transformers": { "*.json": ["@parcel/transformer-raw"] }
+      }"#,
+    )],
+    &[],
+  );
+  assert!(
+    t.all_outputs().keys().any(|path| path.ends_with(".json")),
+    "raw-transformed json should be emitted as its own file, outputs: {:?}",
+    t.all_outputs().keys()
+  );
+
+  // Deleting the .parcelrc falls back to the default config again.
+  t.change(&[], &["/project/.parcelrc"]);
+  assert!(!t.all_outputs().keys().any(|path| path.ends_with(".json")));
+}
+
+#[test]
+fn invalid_parcelrc_edit_keeps_last_good_build() {
+  let mut t = IncrementalTest::new(&[
+    (
+      "/project/.parcelrc",
+      r#"{"extends": "@parcel/config-default"}"#,
+    ),
+    ("/project/index.js", "output('v1');"),
+  ]);
+
+  // Breaking the config fails the rebuild, but the last good build state stays usable.
+  t.change_expect_error(&[("/project/.parcelrc", r#"{"extends": }"#)], &[]);
+
+  // Fixing the config recovers with a full rebuild.
+  t.change(
+    &[
+      (
+        "/project/.parcelrc",
+        r#"{"extends": "@parcel/config-default"}"#,
+      ),
+      ("/project/index.js", "output('v2');"),
+    ],
+    &[],
+  );
+  let out = t.output("/project/dist/index.js");
+  assert!(out.contains("v2"), "got: {out}");
+}
+
+#[test]
+fn change_target_output_location() {
+  // Moving a target's output location (package.json `main`) is a config change: the bundle
+  // moves to the new path and the output at the old location is deleted.
+  let mut t = IncrementalTest::with_entries(
+    &[
+      (
+        "/project/package.json",
+        r#"{
+          "name": "app",
+          "source": "index.js",
+          "main": "dist/one.js",
+          "engines": { "node": "*" }
+        }"#,
+      ),
+      ("/project/index.js", "export const value = 'v1';"),
+    ],
+    &["/project"],
+  );
+
+  assert!(t.all_outputs().contains_key("/project/dist/one.js"));
+
+  t.change(
+    &[(
+      "/project/package.json",
+      r#"{
+        "name": "app",
+        "source": "index.js",
+        "main": "dist/two.js",
+        "engines": { "node": "*" }
+      }"#,
+    )],
+    &[],
+  );
+  let outputs = t.all_outputs();
+  assert!(outputs.contains_key("/project/dist/two.js"));
+  assert!(
+    !outputs.contains_key("/project/dist/one.js"),
+    "the output at the old target location should be deleted, outputs: {:?}",
+    outputs.keys()
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Resolver configuration changes
+// ---------------------------------------------------------------------------
+
+#[test]
+fn alias_in_closer_package_json() {
+  // A package.json `alias` field closer to the importer overrides resolution; adding,
+  // updating, and removing it must each re-resolve.
+  let mut t = IncrementalTest::with_entries(
+    &[
+      (
+        "/project/src/index.js",
+        "import { value } from 'dep';\noutput(value);",
+      ),
+      (
+        "/project/node_modules/dep/package.json",
+        r#"{"name": "dep", "main": "index.js"}"#,
+      ),
+      (
+        "/project/node_modules/dep/index.js",
+        "export const value = 'real-dep';",
+      ),
+      (
+        "/project/src/aliased.js",
+        "export const value = 'aliased-dep';",
+      ),
+      ("/project/src/other.js", "export const value = 'other-dep';"),
+    ],
+    &["/project/src/index.js"],
+  );
+
+  let out = t.output(&t.find_output("index"));
+  assert!(out.contains("real-dep"), "got: {out}");
+
+  // Add an alias in a closer package.json.
+  t.change(
+    &[(
+      "/project/src/package.json",
+      r#"{"alias": {"dep": "./aliased.js"}}"#,
+    )],
+    &[],
+  );
+  let out = t.output(&t.find_output("index"));
+  assert!(out.contains("aliased-dep"), "got: {out}");
+  assert!(!out.contains("real-dep"), "got: {out}");
+
+  // Update the alias target.
+  t.change(
+    &[(
+      "/project/src/package.json",
+      r#"{"alias": {"dep": "./other.js"}}"#,
+    )],
+    &[],
+  );
+  let out = t.output(&t.find_output("index"));
+  assert!(out.contains("other-dep"), "got: {out}");
+
+  // Remove the alias: resolution returns to node_modules.
+  t.change(&[("/project/src/package.json", r#"{}"#)], &[]);
+  let out = t.output(&t.find_output("index"));
+  assert!(out.contains("real-dep"), "got: {out}");
+}
+
+#[test]
+fn package_json_main_over_directory_index() {
+  // A directory import resolves via index.js until the directory gains a package.json with
+  // a `main` field, which takes precedence; deleting it falls back to index.js again.
+  let mut t = IncrementalTest::new(&[
+    ("/project/index.js", "import './lib';\noutput('index');"),
+    ("/project/lib/index.js", "console.log('lib index');"),
+    ("/project/lib/custom.js", "console.log('lib custom');"),
+  ]);
+
+  let out = t.output("/project/dist/index.js");
+  assert!(out.contains("lib index"), "got: {out}");
+
+  t.change(
+    &[("/project/lib/package.json", r#"{"main": "custom.js"}"#)],
+    &[],
+  );
+  let out = t.output("/project/dist/index.js");
+  assert!(out.contains("lib custom"), "got: {out}");
+  assert!(!out.contains("lib index"), "got: {out}");
+
+  t.change(&[], &["/project/lib/package.json"]);
+  let out = t.output("/project/dist/index.js");
+  assert!(out.contains("lib index"), "got: {out}");
+  assert!(!out.contains("lib custom"), "got: {out}");
+}
+
+#[test]
+fn create_missing_dependency() {
+  // Importing a file that has never existed fails; creating the file must recover, driven
+  // by the create-invalidations recorded during the failed resolution.
+  let mut t = IncrementalTest::new(&[("/project/index.js", "output('no deps');")]);
+
+  t.change_expect_error(
+    &[(
+      "/project/index.js",
+      "import './missing.js';\noutput('index');",
+    )],
+    &[],
+  );
+
+  t.change(&[("/project/missing.js", "console.log('found');")], &[]);
+  let out = t.output("/project/dist/index.js");
+  assert!(out.contains("found"), "got: {out}");
+}
+
+#[test]
+fn invalid_package_json_recovery() {
+  // The resolver tolerates a syntactically invalid package.json in node_modules by falling
+  // back to the index file. Breaking and fixing the file must both re-resolve, staying
+  // identical to a fresh build in every state.
+  let mut t = IncrementalTest::new(&[
+    ("/project/index.js", "import 'dep';\noutput('index');"),
+    (
+      "/project/node_modules/dep/package.json",
+      r#"{"name": "dep", "main": "main.js"}"#,
+    ),
+    (
+      "/project/node_modules/dep/main.js",
+      "console.log('dep main');",
+    ),
+    (
+      "/project/node_modules/dep/index.js",
+      "console.log('dep index');",
+    ),
+  ]);
+
+  let out = t.output("/project/dist/index.js");
+  assert!(out.contains("dep main"), "got: {out}");
+
+  // Broken package.json: resolution falls back to index.js.
+  t.change(
+    &[("/project/node_modules/dep/package.json", r#"{"name": }"#)],
+    &[],
+  );
+  let out = t.output("/project/dist/index.js");
+  assert!(out.contains("dep index"), "got: {out}");
+  assert!(!out.contains("dep main"), "got: {out}");
+
+  // Fixing it restores the `main` resolution.
+  t.change(
+    &[(
+      "/project/node_modules/dep/package.json",
+      r#"{"name": "dep", "main": "main.js"}"#,
+    )],
+    &[],
+  );
+  let out = t.output("/project/dist/index.js");
+  assert!(out.contains("dep main"), "got: {out}");
+}
+
+// ---------------------------------------------------------------------------
+// Entries
+// ---------------------------------------------------------------------------
+
+#[test]
+fn delete_glob_matched_entry() {
+  // Deleting a file matched by an entry glob removes that entry from the build entirely
+  // (a config-level change), deleting its stale output.
+  let mut t = IncrementalTest::with_entries(
+    &[
+      ("/project/src/a.js", "output('entry a');"),
+      ("/project/src/b.js", "output('entry b');"),
+    ],
+    &["/project/src/*.js"],
+  );
+
+  assert!(t.all_outputs().keys().any(|path| path.ends_with("/a.js")));
+  assert!(t.all_outputs().keys().any(|path| path.ends_with("/b.js")));
+
+  t.change(&[], &["/project/src/b.js"]);
+  assert!(t.all_outputs().keys().any(|path| path.ends_with("/a.js")));
+  assert!(
+    !t.all_outputs().keys().any(|path| path.ends_with("/b.js")),
+    "the deleted entry's output should be removed, outputs: {:?}",
+    t.all_outputs().keys()
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Multiple pipelines over one file
+// ---------------------------------------------------------------------------
+
+#[test]
+fn same_file_in_multiple_pipelines() {
+  // The same source file used through two pipelines produces two assets; updating the file
+  // must re-transform both.
+  let mut t = IncrementalTest::new(&[
+    (
+      "/project/index.js",
+      "import './styles.css';\nimport text from 'bundle-text:./styles.css';\noutput(text);",
+    ),
+    ("/project/styles.css", ".marker { color: #ff0001; }"),
+  ]);
+
+  let css = t.find_output_ext("css");
+  assert!(t.output(&css).contains("#ff0001"));
+  assert!(t.output("/project/dist/index.js").contains("#ff0001"));
+
+  t.change(
+    &[("/project/styles.css", ".marker { color: #00ff02; }")],
+    &[],
+  );
+  let css = t.find_output_ext("css");
+  assert!(t.output(&css).contains("#00ff02"));
+  let js = t.output("/project/dist/index.js");
+  assert!(js.contains("#00ff02"), "got: {js}");
+  assert!(!js.contains("#ff0001"), "got: {js}");
+}

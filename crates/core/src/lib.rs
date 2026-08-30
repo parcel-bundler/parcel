@@ -174,7 +174,15 @@ impl Parcel {
       if let Ok(url) = entry.url.to_file_path() {
         config_invalidations.on_file_change.remove(&url);
         config_invalidations.on_file_create_path.remove(&url);
-        config_invalidations.on_file_delete.remove(&url);
+        // Deleting an entry is a config-level change, not an incremental one: glob entries
+        // must be re-globbed so the entry disappears from the build, and deleting a file
+        // entry fails the recreate with a clear "entry not found" error while the last good
+        // build stays usable.
+        config_invalidations
+          .on_file_delete
+          .entry(url)
+          .or_default()
+          .push(AssetNodeIndex(0));
       }
     }
 

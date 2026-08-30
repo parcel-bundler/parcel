@@ -107,7 +107,10 @@ impl TransformRequest {
     let tracker = Arc::new(TrackingFileSystem::new(self.options.input_fs.clone()));
     let fs: Arc<dyn FileSystem> = tracker.clone();
 
-    let result = {
+    // An immediately-invoked closure so that `?` cannot return past the invalidation merge
+    // below: files read before a failure must still invalidate (e.g. the existence probes of
+    // a failed resolution, so creating the missing file re-runs this asset).
+    let result = (|| {
       let mut asset = transform(asset, transformer_pipeline, &self.options, &fs)?;
       asset.target = Target::normalize(&asset.target, &asset.ty);
 
@@ -126,7 +129,7 @@ impl TransformRequest {
       }
 
       Ok(asset)
-    };
+    })();
 
     // Merge everything read during transform and resolution (even on error, so fixing a bad input
     // re-runs this asset).

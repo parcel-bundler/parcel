@@ -30,9 +30,14 @@ pub fn resolve_entries(
   let cwd = options.cwd;
   let mut paths = Vec::new();
   for entry in entries {
-    for path in options.input_fs.glob(entry, cwd) {
-      paths.push(path);
+    let matches = options.input_fs.glob(entry, cwd);
+    if matches.is_empty() {
+      return Err(Diagnostic::from_message(format!(
+        "Entry {} does not exist",
+        entry
+      )));
     }
+    paths.extend(matches);
   }
 
   let project_root = find_project_root(&*options.input_fs, &paths, cwd);
