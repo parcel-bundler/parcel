@@ -1,5 +1,6 @@
 import assert from 'assert';
 import path from 'path';
+import logger from '@parcel/logger';
 import {bundle, distDir, outputFS, run} from '@parcel/test-utils';
 
 describe('vue', function () {
@@ -47,6 +48,35 @@ describe('vue', function () {
       'utf8',
     );
     assert(contents.includes(`.test[${output.__scopeId}]`));
+  });
+  it('should not warn about CSS modules for scoped styles', async function () {
+    let warnings = [];
+    let disposable = logger.onLog(event => {
+      if (event.type === 'log' && event.level === 'warn') {
+        warnings.push(...event.diagnostics.map(diagnostic => diagnostic.message));
+      }
+    });
+
+    let b;
+    try {
+      b = await bundle(
+        path.join(__dirname, '/integration/vue-scoped/App.vue'),
+        {mode: 'production'},
+      );
+    } finally {
+      disposable.dispose();
+    }
+
+    let cssBundle = b.getBundles().find(bundle => bundle.type === 'css');
+    assert(cssBundle != null);
+    let contents = await outputFS.readFile(cssBundle.filePath, 'utf8');
+    assert(/\.test\[data-v-[0-9a-h]{6}\]/.test(contents));
+    assert(
+      !warnings.includes(
+        'CSS modules cannot be tree shaken when imported with a default specifier',
+      ),
+      warnings.join('\n'),
+    );
   });
   it('should produce a vue bundle using CSS modules', async function () {
     let b = await bundle(

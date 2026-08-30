@@ -103,6 +103,11 @@ export default (new Transformer({
     let scopeId = 'data-v-' + id;
     let hmrId = id + '-hmr';
     let basePath = basename(asset.filePath);
+    let hasCSSModules = styles.some(
+      style =>
+        style.module ||
+        (style.src != null && MODULE_BY_NAME_RE.test(style.src)),
+    );
     if (asset.pipeline != null) {
       return processPipeline({
         asset,
@@ -138,7 +143,9 @@ let initialize = () => {
   }
   ${
     styles.length !== 0
-      ? `script.__cssModules = require('style:./${basePath}').default;`
+      ? hasCSSModules
+        ? `script.__cssModules = require('style:./${basePath}').default;`
+        : `require('style:./${basePath}');`
       : ''
   }
   ${
