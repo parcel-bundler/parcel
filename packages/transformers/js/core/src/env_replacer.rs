@@ -76,7 +76,27 @@ impl<'a> VisitMut for EnvReplacer<'a> {
               return;
             }
           }
+          // Accesses that are not replaced, e.g. `process.env.hasOwnProperty`
+          // and computed accesses such as `process.env[key]`, keep referencing
+          // the real `process.env`. Only visit the computed property
+          // expression so `process.env` isn't replaced on its own below.
+          if let MemberProp::Computed(computed) = &mut member.prop {
+            computed.expr.visit_mut_with(self);
+          }
+          return;
         }
+      }
+
+      // Replace a bare `process.env` reference (e.g. `process.env && ...`) with
+      // an empty object, like the replacement for `const env = process.env`,
+      // so it doesn't pull the `process` polyfill into browser builds. This
+      // matches the polyfill at run time, which also sets `process.env = {}`.
+      if match_member_expr(member, vec!["process", "env"], self.unresolved_mark) {
+        *node = Expr::Object(ObjectLit {
+          span: member.span,
+          props: vec![],
+        });
+        return;
       }
     }
 
@@ -693,6 +713,66 @@ const { package, ...other } = process.env;
     );
     // tracks that the variable was used
     assert_eq!(used_env, ["package"].iter().map(|s| (*s).into()).collect());
+    assert_eq!(diagnostics, vec![]);
+  }
+
+  #[test]
+  fn test_replace_bare_process_env() {
+    let env: HashMap<JsWord, JsWord> = HashMap::new();
+    let mut used_env = HashSet::new();
+    let mut diagnostics = Vec::new();
+
+    // https://github.com/parcel-bundler/parcel/issues/8156
+    let RunVisitResult { output_code, .. } = run_visit(
+      r#"
+const debug = process.env && process.env.NODE_DEBUG && /\bsemver\b/i.test(process.env.NODE_DEBUG);
+if (process.env) run(process.env);
+    "#,
+      |run_test_context: RunTestContext| {
+        make_env_replacer(run_test_context, &env, &mut used_env, &mut diagnostics)
+      },
+    );
+
+    assert_eq!(
+      output_code,
+      r#"const debug = {} && undefined && /\bsemver\b/i.test(undefined);
+if ({}) run({});
+"#
+    );
+    // tracks that the variable was used
+    assert_eq!(used_env, HashSet::from(["NODE_DEBUG".into()]));
+    assert_eq!(diagnostics, vec![]);
+  }
+
+  #[test]
+  fn test_does_not_replace_process_env_in_unreplaced_member_accesses() {
+    let mut env: HashMap<JsWord, JsWord> = HashMap::new();
+    let mut used_env = HashSet::new();
+    let mut diagnostics = Vec::new();
+
+    env.insert("KEY".into(), "VERSION".into());
+
+    let RunVisitResult { output_code, .. } = run_visit(
+      r#"
+const version = process.env.hasOwnProperty('version');
+const dynamic = process.env[key];
+const nested = process.env[process.env.KEY];
+    "#,
+      |run_test_context: RunTestContext| {
+        make_env_replacer(run_test_context, &env, &mut used_env, &mut diagnostics)
+      },
+    );
+
+    // computed property expressions are still replaced
+    assert_eq!(
+      output_code,
+      r#"const version = process.env.hasOwnProperty('version');
+const dynamic = process.env[key];
+const nested = process.env["VERSION"];
+"#
+    );
+    // tracks that the variable was used
+    assert_eq!(used_env, HashSet::from(["KEY".into()]));
     assert_eq!(diagnostics, vec![]);
   }
 

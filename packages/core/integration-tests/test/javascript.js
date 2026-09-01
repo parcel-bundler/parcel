@@ -1298,6 +1298,19 @@ describe('javascript', function () {
     assert.strictEqual(output, false);
   });
 
+  it('should replace bare references to process.env in browser environment', async function () {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-bare-reference/index.js'),
+    );
+
+    let contents = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+    assert(!contents.includes('process.env'));
+
+    let output = await run(b);
+    assert.strictEqual(output.debug, undefined);
+    assert.strictEqual(output.hasEnv, true);
+  });
+
   it('should not insert environment variables in electron-main environment', async function () {
     let b = await bundle(path.join(__dirname, '/integration/env/index.js'), {
       targets: {
