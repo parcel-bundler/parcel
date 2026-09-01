@@ -1,0 +1,4 @@
+.primary {
+  composes: base from './shared.module.css';
+  background-color: red;
+}

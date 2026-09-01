@@ -247,6 +247,18 @@ describe('css modules', () => {
     assert(css.includes(`.${cssClass2}`));
   });
 
+  it('should not throw building composes imports shared by two or more ES modules (production)', async () => {
+    // Regression test: when a CSS Modules class is `composes`d from two or
+    // more separate ES modules, packaging in production mode used to throw
+    // "Got unexpected null" in ScopeHoistingPackager, because `composes`
+    // dependency edges don't carry per-symbol usage tracking the way named
+    // JS imports do.
+    await bundle(
+      path.join(__dirname, '/integration/postcss-composes-shared-esm/index.js'),
+      {mode: 'production'},
+    );
+  });
+
   it('should not include css twice for composes imports', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-composes/index.js'),
