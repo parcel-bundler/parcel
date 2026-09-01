@@ -1323,7 +1323,14 @@ ${code}
         }
 
         let unused = incomingDeps.every(d => {
-          let symbols = nullthrows(this.bundleGraph.getUsedSymbols(d));
+          let symbols = this.bundleGraph.getUsedSymbols(d);
+          if (symbols == null) {
+            // This dependency doesn't track per-symbol usage (e.g. a CSS
+            // `composes` edge, which has no equivalent of a named import).
+            // Conservatively treat the symbol as used via this edge rather
+            // than risk incorrectly tree-shaking it away.
+            return false;
+          }
           return !symbols.has(symbol) && !symbols.has('*');
         });
         return !unused;
