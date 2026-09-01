@@ -25,4 +25,11 @@ describe('getCurrentPackageManager', () => {
     );
     assert(currentPackageManager?.name, 'pnpm');
   });
+  it('bun', () => {
+    const npm_config_user_agent = 'bun/1.0.5 npm/? node/v18.17.1 darwin x64';
+    const currentPackageManager = getCurrentPackageManager(
+      npm_config_user_agent,
+    );
+    assert(currentPackageManager?.name, 'bun');
+  });
 });

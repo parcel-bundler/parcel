@@ -25,6 +25,7 @@ import WorkerFarm from '@parcel/workers';
 import {Npm} from './Npm';
 import {Yarn} from './Yarn';
 import {Pnpm} from './Pnpm.js';
+import {Bun} from './Bun.js';
 import {getConflictingLocalDependencies} from './utils';
 import getCurrentPackageManager from './getCurrentPackageManager';
 import validateModuleSpecifier from './validateModuleSpecifier';
@@ -158,7 +159,13 @@ async function determinePackageInstaller(
   let configFile = await resolveConfig(
     fs,
     filepath,
-    ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock'],
+    [
+      'package-lock.json',
+      'pnpm-lock.yaml',
+      'yarn.lock',
+      'bun.lock',
+      'bun.lockb',
+    ],
     projectRoot,
   );
 
@@ -172,6 +179,8 @@ async function determinePackageInstaller(
     return new Pnpm();
   } else if (configName === 'yarn.lock') {
     return new Yarn();
+  } else if (configName === 'bun.lock' || configName === 'bun.lockb') {
+    return new Bun();
   }
 
   let currentPackageManager = getCurrentPackageManager()?.name;
@@ -181,12 +190,16 @@ async function determinePackageInstaller(
     return new Yarn();
   } else if (currentPackageManager === 'pnpm') {
     return new Pnpm();
+  } else if (currentPackageManager === 'bun') {
+    return new Bun();
   }
 
   if (await Yarn.exists()) {
     return new Yarn();
   } else if (await Pnpm.exists()) {
     return new Pnpm();
+  } else if (await Bun.exists()) {
+    return new Bun();
   } else {
     return new Npm();
   }
