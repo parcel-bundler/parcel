@@ -355,6 +355,14 @@ export default class Parcel {
 
           let results = await this.#watchQueue.run();
           let result = results.filter(Boolean).pop();
+          if (result == null) {
+            // Every queued build in this batch resolved to null, meaning
+            // each was aborted (see _startNextBuild, which swallows
+            // BuildAbortError and resolves null instead of rethrowing).
+            // Surface the same error type here instead of throwing on
+            // `result.type` below.
+            throw new BuildAbortError();
+          }
           if (result.type === 'buildFailure') {
             throw new BuildError(result.diagnostics);
           }
