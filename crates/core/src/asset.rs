@@ -23,7 +23,7 @@ pub struct Asset {
   pub pipeline: Option<hstr::Atom>,
   pub bundle_behavior: BundleBehavior,
   pub flags: AssetFlags,
-  pub unique_key: Option<String>,
+  pub unique_key: Option<Arc<str>>,
   pub dependencies: Vec<Dependency>,
   pub symbols: AssetSymbols,
 }
@@ -35,7 +35,7 @@ pub struct AssetKey {
   pub target: Arc<Target>,
   pub pipeline: Option<hstr::Atom>,
   pub bundle_behavior: BundleBehavior,
-  pub unique_key: Option<String>,
+  pub unique_key: Option<Arc<str>>,
   /// Included so that when a package's `sideEffects` flag changes across incremental builds,
   /// the differently-flagged asset gets its own slot instead of overwriting the other's.
   pub side_effects: bool,

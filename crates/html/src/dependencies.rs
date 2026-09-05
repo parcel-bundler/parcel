@@ -49,14 +49,22 @@ pub fn collect_dependencies<'arena>(
 
   for asset in &collector.assets {
     collector.deps.push(Dependency {
-      specifier: asset.unique_key.clone().unwrap(),
+      specifier: asset
+        .unique_key
+        .clone()
+        .unwrap()
+        .to_string()
+        .into_boxed_str(),
       specifier_type: SpecifierType::Esm,
       flags: DependencyFlags::empty(),
       priority: Priority::Sync,
       target: asset.target.clone(),
       bundle_behavior: BundleBehavior::Inline,
       import_type: ImportType::JavaScript,
-      placeholder: asset.unique_key.clone(),
+      placeholder: asset
+        .unique_key
+        .clone()
+        .map(|s| s.to_string().into_boxed_str()),
       loc: None,
       resolve_from: None,
       range: None,
@@ -80,7 +88,7 @@ pub fn collect_dependencies<'arena>(
       collector.assets.push(Asset {
         ty: AssetType::Js,
         content: Arc::new(BufferContent::new(Vec::new())),
-        unique_key: Some(key.into()),
+        unique_key: Some(key.to_string().into()),
         flags: AssetFlags::empty(),
         target: collector.target.clone(),
         bundle_behavior: BundleBehavior::None,
@@ -219,7 +227,7 @@ impl<'arena> DependencyCollector<'arena> {
           }
 
           let mut dep = Dependency {
-            specifier: href.into(),
+            specifier: href.to_string().into_boxed_str(),
             specifier_type: SpecifierType::Url,
             flags,
             priority,
@@ -312,7 +320,7 @@ impl<'arena> DependencyCollector<'arena> {
             copy.set_attribute(expanded_name!("", "defer"), "");
 
             let mut dep = Dependency {
-              specifier: src.clone().into(),
+              specifier: src.clone().to_string().into_boxed_str(),
               specifier_type: SpecifierType::Url,
               priority: Priority::Parallel,
               target: self.create_env(OutputFormat::Global, source_type, node.line),
@@ -333,7 +341,7 @@ impl<'arena> DependencyCollector<'arena> {
           }
 
           let mut dep = Dependency {
-            specifier: src.into(),
+            specifier: src.to_string().into_boxed_str(),
             specifier_type: SpecifierType::Url,
             priority: Priority::Parallel,
             target: self.create_env(output_format, source_type, node.line),
@@ -392,7 +400,7 @@ impl<'arena> DependencyCollector<'arena> {
               .map(|ty| AssetType::from_mime(&ty))
               .unwrap_or(AssetType::Js),
             content: Arc::new(BufferContent::new_string(code)),
-            unique_key: Some(key.into()),
+            unique_key: Some(key.to_string().into()),
             flags: AssetFlags::IS_HTML_TAG,
             target: self.create_env(output_format, source_type, node.line),
             bundle_behavior: BundleBehavior::Inline,
@@ -429,7 +437,7 @@ impl<'arena> DependencyCollector<'arena> {
         self.assets.push(Asset {
           ty,
           content: Arc::new(BufferContent::new_string(code)),
-          unique_key: Some(key.into()),
+          unique_key: Some(key.to_string().into()),
           flags: AssetFlags::IS_HTML_TAG,
           target: self.target.clone(),
           bundle_behavior: BundleBehavior::Inline,
@@ -572,7 +580,7 @@ impl<'arena> DependencyCollector<'arena> {
       self.assets.push(Asset {
         ty: AssetType::StyleAttribute,
         content: Arc::new(BufferContent::new_string(style.to_string())),
-        unique_key: Some(key.into()),
+        unique_key: Some(key.to_string().into()),
         flags: AssetFlags::IS_HTML_ATTR,
         target: self.target.clone(),
         bundle_behavior: BundleBehavior::Inline,
@@ -672,7 +680,7 @@ impl<'arena> DependencyCollector<'arena> {
     line: u32,
   ) -> StrTendril {
     let mut dep = Dependency {
-      specifier: src.into(),
+      specifier: src.to_string().into(),
       specifier_type: SpecifierType::Url,
       priority,
       target: self.target.clone(),

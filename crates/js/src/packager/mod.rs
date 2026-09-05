@@ -282,7 +282,7 @@ fn write_external_imports(
         && bundle_graph.dependency_resolution(*asset_index, dependency_index)
           == BundleGraphDependencyResolution::External
       {
-        externals.insert(dependency.specifier.clone());
+        externals.insert((*dependency.specifier).to_string());
       }
     }
   }

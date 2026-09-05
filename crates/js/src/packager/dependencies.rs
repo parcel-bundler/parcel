@@ -61,7 +61,7 @@ pub fn asset_dependencies<'a>(
         bundle_graph,
       )?
     {
-      dependencies.insert(placeholder.as_str().into(), Resolution::Asset(module.id()));
+      dependencies.insert((&**placeholder).into(), Resolution::Asset(module.id()));
       additional_assets.insert(SyntheticAsset::Rsc(module));
       continue;
     }
@@ -73,13 +73,13 @@ pub fn asset_dependencies<'a>(
           if resolved_asset.symbols.exports.iter().any(|e| e.requested) {
             let asset = &bundle_graph.asset_graph.asset(resolved);
             dependencies.insert(
-              placeholder.as_str().into(),
+              (&**placeholder).into(),
               Resolution::Asset(asset.id(project_root)),
             );
             additional_assets.insert(SyntheticAsset::CssModuleExports(resolved));
             continue;
           }
-          dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
+          dependencies.insert((&**placeholder).into(), Resolution::Excluded);
           continue;
         }
 
@@ -144,38 +144,35 @@ pub fn asset_dependencies<'a>(
           if all_assets_match && let Some(res) = first_asset {
             let asset = &bundle_graph.asset_graph.asset(res);
             dependencies.insert(
-              placeholder.as_str().into(),
+              (&**placeholder).into(),
               Resolution::Asset(asset.id(project_root)),
             );
           } else {
-            dependencies.insert(
-              placeholder.as_str().into(),
-              Resolution::Symbols(resolutions),
-            );
+            dependencies.insert((&**placeholder).into(), Resolution::Symbols(resolutions));
           }
         } else if !used_deps.contains(&resolved) {
-          dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
+          dependencies.insert((&**placeholder).into(), Resolution::Excluded);
         } else {
           let asset = &bundle_graph.asset_graph.asset(resolved);
           dependencies.insert(
-            placeholder.as_str().into(),
+            (&**placeholder).into(),
             Resolution::Asset(asset.id(project_root)),
           );
         }
       }
       BundleGraphDependencyResolution::None => {}
       BundleGraphDependencyResolution::Deferred => {
-        dependencies.insert(placeholder.as_str().into(), Resolution::Excluded);
+        dependencies.insert((&**placeholder).into(), Resolution::Excluded);
       }
       BundleGraphDependencyResolution::Excluded | BundleGraphDependencyResolution::External => {
         if dep.specifier_type == SpecifierType::Url {
           dependencies.insert(
-            placeholder.as_str().into(),
+            (&**placeholder).into(),
             Resolution::String(Cow::Borrowed(&dep.specifier)),
           );
         } else {
           dependencies.insert(
-            placeholder.as_str().into(),
+            (&**placeholder).into(),
             Resolution::External(Cow::Borrowed(&dep.specifier)),
           );
         }
@@ -196,10 +193,10 @@ pub fn asset_dependencies<'a>(
               }
               _ => Resolution::String(Cow::Owned(content.read_string()?.into_owned())),
             };
-            dependencies.insert(placeholder.as_str().into(), resolution);
+            dependencies.insert((&**placeholder).into(), resolution);
           } else if dep.specifier_type == SpecifierType::Url || dep.import_type == ImportType::Url {
             dependencies.insert(
-              placeholder.as_str().into(),
+              (&**placeholder).into(),
               Resolution::String(resolved_bundle.relative_url(bundle).unwrap().into()),
             );
           } else {
@@ -222,7 +219,7 @@ pub fn asset_dependencies<'a>(
 
               if !exports.is_empty() {
                 dependencies.insert(
-                  placeholder.as_str().into(),
+                  (&**placeholder).into(),
                   Resolution::CssModule(
                     resolved_bundle.relative_specifier(bundle).unwrap(),
                     exports,
@@ -232,7 +229,7 @@ pub fn asset_dependencies<'a>(
               }
             }
             dependencies.insert(
-              placeholder.as_str().into(),
+              (&**placeholder).into(),
               Resolution::External(resolved_bundle.relative_specifier(bundle).unwrap().into()),
             );
           }
@@ -260,7 +257,8 @@ pub fn asset_dependencies<'a>(
                 kind: BundleShim::AsyncInterop,
               });
             }
-          } else if resolved_bundle.ty == AssetType::Json && dep.import_type == ImportType::JavaScript
+          } else if resolved_bundle.ty == AssetType::Json
+            && dep.import_type == ImportType::JavaScript
           {
             additional_assets.insert(SyntheticAsset::Bundle {
               bundle: bundle_index,
@@ -281,7 +279,7 @@ pub fn asset_dependencies<'a>(
           } else {
             Resolution::Bundle(bundle_index)
           };
-          dependencies.insert(placeholder.as_str().into(), resolution);
+          dependencies.insert((&**placeholder).into(), resolution);
         }
       }
     }

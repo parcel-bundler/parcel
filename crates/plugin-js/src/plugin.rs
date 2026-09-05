@@ -1257,7 +1257,9 @@ impl JsDependency {
 
   #[qjs(get)]
   pub fn range(&self) -> rquickjs::Result<Option<String>> {
-    self.dep.with(|dep| dep.range.clone())
+    self
+      .dep
+      .with(|dep| dep.range.as_ref().map(|r| (**r).to_string()))
   }
 }
 

@@ -457,7 +457,7 @@ fn prepare_to_package(
         };
 
         inline_bundles.insert(
-          SerializableTendril(dep.placeholder.clone().unwrap().into()),
+          SerializableTendril((*dep.placeholder.clone().unwrap()).into()),
           InlineBundle {
             contents: SerializableTendril(contents.into()),
             module: referenced_bundle.target.output_format == OutputFormat::Esmodule,
@@ -468,9 +468,9 @@ fn prepare_to_package(
       }
       _ => {
         inline_bundles.insert(
-          SerializableTendril(dep.placeholder.clone().unwrap().into()),
+          SerializableTendril((*dep.placeholder.clone().unwrap()).into()),
           InlineBundle {
-            contents: SerializableTendril(dep.specifier.clone().into()),
+            contents: SerializableTendril((*dep.specifier.clone()).into()),
             module: false,
           },
         );

@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
-  pub specifier: String,
+  pub specifier: Box<str>,
   /// How the specifier is interpreted during resolution.
   pub specifier_type: SpecifierType,
   /// When the dependency is loaded.
@@ -25,9 +25,9 @@ pub struct Dependency {
   #[serde(default)]
   pub loc: Option<SourceLocation>,
   #[serde(default)]
-  pub placeholder: Option<String>,
+  pub placeholder: Option<Box<str>>,
   pub resolve_from: Option<SourceUrl>,
-  pub range: Option<String>,
+  pub range: Option<Box<str>>,
   pub conditions: ExportsCondition,
   pub resolution: DependencyResolution,
 }
@@ -43,7 +43,7 @@ impl Dependency {
     self.target.source_type.hash(&mut hasher);
     self.bundle_behavior.hash(&mut hasher);
     self.import_type.hash(&mut hasher);
-    self.placeholder = Some(format!("{:x}", hasher.finish()));
+    self.placeholder = Some(format!("{:x}", hasher.finish()).into_boxed_str());
     self.placeholder.as_ref().unwrap()
   }
 }
@@ -210,7 +210,7 @@ pub struct AssetRequest {
   /// Discriminator for multiple inline assets emitted at the same source location
   /// (e.g. inline scripts/styles on one HTML line, or multiple `addAsset` calls from
   /// one macro invocation). Part of the request's stable identity.
-  pub unique_key: Option<String>,
+  pub unique_key: Option<Arc<str>>,
 }
 
 impl PartialEq for AssetRequest {
@@ -238,7 +238,7 @@ pub struct AssetRequestKey {
   pub pipeline: Option<hstr::Atom>,
   pub target: Arc<Target>,
   pub side_effects: bool,
-  pub unique_key: Option<String>,
+  pub unique_key: Option<Arc<str>>,
 }
 
 impl AssetRequest {

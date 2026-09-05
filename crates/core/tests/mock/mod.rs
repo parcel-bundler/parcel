@@ -251,7 +251,7 @@ fn make_dep(
   target: Arc<parcel_core::Target>,
 ) -> Dependency {
   Dependency {
-    specifier: specifier.to_string(),
+    specifier: specifier.into(),
     specifier_type: SpecifierType::Esm,
     priority,
     bundle_behavior: BundleBehavior::None,

@@ -421,7 +421,7 @@ pub extern "C" fn parcel_asset_set_unique_key(asset: Asset, key: *const u8, key_
     asset.unique_key = None;
   } else {
     let s = unsafe { bytes_to_str(key, key_len) };
-    asset.unique_key = Some(s.to_owned());
+    asset.unique_key = Some(s.to_owned().into());
   }
 }
 

@@ -561,7 +561,7 @@ fn combine_supports<'a>(
 }
 
 struct ReferenceReplacer {
-  urls: HashMap<String, String>,
+  urls: HashMap<Box<str>, String>,
   css_modules: HashMap<String, String>,
   loc: lightningcss::rules::Location,
 }

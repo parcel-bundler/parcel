@@ -69,7 +69,7 @@ impl MacroContext {
     let ordinal = self.dependencies.borrow().len();
 
     self.dependencies.borrow_mut().push(Dependency {
-      specifier: format!("macro"),
+      specifier: format!("macro").into_boxed_str(),
       specifier_type: SpecifierType::Esm,
       priority: Priority::Sync,
       bundle_behavior: BundleBehavior::None,
@@ -108,7 +108,7 @@ impl MacroContext {
         ty,
         content: Arc::new(BufferContent::new_string(content)),
         side_effects: true,
-        unique_key: Some(ordinal.to_string()),
+        unique_key: Some(ordinal.to_string().into()),
       })),
     })
   }

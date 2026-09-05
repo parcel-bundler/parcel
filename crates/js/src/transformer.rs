@@ -202,7 +202,7 @@ impl Transformer for JsTransformer {
       );
 
       asset.dependencies.push(Dependency {
-        specifier: dep.specifier.to_string(),
+        specifier: dep.specifier.to_string().into_boxed_str(),
         specifier_type: match dep.kind {
           DependencyKind::Import | DependencyKind::Export | DependencyKind::DynamicImport => {
             SpecifierType::Esm
@@ -355,7 +355,7 @@ impl Transformer for JsTransformer {
           }
         },
         loc: Some(convert_loc(asset.loc.url.clone(), &dep.loc)),
-        placeholder: dep.placeholder,
+        placeholder: dep.placeholder.map(|d| d.into()),
         resolve_from: if is_helper {
           // TODO
           Some(SourceUrl::from_directory_path(&options.project_root))
@@ -423,7 +423,7 @@ impl Transformer for JsTransformer {
             pipeline: None,
             side_effects: true,
             target: asset.target.clone(),
-            unique_key: Some(dep.specifier.to_string()),
+            unique_key: Some(dep.specifier.to_string().into()),
           }))
         } else {
           DependencyResolution::None

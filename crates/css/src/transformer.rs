@@ -173,7 +173,7 @@ impl Transformer for CssTransformer {
             if let CssModuleReference::Dependency { name, specifier } = composes {
               let dep_index = asset.dependencies.len() as u32;
               asset.dependencies.push(Dependency {
-                specifier,
+                specifier: specifier.into_boxed_str(),
                 specifier_type: SpecifierType::Esm,
                 priority: Priority::Sync,
                 bundle_behavior: BundleBehavior::None,
@@ -208,7 +208,7 @@ impl Transformer for CssTransformer {
             CssModuleReference::Dependency { name, specifier } => {
               let dep_index = asset.dependencies.len() as u32;
               asset.dependencies.push(Dependency {
-                specifier,
+                specifier: specifier.into_boxed_str(),
                 specifier_type: SpecifierType::Esm,
                 priority: Priority::Sync,
                 bundle_behavior: BundleBehavior::None,
@@ -281,7 +281,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
   fn visit_rule(&mut self, rule: &mut lightningcss::rules::CssRule<'i>) -> Result<(), Self::Error> {
     if let CssRule::Import(import) = rule {
       self.dependencies.push(Dependency {
-        specifier: import.url.to_string(),
+        specifier: import.url.to_string().into_boxed_str(),
         specifier_type: SpecifierType::Url,
         priority: Priority::Sync,
         bundle_behavior: BundleBehavior::None,
@@ -365,7 +365,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
     }
 
     self.dependencies.push(Dependency {
-      specifier: url.url.to_string(),
+      specifier: url.url.to_string().into_boxed_str(),
       specifier_type: SpecifierType::Url,
       priority: Priority::Lazy,
       bundle_behavior: BundleBehavior::None,

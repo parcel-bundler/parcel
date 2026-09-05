@@ -32,17 +32,17 @@ pub fn resolve(
   let (pipeline, specifier) = if let Ok((pipeline, specifier)) = parse_pipeline(&dep.specifier) {
     // Don't consider absolute paths. Absolute paths are only supported for entries,
     // and include e.g. `C:\` on Windows, conflicting with pipelines.
-    if Path::new(&dep.specifier).is_absolute()
+    if Path::new(&*dep.specifier).is_absolute()
       || !transformers.named_pipelines().any(|v| v == pipeline)
     {
       // This may be a url protocol or scheme rather than a pipeline, such as
       // `url('http://example.com/foo.png')`. Pass it to resolvers to handle.
-      (None, dep.specifier.as_str())
+      (None, &*dep.specifier)
     } else {
       (Some(pipeline), specifier)
     }
   } else {
-    (None, dep.specifier.as_str())
+    (None, &*dep.specifier)
   };
 
   let mut diagnostics = Vec::new();

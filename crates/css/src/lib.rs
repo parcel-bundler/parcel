@@ -95,7 +95,7 @@ fn resolve_css_module_export_inner<'a>(
           if let Some(dep) = asset
             .dependencies
             .iter()
-            .find(|d| d.specifier == *specifier && d.specifier_type == SpecifierType::Esm)
+            .find(|d| &*d.specifier == &*specifier && d.specifier_type == SpecifierType::Esm)
           {
             if let Some((resolved, _)) = asset_graph.resolved_asset(dep) {
               if let Some(resolved) =

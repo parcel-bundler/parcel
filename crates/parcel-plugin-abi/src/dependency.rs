@@ -189,7 +189,7 @@ pub extern "C" fn parcel_asset_add_dependency(asset: Asset, dep: *const Dependen
   let flags = CoreDependencyFlags::from_bits_truncate(dep.flags);
 
   asset.dependencies.push(CoreDependency {
-    specifier,
+    specifier: specifier.into_boxed_str(),
     specifier_type,
     priority,
     bundle_behavior,
