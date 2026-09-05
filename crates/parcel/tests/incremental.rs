@@ -1449,7 +1449,7 @@ fn add_and_delete_parcelrc() {
       "/project/.parcelrc",
       r#"{
         "extends": "@parcel/config-default",
-        "transformers": { "*.json": ["@parcel/transformer-raw"] }
+        "transformers": { "js:*.json": ["@parcel/transformer-raw"] }
       }"#,
     )],
     &[],

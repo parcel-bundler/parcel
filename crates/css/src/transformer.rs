@@ -177,6 +177,7 @@ impl Transformer for CssTransformer {
                 specifier_type: SpecifierType::Esm,
                 priority: Priority::Sync,
                 bundle_behavior: BundleBehavior::None,
+                import_type: ImportType::JavaScript,
                 flags: DependencyFlags::empty(),
                 target: asset.target.clone(),
                 loc: None,
@@ -211,6 +212,7 @@ impl Transformer for CssTransformer {
                 specifier_type: SpecifierType::Esm,
                 priority: Priority::Sync,
                 bundle_behavior: BundleBehavior::None,
+                import_type: ImportType::JavaScript,
                 flags: DependencyFlags::empty(),
                 target: asset.target.clone(),
                 loc: None,
@@ -283,6 +285,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
         specifier_type: SpecifierType::Url,
         priority: Priority::Sync,
         bundle_behavior: BundleBehavior::None,
+        import_type: ImportType::StyleSheet,
         flags: DependencyFlags::empty(),
         target: self.target.clone(),
         loc: Some(SourceLocation {
@@ -366,6 +369,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
       specifier_type: SpecifierType::Url,
       priority: Priority::Lazy,
       bundle_behavior: BundleBehavior::None,
+      import_type: ImportType::Url,
       flags: DependencyFlags::empty(),
       target: self.target.clone(),
       loc: Some(SourceLocation {

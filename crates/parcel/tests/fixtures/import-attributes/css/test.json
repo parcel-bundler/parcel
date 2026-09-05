@@ -1,0 +1,30 @@
+[
+  {
+    "description": "should inline a constructed CSSStyleSheet with `type: 'css'`",
+    "input": "index.js",
+    "bundles": [
+      {
+        "assets": [
+          "esmodule-helpers.js",
+          "index.js",
+          "polyfill.js"
+        ]
+      },
+      {
+        "type": "css",
+        "assets": [
+          "style.css"
+        ]
+      }
+    ],
+    "output": "body {\n  color: red;\n}\n"
+  },
+  {
+    "description": "should inline a constructed CSSStyleSheet with `type: 'css'` in production",
+    "input": "index.js",
+    "options": {
+      "mode": "production"
+    },
+    "output": "body{color:red}"
+  }
+]

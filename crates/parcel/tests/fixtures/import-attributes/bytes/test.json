@@ -1,0 +1,65 @@
+[
+  {
+    "description": "should inline the original bytes as a Uint8Array with `type: 'bytes'`",
+    "input": "index.js",
+    "bundles": [
+      {
+        "assets": [
+          "esmodule-helpers.js",
+          "index.js"
+        ]
+      },
+      {
+        "type": "json",
+        "assets": [
+          "local.json"
+        ]
+      }
+    ],
+    "output": [
+      123,
+      34,
+      104,
+      101,
+      108,
+      108,
+      111,
+      34,
+      58,
+      34,
+      119,
+      111,
+      114,
+      108,
+      100,
+      34,
+      125
+    ]
+  },
+  {
+    "description": "should inline the original bytes as a Uint8Array with `type: 'bytes'` in production",
+    "input": "index.js",
+    "options": {
+      "mode": "production"
+    },
+    "output": [
+      123,
+      34,
+      104,
+      101,
+      108,
+      108,
+      111,
+      34,
+      58,
+      34,
+      119,
+      111,
+      114,
+      108,
+      100,
+      34,
+      125
+    ]
+  }
+]

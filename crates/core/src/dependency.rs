@@ -12,9 +12,14 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
   pub specifier: String,
+  /// How the specifier is interpreted during resolution.
   pub specifier_type: SpecifierType,
+  /// When the dependency is loaded.
   pub priority: Priority,
+  /// Which bundle the resolved asset is placed into.
   pub bundle_behavior: BundleBehavior,
+  /// How the resolved asset is evaluated (i.e. the value it exports).
+  pub import_type: ImportType,
   pub flags: DependencyFlags,
   pub target: Arc<Target>,
   #[serde(default)]
@@ -37,6 +42,7 @@ impl Dependency {
     self.target.output_format.hash(&mut hasher);
     self.target.source_type.hash(&mut hasher);
     self.bundle_behavior.hash(&mut hasher);
+    self.import_type.hash(&mut hasher);
     self.placeholder = Some(format!("{:x}", hasher.finish()));
     self.placeholder.as_ref().unwrap()
   }
@@ -79,6 +85,31 @@ bitflags! {
 }
 
 impl_bitflags_serde!(DependencyFlags);
+
+/// Describes how a dependency is evaluated. This can be changed via import attributes.
+///
+/// NOTE: This does NOT change how a module is _transformed_, only what the import evaluates to.
+/// For example, importing a JS file with {type: 'text'} evaluates to a string of the compiled
+/// bundle contents, not the original source code. If you want the original source code, you can
+/// configure a named pipeline in `.parcelrc` to remove all transformers.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Hash)]
+pub enum ImportType {
+  /// Evaluate the imported module as JavaScript, resolving to its exports.
+  /// This is also used in the case of JSON or other serialization formats.
+  JavaScript,
+  /// Resolve to a CSSStyleSheet object.
+  /// https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-css-module-script
+  StyleSheet,
+  /// Resolve to a URL string.
+  /// If the dependency has BundleBehavior::Inline, this resolves to a data URL, otherwise a bundle URL.
+  Url,
+  /// Resolve to a string of a bundle's content.
+  /// https://github.com/tc39/proposal-import-text
+  Text,
+  /// Resolve to a Uint8Array of a bundle's content.
+  /// https://github.com/tc39/proposal-import-bytes
+  Bytes,
+}
 
 bitflags::bitflags! {
   /// A package.json "exports" field.

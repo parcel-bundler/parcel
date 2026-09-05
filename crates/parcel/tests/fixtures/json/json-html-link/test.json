@@ -1,0 +1,8 @@
+{
+  "description": "should keep a JSON file linked from HTML in its original format",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "json", "assets": ["local.json"], "notContains": ["module.exports"]}
+  ]
+}

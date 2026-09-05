@@ -1,0 +1,48 @@
+[
+  {
+    "description": "should inline the original JSON text with `type: 'text'`",
+    "input": "index.js",
+    "bundles": [
+      {
+        "assets": [
+          "esmodule-helpers.js",
+          "index.js"
+        ]
+      },
+      {
+        "type": "json",
+        "assets": [
+          "local.json"
+        ]
+      }
+    ],
+    "output": "{\"hello\":\"world\"}"
+  },
+  {
+    "description": "should inline the original JSON text with `type: 'text'` in production",
+    "input": "index.js",
+    "options": {
+      "mode": "production"
+    },
+    "output": "{\"hello\":\"world\"}"
+  },
+  {
+    "description": "should inline the compiled CSS text with `type: 'text'`",
+    "input": "css.js",
+    "bundles": [
+      {
+        "assets": [
+          "esmodule-helpers.js",
+          "css.js"
+        ]
+      },
+      {
+        "type": "css",
+        "assets": [
+          "style.css"
+        ]
+      }
+    ],
+    "output": "body {\n  color: red;\n}\n"
+  }
+]

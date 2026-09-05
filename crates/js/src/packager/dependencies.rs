@@ -6,7 +6,7 @@ use parcel_css::resolve_css_module_export;
 
 use super::{
   Resolution, rsc,
-  synthetic::{BundleShim, SyntheticAsset},
+  synthetic::{BundleShim, InlineType, SyntheticAsset},
 };
 
 pub(super) fn is_inline_bundle_dependency(dependency: &Dependency, bundle: &Bundle) -> bool {
@@ -189,9 +189,15 @@ pub fn asset_dependencies<'a>(
             || resolved_bundle.bundle_behavior == BundleBehavior::Inline
           {
             let content = get_inline_bundle_content(bundle_index as usize).unwrap();
-            let content = Cow::Owned(content.read_string()?.into_owned());
-            dependencies.insert(placeholder.as_str().into(), Resolution::String(content));
-          } else if dep.specifier_type == SpecifierType::Url {
+            let resolution = match dep.import_type {
+              ImportType::Bytes => Resolution::Bytes(content.read()?),
+              ImportType::StyleSheet => {
+                Resolution::StyleSheet(Cow::Owned(content.read_string()?.into_owned()))
+              }
+              _ => Resolution::String(Cow::Owned(content.read_string()?.into_owned())),
+            };
+            dependencies.insert(placeholder.as_str().into(), resolution);
+          } else if dep.specifier_type == SpecifierType::Url || dep.import_type == ImportType::Url {
             dependencies.insert(
               placeholder.as_str().into(),
               Resolution::String(resolved_bundle.relative_url(bundle).unwrap().into()),
@@ -237,10 +243,11 @@ pub fn asset_dependencies<'a>(
           let needs_esm_interop =
             is_lazy_dynamic_import && !is_inline && asset.flags.contains(AssetFlags::IS_ESM);
 
+          let inline_type = InlineType::from(dep.import_type);
           if is_inline {
             additional_assets.insert(SyntheticAsset::Bundle {
               bundle: bundle_index,
-              kind: BundleShim::Inline,
+              kind: BundleShim::Inline(inline_type),
             });
           } else if is_lazy_dynamic_import {
             additional_assets.insert(SyntheticAsset::Bundle {
@@ -253,7 +260,8 @@ pub fn asset_dependencies<'a>(
                 kind: BundleShim::AsyncInterop,
               });
             }
-          } else if resolved_bundle.ty == AssetType::Json {
+          } else if resolved_bundle.ty == AssetType::Json && dep.import_type == ImportType::JavaScript
+          {
             additional_assets.insert(SyntheticAsset::Bundle {
               bundle: bundle_index,
               kind: BundleShim::Sync,
@@ -267,6 +275,9 @@ pub fn asset_dependencies<'a>(
 
           let resolution = if needs_esm_interop {
             Resolution::BundleInterop(bundle_index)
+          } else if is_inline && inline_type != InlineType::Text {
+            // Bytes and StyleSheet shims have distinct module ids from the plain "b{n}" form.
+            Resolution::Asset(BundleShim::Inline(inline_type).id(bundle_index))
           } else {
             Resolution::Bundle(bundle_index)
           };

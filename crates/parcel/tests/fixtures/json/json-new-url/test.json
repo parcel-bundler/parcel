@@ -1,0 +1,8 @@
+{
+  "description": "should keep a JSON file referenced with new URL and import.meta.url in its original format",
+  "input": "index.js",
+  "bundles": [
+    {"assets": ["esmodule-helpers.js", "index.js"]},
+    {"type": "json", "assets": ["local.json"], "notContains": ["module.exports"]}
+  ]
+}

@@ -21,9 +21,9 @@
     "*.{png,jpeg,jpg,gif,webp,tiff,bmp,ico,avif}": [
       "@parcel/transformer-image"
     ],
-    "*.{json,json5}": ["@parcel/transformer-json"],
-    "*.toml": ["@parcel/transformer-toml"],
-    "*.{yaml,yml}": ["@parcel/transformer-yaml"]
+    "js:*.{json,json5}": ["@parcel/transformer-json"],
+    "js:*.toml": ["@parcel/transformer-toml"],
+    "js:*.{yaml,yml}": ["@parcel/transformer-yaml"]
   },
   "bundler": "@parcel/bundler-default",
   "namers": ["@parcel/namer-default"],

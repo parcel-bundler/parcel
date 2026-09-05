@@ -1,8 +1,9 @@
-use std::{path::Path, sync::Arc};
+use std::{borrow::Cow, path::Path, sync::Arc};
 
 use crate::{
   CodeFrame, Dependency, DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList,
-  FileSystem, ParcelOptions,
+  FileSystem, ImportType, ParcelOptions, Transformer, config::PipelineMap,
+  transformer::relative_path,
 };
 
 pub trait Resolver: Send + Sync {
@@ -24,14 +25,16 @@ pub trait Resolver: Send + Sync {
 pub fn resolve(
   dep: &Dependency,
   resolvers: &Vec<Arc<dyn Resolver>>,
-  named_pipelines: &Vec<&str>,
+  transformers: &PipelineMap<dyn Transformer>,
   options: &ParcelOptions,
   fs: &Arc<dyn FileSystem>,
 ) -> Result<DependencyResolution, DiagnosticList> {
   let (pipeline, specifier) = if let Ok((pipeline, specifier)) = parse_pipeline(&dep.specifier) {
     // Don't consider absolute paths. Absolute paths are only supported for entries,
     // and include e.g. `C:\` on Windows, conflicting with pipelines.
-    if Path::new(&dep.specifier).is_absolute() || !named_pipelines.contains(&pipeline) {
+    if Path::new(&dep.specifier).is_absolute()
+      || !transformers.named_pipelines().any(|v| v == pipeline)
+    {
       // This may be a url protocol or scheme rather than a pipeline, such as
       // `url('http://example.com/foo.png')`. Pass it to resolvers to handle.
       (None, dep.specifier.as_str())
@@ -47,6 +50,24 @@ pub fn resolve(
     match resolver.resolve(dep, specifier, pipeline, options, fs) {
       Ok(res) => match res {
         DependencyResolution::None => continue,
+        DependencyResolution::Deferred(mut req) => {
+          // TODO: is this how we want to handle special case transformations like JSON that only apply when importing from JS?
+          if req.pipeline.is_none() && dep.import_type == ImportType::JavaScript {
+            let path = req.loc.url.to_file_path()?;
+            let matches = path.with_relative(options.project_root, |relative_path| {
+              transformers
+                .get(relative_path.to_string_lossy(), &Some("js"), false)
+                .next()
+                .is_some()
+            });
+            if matches {
+              let inner = Arc::make_mut(&mut req);
+              inner.pipeline = Some("js".into());
+            }
+          }
+
+          return Ok(DependencyResolution::Deferred(req));
+        }
         _ => return Ok(res),
       },
       Err(err) => {
@@ -205,6 +226,7 @@ mod tests {
         url: SourceUrl::parse("file:///test.js").unwrap(),
         ..Default::default()
       }),
+      import_type: ImportType::JavaScript,
       placeholder: None,
       resolve_from: None,
       range: None,
@@ -213,7 +235,14 @@ mod tests {
     };
 
     let fs: Arc<dyn FileSystem> = Arc::new(OsFileSystem {});
-    let res = resolve(&dep, &resolvers, &Vec::new(), &Default::default(), &fs).unwrap();
+    let res = resolve(
+      &dep,
+      &resolvers,
+      &Default::default(),
+      &Default::default(),
+      &fs,
+    )
+    .unwrap();
     let DependencyResolution::Deferred(req) = res else {
       panic!("expected Deferred");
     };
@@ -223,7 +252,14 @@ mod tests {
 
     dep.specifier = "two".into();
 
-    let res = resolve(&dep, &resolvers, &Vec::new(), &Default::default(), &fs).unwrap();
+    let res = resolve(
+      &dep,
+      &resolvers,
+      &Default::default(),
+      &Default::default(),
+      &fs,
+    )
+    .unwrap();
     let DependencyResolution::Deferred(req) = res else {
       panic!("expected Deferred");
     };

@@ -185,6 +185,7 @@ impl Transformer for JsTransformer {
         && !(dep.specifier.ends_with("/jsx-runtime")
           || dep.specifier.ends_with("/jsx-dev-runtime"));
       let dependency_environment = dependency_environment(dep.attributes.as_ref());
+      let attribute_import_type = dependency_import_type(dep.attributes.as_ref());
 
       if dependency_environment == Some(Environment::ReactClient) {
         // Avoid unnecessary shared bundles between actual client code and server code that
@@ -221,13 +222,29 @@ impl Transformer for JsTransformer {
           | DependencyKind::Url => Priority::Lazy,
           _ => Priority::Sync,
         },
-        bundle_behavior: match dep.kind {
-          DependencyKind::Url
-          | DependencyKind::WebWorker
-          | DependencyKind::ServiceWorker
-          | DependencyKind::Worklet => BundleBehavior::Isolated,
-          _ => BundleBehavior::None,
+        bundle_behavior: match attribute_import_type {
+          // A URL import resolves to a separate file; the others inline the bundle's content.
+          Some(ImportType::Url) => BundleBehavior::Isolated,
+          Some(_) => BundleBehavior::Inline,
+          None => match dep.kind {
+            DependencyKind::Url
+            | DependencyKind::WebWorker
+            | DependencyKind::ServiceWorker
+            | DependencyKind::Worklet => BundleBehavior::Isolated,
+            _ => BundleBehavior::None,
+          },
         },
+        import_type: attribute_import_type.unwrap_or(match dep.kind {
+          DependencyKind::Import
+          | DependencyKind::Export
+          | DependencyKind::DynamicImport
+          | DependencyKind::Require => ImportType::JavaScript,
+          DependencyKind::WebWorker
+          | DependencyKind::ServiceWorker
+          | DependencyKind::Worklet
+          | DependencyKind::Url => ImportType::Url,
+          DependencyKind::File | DependencyKind::Id => ImportType::JavaScript,
+        }),
         flags: {
           let mut flags = DependencyFlags::empty();
           if dep
@@ -421,6 +438,7 @@ impl Transformer for JsTransformer {
         specifier_type: SpecifierType::Esm,
         priority: Priority::Sync,
         bundle_behavior: BundleBehavior::None,
+        import_type: ImportType::JavaScript,
         flags: DependencyFlags::FORCE_BUNDLE,
         target: asset.target.clone(),
         loc: None,
@@ -536,6 +554,7 @@ impl Transformer for JsTransformer {
           specifier_type: SpecifierType::Esm,
           priority: Priority::Sync,
           bundle_behavior: BundleBehavior::None,
+          import_type: ImportType::JavaScript,
           flags: DependencyFlags::FORCE_BUNDLE,
           target: asset.target.clone(),
           loc: None,
@@ -593,6 +612,30 @@ fn dependency_environment(attributes: Option<&JsValue>) -> Option<Environment> {
   match value {
     Some(JsValue::String(value)) if value == "react-server" => Some(Environment::ReactServer),
     Some(JsValue::String(value)) if value == "react-client" => Some(Environment::ReactClient),
+    _ => None,
+  }
+}
+
+/// Maps the `type` import attribute to an ImportType, e.g. `import x from './x' with {type: 'url'}`.
+/// Unrecognized values (including `json` and `macro`, which affect transformation rather than
+/// evaluation) return None and fall back to the dependency kind's default.
+fn dependency_import_type(attributes: Option<&JsValue>) -> Option<ImportType> {
+  let JsValue::Object(attributes) = attributes? else {
+    return None;
+  };
+
+  let value = attributes.get("type").or_else(|| {
+    let JsValue::Object(with) = attributes.get("with")? else {
+      return None;
+    };
+    with.get("type")
+  });
+
+  match value {
+    Some(JsValue::String(value)) if value == "url" => Some(ImportType::Url),
+    Some(JsValue::String(value)) if value == "text" => Some(ImportType::Text),
+    Some(JsValue::String(value)) if value == "bytes" => Some(ImportType::Bytes),
+    Some(JsValue::String(value)) if value == "css" => Some(ImportType::StyleSheet),
     _ => None,
   }
 }

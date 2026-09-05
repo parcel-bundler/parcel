@@ -2,8 +2,8 @@ use std::{path::Path, sync::Arc};
 
 use parcel_core::{
   BundleBehavior, Dependency, DependencyFlags, DependencyResolution, ExportsCondition, FileSystem,
-  Location, OverlayFileSystem, ParcelOptions, PathId, Priority, Resolver, SourceLocation,
-  SourceUrl, SpecifierType,
+  ImportType, Location, OverlayFileSystem, ParcelOptions, PathId, Priority, Resolver,
+  SourceLocation, SourceUrl, SpecifierType,
 };
 use parcel_plugin_js::JsPlugin;
 
@@ -109,6 +109,7 @@ fn test_dependency() -> Dependency {
     specifier_type: SpecifierType::Commonjs,
     priority: Priority::Lazy,
     bundle_behavior: BundleBehavior::Isolated,
+    import_type: ImportType::JavaScript,
     flags: DependencyFlags::ENTRY | DependencyFlags::OPTIONAL | DependencyFlags::NEEDS_STABLE_NAME,
     target: Arc::new(Default::default()),
     loc: Some(SourceLocation {

@@ -120,12 +120,11 @@ impl<T: ?Sized> PipelineMap<T> {
     }
   }
 
-  pub fn named_pipelines(&self) -> Vec<&str> {
+  pub fn named_pipelines(&self) -> impl Iterator<Item = &str> {
     self
       .0
       .iter()
       .filter_map(|(glob, _)| glob.split_once(':').map(|g| g.0))
-      .collect()
   }
 }
 

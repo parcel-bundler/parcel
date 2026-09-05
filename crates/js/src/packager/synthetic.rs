@@ -27,18 +27,41 @@ pub enum BundleShim {
   /// Resolves to the URL of the bundle.
   Url,
   /// Resolves to the inlined content of the bundle.
-  Inline,
+  Inline(InlineType),
   /// Loads the bundle synchronously.
   Sync,
 }
 
+/// The value an inlined bundle's content is exposed as, from the dependency's ImportType.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum InlineType {
+  /// A string of the bundle's content.
+  Text,
+  /// A Uint8Array of the bundle's content.
+  Bytes,
+  /// A CSSStyleSheet constructed from the bundle's content.
+  StyleSheet,
+}
+
+impl From<ImportType> for InlineType {
+  fn from(import_type: ImportType) -> Self {
+    match import_type {
+      ImportType::Bytes => InlineType::Bytes,
+      ImportType::StyleSheet => InlineType::StyleSheet,
+      _ => InlineType::Text,
+    }
+  }
+}
+
 impl BundleShim {
-  fn id(&self, bundle: u32) -> String {
+  pub(super) fn id(&self, bundle: u32) -> String {
     match self {
-      BundleShim::Async | BundleShim::Url | BundleShim::Inline | BundleShim::Sync => {
+      BundleShim::Async | BundleShim::Url | BundleShim::Inline(InlineType::Text) | BundleShim::Sync => {
         format!("b{}", bundle)
       }
       BundleShim::AsyncInterop => format!("b{}i", bundle),
+      BundleShim::Inline(InlineType::Bytes) => format!("b{}b", bundle),
+      BundleShim::Inline(InlineType::StyleSheet) => format!("b{}c", bundle),
     }
   }
 }
@@ -144,10 +167,30 @@ impl SyntheticAsset {
             resolved_bundle.name()
           )?;
         }
-        BundleShim::Inline => {
+        BundleShim::Inline(inline_type) => {
           let content = get_inline_bundle_content(*bundle_index as usize)?;
-          let content = content.read_string()?;
-          write!(dest, "module.exports={:?}", content)?;
+          match inline_type {
+            InlineType::Text => {
+              write!(dest, "module.exports={:?}", content.read_string()?)?;
+            }
+            InlineType::Bytes => {
+              write!(dest, "module.exports=new Uint8Array([")?;
+              for (i, byte) in content.read()?.iter().enumerate() {
+                if i > 0 {
+                  dest.write_char(',')?;
+                }
+                write!(dest, "{}", byte)?;
+              }
+              write!(dest, "])")?;
+            }
+            InlineType::StyleSheet => {
+              write!(
+                dest,
+                "var s=new CSSStyleSheet();s.replaceSync({:?});module.exports=s",
+                content.read_string()?
+              )?;
+            }
+          }
         }
         BundleShim::Sync => {
           let resolved_bundle = &bundle_graph.bundles[*bundle_index as usize];

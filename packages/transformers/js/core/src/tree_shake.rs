@@ -34,6 +34,14 @@ pub enum Resolution<'a> {
   External(Cow<'a, str>),
   #[serde(serialize_with = "serialize_string")]
   String(Cow<'a, str>),
+  /// The inlined content of a bundle, exposed as a Uint8Array.
+  /// Only produced for library builds; the app packager uses a synthetic shim module instead.
+  #[serde(serialize_with = "serialize_bytes")]
+  Bytes(Vec<u8>),
+  /// The inlined content of a bundle, exposed as a constructed CSSStyleSheet.
+  /// Only produced for library builds; the app packager uses a synthetic shim module instead.
+  #[serde(serialize_with = "serialize_string")]
+  StyleSheet(Cow<'a, str>),
   CssModule(String, Vec<(&'a str, String)>),
 }
 
@@ -46,6 +54,14 @@ where
 }
 
 fn serialize_string<S>(value: &Cow<'_, str>, serializer: S) -> Result<S::Ok, S::Error>
+where
+  S: serde::Serializer,
+{
+  use serde::Serialize;
+  HashMap::from([("value", value)]).serialize(serializer)
+}
+
+fn serialize_bytes<S>(value: &Vec<u8>, serializer: S) -> Result<S::Ok, S::Error>
 where
   S: serde::Serializer,
 {
@@ -67,6 +83,35 @@ where
 {
   use serde::Serialize;
   format!("b{}i", value).serialize(serializer)
+}
+
+/// A `new Uint8Array([...])` expression of the given bytes.
+fn bytes_expr(bytes: &[u8]) -> Expr {
+  let array = Expr::Array(ArrayLit {
+    span: DUMMY_SP,
+    elems: bytes
+      .iter()
+      .map(|byte| {
+        Some(ExprOrSpread {
+          spread: None,
+          expr: Box::new(Expr::Lit(Lit::Num(Number {
+            span: DUMMY_SP,
+            value: *byte as f64,
+            raw: None,
+          }))),
+        })
+      })
+      .collect(),
+  });
+  quote!("new Uint8Array($array)" as Expr, array: Expr = array)
+}
+
+/// An expression constructing a CSSStyleSheet with the given content.
+fn stylesheet_expr(text: &str) -> Expr {
+  quote!(
+    "((sheet) => (sheet.replaceSync($text), sheet))(new CSSStyleSheet())" as Expr,
+    text: Expr = text.into()
+  )
 }
 
 pub fn tree_shake<'a>(
@@ -308,6 +353,12 @@ impl<'a> VisitMut for TreeShake<'a> {
             Resolution::String(string) => {
               *node = string.clone().into_owned().into();
             }
+            Resolution::Bytes(bytes) => {
+              *node = bytes_expr(bytes);
+            }
+            Resolution::StyleSheet(text) => {
+              *node = stylesheet_expr(text);
+            }
             Resolution::Symbols(symbols) => {
               // A namespace resolution already contains every export from this dependency,
               // including symbols that were resolved to a more specific asset. Keep the
@@ -425,6 +476,26 @@ impl<'a> VisitMut for TreeShake<'a> {
                   .map(|s| &s.as_default().unwrap().local);
                 if let Some(name) = name {
                   *node = quote!("const $name = $value" as ModuleItem, name: Ident = name.clone(), value: Expr = string.clone().into());
+                }
+              }
+              Resolution::Bytes(bytes) => {
+                let name = import
+                  .specifiers
+                  .iter()
+                  .find(|s| s.is_default())
+                  .map(|s| &s.as_default().unwrap().local);
+                if let Some(name) = name {
+                  *node = quote!("const $name = $value" as ModuleItem, name: Ident = name.clone(), value: Expr = bytes_expr(bytes));
+                }
+              }
+              Resolution::StyleSheet(text) => {
+                let name = import
+                  .specifiers
+                  .iter()
+                  .find(|s| s.is_default())
+                  .map(|s| &s.as_default().unwrap().local);
+                if let Some(name) = name {
+                  *node = quote!("const $name = $value" as ModuleItem, name: Ident = name.clone(), value: Expr = stylesheet_expr(text));
                 }
               }
               Resolution::CssModule(specifier, object) => {

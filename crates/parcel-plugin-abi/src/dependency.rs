@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use parcel_core::{
   Asset as CoreAsset, Dependency as CoreDependency, DependencyFlags as CoreDependencyFlags,
-  DependencyResolution, ExportsCondition as CoreExportsCondition, Priority as CorePriority,
-  SpecifierType as CoreSpecifierType,
+  DependencyResolution, ExportsCondition as CoreExportsCondition, ImportType,
+  Priority as CorePriority, SpecifierType as CoreSpecifierType,
 };
 
 use crate::{
@@ -193,6 +193,7 @@ pub extern "C" fn parcel_asset_add_dependency(asset: Asset, dep: *const Dependen
     specifier_type,
     priority,
     bundle_behavior,
+    import_type: ImportType::JavaScript, // TODO
     flags,
     target: asset.target.clone(),
     loc: None,

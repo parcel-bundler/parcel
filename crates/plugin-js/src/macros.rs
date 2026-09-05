@@ -3,8 +3,8 @@ use std::{cell::RefCell, rc::Rc, sync::Arc};
 use indexmap::IndexMap;
 use parcel_core::{
   AssetRequest, AssetType, BufferContent, BundleBehavior, Dependency, DependencyFlags,
-  DependencyResolution, ExportsCondition, FileSystem, Location, ParcelOptions, PathId, Priority,
-  SourceLocation, SourceUrl, SpecifierType, Target,
+  DependencyResolution, ExportsCondition, FileSystem, ImportType, Location, ParcelOptions, PathId,
+  Priority, SourceLocation, SourceUrl, SpecifierType, Target,
 };
 use parcel_macros::{JsValue, MacroError};
 use parcel_sourcemap::{OriginalLocation, SourceMap};
@@ -73,6 +73,7 @@ impl MacroContext {
       specifier_type: SpecifierType::Esm,
       priority: Priority::Sync,
       bundle_behavior: BundleBehavior::None,
+      import_type: ImportType::JavaScript,
       flags: DependencyFlags::MACRO,
       target: self.target.clone(),
       loc: Some(SourceLocation {

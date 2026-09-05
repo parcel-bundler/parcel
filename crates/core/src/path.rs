@@ -162,6 +162,11 @@ impl PathId {
     GLOBAL_INTERNER.relative(*self, *from)
   }
 
+  /// Gets the relative path from `from` to this path without allocating.
+  pub fn with_relative<R, F: FnOnce(&Path) -> R>(&self, from: PathId, f: F) -> R {
+    GLOBAL_INTERNER.with_relative(*self, from, f)
+  }
+
   /// Returns the relative URL from `from` to this path: the string a browser resolves against
   /// `from` to reach `self`. See [`PathInterner::relative_url`].
   pub fn relative_url(&self, from: &PathId) -> String {
@@ -512,6 +517,38 @@ impl PathInterner {
 
     self.push_segments_after(&mut res, id, dir);
     res
+  }
+
+  pub fn with_relative<R, F: FnOnce(&Path) -> R>(&self, id: PathId, from: PathId, f: F) -> R {
+    // If the scratch buffer is already lent out on this thread, we can't reuse it without
+    // clobbering the outstanding borrow, so fall back to a heap path for this (rare) nested call.
+    if SCRATCH_IN_USE.with(|in_use| in_use.replace(true)) {
+      return f(&self.to_path_buf(id));
+    }
+
+    // Reset the in-use flag even if `f` panics.
+    struct Guard;
+    impl Drop for Guard {
+      fn drop(&mut self) {
+        SCRATCH_IN_USE.with(|in_use| in_use.set(false));
+      }
+    }
+    let _guard = Guard;
+
+    let (parent_dirs, dir) = self.common_ancestor(Some(from), Some(id));
+
+    SCRATCH_PATH.with(|cell| {
+      // SAFETY: `SCRATCH_IN_USE` guarantees no other live borrow of this cell exists on this
+      // thread for the duration of `f`, and we don't touch `path` again once `f` holds the `&Path`.
+      let path = unsafe { &mut *cell.get() };
+      path.clear();
+      for _ in 0..parent_dirs {
+        path.push(Component::ParentDir);
+      }
+
+      self.push_segments_after(path, id, dir);
+      f(path.as_path())
+    })
   }
 
   /// Returns the relative URL from `from` to `id`: the string a browser resolves against `from`'s

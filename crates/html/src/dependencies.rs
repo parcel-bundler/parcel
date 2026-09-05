@@ -10,8 +10,8 @@ use html5ever::{Attribute, ExpandedName, QualName, expanded_name, local_name, na
 use parcel_core::{
   Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, BufferContent, BundleBehavior,
   CodeFrame, CodeHighlight, Dependency, DependencyFlags, DependencyResolution, Diagnostic,
-  DiagnosticSeverity, EnvironmentFeature, ExportsCondition, Location, OutputFormat, Priority,
-  SourceLocation, SourceType, SourceUrl, SpecifierType, Target,
+  DiagnosticSeverity, EnvironmentFeature, ExportsCondition, ImportType, Location, OutputFormat,
+  Priority, SourceLocation, SourceType, SourceUrl, SpecifierType, Target,
 };
 use typed_arena::Arena;
 
@@ -55,6 +55,7 @@ pub fn collect_dependencies<'arena>(
       priority: Priority::Sync,
       target: asset.target.clone(),
       bundle_behavior: BundleBehavior::Inline,
+      import_type: ImportType::JavaScript,
       placeholder: asset.unique_key.clone(),
       loc: None,
       resolve_from: None,
@@ -224,6 +225,7 @@ impl<'arena> DependencyCollector<'arena> {
             priority,
             target: self.target.clone(),
             bundle_behavior: BundleBehavior::None,
+            import_type: ImportType::Url,
             placeholder: Default::default(),
             loc: self.create_loc(node.line),
             resolve_from: Some(self.url.clone()),
@@ -316,6 +318,7 @@ impl<'arena> DependencyCollector<'arena> {
               target: self.create_env(OutputFormat::Global, source_type, node.line),
               flags: DependencyFlags::empty(),
               bundle_behavior,
+              import_type: ImportType::Url,
               placeholder: Default::default(),
               loc: self.create_loc(node.line),
               resolve_from: Some(self.url.clone()),
@@ -336,6 +339,7 @@ impl<'arena> DependencyCollector<'arena> {
             target: self.create_env(output_format, source_type, node.line),
             flags: DependencyFlags::empty(),
             bundle_behavior,
+            import_type: ImportType::Url,
             placeholder: Default::default(),
             loc: self.create_loc(node.line),
             resolve_from: Some(self.url.clone()),
@@ -643,6 +647,7 @@ impl<'arena> DependencyCollector<'arena> {
           target: self.target.clone(),
           flags: DependencyFlags::empty(),
           bundle_behavior: BundleBehavior::None,
+          import_type: ImportType::Url,
           placeholder: None,
           loc: self.create_loc(line),
           resolve_from: Some(self.url.clone()),
@@ -677,6 +682,7 @@ impl<'arena> DependencyCollector<'arena> {
         flags
       },
       bundle_behavior: BundleBehavior::None,
+      import_type: ImportType::Url,
       placeholder: Default::default(),
       loc: self.create_loc(line),
       range: None,

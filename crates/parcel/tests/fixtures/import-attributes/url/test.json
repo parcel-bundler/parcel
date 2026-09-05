@@ -1,0 +1,47 @@
+[
+  {
+    "description": "should resolve to a bundle URL with `type: 'url'`, keeping JSON in its original format",
+    "input": "index.js",
+    "bundles": [
+      {
+        "assets": [
+          "esmodule-helpers.js",
+          "index.js"
+        ]
+      },
+      {
+        "type": "json",
+        "assets": [
+          "local.json"
+        ]
+      }
+    ],
+    "sideEffects": [
+      true
+    ]
+  },
+  {
+    "description": "should resolve to a bundle URL with `type: 'url'` in production",
+    "input": "index.js",
+    "options": {
+      "mode": "production"
+    },
+    "bundles": [
+      {
+        "assets": [
+          "esmodule-helpers.js",
+          "index.js"
+        ]
+      },
+      {
+        "type": "json",
+        "assets": [
+          "local.json"
+        ]
+      }
+    ],
+    "sideEffects": [
+      true
+    ]
+  }
+]

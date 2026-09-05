@@ -1,0 +1,6 @@
+{
+  "description": "should inline a constructed CSSStyleSheet with `type: 'css'` in library builds",
+  "input": ".",
+  "options": {"mode": "production"},
+  "output": "body {\n  color: red;\n}\n"
+}

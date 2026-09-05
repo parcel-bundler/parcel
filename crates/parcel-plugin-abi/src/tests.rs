@@ -7,9 +7,9 @@ use parcel_core::{
   BundleGraph as CoreBundleGraph, Dependency as CoreDependency,
   DependencyFlags as CoreDependencyFlags, DependencyId, DependencyResolution,
   Environment as CoreEnvironment, EnvironmentFlags as CoreEnvironmentFlags,
-  ExportsCondition as CoreExportsCondition, OutputFormat as CoreOutputFormat, ParcelOptions,
-  PathId, Priority as CorePriority, SourceLocation, SourceType as CoreSourceType, SourceUrl,
-  SpecifierType as CoreSpecifierType, Target as CoreTarget,
+  ExportsCondition as CoreExportsCondition, ImportType, OutputFormat as CoreOutputFormat,
+  ParcelOptions, PathId, Priority as CorePriority, SourceLocation, SourceType as CoreSourceType,
+  SourceUrl, SpecifierType as CoreSpecifierType, Target as CoreTarget,
 };
 
 use super::*;
@@ -36,6 +36,7 @@ fn dependency_fixture(target: Arc<CoreTarget>) -> CoreDependency {
     specifier_type: CoreSpecifierType::Esm,
     priority: CorePriority::Sync,
     bundle_behavior: CoreBundleBehavior::None,
+    import_type: ImportType::JavaScript, // TODO
     flags: CoreDependencyFlags::OPTIONAL | CoreDependencyFlags::SIDE_EFFECTS,
     target,
     loc: Some(SourceLocation {

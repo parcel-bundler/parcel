@@ -1,0 +1,25 @@
+[
+  {
+    "description": "should support importing the same file with different type attributes",
+    "input": "index.js",
+    "bundles": [
+      {"assets": ["esmodule-helpers.js", "index.js", "local.json"]},
+      {"type": "json", "assets": ["local.json"]}
+    ],
+    "output": {
+      "data": "world",
+      "text": "{\"hello\":\"world\"}",
+      "bytes": [123, 34, 104, 101, 108, 108, 111, 34, 58, 34, 119, 111, 114, 108, 100, 34, 125]
+    }
+  },
+  {
+    "description": "should support importing the same file with different type attributes in production",
+    "input": "index.js",
+    "options": {"mode": "production"},
+    "output": {
+      "data": "world",
+      "text": "{\"hello\":\"world\"}",
+      "bytes": [123, 34, 104, 101, 108, 108, 111, 34, 58, 34, 119, 111, 114, 108, 100, 34, 125]
+    }
+  }
+]

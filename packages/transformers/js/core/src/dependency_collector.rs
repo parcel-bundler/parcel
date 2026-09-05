@@ -246,6 +246,12 @@ impl<'a> DependencyCollector<'a> {
       }
     }
 
+    // Import attributes distinguish otherwise identical dependencies (e.g. the same
+    // file imported with two different `type` attributes), so they are hashed into
+    // the placeholder. `type: 'macro'` imports never reach here; the macros pass
+    // evaluates and removes them first.
+    let attributes_input = attributes.as_ref().map(|attributes| format!("{:?}", attributes));
+
     // For ESM imports, the specifier will remain unchanged.
     // For other types of dependencies, the specifier will be changed to a hash
     // that also contains the dependency kind. This way, multiple kinds of dependencies
@@ -254,19 +260,34 @@ impl<'a> DependencyCollector<'a> {
       DependencyKind::Import | DependencyKind::Export => {
         if is_specifier_rewritten {
           Some(specifier.as_ref().to_owned())
+        } else if let Some(attributes_input) = &attributes_input {
+          Some(format!(
+            "{:x}",
+            hash!(format!(
+              "{}:{}:{}:{}",
+              self.get_project_relative_filename(),
+              specifier,
+              kind,
+              attributes_input
+            )),
+          ))
         } else {
           None
         }
       }
-      _ if !self.config.standalone => Some(format!(
-        "{:x}",
-        hash!(format!(
+      _ if !self.config.standalone => {
+        let mut input = format!(
           "{}:{}:{}",
           self.get_project_relative_filename(),
           specifier,
           kind
-        )),
-      )),
+        );
+        if let Some(attributes_input) = &attributes_input {
+          input.push(':');
+          input.push_str(attributes_input);
+        }
+        Some(format!("{:x}", hash!(input)))
+      }
       _ => None,
     };
 

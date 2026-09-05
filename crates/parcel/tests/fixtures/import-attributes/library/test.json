@@ -1,0 +1,10 @@
+{
+  "description": "should support type import attributes in library builds",
+  "input": ".",
+  "options": {"mode": "production"},
+  "output": {
+    "text": "{\"a\":1}",
+    "bytes": [91, 49, 44, 50, 93],
+    "url": true
+  }
+}

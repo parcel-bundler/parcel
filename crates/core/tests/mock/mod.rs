@@ -17,9 +17,9 @@ use parcel_core::{
   Asset, AssetGraph, AssetIndex, AssetRequest, AssetType, BufferContent, BuildMode, BuildOptions,
   Bundle, BundleBehavior, BundleFlags, BundleGraph, Bundler, Content, ContentType, Dependency,
   DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList, DirEntry, ExportsCondition,
-  FileKind, FileStat, FileSystem, LogLevel, LogMessage, MemoryFileSystem, Namer, Optimizer,
-  ParcelConfig, ParcelOptions, PathId, PluginFactory, Priority, Reporter, ReporterEvent, Resolver,
-  SourceLocation, SourceUrl, SpecifierType, SubPath, Transformer,
+  FileKind, FileStat, FileSystem, ImportType, LogLevel, LogMessage, MemoryFileSystem, Namer,
+  Optimizer, ParcelConfig, ParcelOptions, PathId, PluginFactory, Priority, Reporter, ReporterEvent,
+  Resolver, SourceLocation, SourceUrl, SpecifierType, SubPath, Transformer,
 };
 
 // ===========================================================================
@@ -256,6 +256,7 @@ fn make_dep(
     priority,
     bundle_behavior: BundleBehavior::None,
     flags: DependencyFlags::empty(),
+    import_type: ImportType::JavaScript,
     target,
     loc: None,
     placeholder: None,

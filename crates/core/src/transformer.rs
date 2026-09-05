@@ -115,10 +115,15 @@ impl TransformRequest {
       asset.target = Target::normalize(&asset.target, &asset.ty);
 
       let resolvers = &self.config.resolvers;
-      let named_pipelines = self.config.transformers.named_pipelines();
       for dep in &mut asset.dependencies {
         if dep.resolution == DependencyResolution::None {
-          dep.resolution = resolve(dep, resolvers, &named_pipelines, &*self.options, &fs)?;
+          dep.resolution = resolve(
+            dep,
+            resolvers,
+            &self.config.transformers,
+            &*self.options,
+            &fs,
+          )?;
         }
 
         if let DependencyResolution::Deferred(req) = &dep.resolution {
@@ -160,7 +165,7 @@ fn transform(
   Ok(input)
 }
 
-fn relative_path(
+pub(crate) fn relative_path(
   url: &SourceUrl,
   project_root: &PathId,
   ty: &AssetType,
