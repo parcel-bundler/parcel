@@ -1,7 +1,4 @@
-use std::{
-  collections::{HashMap, VecDeque},
-  hash::Hash,
-};
+use std::{collections::HashMap, hash::Hash};
 
 use fixedbitset::FixedBitSet;
 use glob_match::glob_match;
@@ -115,7 +112,7 @@ impl Bundler for DefaultBundler {
     // A bundle root is created for entries, and lazy, parallel, isolated, or inline dependencies.
     let bundle_roots = BundleRoots::from_asset_graph(&asset_graph);
 
-    // Step 2: Determine synchronously reachable bundle roots from each asset.
+    // Step 2: Determine which bundle roots can synchronously reach each asset.
     let reachability = Reachability::from_bundle_roots(&asset_graph, &bundle_roots);
 
     let mut shared_bundles = HashMap::<BundleKey, usize>::new();
@@ -385,43 +382,130 @@ impl BundleRoots {
 }
 
 struct Reachability {
-  // reachable_roots is an array of bit sets for each asset. Each bit set
-  // indicates which bundle roots are reachable from that asset synchronously.
+  // Assets in the same SCC share the set of bundle roots that can reach them.
+  // Unreachable assets map to a shared trailing empty component.
+  asset_components: Vec<u32>,
   reachable_roots: Vec<FixedBitSet>,
 }
 
 impl Reachability {
   pub fn from_bundle_roots(asset_graph: &AssetGraph, bundle_roots: &BundleRoots) -> Reachability {
-    // reachable_roots is an array of bit sets for each asset. Each bit set
-    // indicates which bundle roots are reachable from that asset synchronously.
+    let asset_count = asset_graph.assets.len();
+    let mut asset_components = vec![u32::MAX; asset_count];
+    let mut discovery = vec![u32::MAX; asset_count];
+    let mut low = vec![0u32; asset_count];
+    let mut stack = Vec::new();
+    let mut frames = Vec::new();
+    let mut next_index = 0u32;
+    // Members of each component occupy a contiguous range in this flat array.
+    let mut members = Vec::new();
+    let mut offsets = vec![0u32];
+    // Non-root edge targets, recorded once per asset at discovery. Enumerating
+    // edges scans symbol tables per dependency, so the propagation pass below
+    // replays this array rather than enumerating a second time. The targets of
+    // the asset with discovery index d occupy
+    // edge_targets[edge_offsets[d]..edge_offsets[d + 1]].
+    let mut edge_targets: Vec<u32> = Vec::new();
+    let mut edge_offsets = vec![0u32];
+
+    // Iterative Tarjan: only visit assets reachable from roots, and never
+    // traverse an edge into a bundle root. Explicit frames with cursors into
+    // edge_targets avoid recursion on deep graphs.
+    for (_, root) in bundle_roots.iter() {
+      discovery[root.index()] = next_index;
+      low[root.index()] = next_index;
+      next_index += 1;
+      stack.push(root.0);
+      frames.push((root.0, edge_targets.len() as u32));
+      edge_targets.extend(
+        asset_graph
+          .resolved_dependencies(asset_graph.asset(root))
+          .filter(|&t| !bundle_roots.is_bundle_root(t))
+          .map(|t| t.0),
+      );
+      edge_offsets.push(edge_targets.len() as u32);
+      while let Some((asset, cursor)) = frames.last_mut() {
+        let asset = *asset as usize;
+        if *cursor < edge_offsets[discovery[asset] as usize + 1] {
+          let target = edge_targets[*cursor as usize];
+          *cursor += 1;
+          if discovery[target as usize] == u32::MAX {
+            discovery[target as usize] = next_index;
+            low[target as usize] = next_index;
+            next_index += 1;
+            stack.push(target);
+            frames.push((target, edge_targets.len() as u32));
+            edge_targets.extend(
+              asset_graph
+                .resolved_dependencies(asset_graph.asset(AssetIndex(target)))
+                .filter(|&t| !bundle_roots.is_bundle_root(t))
+                .map(|t| t.0),
+            );
+            edge_offsets.push(edge_targets.len() as u32);
+          } else if asset_components[target as usize] == u32::MAX {
+            low[asset] = low[asset].min(discovery[target as usize]);
+          }
+        } else {
+          frames.pop();
+          if low[asset] == discovery[asset] {
+            let component = offsets.len() as u32 - 1;
+            loop {
+              let member = stack.pop().unwrap();
+              asset_components[member as usize] = component;
+              members.push(member);
+              if member as usize == asset {
+                break;
+              }
+            }
+            offsets.push(members.len() as u32);
+          }
+          if let Some((parent, _)) = frames.last() {
+            let parent = *parent as usize;
+            low[parent] = low[parent].min(low[asset]);
+          }
+        }
+      }
+    }
+    drop(low);
+    drop(stack);
+    drop(frames);
+
+    // One bitset per component, plus a trailing empty component shared by all
+    // unreachable assets.
+    let component_count = offsets.len() - 1;
     let mut reachable_roots =
-      vec![FixedBitSet::with_capacity(bundle_roots.len()); asset_graph.assets.len()];
+      vec![FixedBitSet::with_capacity(bundle_roots.len()); component_count + 1];
+    for (root_index, root) in bundle_roots.iter() {
+      reachable_roots[asset_components[root.index()] as usize].insert(root_index);
+    }
 
-    let mut visited = FixedBitSet::with_capacity(asset_graph.assets.len());
-    let mut queue = VecDeque::new();
-    for (bundle_root_index, bundle_root_asset_index) in bundle_roots.iter() {
-      visited.clear();
-      queue.clear();
-      queue.push_back(bundle_root_asset_index);
-      visited.insert(bundle_root_asset_index.index());
-      while let Some(asset_index) = queue.pop_front() {
-        reachable_roots[asset_index.index()].insert(bundle_root_index);
-
-        let asset = &asset_graph.asset(asset_index);
-        for index in asset_graph.resolved_dependencies(asset) {
-          let i = index.index();
-          if !visited.contains(i) && !bundle_roots.is_bundle_root(index) {
-            visited.insert(i);
-            queue.push_back(index);
+    // Tarjan emits components in reverse topological order. Replay the recorded
+    // edges to propagate through the implicit condensation DAG.
+    let mut seen = vec![u32::MAX; component_count];
+    for component in (0..component_count).rev() {
+      let (targets, rest) = reachable_roots.split_at_mut(component);
+      let source = &rest[0];
+      for &member in &members[offsets[component] as usize..offsets[component + 1] as usize] {
+        let d = discovery[member as usize] as usize;
+        for &target in &edge_targets[edge_offsets[d] as usize..edge_offsets[d + 1] as usize] {
+          let target_component = asset_components[target as usize] as usize;
+          if target_component != component && seen[target_component] != component as u32 {
+            debug_assert!(target_component < component);
+            seen[target_component] = component as u32;
+            targets[target_component].union_with(source);
           }
         }
       }
     }
 
-    Reachability { reachable_roots }
+    Reachability {
+      asset_components,
+      reachable_roots,
+    }
   }
 
   pub fn reachable_roots(&self, index: AssetIndex) -> &FixedBitSet {
-    &self.reachable_roots[index.index()]
+    let index = self.asset_components[index.index()] as usize;
+    &self.reachable_roots[index.min(self.reachable_roots.len() - 1)]
   }
 }
