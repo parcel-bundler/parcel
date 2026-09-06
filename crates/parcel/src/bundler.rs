@@ -111,77 +111,29 @@ impl Bundler for DefaultBundler {
     let mut bundles = Vec::<Bundle>::new();
     let mut dependency_resolutions = HashMap::new();
 
-    // TODO: does this use too much memory?
-    let mut bundle_behaviors = asset_graph
-      .assets
-      .iter()
-      .map(|asset| asset.bundle_behavior)
-      .collect::<Vec<_>>();
-
     // Step 1: Traverse the asset graph and find bundle roots.
     // A bundle root is created for entries, and lazy, parallel, isolated, or inline dependencies.
-    // Only assets reachable from an entry are considered: incremental builds retain orphaned
-    // asset slots (e.g. a formerly URL-referenced image) that must not create bundles.
-    let mut live_assets = FixedBitSet::with_capacity(asset_graph.assets.len());
-    for (asset_index, _, _) in asset_graph.dfs() {
-      live_assets.insert(asset_index.index());
-    }
-
-    let mut bundle_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
-    let mut entry_bundle_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
-    for entry in asset_graph.entries.iter() {
-      if let Some(asset) = asset_graph.resolved_entry(entry) {
-        bundle_roots.insert(asset.index());
-        entry_bundle_roots.insert(asset.index());
-      }
-    }
-
-    for index in 0..asset_graph.assets.len() {
-      if !live_assets.contains(index) {
-        continue;
-      }
-      let asset_index = AssetIndex::from_index(index);
-      let asset = &asset_graph.asset(asset_index);
-      if bundle_behaviors[index] != BundleBehavior::None {
-        bundle_roots.insert(index);
-      }
-
-      for dep_index in 0..asset.dependencies.len() {
-        let dep = &asset_graph.asset(asset_index).dependencies[dep_index];
-        if dep.bundle_behavior != BundleBehavior::None || dep.priority != Priority::Sync {
-          if let Some((resolved_asset_index, _)) = asset_graph.resolved_asset(dep) {
-            let bundle_behavior = dep.bundle_behavior;
-            bundle_roots.insert(resolved_asset_index.index());
-            let target_bundle_behavior = &mut bundle_behaviors[resolved_asset_index.index()];
-            if bundle_behavior != BundleBehavior::None
-              && *target_bundle_behavior == BundleBehavior::None
-            {
-              *target_bundle_behavior = bundle_behavior;
-            }
-          }
-        }
-      }
-    }
+    let bundle_roots = BundleRoots::from_asset_graph(&asset_graph);
 
     // reachable_roots is an array of bit sets for each asset. Each bit set
     // indicates which bundle roots are reachable from that asset synchronously.
     let mut reachable_roots =
-      vec![FixedBitSet::with_capacity(bundle_roots.count_ones(..)); asset_graph.assets.len()];
+      vec![FixedBitSet::with_capacity(bundle_roots.len()); asset_graph.assets.len()];
 
     let mut visited = FixedBitSet::with_capacity(asset_graph.assets.len());
     let mut queue = VecDeque::new();
-    for (bundle_root_index, bundle_root_asset_index) in bundle_roots.ones().enumerate() {
+    for (bundle_root_index, bundle_root_asset_index) in bundle_roots.iter() {
       visited.clear();
       queue.clear();
-      queue.push_back(AssetIndex::from_index(bundle_root_asset_index));
-      visited.insert(bundle_root_asset_index);
+      queue.push_back(bundle_root_asset_index);
+      visited.insert(bundle_root_asset_index.index());
       while let Some(asset_index) = queue.pop_front() {
         reachable_roots[asset_index.index()].insert(bundle_root_index);
 
         let asset = &asset_graph.asset(asset_index);
         for index in asset_graph.resolved_dependencies(asset) {
           let i = index.index();
-          if !visited.contains(i) && !bundle_roots.contains(i) {
+          if !visited.contains(i) && !bundle_roots.is_bundle_root(index) {
             visited.insert(i);
             queue.push_back(index);
           }
@@ -193,8 +145,7 @@ impl Bundler for DefaultBundler {
     let mut asset_index_to_bundle_index = HashMap::new();
 
     // Create bundles for each bundle root first.
-    for bundle_root_asset_index in bundle_roots.ones() {
-      let bundle_root_asset_index = AssetIndex::from_index(bundle_root_asset_index);
+    for (_, bundle_root_asset_index) in bundle_roots.iter() {
       let asset = &asset_graph.asset(bundle_root_asset_index);
       let key = if let Some(index) = self.manual_shared_bundle(asset, options) {
         BundleKey::Manual {
@@ -216,16 +167,16 @@ impl Bundler for DefaultBundler {
         },
         ty: asset.ty.clone(),
         target: asset.target.clone(),
-        bundle_behavior: bundle_behaviors[bundle_root_asset_index.index()],
-        flags: if entry_bundle_roots.contains(bundle_root_asset_index.index()) {
+        bundle_behavior: bundle_roots.bundle_behavior(bundle_root_asset_index),
+        flags: if bundle_roots.is_entry(bundle_root_asset_index) {
           BundleFlags::ENTRY | BundleFlags::NEEDS_STABLE_NAME
         } else {
           BundleFlags::empty()
         },
         dist_path: None,
         assets: Vec::new(),
-        entry_assets: vec![bundle_root_asset_index as AssetIndex],
-        main_entry_asset: Some(bundle_root_asset_index as AssetIndex),
+        entry_assets: vec![bundle_root_asset_index],
+        main_entry_asset: Some(bundle_root_asset_index),
         referenced_bundles: Vec::new(),
       };
 
@@ -237,7 +188,7 @@ impl Bundler for DefaultBundler {
 
     // Place assets into bundles, following depth-first order.
     for (asset_index, asset, name) in asset_graph.dfs() {
-      let is_bundle_root = bundle_roots.contains(asset_index.index());
+      let is_bundle_root = bundle_roots.is_bundle_root(asset_index);
       if !is_bundle_root && reachable_roots[asset_index.index()].is_clear() {
         continue;
       }
@@ -265,8 +216,8 @@ impl Bundler for DefaultBundler {
           id: key.stable_hash(&bundles),
           ty: asset.ty.clone(),
           target: asset.target.clone(),
-          bundle_behavior: bundle_behaviors[asset_index.index()],
-          flags: if entry_bundle_roots.contains(asset_index.index()) {
+          bundle_behavior: bundle_roots.bundle_behavior(asset_index),
+          flags: if bundle_roots.is_entry(asset_index) {
             BundleFlags::ENTRY | BundleFlags::NEEDS_STABLE_NAME
           } else {
             BundleFlags::empty()
@@ -319,11 +270,7 @@ impl Bundler for DefaultBundler {
       }
     }
 
-    for (asset_index, asset) in asset_graph.assets.iter().enumerate() {
-      if !live_assets.contains(asset_index) {
-        continue;
-      }
-      let asset_index = AssetIndex::from_index(asset_index);
+    for (asset_index, asset, _) in asset_graph.dfs() {
       let source_bundle_index = asset_to_bundle.get(&asset_index).copied();
       for (dep_index, dep) in asset.dependencies.iter().enumerate() {
         if let Some((resolved_asset_index, _)) = asset_graph.resolved_asset(dep) {
@@ -374,5 +321,87 @@ impl Bundler for DefaultBundler {
       dependency_resolutions,
       options.project_root,
     ))
+  }
+}
+
+// Say there is 100k assets.
+// 12.5k + 12.5k + 100k = 125k of memory.
+
+struct BundleRoots {
+  bundle_roots: FixedBitSet,
+  entry_bundle_roots: FixedBitSet,
+  bundle_behaviors: Vec<BundleBehavior>,
+}
+
+impl BundleRoots {
+  pub fn from_asset_graph(asset_graph: &AssetGraph) -> BundleRoots {
+    let mut bundle_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
+    let mut entry_bundle_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
+    for entry in asset_graph.entries.iter() {
+      if let Some(asset) = asset_graph.resolved_entry(entry) {
+        bundle_roots.insert(asset.index());
+        entry_bundle_roots.insert(asset.index());
+      }
+    }
+
+    // TODO: does this use too much memory?
+    let mut bundle_behaviors = asset_graph
+      .assets
+      .iter()
+      .map(|asset| asset.bundle_behavior)
+      .collect::<Vec<_>>();
+
+    // Use dfs so we only process live assets, not deleted assets from a previous build.
+    for (asset_index, asset, _) in asset_graph.dfs() {
+      if bundle_behaviors[asset_index.index()] != BundleBehavior::None {
+        bundle_roots.insert(asset_index.index());
+      }
+
+      for dep_index in 0..asset.dependencies.len() {
+        let dep = &asset_graph.asset(asset_index).dependencies[dep_index];
+        if dep.bundle_behavior != BundleBehavior::None || dep.priority != Priority::Sync {
+          if let Some((resolved_asset_index, _)) = asset_graph.resolved_asset(dep) {
+            let bundle_behavior = dep.bundle_behavior;
+            bundle_roots.insert(resolved_asset_index.index());
+            let target_bundle_behavior = &mut bundle_behaviors[resolved_asset_index.index()];
+            if bundle_behavior != BundleBehavior::None
+              && *target_bundle_behavior == BundleBehavior::None
+            {
+              *target_bundle_behavior = bundle_behavior;
+            }
+          }
+        }
+      }
+    }
+
+    BundleRoots {
+      bundle_roots,
+      entry_bundle_roots,
+      bundle_behaviors,
+    }
+  }
+
+  pub fn len(&self) -> usize {
+    self.bundle_roots.count_ones(..)
+  }
+
+  pub fn iter(&self) -> impl Iterator<Item = (usize, AssetIndex)> {
+    self
+      .bundle_roots
+      .ones()
+      .enumerate()
+      .map(|(i, asset)| (i, AssetIndex::from_index(asset)))
+  }
+
+  pub fn is_bundle_root(&self, id: AssetIndex) -> bool {
+    self.bundle_roots.contains(id.index())
+  }
+
+  pub fn is_entry(&self, id: AssetIndex) -> bool {
+    self.entry_bundle_roots.contains(id.index())
+  }
+
+  pub fn bundle_behavior(&self, id: AssetIndex) -> BundleBehavior {
+    self.bundle_behaviors[id.index()]
   }
 }
