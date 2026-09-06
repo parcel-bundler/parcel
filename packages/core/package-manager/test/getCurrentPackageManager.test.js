@@ -8,7 +8,7 @@ describe('getCurrentPackageManager', () => {
     const currentPackageManager = getCurrentPackageManager(
       npm_config_user_agent,
     );
-    assert(currentPackageManager?.name, 'yarn');
+    assert.strictEqual(currentPackageManager?.name, 'yarn');
   });
   it('npm', () => {
     const npm_config_user_agent =
@@ -16,13 +16,20 @@ describe('getCurrentPackageManager', () => {
     const currentPackageManager = getCurrentPackageManager(
       npm_config_user_agent,
     );
-    assert(currentPackageManager?.name, 'npm');
+    assert.strictEqual(currentPackageManager?.name, 'npm');
   });
   it('pnpm', () => {
     const npm_config_user_agent = 'pnpm/8.14.2 npm/? node/v18.17.1 darwin x64';
     const currentPackageManager = getCurrentPackageManager(
       npm_config_user_agent,
     );
-    assert(currentPackageManager?.name, 'pnpm');
+    assert.strictEqual(currentPackageManager?.name, 'pnpm');
+  });
+  it('bun', () => {
+    const npm_config_user_agent = 'bun/1.0.5 npm/? node/v18.17.1 darwin x64';
+    const currentPackageManager = getCurrentPackageManager(
+      npm_config_user_agent,
+    );
+    assert.strictEqual(currentPackageManager?.name, 'bun');
   });
 });
