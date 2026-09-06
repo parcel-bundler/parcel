@@ -115,31 +115,8 @@ impl Bundler for DefaultBundler {
     // A bundle root is created for entries, and lazy, parallel, isolated, or inline dependencies.
     let bundle_roots = BundleRoots::from_asset_graph(&asset_graph);
 
-    // reachable_roots is an array of bit sets for each asset. Each bit set
-    // indicates which bundle roots are reachable from that asset synchronously.
-    let mut reachable_roots =
-      vec![FixedBitSet::with_capacity(bundle_roots.len()); asset_graph.assets.len()];
-
-    let mut visited = FixedBitSet::with_capacity(asset_graph.assets.len());
-    let mut queue = VecDeque::new();
-    for (bundle_root_index, bundle_root_asset_index) in bundle_roots.iter() {
-      visited.clear();
-      queue.clear();
-      queue.push_back(bundle_root_asset_index);
-      visited.insert(bundle_root_asset_index.index());
-      while let Some(asset_index) = queue.pop_front() {
-        reachable_roots[asset_index.index()].insert(bundle_root_index);
-
-        let asset = &asset_graph.asset(asset_index);
-        for index in asset_graph.resolved_dependencies(asset) {
-          let i = index.index();
-          if !visited.contains(i) && !bundle_roots.is_bundle_root(index) {
-            visited.insert(i);
-            queue.push_back(index);
-          }
-        }
-      }
-    }
+    // Step 2: Determine synchronously reachable bundle roots from each asset.
+    let reachability = Reachability::from_bundle_roots(&asset_graph, &bundle_roots);
 
     let mut shared_bundles = HashMap::<BundleKey, usize>::new();
     let mut asset_index_to_bundle_index = HashMap::new();
@@ -154,7 +131,7 @@ impl Bundler for DefaultBundler {
         }
       } else {
         BundleKey::Default {
-          reachable_roots: &reachable_roots[bundle_root_asset_index.index()],
+          reachable_roots: &reachability.reachable_roots(bundle_root_asset_index),
           context: asset.target.environment, // TODO: other environment properties?
           packager: asset.content.ty(),
         }
@@ -189,7 +166,8 @@ impl Bundler for DefaultBundler {
     // Place assets into bundles, following depth-first order.
     for (asset_index, asset, name) in asset_graph.dfs() {
       let is_bundle_root = bundle_roots.is_bundle_root(asset_index);
-      if !is_bundle_root && reachable_roots[asset_index.index()].is_clear() {
+      let reachable_roots = reachability.reachable_roots(asset_index);
+      if !is_bundle_root && reachable_roots.is_clear() {
         continue;
       }
 
@@ -200,7 +178,7 @@ impl Bundler for DefaultBundler {
         }
       } else {
         BundleKey::Default {
-          reachable_roots: &reachable_roots[asset_index.index()],
+          reachable_roots,
           context: asset.target.environment, // TODO: other environment properties?
           packager: asset.content.ty(),
         }
@@ -249,7 +227,7 @@ impl Bundler for DefaultBundler {
       };
 
       // Each reachable root depends on this shared bundle.
-      for bundle_root_index in reachable_roots[asset_index.index()].ones() {
+      for bundle_root_index in reachable_roots.ones() {
         if bundle_root_index != bundle_index
           && !bundles[bundle_root_index]
             .referenced_bundles
@@ -403,5 +381,47 @@ impl BundleRoots {
 
   pub fn bundle_behavior(&self, id: AssetIndex) -> BundleBehavior {
     self.bundle_behaviors[id.index()]
+  }
+}
+
+struct Reachability {
+  // reachable_roots is an array of bit sets for each asset. Each bit set
+  // indicates which bundle roots are reachable from that asset synchronously.
+  reachable_roots: Vec<FixedBitSet>,
+}
+
+impl Reachability {
+  pub fn from_bundle_roots(asset_graph: &AssetGraph, bundle_roots: &BundleRoots) -> Reachability {
+    // reachable_roots is an array of bit sets for each asset. Each bit set
+    // indicates which bundle roots are reachable from that asset synchronously.
+    let mut reachable_roots =
+      vec![FixedBitSet::with_capacity(bundle_roots.len()); asset_graph.assets.len()];
+
+    let mut visited = FixedBitSet::with_capacity(asset_graph.assets.len());
+    let mut queue = VecDeque::new();
+    for (bundle_root_index, bundle_root_asset_index) in bundle_roots.iter() {
+      visited.clear();
+      queue.clear();
+      queue.push_back(bundle_root_asset_index);
+      visited.insert(bundle_root_asset_index.index());
+      while let Some(asset_index) = queue.pop_front() {
+        reachable_roots[asset_index.index()].insert(bundle_root_index);
+
+        let asset = &asset_graph.asset(asset_index);
+        for index in asset_graph.resolved_dependencies(asset) {
+          let i = index.index();
+          if !visited.contains(i) && !bundle_roots.is_bundle_root(index) {
+            visited.insert(i);
+            queue.push_back(index);
+          }
+        }
+      }
+    }
+
+    Reachability { reachable_roots }
+  }
+
+  pub fn reachable_roots(&self, index: AssetIndex) -> &FixedBitSet {
+    &self.reachable_roots[index.index()]
   }
 }
