@@ -11,30 +11,16 @@
   "bundles": [
     {
       "name": "index.js",
-      "assets": [
-        "index.js"
-      ]
+      "assets": ["index.js", "c.js"]
     },
     {
-      "assets": [
-        "c.js"
-      ]
+      "assets": ["a.js"]
     },
     {
-      "assets": [
-        "a.js"
-      ]
+      "assets": ["common.js", "lodash.js"]
     },
     {
-      "assets": [
-        "common.js",
-        "lodash.js"
-      ]
-    },
-    {
-      "assets": [
-        "b.js"
-      ]
+      "assets": ["b.js"]
     }
   ],
   "output": 7

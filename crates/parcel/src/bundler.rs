@@ -1,4 +1,7 @@
-use std::{collections::HashMap, hash::Hash};
+use std::{
+  collections::{HashMap, VecDeque},
+  hash::Hash,
+};
 
 use fixedbitset::FixedBitSet;
 use glob_match::glob_match;
@@ -10,9 +13,14 @@ use parcel_core::{
 
 use crate::library_bundler::LibraryBundler;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(serde::Deserialize)]
 pub struct ManualSharedBundle {
+  /// Project-relative glob patterns selecting assets for this manual bundle.
   assets: Vec<String>,
+  /// Asset types to match. An empty list allows every type.
   #[serde(default)]
   types: Vec<AssetType>,
 }
@@ -20,6 +28,7 @@ pub struct ManualSharedBundle {
 #[derive(serde::Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct DefaultBundler {
+  /// Manual grouping rules, checked in order so the first matching rule wins.
   #[serde(default)]
   manual_shared_bundles: Vec<ManualSharedBundle>,
 }
@@ -115,6 +124,14 @@ impl Bundler for DefaultBundler {
     // Step 2: Determine which bundle roots can synchronously reach each asset.
     let reachability = Reachability::from_bundle_roots(&asset_graph, &bundle_roots);
 
+    // Step 3: Only require assets from roots where they are not guaranteed to
+    // have been loaded by every possible ancestry (or an earlier parallel root).
+    let availability =
+      AvailabilityGraph::from_asset_graph(&asset_graph, &bundle_roots, &reachability);
+    // Retain the asset-to-class mapping, replacing root sets with filtered requirements.
+    let needed_roots = availability.needed_roots(reachability, &bundle_roots);
+    drop(availability);
+
     let mut shared_bundles = HashMap::<BundleKey, usize>::new();
     let mut asset_index_to_bundle_index = HashMap::new();
 
@@ -128,7 +145,7 @@ impl Bundler for DefaultBundler {
         }
       } else {
         BundleKey::Default {
-          reachable_roots: &reachability.reachable_roots(bundle_root_asset_index),
+          reachable_roots: needed_roots.reachable_roots(bundle_root_asset_index),
           context: asset.target.environment, // TODO: other environment properties?
           packager: asset.content.ty(),
         }
@@ -163,7 +180,7 @@ impl Bundler for DefaultBundler {
     // Place assets into bundles, following depth-first order.
     for (asset_index, asset, name) in asset_graph.dfs() {
       let is_bundle_root = bundle_roots.is_bundle_root(asset_index);
-      let reachable_roots = reachability.reachable_roots(asset_index);
+      let reachable_roots = needed_roots.reachable_roots(asset_index);
       if !is_bundle_root && reachable_roots.is_clear() {
         continue;
       }
@@ -303,8 +320,11 @@ impl Bundler for DefaultBundler {
 // 12.5k + 12.5k + 100k = 125k of memory.
 
 struct BundleRoots {
+  // Asset-indexed membership set. Iterating its set bits assigns dense root indices.
   bundle_roots: FixedBitSet,
+  // Asset-indexed subset of roots that are directly entered and cannot inherit availability.
   entry_bundle_roots: FixedBitSet,
+  // Effective behavior per asset, combining asset metadata with incoming dependency overrides.
   bundle_behaviors: Vec<BundleBehavior>,
 }
 
@@ -382,23 +402,35 @@ impl BundleRoots {
 }
 
 struct Reachability {
-  // Assets in the same SCC share the set of bundle roots that can reach them.
-  // Unreachable assets map to a shared trailing empty component.
-  asset_components: Vec<u32>,
+  // Asset index -> class ID.
+  // SCCs with identical reachable-root sets form a "class". Every asset in
+  // a class is generated together by availability's synchronous root closures.
+  // Unreachable assets map to the shared empty class.
+  asset_classes: Vec<u32>,
+  // Class ID -> bitset of dense root indices. Initially these are synchronous
+  // reaching roots. `needed_roots` later removes roots with guaranteed availability.
+  // Classes remain based on the original sets, so filtered sets can be equal.
   reachable_roots: Vec<FixedBitSet>,
 }
 
 impl Reachability {
   pub fn from_bundle_roots(asset_graph: &AssetGraph, bundle_roots: &BundleRoots) -> Reachability {
     let asset_count = asset_graph.assets.len();
+    // Asset -> completed SCC, or u32::MAX until assigned (also used for dead assets).
     let mut asset_components = vec![u32::MAX; asset_count];
+    // Asset -> DFS discovery number, or u32::MAX if it has not been visited.
     let mut discovery = vec![u32::MAX; asset_count];
+    // Tarjan low-link values identify the earliest active discovery reachable from each asset.
     let mut low = vec![0u32; asset_count];
+    // Discovered assets awaiting assignment to a completed SCC.
     let mut stack = Vec::new();
-    let mut frames = Vec::new();
+    // Explicit DFS call stack: (asset index, next position in edge_targets).
+    let mut frames: Vec<(u32, u32)> = Vec::new();
+    // Discovery number assigned to the next newly visited asset.
     let mut next_index = 0u32;
     // Members of each component occupy a contiguous range in this flat array.
     let mut members = Vec::new();
+    // SCC c owns members[offsets[c]..offsets[c + 1]], including a trailing end offset.
     let mut offsets = vec![0u32];
     // Non-root edge targets, recorded once per asset at discovery. Enumerating
     // edges scans symbol tables per dependency, so the propagation pass below
@@ -498,14 +530,352 @@ impl Reachability {
       }
     }
 
+    drop((
+      discovery,
+      members,
+      offsets,
+      edge_targets,
+      edge_offsets,
+      seen,
+    ));
+    Self::from_components(asset_components, reachable_roots)
+  }
+
+  fn from_components(mut asset_classes: Vec<u32>, reachable_roots: Vec<FixedBitSet>) -> Self {
+    let component_count = reachable_roots.len() - 1;
+    // Intern equal sets, including equal sets from distinct SCCs. Move the
+    // bitsets into the table so this does not copy the reachability matrix.
+    let mut classes = HashMap::new();
+    // Temporary SCC ID -> canonical class ID, including the trailing empty SCC.
+    let component_classes: Vec<u32> = reachable_roots
+      .into_iter()
+      .map(|roots| {
+        let next = classes.len() as u32;
+        *classes.entry(roots).or_insert(next)
+      })
+      .collect();
+    for component in &mut asset_classes {
+      *component = component_classes[(*component as usize).min(component_count)];
+    }
+    // Reorder the interned sets by class ID so subsequent queries need no hash lookup.
+    let mut reachable_roots = vec![FixedBitSet::new(); classes.len()];
+    for (roots, class) in classes {
+      reachable_roots[class as usize] = roots;
+    }
+
     Reachability {
-      asset_components,
+      asset_classes,
       reachable_roots,
     }
   }
 
   pub fn reachable_roots(&self, index: AssetIndex) -> &FixedBitSet {
-    let index = self.asset_components[index.index()] as usize;
-    &self.reachable_roots[index.min(self.reachable_roots.len() - 1)]
+    &self.reachable_roots[self.class(index)]
   }
+
+  fn class(&self, index: AssetIndex) -> usize {
+    self.asset_classes[index.index()] as usize
+  }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum AvailabilityEdgeKind {
+  // The target loads before its importer. Only the importer's IN is safe.
+  Sync,
+  // The target can use its parent's IN plus the parent's synchronous asset classes.
+  Lazy,
+  // Ordered, non-isolated parallel occurrences in the same loading context.
+  Parallel,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct AvailabilityEdge {
+  // Dense destination root index, not an AssetIndex or a reachability class ID.
+  root: u32,
+  // Selects which parent facts and preceding parallel occurrences reach this target.
+  kind: AvailabilityEdgeKind,
+}
+
+struct AvailabilityGraph {
+  // Root index -> bitset of synchronously loaded class IDs (the transpose of
+  // original reachability). Immutable throughout analysis and requirement filtering.
+  synchronous: Vec<FixedBitSet>,
+  // Root-indexed set whose IN stays empty: entries, inline/isolated roots,
+  // environment boundaries, and roots without a live path from these boundaries.
+  boundaries: FixedBitSet,
+  // Each group is one asset's ordered boundary dependencies. Store it only once,
+  // even when many roots reach that asset. Groups are indexed by source class.
+  // Class c owns groups in [offsets[c], offsets[c + 1]). The last offset is a sentinel.
+  class_group_offsets: Vec<u32>,
+  // Group g owns edges[group_edge_offsets[g]..group_edge_offsets[g + 1]].
+  // Keeping groups separate prevents prefixes leaking between source assets in one class.
+  group_edge_offsets: Vec<u32>,
+  // Flat ordered occurrence lists. A shared source's edges are stored once,
+  // rather than expanded into a separate list for every root that reaches it.
+  edges: Vec<AvailabilityEdge>,
+}
+
+impl AvailabilityGraph {
+  fn from_asset_graph(
+    asset_graph: &AssetGraph,
+    roots: &BundleRoots,
+    reachability: &Reachability,
+  ) -> Self {
+    let root_count = roots.len();
+
+    // Asset index -> dense root index, or u32::MAX for an asset without its own root.
+    let mut root_indices = vec![u32::MAX; asset_graph.assets.len()];
+
+    // Roots whose availability must be reset regardless of their incoming dependencies.
+    let mut boundaries = FixedBitSet::with_capacity(root_count);
+    for (r, asset) in roots.iter() {
+      root_indices[asset.index()] = r as u32;
+      if roots.is_entry(asset) || roots.bundle_behavior(asset) != BundleBehavior::None {
+        boundaries.insert(r);
+      }
+    }
+
+    // (Source class, ordered root dependencies) for each asset with boundary edges.
+    let mut groups: Vec<(usize, Vec<AvailabilityEdge>)> = Vec::new();
+
+    for (source, asset, _) in asset_graph.dfs() {
+      if reachability.reachable_roots(source).is_clear() {
+        continue;
+      }
+
+      // Retain dependency indices until sorting restores source order across symbol targets.
+      let mut edges = Vec::new();
+
+      for (dep_index, target) in asset_graph.resolved_dependencies_with_indices(asset) {
+        // Only dependencies targeting explicit roots cross a dataflow boundary.
+        let root = root_indices[target.index()];
+        if root == u32::MAX {
+          continue;
+        }
+
+        let dep = &asset.dependencies[dep_index];
+        let target_asset = asset_graph.asset(target);
+
+        // Cross-environment dependencies start an independent availability scope.
+        // Explicit inline/isolated roots were already marked as boundaries above.
+        if asset.target.environment != target_asset.target.environment {
+          boundaries.insert(root as usize);
+        }
+
+        // Choose the transfer rule applied to each incoming occurrence of this root.
+        let kind = match dep.priority {
+          Priority::Lazy => AvailabilityEdgeKind::Lazy,
+          // Non-isolated parallel roots contribute their synchronous classes to
+          // subsequent parallel occurrences in this source asset's dependency list.
+          Priority::Parallel if roots.bundle_behavior(target) == BundleBehavior::None => {
+            AvailabilityEdgeKind::Parallel
+          }
+          _ => AvailabilityEdgeKind::Sync,
+        };
+
+        edges.push((dep_index, AvailabilityEdge { root, kind }));
+      }
+
+      if !edges.is_empty() {
+        // Resolved symbol targets can be emitted after a later dependency's
+        // side-effect target. Prefixes must follow the original dependency order.
+        edges.sort_by_key(|(dep_index, _)| *dep_index);
+        groups.push((
+          reachability.class(source),
+          edges.into_iter().map(|(_, edge)| edge).collect(),
+        ));
+      }
+    }
+
+    drop(root_indices);
+    Self::new(&reachability.reachable_roots, boundaries, groups)
+  }
+
+  fn new(
+    class_roots: &[FixedBitSet],
+    mut boundaries: FixedBitSet,
+    mut groups: Vec<(usize, Vec<AvailabilityEdge>)>,
+  ) -> Self {
+    // Root-major view of the same relation: each bit is a whole asset class,
+    // whose members always enter and leave availability together.
+    let mut synchronous = vec![FixedBitSet::with_capacity(class_roots.len()); boundaries.len()];
+    for (class, roots) in class_roots.iter().enumerate() {
+      for root in roots.ones() {
+        synchronous[root].insert(class);
+      }
+    }
+
+    groups.sort_by_key(|(class, _)| *class);
+
+    // First count groups per source class, then convert the counts to prefix offsets.
+    let mut class_group_offsets = vec![0u32; class_roots.len() + 1];
+    // Append one end offset after flattening each source asset's occurrence list.
+    let mut group_edge_offsets = vec![0u32];
+    // Shared backing storage for every group's ordered root dependencies.
+    let mut edges = Vec::new();
+
+    for (class, group) in groups {
+      class_group_offsets[class + 1] += 1;
+      edges.extend(group);
+      group_edge_offsets.push(edges.len() as u32);
+    }
+
+    for class in 0..class_roots.len() {
+      class_group_offsets[class + 1] += class_group_offsets[class];
+    }
+
+    // Dead/stale roots can be discovered by BundleRoots without having a live
+    // loading path. Never let a disconnected cycle retain TOP and justify an
+    // optimization. Reachability here ignores transfer facts and follows only
+    // the implicit root graph, without expanding its root/edge cross product.
+
+    // Roots found by a graph walk starting from the known reset boundaries.
+    let mut reachable = boundaries.clone();
+    // Newly reached roots whose synchronous classes may reveal more root dependencies.
+    let mut queue: VecDeque<_> = reachable.ones().collect();
+    let mut seen_classes = FixedBitSet::with_capacity(class_roots.len());
+    while let Some(root) = queue.pop_front() {
+      for class in synchronous[root].ones() {
+        if seen_classes.put(class) {
+          continue;
+        }
+
+        // All groups owned by this class form one contiguous range of edge storage.
+        let start = class_group_offsets[class] as usize;
+        let end = class_group_offsets[class + 1] as usize;
+        for edge in &edges[group_edge_offsets[start] as usize..group_edge_offsets[end] as usize] {
+          if !reachable.put(edge.root as usize) {
+            queue.push_back(edge.root as usize);
+          }
+        }
+      }
+    }
+
+    for root in 0..boundaries.len() {
+      if !reachable.contains(root) {
+        boundaries.insert(root);
+      }
+    }
+
+    Self {
+      synchronous,
+      boundaries,
+      class_group_offsets,
+      group_edge_offsets,
+      edges,
+    }
+  }
+
+  fn solve(&self) -> Vec<FixedBitSet> {
+    let root_count = self.synchronous.len();
+    let class_count = self.class_group_offsets.len() - 1;
+
+    // TOP is the universe of classes. Non-boundary states monotonically lose facts from it.
+    let mut top = FixedBitSet::with_capacity(class_count);
+    top.insert_range(..);
+
+    // IN[root]: classes guaranteed available before this root loads, across all ancestries.
+    let mut available = vec![top; root_count];
+    for root in self.boundaries.ones() {
+      available[root].clear();
+    }
+
+    // Process every root once, then revisit roots only when their IN shrinks.
+    let mut queue: VecDeque<_> = (0..root_count).collect();
+
+    // Root-indexed membership set preventing duplicate worklist entries.
+    let mut queued = FixedBitSet::with_capacity(root_count);
+    queued.insert_range(..);
+
+    // Reusable snapshot of the current root's IN, safe even if a self edge changes that row.
+    let mut input = FixedBitSet::with_capacity(class_count);
+
+    // OUT = IN union this root's synchronous classes. Passed to lazy children.
+    let mut output = input.clone();
+
+    // OUT plus preceding eligible parallel roots' classes, reset for each source group.
+    let mut parallel = input.clone();
+
+    while let Some(root) = queue.pop_front() {
+      queued.set(root, false);
+      // Snapshot once: self edges may shrink this root during the scan.
+      input.clone_from(&available[root]);
+      output.clone_from(&input);
+      output.union_with(&self.synchronous[root]);
+
+      for class in self.synchronous[root].ones() {
+        for group in self.class_group_offsets[class]..self.class_group_offsets[class + 1] {
+          parallel.clone_from(&output);
+          for edge in &self.edges[self.group_edge_offsets[group as usize] as usize
+            ..self.group_edge_offsets[group as usize + 1] as usize]
+          {
+            // Destination IN row affected by this particular loading occurrence.
+            let target = edge.root as usize;
+
+            // Facts supplied by this ancestry, intersected with all other incoming ancestries.
+            let contribution = match edge.kind {
+              AvailabilityEdgeKind::Sync => &input,
+              AvailabilityEdgeKind::Lazy => &output,
+              AvailabilityEdgeKind::Parallel => &parallel,
+            };
+
+            if !self.boundaries.contains(target)
+              && intersect_changed(&mut available[target], contribution)
+              && !queued.put(target)
+            {
+              queue.push_back(target);
+            }
+
+            // The first occurrence cannot use itself as a preceding sibling.
+            // Reset roots never supply facts to a sibling runtime.
+            if matches!(edge.kind, AvailabilityEdgeKind::Parallel)
+              && !self.boundaries.contains(target)
+            {
+              parallel.union_with(&self.synchronous[target]);
+            }
+          }
+        }
+      }
+    }
+
+    available
+  }
+
+  fn needed_roots(&self, mut reachability: Reachability, roots: &BundleRoots) -> Reachability {
+    // Converged IN sets, still expressed as class bits for each root.
+    let available = self.solve();
+
+    // Root index -> class containing the root asset; retain its explicit bundle identity.
+    let root_classes: Vec<_> = roots
+      .iter()
+      .map(|(_, asset)| reachability.class(asset))
+      .collect();
+
+    // The solver used immutable original reachability. Once it has converged,
+    // reuse its storage for requirements rather than keeping another matrix.
+    for (root, input) in available.iter().enumerate() {
+      for class in self.synchronous[root].ones() {
+        // Keep explicit bundle roots and their co-generated class. Eliminating
+        // a root also requires internalizing its dependency resolutions.
+        if class != root_classes[root] && input.contains(class) {
+          reachability.reachable_roots[class].set(root, false);
+        }
+      }
+    }
+
+    reachability
+  }
+}
+
+fn intersect_changed(target: &mut FixedBitSet, source: &FixedBitSet) -> bool {
+  debug_assert_eq!(target.len(), source.len());
+  // Report whether any facts were removed, without cloning the original target set.
+  let mut changed = false;
+  for (target, source) in target.as_mut_slice().iter_mut().zip(source.as_slice()) {
+    // Intersect one machine word and detect a change during the same scan.
+    let next = *target & source;
+    changed |= next != *target;
+    *target = next;
+  }
+  changed
 }

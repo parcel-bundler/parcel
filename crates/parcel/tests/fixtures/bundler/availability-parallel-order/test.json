@@ -1,0 +1,60 @@
+[
+  {
+    "description": "Only preceding non-isolated scripts supply parallel availability",
+    "input": "forward.html",
+    "bundles": [
+      {
+        "assets": ["forward.html"]
+      },
+      {
+        "assets": ["a.js", "value.js"]
+      },
+      {
+        "assets": ["b.js"],
+        "references": []
+      }
+    ],
+    "sideEffects": ["a", 42, "b", 42]
+  },
+  {
+    "description": "Reversing script order reverses which root supplies the shared asset",
+    "input": "reverse.html",
+    "bundles": [
+      {
+        "assets": ["reverse.html"]
+      },
+      {
+        "assets": ["b.js", "value.js"]
+      },
+      {
+        "assets": ["a.js"],
+        "references": []
+      }
+    ],
+    "sideEffects": ["b", 42, "a", 42]
+  },
+  {
+    "description": "Independent HTML page environments retain their own asset providers",
+    "input": ["forward.html", "reverse.html"],
+    "bundles": [
+      {
+        "assets": ["forward.html"]
+      },
+      {
+        "assets": ["reverse.html"]
+      },
+      {
+        "assets": ["a.js", "value.js"]
+      },
+      {
+        "assets": ["b.js"]
+      },
+      {
+        "assets": ["b.js", "value.js"]
+      },
+      {
+        "assets": ["a.js"]
+      }
+    ]
+  }
+]

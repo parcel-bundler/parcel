@@ -1,0 +1,20 @@
+{
+  "description": "An async isolated script cannot supply a later script's shared assets",
+  "input": "index.html",
+  "bundles": [
+    {
+      "assets": ["index.html"]
+    },
+    {
+      "assets": ["a.js"],
+      "references": [["value.js"]]
+    },
+    {
+      "assets": ["b.js"],
+      "references": [["value.js"]]
+    },
+    {
+      "assets": ["value.js"]
+    }
+  ]
+}

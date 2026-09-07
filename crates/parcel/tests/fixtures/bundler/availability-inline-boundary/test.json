@@ -1,0 +1,18 @@
+{
+  "description": "Inline roots cannot inherit availability from preceding external scripts",
+  "input": "index.html",
+  "bundles": [
+    {
+      "assets": ["index.html"],
+      "type": "html"
+    },
+    {
+      "assets": ["a.js", "value.js"]
+    },
+    {
+      "assets": ["index.html", "value.js"],
+      "type": "js",
+      "references": []
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "description": "Nested workers reset availability while lazy descendants reuse assets within their worker",
+  "input": "index.js",
+  "bundles": [
+    {
+      "assets": ["index.js", "value.js"],
+      "environment": "browser"
+    },
+    {
+      "assets": ["worker-a.js", "value.js"],
+      "environment": "web-worker"
+    },
+    {
+      "assets": ["worker-b.js", "value.js"],
+      "environment": "web-worker"
+    },
+    {
+      "assets": ["lazy.js"],
+      "environment": "web-worker",
+      "references": []
+    }
+  ]
+}

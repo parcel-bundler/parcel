@@ -4,28 +4,15 @@
   "bundles": [
     {
       "type": "js",
-      "assets": [
-        "entry.js"
-      ]
+      "assets": ["entry.js"]
     },
     {
       "type": "css",
-      "assets": [
-        "main.css"
-      ]
-    },
-    {
-      "type": "css",
-      "assets": [
-        "foo.css"
-      ]
+      "assets": ["main.css", "foo.css"]
     },
     {
       "type": "js",
-      "assets": [
-        "esmodule-helpers.js",
-        "index.js"
-      ]
+      "assets": ["esmodule-helpers.js", "index.js"]
     }
   ]
 }

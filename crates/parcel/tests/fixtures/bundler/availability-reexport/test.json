@@ -1,0 +1,14 @@
+{
+  "description": "Availability uses resolved symbol targets through side-effect-free re-exports",
+  "input": "index.js",
+  "bundles": [
+    {
+      "assets": ["index.js", "value.js", "esmodule-helpers.js"]
+    },
+    {
+      "assets": ["lazy.js", "barrel.js"],
+      "references": []
+    }
+  ],
+  "output": 84
+}

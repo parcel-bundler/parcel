@@ -1,0 +1,17 @@
+{
+  "description": "Repeated script occurrences cannot use themselves before their first load",
+  "input": "index.html",
+  "bundles": [
+    {
+      "assets": ["index.html"]
+    },
+    {
+      "assets": ["a.js", "value.js"]
+    },
+    {
+      "assets": ["b.js"],
+      "references": []
+    }
+  ],
+  "sideEffects": ["a", 42, "b", 42]
+}

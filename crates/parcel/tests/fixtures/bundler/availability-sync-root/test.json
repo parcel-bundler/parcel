@@ -1,0 +1,17 @@
+{
+  "description": "A synchronously loaded root cannot assume its importer has already loaded shared assets",
+  "input": "index.js",
+  "bundles": [
+    {
+      "assets": ["index.js"]
+    },
+    {
+      "assets": ["eager.js"],
+      "references": [["value.js"]]
+    },
+    {
+      "assets": ["value.js"]
+    }
+  ],
+  "output": [42, 42, 42]
+}

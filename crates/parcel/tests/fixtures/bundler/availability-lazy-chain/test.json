@@ -1,0 +1,18 @@
+{
+  "description": "An ancestor supplies shared assets through multiple lazy boundaries",
+  "input": "index.js",
+  "bundles": [
+    {
+      "assets": ["index.js", "value.js"]
+    },
+    {
+      "assets": ["first.js"],
+      "references": []
+    },
+    {
+      "assets": ["second.js"],
+      "references": []
+    }
+  ],
+  "output": 126
+}

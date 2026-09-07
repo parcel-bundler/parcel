@@ -1,0 +1,18 @@
+{
+  "description": "Lazy cycles reach a fixed point without inventing first-load availability",
+  "input": "index.js",
+  "bundles": [
+    {
+      "assets": ["index.js"]
+    },
+    {
+      "assets": ["first.js", "value.js"],
+      "references": []
+    },
+    {
+      "assets": ["second.js"],
+      "references": []
+    }
+  ],
+  "output": 84
+}

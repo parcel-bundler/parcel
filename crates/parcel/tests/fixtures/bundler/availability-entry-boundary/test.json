@@ -1,0 +1,17 @@
+{
+  "description": "A directly entered root has empty availability even when also reached lazily",
+  "input": ["index.js", "entry.js"],
+  "bundles": [
+    {
+      "assets": ["index.js"]
+    },
+    {
+      "assets": ["entry.js"],
+      "references": [["value.js"]]
+    },
+    {
+      "assets": ["value.js"]
+    }
+  ],
+  "output": 84
+}

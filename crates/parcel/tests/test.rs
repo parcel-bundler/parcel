@@ -165,12 +165,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
   let mut main = None;
 
   if !test.bundles.is_empty() {
-    assert_eq!(
-      test.bundles.len(),
-      bundle_graph.bundles.len(),
-      "Expected number of bundles did not match"
-    );
-    for bundle in &bundle_graph.bundles {
+    let asset_names = |bundle: &parcel_core::Bundle| {
       let mut names: Vec<String> = bundle
         .assets
         .iter()
@@ -189,8 +184,17 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
         })
         .collect();
       names.sort_unstable();
+      names
+    };
+    let actual_assets: Vec<_> = bundle_graph.bundles.iter().map(asset_names).collect();
+    assert_eq!(
+      test.bundles.len(),
+      bundle_graph.bundles.len(),
+      "Expected number of bundles did not match. Actual bundles: {actual_assets:#?}"
+    );
+    for (bundle, names) in bundle_graph.bundles.iter().zip(&actual_assets) {
       let found = test.bundles.iter().find(|b| {
-        b.assets == names
+        &b.assets == names
           && (b.ty.is_none() || b.ty.as_ref().unwrap() == &bundle.ty)
           && (b.environment.is_none()
             || b.environment.as_ref().unwrap() == &bundle.target.environment)
@@ -200,11 +204,20 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
       });
       assert!(
         found.is_some(),
-        "Could not find bundle with expected assets. Actual assets: {:?}, name: {:?}",
+        "Could not find bundle with expected assets. Actual assets: {:?}, name: {:?}. All bundles: {actual_assets:#?}",
         names,
         bundle.dist_path
       );
       let found = found.unwrap();
+      if let Some(expected) = &found.references {
+        let mut actual: Vec<_> = bundle
+          .referenced_bundles
+          .iter()
+          .map(|&index| actual_assets[index].clone())
+          .collect();
+        actual.sort();
+        assert_eq!(&actual, expected, "Referenced bundles for {names:?}");
+      }
       if !found.contains.is_empty() {
         let contents = output_fs.read_to_string(bundle.dist_path()).unwrap();
         for substring in &found.contains {
@@ -542,6 +555,8 @@ struct TestBundle {
   contains: Vec<String>,
   #[serde(default)]
   not_contains: Vec<String>,
+  /// Asset lists of directly referenced bundles, independent of hashed filenames.
+  references: Option<Vec<Vec<String>>>,
 }
 
 #[derive(serde::Deserialize, Default)]
@@ -572,6 +587,12 @@ fn run_test_json_test(path: &Path, test: serde_json::Value) {
 
   for bundle in &mut test.bundles {
     bundle.assets.sort();
+    if let Some(references) = &mut bundle.references {
+      for assets in references.iter_mut() {
+        assets.sort();
+      }
+      references.sort();
+    }
   }
 
   let fixture_dir = path.parent().unwrap();

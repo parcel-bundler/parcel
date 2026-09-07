@@ -4,19 +4,10 @@
   "bundles": [
     {
       "name": "index.js",
-      "assets": [
-        "index.js"
-      ]
+      "assets": ["index.js", "esmodule-helpers.js"]
     },
     {
-      "assets": [
-        "local.js"
-      ]
-    },
-    {
-      "assets": [
-        "esmodule-helpers.js"
-      ]
+      "assets": ["local.js"]
     }
   ],
   "output": 3

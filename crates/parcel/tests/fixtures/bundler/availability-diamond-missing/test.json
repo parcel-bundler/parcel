@@ -1,0 +1,25 @@
+{
+  "description": "A shared asset must remain required when one ancestry does not supply it",
+  "input": "index.js",
+  "bundles": [
+    {
+      "assets": ["index.js"]
+    },
+    {
+      "assets": ["left.js"],
+      "references": [["value.js"]]
+    },
+    {
+      "assets": ["right.js"],
+      "references": []
+    },
+    {
+      "assets": ["leaf.js"],
+      "references": [["value.js"]]
+    },
+    {
+      "assets": ["value.js"]
+    }
+  ],
+  "output": [84, 42]
+}

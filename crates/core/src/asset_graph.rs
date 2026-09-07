@@ -967,6 +967,17 @@ impl<'a> AssetGraph<'a> {
   /// Iterates over all resolved asset indices that this asset depends on, in dependency order.
   /// NOTE: This may include duplicates. self.symbols.imports must be sorted by dep_index.
   pub fn resolved_dependencies(&self, asset: &Asset) -> impl Iterator<Item = AssetIndex> {
+    self
+      .resolved_dependencies_with_indices(asset)
+      .map(|(_, asset)| asset)
+  }
+
+  /// Like `resolved_dependencies`, but retains the dependency index for priority,
+  /// isolation, and ordering information, including for resolved symbol targets.
+  pub fn resolved_dependencies_with_indices(
+    &self,
+    asset: &Asset,
+  ) -> impl Iterator<Item = (usize, AssetIndex)> {
     let mut dep_index = 0;
     let mut import_index = 0;
     std::iter::from_fn(move || {
@@ -992,7 +1003,7 @@ impl<'a> AssetGraph<'a> {
           {
             if let Some((asset, _)) = self.resolved_asset(dep) {
               dep_index += 1;
-              return Some(asset);
+              return Some((dep_index - 1, asset));
             }
           }
         }
@@ -1007,7 +1018,7 @@ impl<'a> AssetGraph<'a> {
 
           if let Some(asset) = import.resolved.asset_index() {
             import_index += 1;
-            return Some(asset);
+            return Some((import.dep_index as usize, asset));
           }
 
           import_index += 1;
