@@ -27,6 +27,7 @@ pub enum BundleGraphResolutionType {
   Excluded = 4,
   Asset = 5,
   Bundle = 6,
+  Internalized = 7,
 }
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]

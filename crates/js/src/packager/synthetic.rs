@@ -13,6 +13,8 @@ pub enum SyntheticAsset {
   CssModuleExports(AssetIndex),
   /// A shim module for a dependency that resolved to another bundle.
   Bundle { bundle: u32, kind: BundleShim },
+  /// An internalized async asset.
+  Internalized(AssetIndex),
   /// A generated React Server Components module.
   Rsc(RscModule),
 }
@@ -56,7 +58,10 @@ impl From<ImportType> for InlineType {
 impl BundleShim {
   pub(super) fn id(&self, bundle: u32) -> String {
     match self {
-      BundleShim::Async | BundleShim::Url | BundleShim::Inline(InlineType::Text) | BundleShim::Sync => {
+      BundleShim::Async
+      | BundleShim::Url
+      | BundleShim::Inline(InlineType::Text)
+      | BundleShim::Sync => {
         format!("b{}", bundle)
       }
       BundleShim::AsyncInterop => format!("b{}i", bundle),
@@ -74,6 +79,13 @@ impl SyntheticAsset {
         .asset(*asset_index)
         .id(project_root),
       SyntheticAsset::Bundle { bundle, kind } => kind.id(*bundle),
+      SyntheticAsset::Internalized(asset_index) => format!(
+        "i_{}",
+        bundle_graph
+          .asset_graph
+          .asset(*asset_index)
+          .id(project_root)
+      ),
       SyntheticAsset::Rsc(module) => module.id(),
     }
   }
@@ -202,6 +214,15 @@ impl SyntheticAsset {
           )?;
         }
       },
+      SyntheticAsset::Internalized(asset_index) => {
+        let asset = bundle_graph.asset_graph.asset(*asset_index);
+        let id = asset.id(project_root);
+        write!(
+          dest,
+          "module.exports=Promise.resolve().then(()=>require({:?}))",
+          id
+        )?;
+      }
       SyntheticAsset::Rsc(module) => {
         module.write(dest, should_optimize, bundle_graph, bundle, project_root)?;
       }

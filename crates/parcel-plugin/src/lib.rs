@@ -1025,6 +1025,9 @@ impl<'a> BundleGraph<'a> {
       ffi::BundleGraphResolutionType::Bundle => {
         BundleGraphDependencyResolution::Bundle(resolution.bundle)
       }
+      ffi::BundleGraphResolutionType::Internalized => {
+        BundleGraphDependencyResolution::Internalized(resolution.asset)
+      }
     }
   }
 }
@@ -1149,6 +1152,7 @@ pub enum BundleGraphDependencyResolution {
   Excluded,
   Asset(AssetIndex),
   Bundle(BundleIndex),
+  Internalized(AssetIndex),
 }
 
 // ── Bundle ─────────────────────────────────────────────────────────────────

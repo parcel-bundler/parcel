@@ -31,6 +31,8 @@ pub enum Resolution<'a> {
   Bundle(u32),
   #[serde(serialize_with = "serialize_bundle_interop")]
   BundleInterop(u32),
+  #[serde(serialize_with = "serialize_internalized")]
+  Internalized(String),
   External(Cow<'a, str>),
   #[serde(serialize_with = "serialize_string")]
   String(Cow<'a, str>),
@@ -83,6 +85,14 @@ where
 {
   use serde::Serialize;
   format!("b{}i", value).serialize(serializer)
+}
+
+fn serialize_internalized<S>(value: &String, serializer: S) -> Result<S::Ok, S::Error>
+where
+  S: serde::Serializer,
+{
+  use serde::Serialize;
+  format!("i_{}", value).serialize(serializer)
 }
 
 /// A `new Uint8Array([...])` expression of the given bytes.
@@ -349,6 +359,9 @@ impl<'a> VisitMut for TreeShake<'a> {
             }
             Resolution::External(specifier) => {
               **expr = specifier.as_ref().into();
+            }
+            Resolution::Internalized(id) => {
+              *node = quote!("Promise.resolve().then(()=>$require($id))" as Expr, require: Ident = self.require_ident(), id: Expr = id.clone().into());
             }
             Resolution::String(string) => {
               *node = string.clone().into_owned().into();

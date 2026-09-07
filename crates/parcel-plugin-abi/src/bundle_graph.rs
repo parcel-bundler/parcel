@@ -18,6 +18,7 @@ pub enum BundleGraphResolutionType {
   PARCEL_BUNDLE_GRAPH_RESOLUTION_EXCLUDED = 4,
   PARCEL_BUNDLE_GRAPH_RESOLUTION_ASSET = 5,
   PARCEL_BUNDLE_GRAPH_RESOLUTION_BUNDLE = 6,
+  PARCEL_BUNDLE_GRAPH_RESOLUTION_INTERNALIZED = 7,
 }
 
 #[repr(C)]
@@ -138,6 +139,11 @@ pub extern "C" fn parcel_bundle_graph_get_dependency_resolution(
     CoreBundleGraphDependencyResolution::Bundle(bundle) => {
       result.resolution_type = BundleGraphResolutionType::PARCEL_BUNDLE_GRAPH_RESOLUTION_BUNDLE;
       result.bundle = bundle as usize;
+    }
+    CoreBundleGraphDependencyResolution::Internalized(asset) => {
+      result.resolution_type =
+        BundleGraphResolutionType::PARCEL_BUNDLE_GRAPH_RESOLUTION_INTERNALIZED;
+      result.asset = asset.0;
     }
   }
   result

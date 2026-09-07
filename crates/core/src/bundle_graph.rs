@@ -15,6 +15,7 @@ pub enum BundleGraphDependencyResolution {
   External,
   Excluded,
   Asset(AssetIndex),
+  Internalized(AssetIndex),
   Bundle(u32),
 }
 
@@ -22,7 +23,7 @@ pub enum BundleGraphDependencyResolution {
 pub struct BundleGraph<'a> {
   pub asset_graph: AssetGraph<'a>,
   pub bundles: Vec<Bundle>,
-  dependency_resolutions: HashMap<DependencyId, u32>,
+  dependency_resolutions: HashMap<DependencyId, BundleGraphDependencyResolution>,
   pub project_root: PathId,
 }
 
@@ -30,7 +31,7 @@ impl<'a> BundleGraph<'a> {
   pub fn new(
     asset_graph: AssetGraph<'a>,
     bundles: Vec<Bundle>,
-    dependency_resolutions: HashMap<DependencyId, u32>,
+    dependency_resolutions: HashMap<DependencyId, BundleGraphDependencyResolution>,
     project_root: PathId,
   ) -> Self {
     BundleGraph {
@@ -46,11 +47,11 @@ impl<'a> BundleGraph<'a> {
     asset_index: AssetIndex,
     dependency_index: usize,
   ) -> BundleGraphDependencyResolution {
-    if let Some(bundle_index) = self.dependency_resolutions.get(&DependencyId {
+    if let Some(res) = self.dependency_resolutions.get(&DependencyId {
       asset: asset_index,
       dependency: dependency_index,
     }) {
-      return BundleGraphDependencyResolution::Bundle(*bundle_index);
+      return res.clone();
     }
 
     let dep = &self.asset_graph.asset(asset_index).dependencies[dependency_index];
@@ -71,10 +72,13 @@ impl<'a> BundleGraph<'a> {
   /// Iterates over `(referencing asset, resolved bundle index)` pairs for dependencies that
   /// resolve to a bundle (inline bundles and URL references).
   pub fn bundle_dependencies(&self) -> impl Iterator<Item = (AssetIndex, usize)> + '_ {
-    self
-      .dependency_resolutions
-      .iter()
-      .map(|(id, bundle_index)| (id.asset, *bundle_index as usize))
+    self.dependency_resolutions.iter().filter_map(|(id, res)| {
+      if let BundleGraphDependencyResolution::Bundle(b) = res {
+        Some((id.asset, *b as usize))
+      } else {
+        None
+      }
+    })
   }
 
   pub fn referenced_bundles(&self, bundle_index: usize) -> impl Iterator<Item = usize> + '_ {

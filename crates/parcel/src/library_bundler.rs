@@ -1,8 +1,8 @@
 use std::{collections::HashMap, hash::Hash};
 
 use parcel_core::{
-  AssetGraph, AssetIndex, Bundle, BundleFlags, BundleGraph, Bundler, ContentType, DependencyId,
-  DiagnosticList, ParcelOptions, SourceUrl, Target,
+  AssetGraph, AssetIndex, Bundle, BundleFlags, BundleGraph, BundleGraphDependencyResolution,
+  Bundler, ContentType, DependencyId, DiagnosticList, ParcelOptions, SourceUrl, Target,
 };
 
 pub struct LibraryBundler {}
@@ -68,7 +68,7 @@ impl Bundler for LibraryBundler {
                 asset: AssetIndex(id as u32),
                 dependency: dep_index,
               },
-              *bundle as u32,
+              BundleGraphDependencyResolution::Bundle(*bundle as u32),
             );
           }
         }

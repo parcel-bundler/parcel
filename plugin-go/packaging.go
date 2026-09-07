@@ -278,11 +278,12 @@ const (
 	BundleGraphResolutionExcluded
 	BundleGraphResolutionAsset
 	BundleGraphResolutionBundle
+	BundleGraphResolutionInternalized
 )
 
 // BundleGraphDependencyResolution is the resolved graph target of a dependency.
-// Asset is valid for BundleGraphResolutionAsset; Bundle is valid for
-// BundleGraphResolutionBundle.
+// Asset is valid for BundleGraphResolutionAsset and BundleGraphResolutionType;
+// Bundle is valid for BundleGraphResolutionBundle.
 type BundleGraphDependencyResolution struct {
 	Type   BundleGraphResolutionType
 	Asset  AssetIndex

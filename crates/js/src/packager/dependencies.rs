@@ -282,6 +282,14 @@ pub fn asset_dependencies<'a>(
           dependencies.insert((&**placeholder).into(), resolution);
         }
       }
+      BundleGraphDependencyResolution::Internalized(asset_index) => {
+        let asset = bundle_graph.asset_graph.asset(asset_index);
+        dependencies.insert(
+          (&**placeholder).into(),
+          Resolution::Internalized(asset.id(project_root)),
+        );
+        additional_assets.insert(SyntheticAsset::Internalized(asset_index));
+      }
     }
   }
 

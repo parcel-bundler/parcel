@@ -7,8 +7,8 @@ use fixedbitset::FixedBitSet;
 use glob_match::glob_match;
 use parcel_core::{
   Asset, AssetGraph, AssetIndex, AssetType, Bundle, BundleBehavior, BundleFlags, BundleGraph,
-  Bundler, ContentType, DependencyFlags, DependencyId, DiagnosticList, Environment,
-  EnvironmentFlags, ParcelOptions, Priority, SpecifierType,
+  BundleGraphDependencyResolution, Bundler, ContentType, DependencyFlags, DependencyId,
+  DiagnosticList, Environment, EnvironmentFlags, ParcelOptions, Priority, SpecifierType,
 };
 
 use crate::library_bundler::LibraryBundler;
@@ -295,7 +295,7 @@ impl Bundler for DefaultBundler {
                   asset: asset_index as AssetIndex,
                   dependency: dep_index,
                 },
-                bundle_index as u32,
+                BundleGraphDependencyResolution::Bundle(bundle_index as u32),
               );
               if dep.flags.contains(DependencyFlags::NEEDS_STABLE_NAME) {
                 bundles[bundle_index].flags |= BundleFlags::NEEDS_STABLE_NAME;
