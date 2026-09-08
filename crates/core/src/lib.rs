@@ -613,9 +613,16 @@ pub fn get_bundle_content(
     return Ok(content.clone());
   }
 
-  let first_asset = *bundle.assets.first().ok_or_else(|| {
-    Diagnostic::from_message("Cannot package a bundle with no assets".to_string())
-  })?;
+  // Entry facades contain no modules of their own but use the entry's packager
+  // to load the shared payload and execute the requested entry module.
+  let first_asset = bundle
+    .assets
+    .first()
+    .copied()
+    .or(bundle.main_entry_asset)
+    .ok_or_else(|| {
+      Diagnostic::from_message("Cannot package a bundle with no assets".to_string())
+    })?;
   let first_content = &bundle_graph.asset_graph.asset(first_asset).content;
   let get_inline_bundle_content =
     |bundle_index| get_bundle_content(config, bundle_graph, bundle_index, options, cache);

@@ -7,8 +7,9 @@ use fixedbitset::FixedBitSet;
 use glob_match::glob_match;
 use parcel_core::{
   Asset, AssetGraph, AssetIndex, AssetType, Bundle, BundleBehavior, BundleFlags, BundleGraph,
-  BundleGraphDependencyResolution, Bundler, ContentType, DependencyFlags, DependencyId,
-  DiagnosticList, Environment, EnvironmentFlags, ParcelOptions, Priority, SpecifierType,
+  BundleGraphDependencyResolution, Bundler, ContentType, Dependency, DependencyFlags, DependencyId,
+  DiagnosticList, Environment, EnvironmentFlags, ImportType, ParcelOptions, Priority, SourceType,
+  SpecifierType,
 };
 
 use crate::library_bundler::LibraryBundler;
@@ -59,18 +60,23 @@ impl DefaultBundler {
 #[derive(Hash, PartialEq, Eq)]
 enum BundleKey<'a> {
   Default {
+    // Dense logical roots requiring these assets after availability filtering.
     reachable_roots: &'a FixedBitSet,
+    // Runtime context used to keep incompatible module registries separate.
     context: Environment,
+    // Content implementation responsible for packaging these assets together.
     packager: ContentType,
   },
   Manual {
+    // Index of the first matching manual grouping rule.
     index: usize,
+    // One output per packager, even when the rule selects several asset types.
     packager: ContentType,
   },
 }
 
 impl<'a> BundleKey<'a> {
-  fn stable_hash(&self, bundles: &[Bundle]) -> u64 {
+  fn stable_hash(&self, root_ids: &[u64]) -> u64 {
     let mut hasher = xxhash_rust::xxh3::Xxh3Default::new();
     match self {
       BundleKey::Default {
@@ -81,7 +87,7 @@ impl<'a> BundleKey<'a> {
         0.hash(&mut hasher);
         let mut ids: Vec<u64> = reachable_roots
           .ones()
-          .map(|bundle_root_index| bundles[bundle_root_index].id)
+          .map(|bundle_root_index| root_ids[bundle_root_index])
           .collect();
         ids.sort();
         ids.hash(&mut hasher);
@@ -119,24 +125,54 @@ impl Bundler for DefaultBundler {
 
     // Step 1: Traverse the asset graph and find bundle roots.
     // A bundle root is created for entries, and lazy, parallel, isolated, or inline dependencies.
-    let bundle_roots = BundleRoots::from_asset_graph(&asset_graph);
+    let mut bundle_roots = BundleRoots::from_asset_graph(&asset_graph);
 
-    // Step 2: Determine which bundle roots can synchronously reach each asset.
-    let reachability = Reachability::from_bundle_roots(&asset_graph, &bundle_roots);
+    // Explicit manual bundles keep their loading boundaries and grouping policy.
+    let mut manual_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
+    for (_, root) in bundle_roots.iter() {
+      if self
+        .manual_shared_bundle(asset_graph.asset(root), options)
+        .is_some()
+      {
+        manual_roots.insert(root.index());
+      }
+    }
 
-    // Step 3: Only require assets from roots where they are not guaranteed to
-    // have been loaded by every possible ancestry (or an earlier parallel root).
-    let availability =
-      AvailabilityGraph::from_asset_graph(&asset_graph, &bundle_roots, &reachability);
-    // Retain the asset-to-class mapping, replacing root sets with filtered requirements.
-    let needed_roots = availability.needed_roots(reachability, &bundle_roots);
-    drop(availability);
+    // Removing a lazy root changes the class partition and its incoming contexts.
+    // Recompute in batches; each non-final round removes at least one root. Keep
+    // only one reachability/availability matrix pair alive at a time.
+    let needed_roots = loop {
+      let reachability = Reachability::from_bundle_roots(&asset_graph, &bundle_roots);
+      let availability =
+        AvailabilityGraph::from_asset_graph(&asset_graph, &bundle_roots, &reachability);
+      let available = availability.solve();
+      availability.internalize(
+        &asset_graph,
+        &bundle_roots,
+        &reachability,
+        &available,
+        &manual_roots,
+        &mut dependency_resolutions,
+      );
+      if !bundle_roots.remove_internalized_roots(&asset_graph, &dependency_resolutions) {
+        break availability.needed_roots(reachability, &bundle_roots, &available);
+      }
+    };
+
+    // Hash logical roots, independently of their eventual physical bundle indices.
+    let root_assets: Vec<_> = bundle_roots.iter().map(|(_, root)| root).collect();
+    let root_ids: Vec<_> = root_assets
+      .iter()
+      .map(|&root| asset_graph.asset(root).id_u64(&options.project_root))
+      .collect();
 
     let mut shared_bundles = HashMap::<BundleKey, usize>::new();
     let mut asset_index_to_bundle_index = HashMap::new();
+    // Dense logical root -> loadable bundle (possibly an entry facade).
+    let mut root_to_bundle = vec![0; bundle_roots.len()];
 
     // Create bundles for each bundle root first.
-    for (_, bundle_root_asset_index) in bundle_roots.iter() {
+    for (root_index, bundle_root_asset_index) in bundle_roots.iter() {
       let asset = &asset_graph.asset(bundle_root_asset_index);
       let key = if let Some(index) = self.manual_shared_bundle(asset, options) {
         BundleKey::Manual {
@@ -154,7 +190,7 @@ impl Bundler for DefaultBundler {
       let bundle = Bundle {
         id: match &key {
           BundleKey::Default { .. } => asset.id_u64(&options.project_root),
-          BundleKey::Manual { .. } => key.stable_hash(&bundles),
+          BundleKey::Manual { .. } => key.stable_hash(&root_ids),
         },
         ty: asset.ty.clone(),
         target: asset.target.clone(),
@@ -171,10 +207,62 @@ impl Bundler for DefaultBundler {
         referenced_bundles: Vec::new(),
       };
 
-      let bundle_index = bundles.len();
+      let bundle_index = if let Some(&existing) = shared_bundles.get(&key) {
+        // The JS packager supports separating loading from execution. Therefore, if two entries share the
+        // same bundle we can convert this into a shared bundle and add an empty entry facade that executes
+        // the corresponding main entry module in the shared bundle.
+        if asset.ty == AssetType::Js {
+          if let Some(previous_root) = bundles[existing].main_entry_asset.take() {
+            bundles[existing].entry_assets.clear();
+            bundles[existing].id = key.stable_hash(&root_ids);
+            if bundle_roots.mandatory_roots.contains(previous_root.index()) {
+              let facade = Bundle {
+                id: asset_graph
+                  .asset(previous_root)
+                  .id_u64(&options.project_root),
+                ty: bundles[existing].ty.clone(),
+                target: bundles[existing].target.clone(),
+                bundle_behavior: bundles[existing].bundle_behavior,
+                flags: bundles[existing].flags,
+                dist_path: None,
+                assets: Vec::new(),
+                main_entry_asset: Some(previous_root),
+                entry_assets: vec![previous_root],
+                referenced_bundles: vec![existing],
+              };
+              let facade_index = bundles.len();
+              bundles.push(facade);
+              let previous_index = root_assets.binary_search(&previous_root).unwrap();
+              root_to_bundle[previous_index] = facade_index;
+              asset_index_to_bundle_index.insert(previous_root, facade_index);
+            }
+            bundles[existing].flags = BundleFlags::empty();
+          }
+
+          if bundle_roots
+            .mandatory_roots
+            .contains(bundle_root_asset_index.index())
+          {
+            let mut facade = bundle;
+            facade.id = asset.id_u64(&options.project_root);
+            facade.referenced_bundles.push(existing);
+            let facade_index = bundles.len();
+            bundles.push(facade);
+            facade_index
+          } else {
+            existing
+          }
+        } else {
+          existing
+        }
+      } else {
+        let bundle_index = bundles.len();
+        bundles.push(bundle);
+        shared_bundles.insert(key, bundle_index);
+        bundle_index
+      };
+      root_to_bundle[root_index] = bundle_index;
       asset_index_to_bundle_index.insert(bundle_root_asset_index, bundle_index);
-      bundles.push(bundle);
-      shared_bundles.insert(key, bundle_index);
     }
 
     // Place assets into bundles, following depth-first order.
@@ -205,7 +293,7 @@ impl Bundler for DefaultBundler {
         *bundle_index
       } else {
         let bundle = Bundle {
-          id: key.stable_hash(&bundles),
+          id: key.stable_hash(&root_ids),
           ty: asset.ty.clone(),
           target: asset.target.clone(),
           bundle_behavior: bundle_roots.bundle_behavior(asset_index),
@@ -242,6 +330,7 @@ impl Bundler for DefaultBundler {
 
       // Each reachable root depends on this shared bundle.
       for bundle_root_index in reachable_roots.ones() {
+        let bundle_root_index = root_to_bundle[bundle_root_index];
         if bundle_root_index != bundle_index
           && !bundles[bundle_root_index]
             .referenced_bundles
@@ -265,6 +354,15 @@ impl Bundler for DefaultBundler {
     for (asset_index, asset, _) in asset_graph.dfs() {
       let source_bundle_index = asset_to_bundle.get(&asset_index).copied();
       for (dep_index, dep) in asset.dependencies.iter().enumerate() {
+        let dependency_id = DependencyId {
+          asset: asset_index,
+          dependency: dep_index,
+        };
+
+        if dependency_resolutions.contains_key(&dependency_id) {
+          continue;
+        }
+
         if let Some((resolved_asset_index, _)) = asset_graph.resolved_asset(dep) {
           if let Some(&bundle_index) = asset_index_to_bundle_index.get(&resolved_asset_index) {
             // A sync non-URL dep targeting a bundle root in a different JS bundle keeps its
@@ -278,6 +376,7 @@ impl Bundler for DefaultBundler {
               && bundles[bundle_index].bundle_behavior == BundleBehavior::None;
 
             if is_sync_module_dep {
+              let bundle_index = asset_to_bundle[&resolved_asset_index];
               if let Some(src_bundle_index) = source_bundle_index {
                 if bundle_index != src_bundle_index
                   && !bundles[src_bundle_index]
@@ -327,6 +426,9 @@ struct BundleRoots {
   bundle_roots: FixedBitSet,
   // Asset-indexed subset of roots that are directly entered and cannot inherit availability.
   entry_bundle_roots: FixedBitSet,
+  // Roots with a reason other than a lazy module import.
+  // Internalizing imports must not remove these externally observable outputs.
+  mandatory_roots: FixedBitSet,
   // Effective behavior per asset, combining asset metadata with incoming dependency overrides.
   bundle_behaviors: Vec<BundleBehavior>,
 }
@@ -335,10 +437,12 @@ impl BundleRoots {
   pub fn from_asset_graph(asset_graph: &AssetGraph) -> BundleRoots {
     let mut bundle_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
     let mut entry_bundle_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
+    let mut mandatory_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
     for entry in asset_graph.entries.iter() {
       if let Some(asset) = asset_graph.resolved_entry(entry) {
         bundle_roots.insert(asset.index());
         entry_bundle_roots.insert(asset.index());
+        mandatory_roots.insert(asset.index());
       }
     }
 
@@ -353,6 +457,7 @@ impl BundleRoots {
     for (asset_index, asset, _) in asset_graph.dfs() {
       if bundle_behaviors[asset_index.index()] != BundleBehavior::None {
         bundle_roots.insert(asset_index.index());
+        mandatory_roots.insert(asset_index.index());
       }
 
       for dep_index in 0..asset.dependencies.len() {
@@ -361,6 +466,13 @@ impl BundleRoots {
           if let Some((resolved_asset_index, _)) = asset_graph.resolved_asset(dep) {
             let bundle_behavior = dep.bundle_behavior;
             bundle_roots.insert(resolved_asset_index.index());
+            if dep.priority != Priority::Lazy
+              || dep.specifier_type == SpecifierType::Url
+              || dep.bundle_behavior != BundleBehavior::None
+              || dep.flags.contains(DependencyFlags::NEEDS_STABLE_NAME)
+            {
+              mandatory_roots.insert(resolved_asset_index.index());
+            }
             let target_bundle_behavior = &mut bundle_behaviors[resolved_asset_index.index()];
             if bundle_behavior != BundleBehavior::None
               && *target_bundle_behavior == BundleBehavior::None
@@ -375,8 +487,32 @@ impl BundleRoots {
     BundleRoots {
       bundle_roots,
       entry_bundle_roots,
+      mandatory_roots,
       bundle_behaviors,
     }
+  }
+
+  fn remove_internalized_roots(
+    &mut self,
+    graph: &AssetGraph,
+    resolutions: &HashMap<DependencyId, BundleGraphDependencyResolution>,
+  ) -> bool {
+    // Retain each original root with at least one remaining lazy loading cause.
+    let mut retained = self.mandatory_roots.clone();
+    for (source, asset, _) in graph.dfs() {
+      for (dependency, dep) in asset.dependencies.iter().enumerate() {
+        if dep.priority == Priority::Lazy
+          && !resolutions.contains_key(&DependencyId {
+            asset: source,
+            dependency,
+          })
+          && let Some((target, _)) = graph.resolved_asset(dep)
+        {
+          retained.insert(target.index());
+        }
+      }
+    }
+    intersect_changed(&mut self.bundle_roots, &retained)
   }
 
   pub fn len(&self) -> usize {
@@ -402,6 +538,37 @@ impl BundleRoots {
   pub fn bundle_behavior(&self, id: AssetIndex) -> BundleBehavior {
     self.bundle_behaviors[id.index()]
   }
+}
+
+// Use dependency metadata rather than root membership: a demoted async target
+// is placed with its synchronous providers, never pulled into its async importer.
+fn synchronous_dependencies<'a>(
+  graph: &'a AssetGraph,
+  roots: &'a BundleRoots,
+  asset: &'a Asset,
+) -> impl Iterator<Item = AssetIndex> + 'a {
+  graph
+    .resolved_dependencies_with_indices(asset)
+    .filter_map(move |(index, target)| {
+      let dep = &asset.dependencies[index];
+      // Cross-environment non-roots (CSS and RSC references) still need
+      // placement through their importer. Only explicit roots reset loading.
+      is_sync_dep(graph, roots, asset, dep, target).then_some(target)
+    })
+}
+
+fn is_sync_dep(
+  graph: &AssetGraph,
+  roots: &BundleRoots,
+  asset: &Asset,
+  dep: &Dependency,
+  target: AssetIndex,
+) -> bool {
+  dep.priority == Priority::Sync
+    && dep.bundle_behavior == BundleBehavior::None
+    && roots.bundle_behavior(target) == BundleBehavior::None
+    && (!roots.is_bundle_root(target)
+      || asset.target.environment == graph.asset(target).target.environment)
 }
 
 struct Reachability {
@@ -435,7 +602,7 @@ impl Reachability {
     let mut members = Vec::new();
     // SCC c owns members[offsets[c]..offsets[c + 1]], including a trailing end offset.
     let mut offsets = vec![0u32];
-    // Non-root edge targets, recorded once per asset at discovery. Enumerating
+    // Synchronous edge targets, recorded once per asset at discovery. Enumerating
     // edges scans symbol tables per dependency, so the propagation pass below
     // replays this array rather than enumerating a second time. The targets of
     // the asset with discovery index d occupy
@@ -443,20 +610,21 @@ impl Reachability {
     let mut edge_targets: Vec<u32> = Vec::new();
     let mut edge_offsets = vec![0u32];
 
-    // Iterative Tarjan: only visit assets reachable from roots, and never
-    // traverse an edge into a bundle root. Explicit frames with cursors into
-    // edge_targets avoid recursion on deep graphs.
+    // Iterative Tarjan: ordinary synchronous edges cross root boundaries too.
+    // Lazy edges stay excluded even after their target root is removed.
+    // Explicit frames with cursors into edge_targets avoid recursion on deep graphs.
     for (_, root) in bundle_roots.iter() {
+      if discovery[root.index()] != u32::MAX {
+        continue;
+      }
+
       discovery[root.index()] = next_index;
       low[root.index()] = next_index;
       next_index += 1;
       stack.push(root.0);
       frames.push((root.0, edge_targets.len() as u32));
       edge_targets.extend(
-        asset_graph
-          .resolved_dependencies(asset_graph.asset(root))
-          .filter(|&t| !bundle_roots.is_bundle_root(t))
-          .map(|t| t.0),
+        synchronous_dependencies(asset_graph, bundle_roots, asset_graph.asset(root)).map(|t| t.0),
       );
       edge_offsets.push(edge_targets.len() as u32);
       while let Some((asset, cursor)) = frames.last_mut() {
@@ -471,10 +639,12 @@ impl Reachability {
             stack.push(target);
             frames.push((target, edge_targets.len() as u32));
             edge_targets.extend(
-              asset_graph
-                .resolved_dependencies(asset_graph.asset(AssetIndex(target)))
-                .filter(|&t| !bundle_roots.is_bundle_root(t))
-                .map(|t| t.0),
+              synchronous_dependencies(
+                asset_graph,
+                bundle_roots,
+                asset_graph.asset(AssetIndex(target)),
+              )
+              .map(|t| t.0),
             );
             edge_offsets.push(edge_targets.len() as u32);
           } else if asset_components[target as usize] == u32::MAX {
@@ -844,10 +1014,104 @@ impl AvailabilityGraph {
     available
   }
 
-  fn needed_roots(&self, mut reachability: Reachability, roots: &BundleRoots) -> Reachability {
-    // Converged IN sets, still expressed as class bits for each root.
-    let available = self.solve();
+  fn internalize(
+    &self,
+    graph: &AssetGraph,
+    roots: &BundleRoots,
+    reachability: &Reachability,
+    available: &[FixedBitSet],
+    manual_roots: &FixedBitSet,
+    resolutions: &mut HashMap<DependencyId, BundleGraphDependencyResolution>,
+  ) {
+    // A JS module's presence alone does not prove its CSS/parallel resources
+    // loaded. Conservatively keep loaders for closures containing such assets
+    // or outgoing eager resource boundaries. Scratch sets have one bit per class/asset.
+    let mut resource_classes = FixedBitSet::with_capacity(reachability.reachable_roots.len());
+    for (source, asset, _) in graph.dfs() {
+      if asset.ty != AssetType::Js
+        || graph
+          .resolved_dependencies_with_indices(asset)
+          .any(|(index, target)| {
+            let dep = &asset.dependencies[index];
+            !is_sync_dep(graph, roots, asset, dep, target)
+          })
+      {
+        resource_classes.insert(reachability.class(source));
+      }
+    }
 
+    // Asset-indexed eligible target roots; avoid rescanning a closure per importer.
+    let mut eligible = FixedBitSet::with_capacity(graph.assets.len());
+
+    // Loading environment of each logical root. Cross-environment non-roots
+    // participate in placement but cannot justify a local module lookup here.
+    let root_environments: Vec<_> = roots
+      .iter()
+      .map(|(_, asset)| graph.asset(asset).target.environment)
+      .collect();
+
+    for (root, asset) in roots.iter() {
+      if roots.bundle_behavior(asset) == BundleBehavior::None
+        && !manual_roots.contains(asset.index())
+        && self.synchronous[root].is_disjoint(&resource_classes)
+      {
+        eligible.insert(asset.index());
+      }
+    }
+
+    for (source, asset, _) in graph.dfs() {
+      let contexts = reachability.reachable_roots(source);
+      if asset.ty != AssetType::Js
+        || asset.target.source_type != SourceType::Module
+        || contexts.is_clear()
+      {
+        continue;
+      }
+
+      for (dependency, dep) in asset.dependencies.iter().enumerate() {
+        let id = DependencyId {
+          asset: source,
+          dependency,
+        };
+        if resolutions.contains_key(&id)
+          || dep.priority != Priority::Lazy
+          || dep.specifier_type == SpecifierType::Url
+          || dep.import_type != ImportType::JavaScript
+          || dep.bundle_behavior != BundleBehavior::None
+        {
+          continue;
+        }
+
+        let Some((target, target_asset)) = graph.resolved_asset(dep) else {
+          continue;
+        };
+
+        if !eligible.contains(target.index())
+          || target_asset.target.source_type != SourceType::Module
+          || asset.target.environment != target_asset.target.environment
+        {
+          continue;
+        }
+
+        // Overrides are global per dependency, so every synchronous context
+        // reaching the importer must already supply the target module.
+        let class = reachability.class(target);
+        if contexts.ones().all(|root| {
+          root_environments[root] == asset.target.environment
+            && (available[root].contains(class) || self.synchronous[root].contains(class))
+        }) {
+          resolutions.insert(id, BundleGraphDependencyResolution::Internalized(target));
+        }
+      }
+    }
+  }
+
+  fn needed_roots(
+    &self,
+    mut reachability: Reachability,
+    roots: &BundleRoots,
+    available: &[FixedBitSet],
+  ) -> Reachability {
     // Root index -> class containing the root asset; retain its explicit bundle identity.
     let root_classes: Vec<_> = roots
       .iter()

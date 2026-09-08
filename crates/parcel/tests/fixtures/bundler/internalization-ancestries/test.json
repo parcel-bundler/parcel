@@ -1,0 +1,58 @@
+[
+  {
+    "description": "A shared importer can internalize when every ancestry supplies the target",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "internalized": [["shared.js", "value.js"]],
+    "output": [42, 42],
+    "options": {
+      "mode": "development"
+    },
+    "bundles": [
+      {
+        "assets": ["index.js"],
+        "references": []
+      },
+      {
+        "assets": ["a.js"],
+        "references": [["shared.js", "value.js"]]
+      },
+      {
+        "assets": ["b.js"],
+        "references": [["shared.js", "value.js"]]
+      },
+      {
+        "assets": ["shared.js", "value.js"],
+        "references": []
+      }
+    ]
+  },
+  {
+    "description": "A shared importer can internalize when every ancestry supplies the target",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "internalized": [["shared.js", "value.js"]],
+    "output": [42, 42],
+    "options": {
+      "mode": "production"
+    },
+    "bundles": [
+      {
+        "assets": ["index.js"],
+        "references": []
+      },
+      {
+        "assets": ["a.js"],
+        "references": [["shared.js", "value.js"]]
+      },
+      {
+        "assets": ["b.js"],
+        "references": [["shared.js", "value.js"]]
+      },
+      {
+        "assets": ["shared.js", "value.js"],
+        "references": []
+      }
+    ]
+  }
+]

@@ -160,6 +160,35 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
     .map(|cwd| fixture_dir.join(cwd))
     .unwrap_or_else(|| fixture_dir.to_path_buf());
   let bundle_graph = bundle_with_options(&cwd, entries, output_fs.clone(), test.options).unwrap();
+  if let Some(mut expected) = test.internalized {
+    let mut actual = Vec::new();
+    for (source, asset, _) in bundle_graph.asset_graph.dfs() {
+      for dependency in 0..asset.dependencies.len() {
+        if let parcel_core::BundleGraphDependencyResolution::Internalized(target) =
+          bundle_graph.dependency_resolution(source, dependency)
+        {
+          let name = |index| {
+            bundle_graph
+              .asset_graph
+              .asset(index)
+              .loc
+              .url
+              .to_file_path()
+              .unwrap()
+              .file_name()
+              .to_string()
+          };
+          actual.push((name(source), name(target)));
+        }
+      }
+    }
+    actual.sort();
+    expected.sort();
+    assert_eq!(
+      actual, expected,
+      "Internalized dependencies (source, target)"
+    );
+  }
 
   let mut scripts = Vec::new();
   let mut main = None;
@@ -425,6 +454,8 @@ fn deserialize_input<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<Strin
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct TestJson {
+  /// Exact (source filename, target filename) pairs for internalized imports.
+  internalized: Option<Vec<(String, String)>>,
   #[serde(default)]
   description: String,
   #[serde(deserialize_with = "deserialize_input")]
@@ -612,6 +643,51 @@ fn run_test_json_test(path: &Path, test: serde_json::Value) {
 #[testing_macros::fixture("../../crates/parcel/tests/fixtures/**/test.json")]
 fn test(file: PathBuf) {
   run_test_json(&file);
+}
+
+#[test]
+fn internalization_entry_facades_run_independently() {
+  let fixture_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+    .join("tests/fixtures/bundler/internalization-entry-cycle");
+  for mode in [
+    parcel_core::BuildMode::Development,
+    parcel_core::BuildMode::Production,
+  ] {
+    let output_fs = Arc::new(OverlayFileSystem::new());
+    let graph = bundle_with_options(
+      &fixture_dir,
+      vec!["a.js".into(), "b.js".into()],
+      output_fs.clone(),
+      TestOptions {
+        mode,
+        ..Default::default()
+      },
+    )
+    .unwrap();
+    for entry in graph
+      .bundles
+      .iter()
+      .filter(|b| b.flags.contains(BundleFlags::ENTRY))
+    {
+      // Each call creates a fresh runtime and loads just this one entry file.
+      let (output, effects) = run(
+        vec![(entry.dist_path().to_path_buf(), entry.target.output_format)],
+        output_fs.clone(),
+        &fixture_dir,
+        entry.target.environment,
+        graph
+          .asset_graph
+          .asset(entry.main_entry_asset.unwrap())
+          .id(&graph.project_root),
+        false,
+      );
+      assert_eq!(output, serde_json::json!(["a", "b"]));
+      assert_eq!(
+        effects,
+        vec![serde_json::json!("entry"), serde_json::json!("entry")]
+      );
+    }
+  }
 }
 
 /// GetExportedNames: local exports must shadow `export *`, and a name provided by two

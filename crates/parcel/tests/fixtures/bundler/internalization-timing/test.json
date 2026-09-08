@@ -1,0 +1,36 @@
+[
+  {
+    "description": "Internalized imports defer module execution until a microtask",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js", "value.js"],
+        "references": []
+      }
+    ],
+    "internalized": [["index.js", "value.js"]],
+    "sideEffects": ["after-import", "value"],
+    "output": [false, 42],
+    "options": {
+      "mode": "development"
+    }
+  },
+  {
+    "description": "Internalized imports defer module execution until a microtask",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js", "value.js"],
+        "references": []
+      }
+    ],
+    "internalized": [["index.js", "value.js"]],
+    "sideEffects": ["after-import", "value"],
+    "output": [false, 42],
+    "options": {
+      "mode": "production"
+    }
+  }
+]

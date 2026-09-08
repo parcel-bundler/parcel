@@ -1,0 +1,34 @@
+[
+  {
+    "description": "An internalized import rejects asynchronously when evaluation throws",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js", "throws.js"],
+        "references": []
+      }
+    ],
+    "internalized": [["index.js", "throws.js"]],
+    "output": [false, "deferred failure"],
+    "options": {
+      "mode": "development"
+    }
+  },
+  {
+    "description": "An internalized import rejects asynchronously when evaluation throws",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js", "throws.js"],
+        "references": []
+      }
+    ],
+    "internalized": [["index.js", "throws.js"]],
+    "output": [false, "deferred failure"],
+    "options": {
+      "mode": "production"
+    }
+  }
+]

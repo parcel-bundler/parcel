@@ -1,7 +1,12 @@
 {
   "description": "does not create bundles for dynamic imports when assets are available up the graph",
   "input": "index.js",
-  "TODO:bundles": [
-    {"assets": ["bar.js", "index.js", "foo.js", "esmodule-helpers.js"]}
-  ]
+  "bundles": [
+    {
+      "assets": ["bar.js", "index.js", "foo.js", "esmodule-helpers.js"],
+      "references": []
+    }
+  ],
+  "output": [3, 3],
+  "internalized": [["bar.js", "foo.js"]]
 }

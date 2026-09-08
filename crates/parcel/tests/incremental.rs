@@ -27,6 +27,76 @@ fn write_file(fs: &MemoryFileSystem, path: &str, contents: &str) {
     .unwrap();
 }
 
+#[test]
+fn add_and_remove_synchronous_provider_for_dynamic_import() {
+  for mode in [BuildMode::Development, BuildMode::Production] {
+    let lazy = "module.exports = () => import('./value');";
+    let eager = "require('./value'); module.exports = () => import('./value');";
+    let mut test = IncrementalTest::with_entries_mode(
+      &[
+        ("/project/index.js", lazy),
+        ("/project/value.js", "module.exports = 42;"),
+      ],
+      &["/project/index.js"],
+      mode,
+    );
+    test.change(&[("/project/index.js", eager)], &[]);
+    test.change(&[("/project/index.js", lazy)], &[]);
+    test.change(&[("/project/index.js", eager)], &[]);
+  }
+}
+
+#[test]
+fn split_and_rejoin_deduplicated_async_roots() {
+  for mode in [BuildMode::Development, BuildMode::Production] {
+    let cycle = "exports.name = 'a'; exports.other = () => require('./b').name;";
+    let mut test = IncrementalTest::with_entries_mode(
+      &[
+        (
+          "/project/index.js",
+          "module.exports = () => Promise.all([import('./a'), import('./b')]);",
+        ),
+        ("/project/a.js", cycle),
+        (
+          "/project/b.js",
+          "exports.name = 'b'; exports.other = () => require('./a').name;",
+        ),
+      ],
+      &["/project/index.js"],
+      mode,
+    );
+    // Async shim IDs still embed allocation indices (the packager's stable-ID
+    // TODO). Compare placement and bundle IDs here rather than those shim bytes.
+    let merged_files = read_all_files(&test.output_fs)
+      .keys()
+      .cloned()
+      .collect::<Vec<_>>();
+    for (source, expected_bundles) in [("exports.name = 'a';", 3), (cycle, 2)] {
+      test.apply(&[("/project/a.js", source)], &[]).unwrap();
+      let graph = test.parcel.build().unwrap();
+      assert_eq!(graph.bundles.len(), expected_bundles);
+      let payloads: Vec<_> = graph
+        .bundles
+        .iter()
+        .filter(|b| !b.flags.contains(parcel_core::BundleFlags::ENTRY))
+        .collect();
+      if expected_bundles == 2 {
+        assert_eq!(payloads[0].assets.len(), 2);
+        assert!(payloads[0].main_entry_asset.is_none());
+      } else {
+        assert!(payloads.iter().all(|b| b.assets.len() == 1));
+      }
+    }
+    assert_eq!(
+      read_all_files(&test.output_fs)
+        .keys()
+        .cloned()
+        .collect::<Vec<_>>(),
+      merged_files
+    );
+  }
+}
+
 fn make_options(
   input_fs: Arc<MemoryFileSystem>,
   output_fs: Arc<MemoryFileSystem>,

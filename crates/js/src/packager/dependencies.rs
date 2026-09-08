@@ -283,11 +283,18 @@ pub fn asset_dependencies<'a>(
         }
       }
       BundleGraphDependencyResolution::Internalized(asset_index) => {
-        let asset = bundle_graph.asset_graph.asset(asset_index);
-        dependencies.insert(
-          (&**placeholder).into(),
-          Resolution::Internalized(asset.id(project_root)),
-        );
+        let resolved = bundle_graph.asset_graph.asset(asset_index);
+        // Match the async loader's interop policy even when ESM and CommonJS
+        // importers share the same internalized target.
+        let resolution = if asset.flags.contains(AssetFlags::IS_ESM) {
+          let shim = SyntheticAsset::InternalizedInterop(asset_index);
+          let id = shim.id(bundle_graph, project_root);
+          additional_assets.insert(shim);
+          Resolution::Asset(id)
+        } else {
+          Resolution::Internalized(resolved.id(project_root))
+        };
+        dependencies.insert((&**placeholder).into(), resolution);
         additional_assets.insert(SyntheticAsset::Internalized(asset_index));
       }
     }

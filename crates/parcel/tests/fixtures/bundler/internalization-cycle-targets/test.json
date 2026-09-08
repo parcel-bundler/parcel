@@ -1,0 +1,44 @@
+[
+  {
+    "description": "Deduplicated async roots select distinct modules without executing an arbitrary root first",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js"],
+        "references": []
+      },
+      {
+        "assets": ["a.js", "b.js"],
+        "references": []
+      }
+    ],
+    "internalized": [],
+    "output": ["a", "b", "b", "a"],
+    "sideEffects": ["b", "a"],
+    "options": {
+      "mode": "development"
+    }
+  },
+  {
+    "description": "Deduplicated async roots select distinct modules without executing an arbitrary root first",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js"],
+        "references": []
+      },
+      {
+        "assets": ["a.js", "b.js"],
+        "references": []
+      }
+    ],
+    "internalized": [],
+    "output": ["a", "b", "b", "a"],
+    "sideEffects": ["b", "a"],
+    "options": {
+      "mode": "production"
+    }
+  }
+]

@@ -15,6 +15,8 @@ pub enum SyntheticAsset {
   Bundle { bundle: u32, kind: BundleShim },
   /// An internalized async asset.
   Internalized(AssetIndex),
+  /// Preserves the namespace wrapper used for dynamic imports from ESM.
+  InternalizedInterop(AssetIndex),
   /// A generated React Server Components module.
   Rsc(RscModule),
 }
@@ -83,6 +85,10 @@ impl SyntheticAsset {
           .asset_graph
           .asset(*asset_index)
           .id(project_root)
+      ),
+      SyntheticAsset::InternalizedInterop(asset_index) => format!(
+        "{}_esm",
+        SyntheticAsset::Internalized(*asset_index).id(bundle_graph, project_root)
       ),
       SyntheticAsset::Rsc(module) => module.id(),
     }
@@ -216,8 +222,17 @@ impl SyntheticAsset {
         let id = asset.id(project_root);
         write!(
           dest,
-          "module.exports=Promise.resolve().then(()=>require({:?}))",
+          "module.exports=Promise.resolve().then(()=>{}({:?}))",
+          runtime_name(should_optimize, "require", RUNTIME_REQUIRE),
           id
+        )?;
+      }
+      SyntheticAsset::InternalizedInterop(asset_index) => {
+        write!(
+          dest,
+          "module.exports={}({:?}).then(m=>m&&m.__esModule?m:{{default:m}})",
+          runtime_name(should_optimize, "require", RUNTIME_REQUIRE),
+          SyntheticAsset::Internalized(*asset_index).id(bundle_graph, project_root)
         )?;
       }
       SyntheticAsset::Rsc(module) => {

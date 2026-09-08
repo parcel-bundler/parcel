@@ -1,0 +1,56 @@
+[
+  {
+    "description": "One guaranteed ancestry is insufficient for a shared importer",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "internalized": [],
+    "output": [42, 42],
+    "options": {
+      "mode": "development"
+    },
+    "bundles": [
+      {
+        "assets": ["index.js"]
+      },
+      {
+        "assets": ["a.js"]
+      },
+      {
+        "assets": ["b.js"]
+      },
+      {
+        "assets": ["shared.js"]
+      },
+      {
+        "assets": ["value.js"]
+      }
+    ]
+  },
+  {
+    "description": "One guaranteed ancestry is insufficient for a shared importer",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "internalized": [],
+    "output": [42, 42],
+    "options": {
+      "mode": "production"
+    },
+    "bundles": [
+      {
+        "assets": ["index.js"]
+      },
+      {
+        "assets": ["a.js"]
+      },
+      {
+        "assets": ["b.js"]
+      },
+      {
+        "assets": ["shared.js"]
+      },
+      {
+        "assets": ["value.js"]
+      }
+    ]
+  }
+]

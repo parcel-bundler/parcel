@@ -3,15 +3,10 @@
   "input": "index.js",
   "bundles": [
     {
-      "assets": ["index.js"]
-    },
-    {
-      "assets": ["eager.js"],
-      "references": [["value.js"]]
-    },
-    {
-      "assets": ["value.js"]
+      "assets": ["index.js", "eager.js", "value.js"],
+      "references": []
     }
   ],
-  "output": [42, 42, 42]
+  "output": [42, 42, 42],
+  "internalized": [["index.js", "eager.js"]]
 }

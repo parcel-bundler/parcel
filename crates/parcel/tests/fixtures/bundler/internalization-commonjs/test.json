@@ -1,0 +1,34 @@
+[
+  {
+    "description": "Internalization preserves dynamic import CommonJS interop",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js", "value.js"],
+        "references": []
+      }
+    ],
+    "internalized": [["index.js", "value.js"]],
+    "output": [42, 42],
+    "options": {
+      "mode": "development"
+    }
+  },
+  {
+    "description": "Internalization preserves dynamic import CommonJS interop",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js", "value.js"],
+        "references": []
+      }
+    ],
+    "internalized": [["index.js", "value.js"]],
+    "output": [42, 42],
+    "options": {
+      "mode": "production"
+    }
+  }
+]

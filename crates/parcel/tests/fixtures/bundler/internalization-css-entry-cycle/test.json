@@ -1,0 +1,48 @@
+[
+  {
+    "description": "CSS entry roots in a synchronous cycle retain both standalone outputs",
+    "input": ["a.css", "b.css"],
+    "options": {"mode": "development"},
+    "bundles": [
+      {
+        "name": "a.css",
+        "type": "css",
+        "assets": ["a.css", "b.css"],
+        "references": [],
+        "contains": [".a", ".b"],
+        "notContains": ["@import"]
+      },
+      {
+        "name": "b.css",
+        "type": "css",
+        "assets": ["a.css", "b.css"],
+        "references": [],
+        "contains": [".a", ".b"],
+        "notContains": ["@import"]
+      }
+    ]
+  },
+  {
+    "description": "CSS entry roots in a synchronous cycle retain both standalone outputs in production",
+    "input": ["a.css", "b.css"],
+    "options": {"mode": "production"},
+    "bundles": [
+      {
+        "name": "a.css",
+        "type": "css",
+        "assets": ["a.css", "b.css"],
+        "references": [],
+        "contains": [".a", ".b"],
+        "notContains": ["@import"]
+      },
+      {
+        "name": "b.css",
+        "type": "css",
+        "assets": ["a.css", "b.css"],
+        "references": [],
+        "contains": [".a", ".b"],
+        "notContains": ["@import"]
+      }
+    ]
+  }
+]

@@ -2,11 +2,18 @@
   "description": "can run an async bundle that depends on a nonentry asset in a sibling",
   "input": ["index.js", "other-entry.js"],
   "bundles": [
-    {"assets": ["index.js"]},
-    {"assets": ["b.js"]},
-    {"assets": ["a.js"]},
-    {"assets": ["esmodule-helpers.js", "value.js"]},
-    {"assets": ["other-entry.js"]}
+    {
+      "assets": ["index.js"]
+    },
+    {
+      "assets": ["other-entry.js"]
+    },
+    {
+      "assets": ["a.js", "esmodule-helpers.js", "value.js"]
+    },
+    {
+      "assets": ["b.js"]
+    }
   ],
   "output": 43
 }

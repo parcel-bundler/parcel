@@ -1,0 +1,56 @@
+[
+  {
+    "description": "Synchronous entry roots share modules and retain both runnable entry files",
+    "input": ["a.js", "b.js"],
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": [],
+        "name": "a.js",
+        "references": [["a.js", "b.js"]]
+      },
+      {
+        "assets": [],
+        "name": "b.js",
+        "references": [["a.js", "b.js"]]
+      },
+      {
+        "assets": ["a.js", "b.js"],
+        "references": []
+      }
+    ],
+    "internalized": [],
+    "output": ["a", "b"],
+    "sideEffects": ["entry", "entry"],
+    "options": {
+      "mode": "development"
+    }
+  },
+  {
+    "description": "Synchronous entry roots share modules and retain both runnable entry files",
+    "input": ["a.js", "b.js"],
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": [],
+        "name": "a.js",
+        "references": [["a.js", "b.js"]]
+      },
+      {
+        "assets": [],
+        "name": "b.js",
+        "references": [["a.js", "b.js"]]
+      },
+      {
+        "assets": ["a.js", "b.js"],
+        "references": []
+      }
+    ],
+    "internalized": [],
+    "output": ["a", "b"],
+    "sideEffects": ["entry", "entry"],
+    "options": {
+      "mode": "production"
+    }
+  }
+]
