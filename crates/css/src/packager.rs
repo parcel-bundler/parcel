@@ -433,7 +433,7 @@ fn inline(
             *rule = CssRule::Ignored;
             has_bundled_import = true;
           }
-          BundleGraphDependencyResolution::Bundle(bundle_index) => {
+          BundleGraphDependencyResolution::Bundle { bundle_index, .. } => {
             let referenced_bundle = &bundle_graph.bundles[bundle_index as usize];
             if dep.bundle_behavior == BundleBehavior::Inline
               || referenced_bundle.bundle_behavior == BundleBehavior::Inline
@@ -579,7 +579,7 @@ impl ReferenceReplacer {
     let dependencies = &bundle_graph.asset_graph.asset(asset_index).dependencies;
     for (dep_index, dep) in dependencies.iter().enumerate() {
       if dep.priority == Priority::Lazy && dep.specifier_type == SpecifierType::Url {
-        if let BundleGraphDependencyResolution::Bundle(bundle_index) =
+        if let BundleGraphDependencyResolution::Bundle { bundle_index, .. } =
           bundle_graph.dependency_resolution(asset_index, dep_index)
         {
           let referenced_bundle = &bundle_graph.bundles[bundle_index as usize];

@@ -50,7 +50,7 @@ impl JsContent {
       let mut imported_bundles = FixedBitSet::with_capacity(bundle_graph.bundles.len());
       for (dep_index, dep) in asset.dependencies.iter().enumerate() {
         if dep.flags.contains(DependencyFlags::MACRO) {
-          if let BundleGraphDependencyResolution::Bundle(bundle_index) =
+          if let BundleGraphDependencyResolution::Bundle { bundle_index, .. } =
             bundle_graph.dependency_resolution(bundle.main_entry_asset.unwrap(), dep_index)
           {
             if imported_bundles.contains(bundle_index as usize) {

@@ -68,7 +68,10 @@ impl Bundler for LibraryBundler {
                 asset: AssetIndex(id as u32),
                 dependency: dep_index,
               },
-              BundleGraphDependencyResolution::Bundle(*bundle as u32),
+              BundleGraphDependencyResolution::Bundle {
+                bundle_index: *bundle as u32,
+                asset_index: resolved_asset_index,
+              },
             );
           }
         }

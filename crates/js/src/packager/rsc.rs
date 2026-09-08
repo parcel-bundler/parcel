@@ -341,14 +341,7 @@ fn runtime_asset(
 
   match resolution {
     BundleGraphDependencyResolution::Asset(asset_index) => Ok(asset_index),
-    BundleGraphDependencyResolution::Bundle(bundle_index) => bundle_graph.bundles
-      [bundle_index as usize]
-      .main_entry_asset
-      .map(|asset_index| asset_index)
-      .ok_or_else(|| {
-        Diagnostic::from_message("RSC support bundle does not have a main entry asset".into())
-          .into()
-      }),
+    BundleGraphDependencyResolution::Bundle { asset_index, .. } => Ok(asset_index),
     _ => Err(Diagnostic::from_message("Could not resolve RSC runtime asset".into()).into()),
   }
 }

@@ -23,9 +23,9 @@ pub enum SyntheticAsset {
 pub enum BundleShim {
   /// Loads the bundle and its referenced bundles on demand, resolving to the
   /// exports of its main entry asset.
-  Async,
+  Async(AssetIndex),
   /// Wraps the `Async` shim with ESM interop for dynamic imports from ESM.
-  AsyncInterop,
+  AsyncInterop(AssetIndex),
   /// Resolves to the URL of the bundle.
   Url,
   /// Resolves to the inlined content of the bundle.
@@ -58,13 +58,11 @@ impl From<ImportType> for InlineType {
 impl BundleShim {
   pub(super) fn id(&self, bundle: u32) -> String {
     match self {
-      BundleShim::Async
-      | BundleShim::Url
-      | BundleShim::Inline(InlineType::Text)
-      | BundleShim::Sync => {
+      BundleShim::Url | BundleShim::Inline(InlineType::Text) | BundleShim::Sync => {
         format!("b{}", bundle)
       }
-      BundleShim::AsyncInterop => format!("b{}i", bundle),
+      BundleShim::Async(a) => format!("a{}_{}", bundle, a.0), // TODO: stable
+      BundleShim::AsyncInterop(a) => format!("a{}_{}i", bundle, a.0),
       BundleShim::Inline(InlineType::Bytes) => format!("b{}b", bundle),
       BundleShim::Inline(InlineType::StyleSheet) => format!("b{}c", bundle),
     }
@@ -98,22 +96,19 @@ impl SyntheticAsset {
     let mut dependencies = IndexMap::new();
     match self {
       SyntheticAsset::Bundle {
-        bundle,
-        kind: BundleShim::Async,
+        kind: BundleShim::Async(entry_asset),
+        ..
       } => {
-        let resolved_bundle = &bundle_graph.bundles[*bundle as usize];
-        if let Some(main_entry_asset) = resolved_bundle.main_entry_asset {
-          let asset = &bundle_graph.asset_graph.asset(main_entry_asset);
-          dependencies.insert("bundle".into(), Resolution::Asset(asset.id(project_root)));
-        }
+        let asset = &bundle_graph.asset_graph.asset(*entry_asset);
+        dependencies.insert("bundle".into(), Resolution::Asset(asset.id(project_root)));
       }
       SyntheticAsset::Bundle {
         bundle,
-        kind: BundleShim::AsyncInterop,
+        kind: BundleShim::AsyncInterop(asset),
       } => {
         dependencies.insert(
           "bundle".into(),
-          Resolution::Asset(BundleShim::Async.id(*bundle)),
+          Resolution::Asset(BundleShim::Async(*asset).id(*bundle)),
         );
       }
       _ => {}
@@ -152,23 +147,25 @@ impl SyntheticAsset {
         bundle: bundle_index,
         kind,
       } => match kind {
-        BundleShim::Async => {
+        BundleShim::Async(main_entry_id) => {
           let resolved_bundle = &bundle_graph.bundles[*bundle_index as usize];
           load_bundles(
             bundle_graph,
             bundle,
             resolved_bundle,
+            *main_entry_id,
             dest,
             project_root,
             runtime_name(should_optimize, "require", RUNTIME_REQUIRE),
           )?;
         }
-        BundleShim::AsyncInterop => {
+        BundleShim::AsyncInterop(asset) => {
           write!(
             dest,
-            "module.exports={}(\"b{}\").then(m=>m&&m.__esModule?m:{{default:m}})",
+            "module.exports={}(\"a{}_{}\").then(m=>m&&m.__esModule?m:{{default:m}})",
             runtime_name(should_optimize, "require", RUNTIME_REQUIRE),
             bundle_index,
+            asset
           )?;
         }
         BundleShim::Url => {
@@ -256,11 +253,11 @@ fn load_bundles<W: std::fmt::Write>(
   bundle_graph: &BundleGraph,
   from: &Bundle,
   bundle: &Bundle,
+  main_entry_id: AssetIndex,
   res: &mut W,
   project_root: &PathId,
   require_name: &str,
 ) -> core::fmt::Result {
-  let main_entry_id = bundle.main_entry_asset.unwrap();
   let asset = &bundle_graph.asset_graph.asset(main_entry_id);
 
   if !bundle.referenced_bundles.is_empty() {

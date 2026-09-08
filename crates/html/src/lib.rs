@@ -446,7 +446,9 @@ fn prepare_to_package(
   let mut referenced_bundles = HashSet::<usize>::new();
   for (dep_index, dep) in asset.dependencies.iter().enumerate() {
     match bundle_graph.dependency_resolution(bundle.assets[0], dep_index) {
-      BundleGraphDependencyResolution::Bundle(b) => {
+      BundleGraphDependencyResolution::Bundle {
+        bundle_index: b, ..
+      } => {
         let referenced_bundle = &bundle_graph.bundles[b as usize];
         let contents = if dep.bundle_behavior == BundleBehavior::Inline {
           get_inline_bundle_content(b as usize)?

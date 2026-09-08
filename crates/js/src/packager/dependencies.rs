@@ -43,10 +43,10 @@ pub fn asset_dependencies<'a>(
     let graph_resolution = bundle_graph.dependency_resolution(asset_index, dep_index);
     let resolved = match graph_resolution {
       BundleGraphDependencyResolution::Asset(asset_index) => Some((asset_index, None)),
-      BundleGraphDependencyResolution::Bundle(bundle_index) => bundle_graph.bundles
-        [bundle_index as usize]
-        .main_entry_asset
-        .map(|asset_index| (asset_index, Some(bundle_index))),
+      BundleGraphDependencyResolution::Bundle {
+        bundle_index,
+        asset_index,
+      } => Some((asset_index, Some(bundle_index))),
       _ => None,
     };
 
@@ -177,7 +177,10 @@ pub fn asset_dependencies<'a>(
           );
         }
       }
-      BundleGraphDependencyResolution::Bundle(bundle_index) => {
+      BundleGraphDependencyResolution::Bundle {
+        bundle_index,
+        asset_index,
+      } => {
         let resolved_bundle = &bundle_graph.bundles[bundle_index as usize];
 
         if asset.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
@@ -200,19 +203,19 @@ pub fn asset_dependencies<'a>(
               Resolution::String(resolved_bundle.relative_url(bundle).unwrap().into()),
             );
           } else {
-            if resolved_bundle.ty != AssetType::Js
-              && let Some(main) = resolved_bundle.main_entry_asset
-            {
-              let asset = &bundle_graph.asset_graph.asset(main);
+            if resolved_bundle.ty != AssetType::Js {
+              let asset = &bundle_graph.asset_graph.asset(asset_index);
               let mut exports = Vec::new();
               for exp in &asset.symbols.exports {
                 if !exp.requested {
                   continue;
                 }
 
-                if let Some(value) =
-                  resolve_css_module_export(&bundle_graph.asset_graph, main, exp.exported.as_str())
-                {
+                if let Some(value) = resolve_css_module_export(
+                  &bundle_graph.asset_graph,
+                  asset_index,
+                  exp.exported.as_str(),
+                ) {
                   exports.push((exp.exported.as_str(), value));
                 }
               }
@@ -241,21 +244,25 @@ pub fn asset_dependencies<'a>(
             is_lazy_dynamic_import && !is_inline && asset.flags.contains(AssetFlags::IS_ESM);
 
           let inline_type = InlineType::from(dep.import_type);
-          if is_inline {
+          let resolution = if is_inline {
             additional_assets.insert(SyntheticAsset::Bundle {
               bundle: bundle_index,
               kind: BundleShim::Inline(inline_type),
             });
+            Resolution::Asset(BundleShim::Inline(inline_type).id(bundle_index))
           } else if is_lazy_dynamic_import {
             additional_assets.insert(SyntheticAsset::Bundle {
               bundle: bundle_index,
-              kind: BundleShim::Async,
+              kind: BundleShim::Async(asset_index),
             });
             if needs_esm_interop {
               additional_assets.insert(SyntheticAsset::Bundle {
                 bundle: bundle_index,
-                kind: BundleShim::AsyncInterop,
+                kind: BundleShim::AsyncInterop(asset_index),
               });
+              Resolution::Asset(BundleShim::AsyncInterop(asset_index).id(bundle_index))
+            } else {
+              Resolution::Asset(BundleShim::Async(asset_index).id(bundle_index))
             }
           } else if resolved_bundle.ty == AssetType::Json
             && dep.import_type == ImportType::JavaScript
@@ -264,20 +271,13 @@ pub fn asset_dependencies<'a>(
               bundle: bundle_index,
               kind: BundleShim::Sync,
             });
+            Resolution::Asset(BundleShim::Sync.id(bundle_index))
           } else {
             additional_assets.insert(SyntheticAsset::Bundle {
               bundle: bundle_index,
               kind: BundleShim::Url,
             });
-          };
-
-          let resolution = if needs_esm_interop {
-            Resolution::BundleInterop(bundle_index)
-          } else if is_inline && inline_type != InlineType::Text {
-            // Bytes and StyleSheet shims have distinct module ids from the plain "b{n}" form.
-            Resolution::Asset(BundleShim::Inline(inline_type).id(bundle_index))
-          } else {
-            Resolution::Bundle(bundle_index)
+            Resolution::Asset(BundleShim::Url.id(bundle_index))
           };
           dependencies.insert((&**placeholder).into(), resolution);
         }

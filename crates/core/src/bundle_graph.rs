@@ -16,7 +16,10 @@ pub enum BundleGraphDependencyResolution {
   Excluded,
   Asset(AssetIndex),
   Internalized(AssetIndex),
-  Bundle(u32),
+  Bundle {
+    bundle_index: u32,
+    asset_index: AssetIndex,
+  },
 }
 
 #[derive(Debug)]
@@ -73,8 +76,8 @@ impl<'a> BundleGraph<'a> {
   /// resolve to a bundle (inline bundles and URL references).
   pub fn bundle_dependencies(&self) -> impl Iterator<Item = (AssetIndex, usize)> + '_ {
     self.dependency_resolutions.iter().filter_map(|(id, res)| {
-      if let BundleGraphDependencyResolution::Bundle(b) = res {
-        Some((id.asset, *b as usize))
+      if let BundleGraphDependencyResolution::Bundle { bundle_index, .. } = res {
+        Some((id.asset, *bundle_index as usize))
       } else {
         None
       }

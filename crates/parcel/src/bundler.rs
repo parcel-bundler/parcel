@@ -295,7 +295,10 @@ impl Bundler for DefaultBundler {
                   asset: asset_index as AssetIndex,
                   dependency: dep_index,
                 },
-                BundleGraphDependencyResolution::Bundle(bundle_index as u32),
+                BundleGraphDependencyResolution::Bundle {
+                  bundle_index: bundle_index as u32,
+                  asset_index: resolved_asset_index,
+                },
               );
               if dep.flags.contains(DependencyFlags::NEEDS_STABLE_NAME) {
                 bundles[bundle_index].flags |= BundleFlags::NEEDS_STABLE_NAME;

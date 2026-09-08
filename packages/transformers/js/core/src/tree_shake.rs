@@ -27,10 +27,6 @@ pub enum Resolution<'a> {
   Excluded,
   Asset(String),
   Symbols(Vec<(&'a str, String, &'a str)>),
-  #[serde(serialize_with = "serialize_bundle")]
-  Bundle(u32),
-  #[serde(serialize_with = "serialize_bundle_interop")]
-  BundleInterop(u32),
   #[serde(serialize_with = "serialize_internalized")]
   Internalized(String),
   External(Cow<'a, str>),
@@ -69,22 +65,6 @@ where
 {
   use serde::Serialize;
   HashMap::from([("value", value)]).serialize(serializer)
-}
-
-fn serialize_bundle<S>(value: &u32, serializer: S) -> Result<S::Ok, S::Error>
-where
-  S: serde::Serializer,
-{
-  use serde::Serialize;
-  format!("b{}", value).serialize(serializer)
-}
-
-fn serialize_bundle_interop<S>(value: &u32, serializer: S) -> Result<S::Ok, S::Error>
-where
-  S: serde::Serializer,
-{
-  use serde::Serialize;
-  format!("b{}i", value).serialize(serializer)
 }
 
 fn serialize_internalized<S>(value: &String, serializer: S) -> Result<S::Ok, S::Error>
@@ -350,12 +330,6 @@ impl<'a> VisitMut for TreeShake<'a> {
             }
             Resolution::Asset(resolution) => {
               **expr = resolution.clone().into();
-            }
-            Resolution::Bundle(resolution) => {
-              **expr = format!("b{}", *resolution).into();
-            }
-            Resolution::BundleInterop(resolution) => {
-              **expr = format!("b{}i", *resolution).into();
             }
             Resolution::External(specifier) => {
               **expr = specifier.as_ref().into();

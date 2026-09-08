@@ -136,9 +136,13 @@ pub extern "C" fn parcel_bundle_graph_get_dependency_resolution(
       result.resolution_type = BundleGraphResolutionType::PARCEL_BUNDLE_GRAPH_RESOLUTION_ASSET;
       result.asset = asset.0;
     }
-    CoreBundleGraphDependencyResolution::Bundle(bundle) => {
+    CoreBundleGraphDependencyResolution::Bundle {
+      bundle_index,
+      asset_index,
+    } => {
       result.resolution_type = BundleGraphResolutionType::PARCEL_BUNDLE_GRAPH_RESOLUTION_BUNDLE;
-      result.bundle = bundle as usize;
+      result.bundle = bundle_index as usize;
+      result.asset = asset_index.0;
     }
     CoreBundleGraphDependencyResolution::Internalized(asset) => {
       result.resolution_type =

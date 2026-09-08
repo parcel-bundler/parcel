@@ -677,7 +677,10 @@ fn bundle_graph_accessors_cover_every_dependency_resolution() {
       asset: CoreAssetIndex(0),
       dependency: 5,
     },
-    parcel_core::BundleGraphDependencyResolution::Bundle(0),
+    parcel_core::BundleGraphDependencyResolution::Bundle {
+      bundle_index: 0,
+      asset_index: CoreAssetIndex(0),
+    },
   );
   let graph = CoreBundleGraph::new(
     AssetGraph {
