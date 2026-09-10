@@ -261,7 +261,17 @@ fn availability_filters_requirements_and_preserves_bundle_roots() {
   g.groups = vec![(0, vec![edge(1, Lazy)]), (1, vec![edge(2, Lazy)])];
   let (reachability, graph) = g.compressed();
   let roots = BundleRoots {
-    bundle_roots: bits(g.memberships.len(), 0..g.roots),
+    root_assets: (0..g.roots).map(AssetIndex::from_index).collect(),
+    root_indices: (0..g.memberships.len())
+      .map(|asset| {
+        if asset < g.roots {
+          asset as u32
+        } else {
+          u32::MAX
+        }
+      })
+      .collect(),
+    active_roots: bits(g.roots, 0..g.roots),
     entry_bundle_roots: bits(g.memberships.len(), [0]),
     mandatory_roots: bits(g.memberships.len(), [0]),
     bundle_behaviors: vec![BundleBehavior::None; g.memberships.len()],
@@ -353,6 +363,48 @@ fn availability_large_graph_stores_root_by_class_not_asset_by_asset_sets() {
   assert_eq!(available[999].len(), 1_001);
   assert_eq!(available[999].count_ones(..), 999);
   assert!(!available[999].contains(reachability.class(AssetIndex(999))));
+}
+
+#[test]
+fn availability_state_reuses_rows_with_stable_root_ids() {
+  let mut g = Graph::new(3);
+  g.groups = vec![(0, vec![edge(1, Lazy), edge(2, Lazy)])];
+  let (reachability, graph) = g.compressed();
+  let mut state = AvailabilityState::new(&graph);
+  let row_allocations: Vec<_> = state
+    .available
+    .iter()
+    .map(|row| row.as_slice().as_ptr())
+    .collect();
+
+  let mut active = bits(3, 0..3);
+  state.solve(&graph, &active);
+  active.set(1, false);
+  let available = state.solve(&graph, &active);
+
+  assert!(available[1].is_clear());
+  assert!(available[2].contains(reachability.class(AssetIndex(0))));
+  assert_eq!(
+    row_allocations,
+    state
+      .available
+      .iter()
+      .map(|row| row.as_slice().as_ptr())
+      .collect::<Vec<_>>()
+  );
+}
+
+#[test]
+fn deactivating_a_root_does_not_renumber_surviving_roots() {
+  let graph = asset_graph(3, &[0], &[(0, 1, Priority::Lazy), (0, 2, Priority::Lazy)]);
+  let mut roots = BundleRoots::from_asset_graph(&graph);
+  assert_eq!(roots.root_index(AssetIndex(2)), Some(2));
+  roots.active_roots.set(1, false);
+  assert_eq!(
+    roots.iter().collect::<Vec<_>>(),
+    vec![(0, AssetIndex(0)), (2, AssetIndex(2))]
+  );
+  assert_eq!(roots.root_index(AssetIndex(2)), Some(2));
 }
 
 fn asset_graph(
