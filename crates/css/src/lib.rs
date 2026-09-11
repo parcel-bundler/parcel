@@ -19,6 +19,7 @@ use crate::transformer::PseudoClasses;
 
 #[derive(Debug)]
 pub struct CssContent {
+  source_size: usize,
   stylesheet: StyleSheet<'static>,
   exports: HashMap<String, CssModuleExport>,
   references: HashMap<String, usize>,
@@ -26,6 +27,10 @@ pub struct CssContent {
 }
 
 impl Content for CssContent {
+  fn estimate_size(&self) -> Result<usize, Diagnostic> {
+    Ok(self.source_size)
+  }
+
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
     todo!()
   }
@@ -153,6 +158,7 @@ fn convert_error<T: std::fmt::Display>(url: Option<SourceUrl>, err: Error<T>) ->
 }
 
 struct StyleAttrContent {
+  source_size: usize,
   attr: StyleAttribute<'static>,
 }
 
@@ -163,6 +169,10 @@ impl std::fmt::Debug for StyleAttrContent {
 }
 
 impl Content for StyleAttrContent {
+  fn estimate_size(&self) -> Result<usize, Diagnostic> {
+    Ok(self.source_size)
+  }
+
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
     todo!()
   }

@@ -217,8 +217,8 @@ impl JsContent {
   }
 }
 
-fn sync_bundle_binding(bundle_index: u32) -> String {
-  format!("__parcelSyncBundle{}", bundle_index)
+fn sync_bundle_binding(bundle: &Bundle) -> String {
+  format!("__parcelSyncBundle{:x}", bundle.id)
 }
 
 /// Hoists synchronous bundle dependencies in ESM output. They are registered
@@ -249,7 +249,7 @@ fn write_sync_bundle_imports(
     write!(
       printer,
       "import {} from {}",
-      sync_bundle_binding(*bundle_index),
+      sync_bundle_binding(resolved_bundle),
       serde_json::to_string(&specifier)?,
     )?;
     if resolved_bundle.ty == AssetType::Json {
@@ -636,9 +636,9 @@ fn write_runtime_globals(
   for bundle_index in sync_bundles {
     write!(
       printer,
-      "\"b{}\":{},",
-      bundle_index,
-      sync_bundle_binding(*bundle_index),
+      "{:?}:{},",
+      BundleShim::Sync.id(*bundle_index, bundle_graph),
+      sync_bundle_binding(&bundle_graph.bundles[*bundle_index as usize]),
     )?;
   }
   printer.write_str("};")?;

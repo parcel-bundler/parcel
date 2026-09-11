@@ -52,6 +52,13 @@ pub trait Content: Any + Send + Sync {
   /// Reads the content as a byte vector.
   fn read(&self) -> Result<Vec<u8>, Diagnostic>;
 
+  /// Estimates the size in bytes before packaging, minification, and compression.
+  /// Buffered content should use its byte length; ASTs should retain the size of
+  /// their parser input. Override this fallback to avoid serializing the content.
+  fn estimate_size(&self) -> Result<usize, Diagnostic> {
+    Ok(self.read()?.len())
+  }
+
   fn read_string(&self) -> Result<Cow<'_, str>, Diagnostic> {
     Ok(Cow::Owned(String::from_utf8(self.read()?)?))
   }
@@ -146,6 +153,20 @@ impl FileContent {
 }
 
 impl Content for FileContent {
+  fn estimate_size(&self) -> Result<usize, Diagnostic> {
+    let stat = self
+      .fs
+      .stat(self.path)
+      .ok_or_else(|| std::io::Error::other(format!("Could not stat {:?}", self.path)))?;
+    usize::try_from(stat.size).map_err(|_| {
+      std::io::Error::other(format!(
+        "File size exceeds addressable memory: {:?}",
+        self.path
+      ))
+      .into()
+    })
+  }
+
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
     Ok(self.fs.read(self.path)?)
   }
@@ -231,6 +252,10 @@ impl BufferContent {
 }
 
 impl Content for BufferContent {
+  fn estimate_size(&self) -> Result<usize, Diagnostic> {
+    Ok(self.buf.as_bytes().len())
+  }
+
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
     Ok(self.buf.to_vec())
   }
@@ -275,6 +300,10 @@ impl ContentWithSourceMap {
 }
 
 impl Content for ContentWithSourceMap {
+  fn estimate_size(&self) -> Result<usize, Diagnostic> {
+    Ok(self.code.as_bytes().len())
+  }
+
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
     Ok(self.code.to_vec())
   }
@@ -291,5 +320,37 @@ impl Content for ContentWithSourceMap {
 
   fn ty(&self) -> ContentType {
     content_type!("ContentWithSourceMap")
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::MemoryFileSystem;
+
+  #[test]
+  fn estimates_count_bytes_and_exclude_source_maps() {
+    let contents: Vec<Box<dyn Content>> = vec![
+      Box::new(BufferContent::new(vec![0, 255, 128])),
+      Box::new(BufferContent::new_string("€".into())),
+      Box::new(ContentWithSourceMap::new(vec![0, 255, 128], vec![0; 1000])),
+      Box::new(ContentWithSourceMap::new_string("€".into(), vec![0; 1000])),
+    ];
+    for content in contents {
+      assert_eq!(content.estimate_size().unwrap(), 3);
+    }
+    assert_eq!(BufferContent::new(vec![]).estimate_size().unwrap(), 0);
+  }
+
+  #[test]
+  fn file_estimates_follow_metadata_changes_and_report_missing_files() {
+    let fs = Arc::new(MemoryFileSystem::new());
+    let path = PathId::new(std::path::Path::new("/file"));
+    let content = FileContent::new(path, fs.clone());
+    assert!(content.estimate_size().is_err());
+    fs.write(path, b"hello").unwrap();
+    assert_eq!(content.estimate_size().unwrap(), 5);
+    fs.write(path, b"").unwrap();
+    assert_eq!(content.estimate_size().unwrap(), 0);
   }
 }

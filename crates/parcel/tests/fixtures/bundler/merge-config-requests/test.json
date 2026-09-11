@@ -1,0 +1,32 @@
+{
+  "description": "Request pressure copies the smallest shared payload only into the overloaded root",
+  "input": "index.js",
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": ["index.js"]
+    },
+    {
+      "assets": ["a.js", "small.js"],
+      "references": [["large.js"]]
+    },
+    {
+      "assets": ["b.js"],
+      "references": [["small.js"]]
+    },
+    {
+      "assets": ["c.js"],
+      "references": [["large.js"]]
+    },
+    {
+      "assets": ["small.js"]
+    },
+    {
+      "assets": ["large.js"]
+    }
+  ],
+  "output": [1003, 3, 1000],
+  "options": {
+    "config": ".parcelrc"
+  }
+}

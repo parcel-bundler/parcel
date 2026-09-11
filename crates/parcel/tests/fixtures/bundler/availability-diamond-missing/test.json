@@ -1,4 +1,5 @@
 {
+  "options": {"config": ".parcelrc"},
   "description": "A shared asset must remain required when one ancestry does not supply it",
   "input": "index.js",
   "bundles": [

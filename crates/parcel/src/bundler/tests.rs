@@ -563,12 +563,16 @@ fn availability_asset_graph_propagates_from_non_root_dependencies() {
 }
 
 fn bundle(graph: AssetGraph<'static>) -> BundleGraph<'static> {
-  DefaultBundler::default()
-    .bundle(graph, &ParcelOptions::default())
-    .unwrap()
+  DefaultBundler {
+    min_bundle_size: 0,
+    max_parallel_requests: 0,
+    ..Default::default()
+  }
+  .bundle(graph, &ParcelOptions::default())
+  .unwrap()
 }
 
-fn placement_bundles(contents: &[&[u32]]) -> Vec<Bundle> {
+pub(super) fn placement_bundles(contents: &[&[u32]]) -> Vec<Bundle> {
   contents
     .iter()
     .enumerate()
@@ -1038,6 +1042,7 @@ fn manual_roots_keep_their_loading_policy() {
       assets: vec!["**/1.js".into()],
       types: vec![],
     }],
+    ..Default::default()
   }
   .bundle(graph, &ParcelOptions::default())
   .unwrap();
@@ -1056,6 +1061,7 @@ fn manual_lazy_roots_deduplicate_without_extra_facades() {
       assets: vec!["**/1.js".into(), "**/2.js".into()],
       types: vec![],
     }],
+    ..Default::default()
   }
   .bundle(graph, &ParcelOptions::default())
   .unwrap();
@@ -1159,4 +1165,39 @@ fn synchronous_reachability_handles_deep_graphs_and_already_visited_roots() {
     roots.len()
   );
   assert_eq!(reachability.reachable_roots.len(), roots.len() + 1);
+}
+
+#[test]
+fn consolidation_uses_estimates_without_reading_content() {
+  use parcel_core::{Content, Diagnostic};
+  struct EstimateOnly(usize);
+  impl Content for EstimateOnly {
+    fn estimate_size(&self) -> Result<usize, Diagnostic> {
+      Ok(self.0)
+    }
+    fn read(&self) -> Result<Vec<u8>, Diagnostic> {
+      panic!("bundling must not serialize content");
+    }
+    fn ty(&self) -> ContentType {
+      parcel_core::content_type!("EstimateOnly")
+    }
+  }
+  for (size, expected_bundles) in [(499, 2), (500, 3)] {
+    let mut graph = asset_graph(
+      3,
+      &[0, 1],
+      &[(0, 2, Priority::Sync), (1, 2, Priority::Sync)],
+    );
+    for (i, asset) in graph.assets.to_mut().iter_mut().enumerate() {
+      asset.content = std::sync::Arc::new(EstimateOnly(if i == 2 { size } else { 1000 }));
+    }
+    let graph = DefaultBundler {
+      min_bundle_size: 500,
+      max_parallel_requests: 0,
+      ..Default::default()
+    }
+    .bundle(graph, &ParcelOptions::default())
+    .unwrap();
+    assert_eq!(graph.bundles.len(), expected_bundles);
+  }
 }

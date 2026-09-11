@@ -1,4 +1,5 @@
 {
+  "options": {"config": ".parcelrc"},
   "description": "An async isolated script cannot supply a later script's shared assets",
   "input": "index.html",
   "bundles": [

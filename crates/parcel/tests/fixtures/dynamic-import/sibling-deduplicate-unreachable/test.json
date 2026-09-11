@@ -5,13 +5,39 @@
     "mode": "production"
   },
   "bundles": [
-    {"assets": ["esmodule-helpers.js", "index.js"]},
-    {"assets": ["d.js", "foo.js"]},
-    {"assets": ["unreachable.js"]},
-    {"assets": ["c.js"]},
-    {"assets": ["common.js", "intermediate-2.js"]},
-    {"assets": ["b.js"]},
-    {"assets": ["intermediate-3.js", "intermediate.js"]},
-    {"assets": ["a.js"]}
+    {
+      "assets": ["esmodule-helpers.js", "index.js"],
+      "references": []
+    },
+    {
+      "assets": ["d.js", "foo.js", "unreachable.js"],
+      "references": []
+    },
+    {
+      "assets": [
+        "b.js",
+        "common.js",
+        "intermediate-2.js",
+        "intermediate-3.js",
+        "intermediate.js",
+        "unreachable.js"
+      ],
+      "references": []
+    },
+    {
+      "assets": [
+        "a.js",
+        "common.js",
+        "intermediate-2.js",
+        "intermediate-3.js",
+        "intermediate.js",
+        "unreachable.js"
+      ],
+      "references": []
+    },
+    {
+      "assets": ["c.js", "common.js", "intermediate-2.js", "unreachable.js"],
+      "references": []
+    }
   ]
 }

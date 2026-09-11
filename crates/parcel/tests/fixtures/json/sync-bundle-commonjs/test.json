@@ -8,10 +8,7 @@
     {
       "type": "js",
       "assets": ["index.js"],
-      "contains": [
-        "'b1':[function",
-        "module.exports=module.bundle.nodeRequire("
-      ],
+      "contains": ["module.exports=module.bundle.nodeRequire("],
       "notContains": ["import __parcelSyncBundle"]
     },
     {

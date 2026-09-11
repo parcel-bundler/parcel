@@ -375,6 +375,10 @@ pub struct HtmlContent {
 }
 
 impl Content for HtmlContent {
+  fn estimate_size(&self) -> Result<usize, Diagnostic> {
+    Ok(self.code.len())
+  }
+
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
     Ok(self.code.clone())
   }
@@ -585,6 +589,10 @@ pub struct SvgContent {
 }
 
 impl Content for SvgContent {
+  fn estimate_size(&self) -> Result<usize, Diagnostic> {
+    Ok(self.code.len())
+  }
+
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
     Ok(self.code.clone())
   }

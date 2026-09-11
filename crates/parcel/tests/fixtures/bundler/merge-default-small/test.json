@@ -1,0 +1,52 @@
+[
+  {
+    "description": "merge-default-small preserves execution and module cache",
+    "input": "index.js",
+    "options": {
+      "mode": "development",
+      "config": ".parcelrc"
+    },
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js"],
+        "references": []
+      },
+      {
+        "assets": ["a.js", "shared.js"],
+        "references": []
+      },
+      {
+        "assets": ["b.js", "shared.js"],
+        "references": []
+      }
+    ],
+    "output": [42, 43],
+    "sideEffects": ["shared"]
+  },
+  {
+    "description": "merge-default-small preserves execution and module cache",
+    "input": "index.js",
+    "options": {
+      "mode": "production",
+      "config": ".parcelrc"
+    },
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js"],
+        "references": []
+      },
+      {
+        "assets": ["a.js", "shared.js"],
+        "references": []
+      },
+      {
+        "assets": ["b.js", "shared.js"],
+        "references": []
+      }
+    ],
+    "output": [42, 43],
+    "sideEffects": ["shared"]
+  }
+]

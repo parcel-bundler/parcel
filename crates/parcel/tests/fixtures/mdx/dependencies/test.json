@@ -2,10 +2,54 @@
   "description": "should support dependencies in MDX",
   "input": "index.mdx",
   "bundles": [
-    {"type": "js", "assets": ["index.mdx"]},
-    {"type": "js", "assets": ["esmodule-helpers.js", "helpers.js", "index.js", "jsx-dev-runtime.js", "react-refresh-runtime.development.js", "runtime.js"]},
-    {"type": "js", "assets": ["another.mdx"]},
-    {"type": "png", "assets": ["img.png"]},
-    {"type": "mp3", "assets": ["some.mp3"]}
+    {
+      "assets": [
+        "esmodule-helpers.js",
+        "helpers.js",
+        "index.js",
+        "index.mdx",
+        "jsx-dev-runtime.js",
+        "react-refresh-runtime.development.js",
+        "runtime.js"
+      ],
+      "references": [],
+      "type": "js"
+    },
+    {
+      "assets": ["some.mp3"],
+      "references": [],
+      "type": "mp3"
+    },
+    {
+      "assets": ["another.mdx"],
+      "references": [
+        [
+          "esmodule-helpers.js",
+          "helpers.js",
+          "index.js",
+          "jsx-dev-runtime.js",
+          "react-refresh-runtime.development.js",
+          "runtime.js"
+        ]
+      ],
+      "type": "js"
+    },
+    {
+      "assets": ["img.png"],
+      "references": [],
+      "type": "png"
+    },
+    {
+      "assets": [
+        "esmodule-helpers.js",
+        "helpers.js",
+        "index.js",
+        "jsx-dev-runtime.js",
+        "react-refresh-runtime.development.js",
+        "runtime.js"
+      ],
+      "references": [],
+      "type": "js"
+    }
   ]
 }

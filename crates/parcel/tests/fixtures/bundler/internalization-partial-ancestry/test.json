@@ -6,6 +6,7 @@
     "internalized": [],
     "output": [42, 42],
     "options": {
+      "config": ".parcelrc",
       "mode": "development"
     },
     "bundles": [
@@ -33,6 +34,7 @@
     "internalized": [],
     "output": [42, 42],
     "options": {
+      "config": ".parcelrc",
       "mode": "production"
     },
     "bundles": [

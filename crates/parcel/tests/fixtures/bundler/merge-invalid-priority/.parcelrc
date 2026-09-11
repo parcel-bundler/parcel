@@ -1,0 +1,9 @@
+{
+  "extends": "@parcel/config-default",
+  "bundler": {
+    "plugin": "@parcel/bundler-default",
+    "config": {
+      "firstPageLoadPriority": 1.5
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "description": "Duplicated importers retain URL and inline resolutions after output compaction",
+  "input": "index.js",
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": ["index.js"]
+    },
+    {
+      "assets": ["a.js", "shared.js"]
+    },
+    {
+      "assets": ["b.js", "shared.js"]
+    },
+    {
+      "assets": ["text.txt"]
+    },
+    {
+      "assets": ["url.txt"]
+    }
+  ],
+  "output": [9, 10],
+  "sideEffects": ["shared"],
+  "options": {
+    "config": ".parcelrc"
+  }
+}

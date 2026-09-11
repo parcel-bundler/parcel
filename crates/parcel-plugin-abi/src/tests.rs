@@ -285,6 +285,8 @@ fn custom_content_accessor_distinguishes_and_returns_custom_content() {
   ));
   assert_eq!(ty, expected_ty);
   assert_eq!(content, expected_content);
+  // Opaque content keeps the input estimate, even when its printed size differs.
+  assert_eq!(asset.content.estimate_size().unwrap(), b"hello ABI".len());
   assert_eq!(
     string_output(|buffer| parcel_asset_get_content_utf8(buffer, asset_handle(&asset))).as_deref(),
     Some("custom value")

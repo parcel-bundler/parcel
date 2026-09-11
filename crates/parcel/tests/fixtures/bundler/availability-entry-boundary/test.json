@@ -1,4 +1,5 @@
 {
+  "options": {"config": ".parcelrc"},
   "description": "A directly entered root has empty availability even when also reached lazily",
   "input": ["index.js", "entry.js"],
   "bundles": [

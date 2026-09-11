@@ -647,8 +647,18 @@ fn test(file: PathBuf) {
 
 #[test]
 fn internalization_entry_facades_run_independently() {
+  assert_entry_outputs_run_independently("internalization-entry-cycle", true);
+}
+
+#[test]
+fn merged_entry_outputs_run_independently() {
+  assert_entry_outputs_run_independently("merge-entry-cycle", false);
+}
+
+fn assert_entry_outputs_run_independently(fixture: &str, expect_facades: bool) {
   let fixture_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-    .join("tests/fixtures/bundler/internalization-entry-cycle");
+    .join("tests/fixtures/bundler")
+    .join(fixture);
   for mode in [
     parcel_core::BuildMode::Development,
     parcel_core::BuildMode::Production,
@@ -660,6 +670,7 @@ fn internalization_entry_facades_run_independently() {
       output_fs.clone(),
       TestOptions {
         mode,
+        config: Some(".parcelrc".into()),
         ..Default::default()
       },
     )
@@ -669,6 +680,7 @@ fn internalization_entry_facades_run_independently() {
       .iter()
       .filter(|b| b.flags.contains(BundleFlags::ENTRY))
     {
+      assert_eq!(entry.assets.is_empty(), expect_facades);
       // Each call creates a fresh runtime and loads just this one entry file.
       let (output, effects) = run(
         vec![(entry.dist_path().to_path_buf(), entry.target.output_format)],

@@ -1,19 +1,25 @@
 {
   "description": "creates a shared bundle to deduplicate assets in workers",
   "input": "index.js",
-  "options": {"mode": "production"},
+  "options": {
+    "mode": "production"
+  },
   "bundles": [
     {
-      "assets": ["index.js"]
+      "assets": ["esmodule-helpers.js", "index.js", "index.js"],
+      "references": []
     },
     {
-      "assets": ["esmodule-helpers.js", "index.js"]
+      "assets": ["worker-a.js"],
+      "references": [["esmodule-helpers.js", "index.js"]]
     },
     {
-      "assets": ["worker-a.js"]
+      "assets": ["worker-b.js"],
+      "references": [["esmodule-helpers.js", "index.js"]]
     },
     {
-      "assets": ["worker-b.js"]
+      "assets": ["esmodule-helpers.js", "index.js"],
+      "references": []
     }
   ]
 }

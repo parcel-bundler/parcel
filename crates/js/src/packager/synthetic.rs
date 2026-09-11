@@ -58,15 +58,19 @@ impl From<ImportType> for InlineType {
 }
 
 impl BundleShim {
-  pub(super) fn id(&self, bundle: u32) -> String {
+  pub(super) fn id(&self, bundle: u32, graph: &BundleGraph) -> String {
+    // Neither physical bundle indices nor dense asset indices survive a merge
+    // or an incremental rebuild. Cached module registries require stable IDs.
+    let bundle = graph.bundles[bundle as usize].id;
+    let asset_id = |a| graph.asset_graph.asset(a).id(&graph.project_root);
     match self {
       BundleShim::Url | BundleShim::Inline(InlineType::Text) | BundleShim::Sync => {
-        format!("b{}", bundle)
+        format!("b{bundle:x}")
       }
-      BundleShim::Async(a) => format!("a{}_{}", bundle, a.0), // TODO: stable
-      BundleShim::AsyncInterop(a) => format!("a{}_{}i", bundle, a.0),
-      BundleShim::Inline(InlineType::Bytes) => format!("b{}b", bundle),
-      BundleShim::Inline(InlineType::StyleSheet) => format!("b{}c", bundle),
+      BundleShim::Async(a) => format!("a{bundle:x}_{}", asset_id(*a)),
+      BundleShim::AsyncInterop(a) => format!("a{bundle:x}_{}i", asset_id(*a)),
+      BundleShim::Inline(InlineType::Bytes) => format!("b{bundle:x}_bytes"),
+      BundleShim::Inline(InlineType::StyleSheet) => format!("b{bundle:x}_css"),
     }
   }
 }
@@ -78,7 +82,7 @@ impl SyntheticAsset {
         .asset_graph
         .asset(*asset_index)
         .id(project_root),
-      SyntheticAsset::Bundle { bundle, kind } => kind.id(*bundle),
+      SyntheticAsset::Bundle { bundle, kind } => kind.id(*bundle, bundle_graph),
       SyntheticAsset::Internalized(asset_index) => format!(
         "i_{}",
         bundle_graph
@@ -114,7 +118,7 @@ impl SyntheticAsset {
       } => {
         dependencies.insert(
           "bundle".into(),
-          Resolution::Asset(BundleShim::Async(*asset).id(*bundle)),
+          Resolution::Asset(BundleShim::Async(*asset).id(*bundle, bundle_graph)),
         );
       }
       _ => {}
@@ -168,10 +172,9 @@ impl SyntheticAsset {
         BundleShim::AsyncInterop(asset) => {
           write!(
             dest,
-            "module.exports={}(\"a{}_{}\").then(m=>m&&m.__esModule?m:{{default:m}})",
+            "module.exports={}({:?}).then(m=>m&&m.__esModule?m:{{default:m}})",
             runtime_name(should_optimize, "require", RUNTIME_REQUIRE),
-            bundle_index,
-            asset
+            BundleShim::Async(*asset).id(*bundle_index, bundle_graph)
           )?;
         }
         BundleShim::Url => {

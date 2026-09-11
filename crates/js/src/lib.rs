@@ -11,6 +11,7 @@ mod transformer;
 pub use transformer::JsTransformer;
 
 struct JsContent {
+  source_size: usize,
   ast: Ast,
   shebang: Option<String>,
   directives: Vec<String>,
@@ -26,6 +27,10 @@ impl std::fmt::Debug for JsContent {
 }
 
 impl Content for JsContent {
+  fn estimate_size(&self) -> Result<usize, Diagnostic> {
+    Ok(self.source_size)
+  }
+
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
     let (code, _) = self.ast.to_code(false, false)?;
     Ok(code)

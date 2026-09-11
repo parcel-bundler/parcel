@@ -1,0 +1,38 @@
+{
+  "description": "Session and dependency edit weights choose between shared hosts and entry duplication",
+  "input": "index.js",
+  "bundles": [
+    {
+      "assets": ["esmodule-helpers.js", "index.js"],
+      "references": []
+    },
+    {
+      "assets": ["a.js"],
+      "references": [["common.js", "left.js"]]
+    },
+    {
+      "assets": ["b.js"],
+      "references": [["common.js", "left.js"]]
+    },
+    {
+      "assets": ["c.js"],
+      "references": [["common.js", "right.js"]]
+    },
+    {
+      "assets": ["d.js"],
+      "references": [["common.js", "right.js"]]
+    },
+    {
+      "assets": ["common.js", "left.js"],
+      "references": []
+    },
+    {
+      "assets": ["common.js", "right.js"],
+      "references": []
+    }
+  ],
+  "output": [1007, 1007, 1007, 1007],
+  "options": {
+    "config": ".parcelrc"
+  }
+}

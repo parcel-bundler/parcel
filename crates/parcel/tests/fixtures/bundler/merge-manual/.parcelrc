@@ -1,0 +1,16 @@
+{
+  "extends": "@parcel/config-default",
+  "bundler": {
+    "plugin": "@parcel/bundler-default",
+    "config": {
+      "minBundleSize": 100000,
+      "manualSharedBundles": [
+        {
+          "assets": [
+            "**/shared.js"
+          ]
+        }
+      ]
+    }
+  }
+}

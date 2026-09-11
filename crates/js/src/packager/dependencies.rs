@@ -249,7 +249,7 @@ pub fn asset_dependencies<'a>(
               bundle: bundle_index,
               kind: BundleShim::Inline(inline_type),
             });
-            Resolution::Asset(BundleShim::Inline(inline_type).id(bundle_index))
+            Resolution::Asset(BundleShim::Inline(inline_type).id(bundle_index, bundle_graph))
           } else if is_lazy_dynamic_import {
             additional_assets.insert(SyntheticAsset::Bundle {
               bundle: bundle_index,
@@ -260,9 +260,11 @@ pub fn asset_dependencies<'a>(
                 bundle: bundle_index,
                 kind: BundleShim::AsyncInterop(asset_index),
               });
-              Resolution::Asset(BundleShim::AsyncInterop(asset_index).id(bundle_index))
+              Resolution::Asset(
+                BundleShim::AsyncInterop(asset_index).id(bundle_index, bundle_graph),
+              )
             } else {
-              Resolution::Asset(BundleShim::Async(asset_index).id(bundle_index))
+              Resolution::Asset(BundleShim::Async(asset_index).id(bundle_index, bundle_graph))
             }
           } else if resolved_bundle.ty == AssetType::Json
             && dep.import_type == ImportType::JavaScript
@@ -271,13 +273,13 @@ pub fn asset_dependencies<'a>(
               bundle: bundle_index,
               kind: BundleShim::Sync,
             });
-            Resolution::Asset(BundleShim::Sync.id(bundle_index))
+            Resolution::Asset(BundleShim::Sync.id(bundle_index, bundle_graph))
           } else {
             additional_assets.insert(SyntheticAsset::Bundle {
               bundle: bundle_index,
               kind: BundleShim::Url,
             });
-            Resolution::Asset(BundleShim::Url.id(bundle_index))
+            Resolution::Asset(BundleShim::Url.id(bundle_index, bundle_graph))
           };
           dependencies.insert((&**placeholder).into(), resolution);
         }

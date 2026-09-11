@@ -1,4 +1,5 @@
 {
+  "options": {"config": ".parcelrc"},
   "description": "Different ancestors supply the same asset even when neither root is guaranteed",
   "input": "index.js",
   "bundles": [

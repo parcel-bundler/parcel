@@ -9,11 +9,11 @@
       "type": "js",
       "assets": ["esmodule-helpers.js", "index.js"],
       "contains": [
-        "import __parcelSyncBundle1 from",
+        "import __parcelSyncBundle",
         "with {type:\"json\"};",
-        "\"b1\":__parcelSyncBundle1,"
+        "\":__parcelSyncBundle"
       ],
-      "notContains": ["'b1':[function"]
+      "notContains": ["module.exports=module.bundle.nodeRequire("]
     },
     {
       "type": "json",

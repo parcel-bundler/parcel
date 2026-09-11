@@ -1,0 +1,10 @@
+{
+  "extends": "@parcel/config-default",
+  "bundler": {
+    "plugin": "@parcel/bundler-default",
+    "config": {
+      "minBundleSize": 0,
+      "maxParallelRequests": 2
+    }
+  }
+}

@@ -42,6 +42,7 @@ impl Transformer for JsTransformer {
     fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
   ) -> Result<Asset, DiagnosticList> {
     let config = config(&mut asset, options, fs, self)?;
+    let source_size = config.code.len();
     let mut resolver = parcel_resolver::Resolver::parcel(options.project_root);
     resolver.conditions |= ExportsCondition::SOURCE;
 
@@ -586,6 +587,7 @@ impl Transformer for JsTransformer {
       .flags
       .set(AssetFlags::HAS_NODE_REPLACEMENTS, res.has_node_replacements);
     asset.content = Arc::new(JsContent {
+      source_size,
       ast: res.ast,
       shebang: res.shebang,
       directives,

@@ -14,6 +14,7 @@ use parcel_core::{
 
 use crate::library_bundler::LibraryBundler;
 
+mod optimizer;
 #[cfg(test)]
 mod tests;
 
@@ -26,15 +27,49 @@ pub struct ManualSharedBundle {
   types: Vec<AssetType>,
 }
 
-#[derive(serde::Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase", default, deny_unknown_fields)]
 pub struct DefaultBundler {
   /// Manual grouping rules, checked in order so the first matching rule wins.
   #[serde(default)]
   manual_shared_bundles: Vec<ManualSharedBundle>,
+  /// Estimated uncompressed bytes. Zero disables size consolidation.
+  min_bundle_size: usize,
+  /// Requests per loading context. Zero disables request consolidation.
+  max_parallel_requests: usize,
+  /// Probability of a one-activation session, otherwise two activations.
+  first_page_load_priority: f64,
+  /// Relative edit frequency of dependencies; source assets have weight one.
+  dependency_change_rate: f64,
+}
+
+impl Default for DefaultBundler {
+  fn default() -> Self {
+    Self {
+      manual_shared_bundles: Vec::new(),
+      min_bundle_size: 30_000,
+      max_parallel_requests: 25,
+      first_page_load_priority: 0.67,
+      dependency_change_rate: 0.1,
+    }
+  }
 }
 
 impl DefaultBundler {
+  fn validate(&self) -> Result<(), DiagnosticList> {
+    for (name, value) in [
+      ("firstPageLoadPriority", self.first_page_load_priority),
+      ("dependencyChangeRate", self.dependency_change_rate),
+    ] {
+      if !value.is_finite() || !(0.0..=1.0).contains(&value) {
+        return Err(
+          parcel_core::Diagnostic::from_message(format!("{name} must be between 0 and 1")).into(),
+        );
+      }
+    }
+    Ok(())
+  }
+
   fn manual_shared_bundle(&self, asset: &Asset, options: &ParcelOptions) -> Option<usize> {
     let path = asset
       .loc
@@ -110,6 +145,7 @@ impl Bundler for DefaultBundler {
     asset_graph: AssetGraph<'a>,
     options: &ParcelOptions,
   ) -> Result<BundleGraph<'a>, DiagnosticList> {
+    self.validate()?;
     if asset_graph.entries.iter().all(|e| {
       asset_graph
         .asset(asset_graph.resolved_entry(e).unwrap())
@@ -383,7 +419,14 @@ impl Bundler for DefaultBundler {
       &mut dependency_resolutions,
     );
 
-    // println!("{:?}", bundles);
+    optimizer::optimize(
+      self,
+      &asset_graph,
+      &mut bundles,
+      &root_bundles,
+      &mut dependency_resolutions,
+      options,
+    )?;
     Ok(BundleGraph::new(
       asset_graph,
       bundles,

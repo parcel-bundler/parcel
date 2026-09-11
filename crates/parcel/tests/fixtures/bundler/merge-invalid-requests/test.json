@@ -1,0 +1,11 @@
+{
+  "input": "index.js",
+  "diagnostics": [
+    {
+      "message": "invalid number"
+    }
+  ],
+  "options": {
+    "config": ".parcelrc"
+  }
+}

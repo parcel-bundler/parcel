@@ -4,20 +4,25 @@
     "input": "index.js",
     "bundles": [
       {
-        "name": "index.js",
-        "assets": ["feature.js", "index.js", "worker-client.js"]
+        "assets": ["common.js", "feature.js", "index.js", "worker-client.js"],
+        "references": [],
+        "name": "index.js"
       },
       {
-        "assets": ["common.js"]
+        "assets": ["service-worker.js"],
+        "references": []
       },
       {
-        "assets": ["service-worker.js"]
+        "assets": ["worker.js"],
+        "references": [["common.js"]]
       },
       {
-        "assets": ["worker.js"]
+        "assets": ["shared-worker.js"],
+        "references": []
       },
       {
-        "assets": ["shared-worker.js"]
+        "assets": ["common.js"],
+        "references": []
       }
     ]
   },
@@ -26,20 +31,30 @@
     "input": "index-alternative.js",
     "bundles": [
       {
-        "name": "index-alternative.js",
-        "assets": ["feature.js", "index-alternative.js", "worker-client.js"]
+        "assets": [
+          "common.js",
+          "feature.js",
+          "index-alternative.js",
+          "worker-client.js"
+        ],
+        "references": [],
+        "name": "index-alternative.js"
       },
       {
-        "assets": ["common.js"]
+        "assets": ["service-worker.js"],
+        "references": []
       },
       {
-        "assets": ["service-worker.js"]
+        "assets": ["shared-worker.js"],
+        "references": []
       },
       {
-        "assets": ["worker.js"]
+        "assets": ["worker.js"],
+        "references": [["common.js"]]
       },
       {
-        "assets": ["shared-worker.js"]
+        "assets": ["common.js"],
+        "references": []
       }
     ]
   }

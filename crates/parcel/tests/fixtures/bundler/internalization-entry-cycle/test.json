@@ -23,6 +23,7 @@
     "output": ["a", "b"],
     "sideEffects": ["entry", "entry"],
     "options": {
+      "config": ".parcelrc",
       "mode": "development"
     }
   },
@@ -50,6 +51,7 @@
     "output": ["a", "b"],
     "sideEffects": ["entry", "entry"],
     "options": {
+      "config": ".parcelrc",
       "mode": "production"
     }
   }

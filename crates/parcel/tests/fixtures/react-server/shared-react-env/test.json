@@ -1,15 +1,35 @@
 {
-  "description":"should share react when a server entry uses an env import attribute",
-  "input":"index.jsx",
-  "skipNodeModules":true,
-  "bundles":[
-    {"assets":["index.jsx"]},
-    {"assets":[]},
-    {"assets":["Page1.jsx"]},
-    {"assets":["Page2.jsx"]},
-    {"assets":[]},
-    {"assets":["Client1.jsx"]},
-    {"assets":["Client2.jsx"]},
-    {"assets":[]}
+  "description": "should share react when a server entry uses an env import attribute",
+  "input": "index.jsx",
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": ["index.jsx"],
+      "references": [[], []]
+    },
+    {
+      "assets": ["Page2.jsx"],
+      "references": [[], [], ["Client2.jsx"]]
+    },
+    {
+      "assets": ["Page1.jsx"],
+      "references": [[], [], ["Client1.jsx"]]
+    },
+    {
+      "assets": [],
+      "references": []
+    },
+    {
+      "assets": [],
+      "references": []
+    },
+    {
+      "assets": ["Client1.jsx"],
+      "references": []
+    },
+    {
+      "assets": ["Client2.jsx"],
+      "references": []
+    }
   ]
 }

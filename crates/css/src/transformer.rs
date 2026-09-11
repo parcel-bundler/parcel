@@ -245,6 +245,7 @@ impl Transformer for CssTransformer {
       .map_err(|err| convert_error(Some(asset.loc.url.clone()), err))?;
 
       asset.content = Arc::new(CssContent {
+        source_size: code.len(),
         stylesheet: stylesheet.into_owned(),
         exports,
         references: refs,
@@ -252,6 +253,7 @@ impl Transformer for CssTransformer {
       });
     } else {
       asset.content = Arc::new(CssContent {
+        source_size: code.len(),
         stylesheet: stylesheet.into_owned(),
         exports: HashMap::new(),
         references: HashMap::new(),
@@ -446,6 +448,7 @@ impl Transformer for StyleAttrTransformer {
     })?;
 
     asset.content = Arc::new(StyleAttrContent {
+      source_size: code.len(),
       attr: attr.into_owned(),
     });
     Ok(asset)

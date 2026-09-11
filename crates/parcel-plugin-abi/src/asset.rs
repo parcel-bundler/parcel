@@ -104,6 +104,7 @@ pub extern "C" fn parcel_asset_set_content_utf8(asset: Asset, data: *const u8, l
 
 #[derive(Debug)]
 struct CContent {
+  source_size: Result<usize, CoreDiagnostic>,
   ty: [u8; 16],
   ptr: *mut c_void,
   read: extern "C" fn(content: *const c_void, buf: *mut Buffer, diagnostic: *mut Diagnostic),
@@ -130,6 +131,10 @@ impl Drop for CContent {
 }
 
 impl Content for CContent {
+  fn estimate_size(&self) -> Result<usize, CoreDiagnostic> {
+    self.source_size.clone()
+  }
+
   fn ty(&self) -> ContentType {
     ContentType::from_bytes(self.ty)
   }
@@ -247,7 +252,10 @@ pub extern "C" fn parcel_asset_set_custom_content(
   >,
   free: Option<extern "C" fn(content: *mut c_void)>,
 ) {
+  let asset = unsafe { &mut *(asset as *mut CoreAsset) };
   let content = CContent {
+    // Retain the input estimate for opaque ASTs without invoking their read callback.
+    source_size: asset.content.estimate_size(),
     ty: unsafe { *ty },
     ptr: content,
     read: read.expect("a read callback must be provided to parcel_asset_set_content"),
@@ -255,7 +263,6 @@ pub extern "C" fn parcel_asset_set_custom_content(
     free: free.expect("a free callback must be provided to parcel_asset_set_content"),
   };
 
-  let asset = unsafe { &mut *(asset as *mut CoreAsset) };
   asset.content = Arc::new(content);
 }
 

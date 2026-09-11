@@ -1,0 +1,34 @@
+{
+  "description": "Independent HTML page outputs retain their mandatory script requests even below the achievable request floor",
+  "input": ["one.html", "two.html"],
+  "options": {
+    "config": ".parcelrc"
+  },
+  "bundles": [
+    {
+      "assets": ["one.html"],
+      "references": []
+    },
+    {
+      "assets": ["two.html"],
+      "references": []
+    },
+    {
+      "assets": ["a.js", "shared.js"],
+      "references": []
+    },
+    {
+      "assets": ["b.js"],
+      "references": []
+    },
+    {
+      "assets": ["b.js", "shared.js"],
+      "references": []
+    },
+    {
+      "assets": ["a.js"],
+      "references": []
+    }
+  ],
+  "skipNodeModules": true
+}

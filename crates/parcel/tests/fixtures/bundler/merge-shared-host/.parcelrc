@@ -1,0 +1,11 @@
+{
+  "extends": "@parcel/config-default",
+  "bundler": {
+    "plugin": "@parcel/bundler-default",
+    "config": {
+      "minBundleSize": 500,
+      "firstPageLoadPriority": 0,
+      "dependencyChangeRate": 0
+    }
+  }
+}

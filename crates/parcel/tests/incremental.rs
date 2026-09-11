@@ -28,6 +28,150 @@ fn write_file(fs: &MemoryFileSystem, path: &str, contents: &str) {
 }
 
 #[test]
+fn ast_size_estimates_retain_parser_input_across_rebuilds() {
+  let original = "// Original input includes types and Unicode: €\nconst value: number = 42; module.exports = value;";
+  let updated = "module.exports = 7;";
+  let css = "/* Original CSS input */ .foo { color: #ff0000; }";
+  let module_css = "/* Original CSS module input */ .bar { color: #0000ff; }";
+  let style = "color: #ff0000; background: #0000ff";
+  let html = format!("<div style=\"{style}\">Hello</div>");
+  for mode in [BuildMode::Development, BuildMode::Production] {
+    let mut test = IncrementalTest::with_entries_mode(
+      &[
+        ("/project/index.ts", original),
+        ("/project/style.css", css),
+        ("/project/style.module.css", module_css),
+        ("/project/index.html", &html),
+      ],
+      &[
+        "/project/index.ts",
+        "/project/style.css",
+        "/project/style.module.css",
+        "/project/index.html",
+      ],
+      mode,
+    );
+    for source in [original, updated] {
+      if source == updated {
+        test.change(&[("/project/index.ts", source)], &[]);
+      }
+      let graph = test.parcel.build().unwrap();
+      let mut checked = 0;
+      for (_, asset, _) in graph.asset_graph.dfs() {
+        let path = asset.loc.url.to_file_path().ok();
+        let expected = if asset.ty == parcel_core::AssetType::StyleAttribute {
+          style.len()
+        } else if path == Some(PathId::new(Path::new("/project/index.ts"))) {
+          source.len()
+        } else if asset.ty == parcel_core::AssetType::Css {
+          match path {
+            Some(p) if p == PathId::new(Path::new("/project/style.css")) => css.len(),
+            Some(p) if p == PathId::new(Path::new("/project/style.module.css")) => module_css.len(),
+            _ => continue,
+          }
+        } else {
+          continue;
+        };
+        assert_eq!(
+          asset.content.estimate_size().unwrap(),
+          expected,
+          "{:?}",
+          asset.loc.url
+        );
+        checked += 1;
+      }
+      assert_eq!(checked, 4);
+    }
+  }
+}
+
+#[test]
+fn bundle_consolidation_tracks_size_changes_and_configuration() {
+  let enabled = r#"{"extends":"@parcel/config-default","bundler":{"plugin":"@parcel/bundler-default","config":{"minBundleSize":500,"maxParallelRequests":0}}}"#;
+  let disabled = r#"{"extends":"@parcel/config-default","bundler":{"plugin":"@parcel/bundler-default","config":{"minBundleSize":0,"maxParallelRequests":0}}}"#;
+  let small = "module.exports = 'small';";
+  let large = format!("module.exports = '{}';", "larger".repeat(1000));
+  for mode in [BuildMode::Development, BuildMode::Production] {
+    let mut test = IncrementalTest::with_entries_mode(
+      &[
+        ("/project/.parcelrc", enabled),
+        (
+          "/project/index.js",
+          "module.exports = () => Promise.all([import('./a'), import('./b')]);",
+        ),
+        (
+          "/project/a.js",
+          "module.exports = require('./shared').length + 1;",
+        ),
+        (
+          "/project/b.js",
+          "module.exports = require('./shared').length + 2;",
+        ),
+        ("/project/shared.js", small),
+      ],
+      &["/project/index.js"],
+      mode,
+    );
+    let outputs = test.all_outputs().len();
+    test.change(&[("/project/shared.js", &large)], &[]);
+    assert!(
+      test.all_outputs().len() > outputs,
+      "large payload should become shared"
+    );
+    test.change(&[("/project/shared.js", small)], &[]);
+    assert_eq!(test.all_outputs().len(), outputs);
+    test.change(&[("/project/.parcelrc", disabled)], &[]);
+    assert!(test.all_outputs().len() > outputs);
+    test.change(&[("/project/.parcelrc", enabled)], &[]);
+    assert_eq!(test.all_outputs().len(), outputs);
+  }
+}
+
+#[test]
+fn synchronous_bundle_imports_survive_bundle_index_changes() {
+  let initial = "module.exports = () => Promise.all([import('./other'), import('./page')]);";
+  let updated = "module.exports = () => import('./page');";
+  for mode in [BuildMode::Development, BuildMode::Production] {
+    let mut test = IncrementalTest::with_entries_mode(
+      &[
+        (
+          "/project/.parcelrc",
+          r#"{"extends":"@parcel/config-default","transformers":{"raw-json:*.json":["@parcel/transformer-raw"]}}"#,
+        ),
+        ("/project/index.js", initial),
+        ("/project/other.js", "module.exports = 1;"),
+        (
+          "/project/page.js",
+          "import data from 'raw-json:./data.json'; export default data.value;",
+        ),
+        ("/project/data.json", r#"{"value":42}"#),
+      ],
+      &["/project/index.js"],
+      mode,
+    );
+    let graph = test.parcel.build().unwrap();
+    let page_path = graph
+      .bundles
+      .iter()
+      .find_map(|bundle| {
+        let asset = graph.asset_graph.asset(bundle.main_entry_asset?);
+        (asset.loc.url.to_file_path().ok() == Some(PathId::new(Path::new("/project/page.js"))))
+          .then(|| bundle.dist_path.unwrap().to_path_buf())
+      })
+      .unwrap();
+    let page_path = page_path.to_str().unwrap();
+    let page_output = test.output(page_path);
+    test.change(&[("/project/index.js", updated)], &[]);
+    assert_eq!(
+      test.output(page_path),
+      page_output,
+      "unrelated bundles must not change synchronous import bindings"
+    );
+    test.change(&[("/project/index.js", initial)], &[]);
+  }
+}
+
+#[test]
 fn add_and_remove_synchronous_provider_for_dynamic_import() {
   for mode in [BuildMode::Development, BuildMode::Production] {
     let lazy = "module.exports = () => import('./value');";
@@ -65,8 +209,6 @@ fn split_and_rejoin_deduplicated_async_roots() {
       &["/project/index.js"],
       mode,
     );
-    // Async shim IDs still embed allocation indices (the packager's stable-ID
-    // TODO). Compare placement and bundle IDs here rather than those shim bytes.
     let merged_files = read_all_files(&test.output_fs)
       .keys()
       .cloned()
