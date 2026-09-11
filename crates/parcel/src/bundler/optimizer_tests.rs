@@ -343,6 +343,97 @@ fn candidate_deltas_preserve_a_diamond_leading_into_a_cycle() {
   );
 }
 
+#[test]
+fn polish_deduplicates_overlapping_payloads_after_limits_are_met() {
+  // Bundles 2 and 3 duplicate asset 4 for the same two roots. The layout is
+  // already within the limits, so only the polish phase can merge them.
+  check(
+    &[&[0], &[1], &[2, 4], &[3, 4]],
+    &[&[2, 3], &[2, 3], &[], &[]],
+    2,
+    &[100, 100, 10, 10, 100],
+    DefaultBundler {
+      min_bundle_size: 0,
+      max_parallel_requests: 0,
+      ..Default::default()
+    },
+    |model, initial| {
+      let before: Vec<_> = (0..2).map(|r| loaded_assets(model, &initial, r)).collect();
+      let state = model.state(&initial);
+      assert!(state.within_limits());
+      let (result, polished) = model.polish(initial.clone(), state.clone());
+      // The shared asset is downloaded once per root instead of twice.
+      assert!(!result.live.contains(2));
+      assert_eq!(
+        result.assets[3].as_slice(),
+        [AssetIndex(3), AssetIndex(4), AssetIndex(2)]
+      );
+      assert_eq!(polished.requests, [2, 2]);
+      assert_eq!(polished.bytes, [220, 220]);
+      assert!(polished.cost < state.cost);
+      for r in 0..2 {
+        assert_eq!(loaded_assets(model, &result, r), before[r]);
+      }
+    },
+  );
+}
+
+#[test]
+fn polish_leaves_disjoint_payloads_alone() {
+  // The same shape without an overlapping asset: merging would enlarge the
+  // edit invalidation cost without saving any bytes, so no move is taken.
+  check(
+    &[&[0], &[1], &[2], &[3]],
+    &[&[2, 3], &[2, 3], &[], &[]],
+    2,
+    &[100, 100, 10, 10],
+    DefaultBundler {
+      min_bundle_size: 0,
+      max_parallel_requests: 0,
+      ..Default::default()
+    },
+    |model, initial| {
+      let state = model.state(&initial);
+      let (result, polished) = model.polish(initial.clone(), state.clone());
+      assert_eq!(result.assets, initial.assets);
+      assert_eq!(result.references, initial.references);
+      assert_eq!(result.live, initial.live);
+      assert_eq!(polished.cost, state.cost);
+    },
+  );
+}
+
+#[test]
+fn polish_finds_wins_the_constraint_search_leaves_behind() {
+  // The search stops as soon as the undersized bundle 4 is repaired, leaving
+  // bundles 2 and 3 duplicating asset 4. Polish then merges them, cutting the
+  // duplicated download in both roots.
+  check(
+    &[&[0], &[1], &[2, 4], &[3, 4], &[5]],
+    &[&[2, 3, 4], &[2, 3, 4], &[], &[], &[]],
+    2,
+    &[100, 100, 20, 20, 200, 5],
+    DefaultBundler {
+      min_bundle_size: 10,
+      max_parallel_requests: 0,
+      ..Default::default()
+    },
+    |model, initial| {
+      let before: Vec<_> = (0..2).map(|r| loaded_assets(model, &initial, r)).collect();
+      let state = model.state(&initial);
+      let (mid, mid_state) = model.run_guarded(initial, state);
+      assert!(mid_state.within_limits());
+      let (result, polished) = model.polish(mid, mid_state.clone());
+      assert!(polished.cost < mid_state.cost);
+      assert_eq!(polished.requests, [2, 2]);
+      assert_eq!(polished.bytes, [345, 345]);
+      for r in 0..2 {
+        assert_eq!(loaded_assets(model, &result, r), before[r]);
+      }
+    },
+  );
+}
+
 /// Run with `cargo test -p parcel --release --lib optimizer_workload_timings -- --ignored --nocapture`.
 #[test]
 #[ignore = "manual optimizer timing comparison"]
@@ -395,7 +486,8 @@ fn optimizer_workload_timings() {
         for _ in 0..5 {
           let start = std::time::Instant::now();
           let state = model.state(&initial);
-          std::hint::black_box(model.run_guarded(initial.clone(), state));
+          let (layout, state) = model.run_guarded(initial.clone(), state);
+          std::hint::black_box(model.polish(layout, state));
           times.push(start.elapsed());
         }
         times.sort();
@@ -411,9 +503,15 @@ pub(super) fn assert_delta(
   model: &Model,
   layout: &Layout,
   before: &State,
+  polish: bool,
   delta: Option<&StateDelta>,
 ) {
   let full = model.state(layout);
+  let improved = if polish {
+    full.cost < before.cost - COST_EPSILON
+  } else {
+    full.small + full.excess < before.small + before.excess
+  };
   let valid = full
     .consumers
     .iter()
@@ -428,7 +526,7 @@ pub(super) fn assert_delta(
     && full.requests.iter().sum::<usize>() < before.requests.iter().sum::<usize>()
     && full.small <= before.small
     && full.excess <= before.excess
-    && full.small + full.excess < before.small + before.excess;
+    && improved;
   assert_eq!(
     delta.is_some(),
     valid,

@@ -55,6 +55,12 @@ eagerly loaded. Their constant byte costs do not affect JS merge comparisons.
 - Compare the completed scored layout with smallest-first duplication and choose
   fewer remaining constraint violations, then lower cost. This is a greedy
   heuristic with a baseline safeguard, not a global optimum.
+- After the chosen layout meets the limits or stalls, keep only merges that
+  strictly reduce the cost, such as deduplicating overlapping payloads.
+  Constraint relief alone never justifies a move in this polish phase, and no
+  move may raise a violation count. Under this cost function only moves that
+  deduplicate an asset can qualify, so polish considers only payloads that
+  overlap another output.
 
 The cost is expected session JS downloads plus expected bytes invalidated by
 one edit. Activations are sampled uniformly from loadable roots; a second
@@ -62,7 +68,8 @@ activation, when present, samples a different root. HTTP cache reuse follows
 physical file identity, so identical modules in two files still cost two
 downloads. Edit probability is proportional to source/dependency weights, and
 an edit invalidates each complete file containing that asset. There is no soft
-request penalty and no optimization beyond the configured constraints.
+request penalty, so consolidation is never driven by request count alone;
+beyond the configured constraints only strict cost reductions are kept.
 
 After consolidation, bundle indices and references are remapped consistently.
 Synthetic loaders and synchronous import bindings use stable bundle/asset
