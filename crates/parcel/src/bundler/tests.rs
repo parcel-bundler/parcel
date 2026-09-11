@@ -568,6 +568,230 @@ fn bundle(graph: AssetGraph<'static>) -> BundleGraph<'static> {
     .unwrap()
 }
 
+fn placement_bundles(contents: &[&[u32]]) -> Vec<Bundle> {
+  contents
+    .iter()
+    .enumerate()
+    .map(|(index, assets)| Bundle {
+      id: index as u64,
+      ty: AssetType::Js,
+      target: Default::default(),
+      bundle_behavior: BundleBehavior::None,
+      flags: BundleFlags::empty(),
+      dist_path: None,
+      assets: assets.iter().copied().map(AssetIndex).collect(),
+      entry_assets: Vec::new(),
+      main_entry_asset: None,
+      referenced_bundles: Vec::new(),
+    })
+    .collect()
+}
+
+#[test]
+fn placements_include_all_copies_but_not_entry_facades() {
+  let mut bundles = placement_bundles(&[&[0, 2, 0], &[], &[2, 0]]);
+  bundles[1].main_entry_asset = Some(AssetIndex(0));
+  bundles[1].entry_assets.push(AssetIndex(0));
+  bundles[1].referenced_bundles.push(0);
+  let placements = AssetPlacements::new(4, &bundles);
+  assert_eq!(placements.bundles(AssetIndex(0)), &[0, 2]);
+  assert_eq!(placements.bundles(AssetIndex(2)), &[0, 2]);
+  assert!(placements.bundles(AssetIndex(1)).is_empty());
+  assert!(placements.bundles(AssetIndex(3)).is_empty());
+
+  // Rebuilding after moving content must not retain stale owners.
+  bundles[0].assets.clear();
+  let placements = AssetPlacements::new(4, &bundles);
+  assert_eq!(placements.bundles(AssetIndex(0)), &[2]);
+  assert_eq!(placements.bundles(AssetIndex(2)), &[2]);
+}
+
+#[test]
+fn duplicated_importers_each_reference_the_target_content() {
+  let graph = asset_graph(
+    3,
+    &[0, 2],
+    &[(0, 1, Priority::Sync), (2, 1, Priority::Sync)],
+  );
+  // Bundle 0 is an unrelated copy of the target. Bundle 4 is an entry facade.
+  // Neither should be selected instead of the explicitly assigned content owner.
+  let mut bundles = placement_bundles(&[&[1], &[0, 2], &[0], &[1], &[]]);
+  bundles[4].main_entry_asset = Some(AssetIndex(1));
+  bundles[4].entry_assets.push(AssetIndex(1));
+  bundles[4].referenced_bundles.push(3);
+  let roots = HashMap::from([(
+    AssetIndex(1),
+    RootBundle {
+      load: 4,
+      content: 3,
+    },
+  )]);
+  let mut resolutions = HashMap::new();
+  resolve_bundle_dependencies(&graph, &mut bundles, &roots, &mut resolutions);
+  assert_eq!(bundles[1].referenced_bundles, [3]);
+  assert_eq!(bundles[2].referenced_bundles, [3]);
+  assert!(bundles[0].referenced_bundles.is_empty());
+  assert!(bundles[3].referenced_bundles.is_empty());
+  assert!(resolutions.is_empty());
+}
+
+#[test]
+fn partially_colocated_dependencies_only_reference_from_nonlocal_copies() {
+  let graph = asset_graph(2, &[0], &[(0, 1, Priority::Sync)]);
+  // The first source and target placements match; the second source still needs
+  // a reference. Swapping the copies must produce the same result.
+  for local in [0, 1] {
+    let mut bundles = placement_bundles(&[&[0], &[0], &[1]]);
+    bundles[local].assets.push(AssetIndex(1));
+    let roots = HashMap::from([(
+      AssetIndex(1),
+      RootBundle {
+        load: 2,
+        content: 2,
+      },
+    )]);
+    let mut resolutions = HashMap::new();
+    resolve_bundle_dependencies(&graph, &mut bundles, &roots, &mut resolutions);
+    assert!(bundles[local].referenced_bundles.is_empty());
+    assert_eq!(bundles[1 - local].referenced_bundles, [2]);
+    assert!(resolutions.is_empty());
+  }
+}
+
+#[test]
+fn duplicated_targets_reuse_each_importers_existing_provider() {
+  let graph = asset_graph(2, &[0], &[(0, 1, Priority::Sync)]);
+  let mut bundles = placement_bundles(&[&[0], &[0], &[], &[1], &[1], &[1]]);
+  bundles[0].referenced_bundles.push(3);
+  bundles[1].referenced_bundles.push(2);
+  // Traverse a cycle to find a transitive provider without adding the fallback.
+  bundles[2].referenced_bundles.extend([1, 4]);
+  let roots = HashMap::from([(
+    AssetIndex(1),
+    RootBundle {
+      load: 5,
+      content: 5,
+    },
+  )]);
+  let mut resolutions = HashMap::new();
+  resolve_bundle_dependencies(&graph, &mut bundles, &roots, &mut resolutions);
+  assert_eq!(bundles[0].referenced_bundles, [3]);
+  assert_eq!(bundles[1].referenced_bundles, [2]);
+  assert_eq!(bundles[2].referenced_bundles, [1, 4]);
+  assert!(resolutions.is_empty());
+}
+
+#[test]
+fn reference_cycles_without_a_provider_still_add_one() {
+  let graph = asset_graph(2, &[0], &[(0, 1, Priority::Sync)]);
+  let mut bundles = placement_bundles(&[&[0], &[], &[1]]);
+  bundles[0].referenced_bundles.push(1);
+  bundles[1].referenced_bundles.push(0);
+  let roots = HashMap::from([(
+    AssetIndex(1),
+    RootBundle {
+      load: 2,
+      content: 2,
+    },
+  )]);
+  let mut resolutions = HashMap::new();
+  resolve_bundle_dependencies(&graph, &mut bundles, &roots, &mut resolutions);
+  assert_eq!(bundles[0].referenced_bundles, [1, 2]);
+  assert!(resolutions.is_empty());
+}
+
+#[test]
+fn duplicated_importers_preserve_explicit_loading_boundaries() {
+  for boundary in 0..6 {
+    let mut graph = asset_graph(2, &[0], &[(0, 1, Priority::Sync)]);
+    let mut bundles = placement_bundles(&[&[0, 1], &[0], &[1], &[]]);
+    bundles[3].main_entry_asset = Some(AssetIndex(1));
+    bundles[3].entry_assets.push(AssetIndex(1));
+    bundles[3].referenced_bundles.push(2);
+    let dep = &mut graph.assets.to_mut()[0].dependencies[0];
+    dep.flags |= DependencyFlags::NEEDS_STABLE_NAME;
+    match boundary {
+      0 => dep.priority = Priority::Lazy,
+      1 => dep.priority = Priority::Parallel,
+      2 => dep.specifier_type = SpecifierType::Url,
+      3 => dep.bundle_behavior = BundleBehavior::Inline,
+      4 => dep.bundle_behavior = BundleBehavior::Isolated,
+      _ => bundles[3].bundle_behavior = BundleBehavior::Inline,
+    }
+    let roots = HashMap::from([(
+      AssetIndex(1),
+      RootBundle {
+        load: 3,
+        content: 2,
+      },
+    )]);
+    let mut resolutions = HashMap::new();
+    resolve_bundle_dependencies(&graph, &mut bundles, &roots, &mut resolutions);
+    assert_eq!(
+      resolutions[&DependencyId {
+        asset: AssetIndex(0),
+        dependency: 0
+      }],
+      BundleGraphDependencyResolution::Bundle {
+        bundle_index: 3,
+        asset_index: AssetIndex(1)
+      },
+      "boundary {boundary}"
+    );
+    assert!(bundles[0].referenced_bundles.is_empty());
+    assert!(bundles[1].referenced_bundles.is_empty());
+    assert!(bundles[3].flags.contains(BundleFlags::NEEDS_STABLE_NAME));
+    assert!(!bundles[2].flags.contains(BundleFlags::NEEDS_STABLE_NAME));
+  }
+}
+
+#[test]
+fn mirrored_dependencies_remain_local_without_matching_first_owners() {
+  let graph = asset_graph(2, &[0], &[(0, 1, Priority::Sync)]);
+  let mut bundles = placement_bundles(&[&[1], &[0, 1], &[0, 1]]);
+  for bundle in &mut bundles {
+    bundle.ty = AssetType::Css;
+  }
+  let roots = HashMap::from([(
+    AssetIndex(1),
+    RootBundle {
+      load: 0,
+      content: 0,
+    },
+  )]);
+  let mut resolutions = HashMap::new();
+  resolve_bundle_dependencies(&graph, &mut bundles, &roots, &mut resolutions);
+  assert!(bundles.iter().all(|b| b.referenced_bundles.is_empty()));
+  assert!(resolutions.is_empty());
+}
+
+#[test]
+fn duplicated_importers_keep_internalized_dependencies() {
+  let graph = asset_graph(2, &[0], &[(0, 1, Priority::Lazy)]);
+  let mut bundles = placement_bundles(&[&[0], &[0], &[1]]);
+  let roots = HashMap::from([(
+    AssetIndex(1),
+    RootBundle {
+      load: 2,
+      content: 2,
+    },
+  )]);
+  let dependency = DependencyId {
+    asset: AssetIndex(0),
+    dependency: 0,
+  };
+  let mut resolutions = HashMap::from([(
+    dependency,
+    BundleGraphDependencyResolution::Internalized(AssetIndex(1)),
+  )]);
+  resolve_bundle_dependencies(&graph, &mut bundles, &roots, &mut resolutions);
+  assert_eq!(
+    resolutions[&dependency],
+    BundleGraphDependencyResolution::Internalized(AssetIndex(1))
+  );
+  assert!(bundles.iter().all(|b| b.referenced_bundles.is_empty()));
+}
+
 #[test]
 fn reachability_crosses_sync_roots_and_seeds_every_root_in_a_cycle() {
   let graph = asset_graph(

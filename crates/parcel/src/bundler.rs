@@ -174,7 +174,7 @@ impl Bundler for DefaultBundler {
       .collect();
 
     let mut shared_bundles = HashMap::<BundleKey, usize>::new();
-    let mut asset_index_to_bundle_index = HashMap::new();
+    let mut root_bundles = HashMap::<AssetIndex, RootBundle>::new();
     // Dense logical root -> loadable bundle (possibly an entry facade).
     let mut root_to_bundle = vec![0; bundle_roots.len()];
     // Canonical content bundle -> non-JS entry bundles that must package the
@@ -217,7 +217,7 @@ impl Bundler for DefaultBundler {
         referenced_bundles: Vec::new(),
       };
 
-      let bundle_index = if let Some(&existing) = shared_bundles.get(&key) {
+      let (bundle_index, content_bundle_index) = if let Some(&existing) = shared_bundles.get(&key) {
         // The JS packager supports separating loading from execution. Therefore, if two entries share the
         // same bundle we can convert this into a shared bundle and add an empty entry facade that executes
         // the corresponding main entry module in the shared bundle.
@@ -244,7 +244,7 @@ impl Bundler for DefaultBundler {
               bundles.push(facade);
               let previous_index = root_assets.binary_search(&previous_root).unwrap();
               root_to_bundle[previous_index] = facade_index;
-              asset_index_to_bundle_index.insert(previous_root, facade_index);
+              root_bundles.get_mut(&previous_root).unwrap().load = facade_index;
             }
             bundles[existing].flags = BundleFlags::empty();
           }
@@ -258,24 +258,30 @@ impl Bundler for DefaultBundler {
             facade.referenced_bundles.push(existing);
             let facade_index = bundles.len();
             bundles.push(facade);
-            facade_index
+            (facade_index, existing)
           } else {
-            existing
+            (existing, existing)
           }
         } else {
           let mirror = bundles.len();
           bundles.push(bundle);
           mirrored_bundles.entry(existing).or_default().push(mirror);
-          mirror
+          (mirror, mirror)
         }
       } else {
         let bundle_index = bundles.len();
         bundles.push(bundle);
         shared_bundles.insert(key, bundle_index);
-        bundle_index
+        (bundle_index, bundle_index)
       };
       root_to_bundle[root_index] = bundle_index;
-      asset_index_to_bundle_index.insert(bundle_root_asset_index, bundle_index);
+      root_bundles.insert(
+        bundle_root_asset_index,
+        RootBundle {
+          load: bundle_index,
+          content: content_bundle_index,
+        },
+      );
     }
 
     // Place assets into bundles, following depth-first order.
@@ -340,7 +346,13 @@ impl Bundler for DefaultBundler {
         bundles.push(bundle);
 
         if is_bundle_root {
-          asset_index_to_bundle_index.insert(asset_index, bundle_index);
+          root_bundles.insert(
+            asset_index,
+            RootBundle {
+              load: bundle_index,
+              content: bundle_index,
+            },
+          );
         }
 
         bundle_index
@@ -364,78 +376,12 @@ impl Bundler for DefaultBundler {
       }
     }
 
-    // Build a reverse map from asset index to the bundle it was placed in.
-    let mut asset_to_bundle = HashMap::<AssetIndex, usize>::new();
-    for (bundle_index, bundle) in bundles.iter().enumerate() {
-      for asset_index in &bundle.assets {
-        asset_to_bundle.entry(*asset_index).or_insert(bundle_index);
-      }
-    }
-
-    for (asset_index, asset, _) in asset_graph.dfs() {
-      let source_bundle_index = asset_to_bundle.get(&asset_index).copied();
-      for (dep_index, dep) in asset.dependencies.iter().enumerate() {
-        let dependency_id = DependencyId {
-          asset: asset_index,
-          dependency: dep_index,
-        };
-
-        if dependency_resolutions.contains_key(&dependency_id) {
-          continue;
-        }
-
-        if let Some((resolved_asset_index, _)) = asset_graph.resolved_asset(dep) {
-          // Mirrored non-JS entries contain the same complete asset set as
-          // their canonical owner. Keep these resolutions intra-bundle so each
-          // packager can inline a synchronous cycle independently.
-          if source_bundle_index
-            .is_some_and(|source| asset_to_bundle.get(&resolved_asset_index) == Some(&source))
-          {
-            continue;
-          }
-          if let Some(&bundle_index) = asset_index_to_bundle_index.get(&resolved_asset_index) {
-            // A sync non-URL dep targeting a bundle root in a different JS bundle keeps its
-            // Asset resolution so the runtime can resolve it via the parcelRequire chain.
-            // The target bundle is added to referenced_bundles so it loads synchronously first.
-            // Exclude URL-type deps and inline/isolated bundles — those use Bundle resolution
-            // so the packager can compute URLs or inline content correctly.
-            let is_sync_module_dep = dep.priority == Priority::Sync
-              && dep.bundle_behavior == BundleBehavior::None
-              && dep.specifier_type != SpecifierType::Url
-              && bundles[bundle_index].bundle_behavior == BundleBehavior::None;
-
-            if is_sync_module_dep {
-              let bundle_index = asset_to_bundle[&resolved_asset_index];
-              if let Some(src_bundle_index) = source_bundle_index {
-                if bundle_index != src_bundle_index
-                  && !bundles[src_bundle_index]
-                    .referenced_bundles
-                    .contains(&bundle_index)
-                {
-                  bundles[src_bundle_index]
-                    .referenced_bundles
-                    .push(bundle_index);
-                }
-              }
-            } else {
-              dependency_resolutions.insert(
-                DependencyId {
-                  asset: asset_index as AssetIndex,
-                  dependency: dep_index,
-                },
-                BundleGraphDependencyResolution::Bundle {
-                  bundle_index: bundle_index as u32,
-                  asset_index: resolved_asset_index,
-                },
-              );
-              if dep.flags.contains(DependencyFlags::NEEDS_STABLE_NAME) {
-                bundles[bundle_index].flags |= BundleFlags::NEEDS_STABLE_NAME;
-              }
-            }
-          }
-        }
-      }
-    }
+    resolve_bundle_dependencies(
+      &asset_graph,
+      &mut bundles,
+      &root_bundles,
+      &mut dependency_resolutions,
+    );
 
     // println!("{:?}", bundles);
     Ok(BundleGraph::new(
@@ -444,6 +390,145 @@ impl Bundler for DefaultBundler {
       dependency_resolutions,
       options.project_root,
     ))
+  }
+}
+
+/// A root's loading boundary is independent of where its module is registered.
+/// For example, an entry facade executes a module in a shared content bundle,
+/// while a mirrored non-JS entry contains its own copy of the content.
+struct RootBundle {
+  load: usize,
+  content: usize,
+}
+
+/// All physical placements, including mirrored entries and duplicated assets.
+/// Rebuild this snapshot after changing bundle contents, before wiring dependencies.
+/// Entry facades are not placements: their entry assets live in another bundle.
+struct AssetPlacements {
+  bundles: Vec<Vec<usize>>,
+}
+
+impl AssetPlacements {
+  fn new(asset_count: usize, bundles: &[Bundle]) -> Self {
+    let mut placements = Self {
+      bundles: vec![Vec::new(); asset_count],
+    };
+    for (bundle_index, bundle) in bundles.iter().enumerate() {
+      for asset in &bundle.assets {
+        let indices = &mut placements.bundles[asset.index()];
+        // Bundle iteration order makes membership deterministic and lets us
+        // avoid duplicate placements even if an asset was inserted twice.
+        if indices.last() != Some(&bundle_index) {
+          indices.push(bundle_index);
+        }
+      }
+    }
+    placements
+  }
+
+  fn bundles(&self, asset: AssetIndex) -> &[usize] {
+    &self.bundles[asset.index()]
+  }
+
+  fn contains(&self, asset: AssetIndex, bundle: usize) -> bool {
+    self.bundles(asset).binary_search(&bundle).is_ok()
+  }
+
+  /// Test the eager reference closure, rather than selecting an arbitrary copy
+  /// of the target (which may belong to an unrelated page or runtime).
+  fn is_referenced(&self, asset: AssetIndex, source: usize, bundles: &[Bundle]) -> bool {
+    if self.contains(asset, source)
+      || bundles[source]
+        .referenced_bundles
+        .iter()
+        .any(|&bundle| self.contains(asset, bundle))
+    {
+      return true;
+    }
+    if bundles[source].referenced_bundles.is_empty() {
+      return false;
+    }
+    let mut seen = FixedBitSet::with_capacity(bundles.len());
+    let mut stack = vec![source];
+    while let Some(bundle) = stack.pop() {
+      if seen.contains(bundle) {
+        continue;
+      }
+      if self.contains(asset, bundle) {
+        return true;
+      }
+      seen.insert(bundle);
+      stack.extend(bundles[bundle].referenced_bundles.iter().copied());
+    }
+    false
+  }
+}
+
+fn resolve_bundle_dependencies(
+  asset_graph: &AssetGraph,
+  bundles: &mut [Bundle],
+  root_bundles: &HashMap<AssetIndex, RootBundle>,
+  dependency_resolutions: &mut HashMap<DependencyId, BundleGraphDependencyResolution>,
+) {
+  let placements = AssetPlacements::new(asset_graph.assets.len(), bundles);
+  for (asset_index, asset, _) in asset_graph.dfs() {
+    let sources = placements.bundles(asset_index);
+    for (dep_index, dep) in asset.dependencies.iter().enumerate() {
+      let dependency_id = DependencyId {
+        asset: asset_index,
+        dependency: dep_index,
+      };
+      if dependency_resolutions.contains_key(&dependency_id) {
+        continue;
+      }
+      let Some((target, _)) = asset_graph.resolved_asset(dep) else {
+        continue;
+      };
+
+      // Resolutions are shared by every copy of an asset. Only treat this as
+      // intra-bundle when the target is local to ALL copies of the source.
+      // In particular, mirrored CSS entries must each inline their own cycle.
+      if !sources.is_empty()
+        && sources
+          .iter()
+          .all(|&source| placements.contains(target, source))
+      {
+        continue;
+      }
+      let Some(root) = root_bundles.get(&target) else {
+        continue;
+      };
+      let is_sync_module_dep = dep.priority == Priority::Sync
+        && dep.bundle_behavior == BundleBehavior::None
+        && dep.specifier_type != SpecifierType::Url
+        && bundles[root.load].bundle_behavior == BundleBehavior::None;
+
+      if is_sync_module_dep {
+        // Keep Asset resolution for the parcelRequire chain. Every source copy
+        // needs a provider, but a local or already referenced copy is sufficient.
+        // Fall back to the root's explicit content owner, never an entry facade
+        // or the first physical placement of the target.
+        debug_assert!(placements.contains(target, root.content));
+        for &source in sources {
+          if !placements.is_referenced(target, source, bundles) {
+            bundles[source].referenced_bundles.push(root.content);
+          }
+        }
+      } else {
+        // Duplicating an importer does not change its lazy/URL/inline loading
+        // boundary. Keep the root's loadable output as the shared resolution.
+        dependency_resolutions.insert(
+          dependency_id,
+          BundleGraphDependencyResolution::Bundle {
+            bundle_index: root.load as u32,
+            asset_index: target,
+          },
+        );
+        if dep.flags.contains(DependencyFlags::NEEDS_STABLE_NAME) {
+          bundles[root.load].flags |= BundleFlags::NEEDS_STABLE_NAME;
+        }
+      }
+    }
   }
 }
 
