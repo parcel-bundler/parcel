@@ -21,6 +21,18 @@ struct Layout {
   live: FixedBitSet,
 }
 
+impl Layout {
+  fn new(assets: Vec<Rc<Vec<AssetIndex>>>, references: Vec<Rc<Vec<usize>>>) -> Self {
+    let mut live = FixedBitSet::with_capacity(assets.len());
+    live.insert_range(..);
+    Layout {
+      assets,
+      references,
+      live,
+    }
+  }
+}
+
 #[derive(Clone)]
 struct State {
   /// Root indices whose eager loading closure includes each bundle.
@@ -43,6 +55,13 @@ struct State {
   small: usize,
   /// Total of the per-bundle costs, summed in bundle-index order.
   cost: f64,
+}
+
+impl State {
+  /// Both search constraints are satisfied; the search stops here.
+  fn within_limits(&self) -> bool {
+    self.small == 0 && self.excess == 0
+  }
 }
 
 #[cfg_attr(test, derive(Clone))]
@@ -160,6 +179,12 @@ struct Scratch {
   costs: Vec<f64>,
 }
 
+/// Reset `set` to exactly the members of `assets`.
+fn set_asset_membership(set: &mut FixedBitSet, assets: &[AssetIndex]) {
+  set.clear();
+  set.extend(assets.iter().map(|a| a.index()));
+}
+
 impl Scratch {
   fn new(bundles: usize, assets: usize) -> Self {
     Self {
@@ -218,13 +243,13 @@ pub(super) fn optimize(
   // Protected bundles cannot donate their payload, but may still receive assets
   // as hosts. Manual groups and non-JS/inline/isolated bundles do neither.
   for (index, bundle) in bundles.iter().enumerate() {
-    let manual = bundle.assets.iter().chain(&bundle.entry_assets).any(|&a| {
-      config
-        .manual_shared_bundle(graph.asset(a), options)
-        .is_some()
-    });
-    let can_host =
-      bundle.ty == AssetType::Js && bundle.bundle_behavior == BundleBehavior::None && !manual;
+    let can_host = bundle.ty == AssetType::Js
+      && bundle.bundle_behavior == BundleBehavior::None
+      && !bundle.assets.iter().chain(&bundle.entry_assets).any(|&a| {
+        config
+          .manual_shared_bundle(graph.asset(a), options)
+          .is_some()
+      });
     hosts.set(index, can_host);
     if !can_host
       || bundle.main_entry_asset.is_some()
@@ -242,7 +267,7 @@ pub(super) fn optimize(
         .map(|&a| graph.asset(a).content.ty()),
     );
   }
-  if protected.count_ones(..) == bundles.len()
+  if protected.is_full()
     && (config.max_parallel_requests == 0 || bundles.len() <= config.max_parallel_requests)
   {
     return Ok(());
@@ -287,23 +312,20 @@ pub(super) fn optimize(
     rates,
     asset_requests,
   };
-  let mut live = FixedBitSet::with_capacity(bundles.len());
-  live.insert_range(..);
-  let initial = Layout {
-    assets: bundles.iter().map(|b| Rc::new(b.assets.clone())).collect(),
-    references: bundles
+  let initial = Layout::new(
+    bundles.iter().map(|b| Rc::new(b.assets.clone())).collect(),
+    bundles
       .iter()
       .map(|b| Rc::new(b.referenced_bundles.clone()))
       .collect(),
-    live,
-  };
+  );
   let initial_state = model.state(&initial);
-  if initial_state.small == 0 && initial_state.excess == 0 {
+  if initial_state.within_limits() {
     return Ok(());
   }
 
-  let (mut chosen, result) = model.run_guarded(initial);
-  if result.excess > 0 || result.small > 0 {
+  let (mut chosen, result) = model.run_guarded(initial, initial_state);
+  if !result.within_limits() {
     options.reporters.log(LogLevel::Warn, &format!(
       "Bundle consolidation left {} excess requests and {} undersized shared-bundle occurrences; no further safe merge was found.",
       result.excess, result.small
@@ -316,12 +338,10 @@ pub(super) fn optimize(
     order[a.index()] = rank;
   }
   let mut remap = vec![usize::MAX; bundles.len()];
-  let mut next = 0;
-  for i in chosen.live.ones() {
+  for (next, i) in chosen.live.ones().enumerate() {
     remap[i] = next;
-    next += 1;
   }
-  let mut output = Vec::with_capacity(next);
+  let mut output = Vec::with_capacity(chosen.live.count_ones(..));
   for (i, mut bundle) in std::mem::take(bundles).into_iter().enumerate() {
     if !chosen.live.contains(i) {
       continue;
@@ -350,9 +370,16 @@ pub(super) fn optimize(
 }
 
 impl Model<'_> {
-  fn run_guarded(&self, initial: Layout) -> (Layout, State) {
-    let (baseline_layout, baseline) = self.run(initial.clone(), SearchStrategy::SmallestFirst);
-    let (scored_layout, scored) = self.run(initial, SearchStrategy::Scored);
+  fn run_guarded(&self, initial: Layout, state: State) -> (Layout, State) {
+    if state.within_limits() {
+      return (initial, state);
+    }
+    let (baseline_layout, baseline) = self.run(
+      initial.clone(),
+      state.clone(),
+      SearchStrategy::SmallestFirst,
+    );
+    let (scored_layout, scored) = self.run(initial, state, SearchStrategy::Scored);
     // Keep a smallest-first fallback using only protected hosts: scoring more
     // candidates can lead to a worse final layout. Compare completed runs by
     // constraint violations first, then cost, rather than trusting local choices.
@@ -420,7 +447,7 @@ impl Model<'_> {
       if k == 0 {
         continue;
       }
-      if !self.protected.contains(b) && sizes[b] < self.config.min_bundle_size {
+      if self.undersized(b, sizes[b]) {
         small += k;
       }
       costs[b] = self.bundle_cost(sizes[b], rates[b], k);
@@ -441,18 +468,25 @@ impl Model<'_> {
     }
   }
 
+  /// Pairwise merge compatibility. Callers pre-filter with the `hosts` set.
   fn compatible(&self, source: usize, host: usize) -> bool {
     source != host
-      && self.hosts.contains(host)
       && self.packagers[source] == self.packagers[host]
       && self.bundles[source].target == self.bundles[host].target
   }
 
+  /// Whether a bundle's size counts against the minimum-size constraint.
+  fn undersized(&self, bundle: usize, size: usize) -> bool {
+    !self.protected.contains(bundle) && size < self.config.min_bundle_size
+  }
+
   // With no target, collect the entire closure for host filtering. With a
   // target, stop early when checking whether redirecting an edge makes a cycle.
+  // `loads` is the current state's cached per-bundle asset dependency loads.
   fn reaches(
     &self,
     layout: &Layout,
+    loads: &[Rc<Vec<usize>>],
     from: usize,
     target: Option<usize>,
     scratch: &mut Scratch,
@@ -469,11 +503,7 @@ impl Model<'_> {
       }
       scratch.seen.insert(b);
       scratch.stack.extend(layout.references[b].iter().copied());
-      for a in layout.assets[b].iter() {
-        scratch
-          .stack
-          .extend(self.asset_requests[a.index()].iter().copied());
-      }
+      scratch.stack.extend(loads[b].iter().copied());
     }
     false
   }
@@ -484,6 +514,7 @@ impl Model<'_> {
     state: &State,
     source: usize,
     hosts: &[usize],
+    parents: &[usize],
     scratch: &mut Scratch,
   ) -> Option<Candidate> {
     if hosts.is_empty() {
@@ -498,10 +529,7 @@ impl Model<'_> {
         rate: state.rates[host],
         loads: state.loads[host].clone(),
       };
-      scratch.assets.clear();
-      scratch
-        .assets
-        .extend(layout.assets[host].iter().map(|a| a.index()));
+      set_asset_membership(&mut scratch.assets, &layout.assets[host]);
       for &a in layout.assets[source].iter() {
         if !scratch.assets.put(a.index()) {
           Rc::make_mut(&mut next.assets[host]).push(a);
@@ -521,16 +549,13 @@ impl Model<'_> {
     }
     // Redirect a parent only to a host its consumers already load. Unredirected
     // parents keep the source alive, allowing selective duplication for request relief.
-    for parent in layout.live.ones() {
-      if !layout.references[parent].contains(&source) {
-        continue;
-      }
+    for &parent in parents {
       let host = if hosts.contains(&parent) {
         parent
       } else {
         let Some(&host) = hosts.iter().find(|&&host| {
           state.consumers[parent].is_subset(&state.consumers[host])
-            && !self.reaches(layout, host, Some(parent), scratch)
+            && !self.reaches(layout, &state.loads, host, Some(parent), scratch)
         }) else {
           continue;
         };
@@ -701,13 +726,11 @@ impl Model<'_> {
       } else {
         (delta.hosts[host].size, delta.hosts[host].rate)
       };
-      if !self.protected.contains(bundle) {
-        if state.sizes[bundle] < self.config.min_bundle_size {
-          delta.small -= old_count;
-        }
-        if size < self.config.min_bundle_size {
-          delta.small += count;
-        }
+      if self.undersized(bundle, state.sizes[bundle]) {
+        delta.small -= old_count;
+      }
+      if self.undersized(bundle, size) {
+        delta.small += count;
       }
       let cost = self.bundle_cost(size, rate, count);
       scratch.costs[bundle] = cost;
@@ -721,37 +744,29 @@ impl Model<'_> {
     }
     // Preserve full-state summation order: subtracting/adding costs can change
     // rounding enough to choose a different winner among near-equal candidates.
-    delta.cost = scratch.costs.iter().fold(0.0, |sum, cost| sum + cost);
+    delta.cost = scratch.costs.iter().sum();
     Some(delta)
   }
 
-  fn run(&self, mut layout: Layout, strategy: SearchStrategy) -> (Layout, State) {
+  fn run(&self, mut layout: Layout, mut state: State, strategy: SearchStrategy) -> (Layout, State) {
     let scored = strategy == SearchStrategy::Scored;
-    let mut state = self.state(&layout);
-    if state.small == 0 && state.excess == 0 {
-      return (layout, state);
-    }
     let mut scratch = Scratch::new(layout.live.len(), self.sizes.len());
-    loop {
-      if state.small == 0 && state.excess == 0 {
-        break;
-      }
+    while !state.within_limits() {
       let mut sources: Vec<_> = layout
         .live
         .difference(&self.protected)
         .filter(|&b| {
-          state.sizes[b] < self.config.min_bundle_size
-            || (self.config.max_parallel_requests > 0
-              && state.consumers[b]
-                .ones()
-                .any(|r| state.requests[r] > self.config.max_parallel_requests))
+          self.undersized(b, state.sizes[b])
+            || state.consumers[b]
+              .ones()
+              .any(|r| self.request_excess(state.requests[r]) > 0)
         })
         .collect();
       sources.sort_unstable_by_key(|&b| (state.sizes[b], self.bundles[b].id, b));
       let mut best: Option<Candidate> = None;
-      for source in sources {
+      'sources: for source in sources {
         // This closure is identical for every host considered for this source.
-        self.reaches(&layout, source, None, &mut scratch);
+        self.reaches(&layout, &state.loads, source, None, &mut scratch);
         // Copies must not reach roots that never loaded the source. Exclude
         // downstream hosts as well to avoid introducing reference cycles.
         let mut hosts: Vec<_> = layout
@@ -765,7 +780,16 @@ impl Model<'_> {
               && (scored || self.protected.contains(h))
           })
           .collect();
+        if hosts.is_empty() {
+          continue;
+        }
         hosts.sort_unstable_by_key(|&h| (self.bundles[h].id, h));
+        // Bundles referencing the source; identical for every cover tried below.
+        let parents: Vec<_> = layout
+          .live
+          .ones()
+          .filter(|&p| layout.references[p].contains(&source))
+          .collect();
         // Full duplication fallback, then selective copies for request pressure.
         let direct: Vec<_> = hosts
           .iter()
@@ -788,7 +812,8 @@ impl Model<'_> {
               .map(std::slice::from_ref),
           );
         for cover in covers {
-          let Some(candidate) = self.absorb(&layout, &state, source, cover, &mut scratch) else {
+          let Some(candidate) = self.absorb(&layout, &state, source, cover, &parents, &mut scratch)
+          else {
             continue;
           };
           if best
@@ -797,12 +822,10 @@ impl Model<'_> {
           {
             best = Some(candidate);
           }
+          // The first valid move wins in SmallestFirst mode.
           if !scored {
-            break;
+            break 'sources;
           }
-        }
-        if !scored && best.is_some() {
-          break;
         }
       }
       let Some(candidate) = best else {
@@ -851,6 +874,9 @@ impl Model<'_> {
 
   // Estimate added cost per host consumer to construct a cover. The complete
   // candidate is then evaluated exactly, including whether the source survives.
+  // This expands the marginal of `bundle_cost`: it equals
+  // (bundle_cost(size + added, rate + added, k) - bundle_cost(size, rate, k)) * n / k,
+  // so keep the two formulas in sync.
   fn host_price(
     &self,
     layout: &Layout,
@@ -859,8 +885,7 @@ impl Model<'_> {
     host: usize,
     assets: &mut FixedBitSet,
   ) -> f64 {
-    assets.clear();
-    assets.extend(layout.assets[host].iter().map(|a| a.index()));
+    set_asset_membership(assets, &layout.assets[host]);
     let mut added_size = 0;
     let mut added_rate = 0.0;
     for a in layout.assets[source].iter() {

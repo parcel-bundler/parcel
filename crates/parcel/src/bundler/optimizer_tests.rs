@@ -10,13 +10,10 @@ fn check(
   test: impl FnOnce(&mut Model, Layout),
 ) {
   let bundles = placement_bundles(contents);
-  let mut live = FixedBitSet::with_capacity(bundles.len());
-  live.insert_range(..);
-  let layout = Layout {
-    assets: bundles.iter().map(|b| Rc::new(b.assets.clone())).collect(),
-    references: references.iter().map(|r| Rc::new(r.to_vec())).collect(),
-    live: live.clone(),
-  };
+  let layout = Layout::new(
+    bundles.iter().map(|b| Rc::new(b.assets.clone())).collect(),
+    references.iter().map(|r| Rc::new(r.to_vec())).collect(),
+  );
   let mut protected = FixedBitSet::with_capacity(bundles.len());
   protected.insert_range(..roots);
   let mut model = Model {
@@ -25,7 +22,7 @@ fn check(
     bundles: &bundles,
     roots: (0..roots).collect(),
     protected,
-    hosts: live,
+    hosts: layout.live.clone(),
     packagers: vec![None; bundles.len()],
     sizes: sizes.to_vec(),
     rates: vec![1.0; sizes.len()],
@@ -67,7 +64,7 @@ fn selective_request_relief_retains_the_shared_file_for_other_consumers() {
       ..Default::default()
     },
     |model, initial| {
-      let (result, state) = model.run_guarded(initial.clone());
+      let (result, state) = model.run_guarded(initial.clone(), model.state(&initial));
       assert_eq!(state.requests, [2, 2, 2]);
       assert_eq!(result.assets[0].as_slice(), [AssetIndex(0), AssetIndex(3)]);
       assert!(result.live.contains(3));
@@ -94,7 +91,7 @@ fn overlapping_parallel_consumers_cannot_pay_for_request_relief_with_duplicate_b
       ..Default::default()
     },
     |model, initial| {
-      let (result, state) = model.run_guarded(initial.clone());
+      let (result, state) = model.run_guarded(initial.clone(), model.state(&initial));
       assert_eq!(state.requests, [4, 2, 2]);
       assert_eq!(state.excess, 2);
       assert_eq!(result.assets, initial.assets);
@@ -179,9 +176,13 @@ fn generated_layouts_preserve_coverage_limits_and_the_completed_baseline() {
       },
       |model, initial| {
         let before = model.state(&initial);
-        let (_, baseline) = model.run(initial.clone(), SearchStrategy::SmallestFirst);
-        let (result, after) = model.run_guarded(initial.clone());
-        let (again, _) = model.run_guarded(initial.clone());
+        let (_, baseline) = model.run(
+          initial.clone(),
+          before.clone(),
+          SearchStrategy::SmallestFirst,
+        );
+        let (result, after) = model.run_guarded(initial.clone(), before.clone());
+        let (again, _) = model.run_guarded(initial.clone(), before.clone());
         assert_eq!(result.assets, again.assets);
         assert_eq!(result.references, again.references);
         assert_eq!(after.excess, 0);
@@ -236,7 +237,7 @@ fn sparse_live_sets_span_words_and_preserve_asset_dependency_loads() {
       let before: Vec<_> = (0..roots)
         .map(|r| loaded_assets(model, &initial, r))
         .collect();
-      let (result, state) = model.run_guarded(initial.clone());
+      let (result, state) = model.run_guarded(initial.clone(), model.state(&initial));
       assert_eq!((state.small, state.excess), (0, 0));
       assert_eq!(result.live.count_ones(..), roots + 1);
       assert!(result.live.contains(73));
@@ -299,7 +300,8 @@ fn candidate_deltas_match_full_state_with_cycles_diamonds_and_duplicate_assets()
         let before: Vec<_> = (0..roots)
           .map(|r| loaded_assets(model, &initial, r))
           .collect();
-        let (result, state) = model.run_guarded(initial);
+        let initial_state = model.state(&initial);
+        let (result, state) = model.run_guarded(initial, initial_state);
         let full = model.state(&result);
         assert_eq!(state.consumers, full.consumers);
         assert_eq!(state.cost, full.cost);
@@ -329,7 +331,8 @@ fn candidate_deltas_preserve_a_diamond_leading_into_a_cycle() {
         model.hosts.set(b, false);
       }
       let before: Vec<_> = (0..3).map(|r| loaded_assets(model, &initial, r)).collect();
-      let (result, state) = model.run_guarded(initial);
+      let initial_state = model.state(&initial);
+      let (result, state) = model.run_guarded(initial, initial_state);
       assert!(!result.live.contains(3));
       assert_eq!(state.requests, [3, 3, 1]);
       assert_eq!(state.bytes, [301, 301, 100]);
@@ -391,7 +394,8 @@ fn optimizer_workload_timings() {
         let mut times = Vec::new();
         for _ in 0..5 {
           let start = std::time::Instant::now();
-          std::hint::black_box(model.run_guarded(initial.clone()));
+          let state = model.state(&initial);
+          std::hint::black_box(model.run_guarded(initial.clone(), state));
           times.push(start.elapsed());
         }
         times.sort();

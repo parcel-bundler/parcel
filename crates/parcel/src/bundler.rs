@@ -71,6 +71,9 @@ impl DefaultBundler {
   }
 
   fn manual_shared_bundle(&self, asset: &Asset, options: &ParcelOptions) -> Option<usize> {
+    if self.manual_shared_bundles.is_empty() {
+      return None;
+    }
     let path = asset
       .loc
       .url
