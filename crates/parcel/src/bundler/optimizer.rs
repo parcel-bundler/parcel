@@ -98,6 +98,23 @@ impl StateDelta {
   }
 }
 
+struct Candidate {
+  /// Bundle placements and references after this move.
+  layout: Layout,
+  /// Cached state updates to apply if this candidate wins.
+  changes: StateDelta,
+  /// Cost change, normalized by constraint relief when the move increases cost.
+  score: f64,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SearchStrategy {
+  /// Take the first valid move, trying the smallest sources and protected hosts.
+  SmallestFirst,
+  /// Compare scored moves, also considering shared bundles as hosts.
+  Scored,
+}
+
 struct Model<'a> {
   /// Check every candidate against full recomputation; disabled for timing tests.
   #[cfg(test)]
@@ -334,18 +351,19 @@ pub(super) fn optimize(
 
 impl Model<'_> {
   fn run_guarded(&self, initial: Layout) -> (Layout, State) {
-    let baseline = self.run(initial.clone(), false);
-    let optimized = self.run(initial, true);
+    let (baseline_layout, baseline) = self.run(initial.clone(), SearchStrategy::SmallestFirst);
+    let (scored_layout, scored) = self.run(initial, SearchStrategy::Scored);
     // Keep a smallest-first fallback using only protected hosts: scoring more
     // candidates can lead to a worse final layout. Compare completed runs by
     // constraint violations first, then cost, rather than trusting local choices.
-    if (optimized.1.excess, optimized.1.small) < (baseline.1.excess, baseline.1.small)
-      || ((optimized.1.excess, optimized.1.small) == (baseline.1.excess, baseline.1.small)
-        && optimized.1.cost < baseline.1.cost - 1e-6)
+    let baseline_limits = (baseline.excess, baseline.small);
+    let scored_limits = (scored.excess, scored.small);
+    if scored_limits < baseline_limits
+      || (scored_limits == baseline_limits && scored.cost < baseline.cost - 1e-6)
     {
-      optimized
+      (scored_layout, scored)
     } else {
-      baseline
+      (baseline_layout, baseline)
     }
   }
 
@@ -355,25 +373,28 @@ impl Model<'_> {
     let mut consumers = vec![FixedBitSet::with_capacity(n); layout.live.len()];
     let mut requests = vec![0usize; n];
     let mut bytes = vec![0; n];
-    // Scan each asset list once per state, rather than once per loading root.
-    // Most assets have no eager bundle dependencies, so keep those edges in a
-    // flat buffer instead of allocating a separate adjacency list per bundle.
+    // Cache asset dependency loads separately from explicit references. Most
+    // bundles have none, so share one empty list rather than allocating for each.
     let mut sizes = Vec::with_capacity(layout.assets.len());
     let mut rates = Vec::with_capacity(layout.assets.len());
-    let mut load_offsets = Vec::with_capacity(layout.assets.len() + 1);
-    let mut loads = Vec::new();
-    load_offsets.push(0);
+    let mut loads = Vec::with_capacity(layout.assets.len());
+    let empty_loads = Rc::new(Vec::new());
     for assets in &layout.assets {
       let mut size = 0;
       let mut rate = 0.0;
+      let mut asset_loads = Vec::new();
       for a in assets.iter() {
         size += self.sizes[a.index()];
         rate += self.rates[a.index()];
-        loads.extend(self.asset_requests[a.index()].iter().copied());
+        asset_loads.extend(self.asset_requests[a.index()].iter().copied());
       }
       sizes.push(size);
       rates.push(rate);
-      load_offsets.push(loads.len());
+      loads.push(if asset_loads.is_empty() {
+        empty_loads.clone()
+      } else {
+        Rc::new(asset_loads)
+      });
     }
     let mut stack = Vec::new();
     for (context, &root) in self.roots.iter().enumerate() {
@@ -388,7 +409,7 @@ impl Model<'_> {
           bytes[context] += sizes[b];
         }
         stack.extend(layout.references[b].iter().copied());
-        stack.extend(loads[load_offsets[b]..load_offsets[b + 1]].iter().copied());
+        stack.extend(loads[b].iter().copied());
       }
     }
     let mut small = 0;
@@ -402,49 +423,17 @@ impl Model<'_> {
       if !self.protected.contains(b) && sizes[b] < self.config.min_bundle_size {
         small += k;
       }
-      // Assume a uniformly chosen first root and optionally a different second
-      // root. `second` counts a cache miss only on that second visit; invalidation
-      // adds the expected download after one edit, weighted by asset change rates.
-      let probability = k as f64 / n as f64;
-      let second = if n > 1 {
-        ((n - k) * k) as f64 / (n * (n - 1)) as f64
-      } else {
-        0.0
-      };
-      let invalidation = if self.total_rate > 0.0 {
-        probability * rates[b] / self.total_rate
-      } else {
-        0.0
-      };
-      costs[b] = sizes[b] as f64
-        * (probability + (1.0 - self.config.first_page_load_priority) * second + invalidation);
+      costs[b] = self.bundle_cost(sizes[b], rates[b], k);
       cost += costs[b];
     }
-    let excess = if self.config.max_parallel_requests == 0 {
-      0
-    } else {
-      requests
-        .iter()
-        .map(|n| n.saturating_sub(self.config.max_parallel_requests))
-        .sum()
-    };
-    let empty_loads = Rc::new(Vec::new());
+    let excess = requests.iter().map(|&r| self.request_excess(r)).sum();
     State {
       consumers,
       requests,
       bytes,
       sizes,
       rates,
-      loads: load_offsets
-        .windows(2)
-        .map(|range| {
-          if range[0] == range[1] {
-            empty_loads.clone()
-          } else {
-            Rc::new(loads[range[0]..range[1]].to_vec())
-          }
-        })
-        .collect(),
+      loads,
       costs,
       excess,
       small,
@@ -496,7 +485,7 @@ impl Model<'_> {
     source: usize,
     hosts: &[usize],
     scratch: &mut Scratch,
-  ) -> Option<(Layout, StateDelta)> {
+  ) -> Option<Candidate> {
     if hosts.is_empty() {
       return None;
     }
@@ -536,16 +525,21 @@ impl Model<'_> {
       if !layout.references[parent].contains(&source) {
         continue;
       }
-      if hosts.contains(&parent) {
-        Rc::make_mut(&mut next.references[parent]).retain(|&r| r != source);
-      } else if let Some(&host) = hosts.iter().find(|&&host| {
-        state.consumers[parent].is_subset(&state.consumers[host])
-          && !self.reaches(layout, host, Some(parent), scratch)
-      }) {
-        Rc::make_mut(&mut next.references[parent]).retain(|&r| r != source);
-        if !next.references[parent].contains(&host) {
-          Rc::make_mut(&mut next.references[parent]).push(host);
-        }
+      let host = if hosts.contains(&parent) {
+        parent
+      } else {
+        let Some(&host) = hosts.iter().find(|&&host| {
+          state.consumers[parent].is_subset(&state.consumers[host])
+            && !self.reaches(layout, host, Some(parent), scratch)
+        }) else {
+          continue;
+        };
+        host
+      };
+      let references = Rc::make_mut(&mut next.references[parent]);
+      references.retain(|&r| r != source);
+      if host != parent && !references.contains(&host) {
+        references.push(host);
       }
     }
     let still_referenced = next
@@ -558,7 +552,22 @@ impl Model<'_> {
     if self.check_deltas {
       tests::assert_delta(self, &next, state, result.as_ref());
     }
-    result.map(|delta| (next, delta))
+    result.map(|changes| {
+      let cost_change = changes.cost - state.cost;
+      let relief = state.small + state.excess - changes.small - changes.excess;
+      // Prefer the largest absolute saving when cost falls; otherwise choose
+      // the lowest added cost per constraint violation removed.
+      let score = if cost_change < 0.0 {
+        cost_change
+      } else {
+        cost_change / relief as f64
+      };
+      Candidate {
+        layout: next,
+        changes,
+        score,
+      }
+    })
   }
 
   fn bundle_cost(&self, size: usize, rate: f64, consumers: usize) -> f64 {
@@ -566,6 +575,9 @@ impl Model<'_> {
       return 0.0;
     }
     let n = self.roots.len();
+    // Assume a uniformly chosen first root and optionally a different second
+    // root. `second` counts a cache miss only on that second visit; invalidation
+    // adds the expected download after one edit, weighted by asset change rates.
     let probability = consumers as f64 / n as f64;
     let second = if n > 1 {
       ((n - consumers) * consumers) as f64 / (n * (n - 1)) as f64
@@ -713,7 +725,8 @@ impl Model<'_> {
     Some(delta)
   }
 
-  fn run(&self, mut layout: Layout, scored: bool) -> (Layout, State) {
+  fn run(&self, mut layout: Layout, strategy: SearchStrategy) -> (Layout, State) {
+    let scored = strategy == SearchStrategy::Scored;
     let mut state = self.state(&layout);
     if state.small == 0 && state.excess == 0 {
       return (layout, state);
@@ -735,7 +748,7 @@ impl Model<'_> {
         })
         .collect();
       sources.sort_unstable_by_key(|&b| (state.sizes[b], self.bundles[b].id, b));
-      let mut best: Option<(Layout, StateDelta, f64)> = None;
+      let mut best: Option<Candidate> = None;
       for source in sources {
         // This closure is identical for every host considered for this source.
         self.reaches(&layout, source, None, &mut scratch);
@@ -759,37 +772,11 @@ impl Model<'_> {
           .copied()
           .filter(|&h| layout.references[h].contains(&source))
           .collect();
-        let mut cover = Vec::new();
-        if scored {
-          // Prices do not change as the remaining consumer set shrinks. A host
-          // rejected here cannot become eligible later, so one sorted pass is
-          // equivalent to repeatedly searching for the cheapest eligible host.
-          let mut priced: Vec<_> = hosts
-            .iter()
-            .map(|&h| {
-              (
-                h,
-                self.host_price(&layout, &state, source, h, &mut scratch.assets),
-              )
-            })
-            .collect();
-          priced.sort_by(|&(a, a_price), &(b, b_price)| {
-            a_price
-              .total_cmp(&b_price)
-              .then_with(|| self.bundles[a].id.cmp(&self.bundles[b].id))
-          });
-          let mut remaining = state.consumers[source].clone();
-          for (host, _) in priced {
-            if !state.consumers[host].is_subset(&remaining) {
-              continue;
-            }
-            remaining.difference_with(&state.consumers[host]);
-            cover.push(host);
-            if remaining.is_clear() {
-              break;
-            }
-          }
-        }
+        let cover = if scored {
+          self.greedy_cover(&layout, &state, source, &hosts, &mut scratch.assets)
+        } else {
+          Vec::new()
+        };
         // Borrow singleton covers instead of allocating one Vec per host, and
         // skip exact repeats without changing the order of distinct candidates.
         let covers = std::iter::once(direct.as_slice())
@@ -801,17 +788,14 @@ impl Model<'_> {
               .map(std::slice::from_ref),
           );
         for cover in covers {
-          let Some((next, result)) = self.absorb(&layout, &state, source, cover, &mut scratch)
-          else {
+          let Some(candidate) = self.absorb(&layout, &state, source, cover, &mut scratch) else {
             continue;
           };
-          let delta = result.cost - state.cost;
-          let relief = state.small + state.excess - result.small - result.excess;
-          // Prefer the largest absolute saving when cost falls; otherwise choose
-          // the lowest added cost per constraint violation removed.
-          let score = delta / if delta < 0.0 { 1.0 } else { relief as f64 };
-          if best.as_ref().is_none_or(|(_, _, current)| score < *current) {
-            best = Some((next, result, score));
+          if best
+            .as_ref()
+            .is_none_or(|best| candidate.score < best.score)
+          {
+            best = Some(candidate);
           }
           if !scored {
             break;
@@ -821,13 +805,48 @@ impl Model<'_> {
           break;
         }
       }
-      let Some((next, result, _)) = best else {
+      let Some(candidate) = best else {
         break;
       };
-      layout = next;
-      result.apply(&mut state);
+      layout = candidate.layout;
+      candidate.changes.apply(&mut state);
     }
     (layout, state)
+  }
+
+  fn greedy_cover(
+    &self,
+    layout: &Layout,
+    state: &State,
+    source: usize,
+    hosts: &[usize],
+    assets: &mut FixedBitSet,
+  ) -> Vec<usize> {
+    // Prices do not change as the remaining consumer set shrinks. A host
+    // rejected here cannot become eligible later, so one sorted pass is
+    // equivalent to repeatedly searching for the cheapest eligible host.
+    let mut priced: Vec<_> = hosts
+      .iter()
+      .map(|&h| (h, self.host_price(layout, state, source, h, assets)))
+      .collect();
+    priced.sort_by(|&(a, a_price), &(b, b_price)| {
+      a_price
+        .total_cmp(&b_price)
+        .then_with(|| self.bundles[a].id.cmp(&self.bundles[b].id))
+    });
+    let mut cover = Vec::new();
+    let mut remaining = state.consumers[source].clone();
+    for (host, _) in priced {
+      if !state.consumers[host].is_subset(&remaining) {
+        continue;
+      }
+      remaining.difference_with(&state.consumers[host]);
+      cover.push(host);
+      if remaining.is_clear() {
+        break;
+      }
+    }
+    cover
   }
 
   // Estimate added cost per host consumer to construct a cover. The complete

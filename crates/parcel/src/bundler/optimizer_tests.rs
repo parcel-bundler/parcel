@@ -179,7 +179,7 @@ fn generated_layouts_preserve_coverage_limits_and_the_completed_baseline() {
       },
       |model, initial| {
         let before = model.state(&initial);
-        let (_, baseline) = model.run(initial.clone(), false);
+        let (_, baseline) = model.run(initial.clone(), SearchStrategy::SmallestFirst);
         let (result, after) = model.run_guarded(initial.clone());
         let (again, _) = model.run_guarded(initial.clone());
         assert_eq!(result.assets, again.assets);
