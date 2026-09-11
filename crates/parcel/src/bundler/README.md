@@ -50,17 +50,17 @@ eagerly loaded. Their constant byte costs do not affect JS merge comparisons.
   a context, new reference cycles, and moves that increase any request count.
 - Rank beneficial moves by total cost reduction. Rank unavoidable increases by
   cost per excess request or undersized bundle/context occurrence removed.
-- Stop when constraints are met or there is no safe move. Every accepted move
-  strictly reduces the total request count over all contexts, bounding progress.
-- Compare the completed scored layout with smallest-first duplication and choose
-  fewer remaining constraint violations, then lower cost. This is a greedy
-  heuristic with a baseline safeguard, not a global optimum.
-- After the chosen layout meets the limits or stalls, keep only merges that
-  strictly reduce the cost, such as deduplicating overlapping payloads.
-  Constraint relief alone never justifies a move in this polish phase, and no
-  move may raise a violation count. Under this cost function only moves that
-  deduplicate an asset can qualify, so polish considers only payloads that
-  overlap another output.
+- Accept a move only if it strictly reduces the remaining violations or
+  strictly reduces the cost, worsening neither. Cost-reducing merges rank ahead
+  of cost-increasing relief, so relief decisions see deduplicated sizes. Under
+  this cost function only moves that deduplicate an asset can reduce cost, so
+  beyond the limits only payloads overlapping another output are considered.
+- Run one greedy pass to a fixed point: stop when no acceptable move remains.
+  Every accepted move strictly reduces the total request count over all
+  contexts, bounding progress. This is a greedy heuristic, not a global
+  optimum. A smallest-first fallback strategy was removed after simulation
+  over ~51,000 graphs: it changed the outcome 27 times, always on estimated
+  cost (at most ~2%), while adding 7-16% to search time.
 
 The cost is expected session JS downloads plus expected bytes invalidated by
 one edit. Activations are sampled uniformly from loadable roots; a second

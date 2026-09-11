@@ -1,7 +1,8 @@
 //! Consolidate registration-only JS payloads without changing loading boundaries.
 //! Consumer sets describe eager loading closures, not just direct references.
 //! Every accepted move reduces requests without increasing downloaded bytes in any closure.
-//! After the limits are met, a polish phase keeps only merges that strictly reduce cost.
+//! One greedy pass runs to a fixed point, taking constraint-relief moves and
+//! strictly cost-reducing deduplication merges from a shared candidate pool.
 
 use std::rc::Rc;
 
@@ -12,8 +13,7 @@ use parcel_core::{AssetFlags, LogLevel};
 #[path = "optimizer_tests.rs"]
 mod tests;
 
-/// Cost differences below this threshold are ties: float noise must not drive
-/// moves or strategy selection.
+/// Cost differences below this threshold are ties: float noise must not drive moves.
 const COST_EPSILON: f64 = 1e-6;
 
 #[derive(Clone)]
@@ -129,16 +129,6 @@ struct Candidate {
   changes: StateDelta,
   /// Cost change, normalized by constraint relief when the move increases cost.
   score: f64,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum SearchStrategy {
-  /// Take the first valid move, trying the smallest sources and protected hosts.
-  SmallestFirst,
-  /// Compare scored moves, also considering shared bundles as hosts.
-  Scored,
-  /// Accept only moves that strictly reduce cost, considering every donor.
-  Polish,
 }
 
 struct Model<'a> {
@@ -329,10 +319,7 @@ pub(super) fn optimize(
   let initial_state = model.state(&initial);
   let initial_requests: usize = initial_state.requests.iter().sum();
 
-  let (chosen, result) = model.run_guarded(initial, initial_state);
-  // Free wins can remain once the limits are met, such as deduplicating
-  // bundles with overlapping payloads. Keep only strictly cost-reducing moves.
-  let (mut chosen, result) = model.polish(chosen, result);
+  let (mut chosen, result) = model.run(initial, initial_state);
   if !result.within_limits() {
     options.reporters.log(LogLevel::Warn, &format!(
       "Bundle consolidation left {} excess requests and {} undersized shared-bundle occurrences; no further safe merge was found.",
@@ -383,30 +370,6 @@ pub(super) fn optimize(
 }
 
 impl Model<'_> {
-  fn run_guarded(&self, initial: Layout, state: State) -> (Layout, State) {
-    if state.within_limits() {
-      return (initial, state);
-    }
-    let (baseline_layout, baseline) = self.run(
-      initial.clone(),
-      state.clone(),
-      SearchStrategy::SmallestFirst,
-    );
-    let (scored_layout, scored) = self.run(initial, state, SearchStrategy::Scored);
-    // Keep a smallest-first fallback using only protected hosts: scoring more
-    // candidates can lead to a worse final layout. Compare completed runs by
-    // constraint violations first, then cost, rather than trusting local choices.
-    let baseline_limits = (baseline.excess, baseline.small);
-    let scored_limits = (scored.excess, scored.small);
-    if scored_limits < baseline_limits
-      || (scored_limits == baseline_limits && scored.cost < baseline.cost - COST_EPSILON)
-    {
-      (scored_layout, scored)
-    } else {
-      (baseline_layout, baseline)
-    }
-  }
-
   // Full evaluation initializes each run and is the test oracle for state_delta.
   fn state(&self, layout: &Layout) -> State {
     let n = self.roots.len();
@@ -528,7 +491,6 @@ impl Model<'_> {
     source: usize,
     hosts: &[usize],
     parents: &[usize],
-    polish: bool,
     scratch: &mut Scratch,
   ) -> Option<Candidate> {
     if hosts.is_empty() {
@@ -586,10 +548,10 @@ impl Model<'_> {
       .ones()
       .any(|b| next.references[b].contains(&source));
     next.live.set(source, still_referenced);
-    let result = self.state_delta(&next, state, source, host_states, polish, scratch);
+    let result = self.state_delta(&next, state, source, host_states, scratch);
     #[cfg(test)]
     if self.check_deltas {
-      tests::assert_delta(self, &next, state, polish, result.as_ref());
+      tests::assert_delta(self, &next, state, result.as_ref());
     }
     result.map(|changes| {
       let cost_change = changes.cost - state.cost;
@@ -646,7 +608,6 @@ impl Model<'_> {
     state: &State,
     source: usize,
     hosts: Vec<HostState>,
-    polish: bool,
     scratch: &mut Scratch,
   ) -> Option<StateDelta> {
     scratch.host_indices.fill(usize::MAX);
@@ -754,56 +715,33 @@ impl Model<'_> {
     if delta.small > state.small || delta.excess > state.excess {
       return None;
     }
-    if !polish && delta.small + delta.excess >= state.small + state.excess {
-      return None;
-    }
     // Preserve full-state summation order: subtracting/adding costs can change
     // rounding enough to choose a different winner among near-equal candidates.
     delta.cost = scratch.costs.iter().sum();
-    // Polish accepts only strict cost reductions.
-    if polish && delta.cost >= state.cost - COST_EPSILON {
+    // Accept a move only when it strictly reduces the remaining violations or
+    // strictly reduces cost; either alone qualifies, and neither may worsen.
+    if delta.small + delta.excess >= state.small + state.excess
+      && delta.cost >= state.cost - COST_EPSILON
+    {
       return None;
     }
     Some(delta)
   }
 
-  fn run(&self, mut layout: Layout, mut state: State, strategy: SearchStrategy) -> (Layout, State) {
-    let mut scratch = Scratch::new(layout.live.len(), self.sizes.len());
-    while !state.within_limits() {
-      let mut sources: Vec<_> = layout
-        .live
-        .difference(&self.protected)
-        .filter(|&b| {
-          self.undersized(b, state.sizes[b])
-            || state.consumers[b]
-              .ones()
-              .any(|r| self.request_excess(state.requests[r]) > 0)
-        })
-        .collect();
-      sources.sort_unstable_by_key(|&b| (state.sizes[b], self.bundles[b].id, b));
-      let Some(candidate) = self.best_candidate(&layout, &state, &sources, strategy, &mut scratch)
-      else {
-        break;
-      };
-      layout = candidate.layout;
-      candidate.changes.apply(&mut state);
-    }
-    (layout, state)
-  }
-
-  // After the constraint search, keep merges that strictly reduce cost, such as
-  // deduplicating bundles with overlapping payloads. Constraint relief alone
-  // never justifies a move here, and no move may raise a violation count. Every
-  // accepted move still strictly reduces total requests, bounding the loop.
-  fn polish(&self, mut layout: Layout, mut state: State) -> (Layout, State) {
+  // One greedy pass to a fixed point over a shared candidate pool: donors under
+  // request pressure or the size minimum, plus donors whose payload overlaps
+  // another output. Scoring takes free cost reductions before cost-increasing
+  // relief, so relief decisions always see deduplicated sizes. Every accepted
+  // move strictly reduces total requests, bounding the loop.
+  fn run(&self, mut layout: Layout, mut state: State) -> (Layout, State) {
     let mut scratch = Scratch::new(layout.live.len(), self.sizes.len());
     let mut seen = FixedBitSet::with_capacity(self.sizes.len());
     let mut duplicated = FixedBitSet::with_capacity(self.sizes.len());
     loop {
-      // Only a merge that deduplicates an asset can strictly reduce cost:
-      // without overlap, per-root bytes are unchanged while the second-visit
-      // and invalidation terms of `bundle_cost` can only grow. Revisit this
-      // filter if the cost model gains terms that reward consolidation alone.
+      // Beyond the configured limits, only a merge that deduplicates an asset
+      // can strictly reduce cost: without overlap, per-root bytes are unchanged
+      // while the second-visit and invalidation terms of `bundle_cost` can only
+      // grow. Revisit this filter if the cost model rewards consolidation alone.
       seen.clear();
       duplicated.clear();
       for b in layout.live.ones() {
@@ -817,19 +755,17 @@ impl Model<'_> {
         .live
         .difference(&self.protected)
         .filter(|&b| {
-          layout.assets[b]
-            .iter()
-            .any(|a| duplicated.contains(a.index()))
+          self.undersized(b, state.sizes[b])
+            || state.consumers[b]
+              .ones()
+              .any(|r| self.request_excess(state.requests[r]) > 0)
+            || layout.assets[b]
+              .iter()
+              .any(|a| duplicated.contains(a.index()))
         })
         .collect();
       sources.sort_unstable_by_key(|&b| (state.sizes[b], self.bundles[b].id, b));
-      let Some(candidate) = self.best_candidate(
-        &layout,
-        &state,
-        &sources,
-        SearchStrategy::Polish,
-        &mut scratch,
-      ) else {
+      let Some(candidate) = self.best_candidate(&layout, &state, &sources, &mut scratch) else {
         break;
       };
       layout = candidate.layout;
@@ -843,11 +779,8 @@ impl Model<'_> {
     layout: &Layout,
     state: &State,
     sources: &[usize],
-    strategy: SearchStrategy,
     scratch: &mut Scratch,
   ) -> Option<Candidate> {
-    let scored = strategy != SearchStrategy::SmallestFirst;
-    let polish = strategy == SearchStrategy::Polish;
     let mut best: Option<Candidate> = None;
     for &source in sources {
       // This closure is identical for every host considered for this source.
@@ -862,7 +795,6 @@ impl Model<'_> {
             && !state.consumers[h].is_clear()
             && state.consumers[h].is_subset(&state.consumers[source])
             && !scratch.seen.contains(h)
-            && (scored || self.protected.contains(h))
         })
         .collect();
       if hosts.is_empty() {
@@ -881,15 +813,11 @@ impl Model<'_> {
         .copied()
         .filter(|&h| layout.references[h].contains(&source))
         .collect();
-      let cover = if scored {
-        self.greedy_cover(layout, state, source, &hosts, &mut scratch.assets)
-      } else {
-        Vec::new()
-      };
+      let cover = self.greedy_cover(layout, state, source, &hosts, &mut scratch.assets);
       // Borrow singleton covers instead of allocating one Vec per host, and
       // skip exact repeats without changing the order of distinct candidates.
       let covers = std::iter::once(direct.as_slice())
-        .chain((scored && cover != direct).then_some(cover.as_slice()))
+        .chain((cover != direct).then_some(cover.as_slice()))
         .chain(
           hosts
             .iter()
@@ -897,8 +825,7 @@ impl Model<'_> {
             .map(std::slice::from_ref),
         );
       for cover in covers {
-        let Some(candidate) = self.absorb(layout, state, source, cover, &parents, polish, scratch)
-        else {
+        let Some(candidate) = self.absorb(layout, state, source, cover, &parents, scratch) else {
           continue;
         };
         if best
@@ -906,10 +833,6 @@ impl Model<'_> {
           .is_none_or(|best| candidate.score < best.score)
         {
           best = Some(candidate);
-        }
-        // The first valid move wins in SmallestFirst mode.
-        if !scored {
-          return best;
         }
       }
     }

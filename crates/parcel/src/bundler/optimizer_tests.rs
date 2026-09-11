@@ -64,7 +64,7 @@ fn selective_request_relief_retains_the_shared_file_for_other_consumers() {
       ..Default::default()
     },
     |model, initial| {
-      let (result, state) = model.run_guarded(initial.clone(), model.state(&initial));
+      let (result, state) = model.run(initial.clone(), model.state(&initial));
       assert_eq!(state.requests, [2, 2, 2]);
       assert_eq!(result.assets[0].as_slice(), [AssetIndex(0), AssetIndex(3)]);
       assert!(result.live.contains(3));
@@ -91,7 +91,7 @@ fn overlapping_parallel_consumers_cannot_pay_for_request_relief_with_duplicate_b
       ..Default::default()
     },
     |model, initial| {
-      let (result, state) = model.run_guarded(initial.clone(), model.state(&initial));
+      let (result, state) = model.run(initial.clone(), model.state(&initial));
       assert_eq!(state.requests, [4, 2, 2]);
       assert_eq!(state.excess, 2);
       assert_eq!(result.assets, initial.assets);
@@ -176,18 +176,12 @@ fn generated_layouts_preserve_coverage_limits_and_the_completed_baseline() {
       },
       |model, initial| {
         let before = model.state(&initial);
-        let (_, baseline) = model.run(
-          initial.clone(),
-          before.clone(),
-          SearchStrategy::SmallestFirst,
-        );
-        let (result, after) = model.run_guarded(initial.clone(), before.clone());
-        let (again, _) = model.run_guarded(initial.clone(), before.clone());
+        let (result, after) = model.run(initial.clone(), before.clone());
+        let (again, _) = model.run(initial.clone(), before.clone());
         assert_eq!(result.assets, again.assets);
         assert_eq!(result.references, again.references);
         assert_eq!(after.excess, 0);
         assert_eq!(after.small, 0);
-        assert!(after.cost <= baseline.cost + 1e-6);
         for r in 0..4 {
           assert_eq!(
             loaded_assets(model, &initial, r),
@@ -237,7 +231,7 @@ fn sparse_live_sets_span_words_and_preserve_asset_dependency_loads() {
       let before: Vec<_> = (0..roots)
         .map(|r| loaded_assets(model, &initial, r))
         .collect();
-      let (result, state) = model.run_guarded(initial.clone(), model.state(&initial));
+      let (result, state) = model.run(initial.clone(), model.state(&initial));
       assert_eq!((state.small, state.excess), (0, 0));
       assert_eq!(result.live.count_ones(..), roots + 1);
       assert!(result.live.contains(73));
@@ -301,7 +295,7 @@ fn candidate_deltas_match_full_state_with_cycles_diamonds_and_duplicate_assets()
           .map(|r| loaded_assets(model, &initial, r))
           .collect();
         let initial_state = model.state(&initial);
-        let (result, state) = model.run_guarded(initial, initial_state);
+        let (result, state) = model.run(initial, initial_state);
         let full = model.state(&result);
         assert_eq!(state.consumers, full.consumers);
         assert_eq!(state.cost, full.cost);
@@ -332,7 +326,7 @@ fn candidate_deltas_preserve_a_diamond_leading_into_a_cycle() {
       }
       let before: Vec<_> = (0..3).map(|r| loaded_assets(model, &initial, r)).collect();
       let initial_state = model.state(&initial);
-      let (result, state) = model.run_guarded(initial, initial_state);
+      let (result, state) = model.run(initial, initial_state);
       assert!(!result.live.contains(3));
       assert_eq!(state.requests, [3, 3, 1]);
       assert_eq!(state.bytes, [301, 301, 100]);
@@ -344,9 +338,9 @@ fn candidate_deltas_preserve_a_diamond_leading_into_a_cycle() {
 }
 
 #[test]
-fn polish_deduplicates_overlapping_payloads_after_limits_are_met() {
+fn deduplicates_overlapping_payloads_when_already_within_limits() {
   // Bundles 2 and 3 duplicate asset 4 for the same two roots. The layout is
-  // already within the limits, so only the polish phase can merge them.
+  // already within the limits, so only a cost-reducing move can merge them.
   check(
     &[&[0], &[1], &[2, 4], &[3, 4]],
     &[&[2, 3], &[2, 3], &[], &[]],
@@ -361,16 +355,16 @@ fn polish_deduplicates_overlapping_payloads_after_limits_are_met() {
       let before: Vec<_> = (0..2).map(|r| loaded_assets(model, &initial, r)).collect();
       let state = model.state(&initial);
       assert!(state.within_limits());
-      let (result, polished) = model.polish(initial.clone(), state.clone());
+      let (result, after) = model.run(initial.clone(), state.clone());
       // The shared asset is downloaded once per root instead of twice.
       assert!(!result.live.contains(2));
       assert_eq!(
         result.assets[3].as_slice(),
         [AssetIndex(3), AssetIndex(4), AssetIndex(2)]
       );
-      assert_eq!(polished.requests, [2, 2]);
-      assert_eq!(polished.bytes, [220, 220]);
-      assert!(polished.cost < state.cost);
+      assert_eq!(after.requests, [2, 2]);
+      assert_eq!(after.bytes, [220, 220]);
+      assert!(after.cost < state.cost);
       for r in 0..2 {
         assert_eq!(loaded_assets(model, &result, r), before[r]);
       }
@@ -379,7 +373,7 @@ fn polish_deduplicates_overlapping_payloads_after_limits_are_met() {
 }
 
 #[test]
-fn polish_leaves_disjoint_payloads_alone() {
+fn leaves_disjoint_payloads_alone_when_within_limits() {
   // The same shape without an overlapping asset: merging would enlarge the
   // edit invalidation cost without saving any bytes, so no move is taken.
   check(
@@ -394,20 +388,20 @@ fn polish_leaves_disjoint_payloads_alone() {
     },
     |model, initial| {
       let state = model.state(&initial);
-      let (result, polished) = model.polish(initial.clone(), state.clone());
+      let (result, after) = model.run(initial.clone(), state.clone());
       assert_eq!(result.assets, initial.assets);
       assert_eq!(result.references, initial.references);
       assert_eq!(result.live, initial.live);
-      assert_eq!(polished.cost, state.cost);
+      assert_eq!(after.cost, state.cost);
     },
   );
 }
 
 #[test]
-fn polish_finds_wins_the_constraint_search_leaves_behind() {
-  // The search stops as soon as the undersized bundle 4 is repaired, leaving
-  // bundles 2 and 3 duplicating asset 4. Polish then merges them, cutting the
-  // duplicated download in both roots.
+fn composes_relief_and_deduplication_in_one_search() {
+  // Bundle 4 is undersized and bundles 2 and 3 duplicate asset 4. One pass
+  // repairs the size violation and merges the duplicated payload, whichever
+  // move scores better first, ending with one copy of asset 4 per root.
   check(
     &[&[0], &[1], &[2, 4], &[3, 4], &[5]],
     &[&[2, 3, 4], &[2, 3, 4], &[], &[], &[]],
@@ -421,12 +415,12 @@ fn polish_finds_wins_the_constraint_search_leaves_behind() {
     |model, initial| {
       let before: Vec<_> = (0..2).map(|r| loaded_assets(model, &initial, r)).collect();
       let state = model.state(&initial);
-      let (mid, mid_state) = model.run_guarded(initial, state);
-      assert!(mid_state.within_limits());
-      let (result, polished) = model.polish(mid, mid_state.clone());
-      assert!(polished.cost < mid_state.cost);
-      assert_eq!(polished.requests, [2, 2]);
-      assert_eq!(polished.bytes, [345, 345]);
+      assert_eq!(state.small, 2);
+      let (result, after) = model.run(initial, state.clone());
+      assert!(after.within_limits());
+      assert!(after.cost < state.cost);
+      assert_eq!(after.requests, [2, 2]);
+      assert_eq!(after.bytes, [345, 345]);
       for r in 0..2 {
         assert_eq!(loaded_assets(model, &result, r), before[r]);
       }
@@ -486,8 +480,7 @@ fn optimizer_workload_timings() {
         for _ in 0..5 {
           let start = std::time::Instant::now();
           let state = model.state(&initial);
-          let (layout, state) = model.run_guarded(initial.clone(), state);
-          std::hint::black_box(model.polish(layout, state));
+          std::hint::black_box(model.run(initial.clone(), state));
           times.push(start.elapsed());
         }
         times.sort();
@@ -503,15 +496,11 @@ pub(super) fn assert_delta(
   model: &Model,
   layout: &Layout,
   before: &State,
-  polish: bool,
   delta: Option<&StateDelta>,
 ) {
   let full = model.state(layout);
-  let improved = if polish {
-    full.cost < before.cost - COST_EPSILON
-  } else {
-    full.small + full.excess < before.small + before.excess
-  };
+  let improved = full.small + full.excess < before.small + before.excess
+    || full.cost < before.cost - COST_EPSILON;
   let valid = full
     .consumers
     .iter()
