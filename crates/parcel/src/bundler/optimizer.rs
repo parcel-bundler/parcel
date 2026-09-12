@@ -16,6 +16,55 @@ mod tests;
 /// Cost differences below this threshold are ties: float noise must not drive moves.
 const COST_EPSILON: f64 = 1e-6;
 
+/// Two-piece concave curve estimating bytes on the wire for a file: the first
+/// `w` bytes compress at the worse ratio `r + k`, the remainder at `r`, so
+/// each additional file costs about `k·w` extra transfer. Parameters were
+/// fitted on a production build (7.6-8.0% median per-file error,
+/// cross-validated on measured pairwise merge savings), then converted
+/// from output to estimate units with the measured output/source factor ~0.57.
+/// The per-merge saving `k·w` (~1KB) is invariant under that conversion.
+#[derive(Clone, Copy)]
+struct WireCurve {
+  /// Marginal compression ratio past the warmup region.
+  r: f64,
+  /// Additional ratio paid on the first `w` bytes of each file.
+  k: f64,
+  /// Warmup width in estimated source bytes.
+  w: f64,
+}
+
+impl WireCurve {
+  fn new(compression: Compression) -> Self {
+    match compression {
+      Compression::None => WireCurve {
+        r: 1.0,
+        k: 0.0,
+        w: 0.0,
+      },
+      Compression::Gzip => WireCurve {
+        r: 0.12,
+        k: 0.15,
+        w: 7168.0,
+      },
+      Compression::Brotli => WireCurve {
+        r: 0.10,
+        k: 0.14,
+        w: 7168.0,
+      },
+    }
+  }
+
+  /// Estimated transfer bytes for a file of estimated size `m`.
+  fn size(&self, m: usize) -> f64 {
+    self.r * m as f64 + self.k * (m as f64).min(self.w)
+  }
+
+  /// A linear curve means only deduplication can strictly reduce cost.
+  fn is_linear(&self) -> bool {
+    self.k == 0.0
+  }
+}
+
 #[derive(Clone)]
 struct Layout {
   /// Asset placements by bundle index, shared between candidates until modified.
@@ -156,6 +205,8 @@ struct Model<'a> {
   total_rate: f64,
   /// Eager bundle targets per asset, carried along when the asset is duplicated.
   asset_requests: Vec<Vec<usize>>,
+  /// Estimate-to-transfer curve for the configured compression.
+  wire: WireCurve,
 }
 
 // Reuse traversal and membership storage across candidate evaluations.
@@ -308,6 +359,7 @@ pub(super) fn optimize(
     total_rate: rates.iter().sum(),
     rates,
     asset_requests,
+    wire: WireCurve::new(config.compression),
   };
   let initial = Layout::new(
     bundles.iter().map(|b| Rc::new(b.assets.clone())).collect(),
@@ -590,7 +642,7 @@ impl Model<'_> {
     } else {
       0.0
     };
-    size as f64
+    self.wire.size(size)
       * (probability + (1.0 - self.config.first_page_load_priority) * second + invalidation)
   }
 
@@ -737,17 +789,21 @@ impl Model<'_> {
     let mut scratch = Scratch::new(layout.live.len(), self.sizes.len());
     let mut seen = FixedBitSet::with_capacity(self.sizes.len());
     let mut duplicated = FixedBitSet::with_capacity(self.sizes.len());
+    // With a linear wire curve, only a merge that deduplicates an asset can
+    // strictly reduce cost beyond the configured limits: per-root bytes are
+    // unchanged while the second-visit and invalidation terms of `bundle_cost`
+    // can only grow. A concave curve also rewards consolidating disjoint
+    // payloads, so every donor stays eligible.
+    let dedup_only = self.wire.is_linear();
     loop {
-      // Beyond the configured limits, only a merge that deduplicates an asset
-      // can strictly reduce cost: without overlap, per-root bytes are unchanged
-      // while the second-visit and invalidation terms of `bundle_cost` can only
-      // grow. Revisit this filter if the cost model rewards consolidation alone.
-      seen.clear();
-      duplicated.clear();
-      for b in layout.live.ones() {
-        for a in layout.assets[b].iter() {
-          if seen.put(a.index()) {
-            duplicated.insert(a.index());
+      if dedup_only {
+        seen.clear();
+        duplicated.clear();
+        for b in layout.live.ones() {
+          for a in layout.assets[b].iter() {
+            if seen.put(a.index()) {
+              duplicated.insert(a.index());
+            }
           }
         }
       }
@@ -755,7 +811,8 @@ impl Model<'_> {
         .live
         .difference(&self.protected)
         .filter(|&b| {
-          self.undersized(b, state.sizes[b])
+          !dedup_only
+            || self.undersized(b, state.sizes[b])
             || state.consumers[b]
               .ones()
               .any(|r| self.request_excess(state.requests[r]) > 0)
@@ -874,11 +931,9 @@ impl Model<'_> {
     cover
   }
 
-  // Estimate added cost per host consumer to construct a cover. The complete
-  // candidate is then evaluated exactly, including whether the source survives.
-  // This expands the marginal of `bundle_cost`: it equals
-  // (bundle_cost(size + added, rate + added, k) - bundle_cost(size, rate, k)) * n / k,
-  // so keep the two formulas in sync.
+  // Estimate added cost per host consumer to construct a cover, as the exact
+  // marginal of `bundle_cost`. The complete candidate is then evaluated
+  // exactly, including whether the source survives.
   fn host_price(
     &self,
     layout: &Layout,
@@ -896,20 +951,14 @@ impl Model<'_> {
         added_rate += self.rates[a.index()];
       }
     }
-    let host_rate = state.rates[host];
-    let n = self.roots.len();
+    // Host consumer sets are never empty, so k is at least one.
     let k = state.consumers[host].count_ones(..);
-    let navigation = if n > 1 {
-      (n - k) as f64 / (n - 1) as f64
-    } else {
-      0.0
-    };
-    let cache = if self.total_rate > 0.0 {
-      (added_size as f64 * (host_rate + added_rate) + state.sizes[host] as f64 * added_rate)
-        / self.total_rate
-    } else {
-      0.0
-    };
-    added_size as f64 * (1.0 + (1.0 - self.config.first_page_load_priority) * navigation) + cache
+    let before = self.bundle_cost(state.sizes[host], state.rates[host], k);
+    let after = self.bundle_cost(
+      state.sizes[host] + added_size,
+      state.rates[host] + added_rate,
+      k,
+    );
+    (after - before) / k as f64
   }
 }

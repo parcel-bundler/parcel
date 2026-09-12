@@ -18,6 +18,7 @@ fn check(
   protected.insert_range(..roots);
   let mut model = Model {
     check_deltas: true,
+    wire: WireCurve::new(config.compression),
     config: &config,
     bundles: &bundles,
     roots: (0..roots).collect(),
@@ -426,6 +427,48 @@ fn composes_relief_and_deduplication_in_one_search() {
       }
     },
   );
+}
+
+#[test]
+fn compression_consolidates_small_bundles_until_invalidation_outweighs_savings() {
+  // With a concave wire curve, merging two disjoint 6KB payloads saves the
+  // warmup bytes past the knee. At 200KB the flat per-merge saving no longer
+  // pays for the larger invalidation blast radius, and with no compression
+  // the curve is linear, so both leave the layout alone.
+  for (compression, size, merges) in [
+    (Compression::Brotli, 6_000, true),
+    (Compression::Brotli, 200_000, false),
+    (Compression::None, 6_000, false),
+  ] {
+    check(
+      &[&[0], &[1], &[2], &[3]],
+      &[&[2, 3], &[2, 3], &[], &[]],
+      2,
+      &[10_000, 10_000, size, size],
+      DefaultBundler {
+        min_bundle_size: 0,
+        max_parallel_requests: 0,
+        compression,
+        ..Default::default()
+      },
+      |model, initial| {
+        // Restrict hosts to the shared bundles to isolate the merge decision.
+        model.hosts.set(0, false);
+        model.hosts.set(1, false);
+        let state = model.state(&initial);
+        let (result, after) = model.run(initial.clone(), state.clone());
+        if merges {
+          assert_eq!(result.live.count_ones(..), 3);
+          assert!(after.cost < state.cost);
+          assert_eq!(after.requests, [2, 2]);
+          assert_eq!(after.bytes, state.bytes);
+        } else {
+          assert_eq!(result.assets, initial.assets);
+          assert_eq!(result.references, initial.references);
+        }
+      },
+    );
+  }
 }
 
 /// Run with `cargo test -p parcel --release --lib optimizer_workload_timings -- --ignored --nocapture`.

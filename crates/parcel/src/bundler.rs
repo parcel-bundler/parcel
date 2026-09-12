@@ -27,6 +27,19 @@ pub struct ManualSharedBundle {
   types: Vec<AssetType>,
 }
 
+/// Transfer compression the served bundles are expected to use. Selects the
+/// wire-size curve consolidation cost estimates apply to bundle sizes.
+#[derive(Clone, Copy, Default, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Compression {
+  /// Transfer estimates equal uncompressed sizes, so consolidating disjoint
+  /// payloads never reduces cost on its own.
+  #[default]
+  None,
+  Gzip,
+  Brotli,
+}
+
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase", default, deny_unknown_fields)]
 pub struct DefaultBundler {
@@ -41,6 +54,8 @@ pub struct DefaultBundler {
   first_page_load_priority: f64,
   /// Relative edit frequency of dependencies; source assets have weight one.
   dependency_change_rate: f64,
+  /// Expected transfer compression, enabling compression-aware consolidation.
+  compression: Compression,
 }
 
 impl Default for DefaultBundler {
@@ -51,6 +66,7 @@ impl Default for DefaultBundler {
       max_parallel_requests: 25,
       first_page_load_priority: 0.67,
       dependency_change_rate: 0.1,
+      compression: Compression::None,
     }
   }
 }

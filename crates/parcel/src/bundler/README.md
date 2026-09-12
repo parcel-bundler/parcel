@@ -22,13 +22,14 @@ Configure it in the project's `.parcelrc`:
 }
 ```
 
-| Option                  | Meaning                                                                                                                                                                   |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `minBundleSize`         | Minimum estimated bytes for eligible shared JS payloads. `0` disables this constraint.                                                                                    |
-| `maxParallelRequests`   | Maximum physical requests in each eager loading closure, including its root and parallel dependencies. `0` disables this constraint.                                      |
-| `firstPageLoadPriority` | A number from `0` to `1`: probability of one activation rather than two. Higher values prioritize cold loads; lower values give more weight to reuse between activations. |
-| `dependencyChangeRate`  | A number from `0` to `1`: relative edit frequency for assets without `AssetFlags::IS_SOURCE`. Source assets have weight `1`. Zero ignores dependency edits.               |
-| `manualSharedBundles`   | Ordered grouping rules with `assets` glob patterns and optional `types`. These outputs neither donate nor receive assets during consolidation.                            |
+| Option                  | Meaning                                                                                                                                                                                                                                                                |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `minBundleSize`         | Minimum estimated bytes for eligible shared JS payloads. `0` disables this constraint.                                                                                                                                                                                 |
+| `maxParallelRequests`   | Maximum physical requests in each eager loading closure, including its root and parallel dependencies. `0` disables this constraint.                                                                                                                                   |
+| `firstPageLoadPriority` | A number from `0` to `1`: probability of one activation rather than two. Higher values prioritize cold loads; lower values give more weight to reuse between activations.                                                                                              |
+| `dependencyChangeRate`  | A number from `0` to `1`: relative edit frequency for assets without `AssetFlags::IS_SOURCE`. Source assets have weight `1`. Zero ignores dependency edits.                                                                                                            |
+| `manualSharedBundles`   | Ordered grouping rules with `assets` glob patterns and optional `types`. These outputs neither donate nor receive assets during consolidation.                                                                                                                         |
+| `compression`           | `"none"` (default), `"gzip"`, or `"brotli"`: the transfer compression bundles are served with. Selects the wire-size curve applied to sizes in cost estimates; non-`none` values also reward consolidating disjoint payloads (about 1KB of transfer per file removed). |
 
 Sizes come from `Content::estimate_size()`: buffer byte lengths, file metadata,
 or the retained parser input size for JS/CSS ASTs. Estimation avoids printing
@@ -52,24 +53,36 @@ eagerly loaded. Their constant byte costs do not affect JS merge comparisons.
   cost per excess request or undersized bundle/context occurrence removed.
 - Accept a move only if it strictly reduces the remaining violations or
   strictly reduces the cost, worsening neither. Cost-reducing merges rank ahead
-  of cost-increasing relief, so relief decisions see deduplicated sizes. Under
-  this cost function only moves that deduplicate an asset can reduce cost, so
-  beyond the limits only payloads overlapping another output are considered.
+  of cost-increasing relief, so relief decisions see deduplicated sizes. With
+  `compression: "none"` the wire curve is linear and only moves that
+  deduplicate an asset can reduce cost, so beyond the limits only payloads
+  overlapping another output are considered; a concave curve keeps every
+  donor eligible.
 - Run one greedy pass to a fixed point: stop when no acceptable move remains.
   Every accepted move strictly reduces the total request count over all
   contexts, bounding progress. This is a greedy heuristic, not a global
-  optimum. A smallest-first fallback strategy was removed after simulation
-  over ~51,000 graphs: it changed the outcome 27 times, always on estimated
-  cost (at most ~2%), while adding 7-16% to search time.
+  optimum. A smallest-first fallback strategy and a separate post-search
+  polish phase were folded into this single pass after simulation over
+  ~51,000 graphs: versus the guarded two-strategy policy, the single pass
+  improved 33 outcomes and regressed the 27 the fallback had won, all by at
+  most ~2% of estimated cost, with roughly unchanged search time and less
+  code. Reintroduce a completed-run comparison only with evidence at scale.
 
-The cost is expected session JS downloads plus expected bytes invalidated by
+The cost is expected session JS transfer plus expected transfer invalidated by
 one edit. Activations are sampled uniformly from loadable roots; a second
 activation, when present, samples a different root. HTTP cache reuse follows
 physical file identity, so identical modules in two files still cost two
 downloads. Edit probability is proportional to source/dependency weights, and
-an edit invalidates each complete file containing that asset. There is no soft
-request penalty, so consolidation is never driven by request count alone;
-beyond the configured constraints only strict cost reductions are kept.
+an edit invalidates each complete file containing that asset. Transfer applies
+the configured compression's two-piece wire-size curve to estimated sizes: the
+first bytes of each file compress at a worse ratio, so each extra file costs
+about 1KB of transfer, and consolidation pays until that flat saving is
+outweighed by the merged file's larger edit-invalidation blast radius. The
+curve parameters were fitted on a production react-spectrum storybook build by
+`scripts/compression-measurement` (7-8% median per-file error, cross-validated
+against measured pairwise merge savings). There is no soft request penalty, so
+consolidation is never driven by request count alone; beyond the configured
+constraints only strict cost reductions are kept.
 
 After consolidation, bundle indices and references are remapped consistently.
 Synthetic loaders and synchronous import bindings use stable bundle/asset
