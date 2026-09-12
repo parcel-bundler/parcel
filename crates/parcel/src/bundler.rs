@@ -261,8 +261,8 @@ impl Bundler for DefaultBundler {
         },
         ty: asset.ty.clone(),
         target: asset.target.clone(),
-        bundle_behavior: bundle_roots.bundle_behavior(bundle_root_asset_index),
-        flags: if bundle_roots.is_entry(bundle_root_asset_index) {
+        bundle_behavior: bundle_roots.root_bundle_behavior(root_index),
+        flags: if bundle_roots.is_entry_root(root_index) {
           BundleFlags::ENTRY | BundleFlags::NEEDS_STABLE_NAME
         } else {
           BundleFlags::empty()
@@ -282,7 +282,8 @@ impl Bundler for DefaultBundler {
           if let Some(previous_root) = bundles[existing].main_entry_asset.take() {
             bundles[existing].entry_assets.clear();
             bundles[existing].id = key.stable_hash(&root_ids);
-            if bundle_roots.is_mandatory_root(previous_root) {
+            let previous_root_index = bundle_roots.root_index(previous_root).unwrap();
+            if bundle_roots.is_mandatory(previous_root_index) {
               let facade = Bundle {
                 id: asset_graph
                   .asset(previous_root)
@@ -299,14 +300,13 @@ impl Bundler for DefaultBundler {
               };
               let facade_index = bundles.len();
               bundles.push(facade);
-              let previous_index = bundle_roots.root_index(previous_root).unwrap();
-              root_to_bundle[previous_index] = facade_index;
+              root_to_bundle[previous_root_index] = facade_index;
               root_bundles.get_mut(&previous_root).unwrap().load = facade_index;
             }
             bundles[existing].flags = BundleFlags::empty();
           }
 
-          if bundle_roots.is_mandatory_root(bundle_root_asset_index) {
+          if bundle_roots.is_mandatory(root_index) {
             let mut facade = bundle;
             facade.id = asset.id_u64(&options.project_root);
             facade.referenced_bundles.push(existing);

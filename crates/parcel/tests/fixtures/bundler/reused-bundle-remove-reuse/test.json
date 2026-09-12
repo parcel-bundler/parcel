@@ -1,0 +1,52 @@
+[
+  {
+    "description": "a reused bundle's payload is copied into its consumer under request pressure, keeping the lazy boundary",
+    "input": "index.js",
+    "options": {
+      "mode": "development",
+      "config": ".parcelrc"
+    },
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js"],
+        "references": []
+      },
+      {
+        "assets": ["a.js", "b.js", "bar.js", "foo.js"],
+        "references": []
+      },
+      {
+        "assets": ["a.js", "b.js", "foo.js"],
+        "references": []
+      }
+    ],
+    "output": [42, 43],
+    "sideEffects": ["a", "b"]
+  },
+  {
+    "description": "a reused bundle's payload is copied into its consumer under request pressure, keeping the lazy boundary",
+    "input": "index.js",
+    "options": {
+      "mode": "production",
+      "config": ".parcelrc"
+    },
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js"],
+        "references": []
+      },
+      {
+        "assets": ["a.js", "b.js", "bar.js", "foo.js"],
+        "references": []
+      },
+      {
+        "assets": ["a.js", "b.js", "foo.js"],
+        "references": []
+      }
+    ],
+    "output": [42, 43],
+    "sideEffects": ["a", "b"]
+  }
+]

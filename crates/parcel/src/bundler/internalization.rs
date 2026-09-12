@@ -75,7 +75,7 @@ impl Internalization {
       .map(|(_, asset)| graph.asset(asset).target.environment)
       .collect();
     for (root, asset) in roots.iter_all() {
-      if roots.bundle_behavior(asset) == BundleBehavior::None
+      if roots.root_bundle_behavior(root) == BundleBehavior::None
         && !manual_roots.contains(asset.index())
         && availability
           .synchronous_classes(root)
@@ -202,8 +202,7 @@ impl Internalization {
       if !roots.is_active(root) {
         continue;
       }
-      let asset = roots.root_asset(root);
-      if self.remaining_causes[root] == 0 && !roots.is_mandatory_root(asset) {
+      if self.remaining_causes[root] == 0 && !roots.is_mandatory(root) {
         roots.deactivate(root);
         removed = true;
       }

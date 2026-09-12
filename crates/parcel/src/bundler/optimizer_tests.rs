@@ -92,6 +92,9 @@ fn overlapping_parallel_consumers_cannot_pay_for_request_relief_with_duplicate_b
       ..Default::default()
     },
     |model, initial| {
+      // Keep root 0 from hosting so protected roots 1 and 2 cannot donate
+      // into it; this test is about rejecting bundle 3's duplication.
+      model.hosts.set(0, false);
       let (result, state) = model.run(initial.clone(), model.state(&initial));
       assert_eq!(state.requests, [4, 2, 2]);
       assert_eq!(state.excess, 2);
@@ -427,6 +430,46 @@ fn composes_relief_and_deduplication_in_one_search() {
       assert_eq!(after.requests, [2, 2]);
       assert_eq!(after.bytes, [345, 345]);
       for r in 0..2 {
+        assert_eq!(loaded_assets(model, &result, r), before[r]);
+      }
+    },
+  );
+}
+
+#[test]
+fn protected_roots_donate_copies_to_relieve_request_pressure() {
+  // Bundle 1 is a lazy root whose payload is also required by root 2, like a
+  // reused bundle. Under request pressure its payload is copied into root 2,
+  // while the original stays live and untouched for its own loading boundary.
+  check(
+    &[&[0], &[1, 2, 3], &[4]],
+    &[&[], &[], &[1]],
+    3,
+    &[100, 50, 30, 20, 100],
+    DefaultBundler {
+      min_bundle_size: 0,
+      max_parallel_requests: 1,
+      compression: Compression::None,
+      ..Default::default()
+    },
+    |model, initial| {
+      let before: Vec<_> = (0..3).map(|r| loaded_assets(model, &initial, r)).collect();
+      let state = model.state(&initial);
+      assert_eq!(state.excess, 1);
+      let (result, after) = model.run(initial, state);
+      assert!(result.live.is_full());
+      assert_eq!(
+        result.assets[1].as_slice(),
+        [AssetIndex(1), AssetIndex(2), AssetIndex(3)]
+      );
+      assert_eq!(
+        result.assets[2].as_slice(),
+        [AssetIndex(4), AssetIndex(1), AssetIndex(2), AssetIndex(3)]
+      );
+      assert!(result.references[2].is_empty());
+      assert_eq!(after.requests, [1, 1, 1]);
+      assert_eq!((after.small, after.excess), (0, 0));
+      for r in 0..3 {
         assert_eq!(loaded_assets(model, &result, r), before[r]);
       }
     },

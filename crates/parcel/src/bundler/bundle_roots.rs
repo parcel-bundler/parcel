@@ -10,30 +10,31 @@ pub struct BundleRoots {
   root_indices: Vec<u32>,
   // Dense root IDs still requiring independently loadable bundles.
   active_roots: FixedBitSet,
-  // Asset-indexed subset of roots that are directly entered and cannot inherit availability.
-  entry_bundle_roots: FixedBitSet,
+  // Root-indexed subset that is directly entered and cannot inherit availability.
+  entry_roots: FixedBitSet,
   // Roots with a reason other than a lazy module import.
   // Internalizing imports must not remove these externally observable outputs.
   mandatory_roots: FixedBitSet,
-  // Effective behavior per asset, combining asset metadata with incoming dependency overrides.
+  // Effective behavior per root, combining asset metadata with incoming dependency overrides.
   bundle_behaviors: Vec<BundleBehavior>,
 }
 
 impl BundleRoots {
   pub fn from_asset_graph(asset_graph: &AssetGraph) -> BundleRoots {
     let mut bundle_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
-    let mut entry_bundle_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
-    let mut mandatory_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
+    let mut entry_assets = FixedBitSet::with_capacity(asset_graph.assets.len());
+    let mut mandatory_assets = FixedBitSet::with_capacity(asset_graph.assets.len());
     for entry in asset_graph.entries.iter() {
       if let Some(asset) = asset_graph.resolved_entry(entry) {
         bundle_roots.insert(asset.index());
-        entry_bundle_roots.insert(asset.index());
-        mandatory_roots.insert(asset.index());
+        entry_assets.insert(asset.index());
+        mandatory_assets.insert(asset.index());
       }
     }
 
-    // TODO: does this use too much memory?
-    let mut bundle_behaviors = asset_graph
+    // Asset-indexed scratch storage is needed until every root has a dense ID.
+    // It is compressed to root-indexed storage before this method returns.
+    let mut asset_bundle_behaviors = asset_graph
       .assets
       .iter()
       .map(|asset| asset.bundle_behavior)
@@ -41,9 +42,9 @@ impl BundleRoots {
 
     // Use dfs so we only process live assets, not deleted assets from a previous build.
     for (asset_index, asset, _) in asset_graph.dfs() {
-      if bundle_behaviors[asset_index.index()] != BundleBehavior::None {
+      if asset_bundle_behaviors[asset_index.index()] != BundleBehavior::None {
         bundle_roots.insert(asset_index.index());
-        mandatory_roots.insert(asset_index.index());
+        mandatory_assets.insert(asset_index.index());
       }
 
       for dep_index in 0..asset.dependencies.len() {
@@ -57,9 +58,9 @@ impl BundleRoots {
               || dep.bundle_behavior != BundleBehavior::None
               || dep.flags.contains(DependencyFlags::NEEDS_STABLE_NAME)
             {
-              mandatory_roots.insert(resolved_asset_index.index());
+              mandatory_assets.insert(resolved_asset_index.index());
             }
-            let target_bundle_behavior = &mut bundle_behaviors[resolved_asset_index.index()];
+            let target_bundle_behavior = &mut asset_bundle_behaviors[resolved_asset_index.index()];
             if bundle_behavior != BundleBehavior::None
               && *target_bundle_behavior == BundleBehavior::None
             {
@@ -70,11 +71,24 @@ impl BundleRoots {
       }
     }
 
+    // All entries, mandatory outputs, and assets with effective bundle behavior
+    // are roots. Compress their retained metadata into the dense root index.
     let root_assets: Vec<_> = bundle_roots.ones().map(AssetIndex::from_index).collect();
     let mut root_indices = vec![u32::MAX; asset_graph.assets.len()];
+    let mut entry_roots = FixedBitSet::with_capacity(root_assets.len());
+    let mut mandatory_roots = FixedBitSet::with_capacity(root_assets.len());
+    let mut bundle_behaviors = Vec::with_capacity(root_assets.len());
     for (root, asset) in root_assets.iter().enumerate() {
       root_indices[asset.index()] = root as u32;
+      if entry_assets.contains(asset.index()) {
+        entry_roots.insert(root);
+      }
+      if mandatory_assets.contains(asset.index()) {
+        mandatory_roots.insert(root);
+      }
+      bundle_behaviors.push(asset_bundle_behaviors[asset.index()]);
     }
+
     let mut active_roots = FixedBitSet::with_capacity(root_assets.len());
     active_roots.insert_range(..);
 
@@ -82,7 +96,7 @@ impl BundleRoots {
       root_assets,
       root_indices,
       active_roots,
-      entry_bundle_roots,
+      entry_roots,
       mandatory_roots,
       bundle_behaviors,
     }
@@ -111,10 +125,6 @@ impl BundleRoots {
     (root != u32::MAX).then_some(root as usize)
   }
 
-  pub fn root_asset(&self, root: usize) -> AssetIndex {
-    self.root_assets[root]
-  }
-
   pub fn is_bundle_root(&self, id: AssetIndex) -> bool {
     self
       .root_index(id)
@@ -126,15 +136,27 @@ impl BundleRoots {
   }
 
   pub fn is_entry(&self, id: AssetIndex) -> bool {
-    self.entry_bundle_roots.contains(id.index())
+    self
+      .root_index(id)
+      .is_some_and(|root| self.is_entry_root(root))
   }
 
   pub fn bundle_behavior(&self, id: AssetIndex) -> BundleBehavior {
-    self.bundle_behaviors[id.index()]
+    self
+      .root_index(id)
+      .map_or(BundleBehavior::None, |root| self.root_bundle_behavior(root))
   }
 
-  pub fn is_mandatory_root(&self, id: AssetIndex) -> bool {
-    self.mandatory_roots.contains(id.index())
+  pub fn is_entry_root(&self, root: usize) -> bool {
+    self.entry_roots.contains(root)
+  }
+
+  pub fn root_bundle_behavior(&self, root: usize) -> BundleBehavior {
+    self.bundle_behaviors[root]
+  }
+
+  pub fn is_mandatory(&self, root: usize) -> bool {
+    self.mandatory_roots.contains(root)
   }
 
   pub fn is_active(&self, root: usize) -> bool {

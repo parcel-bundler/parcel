@@ -1,0 +1,50 @@
+[
+  {
+    "description": "a lazy root that is a subgraph of another root is reused like a shared bundle",
+    "input": "index.js",
+    "options": {
+      "mode": "development"
+    },
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js"],
+        "references": []
+      },
+      {
+        "assets": ["bar.js"],
+        "references": [["a.js", "b.js", "foo.js"]]
+      },
+      {
+        "assets": ["a.js", "b.js", "foo.js"],
+        "references": []
+      }
+    ],
+    "output": [42, 43],
+    "sideEffects": ["a", "b"]
+  },
+  {
+    "description": "a lazy root that is a subgraph of another root is reused like a shared bundle",
+    "input": "index.js",
+    "options": {
+      "mode": "production"
+    },
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js"],
+        "references": []
+      },
+      {
+        "assets": ["bar.js"],
+        "references": [["a.js", "b.js", "foo.js"]]
+      },
+      {
+        "assets": ["a.js", "b.js", "foo.js"],
+        "references": []
+      }
+    ],
+    "output": [42, 43],
+    "sideEffects": ["a", "b"]
+  }
+]

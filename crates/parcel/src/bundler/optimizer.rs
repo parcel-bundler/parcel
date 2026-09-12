@@ -190,7 +190,8 @@ struct Model<'a> {
   bundles: &'a [Bundle],
   /// Loading-boundary bundle indices; positions in this vector are root indices.
   roots: Vec<usize>,
-  /// Bundles that cannot donate their payloads, though some may still be hosts.
+  /// Bundles whose payload must stay intact and live. They may still receive
+  /// assets as hosts, and may donate copies to relieve request pressure.
   protected: FixedBitSet,
   /// Bundles eligible to receive assets, subject to target and content compatibility.
   hosts: FixedBitSet,
@@ -598,10 +599,14 @@ impl Model<'_> {
         references.push(host);
       }
     }
-    let still_referenced = next
-      .live
-      .ones()
-      .any(|b| next.references[b].contains(&source));
+    // Protected sources only donate copies: they keep their payload and stay
+    // live even when every parent was redirected, so lazy and URL resolutions
+    // remain addressable.
+    let still_referenced = self.protected.contains(source)
+      || next
+        .live
+        .ones()
+        .any(|b| next.references[b].contains(&source));
     next.live.set(source, still_referenced);
     let result = self.state_delta(&next, state, source, host_states, scratch);
     #[cfg(test)]
@@ -823,8 +828,19 @@ impl Model<'_> {
       }
       let mut sources: Vec<_> = layout
         .live
-        .difference(&self.protected)
+        .ones()
         .filter(|&b| {
+          // Protected outputs may donate copies of their payload, but only to
+          // relieve request pressure: the source bundle itself is never
+          // changed or removed, so lazy and URL targets stay addressable.
+          // Empty facades carry no payload and are never donors.
+          if self.protected.contains(b) {
+            return self.hosts.contains(b)
+              && !layout.assets[b].is_empty()
+              && state.consumers[b]
+                .ones()
+                .any(|r| self.request_excess(state.requests[r]) > 0);
+          }
           let size = state.sizes[b];
           let partner = if size == max[0] { max[1] } else { max[0] };
           self.undersized(b, size)

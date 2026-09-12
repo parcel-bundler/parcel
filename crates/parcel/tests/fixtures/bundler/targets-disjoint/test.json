@@ -1,0 +1,15 @@
+{
+  "description": "targets never share bundles: the same module is duplicated into each target",
+  "input": ["main1/main1.js", "main2/main2.js"],
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": ["main1.js", "shared.js"],
+      "references": []
+    },
+    {
+      "assets": ["main2.js", "shared.js"],
+      "references": []
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "targets": {
+    "main2": {
+      "engines": {
+        "browsers": "Chrome >= 90"
+      }
+    }
+  }
+}

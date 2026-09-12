@@ -170,8 +170,8 @@ impl AvailabilityGraph {
 
     // Roots whose availability must be reset regardless of their incoming dependencies.
     let mut boundaries = FixedBitSet::with_capacity(root_count);
-    for (root, asset) in roots.iter_all() {
-      if roots.is_entry(asset) || roots.bundle_behavior(asset) != BundleBehavior::None {
+    for (root, _) in roots.iter_all() {
+      if roots.is_entry_root(root) || roots.root_bundle_behavior(root) != BundleBehavior::None {
         boundaries.insert(root);
       }
     }
@@ -207,7 +207,7 @@ impl AvailabilityGraph {
           Priority::Lazy => AvailabilityEdgeKind::Lazy,
           // Non-isolated parallel roots contribute their synchronous classes to
           // subsequent parallel occurrences in this source asset's dependency list.
-          Priority::Parallel if roots.bundle_behavior(target) == BundleBehavior::None => {
+          Priority::Parallel if roots.root_bundle_behavior(root) == BundleBehavior::None => {
             AvailabilityEdgeKind::Parallel
           }
           _ => AvailabilityEdgeKind::Sync,

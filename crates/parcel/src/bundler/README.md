@@ -49,6 +49,11 @@ eagerly loaded. Their constant byte costs do not affect JS merge comparisons.
   CSS, raw resources, or independently addressable lazy bundles.
 - Reject extra downloads in any existing loading context, extra copies within
   a context, new reference cycles, and moves that increase any request count.
+- Protected outputs (entries, loading boundaries, lazy and URL targets) may
+  donate copies of their payload, but only to relieve request pressure. The
+  source bundle is never changed or removed, so every boundary stays
+  addressable. This subsumes v2's "remove reused bundles" step: a reused
+  bundle's consumer absorbs a copy while the lazy boundary remains.
 - Rank beneficial moves by total cost reduction. Rank unavoidable increases by
   cost per excess request or undersized bundle/context occurrence removed.
 - Accept a move only if it strictly reduces the remaining violations or
