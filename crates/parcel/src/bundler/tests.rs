@@ -1,3 +1,6 @@
+use super::availability::{
+  AvailabilityEdge, AvailabilityEdgeKind, AvailabilityGraph, AvailabilityState,
+};
 use super::*;
 use AvailabilityEdgeKind::{Lazy, Parallel, Sync};
 
@@ -8,7 +11,7 @@ fn bits(len: usize, ones: impl IntoIterator<Item = usize>) -> FixedBitSet {
 }
 
 fn edge(root: u32, kind: AvailabilityEdgeKind) -> AvailabilityEdge {
-  AvailabilityEdge { root, kind }
+  AvailabilityEdge::new(root, kind)
 }
 
 struct Graph {
@@ -45,7 +48,7 @@ impl Graph {
     let reachability =
       Reachability::from_components((0..self.memberships.len() as u32).collect(), sets);
     let graph = AvailabilityGraph::new(
-      &reachability.reachable_roots,
+      &reachability,
       bits(self.roots, self.boundaries.iter().copied()),
       self
         .groups
@@ -84,7 +87,7 @@ impl Graph {
       for (asset, edges) in &self.groups {
         if self.memberships[*asset].iter().any(|r| live[*r]) {
           for edge in edges {
-            live[edge.root as usize] = true;
+            live[edge.root()] = true;
           }
         }
       }
@@ -101,14 +104,14 @@ impl Graph {
       for &parent in &self.memberships[*asset] {
         let mut prefix = synchronous[parent].clone();
         for edge in edges {
-          let target = edge.root as usize;
-          let generated = match edge.kind {
+          let target = edge.root();
+          let generated = match edge.kind() {
             Sync => vec![false; assets],
             Lazy => synchronous[parent].clone(),
             Parallel => prefix.clone(),
           };
           incoming[target].push((parent, generated));
-          if matches!(edge.kind, Parallel) && !boundary[target] {
+          if matches!(edge.kind(), Parallel) && !boundary[target] {
             for a in 0..assets {
               prefix[a] |= synchronous[target][a];
             }
@@ -260,22 +263,11 @@ fn availability_filters_requirements_and_preserves_bundle_roots() {
   let shared = g.asset(&[0, 1, 2]);
   g.groups = vec![(0, vec![edge(1, Lazy)]), (1, vec![edge(2, Lazy)])];
   let (reachability, graph) = g.compressed();
-  let roots = BundleRoots {
-    root_assets: (0..g.roots).map(AssetIndex::from_index).collect(),
-    root_indices: (0..g.memberships.len())
-      .map(|asset| {
-        if asset < g.roots {
-          asset as u32
-        } else {
-          u32::MAX
-        }
-      })
-      .collect(),
-    active_roots: bits(g.roots, 0..g.roots),
-    entry_bundle_roots: bits(g.memberships.len(), [0]),
-    mandatory_roots: bits(g.memberships.len(), [0]),
-    bundle_behaviors: vec![BundleBehavior::None; g.memberships.len()],
-  };
+  let roots = BundleRoots::from_asset_graph(&asset_graph(
+    g.memberships.len(),
+    &[0],
+    &[(0, 1, Priority::Lazy), (0, 2, Priority::Lazy)],
+  ));
   let needed = graph.needed_roots(reachability, &roots, &graph.solve());
   assert_eq!(
     needed.reachable_roots(AssetIndex::from_index(shared)),
@@ -342,7 +334,7 @@ fn reachability_interns_equal_components_and_maps_stale_assets_to_empty() {
     reachability.class(AssetIndex(0)),
     reachability.class(AssetIndex(1))
   );
-  assert_eq!(reachability.reachable_roots.len(), 3);
+  assert_eq!(reachability.class_count(), 3);
   assert!(reachability.reachable_roots(AssetIndex(3)).is_clear());
 }
 
@@ -356,8 +348,8 @@ fn availability_large_graph_stores_root_by_class_not_asset_by_asset_sets() {
     g.groups.push((root, vec![edge(root as u32 + 1, Lazy)]));
   }
   let (reachability, graph) = g.compressed();
-  assert_eq!(reachability.reachable_roots.len(), 1_001);
-  assert_eq!(graph.edges.len(), 999);
+  assert_eq!(reachability.class_count(), 1_001);
+  assert_eq!(graph.edge_count(), 999);
   let available = graph.solve();
   assert_eq!(available.len(), 1_000);
   assert_eq!(available[999].len(), 1_001);
@@ -372,22 +364,23 @@ fn availability_state_reuses_rows_with_stable_root_ids() {
   let (reachability, graph) = g.compressed();
   let mut state = AvailabilityState::new(&graph);
   let row_allocations: Vec<_> = state
-    .available
+    .rows()
     .iter()
     .map(|row| row.as_slice().as_ptr())
     .collect();
 
-  let mut active = bits(3, 0..3);
-  state.solve(&graph, &active);
-  active.set(1, false);
-  let available = state.solve(&graph, &active);
+  let roots_graph = asset_graph(3, &[0], &[(0, 1, Priority::Lazy), (0, 2, Priority::Lazy)]);
+  let mut roots = BundleRoots::from_asset_graph(&roots_graph);
+  state.solve(&graph, &roots);
+  roots.deactivate(1);
+  let available = state.solve(&graph, &roots);
 
   assert!(available[1].is_clear());
   assert!(available[2].contains(reachability.class(AssetIndex(0))));
   assert_eq!(
     row_allocations,
     state
-      .available
+      .rows()
       .iter()
       .map(|row| row.as_slice().as_ptr())
       .collect::<Vec<_>>()
@@ -399,9 +392,9 @@ fn deactivating_a_root_does_not_renumber_surviving_roots() {
   let graph = asset_graph(3, &[0], &[(0, 1, Priority::Lazy), (0, 2, Priority::Lazy)]);
   let mut roots = BundleRoots::from_asset_graph(&graph);
   assert_eq!(roots.root_index(AssetIndex(2)), Some(2));
-  roots.active_roots.set(1, false);
+  roots.deactivate(1);
   assert_eq!(
-    roots.iter().collect::<Vec<_>>(),
+    roots.iter_active().collect::<Vec<_>>(),
     vec![(0, AssetIndex(0)), (2, AssetIndex(2))]
   );
   assert_eq!(roots.root_index(AssetIndex(2)), Some(2));
@@ -501,14 +494,18 @@ fn availability_asset_graph_intersects_opposite_html_orders() {
   graph.assets.to_mut()[0].ty = AssetType::Html;
   graph.assets.to_mut()[1].ty = AssetType::Html;
   let (roots, reachability, available) = analyze(&graph);
-  for (r, asset) in roots.iter() {
+  for (r, asset) in roots.iter_active() {
     if asset == AssetIndex(2) || asset == AssetIndex(3) {
       assert!(!available[r].contains(reachability.class(AssetIndex(4))));
     }
   }
   graph.entries.to_mut().truncate(1);
   let (roots, reachability, available) = analyze(&graph);
-  let r = roots.iter().find(|(_, a)| *a == AssetIndex(3)).unwrap().0;
+  let r = roots
+    .iter_active()
+    .find(|(_, a)| *a == AssetIndex(3))
+    .unwrap()
+    .0;
   assert!(available[r].contains(reachability.class(AssetIndex(4))));
 }
 
@@ -537,7 +534,11 @@ fn availability_asset_graph_honors_inline_isolated_and_runtime_boundaries() {
       _ => graph.assets.to_mut()[0].dependencies[1].bundle_behavior = BundleBehavior::Isolated,
     }
     let (roots, reachability, available) = analyze(&graph);
-    let r = roots.iter().find(|(_, a)| *a == AssetIndex(2)).unwrap().0;
+    let r = roots
+      .iter_active()
+      .find(|(_, a)| *a == AssetIndex(2))
+      .unwrap()
+      .0;
     assert!(
       !available[r].contains(reachability.class(AssetIndex(3))),
       "boundary {boundary}"
@@ -558,7 +559,11 @@ fn availability_asset_graph_propagates_from_non_root_dependencies() {
     ],
   );
   let (roots, reachability, available) = analyze(&graph);
-  let r = roots.iter().find(|(_, a)| *a == AssetIndex(2)).unwrap().0;
+  let r = roots
+    .iter_active()
+    .find(|(_, a)| *a == AssetIndex(2))
+    .unwrap()
+    .0;
   assert!(available[r].contains(reachability.class(AssetIndex(3))));
 }
 
@@ -1123,7 +1128,7 @@ fn synchronous_reachability_matches_independent_walks_through_root_cycles() {
     let graph = asset_graph(30, &[0, 1], &edges);
     let roots = BundleRoots::from_asset_graph(&graph);
     let reachability = Reachability::from_bundle_roots(&graph, &roots);
-    for (root_index, root) in roots.iter() {
+    for (root_index, root) in roots.iter_active() {
       let mut visited = [false; 30];
       let mut pending = vec![root.index()];
       while let Some(source) = pending.pop() {
@@ -1164,7 +1169,7 @@ fn synchronous_reachability_handles_deep_graphs_and_already_visited_roots() {
       .count_ones(..),
     roots.len()
   );
-  assert_eq!(reachability.reachable_roots.len(), roots.len() + 1);
+  assert_eq!(reachability.class_count(), roots.len() + 1);
 }
 
 #[test]
