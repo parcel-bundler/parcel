@@ -29,12 +29,11 @@ pub struct ManualSharedBundle {
 
 /// Transfer compression the served bundles are expected to use. Selects the
 /// wire-size curve consolidation cost estimates apply to bundle sizes.
-#[derive(Clone, Copy, Default, PartialEq, Eq, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Compression {
   /// Transfer estimates equal uncompressed sizes, so consolidating disjoint
   /// payloads never reduces cost on its own.
-  #[default]
   None,
   Gzip,
   Brotli,
@@ -66,7 +65,7 @@ impl Default for DefaultBundler {
       max_parallel_requests: 25,
       first_page_load_priority: 0.67,
       dependency_change_rate: 0.1,
-      compression: Compression::None,
+      compression: Compression::Brotli,
     }
   }
 }

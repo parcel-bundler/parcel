@@ -22,14 +22,14 @@ Configure it in the project's `.parcelrc`:
 }
 ```
 
-| Option                  | Meaning                                                                                                                                                                                                                                                                |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `minBundleSize`         | Minimum estimated bytes for eligible shared JS payloads. `0` disables this constraint.                                                                                                                                                                                 |
-| `maxParallelRequests`   | Maximum physical requests in each eager loading closure, including its root and parallel dependencies. `0` disables this constraint.                                                                                                                                   |
-| `firstPageLoadPriority` | A number from `0` to `1`: probability of one activation rather than two. Higher values prioritize cold loads; lower values give more weight to reuse between activations.                                                                                              |
-| `dependencyChangeRate`  | A number from `0` to `1`: relative edit frequency for assets without `AssetFlags::IS_SOURCE`. Source assets have weight `1`. Zero ignores dependency edits.                                                                                                            |
-| `manualSharedBundles`   | Ordered grouping rules with `assets` glob patterns and optional `types`. These outputs neither donate nor receive assets during consolidation.                                                                                                                         |
-| `compression`           | `"none"` (default), `"gzip"`, or `"brotli"`: the transfer compression bundles are served with. Selects the wire-size curve applied to sizes in cost estimates; non-`none` values also reward consolidating disjoint payloads (about 1KB of transfer per file removed). |
+| Option                  | Meaning                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `minBundleSize`         | Minimum estimated bytes for eligible shared JS payloads. `0` disables this constraint.                                                                                                                                                                                                                                                                     |
+| `maxParallelRequests`   | Maximum physical requests in each eager loading closure, including its root and parallel dependencies. `0` disables this constraint.                                                                                                                                                                                                                       |
+| `firstPageLoadPriority` | A number from `0` to `1`: probability of one activation rather than two. Higher values prioritize cold loads; lower values give more weight to reuse between activations.                                                                                                                                                                                  |
+| `dependencyChangeRate`  | A number from `0` to `1`: relative edit frequency for assets without `AssetFlags::IS_SOURCE`. Source assets have weight `1`. Zero ignores dependency edits.                                                                                                                                                                                                |
+| `manualSharedBundles`   | Ordered grouping rules with `assets` glob patterns and optional `types`. These outputs neither donate nor receive assets during consolidation.                                                                                                                                                                                                             |
+| `compression`           | `"brotli"` (default), `"gzip"`, or `"none"`: the transfer compression bundles are served with. Selects the wire-size curve applied to sizes in cost estimates; non-`none` values also reward consolidating disjoint payloads (about 1KB of transfer per file removed). Consolidation is fully disabled only when this is `"none"` and both limits are `0`. |
 
 Sizes come from `Content::estimate_size()`: buffer byte lengths, file metadata,
 or the retained parser input size for JS/CSS ASTs. Estimation avoids printing
@@ -101,8 +101,12 @@ experiments. Fixture examples live under `tests/fixtures/bundler/merge-*`;
 their `options.config` explicitly selects the fixture's `.parcelrc`.
 
 Availability and internalization fixtures whose shared payloads would otherwise
-be consolidated set `minBundleSize: 0` in their own `.parcelrc`. This preserves
-their original placement and reference assertions. Consolidated entry cycles
+be consolidated set `minBundleSize: 0` in their own `.parcelrc`; their payloads
+sit below the wire curve's knee, so compression-driven merges cannot reach them
+either. Fixtures that must fully freeze placement also set
+`compression: "none"`. The `merge-compression` fixture covers the curve
+directly: identical sources consolidate under the default brotli curve and a
+gzip curve, and stay apart with `compression: "none"`. Consolidated entry cycles
 are covered separately by `merge-entry-cycle`, including independent execution
 of each entry in development and production.
 

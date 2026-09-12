@@ -5,7 +5,7 @@
     "config": {
       "minBundleSize": 0,
       "maxParallelRequests": 0,
-      "compression": "none"
+      "compression": "gzip"
     }
   }
 }

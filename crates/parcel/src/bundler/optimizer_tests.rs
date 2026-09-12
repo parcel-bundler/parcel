@@ -108,7 +108,11 @@ fn session_score_matches_explicit_sessions_and_single_asset_edits() {
     &[&[3], &[3], &[], &[]],
     3,
     &[100, 200, 300, 50],
-    DefaultBundler::default(),
+    // The expected costs below are computed from uncompressed sizes.
+    DefaultBundler {
+      compression: Compression::None,
+      ..Default::default()
+    },
     |model, layout| {
       let state = model.state(&layout);
       let loads: Vec<Vec<usize>> = (0..3)

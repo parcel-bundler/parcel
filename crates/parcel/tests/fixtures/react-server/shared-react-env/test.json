@@ -9,11 +9,11 @@
     },
     {
       "assets": ["Page2.jsx"],
-      "references": [[], [], ["Client2.jsx"]]
+      "references": [[], ["Client2.jsx"]]
     },
     {
       "assets": ["Page1.jsx"],
-      "references": [[], [], ["Client1.jsx"]]
+      "references": [[], ["Client1.jsx"]]
     },
     {
       "assets": [],

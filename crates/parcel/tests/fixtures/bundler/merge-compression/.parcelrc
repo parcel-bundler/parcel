@@ -4,8 +4,7 @@
     "plugin": "@parcel/bundler-default",
     "config": {
       "minBundleSize": 0,
-      "maxParallelRequests": 0,
-      "compression": "none"
+      "maxParallelRequests": 0
     }
   }
 }

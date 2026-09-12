@@ -255,7 +255,10 @@ pub(super) fn optimize(
   resolutions: &mut HashMap<DependencyId, BundleGraphDependencyResolution>,
   options: &ParcelOptions,
 ) -> Result<(), DiagnosticList> {
-  if config.min_bundle_size == 0 && config.max_parallel_requests == 0 {
+  if config.min_bundle_size == 0
+    && config.max_parallel_requests == 0
+    && config.compression == Compression::None
+  {
     return Ok(());
   }
   let mut roots: Vec<_> = root_bundles.values().map(|r| r.load).collect();
@@ -789,21 +792,32 @@ impl Model<'_> {
     let mut scratch = Scratch::new(layout.live.len(), self.sizes.len());
     let mut seen = FixedBitSet::with_capacity(self.sizes.len());
     let mut duplicated = FixedBitSet::with_capacity(self.sizes.len());
-    // With a linear wire curve, only a merge that deduplicates an asset can
-    // strictly reduce cost beyond the configured limits: per-root bytes are
-    // unchanged while the second-visit and invalidation terms of `bundle_cost`
-    // can only grow. A concave curve also rewards consolidating disjoint
-    // payloads, so every donor stays eligible.
-    let dedup_only = self.wire.is_linear();
+    // Beyond the configured limits, a merge without overlap can only reduce
+    // cost when the merged pair crosses the wire curve's warmup knee: below
+    // it the curve is linear, where per-root bytes are unchanged while the
+    // second-visit and invalidation terms of `bundle_cost` can only grow.
+    // Deduplicating merges reduce cost under any monotone curve.
+    let concave = !self.wire.is_linear();
     loop {
-      if dedup_only {
-        seen.clear();
-        duplicated.clear();
+      seen.clear();
+      duplicated.clear();
+      for b in layout.live.ones() {
+        for a in layout.assets[b].iter() {
+          if seen.put(a.index()) {
+            duplicated.insert(a.index());
+          }
+        }
+      }
+      // The two largest live payloads bound every donor's best possible
+      // partner for the knee-crossing test.
+      let mut max = [0usize; 2];
+      if concave {
         for b in layout.live.ones() {
-          for a in layout.assets[b].iter() {
-            if seen.put(a.index()) {
-              duplicated.insert(a.index());
-            }
+          let size = state.sizes[b];
+          if size > max[0] {
+            max = [size, max[0]];
+          } else if size > max[1] {
+            max[1] = size;
           }
         }
       }
@@ -811,11 +825,13 @@ impl Model<'_> {
         .live
         .difference(&self.protected)
         .filter(|&b| {
-          !dedup_only
-            || self.undersized(b, state.sizes[b])
+          let size = state.sizes[b];
+          let partner = if size == max[0] { max[1] } else { max[0] };
+          self.undersized(b, size)
             || state.consumers[b]
               .ones()
               .any(|r| self.request_excess(state.requests[r]) > 0)
+            || (concave && (size + partner) as f64 > self.wire.w)
             || layout.assets[b]
               .iter()
               .any(|a| duplicated.contains(a.index()))
