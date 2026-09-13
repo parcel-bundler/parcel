@@ -456,7 +456,8 @@ fn prepare_to_package(
 
   let mut inline_bundles = HashMap::new();
   let mut stylesheet_media = HashMap::new();
-  let mut referenced_bundles = HashSet::<usize>::new();
+  // Preserve reference order: stylesheet link order is cascade order.
+  let mut referenced_bundles = Vec::<usize>::new();
   for (dep_index, dep) in asset.dependencies.iter().enumerate() {
     match bundle_graph.dependency_resolution(bundle.assets[0], dep_index) {
       BundleGraphDependencyResolution::Bundle {
@@ -491,7 +492,12 @@ fn prepare_to_package(
           );
         }
 
-        referenced_bundles.extend(referenced_bundle.referenced_bundles.iter()); // TODO: should be recursive
+        for &reference in &referenced_bundle.referenced_bundles {
+          // TODO: should be recursive
+          if !referenced_bundles.contains(&reference) {
+            referenced_bundles.push(reference);
+          }
+        }
       }
       _ => {
         inline_bundles.insert(

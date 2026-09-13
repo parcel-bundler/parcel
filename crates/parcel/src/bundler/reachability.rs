@@ -209,7 +209,7 @@ impl Reachability {
 
 // Use dependency metadata rather than root membership: a demoted async target
 // is placed with its synchronous providers, never pulled into its async importer.
-fn synchronous_dependencies<'a>(
+pub(super) fn synchronous_dependencies<'a>(
   graph: &'a AssetGraph,
   roots: &'a BundleRoots,
   asset: &'a Asset,
@@ -224,7 +224,7 @@ fn synchronous_dependencies<'a>(
     })
 }
 
-fn is_sync_dep(
+pub(super) fn is_sync_dep(
   graph: &AssetGraph,
   roots: &BundleRoots,
   asset: &Asset,

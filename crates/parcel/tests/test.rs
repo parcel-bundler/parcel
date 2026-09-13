@@ -407,7 +407,36 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
             .join("_");
           name == entry.path().file_prefix().unwrap().to_str().unwrap()
         })
-        .expect("could not find bundle");
+        .unwrap_or_else(|| {
+          let names: Vec<String> = bundle_graph
+            .bundles
+            .iter()
+            .map(|bundle| {
+              bundle
+                .assets
+                .iter()
+                .map(|a| {
+                  bundle_graph
+                    .asset_graph
+                    .asset(*a)
+                    .loc
+                    .url
+                    .to_file_path()
+                    .unwrap()
+                    .file_prefix()
+                    .unwrap()
+                    .to_string()
+                })
+                .collect::<Vec<_>>()
+                .join("_")
+            })
+            .collect();
+          panic!(
+            "could not find bundle for expected file {:?}; bundle names: {:?}",
+            entry.file_name(),
+            names
+          )
+        });
 
       if update_snapshots {
         let bytes = output_fs.read(bundle.dist_path()).unwrap();

@@ -94,6 +94,26 @@ Synthetic loaders and synchronous import bindings use stable bundle/asset
 identities independently of bundle ordering. Incremental tests cross the size threshold in both directions and
 toggle `.parcelrc` settings, comparing every output with a fresh build.
 
+## CSS cascade order
+
+CSS cascade order is semantic, so stylesheet bundles are planned from each
+context's application order rather than by reachability class alone
+(`style_order.rs`). For every loading context the concatenation of its CSS
+bundles, in reference order, must equal its source-order sequence. Two
+conditions make that possible: each bundle's internal order must agree with all
+of its consumers, and each bundle's assets must be contiguous in every
+consumer's sequence. A class is therefore split into segments wherever a
+consumer interleaves a foreign stylesheet between neighbors, and a stylesheet
+that consumers order inconsistently is duplicated per context (each context
+positions its own copy), with a warning that names it. Reference order is
+carried through to HTML `<link>` order and the runtime loader, and the optimizer
+leaves planned CSS order intact (only JS bundles are resorted into packaging
+order after moves). The packager hoists surviving external and cross-bundle
+`@import` rules to the top of the file, since imports must precede other rules
+while bundle order places imports before their importer. Ordering conflicts are
+usually an authoring bug; the `order-interleave` and `order-conflict` fixtures
+cover the split and duplication paths.
+
 Some limits are infeasible while preserving loading boundaries and zero extra
 downloads. The bundler keeps a correct layout and emits a warning reporting
 the remaining excess requests and undersized eligible occurrences. The minimum

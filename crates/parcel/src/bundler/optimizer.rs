@@ -403,7 +403,11 @@ pub(super) fn optimize(
       continue;
     }
     bundle.assets = Rc::unwrap_or_clone(std::mem::take(&mut chosen.assets[i]));
-    bundle.assets.sort_by_key(|a| order[a.index()]);
+    // CSS bundle order is cascade order, planned per context; only JS bundles
+    // are resorted into DFS packaging order after moves.
+    if bundle.ty != AssetType::Css {
+      bundle.assets.sort_by_key(|a| order[a.index()]);
+    }
     bundle.referenced_bundles = Rc::unwrap_or_clone(std::mem::take(&mut chosen.references[i]));
     for r in &mut bundle.referenced_bundles {
       assert_ne!(remap[*r], usize::MAX, "reference to a removed bundle");

@@ -19,6 +19,7 @@ mod bundle_roots;
 mod internalization;
 mod optimizer;
 mod reachability;
+mod style_order;
 #[cfg(test)]
 mod tests;
 
@@ -338,11 +339,109 @@ impl Bundler for DefaultBundler {
       );
     }
 
+    // CSS cascade order is semantic: plan stylesheet bundles from each
+    // context's application order rather than by class alone.
+    let style_plan = style_order::plan(&asset_graph, &bundle_roots, &needed_roots, |asset| {
+      asset.ty == AssetType::Css && self.manual_shared_bundle(asset, options).is_none()
+    });
+    for asset_index in &style_plan.conflicts {
+      let asset = asset_graph.asset(*asset_index);
+      options.reporters.log(
+        parcel_core::LogLevel::Warn,
+        &format!(
+          "{} is imported in conflicting orders by different contexts; emitting a separate copy per context to preserve each cascade order.",
+          asset.loc.url
+        ),
+      );
+    }
+    let mut slot_bundles: Vec<Option<usize>> = vec![None; style_plan.segments.len()];
+    {
+      // The first segment of each group joins a stylesheet root bundle with
+      // the same consumers, like non-root classmates joined it under the
+      // legacy class key (the reused-bundle pattern for CSS).
+      let mut style_roots: HashMap<(&FixedBitSet, ContentType), usize> = HashMap::new();
+      for (_, root_asset) in bundle_roots.iter_active() {
+        let asset = asset_graph.asset(root_asset);
+        if asset.ty == AssetType::Css {
+          if let Some(root) = root_bundles.get(&root_asset) {
+            style_roots
+              .entry((needed_roots.reachable_roots(root_asset), asset.content.ty()))
+              .or_insert(root.content);
+          }
+        }
+      }
+      for (slot, segment) in style_plan.segments.iter().enumerate() {
+        if segment.ordinal != 0 || segment.owner_root.is_some() {
+          continue;
+        }
+        let first = segment.assets[0];
+        let key = (
+          needed_roots.reachable_roots(first),
+          asset_graph.asset(first).content.ty(),
+        );
+        if let Some(&bundle_index) = style_roots.get(&key) {
+          slot_bundles[slot] = Some(bundle_index);
+        }
+      }
+    }
+
     // Place assets into bundles, following depth-first order.
     for (asset_index, asset, name) in asset_graph.dfs() {
       let is_bundle_root = bundle_roots.is_bundle_root(asset_index);
       let reachable_roots = needed_roots.reachable_roots(asset_index);
       if !is_bundle_root && reachable_roots.is_clear() {
+        continue;
+      }
+
+      if let Some(slots) = style_plan.slots.get(&asset_index) {
+        for &slot in slots {
+          let bundle_index = match slot_bundles[slot as usize] {
+            Some(bundle_index) => bundle_index,
+            None => {
+              // Identity mirrors BundleKey::Default's stable hash: derived
+              // from the consumer roots and packager (plus the segment
+              // ordinal and owning root), never from membership, so bundle
+              // names stay stable as stylesheets are added and removed.
+              let segment = &style_plan.segments[slot as usize];
+              let mut hasher = xxhash_rust::xxh3::Xxh3Default::new();
+              2.hash(&mut hasher);
+              let mut ids: Vec<u64> = needed_roots
+                .reachable_roots(segment.assets[0])
+                .ones()
+                .map(|root| root_ids[root])
+                .collect();
+              ids.sort();
+              ids.hash(&mut hasher);
+              asset.content.ty().hash(&mut hasher);
+              segment.ordinal.hash(&mut hasher);
+              if let Some(owner) = segment.owner_root {
+                root_ids[owner].hash(&mut hasher);
+              }
+              let bundle_index = bundles.len();
+              bundles.push(Bundle {
+                id: hasher.digest(),
+                ty: asset.ty.clone(),
+                target: asset.target.clone(),
+                bundle_behavior: BundleBehavior::None,
+                flags: BundleFlags::empty(),
+                dist_path: None,
+                assets: Vec::new(),
+                entry_assets: Vec::new(),
+                main_entry_asset: None,
+                referenced_bundles: Vec::new(),
+              });
+              slot_bundles[slot as usize] = Some(bundle_index);
+              bundle_index
+            }
+          };
+          bundles[bundle_index].assets.push(asset_index);
+          if let Some(mirrors) = mirrored_bundles.get(&bundle_index) {
+            for &mirror in mirrors {
+              bundles[mirror].assets.push(asset_index);
+            }
+          }
+        }
+        // References are wired from each root's application order below.
         continue;
       }
 
@@ -426,6 +525,47 @@ impl Bundler for DefaultBundler {
           bundles[bundle_root_index]
             .referenced_bundles
             .push(bundle_index);
+        }
+      }
+    }
+
+    // Planned CSS bundles emit their assets in application order, and each
+    // root references its stylesheet bundles in its own order, which the HTML
+    // packager and the runtime loader preserve.
+    for (slot, bundle_index) in slot_bundles.iter().enumerate() {
+      let Some(bundle_index) = *bundle_index else {
+        continue;
+      };
+      let assets = &style_plan.segments[slot].assets;
+      // Keep any legacy-placed assets (the root stylesheet itself) after the
+      // planned run: an importing root applies after its imports.
+      let reorder = |existing: &mut Vec<AssetIndex>| {
+        let mut merged = assets.clone();
+        merged.extend(existing.iter().copied().filter(|a| !assets.contains(a)));
+        *existing = merged;
+      };
+      let mut merged = std::mem::take(&mut bundles[bundle_index].assets);
+      reorder(&mut merged);
+      bundles[bundle_index].assets = merged;
+      if let Some(mirrors) = mirrored_bundles.get(&bundle_index) {
+        for &mirror in mirrors {
+          let mut merged = std::mem::take(&mut bundles[mirror].assets);
+          reorder(&mut merged);
+          bundles[mirror].assets = merged;
+        }
+      }
+    }
+    for (root_index, order) in style_plan.root_order.iter().enumerate() {
+      if order.is_empty() {
+        continue;
+      }
+      let source = root_to_bundle[root_index];
+      for &slot in order {
+        let Some(bundle_index) = slot_bundles[slot as usize] else {
+          continue;
+        };
+        if bundle_index != source && !bundles[source].referenced_bundles.contains(&bundle_index) {
+          bundles[source].referenced_bundles.push(bundle_index);
         }
       }
     }

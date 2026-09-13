@@ -82,6 +82,11 @@ impl CssContent {
     }
 
     let mut dest = Vec::new();
+    // @import rules are only valid before all other rules, but bundle asset
+    // order is application order (imports before their importer), so external
+    // and cross-bundle imports that survive to the output are hoisted to a
+    // prefix ahead of the inlined rules.
+    let mut prefix = Vec::new();
     let mut visited = vec![false; stylesheets.len()];
     for source_index in 0..stylesheets.len() {
       if !visited[source_index] {
@@ -93,10 +98,13 @@ impl CssContent {
           &mut stylesheets,
           source_index,
           &mut visited,
+          &mut prefix,
           &mut dest,
         )?;
       }
     }
+    prefix.append(&mut dest);
+    let dest = prefix;
 
     let mut stylesheet = StyleSheet::new(
       stylesheets
@@ -267,6 +275,7 @@ fn inline(
   stylesheets: &mut Vec<StyleSheetWrapper>,
   stylesheet_index: usize,
   visited: &mut Vec<bool>,
+  prefix: &mut Vec<CssRule<'static>>,
   dest: &mut Vec<CssRule<'static>>,
 ) -> Result<(), DiagnosticList> {
   // Each stylesheet is emitted once, at its chosen (last) instance; wrapping an
@@ -302,6 +311,7 @@ fn inline(
               stylesheets,
               *dep_source_index,
               visited,
+              prefix,
               dest,
             )?;
           }
@@ -311,7 +321,6 @@ fn inline(
   }
 
   let mut dep_index = 0;
-  let mut has_bundled_import = false;
   for rule in &mut rules {
     match rule {
       CssRule::Import(import) => {
@@ -333,13 +342,13 @@ fn inline(
                   stylesheets,
                   *dep_source_index,
                   visited,
+                  prefix,
                   dest,
                 )?;
               }
             }
 
             *rule = CssRule::Ignored;
-            has_bundled_import = true;
           }
           BundleGraphDependencyResolution::Bundle { bundle_index, .. } => {
             let referenced_bundle = &bundle_graph.bundles[bundle_index as usize];
@@ -361,18 +370,10 @@ fn inline(
               import.supports = None;
               import.media = MediaList::new();
             }
-            dest.push(std::mem::replace(rule, CssRule::Ignored));
+            prefix.push(std::mem::replace(rule, CssRule::Ignored));
           }
           _ => {
-            if has_bundled_import {
-              return Err(
-                Diagnostic::from_message(
-                  "External @import rules must appear before bundled @import rules.".to_string(),
-                )
-                .into(),
-              );
-            }
-            dest.push(std::mem::replace(rule, CssRule::Ignored));
+            prefix.push(std::mem::replace(rule, CssRule::Ignored));
           }
         }
 

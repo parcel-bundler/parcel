@@ -1,0 +1,34 @@
+{
+  "description": "a stylesheet interleaved between shared siblings in one context splits into separate bundles",
+  "input": "index.js",
+  "options": {
+    "mode": "production"
+  },
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": ["index.js"],
+      "references": []
+    },
+    {
+      "assets": ["pageA.js"],
+      "references": [["a1.css"], ["shared.css"], ["a2.css"]]
+    },
+    {
+      "assets": ["pageB.js"],
+      "references": [["shared.css"]]
+    },
+    {
+      "assets": ["a1.css"],
+      "references": []
+    },
+    {
+      "assets": ["a2.css"],
+      "references": []
+    },
+    {
+      "assets": ["shared.css"],
+      "references": []
+    }
+  ]
+}
