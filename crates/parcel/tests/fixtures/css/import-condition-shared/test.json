@@ -1,0 +1,30 @@
+{
+  "description": "a conditional @import keeps its condition when the target is shared with an unconditional import elsewhere",
+  "input": "index.js",
+  "options": {
+    "mode": "production"
+  },
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": ["index.js"],
+      "references": []
+    },
+    {
+      "assets": ["pageA.js"],
+      "references": [["a.css", "shared.css"]]
+    },
+    {
+      "assets": ["pageB.js"],
+      "references": [["b.css", "shared.css"]]
+    },
+    {
+      "assets": ["a.css", "shared.css"],
+      "references": []
+    },
+    {
+      "assets": ["b.css", "shared.css"],
+      "references": []
+    }
+  ]
+}

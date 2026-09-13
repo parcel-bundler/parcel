@@ -3029,6 +3029,7 @@ dependencies = [
 name = "parcel-css"
 version = "0.1.0"
 dependencies = [
+ "cssparser",
  "lightningcss",
  "parcel-core",
  "parcel_sourcemap",

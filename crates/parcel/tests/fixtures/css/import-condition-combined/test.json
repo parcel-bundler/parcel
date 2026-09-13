@@ -1,0 +1,19 @@
+{
+  "description": "the same file imported under a media query and a supports condition becomes two wrapped variants",
+  "input": "index.js",
+  "options": {
+    "mode": "production"
+  },
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": ["index.js"],
+      "references": [["a.css", "dep.css", "dep.css"]]
+    },
+    {
+      "assets": ["a.css", "dep.css", "dep.css"],
+      "references": []
+    }
+  ],
+  "output": 1
+}

@@ -1,0 +1,3 @@
+@import "dep.css" print;
+@import "dep.css" supports(display: grid);
+.a { color: black; }

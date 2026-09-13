@@ -6,7 +6,7 @@ use lightningcss::{
   rules::CssRule,
   stylesheet::{MinifyOptions, ParserOptions, StyleAttribute, StyleSheet},
   targets::{Browsers, Targets},
-  traits::IntoOwned,
+  traits::{IntoOwned, ToCss},
   visitor::Visit,
 };
 use parcel_core::*;
@@ -135,9 +135,12 @@ impl Transformer for CssTransformer {
       })
       .map_err(|err| convert_error(Some(asset.loc.url.clone()), err))?;
 
+    let unconditional_target = unconditional(&asset.target);
     let mut collector = DependencyCollector {
       dependencies: &mut asset.dependencies,
       target: asset.target.clone(),
+      unconditional_target: unconditional_target.clone(),
+      import_index: 0,
       url: asset.loc.url.clone(),
       project_root: options.project_root.clone(),
       in_custom_property: false,
@@ -179,7 +182,7 @@ impl Transformer for CssTransformer {
                 bundle_behavior: BundleBehavior::None,
                 import_type: ImportType::JavaScript,
                 flags: DependencyFlags::empty(),
-                target: asset.target.clone(),
+                target: unconditional_target.clone(),
                 loc: None,
                 placeholder: None,
                 resolve_from: Some(asset.loc.url.clone()),
@@ -214,7 +217,7 @@ impl Transformer for CssTransformer {
                 bundle_behavior: BundleBehavior::None,
                 import_type: ImportType::JavaScript,
                 flags: DependencyFlags::empty(),
-                target: asset.target.clone(),
+                target: unconditional_target.clone(),
                 loc: None,
                 placeholder: None,
                 resolve_from: Some(asset.loc.url.clone()),
@@ -265,12 +268,96 @@ impl Transformer for CssTransformer {
   }
 }
 
+/// The importing asset's target without any style condition, for dependencies
+/// on other asset types: conditions only apply along the stylesheet `@import`
+/// chain, and `Target::normalize` strips them from other types as a backstop.
+fn unconditional(target: &Arc<Target>) -> Arc<Target> {
+  if target.style_condition.is_some() {
+    Arc::new(Target {
+      style_condition: None,
+      ..(**target).clone()
+    })
+  } else {
+    target.clone()
+  }
+}
+
 struct DependencyCollector<'a> {
   dependencies: &'a mut Vec<Dependency>,
   target: Arc<Target>,
+  unconditional_target: Arc<Target>,
+  import_index: usize,
   url: SourceUrl,
   project_root: PathId,
   in_custom_property: bool,
+}
+
+impl<'a> DependencyCollector<'a> {
+  /// The target for an `@import` dependency: the importer's target with the
+  /// import rule's layer, media, and supports conditions composed onto the
+  /// accumulated style condition. Each distinct accumulated condition makes
+  /// the imported stylesheet a separate asset.
+  fn import_target(
+    &mut self,
+    import: &lightningcss::rules::import::ImportRule,
+  ) -> Result<Arc<Target>, Diagnostic> {
+    let index = self.import_index;
+    self.import_index += 1;
+    let print = |css: &dyn Fn() -> Result<String, lightningcss::error::PrinterError>| {
+      css().map_err(|err| Diagnostic::from_message(err.to_string()))
+    };
+    let minify = || PrinterOptions {
+      minify: true,
+      ..Default::default()
+    };
+    let media = if import.media.media_queries.is_empty() {
+      None
+    } else {
+      Some(print(&|| import.media.to_css_string(minify()))?)
+    };
+    let supports = match &import.supports {
+      Some(supports) => Some(print(&|| supports.to_css_string(minify()))?),
+      None => None,
+    };
+    let layer = match &import.layer {
+      None => None,
+      // Every anonymous `layer` import site declares a distinct layer.
+      Some(None) => Some(StyleLayer::Anonymous(
+        format!("{}:{}", self.url, index).into_boxed_str(),
+      )),
+      Some(Some(name)) => Some(StyleLayer::Named(
+        print(&|| name.to_css_string(minify()))?.into_boxed_str(),
+      )),
+    };
+    if media.is_none() && supports.is_none() && layer.is_none() {
+      return Ok(self.target.clone());
+    }
+    let mut condition = self
+      .target
+      .style_condition
+      .as_deref()
+      .cloned()
+      .unwrap_or_default();
+    if let Some(layer) = layer {
+      condition.layers.push(layer);
+    }
+    for (value, list) in [
+      (media, &mut condition.media),
+      (supports, &mut condition.supports),
+    ] {
+      if let Some(value) = value {
+        let value = value.into_boxed_str();
+        if !list.contains(&value) {
+          list.push(value);
+          list.sort();
+        }
+      }
+    }
+    Ok(Arc::new(Target {
+      style_condition: Some(Arc::new(condition)),
+      ..(*self.target).clone()
+    }))
+  }
 }
 
 impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
@@ -282,6 +369,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
 
   fn visit_rule(&mut self, rule: &mut lightningcss::rules::CssRule<'i>) -> Result<(), Self::Error> {
     if let CssRule::Import(import) = rule {
+      let target = self.import_target(import)?;
       self.dependencies.push(Dependency {
         specifier: import.url.to_string().into_boxed_str(),
         specifier_type: SpecifierType::Url,
@@ -289,7 +377,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
         bundle_behavior: BundleBehavior::None,
         import_type: ImportType::StyleSheet,
         flags: DependencyFlags::empty(),
-        target: self.target.clone(),
+        target,
         loc: Some(SourceLocation {
           url: self.url.clone(),
           start: Location {
@@ -373,7 +461,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
       bundle_behavior: BundleBehavior::None,
       import_type: ImportType::Url,
       flags: DependencyFlags::empty(),
-      target: self.target.clone(),
+      target: self.unconditional_target.clone(),
       loc: Some(SourceLocation {
         url: self.url.clone(),
         start: Location {
@@ -442,6 +530,8 @@ impl Transformer for StyleAttrTransformer {
     attr.visit(&mut DependencyCollector {
       dependencies: &mut asset.dependencies,
       target: asset.target.clone(),
+      unconditional_target: asset.target.clone(),
+      import_index: 0,
       url: asset.loc.url.clone(),
       project_root: options.project_root.clone(),
       in_custom_property: false,

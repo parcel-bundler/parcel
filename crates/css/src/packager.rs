@@ -15,7 +15,7 @@ use lightningcss::{
   },
   stylesheet::{MinifyOptions, ParserOptions, StyleSheet},
   targets::{Browsers, Targets},
-  traits::ToCss,
+  traits::{IntoOwned, Parse, ToCss},
   visitor::Visit,
 };
 use parcel_core::*;
@@ -28,21 +28,9 @@ use crate::{
 struct StyleSheetWrapper {
   asset_index: AssetIndex,
   stylesheet: StyleSheet<'static>,
-  layer: Option<Option<LayerName<'static>>>,
-  supports: Option<SupportsCondition<'static>>,
-  media: MediaList<'static>,
   loc: lightningcss::rules::Location,
   parent_stylesheet_index: usize,
   parent_dep_index: usize,
-}
-
-struct State {
-  parent_stylesheet_index: usize,
-  stylesheet_index: usize,
-  dep_index: usize,
-  layer: Option<Option<LayerName<'static>>>,
-  supports: Option<SupportsCondition<'static>>,
-  media: MediaList<'static>,
 }
 
 impl CssContent {
@@ -65,9 +53,6 @@ impl CssContent {
         stylesheets.push(StyleSheetWrapper {
           asset_index: *asset_index,
           stylesheet: content.stylesheet.clone(),
-          layer: None,
-          supports: None,
-          media: MediaList::new(),
           parent_stylesheet_index: 0,
           parent_dep_index: 0,
           loc: lightningcss::rules::Location {
@@ -88,14 +73,9 @@ impl CssContent {
           &bundle_graph,
           &asset_index_to_stylesheet_index,
           &mut stylesheets,
-          State {
-            stylesheet_index: index,
-            parent_stylesheet_index: 0,
-            dep_index: 0,
-            layer: None,
-            supports: None,
-            media: MediaList::new(),
-          },
+          index,
+          0,
+          0,
           &mut visited,
         )?;
       }
@@ -210,65 +190,24 @@ fn collect(
   bundle_graph: &BundleGraph,
   asset_index_to_stylesheet_index: &HashMap<AssetIndex, usize>,
   stylesheets: &mut Vec<StyleSheetWrapper>,
-  state: State,
+  stylesheet_index: usize,
+  parent_stylesheet_index: usize,
+  parent_dep_index: usize,
   visited: &mut Vec<bool>,
 ) -> Result<(), DiagnosticList> {
-  let stylesheet = &mut stylesheets[state.stylesheet_index];
+  let stylesheet = &mut stylesheets[stylesheet_index];
 
   // In browsers, every instance of an @import is evaluated, so we preserve the last.
-  stylesheet.parent_stylesheet_index = state.parent_stylesheet_index;
-  stylesheet.parent_dep_index = state.dep_index;
+  // Conditions do not need tracking here: each accumulated @import condition is a
+  // separate asset, wrapped from its own target when inlined.
+  stylesheet.parent_stylesheet_index = parent_stylesheet_index;
+  stylesheet.parent_dep_index = parent_dep_index;
 
-  // We cannot combine a media query and a supports query from different @import rules.
-  // e.g. @import "a.css" print; @import "a.css" supports(color: red);
-  // This would require duplicating the actual rules in the file.
-  if (!state.media.media_queries.is_empty() && !stylesheet.supports.is_none())
-    || (!stylesheet.media.media_queries.is_empty() && !state.supports.is_none())
-  {
-    return Err(Diagnostic::from_message(
-      "Cannot combine a media query and a supports condition from different @import rules of the same file.".to_string(),
-    ).into());
-  }
-
-  if state.media.media_queries.is_empty() {
-    stylesheet.media.media_queries.clear();
-  } else if !stylesheet.media.media_queries.is_empty() {
-    stylesheet.media.or(&state.media);
-  } else {
-    stylesheet.media = state.media.clone();
-  }
-
-  if let Some(supports) = &state.supports {
-    if let Some(existing_supports) = &mut stylesheet.supports {
-      existing_supports.or(&supports)
-    } else {
-      stylesheet.supports = Some(supports.clone());
-    }
-  } else {
-    stylesheet.supports = None;
-  }
-
-  if let Some(layer) = &state.layer {
-    if let Some(existing_layer) = &stylesheet.layer {
-      // We can't OR layer names without duplicating all of the nested rules, so error for now.
-      if layer != existing_layer || (layer.is_none() && existing_layer.is_none()) {
-        return Err(
-          Diagnostic::from_message(
-            "Cannot combine multiple @layer rules for the same imported file.".to_string(),
-          )
-          .into(),
-        );
-      }
-    } else {
-      stylesheet.layer = state.layer.clone();
-    }
-  }
-
-  if visited[state.stylesheet_index] {
+  if visited[stylesheet_index] {
     return Ok(());
   }
 
-  visited[state.stylesheet_index] = true;
+  visited[stylesheet_index] = true;
 
   let asset_index = stylesheet.asset_index;
   let asset = &bundle_graph.asset_graph.asset(asset_index);
@@ -294,56 +233,18 @@ fn collect(
   let mut dep_index = 0;
   for rule in &content.stylesheet.rules.0 {
     match &rule {
-      CssRule::Import(import) => {
+      CssRule::Import(_) => {
         if let BundleGraphDependencyResolution::Asset(asset_index) =
           bundle_graph.dependency_resolution(asset_index, dep_index)
         {
-          if let Some(stylesheet_index) = asset_index_to_stylesheet_index.get(&asset_index) {
-            let layer = if (state.layer == Some(None) && import.layer.is_some())
-              || (import.layer == Some(None) && state.layer.is_some())
-            {
-              // Cannot combine anonymous layers
-              return Err(
-                Diagnostic::from_message(
-                  "Cannot combine an anonymous @layer with another layer during CSS bundling."
-                    .to_string(),
-                )
-                .into(),
-              );
-            } else if let Some(Some(a)) = &state.layer {
-              if let Some(Some(b)) = &import.layer {
-                let mut name = a.clone();
-                name.0.extend(b.0.iter().cloned());
-                Some(Some(name))
-              } else {
-                Some(Some(a.clone()))
-              }
-            } else {
-              import.layer.clone()
-            };
-
-            let mut media = state.media.clone();
-            if media.and(&import.media).is_err() {
-              return Err(
-                Diagnostic::from_message(
-                  "Cannot combine incompatible media queries across @import".to_string(),
-                )
-                .into(),
-              );
-            }
-
+          if let Some(child_index) = asset_index_to_stylesheet_index.get(&asset_index) {
             collect(
               bundle_graph,
               asset_index_to_stylesheet_index,
               stylesheets,
-              State {
-                parent_stylesheet_index: state.stylesheet_index,
-                stylesheet_index: *stylesheet_index,
-                dep_index,
-                layer,
-                supports: combine_supports(state.supports.clone(), &import.supports),
-                media,
-              },
+              *child_index,
+              stylesheet_index,
+              dep_index,
               visited,
             )?;
           }
@@ -368,6 +269,13 @@ fn inline(
   visited: &mut Vec<bool>,
   dest: &mut Vec<CssRule<'static>>,
 ) -> Result<(), DiagnosticList> {
+  // Each stylesheet is emitted once, at its chosen (last) instance; wrapping an
+  // already-emitted stylesheet again would declare empty condition rules.
+  if visited[stylesheet_index] {
+    return Ok(());
+  }
+  visited[stylesheet_index] = true;
+
   let asset_index = stylesheets[stylesheet_index as usize].asset_index;
   let stylesheet = &mut stylesheets[stylesheet_index as usize];
   let loc = stylesheet.loc.clone();
@@ -446,6 +354,12 @@ fn inline(
               );
             } else {
               import.url = referenced_bundle.relative_url(&bundle).unwrap().into();
+              // The referenced bundle contains the conditional variant with its
+              // rules already wrapped, so drop the conditions from the emitted
+              // rule: repeating a layer here would nest the layer path twice.
+              import.layer = None;
+              import.supports = None;
+              import.media = MediaList::new();
             }
             dest.push(std::mem::replace(rule, CssRule::Ignored));
           }
@@ -515,49 +429,50 @@ fn inline(
   )?;
   rules.visit(&mut replacer)?;
 
-  // Wrap rules in the appropriate @layer, @media, and @supports rules.
-  let stylesheet = &mut stylesheets[stylesheet_index as usize];
-
-  if stylesheet.layer.is_some() {
-    rules = vec![CssRule::LayerBlock(LayerBlockRule {
-      name: stylesheet.layer.take().unwrap(),
-      rules: CssRuleList(rules),
-      loc: stylesheet.loc,
-    })]
-  }
-
-  if !stylesheet.media.media_queries.is_empty() {
-    rules = vec![CssRule::Media(MediaRule {
-      query: std::mem::replace(&mut stylesheet.media, MediaList::new()),
-      rules: CssRuleList(rules),
-      loc: stylesheet.loc,
-    })]
-  }
-
-  if stylesheet.supports.is_some() {
-    rules = vec![CssRule::Supports(SupportsRule {
-      condition: stylesheet.supports.take().unwrap(),
-      rules: CssRuleList(rules),
-      loc: stylesheet.loc,
-    })]
+  // Wrap the variant's rules in its accumulated @layer, @media, and @supports
+  // conditions from the target. Nesting composes conditions: nested @media and
+  // @supports are conjunctions, and nested @layer blocks concatenate paths.
+  if let Some(condition) = &asset.target.style_condition {
+    for layer in condition.layers.iter().rev() {
+      let name = match layer {
+        StyleLayer::Named(name) => Some(
+          LayerName::parse_string(name)
+            .map_err(|e| Diagnostic::from_message(e.to_string()))?
+            .into_owned(),
+        ),
+        StyleLayer::Anonymous(_) => None,
+      };
+      rules = vec![CssRule::LayerBlock(LayerBlockRule {
+        name,
+        rules: CssRuleList(rules),
+        loc,
+      })]
+    }
+    for media in &condition.media {
+      let mut input = cssparser::ParserInput::new(media);
+      let mut parser = cssparser::Parser::new(&mut input);
+      let query = MediaList::parse(&mut parser, &ParserOptions::default())
+        .map_err(|e| Diagnostic::from_message(e.to_string()))?
+        .into_owned();
+      rules = vec![CssRule::Media(MediaRule {
+        query,
+        rules: CssRuleList(rules),
+        loc,
+      })]
+    }
+    for supports in &condition.supports {
+      rules = vec![CssRule::Supports(SupportsRule {
+        condition: SupportsCondition::parse_string(supports)
+          .map_err(|e| Diagnostic::from_message(e.to_string()))?
+          .into_owned(),
+        rules: CssRuleList(rules),
+        loc,
+      })]
+    }
   }
 
   dest.extend(rules);
   Ok(())
-}
-
-fn combine_supports<'a>(
-  a: Option<SupportsCondition<'a>>,
-  b: &Option<SupportsCondition<'a>>,
-) -> Option<SupportsCondition<'a>> {
-  if let Some(mut a) = a {
-    if let Some(b) = b {
-      a.and(b)
-    }
-    Some(a)
-  } else {
-    b.clone()
-  }
 }
 
 struct ReferenceReplacer {

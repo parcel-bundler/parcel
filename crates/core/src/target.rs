@@ -21,6 +21,37 @@ pub struct Target {
   pub engines: Engines,
   pub dist_dir: PathId,
   pub public_url: String,
+  /// The accumulated style loading condition from the `@import` chain that
+  /// loads a stylesheet. Each conditional variant of a stylesheet becomes a
+  /// separate asset, transformed and bundled independently; the packager wraps
+  /// a variant's rules in the corresponding nested at-rules.
+  #[serde(default)]
+  pub style_condition: Option<Arc<StyleCondition>>,
+}
+
+/// Conditions attached to `@import` rules, accumulated along the import chain.
+/// Entries use the canonical (minified) serialization, so equal conditions
+/// compare equal. Combination happens by nesting at-rules when packaging, so
+/// no condition algebra is needed: nested `@media` and `@supports` are
+/// conjunctions, and nested `@layer` blocks concatenate layer paths.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StyleCondition {
+  /// `layer(...)` values in nesting order, outermost first.
+  pub layers: Vec<StyleLayer>,
+  /// Media query lists combined with `and`, sorted and deduplicated.
+  pub media: Vec<Box<str>>,
+  /// Supports conditions combined with `and`, sorted and deduplicated.
+  pub supports: Vec<Box<str>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum StyleLayer {
+  /// A named layer path such as `theme.spacing`.
+  Named(Box<str>),
+  /// An anonymous layer. Every `layer` import site declares a distinct layer,
+  /// so the key identifies the site and never compares equal across sites.
+  Anonymous(Box<str>),
 }
 
 impl Hash for Target {
@@ -38,6 +69,10 @@ impl Hash for Target {
     self.engines.hash(state);
     self.dist_dir.hash(state);
     self.public_url.hash(state);
+    // Only hashed when present so unconditioned targets keep their identity.
+    if let Some(condition) = &self.style_condition {
+      condition.hash(state);
+    }
   }
 }
 
@@ -47,35 +82,40 @@ impl Target {
   }
 
   pub fn normalize(target: &Arc<Target>, ty: &AssetType) -> Arc<Target> {
-    // The output format + environment only applies to JavaScript-based languages.
-    // Normalize the target for other asset types to avoid duplicating them.
-    if *ty != AssetType::Js
+    // The output format + environment only applies to JavaScript-based languages,
+    // and style conditions only apply to stylesheets. Normalize the target for
+    // other asset types to avoid duplicating them.
+    let normalize_js = *ty != AssetType::Js
       && (matches!(
         target.output_format,
         OutputFormat::Esmodule | OutputFormat::Commonjs
       ) || !matches!(
         target.environment,
         Environment::Browser | Environment::ReactClient
-      ))
-    {
-      Arc::new(Target {
-        environment: if matches!(
-          target.environment,
-          Environment::ReactServer | Environment::ReactClient
-        ) {
-          Environment::ReactClient
-        } else {
-          Environment::Browser
-        },
-        output_format: OutputFormat::Global,
-        flags: target
-          .flags
-          .difference(EnvironmentFlags::MODULE_TYPE_EXTENSION),
-        ..(**target).clone()
-      })
-    } else {
-      target.clone()
+      ));
+    let strip_condition = *ty != AssetType::Css && target.style_condition.is_some();
+    if !normalize_js && !strip_condition {
+      return target.clone();
     }
+    let mut normalized = (**target).clone();
+    if normalize_js {
+      normalized.environment = if matches!(
+        target.environment,
+        Environment::ReactServer | Environment::ReactClient
+      ) {
+        Environment::ReactClient
+      } else {
+        Environment::Browser
+      };
+      normalized.output_format = OutputFormat::Global;
+      normalized.flags = target
+        .flags
+        .difference(EnvironmentFlags::MODULE_TYPE_EXTENSION);
+    }
+    if strip_condition {
+      normalized.style_condition = None;
+    }
+    Arc::new(normalized)
   }
 
   pub fn stable_hash<H: std::hash::Hasher>(&self, project_root: &PathId, state: &mut H) {
@@ -96,6 +136,10 @@ impl Target {
     self.engines.hash(state);
     SourceUrl::from_directory_path(&self.dist_dir).stable_hash(project_root, state);
     self.public_url.hash(state);
+    // Only hashed when present so unconditioned targets keep their identity.
+    if let Some(condition) = &self.style_condition {
+      condition.hash(state);
+    }
   }
 }
 

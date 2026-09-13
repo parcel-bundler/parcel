@@ -572,6 +572,7 @@ impl<'a> ExportsContext<'a> {
     Ok(Target {
       environment: context,
       rsc_server_target: None,
+      style_condition: None,
       output_format,
       source_type: SourceType::Module,
       flags,

@@ -1,12 +1,7 @@
 {
-  "description": "should return a diagnostic instead of panicking when an anonymous @layer is combined with another layer during CSS bundling",
+  "description": "an anonymous @layer import bundles each import site as a distinct layer",
   "input": "a.css",
   "options": {
     "mode": "production"
-  },
-  "diagnostics": [
-    {
-      "message": "Cannot combine an anonymous @layer with another layer during CSS bundling."
-    }
-  ]
+  }
 }
