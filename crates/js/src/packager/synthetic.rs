@@ -283,6 +283,7 @@ fn load_bundles<W: std::fmt::Write>(
     // TODO: recursive
     for referenced_index in &bundle.referenced_bundles {
       load_bundle(
+        bundle_graph,
         &bundle_graph.bundles[*referenced_index],
         from,
         res,
@@ -291,7 +292,7 @@ fn load_bundles<W: std::fmt::Write>(
       write!(res, ", ")?;
     }
 
-    load_bundle(bundle, from, res, require_name)?;
+    load_bundle(bundle_graph, bundle, from, res, require_name)?;
     write!(
       res,
       "]).then(()=>{}('{}'));",
@@ -300,7 +301,7 @@ fn load_bundles<W: std::fmt::Write>(
     )?;
   } else {
     write!(res, "module.exports=")?;
-    load_bundle(bundle, from, res, require_name)?;
+    load_bundle(bundle_graph, bundle, from, res, require_name)?;
     write!(
       res,
       ".then(()=>{}('{}'));",
@@ -313,6 +314,7 @@ fn load_bundles<W: std::fmt::Write>(
 }
 
 fn load_bundle<W: std::fmt::Write>(
+  bundle_graph: &BundleGraph,
   bundle: &Bundle,
   from: &Bundle,
   res: &mut W,
@@ -327,11 +329,22 @@ fn load_bundle<W: std::fmt::Write>(
       )
     }
     AssetType::Css => {
-      write!(
-        res,
-        "module.bundle.loadCSS('./{}')",
-        bundle.relative_url(from).unwrap()
-      )
+      // A common media gate lets the runtime mark the injected link so the
+      // browser can deprioritize the fetch; the styles are correct without it.
+      if let Some(media) = bundle_graph.common_style_media(bundle) {
+        write!(
+          res,
+          "module.bundle.loadCSS('./{}',{})",
+          bundle.relative_url(from).unwrap(),
+          serde_json::to_string(&media).unwrap()
+        )
+      } else {
+        write!(
+          res,
+          "module.bundle.loadCSS('./{}')",
+          bundle.relative_url(from).unwrap()
+        )
+      }
     }
     _ => Ok(()),
   }

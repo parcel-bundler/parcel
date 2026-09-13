@@ -1,0 +1,30 @@
+{
+  "description": "a stylesheet shared by two print-gated links is extracted with its condition, and the injected links gain the media attribute",
+  "input": ["pageA.html", "pageB.html"],
+  "options": {
+    "mode": "production"
+  },
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": ["pageA.html"],
+      "references": []
+    },
+    {
+      "assets": ["pageB.html"],
+      "references": []
+    },
+    {
+      "assets": ["a.css"],
+      "references": [["shared.css"]]
+    },
+    {
+      "assets": ["b.css"],
+      "references": [["shared.css"]]
+    },
+    {
+      "assets": ["shared.css"],
+      "references": []
+    }
+  ]
+}

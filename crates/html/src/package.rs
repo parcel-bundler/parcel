@@ -15,6 +15,9 @@ use typed_arena::Arena;
 pub enum BundleReference {
   StyleSheet {
     href: SerializableTendril,
+    /// Derived media gate for the whole bundle, emitted on the injected link.
+    #[serde(default)]
+    media: Option<SerializableTendril>,
   },
   Script {
     src: SerializableTendril,
@@ -34,6 +37,7 @@ pub fn insert_bundle_references<'arena>(
   dom: &'arena Node<'arena>,
   bundles: Vec<BundleReference>,
   inline_bundles: HashMap<SerializableTendril, InlineBundle>,
+  stylesheet_media: &HashMap<SerializableTendril, Option<SerializableTendril>>,
   mut import_map: serde_json::map::Map<String, serde_json::Value>,
 ) {
   let data_parcel_key = ExpandedName {
@@ -58,6 +62,23 @@ pub fn insert_bundle_references<'arena>(
           } else if let Some(t) = node.get_attribute(expanded_name!("", "type")) {
             if t.as_ref() == "importmap" {
               import_map_node = Some(node);
+            }
+          }
+        }
+        expanded_name!(html "link") => {
+          // The media attribute of a stylesheet link is re-derived from the
+          // resolved bundle: kept or added when a common gate covers every
+          // asset, removed when it would wrongly gate co-placed content.
+          if let Some(href) = node.get_attribute(expanded_name!("", "href")) {
+            if let Some(media) = stylesheet_media.get(&SerializableTendril(href)) {
+              match media {
+                Some(media) => {
+                  node.set_attribute(expanded_name!("", "media"), &media.0);
+                }
+                None => {
+                  node.remove_attribute(expanded_name!("", "media"));
+                }
+              }
             }
           }
         }
@@ -116,10 +137,13 @@ pub fn insert_bundle_references<'arena>(
   if let Some(head) = dom.find(expanded_name!(html "head")) {
     for bundle in bundles.into_iter().rev() {
       match bundle {
-        BundleReference::StyleSheet { href } => {
+        BundleReference::StyleSheet { href, media } => {
           let node = arena.alloc(Node::create_element(expanded_name!(html "link")));
           node.set_attribute(expanded_name!("", "rel"), "stylesheet");
           node.set_attribute(expanded_name!("", "href"), &href.0);
+          if let Some(media) = media {
+            node.set_attribute(expanded_name!("", "media"), &media.0);
+          }
           head.prepend(node);
         }
         BundleReference::Script {
@@ -170,14 +194,21 @@ pub fn insert_bundle_references<'arena>(
   } else if let Some(svg) = dom.find(expanded_name!(svg "svg")) {
     for bundle in bundles.into_iter().rev() {
       match bundle {
-        BundleReference::StyleSheet { href } => {
+        BundleReference::StyleSheet { href, media } => {
+          let mut attrs = vec![xml5ever::Attribute {
+            name: xml5ever::QualName::new(None, ns!(), local_name!("href")),
+            value: href.0,
+          }];
+          if let Some(media) = media {
+            attrs.push(xml5ever::Attribute {
+              name: xml5ever::QualName::new(None, ns!(), local_name!("media")),
+              value: media.0,
+            });
+          }
           let node = arena.alloc(Node::new(
             NodeData::ProcessingInstruction {
               target: "xml-stylesheet".into(),
-              contents: RefCell::new(serialize_xml_stylesheet(vec![xml5ever::Attribute {
-                name: xml5ever::QualName::new(None, ns!(), local_name!("href")),
-                value: href.0,
-              }])),
+              contents: RefCell::new(serialize_xml_stylesheet(attrs)),
             },
             1,
           ));

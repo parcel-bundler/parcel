@@ -45,6 +45,47 @@ impl<'a> BundleGraph<'a> {
     }
   }
 
+  /// The media query gating every asset in a CSS bundle, if any. Any media
+  /// entry common to all assets' accumulated style conditions soundly gates
+  /// loading the whole bundle, because each asset also wraps its own rules in
+  /// its full condition; the gate is a fetch-priority hint, never the source
+  /// of correctness.
+  pub fn common_style_media(&self, bundle: &Bundle) -> Option<String> {
+    let mut common: Option<Vec<&str>> = None;
+    for asset_index in &bundle.assets {
+      let asset = self.asset_graph.asset(*asset_index);
+      let media = match &asset.target.style_condition {
+        Some(condition) if !condition.media.is_empty() => &condition.media,
+        // An unconditional asset means nothing gates the whole bundle.
+        _ => return None,
+      };
+      common = Some(match common {
+        None => media.iter().map(|m| &**m).collect(),
+        Some(prev) => prev
+          .into_iter()
+          .filter(|m| media.iter().any(|entry| &**entry == *m))
+          .collect(),
+      });
+      if common.as_ref().is_some_and(|c| c.is_empty()) {
+        return None;
+      }
+    }
+    let common = common?;
+    // Entries are canonical media query lists. Comma-free entries are single
+    // queries and can be conjoined with `and`; a list with top-level commas is
+    // a disjunction, which can only gate on its own.
+    let simple: Vec<&str> = common
+      .iter()
+      .copied()
+      .filter(|m| !m.contains(','))
+      .collect();
+    if !simple.is_empty() {
+      Some(simple.join(" and "))
+    } else {
+      Some(common[0].to_string())
+    }
+  }
+
   pub fn dependency_resolution(
     &self,
     asset_index: AssetIndex,

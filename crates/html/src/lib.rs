@@ -149,6 +149,10 @@ pub struct PackageOptions {
   pub xml: bool,
   pub bundles: Vec<BundleReference>,
   pub inline_bundles: HashMap<SerializableTendril, InlineBundle>,
+  /// Derived media gate per stylesheet link placeholder: Some sets the media
+  /// attribute, None removes it. Keyed by the href placeholder value.
+  #[serde(default)]
+  pub stylesheet_media: HashMap<SerializableTendril, Option<SerializableTendril>>,
   pub import_map: serde_json::Map<String, serde_json::Value>,
 }
 
@@ -175,6 +179,7 @@ pub fn package_html(options: PackageOptions) -> Result<PackageResult, ()> {
     dom,
     options.bundles,
     options.inline_bundles,
+    &options.stylesheet_media,
     options.import_map,
   );
 
@@ -205,6 +210,7 @@ pub fn package_svg(options: PackageOptions) -> Result<PackageResult, ()> {
     dom,
     options.bundles,
     options.inline_bundles,
+    &options.stylesheet_media,
     options.import_map,
   );
 
@@ -396,7 +402,7 @@ impl Content for HtmlContent {
   ) -> Result<std::sync::Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
-    let (code, bundles, inline_bundles) =
+    let (code, bundles, inline_bundles, stylesheet_media) =
       prepare_to_package(bundle_graph, bundle, get_inline_bundle_content)?;
 
     let res = package_html(PackageOptions {
@@ -404,6 +410,7 @@ impl Content for HtmlContent {
       xml: bundle.ty == AssetType::Xhtml,
       bundles,
       inline_bundles,
+      stylesheet_media,
       import_map: Default::default(),
     })
     .unwrap();
@@ -439,6 +446,7 @@ fn prepare_to_package(
     Vec<u8>,
     Vec<BundleReference>,
     HashMap<SerializableTendril, InlineBundle>,
+    HashMap<SerializableTendril, Option<SerializableTendril>>,
   ),
   DiagnosticList,
 > {
@@ -447,6 +455,7 @@ fn prepare_to_package(
   let code = asset.content.read()?;
 
   let mut inline_bundles = HashMap::new();
+  let mut stylesheet_media = HashMap::new();
   let mut referenced_bundles = HashSet::<usize>::new();
   for (dep_index, dep) in asset.dependencies.iter().enumerate() {
     match bundle_graph.dependency_resolution(bundle.assets[0], dep_index) {
@@ -469,6 +478,18 @@ fn prepare_to_package(
             module: referenced_bundle.target.output_format == OutputFormat::Esmodule,
           },
         );
+
+        // Re-derive the media attribute of stylesheet links from the resolved
+        // bundle. Correctness comes from each asset's own condition wrapping;
+        // the attribute is a fetch-priority hint that must gate the whole file.
+        if referenced_bundle.ty == AssetType::Css && dep.bundle_behavior != BundleBehavior::Inline {
+          stylesheet_media.insert(
+            SerializableTendril((*dep.placeholder.clone().unwrap()).into()),
+            bundle_graph
+              .common_style_media(referenced_bundle)
+              .map(|media| SerializableTendril(media.into())),
+          );
+        }
 
         referenced_bundles.extend(referenced_bundle.referenced_bundles.iter()); // TODO: should be recursive
       }
@@ -500,13 +521,16 @@ fn prepare_to_package(
         let src = referenced_bundle.relative_url(&bundle).unwrap();
         bundles.push(BundleReference::StyleSheet {
           href: SerializableTendril(src.into()),
+          media: bundle_graph
+            .common_style_media(referenced_bundle)
+            .map(|media| SerializableTendril(media.into())),
         });
       }
       _ => {}
     }
   }
 
-  Ok((code, bundles, inline_bundles))
+  Ok((code, bundles, inline_bundles, stylesheet_media))
 }
 
 pub struct SvgTransformer {
@@ -610,7 +634,7 @@ impl Content for SvgContent {
   ) -> Result<std::sync::Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
-    let (code, bundles, inline_bundles) =
+    let (code, bundles, inline_bundles, stylesheet_media) =
       prepare_to_package(bundle_graph, bundle, get_inline_bundle_content)?;
 
     let res = package_svg(PackageOptions {
@@ -618,6 +642,7 @@ impl Content for SvgContent {
       xml: false,
       bundles,
       inline_bundles,
+      stylesheet_media,
       import_map: Default::default(),
     })
     .unwrap();

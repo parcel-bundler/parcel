@@ -52,11 +52,7 @@ function require(name, jumped) {
 
     var module = (cache[name] = new require.Module(name));
 
-    modules[name].call(
-      module.exports,
-      module,
-      module.exports,
-    );
+    modules[name].call(module.exports, module, module.exports);
   }
 
   return cache[name].exports;
@@ -97,7 +93,7 @@ function parcelResolve(bundleId) {
   return publicUrl + (importMap[bundleId] || bundleId);
 }
 
-function parcelLoadCSS(bundleId) {
+function parcelLoadCSS(bundleId, media) {
   let url = importMap[bundleId] || bundleId;
   return new Promise(function (resolve, reject) {
     if (typeof document === 'undefined') {
@@ -107,6 +103,9 @@ function parcelLoadCSS(bundleId) {
     var link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = url;
+    // Every rule is already wrapped in its own condition; the attribute only
+    // lets the browser deprioritize a stylesheet that cannot apply.
+    link.media = media || '';
 
     // Don't insert the same link element twice (e.g. if it was already in the HTML)
     let existingLinks = document.getElementsByTagName('link');

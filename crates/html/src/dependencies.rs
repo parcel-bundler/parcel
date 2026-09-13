@@ -15,6 +15,36 @@ use parcel_core::{
 };
 use typed_arena::Arena;
 
+/// Parse and canonically re-serialize a media attribute, matching the
+/// canonical form the CSS transformer uses for `@import` conditions. Returns
+/// None for an empty, invalid, or vacuous (`all`) query, which never seeds a
+/// style condition.
+fn canonical_media(value: &str) -> Option<Box<str>> {
+  let mut input = cssparser::ParserInput::new(value);
+  let mut parser = cssparser::Parser::new(&mut input);
+  let media = lightningcss::media_query::MediaList::parse(
+    &mut parser,
+    &lightningcss::stylesheet::ParserOptions::default(),
+  )
+  .ok()?;
+  if media.media_queries.is_empty() {
+    return None;
+  }
+  let css = lightningcss::traits::ToCss::to_css_string(
+    &media,
+    lightningcss::printer::PrinterOptions {
+      minify: true,
+      ..Default::default()
+    },
+  )
+  .ok()?;
+  if css == "all" {
+    None
+  } else {
+    Some(css.into_boxed_str())
+  }
+}
+
 pub fn collect_dependencies<'arena>(
   arena: &'arena Arena<Node<'arena>>,
   dom: &'arena Node<'arena>,
@@ -206,6 +236,7 @@ impl<'arena> DependencyCollector<'arena> {
 
           let mut flags = DependencyFlags::empty();
           let mut priority = Priority::Lazy;
+          let mut target = self.target.clone();
           if let Some(rel) = node.get_attribute(expanded_name!("", "rel")) {
             if rel.as_ref() == "canonical" || rel.as_ref() == "manifest" {
               flags |= DependencyFlags::NEEDS_STABLE_NAME;
@@ -217,6 +248,21 @@ impl<'arena> DependencyCollector<'arena> {
             } else if rel.as_ref() == "stylesheet" {
               // Keep in the same bundle group as the HTML.
               priority = Priority::Parallel;
+              // Seed the media attribute into the style condition so the
+              // stylesheet and its whole import subtree stay gated even when
+              // parts are extracted into other bundles. The emitted media
+              // attribute is later re-derived from the resolved bundle.
+              if let Some(media) = node.get_attribute(expanded_name!("", "media")) {
+                if let Some(media) = canonical_media(&media) {
+                  target = Arc::new(Target {
+                    style_condition: Some(Arc::new(parcel_core::StyleCondition {
+                      media: vec![media],
+                      ..Default::default()
+                    })),
+                    ..(*self.target).clone()
+                  });
+                }
+              }
             } else if rel.as_ref() == "alternate" {
               if let Some(t) = node.get_attribute(expanded_name!("", "type")) {
                 if t.as_ref() == "application/rss+xml" || t.as_ref() == "application/atom+xml" {
@@ -231,7 +277,7 @@ impl<'arena> DependencyCollector<'arena> {
             specifier_type: SpecifierType::Url,
             flags,
             priority,
-            target: self.target.clone(),
+            target,
             bundle_behavior: BundleBehavior::None,
             import_type: ImportType::Url,
             placeholder: Default::default(),

@@ -61,7 +61,7 @@ function parcelRequire(name, jumped) {
       module,
       module.exports,
       localRequire,
-      globalThis
+      globalThis,
     );
   }
 
@@ -160,7 +160,7 @@ function parcelResolve(bundleId) {
   return publicUrl + (importMap[bundleId] || bundleId);
 }
 
-function parcelLoadCSS(bundleId) {
+function parcelLoadCSS(bundleId, media) {
   let url = importMap[bundleId] || bundleId;
   return new Promise(function (resolve, reject) {
     if (typeof document === 'undefined') {
@@ -170,6 +170,9 @@ function parcelLoadCSS(bundleId) {
     var link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = url;
+    // Every rule is already wrapped in its own condition; the attribute only
+    // lets the browser deprioritize a stylesheet that cannot apply.
+    link.media = media || '';
 
     // Don't insert the same link element twice (e.g. if it was already in the HTML)
     let existingLinks = document.getElementsByTagName('link');
@@ -233,9 +236,9 @@ if (mainEntry) {
 
 var HMR_SERVER_PORT = null;
 var HMR_SECURE = false;
-var HMR_ENV_HASH = "TODO";
+var HMR_ENV_HASH = 'TODO';
 var HMR_USE_SSE = false;
-parcelRequire.HMR_BUNDLE_ID = "TODO";
+parcelRequire.HMR_BUNDLE_ID = 'TODO';
 var OVERLAY_ID = '__parcel__error__overlay__';
 
 function Module(moduleName) {
@@ -380,7 +383,7 @@ if (!parent || !parent.isParcelRequire) {
 
       ws.onclose = function (e) {
         // if (process.env.PARCEL_BUILD_ENV !== 'test') {
-          console.warn('[parcel] 🚨 Connection to the HMR server was lost');
+        console.warn('[parcel] 🚨 Connection to the HMR server was lost');
         // }
       };
     }
