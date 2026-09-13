@@ -6,9 +6,19 @@ use crate::{
   dependencies::{is_func_iri_attr, parse_xml_stylesheet, serialize_xml_stylesheet},
   srcset::{parse_srcset, serialize_srcset},
 };
-use html5ever::{ExpandedName, expanded_name, local_name, namespace_url, ns};
+use html5ever::{ExpandedName, expanded_name, local_name, namespace_url, ns, tendril::StrTendril};
 use serde::Deserialize;
 use typed_arena::Arena;
+
+/// A stylesheet bundle loaded by a specific element's bundle, emitted as a
+/// link inserted before that element so cascade order follows the element's
+/// document position.
+#[derive(Deserialize)]
+pub struct StyleSheetRef {
+  pub href: SerializableTendril,
+  #[serde(default)]
+  pub media: Option<SerializableTendril>,
+}
 
 #[derive(Deserialize)]
 #[serde(tag = "type", content = "value")]
@@ -38,6 +48,7 @@ pub fn insert_bundle_references<'arena>(
   bundles: Vec<BundleReference>,
   inline_bundles: HashMap<SerializableTendril, InlineBundle>,
   stylesheet_media: &HashMap<SerializableTendril, Option<SerializableTendril>>,
+  stylesheet_refs: &HashMap<SerializableTendril, Vec<StyleSheetRef>>,
   mut import_map: serde_json::map::Map<String, serde_json::Value>,
 ) {
   let data_parcel_key = ExpandedName {
@@ -49,6 +60,29 @@ pub fn insert_bundle_references<'arena>(
 
   dom.walk(&mut |node| {
     if let NodeData::Element { name, attrs, .. } = &node.data {
+      // Stylesheets referenced by this element's bundle load before it, in
+      // the bundle's application order. Attribute values still hold the
+      // placeholders at this point, before the replacement loop below.
+      if !stylesheet_refs.is_empty() {
+        let placeholders: Vec<StrTendril> = attrs
+          .borrow()
+          .iter()
+          .map(|attr| attr.value.clone())
+          .collect();
+        for value in placeholders {
+          if let Some(refs) = stylesheet_refs.get(&SerializableTendril(value)) {
+            for reference in refs {
+              let link = arena.alloc(Node::create_element(expanded_name!(html "link")));
+              link.set_attribute(expanded_name!("", "rel"), "stylesheet");
+              link.set_attribute(expanded_name!("", "href"), &reference.href.0);
+              if let Some(media) = &reference.media {
+                link.set_attribute(expanded_name!("", "media"), &media.0);
+              }
+              node.insert_before(link);
+            }
+          }
+        }
+      }
       match name.expanded() {
         expanded_name!(html "script") | expanded_name!(svg "script") => {
           if let Some(key) = node.get_attribute(data_parcel_key.clone()) {

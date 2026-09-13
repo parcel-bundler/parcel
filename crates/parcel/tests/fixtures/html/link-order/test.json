@@ -1,0 +1,26 @@
+{
+  "description": "an injected stylesheet link is inserted at its owning element's position, after earlier authored links",
+  "input": "index.html",
+  "options": {
+    "mode": "production"
+  },
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": ["index.html"],
+      "references": []
+    },
+    {
+      "assets": ["base.css"],
+      "references": []
+    },
+    {
+      "assets": ["app.js"],
+      "references": [["theme.css"]]
+    },
+    {
+      "assets": ["theme.css"],
+      "references": []
+    }
+  ]
+}

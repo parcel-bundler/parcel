@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize, Serializer};
 use swc_core::ecma::codegen::to_code;
 use typed_arena::Arena;
 
-pub use package::{BundleReference, InlineBundle};
+pub use package::{BundleReference, InlineBundle, StyleSheetRef};
 
 mod arena;
 mod dependencies;
@@ -153,6 +153,10 @@ pub struct PackageOptions {
   /// attribute, None removes it. Keyed by the href placeholder value.
   #[serde(default)]
   pub stylesheet_media: HashMap<SerializableTendril, Option<SerializableTendril>>,
+  /// Stylesheet bundles loaded by each element's bundle, keyed by the
+  /// element's placeholder, emitted as links inserted before the element.
+  #[serde(default)]
+  pub stylesheet_refs: HashMap<SerializableTendril, Vec<StyleSheetRef>>,
   pub import_map: serde_json::Map<String, serde_json::Value>,
 }
 
@@ -180,6 +184,7 @@ pub fn package_html(options: PackageOptions) -> Result<PackageResult, ()> {
     options.bundles,
     options.inline_bundles,
     &options.stylesheet_media,
+    &options.stylesheet_refs,
     options.import_map,
   );
 
@@ -211,6 +216,7 @@ pub fn package_svg(options: PackageOptions) -> Result<PackageResult, ()> {
     options.bundles,
     options.inline_bundles,
     &options.stylesheet_media,
+    &options.stylesheet_refs,
     options.import_map,
   );
 
@@ -402,8 +408,8 @@ impl Content for HtmlContent {
   ) -> Result<std::sync::Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
-    let (code, bundles, inline_bundles, stylesheet_media) =
-      prepare_to_package(bundle_graph, bundle, get_inline_bundle_content)?;
+    let (code, bundles, inline_bundles, stylesheet_media, stylesheet_refs) =
+      prepare_to_package(bundle_graph, bundle, get_inline_bundle_content, true)?;
 
     let res = package_html(PackageOptions {
       code,
@@ -411,6 +417,7 @@ impl Content for HtmlContent {
       bundles,
       inline_bundles,
       stylesheet_media,
+      stylesheet_refs,
       import_map: Default::default(),
     })
     .unwrap();
@@ -441,12 +448,14 @@ fn prepare_to_package(
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
   get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+  positional_styles: bool,
 ) -> Result<
   (
     Vec<u8>,
     Vec<BundleReference>,
     HashMap<SerializableTendril, InlineBundle>,
     HashMap<SerializableTendril, Option<SerializableTendril>>,
+    HashMap<SerializableTendril, Vec<StyleSheetRef>>,
   ),
   DiagnosticList,
 > {
@@ -456,6 +465,7 @@ fn prepare_to_package(
 
   let mut inline_bundles = HashMap::new();
   let mut stylesheet_media = HashMap::new();
+  let mut stylesheet_refs: HashMap<SerializableTendril, Vec<StyleSheetRef>> = HashMap::new();
   // Preserve reference order: stylesheet link order is cascade order.
   let mut referenced_bundles = Vec::<usize>::new();
   for (dep_index, dep) in asset.dependencies.iter().enumerate() {
@@ -492,11 +502,32 @@ fn prepare_to_package(
           );
         }
 
+        let mut refs = Vec::new();
         for &reference in &referenced_bundle.referenced_bundles {
           // TODO: should be recursive
-          if !referenced_bundles.contains(&reference) {
+          let target = &bundle_graph.bundles[reference];
+          if positional_styles && target.ty == AssetType::Css {
+            // Attach to this element so its stylesheets load before it, at
+            // its document position. First occurrence wins page-wide: the
+            // earliest consumer needs the sheet first.
+            if !referenced_bundles.contains(&reference) {
+              referenced_bundles.push(reference);
+              refs.push(StyleSheetRef {
+                href: SerializableTendril(target.relative_url(&bundle).unwrap().into()),
+                media: bundle_graph
+                  .common_style_media(target)
+                  .map(|media| SerializableTendril(media.into())),
+              });
+            }
+          } else if !referenced_bundles.contains(&reference) {
             referenced_bundles.push(reference);
           }
+        }
+        if !refs.is_empty() {
+          stylesheet_refs.insert(
+            SerializableTendril((*dep.placeholder.clone().unwrap()).into()),
+            refs,
+          );
         }
       }
       _ => {
@@ -514,6 +545,9 @@ fn prepare_to_package(
   let mut bundles: Vec<BundleReference> = Vec::new();
   for reference in referenced_bundles {
     let referenced_bundle = &bundle_graph.bundles[reference];
+    if positional_styles && referenced_bundle.ty == AssetType::Css {
+      continue;
+    }
     match &referenced_bundle.ty {
       AssetType::Js => {
         let src = referenced_bundle.relative_url(&bundle).unwrap();
@@ -536,7 +570,13 @@ fn prepare_to_package(
     }
   }
 
-  Ok((code, bundles, inline_bundles, stylesheet_media))
+  Ok((
+    code,
+    bundles,
+    inline_bundles,
+    stylesheet_media,
+    stylesheet_refs,
+  ))
 }
 
 pub struct SvgTransformer {
@@ -640,8 +680,8 @@ impl Content for SvgContent {
   ) -> Result<std::sync::Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
-    let (code, bundles, inline_bundles, stylesheet_media) =
-      prepare_to_package(bundle_graph, bundle, get_inline_bundle_content)?;
+    let (code, bundles, inline_bundles, stylesheet_media, stylesheet_refs) =
+      prepare_to_package(bundle_graph, bundle, get_inline_bundle_content, false)?;
 
     let res = package_svg(PackageOptions {
       code,
@@ -649,6 +689,7 @@ impl Content for SvgContent {
       bundles,
       inline_bundles,
       stylesheet_media,
+      stylesheet_refs,
       import_map: Default::default(),
     })
     .unwrap();
