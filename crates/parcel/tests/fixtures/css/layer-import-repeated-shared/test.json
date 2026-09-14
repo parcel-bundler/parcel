@@ -1,0 +1,30 @@
+{
+  "description": "a repeated layered import keeps its first-occurrence declaration ahead of shared content by loading the affected span in one file; the other page still shares",
+  "input": ["a.html", "b.html"],
+  "options": {
+    "mode": "production"
+  },
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": ["a.html"],
+      "references": []
+    },
+    {
+      "assets": ["b.html"],
+      "references": []
+    },
+    {
+      "assets": ["y.css", "x.css", "a.css"],
+      "references": []
+    },
+    {
+      "assets": ["x.css"],
+      "references": []
+    },
+    {
+      "assets": ["b.css"],
+      "references": [["x.css"]]
+    }
+  ]
+}

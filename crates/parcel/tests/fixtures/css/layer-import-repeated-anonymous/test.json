@@ -1,0 +1,9 @@
+{
+  "description": "a repeated import involving an anonymous layer is a build error: every occurrence of an anonymous layer is a distinct layer",
+  "input": "index.css",
+  "diagnostics": [
+    {
+      "message": "every occurrence of an anonymous layer is a distinct layer"
+    }
+  ]
+}

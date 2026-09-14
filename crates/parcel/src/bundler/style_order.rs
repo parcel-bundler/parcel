@@ -141,8 +141,45 @@ fn sequences(
     }
   }
 
+  // Whether an asset's import closure declares any cascade layer: its own
+  // content does (DECLARES_LAYERS), one of its import sites adds a layer
+  // clause, or a child's closure declares one. A repeated import of such a
+  // closure declares those layers at its FIRST occurrence, even though its
+  // content keeps the last.
+  let layer_count = |index: AssetIndex| {
+    asset_graph
+      .asset(index)
+      .target
+      .style_condition
+      .as_ref()
+      .map_or(0, |c| c.layers.len())
+  };
+  let mut declares = FixedBitSet::with_capacity(asset_graph.assets.len());
+  loop {
+    let mut changed = false;
+    for (asset_index, asset) in dfs.iter().rev() {
+      if declares.contains(asset_index.index()) {
+        continue;
+      }
+      let value = asset.flags.contains(AssetFlags::DECLARES_LAYERS)
+        || synchronous_dependencies(asset_graph, bundle_roots, asset).any(|target| {
+          asset_graph.asset(target).ty == AssetType::Css
+            && (declares.contains(target.index())
+              || layer_count(target) > layer_count(*asset_index))
+        });
+      if value {
+        declares.insert(asset_index.index());
+        changed = true;
+      }
+    }
+    if !changed {
+      break;
+    }
+  }
+
   let mut sequences = vec![Vec::new(); bundle_roots.len()];
   let mut scoped = HashSet::new();
+  let mut position = vec![usize::MAX; asset_graph.assets.len()];
   let mut seen = FixedBitSet::with_capacity(asset_graph.assets.len());
   let mut entries = Vec::new();
   let mut out = Vec::new();
@@ -170,15 +207,18 @@ fn sequences(
     seen.clear();
     out.clear();
     runs.clear();
+    position.fill(usize::MAX);
     for &entry in entries.iter().rev() {
       css_reverse_walk(
         asset_graph,
         bundle_roots,
         needed_roots,
+        &declares,
         root_index,
         entry,
         &mut seen,
         &mut out,
+        &mut position,
         &mut runs,
       );
     }
@@ -225,10 +265,12 @@ fn css_reverse_walk(
   asset_graph: &AssetGraph,
   bundle_roots: &BundleRoots,
   needed_roots: &Reachability,
+  declares: &FixedBitSet,
   root_index: usize,
   asset_index: AssetIndex,
   seen: &mut FixedBitSet,
   out: &mut Vec<AssetIndex>,
+  position: &mut Vec<usize>,
   runs: &mut Vec<(usize, usize)>,
 ) {
   if seen.put(asset_index.index()) {
@@ -240,20 +282,51 @@ fn css_reverse_walk(
     .reachable_roots(asset_index)
     .contains(root_index);
   if pushed {
+    position[asset_index.index()] = out.len();
     out.push(asset_index);
   }
+  let layer_count = |index: AssetIndex| {
+    asset_graph
+      .asset(index)
+      .target
+      .style_condition
+      .as_ref()
+      .map_or(0, |c| c.layers.len())
+  };
   let children: Vec<AssetIndex> = synchronous_dependencies(asset_graph, bundle_roots, asset)
     .filter(|target| asset_graph.asset(*target).ty == AssetType::Css)
     .collect();
   for target in children.into_iter().rev() {
+    if seen.contains(target.index()) {
+      // A repeated import: the kept (last) instance holds the content
+      // position, but this earlier instance still declares any layers in
+      // its closure here. The declaration matters only when content BETWEEN
+      // this site and the kept instance declares layers of its own — then
+      // the span, including this importer (whose prefix holds the site),
+      // must stay in one file for this root so the packager can emit the
+      // first-occurrence declaration in place.
+      if declares.contains(target.index()) || layer_count(target) > layer_count(asset_index) {
+        let kept = position[target.index()];
+        if kept != usize::MAX
+          && out[kept + 1..]
+            .iter()
+            .any(|a| declares.contains(a.index()) || layer_count(*a) > 0)
+        {
+          runs.push((kept.min(position[asset_index.index()]), out.len()));
+        }
+      }
+      continue;
+    }
     css_reverse_walk(
       asset_graph,
       bundle_roots,
       needed_roots,
+      declares,
       root_index,
       target,
       seen,
       out,
+      position,
       runs,
     );
   }

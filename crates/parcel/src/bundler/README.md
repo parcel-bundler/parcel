@@ -112,7 +112,14 @@ sequence may join that root's bundle, since the root bundle loads at the root's
 own (last) position. A sheet with `@layer` statements before its `@import`
 rules establishes layer order ahead of its whole import closure, which no
 arrangement of multiple links can reproduce, so that closure is privatized per
-consumer into one file (`AssetFlags::PRE_IMPORT_LAYER_STATEMENTS`). Reference
+consumer into one file (`AssetFlags::PRE_IMPORT_LAYER_STATEMENTS`). A repeated
+import likewise declares its layers — and every layer its closure declares
+(`AssetFlags::DECLARES_LAYERS`) — at its first occurrence; when layer-declaring
+content stands between that occurrence and the kept (last) instance, the span
+through the importing sheet is privatized the same way so the packager can
+emit the first-occurrence declaration in place. Repeats involving anonymous
+layers are rejected: every occurrence of an anonymous layer is a distinct
+layer, which merged emission cannot express. Reference
 order is carried through to HTML `<link>` order and the runtime loader; the
 loader inserts a fresh link even when the href is already present, because an
 earlier activation may hold it at an incompatible position and a re-applied
@@ -128,13 +135,15 @@ are hoisted to the top of the file in walk order (erroring when that would
 change their cascade position or reverse a preceding conditional layer
 declaration). The `css_oracle` integration test is a differential fuzzer for
 this machinery: it generates random import graphs (layers, media, repeats),
-builds them, and compares the emitted file's cascade — winning value per
-selector under each media environment — against a direct simulation of
-browser semantics over the sources (`CSS_ORACLE_SEEDS` scales it,
-`CSS_ORACLE_SEED` replays one). The packager does not re-minify the
-assembled sheet: lightningcss merges same-name `@layer` blocks across
-intervening rules, which reorders same-layer declarations (found by the
-oracle); per-asset minification already ran at transform time. Ordering
+builds them as two pages with shared bundles, and compares each page's
+emitted cascade — winning value per selector under each media environment —
+against a direct simulation of browser semantics over the sources
+(`CSS_ORACLE_SEEDS` scales it, `CSS_ORACLE_SEED` replays one). CSS is not
+run through lightningcss `minify()` at either the asset or the assembled
+level: it merges same-name `@layer` statements and blocks across intervening
+rules, which reorders layer declarations (both instances found by the
+oracle); the printer still minifies syntax and applies browser targets.
+Ordering
 conflicts are usually an authoring bug; the
 `order-interleave`, `order-conflict`, `order-root-binding`, and
 `layer-order-*` fixtures cover the split, duplication, binding, and layer

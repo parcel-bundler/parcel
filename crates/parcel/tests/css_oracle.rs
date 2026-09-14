@@ -130,11 +130,15 @@ fn gen_content(rng: &mut Rng, next_value: &mut u32, depth: usize) -> GenRule {
   }
 }
 
-/// Files form a DAG: file `i` imports only files `j > i`, so browser
-/// semantics need no cycle handling. Repeated imports of one file (with the
-/// same or different clauses) arise naturally.
+/// Files 0 and 1 are page entries; both import from the shared pool of
+/// files `>= 2`, which form a DAG (file `i` imports only `j > i`), so
+/// browser semantics need no cycle handling. Repeated imports of one file
+/// (with the same or different clauses) and cross-page sharing arise
+/// naturally.
+const ENTRIES: usize = 2;
+
 fn gen_files(rng: &mut Rng) -> Vec<GenFile> {
-  let count = 2 + rng.below(4);
+  let count = ENTRIES + 1 + rng.below(3);
   let mut next_value = 0;
   (0..count)
     .map(|i| {
@@ -145,10 +149,11 @@ fn gen_files(rng: &mut Rng) -> Vec<GenFile> {
       if rng.chance(30) {
         rules.push(gen_statement(rng));
       }
-      if i + 1 < count {
+      let first_target = if i < ENTRIES { ENTRIES } else { i + 1 };
+      if first_target < count {
         for _ in 0..1 + rng.below(3) {
           rules.push(GenRule::Import {
-            target: i + 1 + rng.below(count - i - 1),
+            target: first_target + rng.below(count - first_target),
             layer: rng
               .chance(50)
               .then(|| LAYER_NAMES[rng.below(LAYER_NAMES.len())].to_string()),
@@ -681,36 +686,51 @@ fn run_seed(seed: u64, mode: BuildMode) {
     public_url: Default::default(),
     hmr: None,
   };
-  let graph = parcel::build(&vec!["f0.css".into()], options)
+  let entries: Vec<String> = (0..ENTRIES).map(|i| format!("f{i}.css")).collect();
+  let graph = parcel::build(&entries, options)
     .unwrap_or_else(|e| panic!("{}", context(&format!("build failed: {e:?}"))));
-  let css: Vec<_> = graph
-    .bundles
-    .iter()
-    .filter(|bundle| bundle.ty == AssetType::Css)
-    .collect();
-  assert_eq!(css.len(), 1, "{}", context("expected one css bundle"));
-  let code = output_fs.read_to_string(css[0].dist_path()).unwrap();
-  if std::env::var("CSS_ORACLE_SEED").is_ok() {
-    for &asset in &css[0].assets {
-      let a = graph.asset_graph.asset(asset);
-      eprintln!("asset {:?} cond {:?}", a.loc.url, a.target.style_condition);
-    }
-  }
 
-  let mut reference = Vec::new();
-  simulate(&files, 0, &[], &[], &mut reference);
-  let actual = extract(&code);
-
-  for env in ENVS {
-    let expected = winners(&reference, &env);
-    let got = winners(&actual, &env);
-    if expected != got {
-      panic!(
-        "{}",
-        context(&format!(
-          "── output ──\n{code}\n\ncascade mismatch under {env:?}\nbrowser semantics: {expected:?}\npackaged output:   {got:?}"
-        ))
+  // Each page's document is its entry bundle's references, in link order,
+  // followed by the entry bundle itself — the same order the HTML packager
+  // and runtime loader emit.
+  for entry in 0..ENTRIES {
+    let root = graph
+      .bundles
+      .iter()
+      .find(|bundle| {
+        bundle.ty == AssetType::Css
+          && bundle.main_entry_asset.is_some_and(|asset| {
+            format!("{:?}", graph.asset_graph.asset(asset).loc.url)
+              .contains(&format!("/f{entry}.css"))
+          })
+      })
+      .unwrap_or_else(|| panic!("{}", context(&format!("no bundle for entry {entry}"))));
+    let mut code = String::new();
+    for &referenced in &root.referenced_bundles {
+      code.push_str(
+        &output_fs
+          .read_to_string(graph.bundles[referenced].dist_path())
+          .unwrap(),
       );
+      code.push('\n');
+    }
+    code.push_str(&output_fs.read_to_string(root.dist_path()).unwrap());
+
+    let mut reference = Vec::new();
+    simulate(&files, entry, &[], &[], &mut reference);
+    let actual = extract(&code);
+
+    for env in ENVS {
+      let expected = winners(&reference, &env);
+      let got = winners(&actual, &env);
+      if expected != got {
+        panic!(
+          "{}",
+          context(&format!(
+            "── page f{entry} output ──\n{code}\n\ncascade mismatch under {env:?}\nbrowser semantics: {expected:?}\npackaged output:   {got:?}"
+          ))
+        );
+      }
     }
   }
 

@@ -285,12 +285,30 @@ fn collect(
           bundle_graph.dependency_resolution(asset_index, dep_index)
         {
           if let Some(child_index) = asset_index_to_stylesheet_index.get(&asset_index) {
+            // The bundle's asset order is the authoritative application
+            // order. A claim is only usable when inlining the child at this
+            // site emits it at exactly its planned position: the child
+            // precedes this importer in the bundle, and no closer following
+            // importer also claims it (ties keep the later @import of one
+            // sheet — in browsers the last instance wins). A repeated
+            // import whose winning site lies in another bundle otherwise
+            // pulls the content to its first occurrence. Rejected sites
+            // fall back to the skipped-instance path, which emits the
+            // first-occurrence layer declarations.
+            let claim = {
+              let child = &stylesheets[*child_index];
+              *child_index < stylesheet_index
+                && (!child.has_parent
+                  || stylesheet_index < child.parent_stylesheet_index
+                  || (stylesheet_index == child.parent_stylesheet_index
+                    && dep_index > child.parent_dep_index))
+            };
             collect(
               bundle_graph,
               asset_index_to_stylesheet_index,
               stylesheets,
               *child_index,
-              Some(stylesheet_index),
+              claim.then_some(stylesheet_index),
               dep_index,
               visited,
             )?;
@@ -437,12 +455,14 @@ fn inline(
                 // earlier instance still declares its layers — and every
                 // layer declared throughout its import closure — at this
                 // position, under this site's conditions.
-                let site_layers = dep
-                  .target
-                  .style_condition
-                  .as_ref()
-                  .map(|c| dotted_layers(&c.layers[own_condition.map_or(0, |o| o.layers.len())..]))
-                  .unwrap_or_default();
+                let site_layers = match &dep.target.style_condition {
+                  Some(condition) => {
+                    let delta = &condition.layers[own_condition.map_or(0, |o| o.layers.len())..];
+                    check_no_anonymous(delta, &dep.specifier)?;
+                    dotted_layers(delta)
+                  }
+                  None => String::new(),
+                };
                 // The site's media/supports come from the rule itself: the
                 // accumulated condition lists are sorted, so the site's
                 // contribution cannot be recovered by slicing them.
@@ -689,6 +709,24 @@ fn join_path(prefix: &str, name: &str) -> String {
   }
 }
 
+/// Each browser evaluation of an anonymous layer creates a DISTINCT layer,
+/// so a repeated occurrence cannot be represented by the merged, named
+/// emission bundling uses; its priority would silently change. Reject.
+fn check_no_anonymous(layers: &[StyleLayer], specifier: &str) -> Result<(), DiagnosticList> {
+  if layers
+    .iter()
+    .any(|layer| matches!(layer, StyleLayer::Anonymous(_)))
+  {
+    return Err(
+      Diagnostic::from_message(format!(
+        "Repeated @import of \"{specifier}\" involves an anonymous layer, and every occurrence of an anonymous layer is a distinct layer. Use a named layer instead."
+      ))
+      .into(),
+    );
+  }
+  Ok(())
+}
+
 /// The media/supports conditions a declaration is subject to, as a condition
 /// the standard wrappers understand. Nesting order between media and
 /// supports is irrelevant: wrapping is conjunction.
@@ -734,12 +772,14 @@ fn collect_declarations(
         // The site's own layer contribution; layers compose by appending,
         // so slicing off the sheet's own path is exact (and covers the
         // generated name of an anonymous `layer` clause).
-        let site_layers = dep
-          .target
-          .style_condition
-          .as_ref()
-          .map(|c| dotted_layers(&c.layers[own_layers..]))
-          .unwrap_or_default();
+        let site_layers = match &dep.target.style_condition {
+          Some(condition) => {
+            let delta = &condition.layers[own_layers..];
+            check_no_anonymous(delta, &dep.specifier)?;
+            dotted_layers(delta)
+          }
+          None => String::new(),
+        };
         let child_path = join_path(path, &site_layers);
         let media_depth = media.len();
         let supports_depth = supports.len();
@@ -805,15 +845,25 @@ fn declarations_in_rule(
         ));
       }
     }
-    CssRule::LayerBlock(block) => {
-      if let Some(name) = &block.name {
+    CssRule::LayerBlock(block) => match &block.name {
+      Some(name) => {
         let path = join_path(path, &name_to_string(name));
         out.push((path.clone(), snapshot(media, supports)));
         for rule in &block.rules.0 {
           declarations_in_rule(rule, &path, media, supports, out)?;
         }
       }
-    }
+      // Every occurrence of an anonymous layer is a distinct layer, so a
+      // repeated application cannot be represented by one merged block.
+      None => {
+        return Err(
+          Diagnostic::from_message(
+            "A repeated @import applies a stylesheet with an anonymous @layer block, and every occurrence of an anonymous layer is a distinct layer. Use a named layer instead.".to_string(),
+          )
+          .into(),
+        );
+      }
+    },
     CssRule::Media(rule) => {
       media.push(
         rule
