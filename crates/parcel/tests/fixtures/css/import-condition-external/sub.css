@@ -1,0 +1,3 @@
+@import "https://example.com/one.css" (min-width: 600px);
+@import "https://example.com/two.css" screen;
+.sub { color: gray; }

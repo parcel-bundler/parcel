@@ -1,0 +1,13 @@
+{
+  "description": "a stylesheet importing itself through a layered @import is ignored like a browser cycle",
+  "input": "index.css",
+  "options": {
+    "mode": "production"
+  },
+  "bundles": [
+    {
+      "assets": ["index.css"],
+      "references": []
+    }
+  ]
+}

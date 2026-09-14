@@ -1,0 +1,13 @@
+{
+  "description": "a repeated layered import declares its layer at the first occurrence while its rules keep the last position, so layer order stays a, b and blue wins",
+  "input": "index.css",
+  "options": {
+    "mode": "production"
+  },
+  "bundles": [
+    {
+      "assets": ["b.css", "a.css", "index.css"],
+      "references": []
+    }
+  ]
+}

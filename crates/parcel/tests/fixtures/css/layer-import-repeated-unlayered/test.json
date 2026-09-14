@@ -1,0 +1,13 @@
+{
+  "description": "a repeated unlayered import declares the layers inside the imported file at its first occurrence, so layer order stays a, b and blue wins",
+  "input": "index.css",
+  "options": {
+    "mode": "production"
+  },
+  "bundles": [
+    {
+      "assets": ["b.css", "a.css", "index.css"],
+      "references": []
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "description": "a condition-wrapped layer statement is emitted after the import prefix, keeping the external @import valid",
+  "input": "index.css",
+  "options": {
+    "mode": "production"
+  },
+  "bundles": [
+    {
+      "assets": ["print.css", "index.css"],
+      "references": []
+    }
+  ]
+}

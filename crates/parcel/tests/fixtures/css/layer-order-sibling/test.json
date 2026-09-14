@@ -1,0 +1,13 @@
+{
+  "description": "a layer statement applies after layers established by earlier siblings: a is already first, so b follows it and blue wins",
+  "input": "entry.css",
+  "options": {
+    "mode": "production"
+  },
+  "bundles": [
+    {
+      "assets": ["entry.css", "a.css", "b.css", "c.css"],
+      "references": []
+    }
+  ]
+}

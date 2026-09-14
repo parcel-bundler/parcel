@@ -1,0 +1,9 @@
+{
+  "description": "a conditional layer statement cannot precede a surviving external import that declares different layers; the combination is a build error",
+  "input": "index.css",
+  "diagnostics": [
+    {
+      "message": "cannot preserve layer order"
+    }
+  ]
+}

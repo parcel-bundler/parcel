@@ -1,0 +1,1 @@
+@layer a;@media (width>=1px){@layer m;}@layer b{.probe{color:#00f}}@layer a{.probe{color:red}}@media (width>=1px){@layer m{.x{color:green}}}

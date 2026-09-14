@@ -1,0 +1,34 @@
+{
+  "description": "only the segment adjacent to a stylesheet root joins its bundle, so links preserve local1, shared, local2 order and blue wins",
+  "input": ["a.html", "b.html"],
+  "options": {
+    "mode": "production"
+  },
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": ["a.html"],
+      "references": []
+    },
+    {
+      "assets": ["b.html"],
+      "references": []
+    },
+    {
+      "assets": ["local1.css"],
+      "references": []
+    },
+    {
+      "assets": ["shared.css"],
+      "references": []
+    },
+    {
+      "assets": ["local2.css", "a.css"],
+      "references": [["local1.css"], ["shared.css"]]
+    },
+    {
+      "assets": ["b.css"],
+      "references": [["shared.css"]]
+    }
+  ]
+}

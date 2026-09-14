@@ -1,0 +1,13 @@
+{
+  "description": "a condition-wrapped first-occurrence declaration stays out of the import prefix, keeping a preceding external import valid",
+  "input": "index.css",
+  "options": {
+    "mode": "production"
+  },
+  "bundles": [
+    {
+      "assets": ["a.css", "index.css"],
+      "references": []
+    }
+  ]
+}

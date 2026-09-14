@@ -1,0 +1,3 @@
+@layer foo;
+@import "https://example.com/remote.css" layer(foo);
+.p { color: gray; }

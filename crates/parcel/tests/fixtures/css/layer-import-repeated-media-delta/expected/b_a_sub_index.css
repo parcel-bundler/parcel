@@ -1,0 +1,1 @@
+@media print{@media (width>=1000px){@layer a;}}@media print{@layer b{.probe{color:#00f}}}@media print{@media (width>=1000px){@layer a{.probe{color:red}}}}@media print{}.idx{color:#000}

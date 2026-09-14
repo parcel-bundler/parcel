@@ -1,0 +1,13 @@
+{
+  "description": "an unconditional layer statement keeps its position before a surviving external import, so a stays declared before b",
+  "input": "index.css",
+  "options": {
+    "mode": "production"
+  },
+  "bundles": [
+    {
+      "assets": ["a.css", "index.css"],
+      "references": []
+    }
+  ]
+}

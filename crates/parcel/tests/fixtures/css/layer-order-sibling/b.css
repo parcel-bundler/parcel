@@ -1,0 +1,2 @@
+@layer b, a;
+@import "c.css" layer(b);

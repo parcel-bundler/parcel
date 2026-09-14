@@ -103,16 +103,42 @@ bundles, in reference order, must equal its source-order sequence. Two
 conditions make that possible: each bundle's internal order must agree with all
 of its consumers, and each bundle's assets must be contiguous in every
 consumer's sequence. A class is therefore split into segments wherever a
-consumer interleaves a foreign stylesheet between neighbors, and a stylesheet
-that consumers order inconsistently is duplicated per context (each context
-positions its own copy), with a warning that names it. Reference order is
-carried through to HTML `<link>` order and the runtime loader, and the optimizer
-leaves planned CSS order intact (only JS bundles are resorted into packaging
-order after moves). The packager hoists surviving external and cross-bundle
-`@import` rules to the top of the file, since imports must precede other rules
-while bundle order places imports before their importer. Ordering conflicts are
-usually an authoring bug; the `order-interleave` and `order-conflict` fixtures
-cover the split and duplication paths.
+consumer interleaves a foreign stylesheet between neighbors, and a group whose
+consumers order it inconsistently is duplicated whole per context (each context
+positions its own copies and the last activation wins, as per-link markup would
+natively), with a warning that names the conflicted stylesheets. Only the
+segment that immediately precedes a stylesheet root asset in every consumer's
+sequence may join that root's bundle, since the root bundle loads at the root's
+own (last) position. A sheet with `@layer` statements before its `@import`
+rules establishes layer order ahead of its whole import closure, which no
+arrangement of multiple links can reproduce, so that closure is privatized per
+consumer into one file (`AssetFlags::PRE_IMPORT_LAYER_STATEMENTS`). Reference
+order is carried through to HTML `<link>` order and the runtime loader; the
+loader inserts a fresh link even when the href is already present, because an
+earlier activation may hold it at an incompatible position and a re-applied
+cached stylesheet re-asserts this activation's order, and it inserts after the
+document's last current stylesheet (which may sit in `<body>`) rather than
+appending to `<head>`. The optimizer leaves
+planned CSS order intact (only JS bundles are resorted into packaging order
+after moves). The packager emits by walking the import claim forest in source
+order, substituting each finally-claimed import in place, so layer statements
+and the synthetic first-occurrence declarations of repeated imports keep their
+positions by construction. Surviving external and cross-bundle `@import` rules
+are hoisted to the top of the file in walk order (erroring when that would
+change their cascade position or reverse a preceding conditional layer
+declaration). The `css_oracle` integration test is a differential fuzzer for
+this machinery: it generates random import graphs (layers, media, repeats),
+builds them, and compares the emitted file's cascade — winning value per
+selector under each media environment — against a direct simulation of
+browser semantics over the sources (`CSS_ORACLE_SEEDS` scales it,
+`CSS_ORACLE_SEED` replays one). The packager does not re-minify the
+assembled sheet: lightningcss merges same-name `@layer` blocks across
+intervening rules, which reorders same-layer declarations (found by the
+oracle); per-asset minification already ran at transform time. Ordering
+conflicts are usually an authoring bug; the
+`order-interleave`, `order-conflict`, `order-root-binding`, and
+`layer-order-*` fixtures cover the split, duplication, binding, and layer
+statement paths.
 
 Some limits are infeasible while preserving loading boundaries and zero extra
 downloads. The bundler keeps a correct layout and emits a warning reporting

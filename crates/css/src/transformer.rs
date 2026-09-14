@@ -135,6 +135,24 @@ impl Transformer for CssTransformer {
       })
       .map_err(|err| convert_error(Some(asset.loc.url.clone()), err))?;
 
+    // A pre-import @layer statement establishes layer order at its own
+    // position, before the imported content it precedes. The bundler keeps
+    // such a sheet's import closure together so the statement stays ahead of
+    // everything it governs.
+    let mut statement_seen = false;
+    for rule in &stylesheet.rules.0 {
+      match rule {
+        CssRule::Import(_) if statement_seen => {
+          asset.flags |= AssetFlags::PRE_IMPORT_LAYER_STATEMENTS;
+          break;
+        }
+        // Minification can leave Ignored placeholders in the prefix.
+        CssRule::Import(_) | CssRule::Ignored => {}
+        CssRule::LayerStatement(_) => statement_seen = true,
+        _ => break,
+      }
+    }
+
     let unconditional_target = unconditional(&asset.target);
     let mut collector = DependencyCollector {
       dependencies: &mut asset.dependencies,
@@ -303,6 +321,27 @@ impl<'a> DependencyCollector<'a> {
   ) -> Result<Arc<Target>, Diagnostic> {
     let index = self.import_index;
     self.import_index += 1;
+    // A stylesheet importing itself is a cycle browsers ignore. Composing a
+    // condition would mint a new variant per traversal and never terminate,
+    // so keep the current target: the request collapses back to this asset.
+    let relative = !import.url.contains(':') && !import.url.starts_with("//");
+    if relative && self.url.join(&import.url) == self.url {
+      return Ok(self.target.clone());
+    }
+    // Indirect layered import cycles also grow the condition without bound
+    // (each pass appends another layer), but the files differ so they cannot
+    // be recognized locally. No real nesting approaches this depth.
+    if self
+      .target
+      .style_condition
+      .as_ref()
+      .is_some_and(|condition| condition.layers.len() >= 32)
+    {
+      return Err(Diagnostic::from_message(format!(
+        "Detected an import cycle through layered @import rules involving {}.",
+        self.url
+      )));
+    }
     let print = |css: &dyn Fn() -> Result<String, lightningcss::error::PrinterError>| {
       css().map_err(|err| Diagnostic::from_message(err.to_string()))
     };
@@ -321,10 +360,18 @@ impl<'a> DependencyCollector<'a> {
     };
     let layer = match &import.layer {
       None => None,
-      // Every anonymous `layer` import site declares a distinct layer.
-      Some(None) => Some(StyleLayer::Anonymous(
-        format!("{}:{}", self.url, index).into_boxed_str(),
-      )),
+      // Every anonymous `layer` import site declares a distinct layer. Mint a
+      // stable generated name so all assets inheriting this site share one
+      // layer in the output, even across bundles; a fresh anonymous block per
+      // asset would create several distinct layers.
+      Some(None) => {
+        let site = xxhash_rust::xxh3::xxh3_64(
+          format!("{}:{}", self.url.stable_id(&self.project_root), index).as_bytes(),
+        );
+        Some(StyleLayer::Anonymous(
+          format!("-p-{site:016x}").into_boxed_str(),
+        ))
+      }
       Some(Some(name)) => Some(StyleLayer::Named(
         print(&|| name.to_css_string(minify()))?.into_boxed_str(),
       )),

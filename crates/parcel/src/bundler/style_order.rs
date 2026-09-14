@@ -8,6 +8,8 @@
 
 use std::collections::HashSet;
 
+use parcel_core::AssetFlags;
+
 use super::*;
 use crate::bundler::reachability::synchronous_dependencies;
 
@@ -21,6 +23,12 @@ pub(super) struct Segment {
   /// derives from (consumer roots, packager, ordinal, owner) so names stay
   /// stable when a segment's membership changes.
   pub ordinal: usize,
+  /// A stylesheet root bundle this segment joins (the reused-bundle pattern
+  /// for CSS). Only the segment that immediately precedes the root asset in
+  /// every consumer's sequence may join it: the root bundle loads at the
+  /// root's own (last) position, so any other segment placed inside it would
+  /// apply after content it must precede.
+  pub bind_to: Option<AssetIndex>,
 }
 
 pub(super) struct StylePlan {
@@ -42,7 +50,7 @@ pub(super) fn plan(
   needed_roots: &Reachability,
   plannable: impl Fn(&Asset) -> bool,
 ) -> StylePlan {
-  let sequences = sequences(asset_graph, bundle_roots, needed_roots);
+  let (sequences, scoped) = sequences(asset_graph, bundle_roots, needed_roots);
 
   // Group plannable assets by (consumer root set, packager) like BundleKey
   // does: distinct classes whose root sets collapsed together during
@@ -75,18 +83,40 @@ pub(super) fn plan(
     }
   }
 
-  segment(&sequences, &group_of)
+  let bindable = |root_asset: AssetIndex, member: AssetIndex, owner: Option<usize>| -> bool {
+    if !bundle_roots.is_bundle_root(root_asset) {
+      return false;
+    }
+    let root = asset_graph.asset(root_asset);
+    if root.ty != AssetType::Css || root.content.ty() != asset_graph.asset(member).content.ty() {
+      return false;
+    }
+    let reach = needed_roots.reachable_roots(root_asset);
+    match owner {
+      // A shared segment joins a root bundle loaded in exactly its contexts.
+      None => reach == needed_roots.reachable_roots(member),
+      // An owned copy joins a root bundle loaded only in the owning context.
+      Some(owner) => reach.count_ones(..) == 1 && reach.contains(owner),
+    }
+  };
+
+  segment(&sequences, &group_of, &scoped, &bindable)
 }
 
 /// Application order of the CSS assets each root loads, derived from the same
 /// synchronous edges as reachability classes. Emission is postorder (imports
 /// before their importer), deduplicated so the last occurrence wins, matching
 /// browser semantics for repeated imports and the packager's inline order.
+///
+/// Also returns `(root, asset)` pairs that must stay in one file for that
+/// root: a sheet with pre-import `@layer` statements establishes layer order
+/// ahead of its whole import closure, which no arrangement of multiple links
+/// can reproduce, so the sheet and its subtree run are privatized per root.
 fn sequences(
   asset_graph: &AssetGraph,
   bundle_roots: &BundleRoots,
   needed_roots: &Reachability,
-) -> Vec<Vec<AssetIndex>> {
+) -> (Vec<Vec<AssetIndex>>, HashSet<(usize, AssetIndex)>) {
   // Restrict traversal to subgraphs that can reach a stylesheet. The sync
   // graph can contain cycles, so iterate to a fixed point; reverse DFS order
   // resolves almost everything in the first pass.
@@ -112,9 +142,11 @@ fn sequences(
   }
 
   let mut sequences = vec![Vec::new(); bundle_roots.len()];
+  let mut scoped = HashSet::new();
   let mut seen = FixedBitSet::with_capacity(asset_graph.assets.len());
   let mut entries = Vec::new();
   let mut out = Vec::new();
+  let mut runs = Vec::new();
   for (root_index, root_asset) in bundle_roots.iter_active() {
     if !has_style.contains(root_asset.index()) {
       continue;
@@ -137,6 +169,7 @@ fn sequences(
     // yields exactly that order.
     seen.clear();
     out.clear();
+    runs.clear();
     for &entry in entries.iter().rev() {
       css_reverse_walk(
         asset_graph,
@@ -146,12 +179,22 @@ fn sequences(
         entry,
         &mut seen,
         &mut out,
+        &mut runs,
       );
+    }
+    // A statement-scoped run of more than the sheet itself must load as one
+    // unit; a lone sheet already carries its statements in its own file.
+    for &(start, end) in &runs {
+      if end - start > 1 {
+        for &asset in &out[start..end] {
+          scoped.insert((root_index, asset));
+        }
+      }
     }
     out.reverse();
     sequences[root_index] = out.clone();
   }
-  sequences
+  (sequences, scoped)
 }
 
 /// Stylesheet entry points in JS execution order (first import wins).
@@ -186,15 +229,17 @@ fn css_reverse_walk(
   asset_index: AssetIndex,
   seen: &mut FixedBitSet,
   out: &mut Vec<AssetIndex>,
+  runs: &mut Vec<(usize, usize)>,
 ) {
   if seen.put(asset_index.index()) {
     return;
   }
   let asset = asset_graph.asset(asset_index);
-  if needed_roots
+  let start = out.len();
+  let pushed = needed_roots
     .reachable_roots(asset_index)
-    .contains(root_index)
-  {
+    .contains(root_index);
+  if pushed {
     out.push(asset_index);
   }
   let children: Vec<AssetIndex> = synchronous_dependencies(asset_graph, bundle_roots, asset)
@@ -209,13 +254,35 @@ fn css_reverse_walk(
       target,
       seen,
       out,
+      runs,
     );
+  }
+  // The walk is reversed, so a sheet and the part of its import subtree that
+  // takes its position here occupy `out[start..]` contiguously — the closure
+  // a pre-import @layer statement governs. (Subtree members claimed by a
+  // later importer sit outside the range; the statement precedes them
+  // regardless of file placement.)
+  if pushed
+    && asset
+      .flags
+      .contains(AssetFlags::PRE_IMPORT_LAYER_STATEMENTS)
+  {
+    runs.push((start, out.len()));
   }
 }
 
 /// Partition grouped assets into ordered segments that every consumer can
 /// emit contiguously, duplicating order-conflicted assets per consumer.
-fn segment(sequences: &[Vec<AssetIndex>], group_of: &HashMap<AssetIndex, usize>) -> StylePlan {
+/// `scoped` names `(root, asset)` pairs that root must load privately (layer
+/// statement closures); a scoped root takes a private copy of the asset's
+/// whole group. `bindable` decides whether a segment adjacent to a stylesheet
+/// root asset may join that root's bundle.
+fn segment(
+  sequences: &[Vec<AssetIndex>],
+  group_of: &HashMap<AssetIndex, usize>,
+  scoped: &HashSet<(usize, AssetIndex)>,
+  bindable: &dyn Fn(AssetIndex, AssetIndex, Option<usize>) -> bool,
+) -> StylePlan {
   // Positions per root for interleave checks and order comparison.
   let positions: Vec<HashMap<AssetIndex, usize>> = sequences
     .iter()
@@ -251,75 +318,108 @@ fn segment(sequences: &[Vec<AssetIndex>], group_of: &HashMap<AssetIndex, usize>)
     root_order: vec![Vec::new(); sequences.len()],
     conflicts: Vec::new(),
   };
-  let mut conflicted: HashSet<AssetIndex> = HashSet::new();
+  // Roots that take a private copy of a whole group. A scoped pair (a layer
+  // statement's closure) privatizes the group for that root only; an order
+  // conflict privatizes it for every consumer, because successive lazy
+  // activations share one document and a partially shared group already
+  // loaded at an incompatible position could not be reordered. With full
+  // copies, each activation re-asserts its own order and the last one wins,
+  // deterministically, as per-link markup would behave natively.
+  let mut owners: Vec<HashSet<usize>> = vec![HashSet::new(); members.len()];
+  for &(root, asset) in scoped {
+    if let Some(&group) = group_of.get(&asset) {
+      owners[group].insert(root);
+    }
+  }
+  let mut slot_consumers: Vec<Vec<usize>> = Vec::new();
+  let mut owned_pairs: HashSet<(usize, AssetIndex)> = HashSet::new();
 
   for (group, members) in members.iter().enumerate() {
-    let consumers = &consumers[group];
-    // Keep the maximal subset every consumer orders like the reference; the
-    // rest are duplicated per consumer. A longest increasing subsequence of
-    // each consumer's positions drops the fewest assets for that consumer.
-    let mut survivors: Vec<AssetIndex> = members.clone();
-    for &consumer in &consumers[1..] {
-      let positions = &positions[consumer];
-      let order: Vec<usize> = survivors
-        .iter()
-        .filter_map(|a| positions.get(a).copied())
-        .collect();
-      if order.len() == survivors.len() {
-        let keep = longest_increasing(&order);
-        if keep.len() != survivors.len() {
-          let mut keep_iter = keep.iter().copied().peekable();
-          survivors = survivors
-            .iter()
-            .enumerate()
-            .filter_map(|(i, &a)| {
-              if keep_iter.peek() == Some(&i) {
-                keep_iter.next();
-                Some(a)
-              } else {
-                conflicted.insert(a);
-                None
-              }
-            })
-            .collect();
-        }
+    let owners = &mut owners[group];
+    let mut shared: Vec<usize> = consumers[group]
+      .iter()
+      .copied()
+      .filter(|c| !owners.contains(c))
+      .collect();
+    // Reference order and conflict detection among the remaining sharers.
+    let mut ordered = members.clone();
+    if let Some(&reference) = shared.first() {
+      ordered.sort_by_key(|a| positions[reference].get(a).copied());
+      let conflicting = shared[1..].iter().any(|&consumer| {
+        let positions = &positions[consumer];
+        let order: Vec<usize> = ordered
+          .iter()
+          .filter_map(|a| positions.get(a).copied())
+          .collect();
+        order.len() == ordered.len() && !order.is_sorted()
+      });
+      if conflicting {
+        plan.conflicts.extend(ordered.iter().copied());
+        owners.extend(shared.drain(..));
       }
     }
+    for &owner in owners.iter() {
+      owned_pairs.extend(members.iter().map(|&m| (owner, m)));
+    }
+    if shared.is_empty() {
+      continue;
+    }
 
-    // Split wherever any consumer interleaves something between neighbors.
+    // Split wherever any sharing consumer interleaves something between
+    // neighbors.
     let mut ordinal = 0;
     let mut current: Vec<AssetIndex> = Vec::new();
-    for (i, &asset) in survivors.iter().enumerate() {
+    for (i, &asset) in ordered.iter().enumerate() {
       if i > 0 {
-        let previous = survivors[i - 1];
-        let split = consumers.iter().any(|&c| {
-          match (positions[c].get(&previous), positions[c].get(&asset)) {
-            (Some(&p), Some(&q)) => q > p + 1,
-            _ => true,
-          }
-        });
+        let previous = ordered[i - 1];
+        let split =
+          shared.iter().any(
+            |&c| match (positions[c].get(&previous), positions[c].get(&asset)) {
+              (Some(&p), Some(&q)) => q > p + 1,
+              _ => true,
+            },
+          );
         if split {
-          push_segment(&mut plan, std::mem::take(&mut current), None, ordinal);
+          push_segment(
+            &mut plan,
+            &mut slot_consumers,
+            std::mem::take(&mut current),
+            None,
+            ordinal,
+            shared.clone(),
+          );
           ordinal += 1;
         }
       }
       current.push(asset);
     }
-    if !current.is_empty() {
-      push_segment(&mut plan, current, None, ordinal);
-    }
+    push_segment(
+      &mut plan,
+      &mut slot_consumers,
+      current,
+      None,
+      ordinal,
+      shared,
+    );
   }
 
-  // Duplicate conflicted assets per consuming root, coalescing runs that are
+  // Duplicate owned assets per owning root, coalescing runs that are
   // adjacent in that root's sequence into one bundle.
   for (root, sequence) in sequences.iter().enumerate() {
     let mut ordinal = 0;
     let mut run: Vec<AssetIndex> = Vec::new();
     let mut last_position = 0;
     for (position, &asset) in sequence.iter().enumerate() {
-      if conflicted.contains(&asset) {
+      if owned_pairs.contains(&(root, asset)) {
         if !run.is_empty() && position != last_position + 1 {
-          push_segment(&mut plan, std::mem::take(&mut run), Some(root), ordinal);
+          push_segment(
+            &mut plan,
+            &mut slot_consumers,
+            std::mem::take(&mut run),
+            Some(root),
+            ordinal,
+            vec![root],
+          );
           ordinal += 1;
         }
         run.push(asset);
@@ -327,20 +427,49 @@ fn segment(sequences: &[Vec<AssetIndex>], group_of: &HashMap<AssetIndex, usize>)
       }
     }
     if !run.is_empty() {
-      push_segment(&mut plan, run, Some(root), ordinal);
+      push_segment(
+        &mut plan,
+        &mut slot_consumers,
+        run,
+        Some(root),
+        ordinal,
+        vec![root],
+      );
     }
   }
 
-  // Application order of planned segments per root.
+  // Bind the segment that immediately precedes the same stylesheet root
+  // asset in every consumer's sequence into that root's bundle.
+  for (slot, segment) in plan.segments.iter_mut().enumerate() {
+    let last = *segment.assets.last().unwrap();
+    let mut next = slot_consumers[slot].iter().map(|&c| {
+      positions[c]
+        .get(&last)
+        .and_then(|&p| sequences[c].get(p + 1))
+        .copied()
+    });
+    if let Some(Some(root_asset)) = next.next() {
+      if next.all(|n| n == Some(root_asset)) && bindable(root_asset, last, segment.owner_root) {
+        segment.bind_to = Some(root_asset);
+      }
+    }
+  }
+
+  // Application order of planned segments per root. An owning root uses its
+  // own copy of an asset; other roots use the shared placement.
   for (root, sequence) in sequences.iter().enumerate() {
     let mut order = Vec::new();
     for &asset in sequence {
       let Some(slots) = plan.slots.get(&asset) else {
         continue;
       };
+      let owned = owned_pairs.contains(&(root, asset));
       for &slot in slots {
-        let segment = &plan.segments[slot as usize];
-        if segment.owner_root.is_none_or(|owner| owner == root) && !order.contains(&slot) {
+        let matches = match plan.segments[slot as usize].owner_root {
+          Some(owner) => owned && owner == root,
+          None => !owned,
+        };
+        if matches && !order.contains(&slot) {
           order.push(slot);
         }
       }
@@ -348,19 +477,18 @@ fn segment(sequences: &[Vec<AssetIndex>], group_of: &HashMap<AssetIndex, usize>)
     plan.root_order[root] = order;
   }
 
-  plan.conflicts = {
-    let mut conflicts: Vec<AssetIndex> = conflicted.into_iter().collect();
-    conflicts.sort_unstable_by_key(|a| a.index());
-    conflicts
-  };
+  plan.conflicts.sort_unstable_by_key(|a| a.index());
+  plan.conflicts.dedup();
   plan
 }
 
 fn push_segment(
   plan: &mut StylePlan,
+  slot_consumers: &mut Vec<Vec<usize>>,
   assets: Vec<AssetIndex>,
   owner_root: Option<usize>,
   ordinal: usize,
+  consumers: Vec<usize>,
 ) {
   if assets.is_empty() {
     return;
@@ -373,33 +501,9 @@ fn push_segment(
     assets,
     owner_root,
     ordinal,
+    bind_to: None,
   });
-}
-
-/// Indices of a longest strictly increasing subsequence, preferring earlier
-/// elements on ties for determinism.
-fn longest_increasing(values: &[usize]) -> Vec<usize> {
-  let mut tails: Vec<usize> = Vec::new(); // indices into values
-  let mut previous: Vec<Option<usize>> = vec![None; values.len()];
-  for (i, &value) in values.iter().enumerate() {
-    let position = tails.partition_point(|&t| values[t] < value);
-    if position > 0 {
-      previous[i] = Some(tails[position - 1]);
-    }
-    if position == tails.len() {
-      tails.push(i);
-    } else {
-      tails[position] = i;
-    }
-  }
-  let mut result = Vec::new();
-  let mut current = tails.last().copied();
-  while let Some(i) = current {
-    result.push(i);
-    current = previous[i];
-  }
-  result.reverse();
-  result
+  slot_consumers.push(consumers);
 }
 
 #[cfg(test)]
@@ -411,12 +515,25 @@ mod tests {
   }
 
   fn run(sequences: Vec<Vec<u32>>, groups: Vec<(u32, usize)>) -> StylePlan {
+    run_full(sequences, groups, vec![], &|_, _, _| false)
+  }
+
+  fn run_full(
+    sequences: Vec<Vec<u32>>,
+    groups: Vec<(u32, usize)>,
+    scoped: Vec<(usize, u32)>,
+    bindable: &dyn Fn(AssetIndex, AssetIndex, Option<usize>) -> bool,
+  ) -> StylePlan {
     let sequences: Vec<Vec<AssetIndex>> = sequences
       .into_iter()
       .map(|s| s.into_iter().map(a).collect())
       .collect();
     let group_of = groups.into_iter().map(|(asset, g)| (a(asset), g)).collect();
-    segment(&sequences, &group_of)
+    let scoped = scoped
+      .into_iter()
+      .map(|(root, asset)| (root, a(asset)))
+      .collect();
+    segment(&sequences, &group_of, &scoped, bindable)
   }
 
   fn segment_assets(plan: &StylePlan) -> Vec<(Vec<u32>, Option<usize>)> {
@@ -440,23 +557,15 @@ mod tests {
 
   #[test]
   fn conflicting_orders_duplicate_per_root() {
-    // Root 0 loads x then y; root 1 loads y then x.
+    // Root 0 loads x then y; root 1 loads y then x. The whole group is
+    // duplicated per root: a partially shared group cannot satisfy both
+    // orders once the shared part is loaded at an incompatible position by
+    // an earlier lazy activation.
     let plan = run(vec![vec![1, 2], vec![2, 1]], vec![(1, 0), (2, 0)]);
-    // One asset survives shared; the other is copied into each root.
-    assert_eq!(plan.conflicts.len(), 1);
-    let shared: Vec<_> = plan
-      .segments
-      .iter()
-      .filter(|s| s.owner_root.is_none())
-      .collect();
-    assert_eq!(shared.len(), 1);
-    let duplicates: Vec<_> = plan
-      .segments
-      .iter()
-      .filter(|s| s.owner_root.is_some())
-      .collect();
-    assert_eq!(duplicates.len(), 2);
-    // Each root's order follows its own sequence.
+    assert_eq!(plan.conflicts.len(), 2);
+    assert!(plan.segments.iter().all(|s| s.owner_root.is_some()));
+    assert_eq!(plan.segments.len(), 2);
+    // Each root's order follows its own sequence via its own copies.
     for (root, sequence) in [vec![1, 2], vec![2, 1]].iter().enumerate() {
       let emitted: Vec<u32> = plan.root_order[root]
         .iter()
@@ -480,13 +589,71 @@ mod tests {
   }
 
   #[test]
+  fn statement_scope_privatizes_group_per_root() {
+    // Root 0's sequence begins with a layer-statement closure covering the
+    // shared sheet 9 and its own sheet 1, so root 0 takes a private coalesced
+    // copy; root 1 keeps sharing 9 with nobody else affected.
+    let plan = run_full(
+      vec![vec![9, 1], vec![9]],
+      vec![(9, 0), (1, 1)],
+      vec![(0, 9), (0, 1)],
+      &|_, _, _| false,
+    );
+    let owned: Vec<_> = plan
+      .segments
+      .iter()
+      .filter(|s| s.owner_root == Some(0))
+      .collect();
+    assert_eq!(owned.len(), 1);
+    assert_eq!(owned[0].assets, vec![a(9), a(1)]);
+    let shared: Vec<_> = plan
+      .segments
+      .iter()
+      .filter(|s| s.owner_root.is_none())
+      .collect();
+    assert_eq!(shared.len(), 1);
+    assert_eq!(shared[0].assets, vec![a(9)]);
+    // Each root emits exactly its own sequence through its own placements.
+    for (root, sequence) in [vec![9, 1], vec![9]].iter().enumerate() {
+      let emitted: Vec<u32> = plan.root_order[root]
+        .iter()
+        .flat_map(|&slot| plan.segments[slot as usize].assets.iter().map(|a| a.0))
+        .collect();
+      assert_eq!(&emitted, sequence);
+    }
+    assert!(plan.conflicts.is_empty());
+  }
+
+  #[test]
+  fn only_adjacent_segment_binds_to_root() {
+    // Root 0: own sheets 1 and 2 interleaved around shared sheet 9, then the
+    // stylesheet root asset 5. Only the segment ending immediately before 5
+    // may join 5's bundle; binding an earlier segment would load it last.
+    let plan = run_full(
+      vec![vec![1, 9, 2, 5], vec![9]],
+      vec![(1, 0), (2, 0), (9, 1)],
+      vec![],
+      &|root_asset, _, _| root_asset == a(5),
+    );
+    for segment in &plan.segments {
+      if segment.assets == vec![a(2)] {
+        assert_eq!(segment.bind_to, Some(a(5)));
+      } else {
+        assert_eq!(segment.bind_to, None);
+      }
+    }
+  }
+
+  #[test]
   fn adjacent_conflicts_coalesce_per_root() {
-    // Both assets conflict between the roots and stay adjacent in each.
+    // The conflicting group is fully duplicated; runs adjacent in a root's
+    // sequence coalesce into one bundle per root.
     let plan = run(
       vec![vec![1, 2, 3], vec![3, 1, 2]],
       vec![(1, 0), (2, 0), (3, 0)],
     );
-    assert_eq!(plan.conflicts, vec![a(3)]);
+    assert_eq!(plan.conflicts, vec![a(1), a(2), a(3)]);
+    assert_eq!(plan.segments.len(), 2);
     for root in 0..2 {
       let emitted: Vec<u32> = plan.root_order[root]
         .iter()

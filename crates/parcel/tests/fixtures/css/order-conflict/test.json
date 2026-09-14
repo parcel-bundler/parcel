@@ -1,5 +1,5 @@
 {
-  "description": "stylesheets imported in conflicting orders are duplicated per context to preserve each cascade",
+  "description": "stylesheets imported in conflicting orders are fully duplicated per context so each activation asserts its own cascade",
   "input": "index.js",
   "options": {
     "mode": "production"
@@ -12,22 +12,18 @@
     },
     {
       "assets": ["pageA.js"],
-      "references": [["x.css"], ["y.css"]]
+      "references": [["x.css", "y.css"]]
     },
     {
       "assets": ["pageB.js"],
-      "references": [["y.css"], ["x.css"]]
+      "references": [["x.css", "y.css"]]
     },
     {
-      "assets": ["y.css"],
+      "assets": ["x.css", "y.css"],
       "references": []
     },
     {
-      "assets": ["x.css"],
-      "references": []
-    },
-    {
-      "assets": ["x.css"],
+      "assets": ["x.css", "y.css"],
       "references": []
     }
   ]

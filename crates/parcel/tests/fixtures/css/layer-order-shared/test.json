@@ -1,0 +1,30 @@
+{
+  "description": "a pre-import layer statement keeps its import closure in one file per page, so the declared a, b order holds and blue wins; the other page still shares",
+  "input": ["pageA.html", "pageB.html"],
+  "options": {
+    "mode": "production"
+  },
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": ["pageA.html"],
+      "references": []
+    },
+    {
+      "assets": ["pageB.html"],
+      "references": []
+    },
+    {
+      "assets": ["shared.css", "local.css", "a.css"],
+      "references": []
+    },
+    {
+      "assets": ["shared.css"],
+      "references": []
+    },
+    {
+      "assets": ["b.css"],
+      "references": [["shared.css"]]
+    }
+  ]
+}

@@ -2960,6 +2960,7 @@ dependencies = [
  "glob-match",
  "indexmap 2.14.0",
  "is-macro",
+ "lightningcss",
  "log",
  "mimalloc",
  "parcel-core",
@@ -3034,6 +3035,7 @@ dependencies = [
  "parcel-core",
  "parcel_sourcemap",
  "serde",
+ "xxhash-rust",
 ]
 
 [[package]]

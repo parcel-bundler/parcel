@@ -1,0 +1,3 @@
+@import "./local.css";
+@import "https://example.com/remote.css";
+.idx { color: red; }

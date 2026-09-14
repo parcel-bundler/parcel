@@ -1,0 +1,6 @@
+@import "a.css" layer(a);
+@media (min-width: 1px) {
+  @layer m {
+    .x { color: green; }
+  }
+}

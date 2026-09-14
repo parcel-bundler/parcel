@@ -1,0 +1,4 @@
+@import "https://example.com/remote.css";
+@import "a.css" layer(a) print;
+@import "a.css" layer(a) print;
+.idx { color: black; }

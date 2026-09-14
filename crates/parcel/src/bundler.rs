@@ -355,32 +355,15 @@ impl Bundler for DefaultBundler {
       );
     }
     let mut slot_bundles: Vec<Option<usize>> = vec![None; style_plan.segments.len()];
-    {
-      // The first segment of each group joins a stylesheet root bundle with
-      // the same consumers, like non-root classmates joined it under the
-      // legacy class key (the reused-bundle pattern for CSS).
-      let mut style_roots: HashMap<(&FixedBitSet, ContentType), usize> = HashMap::new();
-      for (_, root_asset) in bundle_roots.iter_active() {
-        let asset = asset_graph.asset(root_asset);
-        if asset.ty == AssetType::Css {
-          if let Some(root) = root_bundles.get(&root_asset) {
-            style_roots
-              .entry((needed_roots.reachable_roots(root_asset), asset.content.ty()))
-              .or_insert(root.content);
-          }
-        }
-      }
-      for (slot, segment) in style_plan.segments.iter().enumerate() {
-        if segment.ordinal != 0 || segment.owner_root.is_some() {
-          continue;
-        }
-        let first = segment.assets[0];
-        let key = (
-          needed_roots.reachable_roots(first),
-          asset_graph.asset(first).content.ty(),
-        );
-        if let Some(&bundle_index) = style_roots.get(&key) {
-          slot_bundles[slot] = Some(bundle_index);
+    // A segment that immediately precedes a stylesheet root in every
+    // consumer's sequence joins that root's bundle (the reused-bundle
+    // pattern for CSS). The plan only binds the adjacent segment: the root
+    // bundle loads at the root's own (last) position, so any earlier segment
+    // placed inside it would apply after content it must precede.
+    for (slot, segment) in style_plan.segments.iter().enumerate() {
+      if let Some(root_asset) = segment.bind_to {
+        if let Some(root) = root_bundles.get(&root_asset) {
+          slot_bundles[slot] = Some(root.content);
         }
       }
     }

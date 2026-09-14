@@ -1,0 +1,9 @@
+{
+  "description": "an external @import after bundled CSS cannot keep its cascade position and is a build error",
+  "input": "index.css",
+  "diagnostics": [
+    {
+      "message": "cannot preserve its cascade position"
+    }
+  ]
+}

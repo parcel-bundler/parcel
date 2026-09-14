@@ -107,19 +107,11 @@ function parcelLoadCSS(bundleId, media) {
     // lets the browser deprioritize a stylesheet that cannot apply.
     link.media = media || '';
 
-    // Don't insert the same link element twice (e.g. if it was already in the HTML)
-    let existingLinks = document.getElementsByTagName('link');
-    let isCurrentBundle = function (existing) {
-      return (
-        existing.href === link.href && existing.rel.indexOf('stylesheet') > -1
-      );
-    };
-
-    if (Array.from(existingLinks).some(isCurrentBundle)) {
-      resolve();
-      return;
-    }
-
+    // Insert a link even when one with the same href already exists: an
+    // earlier activation may have loaded it at a position incompatible with
+    // this activation's cascade order. A fresh link re-applies the cached
+    // stylesheet at this activation's position, so each activation asserts
+    // its own order and the last one wins, as per-link markup would natively.
     link.onerror = function (e) {
       link.onerror = link.onload = null;
       link.remove();
@@ -131,7 +123,16 @@ function parcelLoadCSS(bundleId, media) {
       resolve();
     };
 
-    document.getElementsByTagName('head')[0].appendChild(link);
+    // Lazily loaded styles apply after everything already in the document,
+    // which may include stylesheets emitted in <body>; appending to <head>
+    // would jump ahead of those. Insert after the last current stylesheet.
+    var sheets = document.querySelectorAll('link[rel~="stylesheet"], style');
+    var last = sheets[sheets.length - 1];
+    if (last && last.parentNode) {
+      last.parentNode.insertBefore(link, last.nextSibling);
+    } else {
+      document.getElementsByTagName('head')[0].appendChild(link);
+    }
   });
 }
 

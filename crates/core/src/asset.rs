@@ -307,6 +307,10 @@ bitflags! {
     const IS_HTML_TAG = 1 << 11;
     const IS_ESM = 1 << 12;
     const AUTOMATIC_JSX_RUNTIME = 1 << 13;
+    /// A stylesheet with `@layer` statements before its `@import` rules. Layer
+    /// order is established at the statement's position, so the sheet's import
+    /// closure must load as one unit for the statement to precede it.
+    const PRE_IMPORT_LAYER_STATEMENTS = 1 << 14;
   }
 }
 

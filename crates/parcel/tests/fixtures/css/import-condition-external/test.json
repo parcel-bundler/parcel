@@ -1,0 +1,13 @@
+{
+  "description": "surviving external imports inherit the accumulated media of their import chain; a conjunction that can never match drops the import",
+  "input": "index.css",
+  "options": {
+    "mode": "production"
+  },
+  "bundles": [
+    {
+      "assets": ["sub.css", "index.css"],
+      "references": []
+    }
+  ]
+}

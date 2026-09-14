@@ -1,0 +1,3 @@
+@layer a, b;
+@import "shared.css" layer(b);
+@import "local.css" layer(a);

@@ -1,0 +1,13 @@
+{
+  "description": "a first-occurrence declaration is gated on the import site's own media as authored, composed with the inherited condition",
+  "input": "index.css",
+  "options": {
+    "mode": "production"
+  },
+  "bundles": [
+    {
+      "assets": ["b.css", "a.css", "sub.css", "index.css"],
+      "references": []
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "description": "a repeated import's first-occurrence declaration keeps its position after earlier imports, so layer order stays b, a and red wins",
+  "input": "index.css",
+  "options": {
+    "mode": "production"
+  },
+  "bundles": [
+    {
+      "assets": ["b.css", "a.css", "index.css"],
+      "references": []
+    }
+  ]
+}

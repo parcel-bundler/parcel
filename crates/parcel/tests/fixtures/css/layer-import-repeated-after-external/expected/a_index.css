@@ -1,0 +1,1 @@
+@import "https://example.com/remote.css" layer(b);@layer a;@layer a{.probe{color:red}}

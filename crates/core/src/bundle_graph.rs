@@ -71,19 +71,13 @@ impl<'a> BundleGraph<'a> {
       }
     }
     let common = common?;
-    // Entries are canonical media query lists. Comma-free entries are single
-    // queries and can be conjoined with `and`; a list with top-level commas is
-    // a disjunction, which can only gate on its own.
-    let simple: Vec<&str> = common
-      .iter()
-      .copied()
-      .filter(|m| !m.contains(','))
-      .collect();
-    if !simple.is_empty() {
-      Some(simple.join(" and "))
-    } else {
-      Some(common[0].to_string())
-    }
+    // Emit a single common entry as the gate. Joining entries with `and` is
+    // not generally valid media-query syntax (a media type must come first,
+    // and entries may themselves be comma-separated lists), and the attribute
+    // gates application, not just fetch priority, so an invalid gate would
+    // disable the stylesheet entirely. Any single common entry is a sound
+    // gate on its own: every asset's condition already requires it.
+    common.first().map(|gate| gate.to_string())
   }
 
   pub fn dependency_resolution(

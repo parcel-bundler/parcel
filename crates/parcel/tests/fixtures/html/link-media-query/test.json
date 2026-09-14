@@ -1,0 +1,18 @@
+{
+  "description": "combining a media type with a media feature emits a single valid gate; the full condition stays in the nested wrap",
+  "input": "index.html",
+  "options": {
+    "mode": "production"
+  },
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": ["index.html"],
+      "references": []
+    },
+    {
+      "assets": ["shared.css", "a.css"],
+      "references": []
+    }
+  ]
+}

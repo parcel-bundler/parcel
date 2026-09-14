@@ -1,0 +1,1 @@
+@import "https://example.com/remote.css" layer(foo) print;@media print{@layer foo;}@media print{.p{color:gray}}.idx{color:#000}

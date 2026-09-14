@@ -1,0 +1,9 @@
+{
+  "description": "an indirect cycle through layered @import rules is a build error, not an infinite loop",
+  "input": "a.css",
+  "diagnostics": [
+    {
+      "message": "Detected an import cycle through layered @import rules"
+    }
+  ]
+}

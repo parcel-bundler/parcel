@@ -1,0 +1,13 @@
+{
+  "description": "a pre-import @layer statement establishes layer order before imported layer blocks",
+  "input": "index.css",
+  "options": {
+    "mode": "production"
+  },
+  "bundles": [
+    {
+      "assets": ["index.css", "a.css", "b.css"],
+      "references": []
+    }
+  ]
+}
