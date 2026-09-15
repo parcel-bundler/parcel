@@ -135,27 +135,6 @@ impl Transformer for CssTransformer {
       })
       .map_err(|err| convert_error(Some(asset.loc.url.clone()), err))?;
 
-    // A pre-import @layer statement establishes layer order at its own
-    // position, before the imported content it precedes. The bundler keeps
-    // such a sheet's import closure together so the statement stays ahead of
-    // everything it governs.
-    let mut statement_seen = false;
-    for rule in &stylesheet.rules.0 {
-      match rule {
-        CssRule::Import(_) if statement_seen => {
-          asset.flags |= AssetFlags::PRE_IMPORT_LAYER_STATEMENTS;
-          break;
-        }
-        // Minification can leave Ignored placeholders in the prefix.
-        CssRule::Import(_) | CssRule::Ignored => {}
-        CssRule::LayerStatement(_) => statement_seen = true,
-        _ => break,
-      }
-    }
-    if declares_layers(&stylesheet.rules.0) {
-      asset.flags |= AssetFlags::DECLARES_LAYERS;
-    }
-
     let unconditional_target = unconditional(&asset.target);
     let mut collector = DependencyCollector {
       dependencies: &mut asset.dependencies,
@@ -593,16 +572,4 @@ impl Transformer for StyleAttrTransformer {
     });
     Ok(asset)
   }
-}
-
-/// Whether any rule declares a cascade layer, at any nesting depth. Layer
-/// clauses on @import rules are not scanned here: the planner sees those on
-/// the dependency's target condition.
-fn declares_layers(rules: &[CssRule]) -> bool {
-  rules.iter().any(|rule| match rule {
-    CssRule::LayerStatement(_) | CssRule::LayerBlock(_) => true,
-    CssRule::Media(media) => declares_layers(&media.rules.0),
-    CssRule::Supports(supports) => declares_layers(&supports.rules.0),
-    _ => false,
-  })
 }

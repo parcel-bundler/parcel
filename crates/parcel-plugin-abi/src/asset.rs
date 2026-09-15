@@ -51,7 +51,7 @@ assert_flag_values! {
     IS_HTML_TAG => PARCEL_ASSET_IS_HTML_TAG,
     IS_ESM => PARCEL_ASSET_IS_ESM,
   }
-  ignored = [AUTOMATIC_JSX_RUNTIME, PRE_IMPORT_LAYER_STATEMENTS, DECLARES_LAYERS];
+  ignored = [AUTOMATIC_JSX_RUNTIME];
 }
 
 // ── Content ───────────────────────────────────────────────────────────────────

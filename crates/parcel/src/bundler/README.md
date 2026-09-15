@@ -109,12 +109,19 @@ positions its own copies and the last activation wins, as per-link markup would
 natively), with a warning that names the conflicted stylesheets. Only the
 segment that immediately precedes a stylesheet root asset in every consumer's
 sequence may join that root's bundle, since the root bundle loads at the root's
-own (last) position. A sheet with `@layer` statements before its `@import`
+own (last) position. CSS-specific order analysis lives in
+`parcel-css::bundling::OrderAnalysis`. The bundler supplies its synchronous
+dependency edges and each context's required assets; the analysis reads the
+CSS ASTs and returns `OrderedContent`: an asset sequence and half-open
+`keep_together` intervals. The partitioner only consumes these positions and
+constraints, with no layer knowledge or CSS-specific core asset flags.
+
+A sheet with `@layer` statements before its `@import`
 rules establishes layer order ahead of its whole import closure, which no
 arrangement of multiple links can reproduce, so that closure is privatized per
-consumer into one file (`AssetFlags::PRE_IMPORT_LAYER_STATEMENTS`). A repeated
+consumer into one file. A repeated
 import likewise declares its layers — and every layer its closure declares
-(`AssetFlags::DECLARES_LAYERS`) — at its first occurrence; when layer-declaring
+— at its first occurrence; when layer-declaring
 content stands between that occurrence and the kept (last) instance, the span
 through the importing sheet is privatized the same way so the packager can
 emit the first-occurrence declaration in place. Repeats involving anonymous

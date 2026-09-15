@@ -10,6 +10,7 @@ use lightningcss::{
 };
 use parcel_core::*;
 
+pub mod bundling;
 mod packager;
 mod transformer;
 

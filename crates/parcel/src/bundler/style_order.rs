@@ -8,7 +8,7 @@
 
 use std::collections::HashSet;
 
-use parcel_core::AssetFlags;
+use parcel_css::bundling::{OrderAnalysis, OrderedContent};
 
 use super::*;
 use crate::bundler::reachability::synchronous_dependencies;
@@ -50,7 +50,17 @@ pub(super) fn plan(
   needed_roots: &Reachability,
   plannable: impl Fn(&Asset) -> bool,
 ) -> StylePlan {
-  let (sequences, scoped) = sequences(asset_graph, bundle_roots, needed_roots);
+  let analysis = OrderAnalysis::new(asset_graph, |asset| {
+    synchronous_dependencies(asset_graph, bundle_roots, asset_graph.asset(asset)).collect()
+  });
+  let mut contexts = vec![OrderedContent::default(); bundle_roots.len()];
+  for (root_index, root_asset) in bundle_roots.iter_active() {
+    contexts[root_index] = analysis.for_context(root_asset, |asset| {
+      needed_roots.reachable_roots(asset).contains(root_index)
+    });
+  }
+
+  drop(analysis);
 
   // Group plannable assets by (consumer root set, packager) like BundleKey
   // does: distinct classes whose root sets collapsed together during
@@ -59,8 +69,8 @@ pub(super) fn plan(
   let mut group_ids: HashMap<(&FixedBitSet, ContentType), usize> = HashMap::new();
   let mut group_of: HashMap<AssetIndex, usize> = HashMap::new();
   let mut group_count = 0;
-  for sequence in &sequences {
-    for &asset_index in sequence {
+  for context in &contexts {
+    for &asset_index in &context.assets {
       let asset = asset_graph.asset(asset_index);
       // Bundle-root stylesheets stay on the legacy path: their bundles carry
       // loading, entry, and mirroring semantics (CSS entry cycles mirror one
@@ -100,263 +110,21 @@ pub(super) fn plan(
     }
   };
 
-  segment(&sequences, &group_of, &scoped, &bindable)
-}
-
-/// Application order of the CSS assets each root loads, derived from the same
-/// synchronous edges as reachability classes. Emission is postorder (imports
-/// before their importer), deduplicated so the last occurrence wins, matching
-/// browser semantics for repeated imports and the packager's inline order.
-///
-/// Also returns `(root, asset)` pairs that must stay in one file for that
-/// root: a sheet with pre-import `@layer` statements establishes layer order
-/// ahead of its whole import closure, which no arrangement of multiple links
-/// can reproduce, so the sheet and its subtree run are privatized per root.
-fn sequences(
-  asset_graph: &AssetGraph,
-  bundle_roots: &BundleRoots,
-  needed_roots: &Reachability,
-) -> (Vec<Vec<AssetIndex>>, HashSet<(usize, AssetIndex)>) {
-  // Restrict traversal to subgraphs that can reach a stylesheet. The sync
-  // graph can contain cycles, so iterate to a fixed point; reverse DFS order
-  // resolves almost everything in the first pass.
-  let dfs: Vec<(AssetIndex, &Asset)> = asset_graph.dfs().map(|(i, a, _)| (i, a)).collect();
-  let mut has_style = FixedBitSet::with_capacity(asset_graph.assets.len());
-  loop {
-    let mut changed = false;
-    for (asset_index, asset) in dfs.iter().rev() {
-      if has_style.contains(asset_index.index()) {
-        continue;
-      }
-      let style = asset.ty == AssetType::Css
-        || synchronous_dependencies(asset_graph, bundle_roots, asset)
-          .any(|target| has_style.contains(target.index()));
-      if style {
-        has_style.insert(asset_index.index());
-        changed = true;
-      }
-    }
-    if !changed {
-      break;
-    }
-  }
-
-  // Whether an asset's import closure declares any cascade layer: its own
-  // content does (DECLARES_LAYERS), one of its import sites adds a layer
-  // clause, or a child's closure declares one. A repeated import of such a
-  // closure declares those layers at its FIRST occurrence, even though its
-  // content keeps the last.
-  let layer_count = |index: AssetIndex| {
-    asset_graph
-      .asset(index)
-      .target
-      .style_condition
-      .as_ref()
-      .map_or(0, |c| c.layers.len())
-  };
-  let mut declares = FixedBitSet::with_capacity(asset_graph.assets.len());
-  loop {
-    let mut changed = false;
-    for (asset_index, asset) in dfs.iter().rev() {
-      if declares.contains(asset_index.index()) {
-        continue;
-      }
-      let value = asset.flags.contains(AssetFlags::DECLARES_LAYERS)
-        || synchronous_dependencies(asset_graph, bundle_roots, asset).any(|target| {
-          asset_graph.asset(target).ty == AssetType::Css
-            && (declares.contains(target.index())
-              || layer_count(target) > layer_count(*asset_index))
-        });
-      if value {
-        declares.insert(asset_index.index());
-        changed = true;
-      }
-    }
-    if !changed {
-      break;
-    }
-  }
-
-  let mut sequences = vec![Vec::new(); bundle_roots.len()];
-  let mut scoped = HashSet::new();
-  let mut position = vec![usize::MAX; asset_graph.assets.len()];
-  let mut seen = FixedBitSet::with_capacity(asset_graph.assets.len());
-  let mut entries = Vec::new();
-  let mut out = Vec::new();
-  let mut runs = Vec::new();
-  for (root_index, root_asset) in bundle_roots.iter_active() {
-    if !has_style.contains(root_asset.index()) {
-      continue;
-    }
-    // Phase 1: JS execution order. A module runs once, at its first import,
-    // so stylesheet entry points dedupe keeping the FIRST occurrence.
-    seen.clear();
-    entries.clear();
-    collect_entries(
-      asset_graph,
-      bundle_roots,
-      &has_style,
-      root_asset,
-      &mut seen,
-      &mut entries,
-    );
-    // Phase 2: expand @import subtrees. Browsers apply every @import
-    // instance, so a repeated sheet takes its LAST position; walking entries
-    // and imports reversed with first-occurrence dedup, then reversing,
-    // yields exactly that order.
-    seen.clear();
-    out.clear();
-    runs.clear();
-    position.fill(usize::MAX);
-    for &entry in entries.iter().rev() {
-      css_reverse_walk(
-        asset_graph,
-        bundle_roots,
-        needed_roots,
-        &declares,
-        root_index,
-        entry,
-        &mut seen,
-        &mut out,
-        &mut position,
-        &mut runs,
-      );
-    }
-    // A statement-scoped run of more than the sheet itself must load as one
-    // unit; a lone sheet already carries its statements in its own file.
-    for &(start, end) in &runs {
-      if end - start > 1 {
-        for &asset in &out[start..end] {
-          scoped.insert((root_index, asset));
-        }
-      }
-    }
-    out.reverse();
-    sequences[root_index] = out.clone();
-  }
-  (sequences, scoped)
-}
-
-/// Stylesheet entry points in JS execution order (first import wins).
-fn collect_entries(
-  asset_graph: &AssetGraph,
-  bundle_roots: &BundleRoots,
-  has_style: &FixedBitSet,
-  asset_index: AssetIndex,
-  seen: &mut FixedBitSet,
-  entries: &mut Vec<AssetIndex>,
-) {
-  if seen.put(asset_index.index()) {
-    return;
-  }
-  let asset = asset_graph.asset(asset_index);
-  if asset.ty == AssetType::Css {
-    entries.push(asset_index);
-    return;
-  }
-  for target in synchronous_dependencies(asset_graph, bundle_roots, asset) {
-    if has_style.contains(target.index()) {
-      collect_entries(asset_graph, bundle_roots, has_style, target, seen, entries);
-    }
-  }
-}
-
-fn css_reverse_walk(
-  asset_graph: &AssetGraph,
-  bundle_roots: &BundleRoots,
-  needed_roots: &Reachability,
-  declares: &FixedBitSet,
-  root_index: usize,
-  asset_index: AssetIndex,
-  seen: &mut FixedBitSet,
-  out: &mut Vec<AssetIndex>,
-  position: &mut Vec<usize>,
-  runs: &mut Vec<(usize, usize)>,
-) {
-  if seen.put(asset_index.index()) {
-    return;
-  }
-  let asset = asset_graph.asset(asset_index);
-  let start = out.len();
-  let pushed = needed_roots
-    .reachable_roots(asset_index)
-    .contains(root_index);
-  if pushed {
-    position[asset_index.index()] = out.len();
-    out.push(asset_index);
-  }
-  let layer_count = |index: AssetIndex| {
-    asset_graph
-      .asset(index)
-      .target
-      .style_condition
-      .as_ref()
-      .map_or(0, |c| c.layers.len())
-  };
-  let children: Vec<AssetIndex> = synchronous_dependencies(asset_graph, bundle_roots, asset)
-    .filter(|target| asset_graph.asset(*target).ty == AssetType::Css)
-    .collect();
-  for target in children.into_iter().rev() {
-    if seen.contains(target.index()) {
-      // A repeated import: the kept (last) instance holds the content
-      // position, but this earlier instance still declares any layers in
-      // its closure here. The declaration matters only when content BETWEEN
-      // this site and the kept instance declares layers of its own — then
-      // the span, including this importer (whose prefix holds the site),
-      // must stay in one file for this root so the packager can emit the
-      // first-occurrence declaration in place.
-      if declares.contains(target.index()) || layer_count(target) > layer_count(asset_index) {
-        let kept = position[target.index()];
-        if kept != usize::MAX
-          && out[kept + 1..]
-            .iter()
-            .any(|a| declares.contains(a.index()) || layer_count(*a) > 0)
-        {
-          runs.push((kept.min(position[asset_index.index()]), out.len()));
-        }
-      }
-      continue;
-    }
-    css_reverse_walk(
-      asset_graph,
-      bundle_roots,
-      needed_roots,
-      declares,
-      root_index,
-      target,
-      seen,
-      out,
-      position,
-      runs,
-    );
-  }
-  // The walk is reversed, so a sheet and the part of its import subtree that
-  // takes its position here occupy `out[start..]` contiguously — the closure
-  // a pre-import @layer statement governs. (Subtree members claimed by a
-  // later importer sit outside the range; the statement precedes them
-  // regardless of file placement.)
-  if pushed
-    && asset
-      .flags
-      .contains(AssetFlags::PRE_IMPORT_LAYER_STATEMENTS)
-  {
-    runs.push((start, out.len()));
-  }
+  segment(&contexts, &group_of, &bindable)
 }
 
 /// Partition grouped assets into ordered segments that every consumer can
 /// emit contiguously, duplicating order-conflicted assets per consumer.
-/// `scoped` names `(root, asset)` pairs that root must load privately (layer
-/// statement closures); a scoped root takes a private copy of the asset's
-/// whole group. `bindable` decides whether a segment adjacent to a stylesheet
-/// root asset may join that root's bundle.
+/// Content-specific keep-together intervals take private copies of their
+/// groups for that context. `bindable` decides whether a segment adjacent to
+/// a root asset may join that root's bundle.
 fn segment(
-  sequences: &[Vec<AssetIndex>],
+  contexts: &[OrderedContent],
   group_of: &HashMap<AssetIndex, usize>,
-  scoped: &HashSet<(usize, AssetIndex)>,
   bindable: &dyn Fn(AssetIndex, AssetIndex, Option<usize>) -> bool,
 ) -> StylePlan {
   // Positions per root for interleave checks and order comparison.
+  let sequences: Vec<&[AssetIndex]> = contexts.iter().map(|c| c.assets.as_slice()).collect();
   let positions: Vec<HashMap<AssetIndex, usize>> = sequences
     .iter()
     .map(|s| s.iter().enumerate().map(|(i, &a)| (a, i)).collect())
@@ -368,7 +136,7 @@ fn segment(
   let mut consumers: Vec<Vec<usize>> = Vec::new();
   for (root, sequence) in sequences.iter().enumerate() {
     let mut seen_groups = HashSet::new();
-    for &asset in sequence {
+    for &asset in *sequence {
       let Some(&group) = group_of.get(&asset) else {
         continue;
       };
@@ -391,17 +159,21 @@ fn segment(
     root_order: vec![Vec::new(); sequences.len()],
     conflicts: Vec::new(),
   };
-  // Roots that take a private copy of a whole group. A scoped pair (a layer
-  // statement's closure) privatizes the group for that root only; an order
+  // Roots that take a private copy of a whole group. A keep-together interval
+  // privatizes its groups for that root only; an order
   // conflict privatizes it for every consumer, because successive lazy
   // activations share one document and a partially shared group already
   // loaded at an incompatible position could not be reordered. With full
   // copies, each activation re-asserts its own order and the last one wins,
   // deterministically, as per-link markup would behave natively.
   let mut owners: Vec<HashSet<usize>> = vec![HashSet::new(); members.len()];
-  for &(root, asset) in scoped {
-    if let Some(&group) = group_of.get(&asset) {
-      owners[group].insert(root);
+  for (root, context) in contexts.iter().enumerate() {
+    for range in &context.keep_together {
+      for asset in &context.assets[range.clone()] {
+        if let Some(&group) = group_of.get(asset) {
+          owners[group].insert(root);
+        }
+      }
     }
   }
   let mut slot_consumers: Vec<Vec<usize>> = Vec::new();
@@ -532,7 +304,7 @@ fn segment(
   // own copy of an asset; other roots use the shared placement.
   for (root, sequence) in sequences.iter().enumerate() {
     let mut order = Vec::new();
-    for &asset in sequence {
+    for &asset in *sequence {
       let Some(slots) = plan.slots.get(&asset) else {
         continue;
       };
@@ -594,19 +366,21 @@ mod tests {
   fn run_full(
     sequences: Vec<Vec<u32>>,
     groups: Vec<(u32, usize)>,
-    scoped: Vec<(usize, u32)>,
+    keep_together: Vec<(usize, std::ops::Range<usize>)>,
     bindable: &dyn Fn(AssetIndex, AssetIndex, Option<usize>) -> bool,
   ) -> StylePlan {
-    let sequences: Vec<Vec<AssetIndex>> = sequences
+    let mut contexts: Vec<OrderedContent> = sequences
       .into_iter()
-      .map(|s| s.into_iter().map(a).collect())
+      .map(|s| OrderedContent {
+        assets: s.into_iter().map(a).collect(),
+        keep_together: Vec::new(),
+      })
       .collect();
     let group_of = groups.into_iter().map(|(asset, g)| (a(asset), g)).collect();
-    let scoped = scoped
-      .into_iter()
-      .map(|(root, asset)| (root, a(asset)))
-      .collect();
-    segment(&sequences, &group_of, &scoped, bindable)
+    for (root, range) in keep_together {
+      contexts[root].keep_together.push(range);
+    }
+    segment(&contexts, &group_of, bindable)
   }
 
   fn segment_assets(plan: &StylePlan) -> Vec<(Vec<u32>, Option<usize>)> {
@@ -662,14 +436,14 @@ mod tests {
   }
 
   #[test]
-  fn statement_scope_privatizes_group_per_root() {
-    // Root 0's sequence begins with a layer-statement closure covering the
+  fn keep_together_privatizes_groups_per_root() {
+    // Root 0's sequence begins with a keep-together interval covering the
     // shared sheet 9 and its own sheet 1, so root 0 takes a private coalesced
     // copy; root 1 keeps sharing 9 with nobody else affected.
     let plan = run_full(
       vec![vec![9, 1], vec![9]],
       vec![(9, 0), (1, 1)],
-      vec![(0, 9), (0, 1)],
+      vec![(0, 0..2)],
       &|_, _, _| false,
     );
     let owned: Vec<_> = plan
@@ -695,6 +469,31 @@ mod tests {
       assert_eq!(&emitted, sequence);
     }
     assert!(plan.conflicts.is_empty());
+  }
+
+  #[test]
+  fn overlapping_intervals_coalesce_without_affecting_other_contexts() {
+    let plan = run_full(
+      vec![vec![1, 2, 3, 4], vec![1, 2, 3, 4]],
+      vec![(1, 0), (2, 1), (3, 2), (4, 3)],
+      vec![(0, 0..2), (0, 1..3)],
+      &|_, _, _| false,
+    );
+    let owned: Vec<_> = plan
+      .segments
+      .iter()
+      .filter(|s| s.owner_root.is_some())
+      .collect();
+    assert_eq!(owned.len(), 1);
+    assert_eq!(owned[0].owner_root, Some(0));
+    assert_eq!(owned[0].assets, vec![a(1), a(2), a(3)]);
+    for order in &plan.root_order {
+      let assets: Vec<_> = order
+        .iter()
+        .flat_map(|&slot| plan.segments[slot as usize].assets.iter().copied())
+        .collect();
+      assert_eq!(assets, vec![a(1), a(2), a(3), a(4)]);
+    }
   }
 
   #[test]
