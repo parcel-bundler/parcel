@@ -50,8 +50,8 @@ pub(super) fn plan(
   needed_roots: &Reachability,
   plannable: impl Fn(&Asset) -> bool,
 ) -> StylePlan {
-  let analysis = OrderAnalysis::new(asset_graph, |asset| {
-    synchronous_dependencies(asset_graph, bundle_roots, asset_graph.asset(asset)).collect()
+  let mut analysis = OrderAnalysis::new(asset_graph, |asset| {
+    synchronous_dependencies(asset_graph, bundle_roots, asset_graph.asset(asset))
   });
   let mut contexts = vec![OrderedContent::default(); bundle_roots.len()];
   for (root_index, root_asset) in bundle_roots.iter_active() {
@@ -134,8 +134,8 @@ fn segment(
   // consuming roots per group.
   let mut members: Vec<Vec<AssetIndex>> = Vec::new();
   let mut consumers: Vec<Vec<usize>> = Vec::new();
+  let mut seen_assets = HashSet::new();
   for (root, sequence) in sequences.iter().enumerate() {
-    let mut seen_groups = HashSet::new();
     for &asset in *sequence {
       let Some(&group) = group_of.get(&asset) else {
         continue;
@@ -144,14 +144,15 @@ fn segment(
         members.push(Vec::new());
         consumers.push(Vec::new());
       }
-      if members[group].is_empty() || !members[group].contains(&asset) {
+      if seen_assets.insert(asset) {
         members[group].push(asset);
       }
-      if seen_groups.insert(group) {
+      if consumers[group].last() != Some(&root) {
         consumers[group].push(root);
       }
     }
   }
+  drop(seen_assets);
 
   let mut plan = StylePlan {
     slots: HashMap::new(),
@@ -177,7 +178,6 @@ fn segment(
     }
   }
   let mut slot_consumers: Vec<Vec<usize>> = Vec::new();
-  let mut owned_pairs: HashSet<(usize, AssetIndex)> = HashSet::new();
 
   for (group, members) in members.iter().enumerate() {
     let owners = &mut owners[group];
@@ -192,19 +192,13 @@ fn segment(
       ordered.sort_by_key(|a| positions[reference].get(a).copied());
       let conflicting = shared[1..].iter().any(|&consumer| {
         let positions = &positions[consumer];
-        let order: Vec<usize> = ordered
-          .iter()
-          .filter_map(|a| positions.get(a).copied())
-          .collect();
-        order.len() == ordered.len() && !order.is_sorted()
+        let order = ordered.iter().filter_map(|a| positions.get(a).copied());
+        order.clone().count() == ordered.len() && !order.is_sorted()
       });
       if conflicting {
         plan.conflicts.extend(ordered.iter().copied());
         owners.extend(shared.drain(..));
       }
-    }
-    for &owner in owners.iter() {
-      owned_pairs.extend(members.iter().map(|&m| (owner, m)));
     }
     if shared.is_empty() {
       continue;
@@ -250,12 +244,17 @@ fn segment(
 
   // Duplicate owned assets per owning root, coalescing runs that are
   // adjacent in that root's sequence into one bundle.
+  let is_owned = |root, asset| {
+    group_of
+      .get(&asset)
+      .is_some_and(|&group| owners[group].contains(&root))
+  };
   for (root, sequence) in sequences.iter().enumerate() {
     let mut ordinal = 0;
     let mut run: Vec<AssetIndex> = Vec::new();
     let mut last_position = 0;
     for (position, &asset) in sequence.iter().enumerate() {
-      if owned_pairs.contains(&(root, asset)) {
+      if is_owned(root, asset) {
         if !run.is_empty() && position != last_position + 1 {
           push_segment(
             &mut plan,
@@ -302,22 +301,26 @@ fn segment(
 
   // Application order of planned segments per root. An owning root uses its
   // own copy of an asset; other roots use the shared placement.
+  let mut seen_segments = FixedBitSet::with_capacity(plan.segments.len());
   for (root, sequence) in sequences.iter().enumerate() {
     let mut order = Vec::new();
     for &asset in *sequence {
       let Some(slots) = plan.slots.get(&asset) else {
         continue;
       };
-      let owned = owned_pairs.contains(&(root, asset));
+      let owned = is_owned(root, asset);
       for &slot in slots {
         let matches = match plan.segments[slot as usize].owner_root {
           Some(owner) => owned && owner == root,
           None => !owned,
         };
-        if matches && !order.contains(&slot) {
+        if matches && !seen_segments.put(slot as usize) {
           order.push(slot);
         }
       }
+    }
+    for &slot in &order {
+      seen_segments.set(slot as usize, false);
     }
     plan.root_order[root] = order;
   }

@@ -249,6 +249,7 @@ impl Transformer for CssTransformer {
 
       asset.content = Arc::new(CssContent {
         source_size: code.len(),
+        order_flags: crate::bundling::summarize(&stylesheet.rules.0),
         stylesheet: stylesheet.into_owned(),
         exports,
         references: refs,
@@ -257,6 +258,7 @@ impl Transformer for CssTransformer {
     } else {
       asset.content = Arc::new(CssContent {
         source_size: code.len(),
+        order_flags: crate::bundling::summarize(&stylesheet.rules.0),
         stylesheet: stylesheet.into_owned(),
         exports: HashMap::new(),
         references: HashMap::new(),

@@ -22,6 +22,7 @@ use crate::transformer::PseudoClasses;
 pub struct CssContent {
   source_size: usize,
   stylesheet: StyleSheet<'static>,
+  order_flags: bundling::OrderFlags,
   exports: HashMap<String, CssModuleExport>,
   references: HashMap<String, usize>,
   pseudo_classes: Option<Arc<PseudoClasses>>,

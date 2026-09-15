@@ -5,6 +5,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+bitflags = "2.7.0"
+fixedbitset = "0.5.7"
 parcel-core = { path = "../core" }
 lightningcss = { version = "1.0.0-alpha.72", default-features = false, features = [
   "into_owned",
