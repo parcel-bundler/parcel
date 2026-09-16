@@ -5,13 +5,15 @@
 //! the full pipeline, and compares the cascade semantics of the emitted file
 //! against a direct simulation of browser semantics over the source graph:
 //! every `@import` instance applies, layers are established at their first
-//! declaration, and later layers win normal declarations. The observable
-//! compared is the winning value per selector under each media environment.
+//! declaration, and importance reverses layer precedence. Anonymous layers
+//! have fresh identities per evaluation. External stylesheets come from an
+//! in-memory registry; no network requests are made. Each emitted stylesheet
+//! is parsed separately, preserving the validity of its import prelude.
 //!
-//! Not yet modeled (excluded from generation): `!important` (inverts layer
-//! priority), anonymous layers (each browser evaluation creates a fresh
-//! layer, while bundling merges per-site), `@supports`, external imports,
-//! and multi-bundle splits.
+//! Random builds cover supported layouts. Anonymous bundled content occurs
+//! only in sheets evaluated once per page; external imports precede bundled
+//! content. Unsupported layouts have explicit diagnostic tests, never skipped
+//! build failures. Not yet modeled: @supports, specificity, or import cycles.
 //!
 //! Run more seeds with `CSS_ORACLE_SEEDS=1000`, or reproduce one failure
 //! with `CSS_ORACLE_SEED=42`. On failure the temp dir is kept and printed.
@@ -24,6 +26,10 @@ use lightningcss::{
     Operator, Qualifier, QueryFeature,
   },
   printer::PrinterOptions,
+  properties::{
+    Property,
+    custom::{Token, TokenOrValue},
+  },
   rules::{CssRule, layer::LayerName},
   stylesheet::{ParserOptions, StyleSheet},
   traits::{IntoOwned, ToCss},
@@ -69,16 +75,32 @@ const SELECTORS: [&str; 2] = [".p0", ".p1"];
 /// (both widths against one viewport) are preserved on both sides.
 const ATOMS: [&str; 3] = ["(min-width: 600px)", "(min-width: 1000px)", "print"];
 
+#[derive(Clone, Debug)]
+enum GenLayer {
+  Named(String),
+  Anonymous,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum ImportTarget {
+  Local(usize),
+  External(usize),
+}
+
+fn external_url(index: usize) -> String {
+  format!("https://css-oracle.test/e{index}.css")
+}
+
 #[derive(Debug)]
 enum GenRule {
   Import {
-    target: usize,
-    layer: Option<String>,
+    target: ImportTarget,
+    layer: Option<GenLayer>,
     media: Option<usize>,
   },
   Statement(Vec<String>),
   Block {
-    name: String,
+    name: GenLayer,
     rules: Vec<GenRule>,
   },
   Media {
@@ -88,6 +110,7 @@ enum GenRule {
   Style {
     selector: usize,
     value: u32,
+    important: bool,
   },
 }
 
@@ -104,7 +127,15 @@ fn gen_statement(rng: &mut Rng) -> GenRule {
   )
 }
 
-fn gen_content(rng: &mut Rng, next_value: &mut u32, depth: usize) -> GenRule {
+fn gen_layer(rng: &mut Rng, anonymous: bool) -> GenLayer {
+  if anonymous && rng.chance(30) {
+    GenLayer::Anonymous
+  } else {
+    GenLayer::Named(LAYER_NAMES[rng.below(LAYER_NAMES.len())].to_string())
+  }
+}
+
+fn gen_content(rng: &mut Rng, next_value: &mut u32, depth: usize, anonymous: bool) -> GenRule {
   let choices = if depth < 2 { 6 } else { 2 };
   match rng.below(choices) {
     0 | 1 => {
@@ -112,19 +143,20 @@ fn gen_content(rng: &mut Rng, next_value: &mut u32, depth: usize) -> GenRule {
       GenRule::Style {
         selector: rng.below(SELECTORS.len()),
         value: *next_value,
+        important: rng.chance(35),
       }
     }
     2 => gen_statement(rng),
     3 | 4 => GenRule::Block {
-      name: LAYER_NAMES[rng.below(LAYER_NAMES.len())].to_string(),
+      name: gen_layer(rng, anonymous),
       rules: (0..1 + rng.below(2))
-        .map(|_| gen_content(rng, next_value, depth + 1))
+        .map(|_| gen_content(rng, next_value, depth + 1, anonymous))
         .collect(),
     },
     _ => GenRule::Media {
       atom: rng.below(ATOMS.len()),
       rules: (0..1 + rng.below(2))
-        .map(|_| gen_content(rng, next_value, depth + 1))
+        .map(|_| gen_content(rng, next_value, depth + 1, anonymous))
         .collect(),
     },
   }
@@ -137,10 +169,15 @@ fn gen_content(rng: &mut Rng, next_value: &mut u32, depth: usize) -> GenRule {
 /// naturally.
 const ENTRIES: usize = 2;
 
-fn gen_files(rng: &mut Rng) -> Vec<GenFile> {
+struct Case {
+  files: Vec<GenFile>,
+  external: Vec<GenFile>,
+}
+
+fn gen_files(rng: &mut Rng) -> Case {
   let count = ENTRIES + 1 + rng.below(3);
   let mut next_value = 0;
-  (0..count)
+  let mut files: Vec<GenFile> = (0..count)
     .map(|i| {
       let mut rules = Vec::new();
       // @layer statements may precede @import rules but cannot interleave
@@ -153,20 +190,72 @@ fn gen_files(rng: &mut Rng) -> Vec<GenFile> {
       if first_target < count {
         for _ in 0..1 + rng.below(3) {
           rules.push(GenRule::Import {
-            target: first_target + rng.below(count - first_target),
-            layer: rng
-              .chance(50)
-              .then(|| LAYER_NAMES[rng.below(LAYER_NAMES.len())].to_string()),
+            target: ImportTarget::Local(first_target + rng.below(count - first_target)),
+            layer: rng.chance(50).then(|| gen_layer(rng, i < ENTRIES)),
             media: rng.chance(30).then(|| rng.below(ATOMS.len())),
           });
         }
       }
       for _ in 0..1 + rng.below(3) {
-        rules.push(gen_content(rng, &mut next_value, 0));
+        rules.push(gen_content(rng, &mut next_value, 0, i < ENTRIES));
       }
       GenFile { rules }
     })
-    .collect()
+    .collect();
+
+  // Remote sheets are evaluated natively, so repeated anonymous content is
+  // valid here. Their imports form a separate DAG in the registry.
+  let external: Vec<_> = (0..3)
+    .map(|i| {
+      let mut rules = vec![gen_statement(rng)];
+      if i < 2 {
+        for _ in 0..1 + rng.below(2) {
+          rules.push(GenRule::Import {
+            target: ImportTarget::External(i + 1 + rng.below(2 - i)),
+            layer: rng.chance(60).then(|| gen_layer(rng, true)),
+            media: rng.chance(40).then(|| rng.below(ATOMS.len())),
+          });
+        }
+      }
+      for _ in 0..1 + rng.below(3) {
+        rules.push(gen_content(rng, &mut next_value, 0, true));
+      }
+      GenFile { rules }
+    })
+    .collect();
+
+  for entry in 0..ENTRIES {
+    if !rng.chance(65) {
+      continue;
+    }
+    let mut imports = Vec::new();
+    for _ in 0..1 + rng.below(3) {
+      imports.push(GenRule::Import {
+        target: ImportTarget::External(rng.below(external.len())),
+        layer: rng.chance(60).then(|| gen_layer(rng, true)),
+        media: rng.chance(40).then(|| rng.below(ATOMS.len())),
+      });
+    }
+    // Sometimes route the external imports through a local sheet, exercising
+    // composition of its layer/media conditions with the surviving imports.
+    if rng.chance(50) {
+      imports.push(gen_content(rng, &mut next_value, 0, true));
+      let target = files.len();
+      files.push(GenFile { rules: imports });
+      imports = vec![GenRule::Import {
+        target: ImportTarget::Local(target),
+        layer: rng.chance(60).then(|| gen_layer(rng, true)),
+        media: rng.chance(40).then(|| rng.below(ATOMS.len())),
+      }];
+    }
+    let prefix = files[entry]
+      .rules
+      .iter()
+      .take_while(|r| matches!(r, GenRule::Statement(_)))
+      .count();
+    files[entry].rules.splice(prefix..prefix, imports);
+  }
+  Case { files, external }
 }
 
 fn write_rule(out: &mut String, rule: &GenRule, indent: usize) {
@@ -177,9 +266,15 @@ fn write_rule(out: &mut String, rule: &GenRule, indent: usize) {
       layer,
       media,
     } => {
-      out.push_str(&format!("{pad}@import \"f{target}.css\""));
-      if let Some(layer) = layer {
-        out.push_str(&format!(" layer({layer})"));
+      let url = match target {
+        ImportTarget::Local(index) => format!("f{index}.css"),
+        ImportTarget::External(index) => external_url(*index),
+      };
+      out.push_str(&format!("{pad}@import \"{url}\""));
+      match layer {
+        Some(GenLayer::Named(name)) => out.push_str(&format!(" layer({name})")),
+        Some(GenLayer::Anonymous) => out.push_str(" layer"),
+        None => {}
       }
       if let Some(atom) = media {
         out.push_str(&format!(" {}", ATOMS[*atom]));
@@ -190,7 +285,10 @@ fn write_rule(out: &mut String, rule: &GenRule, indent: usize) {
       out.push_str(&format!("{pad}@layer {};\n", names.join(", ")));
     }
     GenRule::Block { name, rules } => {
-      out.push_str(&format!("{pad}@layer {name} {{\n"));
+      match name {
+        GenLayer::Named(name) => out.push_str(&format!("{pad}@layer {name} {{\n")),
+        GenLayer::Anonymous => out.push_str(&format!("{pad}@layer {{\n")),
+      }
       for rule in rules {
         write_rule(out, rule, indent + 1);
       }
@@ -203,10 +301,15 @@ fn write_rule(out: &mut String, rule: &GenRule, indent: usize) {
       }
       out.push_str(&format!("{pad}}}\n"));
     }
-    GenRule::Style { selector, value } => {
+    GenRule::Style {
+      selector,
+      value,
+      important,
+    } => {
       out.push_str(&format!(
-        "{pad}{} {{ --c: v{value} }}\n",
-        SELECTORS[*selector]
+        "{pad}{} {{ --c: v{value}{} }}\n",
+        SELECTORS[*selector],
+        if *important { " !important" } else { "" }
       ));
     }
   }
@@ -276,18 +379,45 @@ impl Cond {
   fn matches(&self, env: &Env) -> bool {
     match self {
       Cond::Atom(atom) => atom_matches(*atom, env),
-      Cond::Query(list) => list.media_queries.iter().any(|q| eval_query(q, env)),
+      Cond::Query(list) => {
+        list.media_queries.is_empty() || list.media_queries.iter().any(|q| eval_query(q, env))
+      }
+    }
+  }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+enum Layer {
+  Named(String),
+  Anonymous(usize),
+}
+
+#[derive(Default)]
+struct Identities(usize);
+
+impl Identities {
+  fn anonymous(&mut self) -> Layer {
+    let id = self.0;
+    self.0 += 1;
+    Layer::Anonymous(id)
+  }
+
+  fn layer(&mut self, layer: &GenLayer) -> Layer {
+    match layer {
+      GenLayer::Named(name) => Layer::Named(name.clone()),
+      GenLayer::Anonymous => self.anonymous(),
     }
   }
 }
 
 #[derive(Debug)]
 enum EventKind {
-  Declare(Vec<String>),
+  Declare(Vec<Layer>),
   Style {
     selector: String,
-    path: Vec<String>,
+    path: Vec<Layer>,
     value: String,
+    important: bool,
   },
 }
 
@@ -402,9 +532,9 @@ fn eval_feature(feature: &lightningcss::media_query::MediaFeature, env: &Env) ->
 
 /// Layer declaration order per scope, from the first declaration or use of
 /// each layer among the events matching the environment.
-type LayerOrder = HashMap<Vec<String>, Vec<String>>;
+type LayerOrder = HashMap<Vec<Layer>, Vec<Layer>>;
 
-fn register(order: &mut LayerOrder, path: &[String]) {
+fn register(order: &mut LayerOrder, path: &[Layer]) {
   for len in 1..=path.len() {
     let scope = path[..len - 1].to_vec();
     let segment = &path[len - 1];
@@ -415,11 +545,14 @@ fn register(order: &mut LayerOrder, path: &[String]) {
   }
 }
 
-/// Whether `challenger` wins against `incumbent` for a NORMAL declaration
-/// appearing later in the event stream. Unlayered (or less-nested at the
-/// point of divergence) styles win; between sibling layers the later
-/// declared wins; within one layer the later event wins.
-fn challenger_wins(order: &LayerOrder, incumbent: &[String], challenger: &[String]) -> bool {
+/// Importance reverses layer precedence (including implicit unlayered
+/// scopes), but source order within an identical layer still runs forwards.
+fn challenger_wins(
+  order: &LayerOrder,
+  incumbent: &[Layer],
+  challenger: &[Layer],
+  important: bool,
+) -> bool {
   let common = incumbent
     .iter()
     .zip(challenger.iter())
@@ -429,14 +562,14 @@ fn challenger_wins(order: &LayerOrder, incumbent: &[String], challenger: &[Strin
   let b = &challenger[common..];
   match (a.first(), b.first()) {
     (None, None) => true,
-    (None, Some(_)) => false,
-    (Some(_), None) => true,
+    (None, Some(_)) => important,
+    (Some(_), None) => !important,
     (Some(a), Some(b)) => {
       let scope = &incumbent[..common];
       let siblings = &order[&scope.to_vec()];
       let ia = siblings.iter().position(|s| s == a).unwrap();
       let ib = siblings.iter().position(|s| s == b).unwrap();
-      ib > ia
+      if important { ib < ia } else { ib > ia }
     }
   }
 }
@@ -453,39 +586,48 @@ fn winners(events: &[Event], env: &Env) -> HashMap<String, String> {
       EventKind::Style { path, .. } => register(&mut order, path),
     }
   }
-  let mut result: HashMap<String, (Vec<String>, String)> = HashMap::new();
+  let mut result: HashMap<String, (Vec<Layer>, String, bool)> = HashMap::new();
   for event in &matching {
     if let EventKind::Style {
       selector,
       path,
       value,
+      important,
     } = &event.kind
     {
       match result.get(selector) {
-        Some((incumbent, _)) if !challenger_wins(&order, incumbent, path) => {}
+        Some((incumbent, _, prior_important))
+          if (*prior_important && !important)
+            || (*prior_important == *important
+              && !challenger_wins(&order, incumbent, path, *important)) => {}
         _ => {
-          result.insert(selector.clone(), (path.clone(), value.clone()));
+          result.insert(selector.clone(), (path.clone(), value.clone(), *important));
         }
       }
     }
   }
   result
     .into_iter()
-    .map(|(selector, (_, value))| (selector, value))
+    .map(|(selector, (_, value, _))| (selector, value))
     .collect()
 }
 
 // ─────────────────────── reference: browser simulation ──────────────────────
 
 fn simulate(
-  files: &[GenFile],
-  index: usize,
-  path: &[String],
+  case: &Case,
+  target: ImportTarget,
+  path: &[Layer],
   atoms: &[usize],
   events: &mut Vec<Event>,
+  ids: &mut Identities,
 ) {
   let conds = |atoms: &[usize]| atoms.iter().map(|&a| Cond::Atom(a)).collect::<Vec<_>>();
-  for rule in &files[index].rules {
+  let file = match target {
+    ImportTarget::Local(i) => &case.files[i],
+    ImportTarget::External(i) => &case.external[i],
+  };
+  for rule in &file.rules {
     match rule {
       GenRule::Import {
         target,
@@ -498,27 +640,33 @@ fn simulate(
         }
         let mut path = path.to_vec();
         if let Some(layer) = layer {
-          path.push(layer.clone());
+          path.push(ids.layer(layer));
           events.push(Event {
             conds: conds(&atoms),
             kind: EventKind::Declare(path.clone()),
           });
         }
-        simulate(files, *target, &path, &atoms, events);
+        simulate(case, *target, &path, &atoms, events, ids);
       }
-      other => simulate_rule(other, path, atoms, events),
+      other => simulate_rule(other, path, atoms, events, ids),
     }
   }
 }
 
-fn simulate_rule(rule: &GenRule, path: &[String], atoms: &[usize], events: &mut Vec<Event>) {
+fn simulate_rule(
+  rule: &GenRule,
+  path: &[Layer],
+  atoms: &[usize],
+  events: &mut Vec<Event>,
+  ids: &mut Identities,
+) {
   let conds = |atoms: &[usize]| atoms.iter().map(|&a| Cond::Atom(a)).collect::<Vec<_>>();
   match rule {
     GenRule::Import { .. } => unreachable!("imports are top-level only"),
     GenRule::Statement(names) => {
       for name in names {
         let mut path = path.to_vec();
-        path.push(name.clone());
+        path.push(Layer::Named(name.clone()));
         events.push(Event {
           conds: conds(atoms),
           kind: EventKind::Declare(path),
@@ -527,29 +675,34 @@ fn simulate_rule(rule: &GenRule, path: &[String], atoms: &[usize], events: &mut 
     }
     GenRule::Block { name, rules } => {
       let mut path = path.to_vec();
-      path.push(name.clone());
+      path.push(ids.layer(name));
       events.push(Event {
         conds: conds(atoms),
         kind: EventKind::Declare(path.clone()),
       });
       for rule in rules {
-        simulate_rule(rule, &path, atoms, events);
+        simulate_rule(rule, &path, atoms, events, ids);
       }
     }
     GenRule::Media { atom, rules } => {
       let mut atoms = atoms.to_vec();
       atoms.push(*atom);
       for rule in rules {
-        simulate_rule(rule, path, &atoms, events);
+        simulate_rule(rule, path, &atoms, events, ids);
       }
     }
-    GenRule::Style { selector, value } => {
+    GenRule::Style {
+      selector,
+      value,
+      important,
+    } => {
       events.push(Event {
         conds: conds(atoms),
         kind: EventKind::Style {
           selector: SELECTORS[*selector].to_string(),
           path: path.to_vec(),
           value: format!("v{value}"),
+          important: *important,
         },
       });
     }
@@ -558,23 +711,51 @@ fn simulate_rule(rule: &GenRule, path: &[String], atoms: &[usize], events: &mut 
 
 // ───────────────────── extraction from the emitted file ─────────────────────
 
-fn layer_parts(name: &LayerName) -> Vec<String> {
+fn layer_parts(name: &LayerName) -> Vec<Layer> {
   name
     .0
     .iter()
-    .map(|part| part.as_ref().to_string())
+    .map(|part| Layer::Named(part.as_ref().to_string()))
     .collect()
 }
 
-fn extract(code: &str) -> Vec<Event> {
-  let stylesheet =
-    StyleSheet::parse(code, ParserOptions::default()).unwrap_or_else(|e| panic!("parse: {e}"));
+fn extract(codes: &[String], external: &[GenFile]) -> Vec<Event> {
+  let registry: HashMap<String, _> = external
+    .iter()
+    .enumerate()
+    .map(|(index, file)| {
+      let code = file_source(file);
+      let sheet = StyleSheet::parse(&code, ParserOptions::default())
+        .unwrap()
+        .into_owned();
+      (external_url(index), sheet)
+    })
+    .collect();
   let mut events = Vec::new();
-  extract_rules(&stylesheet.rules.0, &[], &[], &mut events);
+  let mut ids = Identities::default();
+  for code in codes {
+    let stylesheet =
+      StyleSheet::parse(code, ParserOptions::default()).unwrap_or_else(|e| panic!("parse: {e}"));
+    extract_rules(
+      &stylesheet.rules.0,
+      &[],
+      &[],
+      &mut events,
+      &mut ids,
+      &registry,
+    );
+  }
   events
 }
 
-fn extract_rules(rules: &[CssRule], path: &[String], conds: &[Cond], events: &mut Vec<Event>) {
+fn extract_rules(
+  rules: &[CssRule],
+  path: &[Layer],
+  conds: &[Cond],
+  events: &mut Vec<Event>,
+  ids: &mut Identities,
+  registry: &HashMap<String, StyleSheet<'static>>,
+) {
   for rule in rules {
     match rule {
       CssRule::LayerStatement(statement) => {
@@ -591,47 +772,84 @@ fn extract_rules(rules: &[CssRule], path: &[String], conds: &[Cond], events: &mu
         let mut path = path.to_vec();
         match &block.name {
           Some(name) => path.extend(layer_parts(name)),
-          None => panic!("unexpected anonymous layer block in output"),
+          None => path.push(ids.anonymous()),
         }
         events.push(Event {
           conds: conds.to_vec(),
           kind: EventKind::Declare(path.clone()),
         });
-        extract_rules(&block.rules.0, &path, conds, events);
+        extract_rules(&block.rules.0, &path, conds, events, ids, registry);
       }
       CssRule::Media(media) => {
         let mut conds = conds.to_vec();
         conds.push(Cond::Query(media.query.clone().into_owned()));
-        extract_rules(&media.rules.0, path, &conds, events);
+        extract_rules(&media.rules.0, path, &conds, events, ids, registry);
+      }
+      CssRule::Import(import) => {
+        assert!(import.supports.is_none(), "supports is not modeled");
+        let sheet = registry
+          .get(import.url.as_ref())
+          .unwrap_or_else(|| panic!("unregistered external import: {}", import.url));
+        let mut conds = conds.to_vec();
+        conds.push(Cond::Query(import.media.clone().into_owned()));
+        let mut path = path.to_vec();
+        if let Some(layer) = &import.layer {
+          match layer {
+            Some(name) => path.extend(layer_parts(name)),
+            None => path.push(ids.anonymous()),
+          }
+          events.push(Event {
+            conds: conds.clone(),
+            kind: EventKind::Declare(path.clone()),
+          });
+        }
+        extract_rules(&sheet.rules.0, &path, &conds, events, ids, registry);
       }
       CssRule::Style(style) => {
-        let css = style
+        assert!(
+          style.rules.0.is_empty(),
+          "nested style rules are not modeled"
+        );
+        let selectors = style
+          .selectors
           .to_css_string(PrinterOptions::default())
-          .unwrap_or_else(|e| panic!("serialize: {e}"));
-        let (selectors, body) = css.split_once('{').unwrap();
-        // A rule may hold several --c declarations if the minifier merged
-        // adjacent same-selector rules; the last one wins, matching the
-        // cascade. Selector lists cannot appear: the minifier only merges
-        // selectors of rules with identical declarations, and every
-        // generated value is unique.
-        assert!(body.contains("--c:"), "style rule without --c: {css}");
-        let value = body
-          .rsplit("--c:")
-          .next()
-          .unwrap()
-          .trim_start()
-          .chars()
-          .take_while(|c| c.is_ascii_alphanumeric())
-          .collect::<String>();
-        for selector in selectors.split(',') {
-          events.push(Event {
-            conds: conds.to_vec(),
-            kind: EventKind::Style {
-              selector: selector.trim().to_string(),
-              path: path.to_vec(),
-              value: value.clone(),
-            },
-          });
+          .unwrap();
+        // Read both declaration lists directly. A merged rule can contain
+        // normal and important values; textual last-declaration extraction
+        // would incorrectly discard the important value.
+        for (important, declarations) in [
+          (false, &style.declarations.declarations),
+          (true, &style.declarations.important_declarations),
+        ] {
+          for property in declarations {
+            let Property::Custom(property) = property else {
+              panic!("unexpected property: {property:?}")
+            };
+            assert_eq!(
+              property
+                .name
+                .to_css_string(PrinterOptions::default())
+                .unwrap(),
+              "--c"
+            );
+            let mut tokens = property.value.0.iter().filter(|t| !t.is_whitespace());
+            let Some(TokenOrValue::Token(Token::Ident(value))) = tokens.next() else {
+              panic!("unexpected custom property value: {:?}", property.value);
+            };
+            assert!(tokens.next().is_none(), "expected one identifier value");
+            let value = value.to_string();
+            for selector in selectors.split(',') {
+              events.push(Event {
+                conds: conds.to_vec(),
+                kind: EventKind::Style {
+                  selector: selector.trim().to_string(),
+                  path: path.to_vec(),
+                  value: value.clone(),
+                  important,
+                },
+              });
+            }
+          }
         }
       }
       CssRule::Ignored => {}
@@ -649,24 +867,31 @@ fn extract_rules(rules: &[CssRule], path: &[String], conds: &[Cond], events: &mu
 
 fn run_seed(seed: u64, mode: BuildMode) {
   let mut rng = Rng::new(seed);
-  let files = gen_files(&mut rng);
+  let case = gen_files(&mut rng);
+  run_case(&format!("seed-{seed}"), &case, mode, None);
+}
 
+fn run_case(label: &str, case: &Case, mode: BuildMode, expected_error: Option<&str>) {
   let mode_name = match mode {
     BuildMode::Production => "prod",
     _ => "dev",
   };
-  let dir = std::env::temp_dir().join(format!("parcel-css-oracle-{seed}-{mode_name}"));
+  let dir = std::env::temp_dir().join(format!("parcel-css-oracle-{label}-{mode_name}"));
   let _ = std::fs::remove_dir_all(&dir);
   std::fs::create_dir_all(&dir).unwrap();
   std::fs::write(dir.join("package.json"), "{\n  \"private\": true\n}\n").unwrap();
   let mut sources = String::new();
-  for (index, file) in files.iter().enumerate() {
+  for (index, file) in case.files.iter().enumerate() {
     let source = file_source(file);
     sources.push_str(&format!("── f{index}.css ──\n{source}"));
     std::fs::write(dir.join(format!("f{index}.css")), source).unwrap();
   }
-  let context =
-    |detail: &str| format!("seed {seed} ({mode_name}), dir {dir:?}\n{sources}\n{detail}");
+  for (index, file) in case.external.iter().enumerate() {
+    let source = file_source(file);
+    sources.push_str(&format!("── {} ──\n{source}", external_url(index)));
+    std::fs::write(dir.join(format!("external-{index}.css")), source).unwrap();
+  }
+  let context = |detail: &str| format!("{label} ({mode_name}), dir {dir:?}\n{sources}\n{detail}");
 
   let output_fs = Arc::new(MemoryFileSystem::new());
   let mut env = HashMap::new();
@@ -687,8 +912,23 @@ fn run_seed(seed: u64, mode: BuildMode) {
     hmr: None,
   };
   let entries: Vec<String> = (0..ENTRIES).map(|i| format!("f{i}.css")).collect();
-  let graph = parcel::build(&entries, options)
-    .unwrap_or_else(|e| panic!("{}", context(&format!("build failed: {e:?}"))));
+  let result = parcel::build(&entries, options);
+  if let Some(expected) = expected_error {
+    let Err(error) = result else {
+      panic!(
+        "{}",
+        context("expected a diagnostic, but the build succeeded")
+      )
+    };
+    assert!(
+      !error.0.is_empty() && error.0.iter().all(|d| d.message.contains(expected)),
+      "{}",
+      context(&format!("expected {expected:?}, got {error:?}"))
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+    return;
+  }
+  let graph = result.unwrap_or_else(|e| panic!("{}", context(&format!("build failed: {e:?}"))));
 
   // Each page's document is its entry bundle's references, in link order,
   // followed by the entry bundle itself — the same order the HTML packager
@@ -705,20 +945,27 @@ fn run_seed(seed: u64, mode: BuildMode) {
           })
       })
       .unwrap_or_else(|| panic!("{}", context(&format!("no bundle for entry {entry}"))));
-    let mut code = String::new();
+    let mut codes = Vec::new();
     for &referenced in &root.referenced_bundles {
-      code.push_str(
-        &output_fs
+      codes.push(
+        output_fs
           .read_to_string(graph.bundles[referenced].dist_path())
           .unwrap(),
       );
-      code.push('\n');
     }
-    code.push_str(&output_fs.read_to_string(root.dist_path()).unwrap());
+    codes.push(output_fs.read_to_string(root.dist_path()).unwrap());
+    let code = codes.join("\n/* next stylesheet */\n");
 
     let mut reference = Vec::new();
-    simulate(&files, entry, &[], &[], &mut reference);
-    let actual = extract(&code);
+    simulate(
+      case,
+      ImportTarget::Local(entry),
+      &[],
+      &[],
+      &mut reference,
+      &mut Identities::default(),
+    );
+    let actual = extract(&codes, &case.external);
 
     for env in ENVS {
       let expected = winners(&reference, &env);
@@ -754,5 +1001,294 @@ fn css_packaging_matches_browser_semantics() {
     if seed % 4 == 0 {
       run_seed(seed, BuildMode::Development);
     }
+  }
+}
+
+#[test]
+fn importance_and_layer_precedence() {
+  // Hand-calculated outcomes guard the reference evaluator itself, including
+  // the implicit unlayered sublayer at each level of nesting.
+  for (source, expected) in [
+    (".p0 { --c: first !important; --c: later }", "first"),
+    (
+      ".p0 { --c: first !important; --c: later !important }",
+      "later",
+    ),
+    (
+      "@layer a,b; @layer a { .p0 { --c: a } } @layer b { .p0 { --c: b } }",
+      "b",
+    ),
+    (
+      "@layer a,b; @layer a { .p0 { --c: a !important } } @layer b { .p0 { --c: b !important } }",
+      "a",
+    ),
+    (
+      "@layer a { .p0 { --c: layered !important } } .p0 { --c: plain !important }",
+      "layered",
+    ),
+    (
+      "@layer a { .p0 { --c: plain !important } @layer b { .p0 { --c: nested !important } } }",
+      "nested",
+    ),
+    (
+      "@layer a { @layer b { .p0 { --c: nested } } .p0 { --c: plain } }",
+      "plain",
+    ),
+    (
+      "@layer { .p0 { --c: first !important } } @layer { .p0 { --c: second !important } }",
+      "first",
+    ),
+    (
+      "@layer { .p0 { --c: first } } @layer { .p0 { --c: second } }",
+      "second",
+    ),
+  ] {
+    let events = extract(&[source.to_string()], &[]);
+    assert_eq!(winners(&events, &ENVS[0])[".p0"], expected, "{source}");
+  }
+}
+
+fn style(selector: usize, value: u32, important: bool) -> GenRule {
+  GenRule::Style {
+    selector,
+    value,
+    important,
+  }
+}
+
+fn import(target: ImportTarget, layer: Option<GenLayer>, media: Option<usize>) -> GenRule {
+  GenRule::Import {
+    target,
+    layer,
+    media,
+  }
+}
+
+fn case_with_entry(
+  rules: Vec<GenRule>,
+  dependencies: Vec<GenFile>,
+  external: Vec<GenFile>,
+) -> Case {
+  let mut files = vec![
+    GenFile { rules },
+    GenFile {
+      rules: vec![style(1, 999, false)],
+    },
+  ];
+  files.extend(dependencies);
+  Case { files, external }
+}
+
+#[test]
+fn repeated_external_anonymous_layers_are_fresh() {
+  let case = case_with_entry(
+    vec![
+      import(ImportTarget::External(0), None, None),
+      import(ImportTarget::External(1), None, None),
+      import(ImportTarget::External(0), None, None),
+    ],
+    vec![],
+    (0..2)
+      .map(|i| GenFile {
+        rules: vec![GenRule::Block {
+          name: GenLayer::Anonymous,
+          rules: vec![style(0, 1 + i, false), style(1, 3 + i, true)],
+        }],
+      })
+      .collect(),
+  );
+  let mut reference = Vec::new();
+  simulate(
+    &case,
+    ImportTarget::Local(0),
+    &[],
+    &[],
+    &mut reference,
+    &mut Identities::default(),
+  );
+  // Fresh layers make the last occurrence win normal declarations, and the
+  // first occurrence win important ones. Neither per-file layer identities
+  // nor deduplicating the repeated import can satisfy both assertions.
+  let expected = HashMap::from([(".p0".into(), "v1".into()), (".p1".into(), "v3".into())]);
+  assert_eq!(winners(&reference, &ENVS[0]), expected);
+  let actual = extract(&[file_source(&case.files[0])], &case.external);
+  assert_eq!(winners(&actual, &ENVS[0]), expected);
+  for mode in [BuildMode::Production, BuildMode::Development] {
+    run_case("repeated-external-anonymous", &case, mode, None);
+  }
+}
+
+#[test]
+fn anonymous_import_clauses_remain_distinct() {
+  let case = case_with_entry(
+    vec![
+      import(ImportTarget::Local(2), Some(GenLayer::Anonymous), None),
+      import(ImportTarget::Local(3), Some(GenLayer::Anonymous), None),
+      import(ImportTarget::Local(2), Some(GenLayer::Anonymous), None),
+    ],
+    vec![
+      GenFile {
+        rules: vec![style(0, 1, true), style(1, 2, false)],
+      },
+      GenFile {
+        rules: vec![style(0, 3, true), style(1, 4, false)],
+      },
+    ],
+    vec![],
+  );
+  for mode in [BuildMode::Production, BuildMode::Development] {
+    run_case("anonymous-import-clauses", &case, mode, None);
+  }
+}
+
+#[test]
+fn stylesheet_boundaries_preserve_external_imports() {
+  let external = vec![GenFile {
+    rules: vec![style(0, 2, false)],
+  }];
+  let events = extract(
+    &[
+      ".p0 { --c: v1 }".into(),
+      format!("@import '{}';", external_url(0)),
+    ],
+    &external,
+  );
+  assert_eq!(winners(&events, &ENVS[0])[".p0"], "v2");
+}
+
+#[test]
+fn unsupported_import_layouts_are_diagnostics() {
+  let anonymous_block = case_with_entry(
+    vec![
+      import(ImportTarget::Local(2), None, None),
+      import(ImportTarget::Local(2), None, None),
+    ],
+    vec![GenFile {
+      rules: vec![GenRule::Block {
+        name: GenLayer::Anonymous,
+        rules: vec![style(0, 1, true)],
+      }],
+    }],
+    vec![],
+  );
+  let anonymous_clause = case_with_entry(
+    vec![
+      import(ImportTarget::Local(2), None, None),
+      import(ImportTarget::Local(2), None, None),
+    ],
+    vec![
+      GenFile {
+        rules: vec![import(
+          ImportTarget::Local(3),
+          Some(GenLayer::Anonymous),
+          None,
+        )],
+      },
+      GenFile {
+        rules: vec![style(0, 1, true)],
+      },
+    ],
+    vec![],
+  );
+  let late_external = case_with_entry(
+    vec![
+      import(ImportTarget::Local(2), None, None),
+      import(ImportTarget::External(0), None, None),
+    ],
+    vec![GenFile {
+      rules: vec![style(0, 1, false)],
+    }],
+    vec![GenFile {
+      rules: vec![style(0, 2, false)],
+    }],
+  );
+  for mode in [BuildMode::Production, BuildMode::Development] {
+    for (label, case, diagnostic) in [
+      (
+        "repeated-anonymous-block",
+        &anonymous_block,
+        "every occurrence of an anonymous layer is a distinct layer",
+      ),
+      (
+        "repeated-anonymous-clause",
+        &anonymous_clause,
+        "every occurrence of an anonymous layer is a distinct layer",
+      ),
+      (
+        "late-external",
+        &late_external,
+        "cannot preserve its cascade position",
+      ),
+    ] {
+      run_case(label, case, mode.clone(), Some(diagnostic));
+    }
+  }
+}
+
+#[test]
+fn external_imports_compose_media_and_layers() {
+  let case = case_with_entry(
+    vec![
+      import(
+        ImportTarget::Local(2),
+        Some(GenLayer::Named("outer".into())),
+        Some(0),
+      ),
+      style(0, 2, true),
+    ],
+    vec![GenFile {
+      rules: vec![import(
+        ImportTarget::External(0),
+        Some(GenLayer::Anonymous),
+        Some(1),
+      )],
+    }],
+    vec![GenFile {
+      rules: vec![GenRule::Block {
+        name: GenLayer::Anonymous,
+        rules: vec![style(0, 1, true)],
+      }],
+    }],
+  );
+  let mut reference = Vec::new();
+  simulate(
+    &case,
+    ImportTarget::Local(0),
+    &[],
+    &[],
+    &mut reference,
+    &mut Identities::default(),
+  );
+  for env in ENVS {
+    assert_eq!(
+      winners(&reference, &env)[".p0"],
+      if env.width >= 1000.0 { "v1" } else { "v2" }
+    );
+  }
+  for mode in [BuildMode::Production, BuildMode::Development] {
+    run_case("external-composed-conditions", &case, mode, None);
+  }
+}
+
+#[test]
+fn external_import_precedes_shared_css() {
+  let mut case = case_with_entry(
+    vec![
+      import(ImportTarget::External(0), Some(GenLayer::Anonymous), None),
+      import(ImportTarget::Local(2), None, None),
+    ],
+    vec![GenFile {
+      rules: vec![GenRule::Block {
+        name: GenLayer::Named("local".into()),
+        rules: vec![style(0, 2, false)],
+      }],
+    }],
+    vec![GenFile {
+      rules: vec![style(0, 1, false)],
+    }],
+  );
+  case.files[1].rules = vec![import(ImportTarget::Local(2), None, None)];
+  for mode in [BuildMode::Production, BuildMode::Development] {
+    run_case("external-before-shared-css", &case, mode, None);
   }
 }

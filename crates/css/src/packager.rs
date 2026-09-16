@@ -515,10 +515,10 @@ fn inline(
                   emit_statement(wrapped.pop().unwrap(), &names, prefix, dest, declared);
                 }
               }
+              has_bundled_import = true;
             }
 
             *rule = CssRule::Ignored;
-            has_bundled_import = true;
           }
           BundleGraphDependencyResolution::Bundle { bundle_index, .. } => {
             let referenced_bundle = &bundle_graph.bundles[bundle_index as usize];

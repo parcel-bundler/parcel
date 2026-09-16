@@ -11,7 +11,7 @@ use std::collections::HashSet;
 use parcel_css::bundling::{OrderAnalysis, OrderedContent};
 
 use super::*;
-use crate::bundler::reachability::synchronous_dependencies;
+use crate::bundler::reachability::is_sync_dep;
 
 /// A planned CSS bundle: its assets in application order, and the identity
 /// seed used for a stable bundle id.
@@ -51,7 +51,18 @@ pub(super) fn plan(
   plannable: impl Fn(&Asset) -> bool,
 ) -> StylePlan {
   let mut analysis = OrderAnalysis::new(asset_graph, |asset| {
-    synchronous_dependencies(asset_graph, bundle_roots, asset_graph.asset(asset))
+    let asset = asset_graph.asset(asset);
+    asset_graph
+      .resolved_dependencies_with_indices(asset)
+      .filter(|&(index, target)| {
+        is_sync_dep(
+          asset_graph,
+          bundle_roots,
+          asset,
+          &asset.dependencies[index],
+          target,
+        )
+      })
   });
   let mut contexts = vec![OrderedContent::default(); bundle_roots.len()];
   for (root_index, root_asset) in bundle_roots.iter_active() {

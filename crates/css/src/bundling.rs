@@ -8,7 +8,7 @@ use std::ops::Range;
 use bitflags::bitflags;
 use fixedbitset::FixedBitSet;
 use lightningcss::rules::CssRule;
-use parcel_core::{AssetGraph, AssetIndex, AssetType};
+use parcel_core::{AssetGraph, AssetIndex, AssetType, ImportType};
 
 use crate::CssContent;
 
@@ -32,6 +32,9 @@ bitflags! {
   }
 }
 
+// An opaque import occupies a source-order position without an asset node.
+const EXTERNAL_IMPORT: AssetIndex = AssetIndex(u32::MAX);
+
 #[derive(Default)]
 struct Node {
   dependencies: Range<u32>,
@@ -49,13 +52,17 @@ pub struct OrderAnalysis {
 }
 
 impl OrderAnalysis {
-  /// `dependencies` must preserve source/execution order and use the same
-  /// edge selection as the bundler's reachability analysis (including its
+  /// `dependencies` returns (dependency index, asset) pairs in source/execution
+  /// order and must use the same edge selection as the bundler's reachability analysis (including its
   /// handling of lazy, isolated, and inline boundaries).
-  pub fn new<I: IntoIterator<Item = AssetIndex>>(
+  pub fn new<I: IntoIterator<Item = (usize, AssetIndex)>>(
     graph: &AssetGraph,
     mut dependencies: impl FnMut(AssetIndex) -> I,
   ) -> Self {
+    assert!(
+      graph.assets.len() <= u32::MAX as usize,
+      "too many CSS ordering assets"
+    );
     let mut nodes: Vec<Node> = (0..graph.assets.len()).map(|_| Node::default()).collect();
     let mut edges = Vec::new();
     for (index, asset, _) in graph.dfs() {
@@ -67,7 +74,33 @@ impl OrderAnalysis {
         flags |= OrderFlags::IS_CSS | OrderFlags::HAS_CSS;
       }
       let start = edge_offset(edges.len());
-      edges.extend(dependencies(index));
+      // Resolution is build-dependent. Interleave surviving stylesheet imports
+      // with the bundler's selected edges, retaining their exact positions.
+      let stylesheet_dependencies = if asset.ty == AssetType::Css {
+        asset.dependencies.as_slice()
+      } else {
+        &[]
+      };
+      let mut external = stylesheet_dependencies
+        .iter()
+        .enumerate()
+        .filter_map(|(i, dep)| {
+          (dep.import_type == ImportType::StyleSheet && graph.resolved_asset(dep).is_none())
+            .then_some(i)
+        })
+        .peekable();
+      for (dep, target) in dependencies(index) {
+        while external.peek().is_some_and(|&i| i <= dep) {
+          external.next();
+          edges.push(EXTERNAL_IMPORT);
+          flags |= OrderFlags::DECLARES_LAYERS;
+        }
+        edges.push(target);
+      }
+      for _ in external {
+        edges.push(EXTERNAL_IMPORT);
+        flags |= OrderFlags::DECLARES_LAYERS;
+      }
       nodes[index.index()] = Node {
         dependencies: start..edge_offset(edges.len()),
         flags,
@@ -152,17 +185,22 @@ fn propagate(nodes: &mut [Node], edges: &[AssetIndex]) {
     return;
   }
   let mut offsets = vec![0u32; nodes.len() + 1];
-  for child in edges {
-    offsets[child.index() + 1] += 1;
+  for &child in edges {
+    if child != EXTERNAL_IMPORT {
+      offsets[child.index() + 1] += 1;
+    }
   }
   for i in 1..offsets.len() {
     offsets[i] += offsets[i - 1];
   }
-  let mut parents = vec![AssetIndex(0); edges.len()];
+  let mut parents = vec![AssetIndex(0); offsets[nodes.len()] as usize];
   for index in 0..nodes.len() {
     let mut flags = nodes[index].flags;
     for edge in nodes[index].dependencies.clone() {
       let child = edges[edge as usize];
+      if child == EXTERNAL_IMPORT {
+        continue;
+      }
       parents[offsets[child.index()] as usize] = AssetIndex::from_index(index);
       offsets[child.index()] += 1;
       // An import's layer can declare a layer even if its stylesheet doesn't.
@@ -314,6 +352,7 @@ impl<F: Fn(AssetIndex) -> bool> Walk<'_, F> {
     if self.scratch.seen.contains(asset.index()) {
       return;
     }
+    let entry_start = self.output.assets.len();
     self.enter(asset);
     while let Some(frame) = self.scratch.stack.last_mut() {
       let node = &self.nodes[frame.asset.index()];
@@ -328,6 +367,13 @@ impl<F: Fn(AssetIndex) -> bool> Walk<'_, F> {
       }
       frame.next_edge -= 1;
       let target = self.edges[frame.next_edge as usize];
+      if target == EXTERNAL_IMPORT {
+        // The reverse walk has visited exactly the content following this
+        // import, including following siblings in ancestor sheets. Keep it
+        // with the import; preceding dependencies can still be shared.
+        self.keep_together(entry_start);
+        continue;
+      }
       let child = &self.nodes[target.index()];
       if !child.flags.contains(OrderFlags::IS_CSS) {
         continue;
@@ -537,6 +583,44 @@ mod tests {
       OrderedContent {
         assets: vec![AssetIndex(2), AssetIndex(1), AssetIndex(0)],
         keep_together: vec![],
+      }
+    );
+  }
+
+  #[test]
+  fn external_import_keeps_only_following_content() {
+    let mut analysis = analysis(vec![css(&[1, u32::MAX, 2]), css(&[]), css(&[])]);
+    assert_eq!(
+      analysis.for_context(AssetIndex(0), |_| true),
+      OrderedContent {
+        assets: vec![AssetIndex(1), AssetIndex(2), AssetIndex(0)],
+        keep_together: vec![1..3],
+      }
+    );
+  }
+
+  #[test]
+  fn nested_external_import_keeps_following_ancestor_content() {
+    let mut analysis = analysis(vec![
+      css(&[1, 2, 3]),
+      css(&[]),
+      css(&[4, u32::MAX, 5]),
+      css(&[]),
+      css(&[]),
+      css(&[]),
+    ]);
+    assert_eq!(
+      analysis.for_context(AssetIndex(0), |_| true),
+      OrderedContent {
+        assets: vec![
+          AssetIndex(1),
+          AssetIndex(4),
+          AssetIndex(5),
+          AssetIndex(2),
+          AssetIndex(3),
+          AssetIndex(0)
+        ],
+        keep_together: vec![2..6],
       }
     );
   }

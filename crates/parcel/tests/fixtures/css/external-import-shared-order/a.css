@@ -1,0 +1,3 @@
+@import "https://example.com/remote.css" layer(remote);
+@import "shared.css";
+.a { color: green; }
