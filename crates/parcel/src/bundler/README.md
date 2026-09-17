@@ -179,22 +179,39 @@ of each entry in development and production.
 
 ## Implementation costs
 
-Candidate layouts share asset and reference lists with copy-on-write storage,
-so evaluating a move copies only the lists it changes. Live/protected/host sets
-are packed bitsets. Traversal and asset-membership scratch buffers are reused;
-source reachability and host prices are computed once per source.
+A move's effect is computed in closed form rather than by retraversing
+loading closures. Hosts only receive payloads their consumers already load,
+and a parent is only redirected to a host its consumers already load, so a
+move cannot add a bundle to any closure: the only closure change is roots
+that stop loading the source, which are exactly the roots none of whose
+remaining parents (references, asset loads, or the root itself) still reach
+it. Given those roots, request, byte, violation, and cost changes follow from
+the source and hosts alone. Evaluating a candidate touches a few consumer
+bitsets per host and parent, and does not copy the layout.
 
-Candidate state evaluation updates cached sizes, edit rates, and eager asset
-dependency edges for changed hosts. Only the source's existing loading contexts
-are retraversed: all changed hosts and referencing parents were already loaded
-by subsets of those contexts. Each candidate stores a sparse delta of changed
-consumer bitsets, root totals, and bundle score contributions. Only the winning
-delta is applied. Retraversal preserves alternate-path and cycle handling without
-an additional reachability matrix. Costs are summed in the original bundle order
-to preserve floating-point tie-breaking.
+After each accepted move the whole state is rebuilt from the layout: a
+bitset reachability matrix over live bundles (a post-order fixed point that
+also handles cycles), consumer sets transposed from the root rows, per-root
+totals, and per-bundle costs. This is a few hundred thousand word operations
+on a thousand-bundle graph, and in debug builds the rebuilt totals are
+checked against the candidate's prediction.
 
-Unit tests compare every candidate, including rejected candidates, against the
-full state calculation. The manual timing test disables that oracle.
+Candidates are not re-enumerated every round. They wait in a priority queue
+keyed by score; a popped candidate is re-scored against the current state and
+applied only while it still beats the next entry, otherwise it is re-queued
+with its fresh score. Untouched candidates can only get worse (hosts grow,
+pressure falls), so this reproduces the greedy order except when a score
+improves, which is picked up on its next pop. A move regenerates candidates
+only where new ones can appear: the source and hosts, bundles that gained the
+hosts as parents, and sources the shrunken source newly qualifies to host. A
+final full sweep runs when the queue empties, so the fixed point is still
+"no acceptable move remains". Cost changes are sums of per-bundle differences
+rather than a full re-sum, so tie-breaking among near-equal candidates can
+differ from a full recomputation by float noise.
+
+Unit tests apply every assessed candidate, accepted or rejected, to a copy of
+the layout and compare the acceptance decision and predicted totals against
+the full state calculation. The manual timing test disables that oracle.
 
 A manual simulated-workload timing check covers small graphs, many assets,
 many roots, narrow and broad sharing, and layouts already within the limits:

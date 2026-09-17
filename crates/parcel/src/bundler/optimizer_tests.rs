@@ -11,8 +11,8 @@ fn check(
 ) {
   let bundles = placement_bundles(contents);
   let layout = Layout::new(
-    bundles.iter().map(|b| Rc::new(b.assets.clone())).collect(),
-    references.iter().map(|r| Rc::new(r.to_vec())).collect(),
+    bundles.iter().map(|b| b.assets.clone()).collect(),
+    references.iter().map(|r| r.to_vec()).collect(),
   );
   let mut protected = FixedBitSet::with_capacity(bundles.len());
   protected.insert_range(..roots);
@@ -582,13 +582,25 @@ fn optimizer_workload_timings() {
 
 // Check every candidate against the full calculation, including candidates
 // rejected early. Timing tests disable this oracle so they measure real work.
-pub(super) fn assert_delta(
-  model: &Model,
-  layout: &Layout,
-  before: &State,
-  delta: Option<&StateDelta>,
+pub(super) fn assert_candidate(
+  search: &Search,
+  source: usize,
+  hosts: &[usize],
+  assessment: &Assessment,
 ) {
-  let full = model.state(layout);
+  let model = search.model;
+  let before = &search.state;
+  let mut layout = search.layout.clone();
+  let mut members = FixedBitSet::with_capacity(model.sizes.len());
+  apply(
+    &mut layout,
+    &mut members,
+    source,
+    hosts,
+    &assessment.redirects,
+    assessment.alive,
+  );
+  let full = model.state(&layout);
   let improved = full.small + full.excess < before.small + before.excess
     || full.cost < before.cost - COST_EPSILON;
   let valid = full
@@ -607,23 +619,18 @@ pub(super) fn assert_delta(
     && full.excess <= before.excess
     && improved;
   assert_eq!(
-    delta.is_some(),
+    assessment.accepted.is_some(),
     valid,
-    "candidate acceptance differs from full state"
+    "candidate acceptance differs from full state (source {source}, hosts {hosts:?})"
   );
-  let Some(delta) = delta else {
+  let Some(verdict) = &assessment.accepted else {
     return;
   };
-  let mut actual = before.clone();
-  delta.clone().apply(&mut actual);
-  assert_eq!(actual.consumers, full.consumers);
-  assert_eq!(actual.requests, full.requests);
-  assert_eq!(actual.bytes, full.bytes);
-  assert_eq!(actual.sizes, full.sizes);
-  assert_eq!(actual.rates, full.rates);
-  assert_eq!(actual.loads, full.loads);
-  assert_eq!(actual.costs, full.costs);
-  assert_eq!(delta.small, full.small);
-  assert_eq!(delta.excess, full.excess);
-  assert_eq!(delta.cost, full.cost);
+  assert_eq!((verdict.small, verdict.excess), (full.small, full.excess));
+  assert!(
+    (verdict.cost - full.cost).abs() <= 1e-9 * full.cost.abs().max(1.0),
+    "predicted cost {} differs from full state {}",
+    verdict.cost,
+    full.cost
+  );
 }
