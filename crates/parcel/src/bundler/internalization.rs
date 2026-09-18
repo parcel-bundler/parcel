@@ -7,7 +7,10 @@ use parcel_core::{
 };
 
 use super::{
-  availability::AvailabilityGraph, bundle_roots::BundleRoots, reachability::Reachability,
+  availability::AvailabilityGraph,
+  bit_matrix::{AsBitRow, BitMatrix},
+  bundle_roots::BundleRoots,
+  reachability::Reachability,
 };
 
 pub struct Internalization {
@@ -79,7 +82,7 @@ impl Internalization {
         && !manual_roots.contains(asset.index())
         && availability
           .synchronous_classes(root)
-          .is_disjoint(&resource_classes)
+          .is_disjoint(resource_classes.bits())
       {
         eligible_roots.insert(root);
       }
@@ -140,7 +143,7 @@ impl Internalization {
     roots: &mut BundleRoots,
     reachability: &Reachability,
     availability: &AvailabilityGraph,
-    available: &[FixedBitSet],
+    available: &BitMatrix,
     resolutions: &mut HashMap<DependencyId, BundleGraphDependencyResolution>,
   ) -> bool {
     for candidate in &mut self.candidates {

@@ -123,9 +123,9 @@ impl Layout {
 #[derive(Clone)]
 struct State {
   /// Root indices whose eager loading closure includes each bundle.
-  consumers: Vec<FixedBitSet>,
+  consumers: BitMatrix,
   /// Live bundles in each bundle's eager closure, including itself.
-  reach: Vec<FixedBitSet>,
+  reach: BitMatrix,
   /// Live bundles explicitly referencing each bundle.
   ref_parents: Vec<Vec<usize>>,
   /// Live bundles whose assets eagerly load each bundle.
@@ -165,8 +165,8 @@ const UNVISITED: usize = usize::MAX;
 impl State {
   fn new(bundles: usize, roots: usize) -> Self {
     State {
-      consumers: vec![FixedBitSet::with_capacity(roots); bundles],
-      reach: vec![FixedBitSet::with_capacity(bundles); bundles],
+      consumers: BitMatrix::new(bundles, roots),
+      reach: BitMatrix::new(bundles, bundles),
       ref_parents: vec![Vec::new(); bundles],
       load_parents: vec![Vec::new(); bundles],
       requests: vec![0; roots],
@@ -239,9 +239,7 @@ impl State {
     // the finished closures of their successors, computed once on completion.
     let loads = std::mem::take(&mut self.loads);
     let mut reach = std::mem::take(&mut self.reach);
-    for row in &mut reach {
-      row.clear();
-    }
+    reach.clear();
     let edge = |b: usize, i: usize| -> Option<usize> {
       let references = &layout.references[b];
       if i < references.len() {
@@ -305,12 +303,12 @@ impl State {
           self.row.insert(m);
           for &c in layout.references[m].iter().chain(&loads[m]) {
             if layout.live.contains(c) {
-              self.row.union_with(&reach[c]);
+              self.row.bits_mut().union_with(&reach[c]);
             }
           }
         }
         for &m in &self.members {
-          reach[m].as_mut_slice().copy_from_slice(self.row.as_slice());
+          reach[m].copy_from(self.row.bits());
         }
       }
     }
@@ -318,7 +316,6 @@ impl State {
     self.loads = loads;
 
     if let Some((source, _)) = changed {
-      let mut consumers = std::mem::take(&mut self.consumers[source]);
       self.roots_row.clear();
       for (context, &root) in model.roots.iter().enumerate() {
         if self.reach[root].contains(source) {
@@ -326,17 +323,13 @@ impl State {
         }
       }
       if model.bundles[source].bundle_behavior != BundleBehavior::Inline {
-        consumers.difference_with(&self.roots_row);
-        for context in consumers.ones() {
+        for context in self.consumers[source].difference(self.roots_row.bits()) {
           self.requests[context] -= 1;
         }
       }
-      consumers.clone_from(&self.roots_row);
-      self.consumers[source] = consumers;
+      self.consumers[source].copy_from(self.roots_row.bits());
     } else {
-      for row in &mut self.consumers {
-        row.clear();
-      }
+      self.consumers.clear();
       self.requests.fill(0);
       self.bytes.fill(0);
       for (context, &root) in model.roots.iter().enumerate() {
@@ -363,7 +356,7 @@ impl State {
     self.small = 0;
     self.cost = 0.0;
     for (b, roots) in self.consumers.iter().enumerate() {
-      let k = roots.count_ones(..);
+      let k = roots.count_ones();
       if k == 0 {
         self.costs[b] = 0.0;
         continue;
@@ -773,6 +766,7 @@ struct Search<'m, 'a> {
   dropped: FixedBitSet,
   seen_roots: FixedBitSet,
   multi: FixedBitSet,
+  remaining: FixedBitSet,
   redirect: Vec<usize>,
   redirect_touched: Vec<usize>,
   // Candidate queue.
@@ -812,6 +806,7 @@ impl<'m, 'a> Search<'m, 'a> {
       dropped: FixedBitSet::with_capacity(roots),
       seen_roots: FixedBitSet::with_capacity(roots),
       multi: FixedBitSet::with_capacity(roots),
+      remaining: FixedBitSet::with_capacity(roots),
       redirect: vec![UNKNOWN; bundles],
       redirect_touched: Vec::new(),
       heap: BinaryHeap::new(),
@@ -876,7 +871,7 @@ impl<'m, 'a> Search<'m, 'a> {
   }
 
   fn commit(&mut self, source: usize, hosts: &[usize], assessment: &Assessment) {
-    let old_consumers = self.state.consumers[source].clone();
+    let old_consumers = self.state.consumers[source].to_owned();
     let old_references = self.layout.references[source].clone();
     apply(
       &mut self.layout,
@@ -962,7 +957,7 @@ impl<'m, 'a> Search<'m, 'a> {
     if !self.layout.live.contains(b) {
       return false;
     }
-    let pressure = !self.state.consumers[b].is_disjoint(&self.pressured);
+    let pressure = !self.state.consumers[b].is_disjoint(self.pressured.bits());
     if self.model.protected.contains(b) {
       return self.model.hosts.contains(b) && !self.layout.assets[b].is_empty() && pressure;
     }
@@ -1027,7 +1022,10 @@ impl<'m, 'a> Search<'m, 'a> {
     }
     self.load_still.clear();
     for &q in &self.state.load_parents[source] {
-      self.load_still.union_with(&self.state.consumers[q]);
+      self
+        .load_still
+        .bits_mut()
+        .union_with(&self.state.consumers[q]);
     }
   }
 
@@ -1072,7 +1070,7 @@ impl<'m, 'a> Search<'m, 'a> {
     // asset loads always keep it.
     self.covered.clear();
     for &h in hosts {
-      self.covered.union_with(&self.state.consumers[h]);
+      self.covered.bits_mut().union_with(&self.state.consumers[h]);
     }
     for &p in &self.redirect_touched {
       self.redirect[p] = UNKNOWN;
@@ -1132,14 +1130,14 @@ impl<'m, 'a> Search<'m, 'a> {
     // assets enough to fit within the removed source.
     let size = state.sizes[source];
     for info in infos {
-      if info.size > 0 && !state.consumers[info.bundle].is_subset(&self.dropped) {
+      if info.size > 0 && !state.consumers[info.bundle].is_subset(self.dropped.bits()) {
         return None;
       }
     }
     self.seen_roots.clear();
     self.multi.clear();
     for info in infos {
-      let consumers = state.consumers[info.bundle].as_slice();
+      let consumers = state.consumers[info.bundle].blocks();
       for ((multi, seen), &c) in self
         .multi
         .as_mut_slice()
@@ -1171,14 +1169,14 @@ impl<'m, 'a> Search<'m, 'a> {
     let mut change = 0.0;
     for info in infos {
       let h = info.bundle;
-      let k = state.consumers[h].count_ones(..);
+      let k = state.consumers[h].count_ones();
       let new_size = state.sizes[h] + info.size;
       if model.undersized(h, state.sizes[h]) && !model.undersized(h, new_size) {
         small -= k;
       }
       change += model.bundle_cost(new_size, state.rates[h] + info.rate, k) - state.costs[h];
     }
-    let k = state.consumers[source].count_ones(..);
+    let k = state.consumers[source].count_ones();
     change += model.bundle_cost(size, state.rates[source], k - dropped) - state.costs[source];
     // Accept a move only when it strictly reduces the remaining violations or
     // strictly reduces cost; either alone qualifies, and neither can worsen.
@@ -1253,7 +1251,7 @@ impl<'m, 'a> Search<'m, 'a> {
     }
   }
 
-  fn greedy_cover(&self, source: usize, infos: &[HostInfo]) -> Vec<usize> {
+  fn greedy_cover(&mut self, source: usize, infos: &[HostInfo]) -> Vec<usize> {
     // Prices do not change as the remaining consumer set shrinks. A host
     // rejected here cannot become eligible later, so one sorted pass is
     // equivalent to repeatedly searching for the cheapest eligible host.
@@ -1267,12 +1265,14 @@ impl<'m, 'a> Search<'m, 'a> {
         .then_with(|| self.model.bundles[a].id.cmp(&self.model.bundles[b].id))
     });
     let mut cover = Vec::new();
-    let mut remaining = self.state.consumers[source].clone();
+    let remaining = self.remaining.bits_mut();
+    remaining.copy_from(&self.state.consumers[source]);
     for (host, _) in priced {
-      if !self.state.consumers[host].is_subset(&remaining) {
+      let consumers = &self.state.consumers[host];
+      if !consumers.is_subset(remaining) {
         continue;
       }
-      remaining.difference_with(&self.state.consumers[host]);
+      remaining.difference_with(consumers);
       cover.push(host);
       if remaining.is_clear() {
         break;
@@ -1287,7 +1287,7 @@ impl<'m, 'a> Search<'m, 'a> {
   fn host_price(&self, info: &HostInfo) -> f64 {
     let h = info.bundle;
     // Host consumer sets are never empty, so k is at least one.
-    let k = self.state.consumers[h].count_ones(..);
+    let k = self.state.consumers[h].count_ones();
     let before = self
       .model
       .bundle_cost(self.state.sizes[h], self.state.rates[h], k);

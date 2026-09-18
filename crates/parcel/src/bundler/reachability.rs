@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use fixedbitset::FixedBitSet;
 use parcel_core::{Asset, AssetGraph, AssetIndex, BundleBehavior, Dependency, Priority};
 
+use super::bit_matrix::{BitMatrix, BitRow};
 use super::bundle_roots::BundleRoots;
 
 pub struct Reachability {
@@ -11,10 +11,10 @@ pub struct Reachability {
   // a class is generated together by availability's synchronous root closures.
   // Unreachable assets map to the shared empty class.
   asset_classes: Vec<u32>,
-  // Class ID -> bitset of dense root indices. Initially these are synchronous
+  // Class ID -> row of dense root indices. Initially these are synchronous
   // reaching roots. Availability later removes roots with guaranteed availability.
   // Classes remain based on the original sets, so filtered sets can be equal.
-  reachable_roots: Vec<FixedBitSet>,
+  reachable_roots: BitMatrix,
 }
 
 impl Reachability {
@@ -109,21 +109,18 @@ impl Reachability {
     drop(stack);
     drop(frames);
 
-    // One bitset per component, plus a trailing empty component shared by all
+    // One row per component, plus a trailing empty component shared by all
     // unreachable assets.
     let component_count = offsets.len() - 1;
-    let mut reachable_roots =
-      vec![FixedBitSet::with_capacity(bundle_roots.len()); component_count + 1];
+    let mut reachable_roots = BitMatrix::new(component_count + 1, bundle_roots.len());
     for (root_index, root) in bundle_roots.iter_all() {
-      reachable_roots[asset_components[root.index()] as usize].insert(root_index);
+      reachable_roots.insert(asset_components[root.index()] as usize, root_index);
     }
 
     // Tarjan emits components in reverse topological order. Replay the recorded
     // edges to propagate through the implicit condensation DAG.
     let mut seen = vec![u32::MAX; component_count];
     for component in (0..component_count).rev() {
-      let (targets, rest) = reachable_roots.split_at_mut(component);
-      let source = &rest[0];
       for &member in &members[offsets[component] as usize..offsets[component + 1] as usize] {
         let d = discovery[member as usize] as usize;
         for &target in &edge_targets[edge_offsets[d] as usize..edge_offsets[d + 1] as usize] {
@@ -131,7 +128,7 @@ impl Reachability {
           if target_component != component && seen[target_component] != component as u32 {
             debug_assert!(target_component < component);
             seen[target_component] = component as u32;
-            targets[target_component].union_with(source);
+            reachable_roots.union_rows(target_component, component);
           }
         }
       }
@@ -148,27 +145,40 @@ impl Reachability {
     Self::from_components(asset_components, reachable_roots)
   }
 
-  pub fn from_components(mut asset_classes: Vec<u32>, reachable_roots: Vec<FixedBitSet>) -> Self {
-    let component_count = reachable_roots.len() - 1;
-    // Intern equal sets, including equal sets from distinct SCCs. Move the
-    // bitsets into the table so this does not copy the reachability matrix.
+  pub fn from_components(mut asset_classes: Vec<u32>, mut reachable_roots: BitMatrix) -> Self {
+    let component_count = reachable_roots.rows() - 1;
+    // Intern equal sets, including equal sets from distinct SCCs, by borrowing
+    // rows so this does not copy the reachability matrix.
     let mut classes = HashMap::new();
     // Temporary SCC ID -> canonical class ID, including the trailing empty SCC.
     let component_classes: Vec<u32> = reachable_roots
-      .into_iter()
+      .iter()
       .map(|roots| {
         let next = classes.len() as u32;
         *classes.entry(roots).or_insert(next)
       })
       .collect();
+    let class_count = classes.len();
+    drop(classes);
     for component in &mut asset_classes {
       *component = component_classes[(*component as usize).min(component_count)];
     }
-    // Reorder the interned sets by class ID so subsequent queries need no hash lookup.
-    let mut reachable_roots = vec![FixedBitSet::new(); classes.len()];
-    for (roots, class) in classes {
-      reachable_roots[class as usize] = roots;
+    // Class IDs follow first appearance, so a component introduces a new class
+    // exactly when its class ID equals the number of classes seen so far, and
+    // that class's row sits at or before it: compact in place, then drop the rest.
+    let mut next = 0;
+    for (component, &class) in component_classes.iter().enumerate() {
+      let class = class as usize;
+      if class == next {
+        reachable_roots.copy_row(class, component);
+        next += 1;
+      }
     }
+    // Interning typically collapses most components: a deep synchronous chain
+    // has one class per root but one component per asset. Release the
+    // component-sized buffer rather than carrying it for the whole build.
+    reachable_roots.truncate(class_count);
+    reachable_roots.shrink_to_fit();
 
     Reachability {
       asset_classes,
@@ -176,11 +186,11 @@ impl Reachability {
     }
   }
 
-  pub fn reachable_roots(&self, index: AssetIndex) -> &FixedBitSet {
+  pub fn reachable_roots(&self, index: AssetIndex) -> &BitRow {
     self.roots_for_class(self.class(index))
   }
 
-  pub fn roots_for_class(&self, class: usize) -> &FixedBitSet {
+  pub fn roots_for_class(&self, class: usize) -> &BitRow {
     &self.reachable_roots[class]
   }
 
@@ -189,21 +199,21 @@ impl Reachability {
   }
 
   pub fn class_count(&self) -> usize {
-    self.reachable_roots.len()
+    self.reachable_roots.rows()
   }
 
-  pub fn classes(&self) -> impl Iterator<Item = (usize, &FixedBitSet)> {
+  pub fn classes(&self) -> impl Iterator<Item = (usize, &BitRow)> {
     self.reachable_roots.iter().enumerate()
   }
 
   pub fn retain_active_roots(&mut self, roots: &BundleRoots) {
-    for reachable in &mut self.reachable_roots {
-      roots.retain_active(reachable);
+    for class in 0..self.reachable_roots.rows() {
+      roots.retain_active(&mut self.reachable_roots[class]);
     }
   }
 
   pub fn remove_root_from_class(&mut self, class: usize, root: usize) {
-    self.reachable_roots[class].set(root, false);
+    self.reachable_roots.set(class, root, false);
   }
 }
 

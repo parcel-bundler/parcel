@@ -3,7 +3,11 @@ use std::collections::VecDeque;
 use fixedbitset::FixedBitSet;
 use parcel_core::{AssetGraph, BundleBehavior, Priority};
 
-use super::{bundle_roots::BundleRoots, reachability::Reachability};
+use super::{
+  bit_matrix::{AsBitRow, BitMatrix, BitRow},
+  bundle_roots::BundleRoots,
+  reachability::Reachability,
+};
 
 #[derive(Clone, Copy, Debug)]
 pub enum AvailabilityEdgeKind {
@@ -38,9 +42,9 @@ impl AvailabilityEdge {
 }
 
 pub struct AvailabilityGraph {
-  // Root index -> bitset of synchronously loaded class IDs (the transpose of
+  // Root index -> row of synchronously loaded class IDs (the transpose of
   // original reachability). Immutable throughout analysis and requirement filtering.
-  synchronous: Vec<FixedBitSet>,
+  synchronous: BitMatrix,
   // Root-indexed set whose IN stays empty: entries, inline/isolated roots,
   // environment boundaries, and roots without a live path from these boundaries.
   boundaries: FixedBitSet,
@@ -58,7 +62,7 @@ pub struct AvailabilityGraph {
 
 pub struct AvailabilityState {
   // Reused root-major IN matrix. Rows are reset in place before each round.
-  available: Vec<FixedBitSet>,
+  available: BitMatrix,
   // Reused worklist and membership set for the descending must analysis.
   queue: VecDeque<usize>,
   queued: FixedBitSet,
@@ -73,7 +77,7 @@ impl AvailabilityState {
     let root_count = graph.root_count();
     let class_count = graph.class_count();
     Self {
-      available: vec![FixedBitSet::with_capacity(class_count); root_count],
+      available: BitMatrix::new(root_count, class_count),
       queue: VecDeque::with_capacity(root_count),
       queued: FixedBitSet::with_capacity(root_count),
       input: FixedBitSet::with_capacity(class_count),
@@ -82,11 +86,7 @@ impl AvailabilityState {
     }
   }
 
-  pub fn solve<'a>(
-    &'a mut self,
-    graph: &AvailabilityGraph,
-    roots: &BundleRoots,
-  ) -> &'a [FixedBitSet] {
+  pub fn solve<'a>(&'a mut self, graph: &AvailabilityGraph, roots: &BundleRoots) -> &'a BitMatrix {
     self.solve_with(graph, |root| roots.is_active(root))
   }
 
@@ -94,29 +94,34 @@ impl AvailabilityState {
     &'a mut self,
     graph: &AvailabilityGraph,
     is_active: impl Fn(usize) -> bool,
-  ) -> &'a [FixedBitSet] {
+  ) -> &'a BitMatrix {
     self.queue.clear();
     self.queued.clear();
 
     // TOP is the universe of classes. Reinitialize the existing allocations;
     // inactive roots have no IN row and no outgoing loading occurrences.
-    for root in 0..self.available.len() {
-      self.available[root].clear();
-      if is_active(root) {
-        if !graph.is_boundary(root) {
-          self.available[root].insert_range(..);
-        }
-        self.queue.push_back(root);
-        self.queued.insert(root);
+    for root in 0..self.available.rows() {
+      if !is_active(root) {
+        self.available[root].clear();
+        continue;
       }
+      if graph.is_boundary(root) {
+        self.available[root].clear();
+      } else {
+        self.available.fill_row(root);
+      }
+      self.queue.push_back(root);
+      self.queued.insert(root);
     }
 
     while let Some(root) = self.queue.pop_front() {
       self.queued.set(root, false);
       // Snapshot once: self edges may shrink this root during the scan.
-      self.input.clone_from(&self.available[root]);
-      self.output.clone_from(&self.input);
-      self.output.union_with(graph.synchronous_classes(root));
+      self.input.bits_mut().copy_from(&self.available[root]);
+      self
+        .output
+        .bits_mut()
+        .copy_union_from(self.input.bits(), graph.synchronous_classes(root));
 
       for class in graph.synchronous_classes(root).ones() {
         for group in graph.groups_for_class(class) {
@@ -137,14 +142,17 @@ impl AvailabilityState {
             };
 
             if !graph.is_boundary(target)
-              && intersect_changed(&mut self.available[target], contribution)
+              && self.available[target].intersect_changed(contribution.bits())
               && !self.queued.put(target)
             {
               self.queue.push_back(target);
             }
 
             if matches!(edge.kind(), AvailabilityEdgeKind::Parallel) && !graph.is_boundary(target) {
-              self.parallel.union_with(graph.synchronous_classes(target));
+              self
+                .parallel
+                .bits_mut()
+                .union_with(graph.synchronous_classes(target));
             }
           }
         }
@@ -155,7 +163,7 @@ impl AvailabilityState {
   }
 
   #[cfg(test)]
-  pub fn rows(&self) -> &[FixedBitSet] {
+  pub fn rows(&self) -> &BitMatrix {
     &self.available
   }
 }
@@ -238,10 +246,10 @@ impl AvailabilityGraph {
     // Root-major view of the same relation: each bit is a whole asset class,
     // whose members always enter and leave availability together.
     let root_count = boundaries.len();
-    let mut synchronous = vec![FixedBitSet::with_capacity(reachability.class_count()); root_count];
+    let mut synchronous = BitMatrix::new(root_count, reachability.class_count());
     for (class, roots) in reachability.classes() {
       for root in roots.ones() {
-        synchronous[root].insert(class);
+        synchronous.insert(root, class);
       }
     }
 
@@ -307,16 +315,16 @@ impl AvailabilityGraph {
   }
 
   #[cfg(test)]
-  pub fn solve(&self) -> Vec<FixedBitSet> {
+  pub fn solve(&self) -> BitMatrix {
     let mut state = AvailabilityState::new(self);
-    state.solve_with(self, |_| true).to_vec()
+    state.solve_with(self, |_| true).clone()
   }
 
   pub fn needed_roots(
     &self,
     mut reachability: Reachability,
     roots: &BundleRoots,
-    available: &[FixedBitSet],
+    available: &BitMatrix,
   ) -> Reachability {
     // Root index -> class containing the root asset; retain its explicit bundle identity.
     let root_classes: Vec<_> = roots
@@ -332,11 +340,13 @@ impl AvailabilityGraph {
     // Reuse reachability's storage for final requirements rather than keeping
     // another class-by-root matrix.
     for (root, _) in roots.iter_active() {
-      let input = &available[root];
-      for class in self.synchronous_classes(root).ones() {
+      for class in self
+        .synchronous_classes(root)
+        .intersection(&available[root])
+      {
         // Keep explicit bundle roots and their co-generated class. Eliminating
         // a root also requires internalizing its dependency resolutions.
-        if class != root_classes[root] && input.contains(class) {
+        if class != root_classes[root] {
           reachability.remove_root_from_class(class, root);
         }
       }
@@ -345,7 +355,7 @@ impl AvailabilityGraph {
     reachability
   }
 
-  pub fn synchronous_classes(&self, root: usize) -> &FixedBitSet {
+  pub fn synchronous_classes(&self, root: usize) -> &BitRow {
     &self.synchronous[root]
   }
 
@@ -355,7 +365,7 @@ impl AvailabilityGraph {
   }
 
   pub fn root_count(&self) -> usize {
-    self.synchronous.len()
+    self.synchronous.rows()
   }
 
   pub fn class_count(&self) -> usize {
@@ -374,17 +384,4 @@ impl AvailabilityGraph {
     &self.edges[self.group_edge_offsets[group as usize] as usize
       ..self.group_edge_offsets[group as usize + 1] as usize]
   }
-}
-
-fn intersect_changed(target: &mut FixedBitSet, source: &FixedBitSet) -> bool {
-  debug_assert_eq!(target.len(), source.len());
-  // Report whether any facts were removed, without cloning the original target set.
-  let mut changed = false;
-  for (target, source) in target.as_mut_slice().iter_mut().zip(source.as_slice()) {
-    // Intersect one machine word and detect a change during the same scan.
-    let next = *target & source;
-    changed |= next != *target;
-    *target = next;
-  }
-  changed
 }

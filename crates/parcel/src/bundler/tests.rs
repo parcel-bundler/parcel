@@ -10,6 +10,17 @@ fn bits(len: usize, ones: impl IntoIterator<Item = usize>) -> FixedBitSet {
   set
 }
 
+fn matrix<'a>(columns: usize, rows: impl IntoIterator<Item = &'a [usize]>) -> BitMatrix {
+  let rows: Vec<_> = rows.into_iter().collect();
+  let mut matrix = BitMatrix::new(rows.len(), columns);
+  for (row, ones) in rows.into_iter().enumerate() {
+    for &one in ones {
+      matrix.insert(row, one);
+    }
+  }
+  matrix
+}
+
 fn edge(root: u32, kind: AvailabilityEdgeKind) -> AvailabilityEdge {
   AvailabilityEdge::new(root, kind)
 }
@@ -39,12 +50,10 @@ impl Graph {
   }
 
   fn compressed(&self) -> (Reachability, AvailabilityGraph) {
-    let sets = self
-      .memberships
-      .iter()
-      .map(|r| bits(self.roots, r.iter().copied()))
-      .chain([bits(self.roots, [])])
-      .collect();
+    let sets = matrix(
+      self.roots,
+      self.memberships.iter().map(Vec::as_slice).chain([&[][..]]),
+    );
     let reachability =
       Reachability::from_components((0..self.memberships.len() as u32).collect(), sets);
     let graph = AvailabilityGraph::new(
@@ -271,7 +280,7 @@ fn availability_filters_requirements_and_preserves_bundle_roots() {
   let needed = graph.needed_roots(reachability, &roots, &graph.solve());
   assert_eq!(
     needed.reachable_roots(AssetIndex::from_index(shared)),
-    &bits(3, [0])
+    bits(3, [0]).bits()
   );
   for r in 0..g.roots {
     assert!(
@@ -328,7 +337,7 @@ fn availability_matches_uncompressed_reference_on_generated_graphs() {
 fn reachability_interns_equal_components_and_maps_stale_assets_to_empty() {
   let reachability = Reachability::from_components(
     vec![0, 1, 2, u32::MAX],
-    vec![bits(3, [0, 2]), bits(3, [0, 2]), bits(3, [1]), bits(3, [])],
+    matrix(3, [&[0, 2][..], &[0, 2], &[1], &[]]),
   );
   assert_eq!(
     reachability.class(AssetIndex(0)),
@@ -351,9 +360,9 @@ fn availability_large_graph_stores_root_by_class_not_asset_by_asset_sets() {
   assert_eq!(reachability.class_count(), 1_001);
   assert_eq!(graph.edge_count(), 999);
   let available = graph.solve();
-  assert_eq!(available.len(), 1_000);
-  assert_eq!(available[999].len(), 1_001);
-  assert_eq!(available[999].count_ones(..), 999);
+  assert_eq!(available.rows(), 1_000);
+  assert_eq!(available.columns(), 1_001);
+  assert_eq!(available[999].count_ones(), 999);
   assert!(!available[999].contains(reachability.class(AssetIndex(999))));
 }
 
@@ -366,7 +375,7 @@ fn availability_state_reuses_rows_with_stable_root_ids() {
   let row_allocations: Vec<_> = state
     .rows()
     .iter()
-    .map(|row| row.as_slice().as_ptr())
+    .map(|row| row.blocks().as_ptr())
     .collect();
 
   let roots_graph = asset_graph(3, &[0], &[(0, 1, Priority::Lazy), (0, 2, Priority::Lazy)]);
@@ -382,7 +391,7 @@ fn availability_state_reuses_rows_with_stable_root_ids() {
     state
       .rows()
       .iter()
-      .map(|row| row.as_slice().as_ptr())
+      .map(|row| row.blocks().as_ptr())
       .collect::<Vec<_>>()
   );
 }
@@ -470,7 +479,7 @@ fn asset_graph(
   }
 }
 
-fn analyze(graph: &AssetGraph) -> (BundleRoots, Reachability, Vec<FixedBitSet>) {
+fn analyze(graph: &AssetGraph) -> (BundleRoots, Reachability, BitMatrix) {
   let roots = BundleRoots::from_asset_graph(graph);
   let reachability = Reachability::from_bundle_roots(graph, &roots);
   let available = AvailabilityGraph::from_asset_graph(graph, &roots, &reachability).solve();
@@ -818,7 +827,7 @@ fn reachability_crosses_sync_roots_and_seeds_every_root_in_a_cycle() {
   for asset in [1, 2, 3] {
     assert_eq!(
       reachability.reachable_roots(AssetIndex(asset)),
-      &bits(3, [1, 2])
+      bits(3, [1, 2]).bits()
     );
   }
 }
@@ -1166,7 +1175,7 @@ fn synchronous_reachability_handles_deep_graphs_and_already_visited_roots() {
   assert_eq!(
     reachability
       .reachable_roots(AssetIndex::from_index(count - 1))
-      .count_ones(..),
+      .count_ones(),
     roots.len()
   );
   assert_eq!(reachability.class_count(), roots.len() + 1);

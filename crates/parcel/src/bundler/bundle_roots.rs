@@ -1,4 +1,6 @@
 use fixedbitset::FixedBitSet;
+
+use super::bit_matrix::{AsBitRow, BitRow};
 use parcel_core::{
   AssetGraph, AssetIndex, BundleBehavior, DependencyFlags, Priority, SpecifierType,
 };
@@ -163,8 +165,8 @@ impl BundleRoots {
     self.active_roots.contains(root)
   }
 
-  pub fn retain_active(&self, roots: &mut FixedBitSet) {
-    roots.intersect_with(&self.active_roots);
+  pub fn retain_active(&self, roots: &mut BitRow) {
+    roots.intersect_with(self.active_roots.bits());
   }
 
   pub fn deactivate(&mut self, root: usize) {

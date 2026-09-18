@@ -10,11 +10,13 @@ use parcel_core::{
 
 use crate::library_bundler::LibraryBundler;
 use availability::{AvailabilityGraph, AvailabilityState};
+use bit_matrix::{AsBitRow, BitMatrix, BitRow};
 use bundle_roots::BundleRoots;
 use internalization::Internalization;
 use reachability::Reachability;
 
 mod availability;
+mod bit_matrix;
 mod bundle_roots;
 mod internalization;
 mod optimizer;
@@ -119,7 +121,7 @@ impl DefaultBundler {
 enum BundleKey<'a> {
   Default {
     // Dense logical roots requiring these assets after availability filtering.
-    reachable_roots: &'a FixedBitSet,
+    reachable_roots: &'a BitRow,
     // Runtime context used to keep incompatible module registries separate.
     context: Environment,
     // Content implementation responsible for packaging these assets together.

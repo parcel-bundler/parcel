@@ -77,7 +77,7 @@ pub(super) fn plan(
   // does: distinct classes whose root sets collapsed together during
   // availability still share one bundle. First appearance order across roots
   // keeps group numbering deterministic.
-  let mut group_ids: HashMap<(&FixedBitSet, ContentType), usize> = HashMap::new();
+  let mut group_ids: HashMap<(&BitRow, ContentType), usize> = HashMap::new();
   let mut group_of: HashMap<AssetIndex, usize> = HashMap::new();
   let mut group_count = 0;
   for context in &contexts {
@@ -117,7 +117,7 @@ pub(super) fn plan(
       // A shared segment joins a root bundle loaded in exactly its contexts.
       None => reach == needed_roots.reachable_roots(member),
       // An owned copy joins a root bundle loaded only in the owning context.
-      Some(owner) => reach.count_ones(..) == 1 && reach.contains(owner),
+      Some(owner) => reach.count_ones() == 1 && reach.contains(owner),
     }
   };
 
@@ -178,12 +178,12 @@ fn segment(
   // loaded at an incompatible position could not be reordered. With full
   // copies, each activation re-asserts its own order and the last one wins,
   // deterministically, as per-link markup would behave natively.
-  let mut owners: Vec<HashSet<usize>> = vec![HashSet::new(); members.len()];
+  let mut owners = BitMatrix::new(members.len(), contexts.len());
   for (root, context) in contexts.iter().enumerate() {
     for range in &context.keep_together {
       for asset in &context.assets[range.clone()] {
         if let Some(&group) = group_of.get(asset) {
-          owners[group].insert(root);
+          owners.insert(group, root);
         }
       }
     }
@@ -195,7 +195,7 @@ fn segment(
     let mut shared: Vec<usize> = consumers[group]
       .iter()
       .copied()
-      .filter(|c| !owners.contains(c))
+      .filter(|&c| !owners.contains(c))
       .collect();
     // Reference order and conflict detection among the remaining sharers.
     let mut ordered = members.clone();
@@ -208,7 +208,9 @@ fn segment(
       });
       if conflicting {
         plan.conflicts.extend(ordered.iter().copied());
-        owners.extend(shared.drain(..));
+        for consumer in shared.drain(..) {
+          owners.insert(consumer);
+        }
       }
     }
     if shared.is_empty() {
@@ -258,7 +260,7 @@ fn segment(
   let is_owned = |root, asset| {
     group_of
       .get(&asset)
-      .is_some_and(|&group| owners[group].contains(&root))
+      .is_some_and(|&group| owners.contains(group, root))
   };
   for (root, sequence) in sequences.iter().enumerate() {
     let mut ordinal = 0;
