@@ -189,12 +189,17 @@ it. Given those roots, request, byte, violation, and cost changes follow from
 the source and hosts alone. Evaluating a candidate touches a few consumer
 bitsets per host and parent, and does not copy the layout.
 
-After each accepted move the whole state is rebuilt from the layout: a
-bitset reachability matrix over live bundles (a post-order fixed point that
-also handles cycles), consumer sets transposed from the root rows, per-root
-totals, and per-bundle costs. This is a few hundred thousand word operations
-on a thousand-bundle graph, and in debug builds the rebuilt totals are
-checked against the candidate's prediction.
+After each accepted move the state is rebuilt from the layout: a bitset
+reachability matrix over live bundles, computed in one pass by Tarjan's
+algorithm (a component's closure is the union of its members and the
+finished closures of their successors), then parents and per-bundle costs.
+The move's hosts are re-measured and the source's consumer set is re-read
+from the root rows; nothing else changes (see above), so the full consumer
+transposition and per-root byte totals run only for a from-scratch state and
+once at the end of the search. Storage is reused between rebuilds. The layout
+tracks each asset's placements so overlap with a host and duplicate detection
+never scan host contents. In debug builds every partial rebuild is compared
+with a from-scratch state and with the candidate's predicted totals.
 
 Candidates are not re-enumerated every round. They wait in a priority queue
 keyed by score; a popped candidate is re-scored against the current state and

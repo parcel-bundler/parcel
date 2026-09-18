@@ -82,17 +82,40 @@ struct Layout {
   references: Vec<Vec<usize>>,
   /// Bundle indices still in the layout; removed slots remain until final compaction.
   live: FixedBitSet,
+  /// Live bundles containing each asset. Most assets have exactly one.
+  placements: Vec<Vec<usize>>,
 }
 
 impl Layout {
   fn new(assets: Vec<Vec<AssetIndex>>, references: Vec<Vec<usize>>) -> Self {
     let mut live = FixedBitSet::with_capacity(assets.len());
     live.insert_range(..);
+    let count = assets
+      .iter()
+      .flatten()
+      .map(|a| a.index() + 1)
+      .max()
+      .unwrap_or(0);
+    let mut placements = vec![Vec::new(); count];
+    for (b, assets) in assets.iter().enumerate() {
+      for a in assets {
+        let bundles = &mut placements[a.index()];
+        if bundles.last() != Some(&b) {
+          bundles.push(b);
+        }
+      }
+    }
     Layout {
       assets,
       references,
       live,
+      placements,
     }
+  }
+
+  /// Whether an asset is placed in more than one live bundle.
+  fn duplicated(&self, a: AssetIndex) -> bool {
+    self.placements[a.index()].len() > 1
   }
 }
 
@@ -109,7 +132,8 @@ struct State {
   load_parents: Vec<Vec<usize>>,
   /// Number of non-inline bundles loaded by each root.
   requests: Vec<usize>,
-  /// Estimated JS bytes loaded by each root, excluding inline bundles.
+  /// Estimated JS bytes loaded by each root, excluding inline bundles. Only
+  /// maintained by full rebuilds; the search does not need it.
   bytes: Vec<usize>,
   /// Estimated JS payload size of each bundle; non-JS assets contribute zero.
   sizes: Vec<usize>,
@@ -123,12 +147,234 @@ struct State {
   small: usize,
   /// Total of the per-bundle costs, summed in bundle-index order.
   cost: f64,
+  /// Eager bundle dependencies carried by each bundle's assets, separate from references.
+  loads: Vec<Vec<usize>>,
+  // Traversal scratch, kept between rebuilds.
+  index: Vec<usize>,
+  low: Vec<usize>,
+  on_stack: FixedBitSet,
+  pending: Vec<usize>,
+  calls: Vec<(usize, usize)>,
+  members: Vec<usize>,
+  row: FixedBitSet,
+  roots_row: FixedBitSet,
 }
 
+const UNVISITED: usize = usize::MAX;
+
 impl State {
+  fn new(bundles: usize, roots: usize) -> Self {
+    State {
+      consumers: vec![FixedBitSet::with_capacity(roots); bundles],
+      reach: vec![FixedBitSet::with_capacity(bundles); bundles],
+      ref_parents: vec![Vec::new(); bundles],
+      load_parents: vec![Vec::new(); bundles],
+      requests: vec![0; roots],
+      bytes: vec![0; roots],
+      sizes: vec![0; bundles],
+      rates: vec![0.0; bundles],
+      costs: vec![0.0; bundles],
+      excess: 0,
+      small: 0,
+      cost: 0.0,
+      loads: vec![Vec::new(); bundles],
+      index: vec![UNVISITED; bundles],
+      low: vec![0; bundles],
+      on_stack: FixedBitSet::with_capacity(bundles),
+      pending: Vec::new(),
+      calls: Vec::new(),
+      members: Vec::new(),
+      row: FixedBitSet::with_capacity(bundles),
+      roots_row: FixedBitSet::with_capacity(roots),
+    }
+  }
+
   /// Both search constraints are satisfied; the search stops here.
   fn within_limits(&self) -> bool {
     self.small == 0 && self.excess == 0
+  }
+
+  /// Size, edit weight, and asset-carried loads of one bundle.
+  fn measure(&mut self, model: &Model, layout: &Layout, b: usize) {
+    let mut size = 0;
+    let mut rate = 0.0;
+    let loads = &mut self.loads[b];
+    loads.clear();
+    for a in &layout.assets[b] {
+      size += model.sizes[a.index()];
+      rate += model.rates[a.index()];
+      loads.extend(model.asset_requests[a.index()].iter().copied());
+    }
+    loads.sort_unstable();
+    loads.dedup();
+    self.sizes[b] = size;
+    self.rates[b] = rate;
+  }
+
+  /// Evaluate a layout, reusing this state's storage. Runs once per accepted
+  /// move and, from scratch, is the test oracle for `Search::assess`.
+  ///
+  /// After a move, `changed` names its source and hosts: only the hosts'
+  /// contents changed, and only the source's consumer set changed (see
+  /// `Search::assess`), so those are refreshed directly while reachability,
+  /// parents, and costs are rebuilt in full. `bytes` is only refreshed by a
+  /// full rebuild.
+  fn rebuild(&mut self, model: &Model, layout: &Layout, changed: Option<(usize, &[usize])>) {
+    match changed {
+      Some((_, hosts)) => {
+        for &h in hosts {
+          self.measure(model, layout, h);
+        }
+      }
+      None => {
+        for b in 0..layout.assets.len() {
+          self.measure(model, layout, b);
+        }
+      }
+    }
+
+    // Tarjan's algorithm over live bundles, following references and asset
+    // loads. A strongly connected component completes only after every
+    // component it reaches, so each closure is the union of its members and
+    // the finished closures of their successors, computed once on completion.
+    let loads = std::mem::take(&mut self.loads);
+    let mut reach = std::mem::take(&mut self.reach);
+    for row in &mut reach {
+      row.clear();
+    }
+    let edge = |b: usize, i: usize| -> Option<usize> {
+      let references = &layout.references[b];
+      if i < references.len() {
+        Some(references[i])
+      } else {
+        loads[b].get(i - references.len()).copied()
+      }
+    };
+    self.index.fill(UNVISITED);
+    self.on_stack.clear();
+    self.pending.clear();
+    self.calls.clear();
+    let mut counter = 0;
+    for start in layout.live.ones() {
+      if self.index[start] != UNVISITED {
+        continue;
+      }
+      self.index[start] = counter;
+      self.low[start] = counter;
+      counter += 1;
+      self.pending.push(start);
+      self.on_stack.insert(start);
+      self.calls.push((start, 0));
+      while let Some(&(v, i)) = self.calls.last() {
+        if let Some(w) = edge(v, i) {
+          self.calls.last_mut().unwrap().1 += 1;
+          if !layout.live.contains(w) {
+            continue;
+          }
+          if self.index[w] == UNVISITED {
+            self.index[w] = counter;
+            self.low[w] = counter;
+            counter += 1;
+            self.pending.push(w);
+            self.on_stack.insert(w);
+            self.calls.push((w, 0));
+          } else if self.on_stack.contains(w) {
+            self.low[v] = self.low[v].min(self.index[w]);
+          }
+          continue;
+        }
+        self.calls.pop();
+        if let Some(&(u, _)) = self.calls.last() {
+          self.low[u] = self.low[u].min(self.low[v]);
+        }
+        if self.low[v] != self.index[v] {
+          continue;
+        }
+        self.members.clear();
+        loop {
+          let w = self.pending.pop().unwrap();
+          self.on_stack.set(w, false);
+          self.members.push(w);
+          if w == v {
+            break;
+          }
+        }
+        // Successors are members (rows still empty) or completed components.
+        self.row.clear();
+        for &m in &self.members {
+          self.row.insert(m);
+          for &c in layout.references[m].iter().chain(&loads[m]) {
+            if layout.live.contains(c) {
+              self.row.union_with(&reach[c]);
+            }
+          }
+        }
+        for &m in &self.members {
+          reach[m].as_mut_slice().copy_from_slice(self.row.as_slice());
+        }
+      }
+    }
+    self.reach = reach;
+    self.loads = loads;
+
+    if let Some((source, _)) = changed {
+      let mut consumers = std::mem::take(&mut self.consumers[source]);
+      self.roots_row.clear();
+      for (context, &root) in model.roots.iter().enumerate() {
+        if self.reach[root].contains(source) {
+          self.roots_row.insert(context);
+        }
+      }
+      if model.bundles[source].bundle_behavior != BundleBehavior::Inline {
+        consumers.difference_with(&self.roots_row);
+        for context in consumers.ones() {
+          self.requests[context] -= 1;
+        }
+      }
+      consumers.clone_from(&self.roots_row);
+      self.consumers[source] = consumers;
+    } else {
+      for row in &mut self.consumers {
+        row.clear();
+      }
+      self.requests.fill(0);
+      self.bytes.fill(0);
+      for (context, &root) in model.roots.iter().enumerate() {
+        for b in self.reach[root].ones() {
+          self.consumers[b].insert(context);
+          if model.bundles[b].bundle_behavior != BundleBehavior::Inline {
+            self.requests[context] += 1;
+            self.bytes[context] += self.sizes[b];
+          }
+        }
+      }
+    }
+    for parents in self.ref_parents.iter_mut().chain(&mut self.load_parents) {
+      parents.clear();
+    }
+    for p in layout.live.ones() {
+      for &t in &layout.references[p] {
+        self.ref_parents[t].push(p);
+      }
+      for &t in &self.loads[p] {
+        self.load_parents[t].push(p);
+      }
+    }
+    self.small = 0;
+    self.cost = 0.0;
+    for (b, roots) in self.consumers.iter().enumerate() {
+      let k = roots.count_ones(..);
+      if k == 0 {
+        self.costs[b] = 0.0;
+        continue;
+      }
+      if model.undersized(b, self.sizes[b]) {
+        self.small += k;
+      }
+      self.costs[b] = model.bundle_cost(self.sizes[b], self.rates[b], k);
+      self.cost += self.costs[b];
+    }
+    self.excess = self.requests.iter().map(|&r| model.request_excess(r)).sum();
   }
 }
 
@@ -344,137 +590,10 @@ pub(super) fn optimize(
 }
 
 impl Model<'_> {
-  /// Full evaluation of a layout. Runs once per accepted move and is the test
-  /// oracle for `Search::assess`.
   fn state(&self, layout: &Layout) -> State {
-    let n = layout.assets.len();
-    let root_count = self.roots.len();
-    let mut sizes = Vec::with_capacity(n);
-    let mut rates = Vec::with_capacity(n);
-    let mut loads = Vec::with_capacity(n);
-    for assets in &layout.assets {
-      let mut size = 0;
-      let mut rate = 0.0;
-      let mut asset_loads = Vec::new();
-      for a in assets {
-        size += self.sizes[a.index()];
-        rate += self.rates[a.index()];
-        asset_loads.extend(self.asset_requests[a.index()].iter().copied());
-      }
-      asset_loads.sort_unstable();
-      asset_loads.dedup();
-      sizes.push(size);
-      rates.push(rate);
-      loads.push(asset_loads);
-    }
-
-    // Post-order over live bundles following references and asset loads, so
-    // that a bundle is processed after everything it reaches except through
-    // cycles, which the fixed-point passes below close.
-    let edge = |b: usize, i: usize| -> Option<usize> {
-      let references = &layout.references[b];
-      if i < references.len() {
-        Some(references[i])
-      } else {
-        loads[b].get(i - references.len()).copied()
-      }
-    };
-    let mut order = Vec::with_capacity(n);
-    let mut visited = FixedBitSet::with_capacity(n);
-    let mut stack: Vec<(usize, usize)> = Vec::new();
-    for start in layout.live.ones() {
-      if visited.put(start) {
-        continue;
-      }
-      stack.push((start, 0));
-      while let Some(&(b, i)) = stack.last() {
-        match edge(b, i) {
-          Some(c) => {
-            stack.last_mut().unwrap().1 += 1;
-            if layout.live.contains(c) && !visited.put(c) {
-              stack.push((c, 0));
-            }
-          }
-          None => {
-            stack.pop();
-            order.push(b);
-          }
-        }
-      }
-    }
-    let mut reach = vec![FixedBitSet::with_capacity(n); n];
-    for &b in &order {
-      reach[b].insert(b);
-    }
-    loop {
-      let mut changed = false;
-      for &b in &order {
-        let mut row = std::mem::take(&mut reach[b]);
-        let before = row.count_ones(..);
-        for &c in layout.references[b].iter().chain(&loads[b]) {
-          if c != b && layout.live.contains(c) {
-            row.union_with(&reach[c]);
-          }
-        }
-        changed |= row.count_ones(..) != before;
-        reach[b] = row;
-      }
-      if !changed {
-        break;
-      }
-    }
-
-    let mut consumers = vec![FixedBitSet::with_capacity(root_count); n];
-    let mut requests = vec![0usize; root_count];
-    let mut bytes = vec![0; root_count];
-    for (context, &root) in self.roots.iter().enumerate() {
-      for b in reach[root].ones() {
-        consumers[b].insert(context);
-        if self.bundles[b].bundle_behavior != BundleBehavior::Inline {
-          requests[context] += 1;
-          bytes[context] += sizes[b];
-        }
-      }
-    }
-    let mut ref_parents = vec![Vec::new(); n];
-    let mut load_parents = vec![Vec::new(); n];
-    for p in layout.live.ones() {
-      for &t in &layout.references[p] {
-        ref_parents[t].push(p);
-      }
-      for &t in &loads[p] {
-        load_parents[t].push(p);
-      }
-    }
-    let mut small = 0;
-    let mut cost = 0.0;
-    let mut costs = vec![0.0; n];
-    for (b, roots) in consumers.iter().enumerate() {
-      let k = roots.count_ones(..);
-      if k == 0 {
-        continue;
-      }
-      if self.undersized(b, sizes[b]) {
-        small += k;
-      }
-      costs[b] = self.bundle_cost(sizes[b], rates[b], k);
-      cost += costs[b];
-    }
-    let excess = requests.iter().map(|&r| self.request_excess(r)).sum();
-    State {
-      consumers,
-      reach,
-      ref_parents,
-      load_parents,
-      requests,
-      bytes,
-      sizes,
-      rates,
-      costs,
-      excess,
-      small,
-      cost,
-    }
+    let mut state = State::new(layout.assets.len(), self.roots.len());
+    state.rebuild(self, layout, None);
+    state
   }
 
   /// Pairwise merge compatibility. Callers pre-filter with the `hosts` set.
@@ -545,6 +664,7 @@ fn apply(
     for &a in &payload {
       if !members.put(a.index()) {
         layout.assets[host].push(a);
+        layout.placements[a.index()].push(host);
       }
     }
     for &r in &references {
@@ -563,6 +683,9 @@ fn apply(
   if !alive {
     layout.live.set(source, false);
     layout.references[source].clear();
+    for a in &layout.assets[source] {
+      layout.placements[a.index()].retain(|&b| b != source);
+    }
   }
 }
 
@@ -633,8 +756,6 @@ struct Search<'m, 'a> {
   inline: FixedBitSet,
   concave: bool,
   // Derived from the state after each move.
-  /// Assets placed in more than one live bundle.
-  duplicated: FixedBitSet,
   /// Roots over the request limit.
   pressured: FixedBitSet,
   /// The two largest live payloads, bounding any donor's best merge partner.
@@ -648,7 +769,6 @@ struct Search<'m, 'a> {
   load_still: FixedBitSet,
   // Scratch.
   members: FixedBitSet,
-  seen_assets: FixedBitSet,
   covered: FixedBitSet,
   dropped: FixedBitSet,
   seen_roots: FixedBitSet,
@@ -681,7 +801,6 @@ impl<'m, 'a> Search<'m, 'a> {
       root_of,
       inline,
       concave: !model.wire.is_linear(),
-      duplicated: FixedBitSet::with_capacity(assets),
       pressured: FixedBitSet::with_capacity(roots),
       max_sizes: [0; 2],
       prepared: usize::MAX,
@@ -689,7 +808,6 @@ impl<'m, 'a> Search<'m, 'a> {
       parents_used: Vec::new(),
       load_still: FixedBitSet::with_capacity(roots),
       members: FixedBitSet::with_capacity(assets),
-      seen_assets: FixedBitSet::with_capacity(assets),
       covered: FixedBitSet::with_capacity(roots),
       dropped: FixedBitSet::with_capacity(roots),
       seen_roots: FixedBitSet::with_capacity(roots),
@@ -740,6 +858,8 @@ impl<'m, 'a> Search<'m, 'a> {
       }
       self.commit(entry.source, &cover, &assessment);
     }
+    // Refresh the totals a partial rebuild leaves stale.
+    self.state.rebuild(self.model, &self.layout, None);
   }
 
   fn sweep(&mut self) {
@@ -766,16 +886,26 @@ impl<'m, 'a> Search<'m, 'a> {
       &assessment.redirects,
       assessment.alive,
     );
-    self.state = self.model.state(&self.layout);
+    self
+      .state
+      .rebuild(self.model, &self.layout, Some((source, hosts)));
     #[cfg(debug_assertions)]
-    if let Some(verdict) = &assessment.accepted {
-      debug_assert_eq!(
-        (self.state.small, self.state.excess),
-        (verdict.small, verdict.excess)
-      );
-      debug_assert!(
-        (self.state.cost - verdict.cost).abs() <= 1e-6 * self.state.cost.abs().max(1.0)
-      );
+    {
+      let fresh = self.model.state(&self.layout);
+      debug_assert_eq!(self.state.consumers, fresh.consumers);
+      debug_assert_eq!(self.state.requests, fresh.requests);
+      debug_assert_eq!(self.state.sizes, fresh.sizes);
+      debug_assert_eq!(self.state.rates, fresh.rates);
+      debug_assert_eq!(self.state.costs, fresh.costs);
+      if let Some(verdict) = &assessment.accepted {
+        debug_assert_eq!(
+          (self.state.small, self.state.excess),
+          (verdict.small, verdict.excess)
+        );
+        debug_assert!(
+          (self.state.cost - verdict.cost).abs() <= 1e-6 * self.state.cost.abs().max(1.0)
+        );
+      }
     }
     self.refresh();
     // Scores of untouched candidates can only get worse, and their validity
@@ -804,15 +934,8 @@ impl<'m, 'a> Search<'m, 'a> {
 
   fn refresh(&mut self) {
     self.prepared = usize::MAX;
-    self.seen_assets.clear();
-    self.duplicated.clear();
     self.max_sizes = [0; 2];
     for b in self.layout.live.ones() {
-      for a in &self.layout.assets[b] {
-        if self.seen_assets.put(a.index()) {
-          self.duplicated.insert(a.index());
-        }
-      }
       let size = self.state.sizes[b];
       if size > self.max_sizes[0] {
         self.max_sizes = [size, self.max_sizes[0]];
@@ -854,7 +977,7 @@ impl<'m, 'a> Search<'m, 'a> {
       || (self.concave && (size + partner) as f64 > self.model.wire.w)
       || self.layout.assets[b]
         .iter()
-        .any(|a| self.duplicated.contains(a.index()))
+        .any(|&a| self.layout.duplicated(a))
   }
 
   /// Copies must not reach roots that never loaded the source, and a host
@@ -868,20 +991,16 @@ impl<'m, 'a> Search<'m, 'a> {
       && !self.state.reach[source].contains(host)
   }
 
-  fn host_info(&mut self, source: usize, host: usize) -> HostInfo {
-    self.members.clear();
-    self
-      .members
-      .extend(self.layout.assets[host].iter().map(|a| a.index()));
+  fn host_info(&self, source: usize, host: usize) -> HostInfo {
     let mut info = HostInfo {
       bundle: host,
-      size: 0,
-      rate: 0.0,
+      size: self.state.sizes[source],
+      rate: self.state.rates[source],
     };
-    for a in &self.layout.assets[source] {
-      if !self.members.contains(a.index()) {
-        info.size += self.model.sizes[a.index()];
-        info.rate += self.model.rates[a.index()];
+    for &a in &self.layout.assets[source] {
+      if self.layout.duplicated(a) && self.layout.placements[a.index()].contains(&host) {
+        info.size -= self.model.sizes[a.index()];
+        info.rate -= self.model.rates[a.index()];
       }
     }
     info
