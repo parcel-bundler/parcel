@@ -1,0 +1,24 @@
+{
+  "description": "CSS entries import their shared bundles in cascade order without an HTML or JS loader",
+  "input": ["a.css", "b.css", "c.css"],
+  "options": {"mode": "production"},
+  "bundles": [
+    {
+      "assets": ["a.css"],
+      "references": [["first.css"], ["second.css"]],
+      "contains": ["@import"]
+    },
+    {
+      "assets": ["b.css"],
+      "references": [["first.css"]],
+      "contains": ["@import"]
+    },
+    {
+      "assets": ["c.css"],
+      "references": [["second.css"]],
+      "contains": ["@import"]
+    },
+    {"assets": ["first.css"], "references": []},
+    {"assets": ["second.css"], "references": []}
+  ]
+}

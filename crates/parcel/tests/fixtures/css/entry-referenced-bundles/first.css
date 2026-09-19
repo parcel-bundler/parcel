@@ -1,0 +1,2 @@
+@layer first { .probe { color: red; } }
+.probe { background: red; }

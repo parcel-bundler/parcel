@@ -9,6 +9,7 @@ use lightningcss::{
   printer::PrinterOptions,
   rules::{
     CssRule, CssRuleList,
+    import::ImportRule,
     layer::{LayerBlockRule, LayerName, LayerStatementRule},
     media::MediaRule,
     supports::{SupportsCondition, SupportsRule},
@@ -90,6 +91,26 @@ impl CssContent {
     // imports that survive to the output are hoisted to a prefix ahead of
     // the inlined rules (position-checked below).
     let mut prefix = Vec::new();
+    // The bundler orders eager CSS references before this bundle's assets.
+    // Emit them before its own import prelude as well (including external
+    // imports), so CSS entries preserve the same cascade as HTML/JS loaders.
+    // Conditions are already wrapped inside each referenced bundle.
+    for &index in &bundle.referenced_bundles {
+      let referenced = &bundle_graph.bundles[index];
+      if referenced.ty == AssetType::Css {
+        prefix.push(CssRule::Import(ImportRule {
+          url: referenced.relative_url(bundle).unwrap().into(),
+          layer: None,
+          supports: None,
+          media: MediaList::new(),
+          loc: lightningcss::rules::Location {
+            source_index: 0,
+            line: 0,
+            column: 1,
+          },
+        }));
+      }
+    }
     let mut emitted = Vec::new();
     // Absolute layer names declared by statements that could not join the
     // import prefix, in application order; a later hoisted import must

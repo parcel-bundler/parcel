@@ -6,9 +6,10 @@
 //! against a direct simulation of browser semantics over the source graph:
 //! every `@import` instance applies, layers are established at their first
 //! declaration, and importance reverses layer precedence. Anonymous layers
-//! have fresh identities per evaluation. External stylesheets come from an
-//! in-memory registry; no network requests are made. Each emitted stylesheet
-//! is parsed separately, preserving the validity of its import prelude.
+//! have fresh identities per evaluation. External stylesheets and output bundles
+//! are loaded from an in-memory registry through emitted imports; no network
+//! requests are made. Each emitted stylesheet is parsed separately, preserving
+//! the validity of its import prelude.
 //!
 //! Random builds cover supported layouts. Anonymous bundled content occurs
 //! only in sheets evaluated once per page; external imports precede bundled
@@ -719,8 +720,8 @@ fn layer_parts(name: &LayerName) -> Vec<Layer> {
     .collect()
 }
 
-fn extract(codes: &[String], external: &[GenFile]) -> Vec<Event> {
-  let registry: HashMap<String, _> = external
+fn external_registry(external: &[GenFile]) -> HashMap<String, StyleSheet<'static>> {
+  external
     .iter()
     .enumerate()
     .map(|(index, file)| {
@@ -730,7 +731,11 @@ fn extract(codes: &[String], external: &[GenFile]) -> Vec<Event> {
         .into_owned();
       (external_url(index), sheet)
     })
-    .collect();
+    .collect()
+}
+
+fn extract(codes: &[String], external: &[GenFile]) -> Vec<Event> {
+  let registry = external_registry(external);
   let mut events = Vec::new();
   let mut ids = Identities::default();
   for code in codes {
@@ -789,7 +794,7 @@ fn extract_rules(
         assert!(import.supports.is_none(), "supports is not modeled");
         let sheet = registry
           .get(import.url.as_ref())
-          .unwrap_or_else(|| panic!("unregistered external import: {}", import.url));
+          .unwrap_or_else(|| panic!("unregistered import: {}", import.url));
         let mut conds = conds.to_vec();
         conds.push(Cond::Query(import.media.clone().into_owned()));
         let mut path = path.to_vec();
@@ -931,9 +936,27 @@ fn run_case(label: &str, case: &Case, mode: BuildMode, expected_error: Option<&s
   }
   let graph = result.unwrap_or_else(|e| panic!("{}", context(&format!("build failed: {e:?}"))));
 
-  // Each page's document is its entry bundle's references, in link order,
-  // followed by the entry bundle itself — the same order the HTML packager
-  // and runtime loader emit.
+  // Load only the entry stylesheet, following its emitted @imports like a
+  // browser. Loading referenced_bundles here would mask missing imports.
+  let mut registry = external_registry(&case.external);
+  let mut code = String::new();
+  for bundle in &graph.bundles {
+    if bundle.ty != AssetType::Css {
+      continue;
+    }
+    let source = output_fs.read_to_string(bundle.dist_path()).unwrap();
+    code.push_str(&format!("── {} ──\n{source}\n", bundle.name()));
+    let mut sheet = StyleSheet::parse(&source, ParserOptions::default())
+      .unwrap()
+      .into_owned();
+    let url = url::Url::parse(&bundle.dist_url().to_string()).unwrap();
+    for rule in &mut sheet.rules.0 {
+      if let CssRule::Import(import) = rule {
+        import.url = url.join(import.url.as_ref()).unwrap().to_string().into();
+      }
+    }
+    registry.insert(url.to_string(), sheet);
+  }
   for entry in 0..ENTRIES {
     let root = graph
       .bundles
@@ -946,17 +969,6 @@ fn run_case(label: &str, case: &Case, mode: BuildMode, expected_error: Option<&s
           })
       })
       .unwrap_or_else(|| panic!("{}", context(&format!("no bundle for entry {entry}"))));
-    let mut codes = Vec::new();
-    for &referenced in &root.referenced_bundles {
-      codes.push(
-        output_fs
-          .read_to_string(graph.bundles[referenced].dist_path())
-          .unwrap(),
-      );
-    }
-    codes.push(output_fs.read_to_string(root.dist_path()).unwrap());
-    let code = codes.join("\n/* next stylesheet */\n");
-
     let mut reference = Vec::new();
     simulate(
       case,
@@ -966,7 +978,15 @@ fn run_case(label: &str, case: &Case, mode: BuildMode, expected_error: Option<&s
       &mut reference,
       &mut Identities::default(),
     );
-    let actual = extract(&codes, &case.external);
+    let mut actual = Vec::new();
+    extract_rules(
+      &registry[&root.dist_url().to_string()].rules.0,
+      &[],
+      &[],
+      &mut actual,
+      &mut Identities::default(),
+      &registry,
+    );
 
     for env in ENVS {
       let expected = winners(&reference, &env);
@@ -1291,5 +1311,71 @@ fn external_import_precedes_shared_css() {
   case.files[1].rules = vec![import(ImportTarget::Local(2), None, None)];
   for mode in [BuildMode::Production, BuildMode::Development] {
     run_case("external-before-shared-css", &case, mode, None);
+  }
+}
+
+#[test]
+fn css_entry_imports_shared_bundles_in_order() {
+  let case = Case {
+    files: vec![
+      GenFile {
+        rules: vec![
+          import(ImportTarget::Local(2), None, None),
+          import(ImportTarget::Local(3), None, None),
+          import(ImportTarget::Local(4), None, None),
+        ],
+      },
+      GenFile {
+        rules: vec![
+          import(ImportTarget::Local(2), None, None),
+          import(ImportTarget::Local(4), None, None),
+        ],
+      },
+      GenFile {
+        rules: vec![
+          style(0, 1, false),
+          GenRule::Block {
+            name: GenLayer::Named("first".into()),
+            rules: vec![style(1, 1, true)],
+          },
+        ],
+      },
+      GenFile {
+        rules: vec![style(0, 2, false)],
+      },
+      GenFile {
+        rules: vec![
+          style(0, 3, false),
+          GenRule::Block {
+            name: GenLayer::Named("second".into()),
+            rules: vec![style(1, 3, true)],
+          },
+        ],
+      },
+    ],
+    external: vec![],
+  };
+  for mode in [BuildMode::Production, BuildMode::Development] {
+    run_case("entry-shared-bundle-order", &case, mode, None);
+  }
+}
+
+#[test]
+fn shared_css_precedes_external_import() {
+  let mut case = case_with_entry(
+    vec![
+      import(ImportTarget::Local(2), None, None),
+      import(ImportTarget::External(0), None, None),
+    ],
+    vec![GenFile {
+      rules: vec![style(0, 1, false)],
+    }],
+    vec![GenFile {
+      rules: vec![style(0, 2, false)],
+    }],
+  );
+  case.files[1].rules = vec![import(ImportTarget::Local(2), None, None)];
+  for mode in [BuildMode::Production, BuildMode::Development] {
+    run_case("shared-css-before-external", &case, mode, None);
   }
 }
