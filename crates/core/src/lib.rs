@@ -186,7 +186,9 @@ impl Parcel {
       }
     }
 
-    let reporters = Reporters::new(config.reporters.clone(), options.log_level.clone());
+    let mut reporters = config.reporters.clone();
+    reporters.extend(options.reporters.into_iter());
+    let reporters = Reporters::new(reporters, options.log_level.clone());
     let options = Arc::new(ParcelOptions {
       env,
       mode: options.mode,

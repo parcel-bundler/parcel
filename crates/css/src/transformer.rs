@@ -412,12 +412,14 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
         loc: Some(SourceLocation {
           url: self.url.clone(),
           start: Location {
-            line: import.loc.line,
+            line: import.loc.line + 1,
             column: import.loc.column,
           },
           end: Location {
-            line: import.loc.line,
-            column: import.loc.column,
+            line: import.loc.line + 1,
+            // Lightning CSS stores the start of the rule, not the URL's
+            // range. Highlight the @import keyword with an exclusive end.
+            column: import.loc.column + 7,
           },
         }),
         placeholder: None,

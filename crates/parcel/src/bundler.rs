@@ -343,19 +343,13 @@ impl Bundler for DefaultBundler {
 
     // CSS cascade order is semantic: plan stylesheet bundles from each
     // context's application order rather than by class alone.
-    let style_plan = style_order::plan(&asset_graph, &bundle_roots, &needed_roots, |asset| {
-      asset.ty == AssetType::Css && self.manual_shared_bundle(asset, options).is_none()
-    });
-    for asset_index in &style_plan.conflicts {
-      let asset = asset_graph.asset(*asset_index);
-      options.reporters.log(
-        parcel_core::LogLevel::Warn,
-        &format!(
-          "{} is imported in conflicting orders by different contexts; emitting a separate copy per context to preserve each cascade order.",
-          asset.loc.url
-        ),
-      );
-    }
+    let style_plan = style_order::plan(
+      &asset_graph,
+      &bundle_roots,
+      &needed_roots,
+      options,
+      |asset| asset.ty == AssetType::Css && self.manual_shared_bundle(asset, options).is_none(),
+    );
     let mut slot_bundles: Vec<Option<usize>> = vec![None; style_plan.segments.len()];
     // A segment that immediately precedes a stylesheet root in every
     // consumer's sequence joins that root's bundle (the reused-bundle

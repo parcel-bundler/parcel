@@ -138,6 +138,19 @@ impl OrderAnalysis {
     root: AssetIndex,
     required: impl Fn(AssetIndex) -> bool,
   ) -> OrderedContent {
+    self.for_context_with_imports(root, required, |_, _| {})
+  }
+
+  /// Also report the imports that determine this context's order. Keeping the
+  /// latest parent reported for each asset gives its retained import path.
+  /// Non-CSS parents use their first import of a target; CSS parents use their
+  /// last import. This follows the same deduplication as the ordering walk.
+  pub fn for_context_with_imports(
+    &mut self,
+    root: AssetIndex,
+    required: impl Fn(AssetIndex) -> bool,
+    import: impl FnMut(AssetIndex, AssetIndex),
+  ) -> OrderedContent {
     if !self.nodes[root.index()].flags.contains(OrderFlags::HAS_CSS) {
       return OrderedContent::default();
     }
@@ -148,6 +161,7 @@ impl OrderAnalysis {
       edges: &self.edges,
       scratch: &mut self.scratch,
       required,
+      import,
       last_layer_position: None,
       output: OrderedContent::default(),
     };
@@ -278,20 +292,21 @@ impl Scratch {
   }
 }
 
-struct Walk<'a, F> {
+struct Walk<'a, F, I> {
   nodes: &'a [Node],
   edges: &'a [AssetIndex],
   scratch: &'a mut Scratch,
   required: F,
+  import: I,
   last_layer_position: Option<u32>,
   output: OrderedContent,
 }
 
-impl<F: Fn(AssetIndex) -> bool> Walk<'_, F> {
+impl<F: Fn(AssetIndex) -> bool, I: FnMut(AssetIndex, AssetIndex)> Walk<'_, F, I> {
   fn collect_entries(&mut self, root: AssetIndex) {
     // JS executes at the first import. Stop at each CSS entry, whose @import
     // closure has its own last-occurrence content order below.
-    self.entry(root);
+    self.entry(root, None);
     while let Some(frame) = self.scratch.stack.last_mut() {
       if frame.next_edge == self.nodes[frame.asset.index()].dependencies.end {
         self.scratch.stack.pop();
@@ -303,14 +318,18 @@ impl<F: Fn(AssetIndex) -> bool> Walk<'_, F> {
         .flags
         .contains(OrderFlags::HAS_CSS)
       {
-        self.entry(child);
+        let parent = frame.asset;
+        self.entry(child, Some(parent));
       }
     }
   }
 
-  fn entry(&mut self, asset: AssetIndex) {
+  fn entry(&mut self, asset: AssetIndex, parent: Option<AssetIndex>) {
     if !self.scratch.mark(asset) {
       return;
+    }
+    if let Some(parent) = parent {
+      (self.import)(parent, asset);
     }
     let node = &self.nodes[asset.index()];
     if node.flags.contains(OrderFlags::IS_CSS) {
@@ -390,6 +409,7 @@ impl<F: Fn(AssetIndex) -> bool> Walk<'_, F> {
           }
         }
       } else {
+        (self.import)(frame.asset, target);
         self.enter(target);
       }
     }
@@ -646,6 +666,71 @@ mod tests {
         .for_context(AssetIndex(0), |a| a == AssetIndex(3))
         .assets,
       vec![AssetIndex(3)],
+    );
+  }
+
+  #[test]
+  fn import_paths_follow_retained_css_occurrences() {
+    // Both JS modules import a stylesheet that imports sheet 5. Its retained
+    // occurrence comes from the second entry, including when only 5 is needed.
+    let mut nodes = vec![
+      css(&[1, 2, 1]),
+      css(&[3]),
+      css(&[4]),
+      css(&[5]),
+      css(&[5]),
+      css(&[]),
+    ];
+    for i in 0..3 {
+      nodes[i].is_css = false;
+    }
+    let mut analysis = analysis(nodes);
+    for only_shared in [false, true] {
+      let mut parents = std::collections::HashMap::new();
+      let output = analysis.for_context_with_imports(
+        AssetIndex(0),
+        |a| !only_shared || a == AssetIndex(5),
+        |parent, child| {
+          parents.insert(child, parent);
+        },
+      );
+      assert_eq!(
+        parents,
+        [(1, 0), (2, 0), (3, 1), (4, 2), (5, 4)]
+          .into_iter()
+          .map(|(child, parent)| (AssetIndex(child), AssetIndex(parent)))
+          .collect::<std::collections::HashMap<_, _>>()
+      );
+      assert_eq!(
+        output.assets,
+        if only_shared {
+          vec![AssetIndex(5)]
+        } else {
+          vec![AssetIndex(3), AssetIndex(5), AssetIndex(4)]
+        }
+      );
+    }
+  }
+
+  #[test]
+  fn import_paths_do_not_follow_cycle_back_edges() {
+    let mut nodes = vec![css(&[1, 2]), css(&[2]), css(&[1])];
+    nodes[0].is_css = false;
+    let mut analysis = analysis(nodes);
+    let mut parents = std::collections::HashMap::new();
+    analysis.for_context_with_imports(
+      AssetIndex(0),
+      |_| true,
+      |parent, child| {
+        parents.insert(child, parent);
+      },
+    );
+    assert_eq!(
+      parents,
+      std::collections::HashMap::from([
+        (AssetIndex(1), AssetIndex(2)),
+        (AssetIndex(2), AssetIndex(0))
+      ])
     );
   }
 

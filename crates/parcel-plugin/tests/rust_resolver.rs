@@ -79,6 +79,7 @@ fn test_rust_resolver_plugin() {
       dist_dir: None,
       public_url: Default::default(),
       hmr: None,
+      reporters: Vec::new(),
     },
   )
   .unwrap_or_else(|e| panic!("parcel build failed: {:?}", e));

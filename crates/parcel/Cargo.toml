@@ -43,6 +43,8 @@ glob-match = "*"
 mimalloc = "*"
 fixedbitset = "0.5.7"
 percent-encoding = "2.2.0"
+either = "1.17.0"
+anstyle = "*"
 
 [dev-dependencies]
 parcel_sourcemap = { version = "*", features = ["json"] }

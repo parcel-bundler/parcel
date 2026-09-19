@@ -2,7 +2,9 @@ use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
 use serde::Deserialize;
 
-use crate::{Diagnostic, OsFileSystem, PathId, Reporters, TargetSourceMapOptions, fs::FileSystem};
+use crate::{
+  Diagnostic, OsFileSystem, PathId, Reporter, Reporters, TargetSourceMapOptions, fs::FileSystem,
+};
 
 #[derive(Clone)]
 pub struct BuildOptions {
@@ -18,6 +20,8 @@ pub struct BuildOptions {
   pub dist_dir: Option<PathId>,
   pub public_url: String,
   pub hmr: Option<HmrOptions>,
+  /// Optional reporters to append to the resolved items in the config.
+  pub reporters: Vec<Arc<dyn Reporter>>,
 }
 
 pub struct ParcelOptions {

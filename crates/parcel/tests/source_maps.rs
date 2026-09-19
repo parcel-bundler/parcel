@@ -55,6 +55,7 @@ fn assert_bundle_source_maps(mode: BuildMode, minify: Option<bool>) {
       dist_dir: None,
       public_url: Default::default(),
       hmr: None,
+      reporters: Vec::new(),
     },
   )
   .unwrap();

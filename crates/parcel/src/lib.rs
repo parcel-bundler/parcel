@@ -34,26 +34,15 @@ pub fn build(
   entries: &Vec<String>,
   options: BuildOptions,
 ) -> Result<BundleGraph<'static>, DiagnosticList> {
-  let start = std::time::Instant::now();
   let parcel = make_parcel(entries, options)?;
-  match parcel.build_owned() {
-    Ok(g) => {
-      println!("Built in {:?}", start.elapsed());
-      Ok(g)
-    }
-    Err(err) => Err(err),
-  }
+  parcel.build_owned()
 }
 
 pub fn watch(entries: &Vec<String>, options: BuildOptions) -> Result<(), DiagnosticList> {
   let mut parcel = make_parcel(entries, options)?;
   let project_root = parcel.project_root();
 
-  let start = std::time::Instant::now();
-  match parcel.build() {
-    Ok(_) => println!("Built in {:?}", start.elapsed()),
-    Err(e) => print_diagnostics(&e),
-  }
+  let _ = parcel.build();
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {
@@ -61,8 +50,7 @@ pub fn watch(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
 
     let result = match parcel.invalidate(&changed_paths, &created_paths, &deleted_paths) {
       Ok(result) => result,
-      Err(e) => {
-        print_diagnostics(&e);
+      Err(_) => {
         continue;
       }
     };
@@ -70,11 +58,7 @@ pub fn watch(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
       continue;
     }
 
-    let start = std::time::Instant::now();
-    match parcel.build() {
-      Ok(_) => println!("Rebuilt in {:?}", start.elapsed()),
-      Err(e) => print_diagnostics(&e),
-    }
+    let _ = parcel.build();
   }
 
   Ok(())
@@ -88,10 +72,7 @@ pub fn serve(
   let mut parcel = make_parcel(entries, options)?;
   let project_root = parcel.project_root();
 
-  let start = std::time::Instant::now();
   let graph = parcel.build()?;
-  println!("Built in {:?}", start.elapsed());
-
   let server = server::serve_dir(
     &graph.asset_graph.entries[0].target.dist_dir.to_path_buf(),
     server_options,
@@ -103,8 +84,7 @@ pub fn serve(
 
     let result = match parcel.invalidate(&changed_paths, &created_paths, &deleted_paths) {
       Ok(result) => result,
-      Err(e) => {
-        print_diagnostics(&e);
+      Err(_) => {
         continue;
       }
     };
@@ -113,13 +93,10 @@ pub fn serve(
     }
     let config_changed = result.config_changed;
 
-    let start = std::time::Instant::now();
     let config = parcel.config.clone();
     let options = parcel.options.clone();
     match parcel.build_with_changes() {
       Ok(result) => {
-        println!("Rebuilt in {:?}", start.elapsed());
-
         // On a config change the Parcel was rebuilt from scratch, so HMR is skipped in favour of
         // the full rebuild's output.
         if !config_changed {
@@ -135,7 +112,6 @@ pub fn serve(
         }
       }
       Err(e) => {
-        print_diagnostics(&e);
         server.emit_hmr_error(&e);
       }
     }
@@ -148,10 +124,7 @@ pub fn run(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnosti
   let mut parcel = make_parcel(entries, options)?;
   let project_root = parcel.project_root();
 
-  let start = std::time::Instant::now();
   let graph = parcel.build()?;
-  println!("Built in {:?}", start.elapsed());
-
   let entry = graph
     .bundles
     .iter()
@@ -166,8 +139,7 @@ pub fn run(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnosti
 
     let result = match parcel.invalidate(&changed_paths, &created_paths, &deleted_paths) {
       Ok(result) => result,
-      Err(e) => {
-        print_diagnostics(&e);
+      Err(_) => {
         continue;
       }
     };
@@ -175,19 +147,10 @@ pub fn run(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnosti
       continue;
     }
 
-    let start = std::time::Instant::now();
-    match parcel.build() {
-      Ok(_) => println!("Rebuilt in {:?}", start.elapsed()),
-      Err(e) => print_diagnostics(&e),
-    }
+    let _ = parcel.build();
   }
 
   Ok(())
-}
-
-fn print_diagnostics(diagnostics: &DiagnosticList) {
-  let mut stderr = std::io::stderr();
-  diagnostics.report(&mut stderr).unwrap();
 }
 
 /// Splits watcher events into `(changed, created)` URL lists. Modified and deleted files are

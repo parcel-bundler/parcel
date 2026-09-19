@@ -22,6 +22,8 @@ fn bench_dev(c: &mut Criterion) {
         cwd: PathId::new(Path::new("/Users/devongovett/dev/react-spectrum")),
         dist_dir: None,
         public_url: Default::default(),
+        hmr: None,
+        reporters: Vec::new(),
       }).expect("build failed");
     })
   });
@@ -44,6 +46,8 @@ fn bench_prod(c: &mut Criterion) {
         cwd: PathId::new(Path::new("/Users/devongovett/dev/react-spectrum")),
         dist_dir: None,
         public_url: Default::default(),
+        hmr: None,
+        reporters: Vec::new(),
       }).expect("build failed");
     })
   });

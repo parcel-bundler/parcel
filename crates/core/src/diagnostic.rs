@@ -407,13 +407,16 @@ impl Diagnostic {
   }
 
   pub fn report<W: Write>(&self, dest: &mut W) -> std::io::Result<()> {
-    let style = Style::new()
-      .fg_color(Some(Color::Ansi(AnsiColor::Red)))
-      .bold();
+    let (color, emoji) = match self.severity {
+      DiagnosticSeverity::Error | DiagnosticSeverity::SourceError => (AnsiColor::Red, "🚨"),
+      DiagnosticSeverity::Warning => (AnsiColor::BrightYellow, "⚠️"),
+      DiagnosticSeverity::Info => (AnsiColor::BrightBlue, "ℹ️"),
+    };
+    let style = Style::new().fg_color(Some(Color::Ansi(color))).bold();
 
     writeln!(
       dest,
-      "{style}{}: {}{style:#}",
+      "{emoji}  {style}{}: {}{style:#}",
       self
         .origin
         .as_ref()
@@ -430,17 +433,22 @@ impl Diagnostic {
     for frame in &self.code_frames {
       if !first {
         write!(dest, "\n\n")?;
-        first = true;
       }
       frame.report(dest)?;
+      first = false;
     }
 
     if !self.hints.is_empty() || self.documentation_url.is_some() {
       write!(dest, "\n\n")?;
     }
 
+    let mut first = true;
     for hint in &self.hints {
+      if !first {
+        writeln!(dest)?;
+      }
       writeln!(dest, "💡 {}", hint)?;
+      first = false;
     }
 
     if let Some(docs) = &self.documentation_url {
@@ -484,35 +492,31 @@ impl CodeFrame {
     location
   }
 
-  fn line_window(&self) -> Option<(u32, u32)> {
-    if self.code_highlights.is_empty() {
-      return None;
+  fn line_windows(&self) -> Vec<(u32, u32)> {
+    let mut windows = Vec::new();
+    for highlight in &self.code_highlights {
+      let start = highlight.start.line.saturating_sub(PADDING_BEFORE).max(1);
+      let end = highlight.end.line.saturating_add(PADDING_AFTER);
+      if end.saturating_sub(start) >= MAX_LINES {
+        // Keep both ends of a long highlight, including its explanatory label.
+        windows.push((start, start + MAX_LINES / 2 - 1));
+        windows.push((end - MAX_LINES / 2 + 1, end));
+      } else {
+        windows.push((start, end));
+      }
     }
-
-    let first_highlight = self
-      .code_highlights
-      .iter()
-      .min_by_key(|v| v.start.line)
-      .unwrap();
-    let last_highlight = self
-      .code_highlights
-      .iter()
-      .max_by_key(|v| v.end.line)
-      .unwrap();
-
-    let start_line = first_highlight
-      .start
-      .line
-      .saturating_sub(PADDING_BEFORE)
-      .max(1);
-    let end_line = last_highlight.end.line + PADDING_AFTER;
-
-    if end_line - start_line > MAX_LINES {
-      // let max_line = start_line + MAX_LINES - 1;
-      // TODO
+    windows.sort_unstable();
+    let mut merged: Vec<(u32, u32)> = Vec::new();
+    for (start, end) in windows {
+      if let Some(last) = merged.last_mut()
+        && start <= last.1.saturating_add(1)
+      {
+        last.1 = last.1.max(end);
+      } else {
+        merged.push((start, end));
+      }
     }
-
-    Some((start_line, end_line))
+    merged
   }
 
   fn code(&self) -> Option<String> {
@@ -524,122 +528,131 @@ impl CodeFrame {
   }
 
   fn render_code<R: CodeFrameRenderer>(&self, renderer: &R) -> String {
-    let Some((start_line, end_line)) = self.line_window() else {
+    let windows = self.line_windows();
+    let Some(&(_, end_line)) = windows.last() else {
       return String::new();
     };
 
-    let line_number_length = (end_line + 1).to_string().len();
+    let line_number_length = end_line.to_string().len();
     let Some(code) = self.code() else {
       return String::new();
     };
 
-    let lines = code
-      .lines()
-      .skip(start_line as usize - 1)
-      .take(end_line as usize - start_line as usize + 1);
-
     let mut res = String::new();
-    for (line_offset, line) in lines.enumerate() {
-      let line_number = start_line + line_offset as u32;
-      let line_highlights = self
-        .code_highlights
-        .iter()
-        .filter(|h| h.start.line <= line_number && h.end.line >= line_number)
-        .collect::<Vec<_>>();
-
-      let is_whole_line = !line_highlights.is_empty()
-        && line_highlights
-          .iter()
-          .any(|h| h.start.line < line_number && h.end.line > line_number);
-
-      use std::fmt::Write;
-      write!(
-        &mut res,
-        "{} {:width$} | {}\n",
-        renderer.error(if !line_highlights.is_empty() {
-          ">"
-        } else {
-          " "
-        }),
-        line_number + 1,
-        render_highlighted(
-          line,
-          self.language.clone().unwrap_or(AssetType::Js),
-          renderer
-        ),
-        width = line_number_length
-      )
-      .unwrap();
-
-      if is_whole_line {
+    for (window, (start_line, end_line)) in windows.into_iter().enumerate() {
+      if window > 0 {
+        use std::fmt::Write;
         writeln!(
           &mut res,
-          "{} {} | {}",
-          renderer.error(">"),
-          " ".repeat(line_number_length),
-          renderer.error(&"^".repeat(line.chars().count()))
+          "\n  ······································································\n",
         )
         .unwrap();
-      } else if !line_highlights.is_empty() {
-        let mut last_col = 0;
-        let mut highlight_has_ended = false;
-        let line_len = line.chars().count();
+      }
+      let lines = code
+        .lines()
+        .skip(start_line as usize - 1)
+        .take(end_line as usize - start_line as usize + 1);
+      for (line_offset, line) in lines.enumerate() {
+        let line_number = start_line + line_offset as u32;
+        let line_highlights = self
+          .code_highlights
+          .iter()
+          .filter(|h| h.start.line <= line_number && h.end.line >= line_number)
+          .collect::<Vec<_>>();
 
+        let is_whole_line = !line_highlights.is_empty()
+          && line_highlights
+            .iter()
+            .any(|h| h.start.line < line_number && h.end.line > line_number);
+
+        use std::fmt::Write;
         write!(
           &mut res,
-          "{} {} | ",
-          renderer.error(">"),
-          " ".repeat(line_number_length)
+          "{} {:width$} | {}\n",
+          renderer.error(if !line_highlights.is_empty() {
+            ">"
+          } else {
+            " "
+          }),
+          line_number,
+          render_highlighted(
+            line,
+            self.language.clone().unwrap_or(AssetType::Js),
+            renderer
+          ),
+          width = line_number_length
         )
         .unwrap();
 
-        for highlight in &line_highlights {
-          let start_col = if highlight.start.line == line_number {
-            highlight.start.column.saturating_sub(1) as usize
-          } else {
-            0
-          }
-          .min(line_len);
-          let end_col = if highlight.end.line == line_number {
-            highlight.end.column.saturating_sub(1) as usize
-          } else {
-            line_len.saturating_sub(1)
-          }
-          .min(line_len)
-          .max(start_col);
+        if is_whole_line {
+          writeln!(
+            &mut res,
+            "{} {} | {}",
+            renderer.error(">"),
+            " ".repeat(line_number_length),
+            renderer.error(&"^".repeat(line.chars().count()))
+          )
+          .unwrap();
+        } else if !line_highlights.is_empty() {
+          let mut last_col = 0;
+          let mut highlight_has_ended = false;
+          let line_len = line.chars().count();
 
-          // TODO: Replace tab with spaces?
+          write!(
+            &mut res,
+            "{} {} | ",
+            renderer.error(">"),
+            " ".repeat(line_number_length)
+          )
+          .unwrap();
 
-          if highlight.end.line == line_number {
-            highlight_has_ended = true;
-          }
+          for highlight in &line_highlights {
+            let start_col = if highlight.start.line == line_number {
+              highlight.start.column.saturating_sub(1) as usize
+            } else {
+              0
+            }
+            .min(line_len);
+            let end_col = if highlight.end.line == line_number {
+              highlight.end.column.saturating_sub(1) as usize
+            } else {
+              line_len.saturating_sub(1)
+            }
+            .min(line_len)
+            .max(start_col);
 
-          // If end_col is smaller than last_col it overlaps with another highlight and is no longer visible, we can skip those
-          if end_col >= last_col {
-            let visible_start = start_col.max(last_col);
-            if visible_start > last_col {
-              // Add spaces before the next visible highlight segment.
-              write!(&mut res, "{}", " ".repeat(visible_start - last_col)).unwrap();
+            // TODO: Replace tab with spaces?
+
+            if highlight.end.line == line_number {
+              highlight_has_ended = true;
             }
 
-            let characters = end_col - visible_start + 1;
-            write!(&mut res, "{}", renderer.error(&"^".repeat(characters))).unwrap();
+            // If end_col is smaller than last_col it overlaps with another highlight and is no longer visible, we can skip those
+            if end_col >= last_col {
+              let visible_start = start_col.max(last_col);
+              if visible_start > last_col {
+                // Add spaces before the next visible highlight segment.
+                write!(&mut res, "{}", " ".repeat(visible_start - last_col)).unwrap();
+              }
 
-            last_col = end_col + 1;
+              let characters = end_col - visible_start + 1;
+              write!(&mut res, "{}", renderer.error(&"^".repeat(characters))).unwrap();
+
+              last_col = end_col + 1;
+            }
           }
-        }
 
-        if highlight_has_ended
-          && let Some(highlight) = line_highlights.last()
-          && let Some(message) = &highlight.message
-        {
-          write!(&mut res, " {}", renderer.plain(message)).unwrap();
-        }
+          if highlight_has_ended
+            && let Some(highlight) = line_highlights.last()
+            && let Some(message) = &highlight.message
+          {
+            write!(&mut res, " {}", renderer.plain(message)).unwrap();
+          }
 
-        res.push('\n');
+          res.push('\n');
+        }
       }
     }
-
     res
   }
 
@@ -996,6 +1009,56 @@ mod tests {
     let rendered = frame.render_code(&HtmlRenderer);
     assert!(rendered.contains("macro failed"), "{rendered}");
     assert!(rendered.contains('^'), "{rendered}");
+  }
+
+  #[test]
+  fn distant_highlights_render_separate_excerpts() {
+    let frame = CodeFrame {
+      code: Some((1..=100).map(|i| format!("source line {i}\n")).collect()),
+      language: Some(AssetType::Toml),
+      code_highlights: [2, 90]
+        .map(|line| CodeHighlight {
+          start: Location { line, column: 1 },
+          end: Location { line, column: 6 },
+          message: Some(format!("highlight {line}")),
+        })
+        .into(),
+      ..CodeFrame::default()
+    };
+    for rendered in [
+      frame.render_code(&HtmlRenderer),
+      frame.render_code(&AnsiRenderer),
+    ] {
+      assert!(rendered.contains("  2 | source line 2"), "{rendered}");
+      assert!(rendered.contains(" 90 | source line 90"), "{rendered}");
+      assert!(rendered.contains("highlight 2") && rendered.contains("highlight 90"));
+      assert!(rendered.contains("| ..."));
+      assert!(!rendered.contains("source line 50"));
+      assert!(rendered.lines().count() < 15);
+    }
+  }
+
+  #[test]
+  fn long_highlights_keep_their_start_end_and_message() {
+    let frame = CodeFrame {
+      code: Some((1..=100).map(|i| format!("source line {i}\n")).collect()),
+      language: Some(AssetType::Toml),
+      code_highlights: vec![CodeHighlight {
+        start: Location { line: 1, column: 1 },
+        end: Location {
+          line: 99,
+          column: 6,
+        },
+        message: Some("the end".into()),
+      }],
+      ..CodeFrame::default()
+    };
+    let rendered = frame.render_code(&HtmlRenderer);
+    assert!(rendered.contains("source line 1\n"));
+    assert!(rendered.contains("source line 99\n"));
+    assert!(rendered.contains("the end"));
+    assert!(rendered.contains("| ..."));
+    assert!(!rendered.contains("source line 50"));
   }
 
   #[test]

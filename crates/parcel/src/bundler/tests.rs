@@ -1215,3 +1215,106 @@ fn consolidation_uses_estimates_without_reading_content() {
     assert_eq!(graph.bundles.len(), expected_bundles);
   }
 }
+
+#[test]
+fn css_order_diagnostics_distinguish_locations_only_when_needed() {
+  use parcel_core::{
+    Diagnostic, LogMessage, Reporter, ReporterEvent, Reporters, SourceLocation, SourceUrl,
+  };
+  use std::sync::{Arc, Mutex};
+
+  #[derive(Default)]
+  struct Warnings(Mutex<Vec<Diagnostic>>);
+  impl Reporter for Warnings {
+    fn report(&self, event: &ReporterEvent, _: &ParcelOptions) -> Result<(), DiagnosticList> {
+      if let ReporterEvent::Log(log) = event
+        && let LogMessage::Diagnostics(diagnostics) = log.message
+      {
+        self.0.lock().unwrap().extend_from_slice(diagnostics);
+      }
+      Ok(())
+    }
+  }
+
+  for (first, second, expected) in [
+    (vec![2, 3, 4], vec![4, 2, 3], "component.tsx → other.tsx"),
+    (
+      vec![2, 4, 3],
+      vec![4, 2, 3],
+      "component.tsx → other.tsx → component.tsx",
+    ),
+    (
+      vec![2, 3],
+      vec![3, 2],
+      "component.tsx:10:1 → component.tsx:20:1",
+    ),
+    (
+      vec![2, 4, 3],
+      vec![3, 4, 2],
+      "component.tsx:10:1 → other.tsx → component.tsx:20:1",
+    ),
+  ] {
+    let edges: Vec<_> = first
+      .iter()
+      .map(|&a| (0, a, Priority::Sync))
+      .chain(second.iter().map(|&a| (1, a, Priority::Sync)))
+      .collect();
+    let mut graph = asset_graph(5, &[0, 1], &edges);
+    for (asset, file, line) in [
+      (2, "component.tsx", 10),
+      (3, "component.tsx", 20),
+      (4, "other.tsx", 1),
+    ] {
+      let asset = &mut graph.assets.to_mut()[asset];
+      asset.ty = AssetType::Css;
+      asset.loc = SourceLocation {
+        url: SourceUrl::parse(&format!("file:///project/{file}")).unwrap(),
+        start: parcel_core::Location { line, column: 1 },
+        end: parcel_core::Location { line, column: 2 },
+      };
+    }
+    for asset in &mut graph.assets.to_mut()[..2] {
+      for (i, dep) in asset.dependencies.iter_mut().enumerate() {
+        dep.loc = Some(SourceLocation {
+          url: asset.loc.url.clone(),
+          start: parcel_core::Location {
+            line: i as u32 + 1,
+            column: 1,
+          },
+          end: parcel_core::Location {
+            line: i as u32 + 1,
+            column: 2,
+          },
+        });
+      }
+    }
+    let warnings = Arc::new(Warnings::default());
+    let reporters = Reporters::new(vec![warnings.clone()], parcel_core::LogLevel::Warn);
+    let options = Arc::new(ParcelOptions {
+      reporters: reporters.clone(),
+      ..Default::default()
+    });
+    reporters.attach(Arc::downgrade(&options));
+    let roots = BundleRoots::from_asset_graph(&graph);
+    let reachability = Reachability::from_bundle_roots(&graph, &roots);
+    style_order::plan(&graph, &roots, &reachability, &options, |a| {
+      a.ty == AssetType::Css
+    });
+    let diagnostics = warnings.0.lock().unwrap();
+    assert_eq!(diagnostics.len(), 1);
+    assert!(
+      diagnostics[0].hints[0].starts_with(&format!("Order 1: {expected}\n")),
+      "{:#?}",
+      diagnostics[0]
+    );
+    for frame in &diagnostics[0].code_frames {
+      for highlight in &frame.code_highlights {
+        let message = highlight.message.as_ref().unwrap();
+        assert!(
+          !message.contains("stylesheet #") && !message.contains(';'),
+          "{message}"
+        );
+      }
+    }
+  }
+}

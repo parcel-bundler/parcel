@@ -45,6 +45,7 @@ fn setup(files: &[(&str, &str)]) -> (Parcel, Arc<MemoryFileSystem>) {
       host: "0.0.0.0".into(),
       port: 1234,
     }),
+    reporters: Vec::new(),
   };
 
   let entries = vec!["/project/index.js".to_string()];

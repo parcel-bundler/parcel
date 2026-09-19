@@ -1,6 +1,11 @@
+use anstyle::{AnsiColor, Color, Style};
 use parcel::ServerOptions;
-use parcel_core::{BuildOptions, HmrOptions, OsFileSystem, PathId};
+use parcel_core::{
+  BuildOptions, BuildSuccess, HmrOptions, LogEvent, LogLevel, LogMessage, OsFileSystem, PathId,
+  Reporter, ReporterEvent,
+};
 use std::borrow::Cow;
+use std::io::Write;
 use std::path::Path;
 use std::process::ExitCode;
 use std::{collections::HashMap, sync::Arc};
@@ -62,6 +67,7 @@ pub fn main() -> ExitCode {
     dist_dir: None,
     public_url: Default::default(),
     hmr: None,
+    reporters: vec![Arc::new(CLIReporter {})],
   };
 
   let mut entries = Vec::new();
@@ -126,14 +132,64 @@ pub fn main() -> ExitCode {
     }
   };
 
-  match res {
-    Ok(_) => {}
-    Err(err) => {
-      let mut stderr = std::io::stderr();
-      err.report(&mut stderr).unwrap();
-      return ExitCode::from(1);
-    }
+  if res.is_ok() {
+    ExitCode::SUCCESS
+  } else {
+    ExitCode::FAILURE
   }
+}
 
-  ExitCode::from(0)
+struct CLIReporter;
+
+impl Reporter for CLIReporter {
+  fn report(
+    &self,
+    event: &parcel_core::ReporterEvent,
+    _options: &parcel_core::ParcelOptions,
+  ) -> Result<(), parcel_core::DiagnosticList> {
+    match event {
+      ReporterEvent::Log(LogEvent {
+        level,
+        message: LogMessage::Text(log),
+      }) => {
+        let mut stdio = stdio(level);
+        writeln!(&mut stdio, "{}", log)?;
+      }
+      ReporterEvent::Log(LogEvent {
+        level,
+        message: LogMessage::Diagnostics(diagnostics),
+      }) => {
+        let mut stdio = stdio(level);
+        for diagnostic in *diagnostics {
+          writeln!(&mut stdio)?;
+          diagnostic.report(&mut stdio)?;
+        }
+        writeln!(&mut stdio)?;
+      }
+      ReporterEvent::BuildSuccess(BuildSuccess { build_time, .. }) => {
+        let style = Style::new()
+          .fg_color(Some(Color::Ansi(AnsiColor::BrightGreen)))
+          .bold();
+        println!("{style}✨ Built in {:?}{style:#}", build_time);
+      }
+      ReporterEvent::BuildFailure { diagnostics } => {
+        let style = Style::new()
+          .fg_color(Some(Color::Ansi(AnsiColor::Red)))
+          .bold();
+        println!("{style}🚨 Build failed.{style:#}\n");
+        let mut stderr = std::io::stderr();
+        diagnostics.report(&mut stderr).unwrap();
+      }
+      _ => {}
+    }
+
+    Ok(())
+  }
+}
+
+fn stdio(level: &LogLevel) -> either::Either<std::io::Stderr, std::io::Stdout> {
+  match level {
+    LogLevel::Error | LogLevel::Warn => either::Either::Left(std::io::stderr()),
+    _ => either::Either::Right(std::io::stdout()),
+  }
 }

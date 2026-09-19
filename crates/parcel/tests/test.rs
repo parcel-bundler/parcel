@@ -146,6 +146,7 @@ fn bundle_with_options(
     dist_dir: None,
     public_url: Default::default(),
     hmr: None,
+    reporters: Vec::new(),
   };
 
   parcel::build(&entries, options)

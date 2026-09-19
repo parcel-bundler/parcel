@@ -724,6 +724,7 @@ mod tests {
         dist_dir: None,
         public_url: Default::default(),
         hmr: None,
+        reporters: Vec::new(),
       },
     )
     .unwrap();
@@ -1345,6 +1346,7 @@ mod tests {
         dist_dir: None,
         public_url: Default::default(),
         hmr: None,
+        reporters: Vec::new(),
       },
     );
     assert!(result.is_err());
@@ -1377,6 +1379,7 @@ mod tests {
         dist_dir: None,
         public_url: Default::default(),
         hmr: None,
+        reporters: Vec::new(),
       },
     )
     .unwrap();

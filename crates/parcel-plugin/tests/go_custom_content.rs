@@ -89,6 +89,7 @@ fn build_fixture(
       dist_dir: None,
       public_url: Default::default(),
       hmr: None,
+      reporters: Vec::new(),
     },
   ))
 }

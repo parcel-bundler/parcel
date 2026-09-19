@@ -170,6 +170,7 @@ fn test_go_reporter_plugin_in_a_build() {
       dist_dir: None,
       public_url: Default::default(),
       hmr: None,
+      reporters: Vec::new(),
     },
   )
   .unwrap_or_else(|error| panic!("parcel build failed: {error:?}"));

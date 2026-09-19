@@ -10,6 +10,16 @@ mod transformer;
 
 pub use transformer::JsTransformer;
 
+/// Source text corresponding to locations produced by the JS transformer.
+/// Earlier transformers may have rewritten it without providing a source map.
+pub fn diagnostic_source(asset: &Asset) -> Option<String> {
+  let content = asset.content.downcast_ref::<JsContent>()?;
+  // The parser registers its input before any macro-generated source files.
+  let files = content.ast.source_map.files();
+  let file = files.first()?;
+  Some(file.src.to_string())
+}
+
 struct JsContent {
   source_size: usize,
   ast: Ast,

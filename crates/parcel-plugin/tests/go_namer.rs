@@ -75,6 +75,7 @@ fn test_go_namer_plugin() {
       dist_dir: None,
       public_url: Default::default(),
       hmr: None,
+      reporters: Vec::new(),
     },
   )
   .unwrap_or_else(|error| panic!("parcel build failed: {:?}", error));

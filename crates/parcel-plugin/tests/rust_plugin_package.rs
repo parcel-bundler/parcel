@@ -122,6 +122,7 @@ fn build_fixture(parcelrc_path: &Path) -> Result<String, String> {
       dist_dir: None,
       public_url: Default::default(),
       hmr: None,
+      reporters: Vec::new(),
     },
   )
   .map_err(|e| format!("{e:?}"))?;
