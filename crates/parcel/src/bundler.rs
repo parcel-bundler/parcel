@@ -685,6 +685,17 @@ fn resolve_bundle_dependencies(
         && bundles[root.load].bundle_behavior == BundleBehavior::None;
 
       if is_sync_module_dep {
+        // Symbol resolution may bypass a side-effect-free re-export and use
+        // its implementation directly. Do not eagerly load the unused barrel:
+        // it may also be a lazy root whose implementation is only available
+        // after this importer has registered its modules.
+        if !asset_graph
+          .resolved_dependencies_with_indices(asset)
+          .any(|(index, resolved)| index == dep_index && resolved == target)
+        {
+          continue;
+        }
+
         // Keep Asset resolution for the parcelRequire chain. Every source copy
         // needs a provider, but a local or already referenced copy is sufficient.
         // Fall back to the root's explicit content owner, never an entry facade

@@ -1,0 +1,40 @@
+[
+  {
+    "description": "A lazy re-export must not execute before its eagerly imported implementation is registered",
+    "input": "index.js",
+    "options": {
+      "mode": "development"
+    },
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js", "value.js"],
+        "references": []
+      },
+      {
+        "assets": ["barrel.js"],
+        "references": []
+      }
+    ],
+    "output": [42, 42]
+  },
+  {
+    "description": "A lazy re-export must not execute before its eagerly imported implementation is registered",
+    "input": "index.js",
+    "options": {
+      "mode": "production"
+    },
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js", "value.js"],
+        "references": []
+      },
+      {
+        "assets": ["barrel.js"],
+        "references": []
+      }
+    ],
+    "output": [42, 42]
+  }
+]
