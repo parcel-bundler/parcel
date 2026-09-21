@@ -438,6 +438,65 @@ describe('ParcelConfigRequest', () => {
       );
     });
 
+    it('should not inherit plugins overridden before a spread element', () => {
+      assert.deepEqual(
+        mergePipelines(
+          [
+            {
+              packageName: 'parcel-transform-foo',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
+              keyPath: '/transformers/*.js/0',
+            },
+            {
+              packageName: 'parcel-transform-bar',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
+              keyPath: '/transformers/*.js/1',
+            },
+          ],
+          [
+            {
+              packageName: 'parcel-transform-bar',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
+              keyPath: '/transformers/*.js/0',
+            },
+            {
+              packageName: 'parcel-transform-bar',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
+              keyPath: '/transformers/*.js/1',
+            },
+            '...',
+            {
+              packageName: 'parcel-transform-baz',
+              resolveFrom: toProjectPath('/', '/.parcelrc'),
+              keyPath: '/transformers/*.js/3',
+            },
+          ],
+        ),
+        [
+          {
+            packageName: 'parcel-transform-bar',
+            resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/0',
+          },
+          {
+            packageName: 'parcel-transform-bar',
+            resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/1',
+          },
+          {
+            packageName: 'parcel-transform-foo',
+            resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/0',
+          },
+          {
+            packageName: 'parcel-transform-baz',
+            resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/3',
+          },
+        ],
+      );
+    });
+
     it('should throw if more than one spread element is in a pipeline', () => {
       assert.throws(() => {
         mergePipelines(

@@ -665,9 +665,22 @@ export function mergePipelines(
   // Merge the base pipeline if a rest element is defined
   let spreadIndex = ext.indexOf('...');
   if (spreadIndex >= 0) {
+    let overriddenPluginNames = new Set<PackageName>();
+    for (let plugin of ext.slice(0, spreadIndex)) {
+      if (typeof plugin !== 'string') {
+        overriddenPluginNames.add(plugin.packageName);
+      }
+    }
+
     return [
       ...ext.slice(0, spreadIndex),
-      ...(base ?? []),
+      ...(base ?? []).filter(plugin => {
+        if (typeof plugin === 'string') {
+          return true;
+        }
+
+        return !overriddenPluginNames.has(plugin.packageName);
+      }),
       ...ext.slice(spreadIndex + 1),
     ];
   } else {
