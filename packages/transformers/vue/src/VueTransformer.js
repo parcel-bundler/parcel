@@ -20,6 +20,12 @@ import consolidate from '@ladjs/consolidate';
 
 const MODULE_BY_NAME_RE = /\.module\./;
 
+const getCompilerFileSystem = (inputFS) => ({
+  fileExists: filePath => inputFS.existsSync(filePath),
+  readFile: filePath => inputFS.readFileSync(filePath, 'utf8'),
+  realpath: filePath => inputFS.realpathSync(filePath),
+});
+
 // TODO: Use language-specific config files during preprocessing
 export default (new Transformer({
   async loadConfig({config}) {
@@ -90,6 +96,7 @@ export default (new Transformer({
             ? compiler.compileScript(descriptor, {
                 id,
                 isProd: options.mode === 'production',
+                fs: getCompilerFileSystem(options.inputFS),
               })
             : null,
         id,
