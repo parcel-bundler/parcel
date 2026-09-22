@@ -11,14 +11,12 @@
       "type": "js"
     },
     {
-      "assets": ["barrel.js", "esmodule-helpers.js", "renderer.js"],
-      "references": [],
-      "type": "js",
-      "contains": ["\"renderToCanvas\",()=>"],
-      "notContains": ["unused-renderer-export-sentinel"]
-    },
-    {
-      "assets": ["esmodule-helpers.js", "preview.js", "renderer.js"],
+      "assets": [
+        "barrel.js",
+        "esmodule-helpers.js",
+        "preview.js",
+        "renderer.js"
+      ],
       "references": [],
       "type": "js",
       "contains": ["\"renderToCanvas\",()=>"],

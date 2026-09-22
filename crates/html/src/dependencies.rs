@@ -108,6 +108,7 @@ pub fn collect_dependencies<'arena>(
         side_effects: true,
         unique_key: asset.unique_key.clone(),
       })),
+      concurrent_group: 0,
     });
   }
 
@@ -286,6 +287,7 @@ impl<'arena> DependencyCollector<'arena> {
             range: None,
             conditions: ExportsCondition::empty(),
             resolution: DependencyResolution::None,
+            concurrent_group: 0,
           };
 
           node.set_attribute(expanded_name!("", "href"), dep.set_placeholder());
@@ -379,6 +381,7 @@ impl<'arena> DependencyCollector<'arena> {
               range: None,
               conditions: ExportsCondition::empty(),
               resolution: DependencyResolution::None,
+              concurrent_group: 0,
             };
 
             copy.set_attribute(src_attr, dep.set_placeholder());
@@ -400,6 +403,7 @@ impl<'arena> DependencyCollector<'arena> {
             range: None,
             conditions: ExportsCondition::empty(),
             resolution: DependencyResolution::None,
+            concurrent_group: 0,
           };
 
           node.set_attribute(src_attr, dep.set_placeholder());
@@ -708,6 +712,7 @@ impl<'arena> DependencyCollector<'arena> {
           range: None,
           conditions: ExportsCondition::empty(),
           resolution: DependencyResolution::None,
+          concurrent_group: 0,
         };
 
         img.url = dep.set_placeholder().into();
@@ -743,6 +748,7 @@ impl<'arena> DependencyCollector<'arena> {
       resolve_from: Some(self.url.clone()),
       conditions: ExportsCondition::empty(),
       resolution: DependencyResolution::None,
+      concurrent_group: 0,
     };
 
     let placeholder = dep.set_placeholder().into();

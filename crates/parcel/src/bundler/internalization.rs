@@ -98,7 +98,9 @@ impl Internalization {
         let Some((target, target_asset)) = graph.resolved_asset(dep) else {
           continue;
         };
-        let Some(target_root) = roots.root_index(target) else {
+        // A grouped member loads as its canonical root, which must stay
+        // active until every member's causes are gone.
+        let Some(target_root) = roots.root_index(target).map(|root| roots.canonical(root)) else {
           continue;
         };
         remaining_causes[target_root] += 1;
@@ -202,7 +204,7 @@ impl Internalization {
 
     let mut removed = false;
     for root in 0..roots.len() {
-      if !roots.is_active(root) {
+      if !roots.is_active(root) || !roots.is_canonical(root) {
         continue;
       }
       if self.remaining_causes[root] == 0 && !roots.is_mandatory(root) {

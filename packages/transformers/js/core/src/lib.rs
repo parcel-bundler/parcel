@@ -841,7 +841,8 @@ pub fn transform_to_ast(
               attributes: None,
               flags: DependencyFlags::empty(),
               source_type: None,
-              placeholder: None
+              placeholder: None,
+              concurrent_group: 0,
             });
 
             if let Some(sym) = &mut result.symbol_result {

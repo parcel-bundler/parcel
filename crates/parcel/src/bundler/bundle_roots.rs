@@ -1,8 +1,10 @@
+use std::collections::HashMap;
+
 use fixedbitset::FixedBitSet;
 
 use super::bit_matrix::{AsBitRow, BitRow};
 use parcel_core::{
-  AssetGraph, AssetIndex, BundleBehavior, DependencyFlags, Priority, SpecifierType,
+  AssetGraph, AssetIndex, AssetType, BundleBehavior, DependencyFlags, Priority, SpecifierType,
 };
 
 pub struct BundleRoots {
@@ -19,6 +21,14 @@ pub struct BundleRoots {
   mandatory_roots: FixedBitSet,
   // Effective behavior per root, combining asset metadata with incoming dependency overrides.
   bundle_behaviors: Vec<BundleBehavior>,
+  // Dense root ID -> the root it loads as. Lazy targets only ever imported
+  // together, `Promise.all([import('a'), import('b')])`, from the same places,
+  // are one loading event: they share a canonical root, and every consumer
+  // of the dense ID space (reachability, availability, internalization) sees
+  // only the canonical one. Members remain addressable by their own asset.
+  canonical: Vec<u32>,
+  // Whether any root is a member of another.
+  grouped: bool,
 }
 
 impl BundleRoots {
@@ -94,14 +104,93 @@ impl BundleRoots {
     let mut active_roots = FixedBitSet::with_capacity(root_assets.len());
     active_roots.insert_range(..);
 
-    BundleRoots {
+    let mut roots = BundleRoots {
+      canonical: (0..root_assets.len() as u32).collect(),
+      grouped: false,
       root_assets,
       root_indices,
       active_roots,
       entry_roots,
       mandatory_roots,
       bundle_behaviors,
+    };
+    roots.group_concurrent(asset_graph);
+    roots
+  }
+
+  // Merge roots whose every incoming reference is a concurrent import, and
+  // whose sets of importing (asset, group) sites are identical: nothing ever
+  // loads one without the others. Anything reached any other way stays its
+  // own root, since merging would push the rest into a context that did not
+  // ask for it.
+  fn group_concurrent(&mut self, asset_graph: &AssetGraph) {
+    let mut sites: Vec<Vec<(u32, u32)>> = vec![Vec::new(); self.root_assets.len()];
+    let mut independent = self.mandatory_roots.clone();
+    for (source, asset, _) in asset_graph.dfs() {
+      for dep in &asset.dependencies {
+        let Some((target, _)) = asset_graph.resolved_asset(dep) else {
+          continue;
+        };
+        let Some(root) = self.root_index(target) else {
+          continue;
+        };
+        if dep.concurrent_group != 0
+          && dep.priority == Priority::Lazy
+          && dep.specifier_type != SpecifierType::Url
+          && dep.bundle_behavior == BundleBehavior::None
+        {
+          sites[root].push((source.0, dep.concurrent_group));
+        } else {
+          independent.insert(root);
+        }
+      }
     }
+    let mut groups: HashMap<Vec<(u32, u32)>, Vec<usize>> = HashMap::new();
+    for (root, sites) in sites.iter_mut().enumerate() {
+      let asset = asset_graph.asset(self.root_assets[root]);
+      if sites.is_empty()
+        || independent.contains(root)
+        || asset.ty != AssetType::Js
+        || self.bundle_behaviors[root] != BundleBehavior::None
+      {
+        continue;
+      }
+      sites.sort_unstable();
+      sites.dedup();
+      groups.entry(std::mem::take(sites)).or_default().push(root);
+    }
+    for members in groups.into_values() {
+      // Dense IDs follow asset order, so the first member is the canonical root.
+      let canonical = members[0];
+      let environment = asset_graph
+        .asset(self.root_assets[canonical])
+        .target
+        .environment;
+      for &member in &members[1..] {
+        if asset_graph
+          .asset(self.root_assets[member])
+          .target
+          .environment
+          == environment
+        {
+          self.canonical[member] = canonical as u32;
+          self.grouped = true;
+        }
+      }
+    }
+  }
+
+  // The root a dense root loads as: itself, or the canonical root of its group.
+  pub fn canonical(&self, root: usize) -> usize {
+    self.canonical[root] as usize
+  }
+
+  pub fn is_canonical(&self, root: usize) -> bool {
+    self.canonical[root] as usize == root
+  }
+
+  pub fn has_groups(&self) -> bool {
+    self.grouped
   }
 
   // Number of stable dense root IDs, including roots removed by internalization.
@@ -169,7 +258,13 @@ impl BundleRoots {
     roots.intersect_with(self.active_roots.bits());
   }
 
+  // Deactivate a root and, through it, every member of its group.
   pub fn deactivate(&mut self, root: usize) {
-    self.active_roots.set(root, false);
+    let canonical = self.canonical[root];
+    for member in 0..self.canonical.len() {
+      if self.canonical[member] == canonical {
+        self.active_roots.set(member, false);
+      }
+    }
   }
 }

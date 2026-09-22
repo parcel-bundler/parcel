@@ -122,6 +122,7 @@ fn test_dependency() -> Dependency {
     range: Some("^1.2.3".into()),
     conditions: ExportsCondition::REQUIRE | ExportsCondition::BROWSER,
     resolution: DependencyResolution::None,
+    concurrent_group: 0,
   }
 }
 

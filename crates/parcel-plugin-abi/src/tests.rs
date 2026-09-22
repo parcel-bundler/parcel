@@ -48,6 +48,7 @@ fn dependency_fixture(target: Arc<CoreTarget>) -> CoreDependency {
     range: None,
     conditions: CoreExportsCondition::IMPORT | CoreExportsCondition::BROWSER,
     resolution: DependencyResolution::None,
+    concurrent_group: 0,
   }
 }
 

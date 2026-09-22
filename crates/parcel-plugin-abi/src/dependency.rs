@@ -202,6 +202,7 @@ pub extern "C" fn parcel_asset_add_dependency(asset: Asset, dep: *const Dependen
     range: None,
     conditions: CoreExportsCondition::from_bits_truncate(dep.conditions),
     resolution: DependencyResolution::None,
+    concurrent_group: 0,
   });
 }
 

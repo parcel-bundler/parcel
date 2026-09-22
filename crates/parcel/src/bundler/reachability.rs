@@ -142,6 +142,24 @@ impl Reachability {
       edge_offsets,
       seen,
     ));
+
+    // A grouped root's members load as their canonical root: rows name only
+    // that one, so members' classes are one class and one bundle.
+    if bundle_roots.has_groups() {
+      let mut renamed = Vec::new();
+      for component in 0..component_count {
+        renamed.clear();
+        renamed.extend(
+          reachable_roots[component]
+            .ones()
+            .filter(|&root| !bundle_roots.is_canonical(root)),
+        );
+        for &root in &renamed {
+          reachable_roots.set(component, root, false);
+          reachable_roots.insert(component, bundle_roots.canonical(root));
+        }
+      }
+    }
     Self::from_components(asset_components, reachable_roots)
   }
 

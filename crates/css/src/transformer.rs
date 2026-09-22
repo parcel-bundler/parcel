@@ -189,6 +189,7 @@ impl Transformer for CssTransformer {
                 range: None,
                 conditions: ExportsCondition::STYLE,
                 resolution: DependencyResolution::None,
+                concurrent_group: 0,
               });
 
               asset.symbols.imports.push(ImportedSymbol {
@@ -224,6 +225,7 @@ impl Transformer for CssTransformer {
                 range: None,
                 conditions: ExportsCondition::STYLE,
                 resolution: DependencyResolution::None,
+                concurrent_group: 0,
               });
 
               let index = asset.symbols.imports.len();
@@ -427,6 +429,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
         range: None,
         conditions: ExportsCondition::STYLE,
         resolution: DependencyResolution::None,
+        concurrent_group: 0,
       });
 
       Ok(())
@@ -511,6 +514,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
       range: None,
       conditions: ExportsCondition::empty(),
       resolution: DependencyResolution::None,
+      concurrent_group: 0,
     });
 
     Ok(())

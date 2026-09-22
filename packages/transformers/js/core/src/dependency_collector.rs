@@ -180,6 +180,10 @@ pub struct DependencyDescriptor {
   pub specifier: JsWord,
   pub attributes: Option<JsValue>,
   pub flags: DependencyFlags,
+  /// Non-zero for a dynamic import that is a direct element of a `Promise.all`
+  /// array, numbering that array within the file: the imports of one array are
+  /// one loading event. Zero otherwise.
+  pub concurrent_group: u32,
   pub source_type: Option<SourceType>,
   pub placeholder: Option<String>,
 }
@@ -199,6 +203,8 @@ pub fn dependency_collector<'a>(
     items,
     in_try: false,
     in_promise: false,
+    concurrent_group: 0,
+    concurrent_groups: 0,
     require_node: None,
     ignore_mark,
     unresolved_mark,
@@ -217,6 +223,10 @@ struct DependencyCollector<'a> {
   items: &'a mut Vec<DependencyDescriptor>,
   in_try: bool,
   in_promise: bool,
+  /// The `Promise.all` array whose direct `import()` element is being folded, or zero.
+  concurrent_group: u32,
+  /// Arrays seen so far in this file; each gets its own group number.
+  concurrent_groups: u32,
   require_node: Option<ast::CallExpr>,
   ignore_mark: swc_core::common::Mark,
   unresolved_mark: swc_core::common::Mark,
@@ -250,7 +260,9 @@ impl<'a> DependencyCollector<'a> {
     // file imported with two different `type` attributes), so they are hashed into
     // the placeholder. `type: 'macro'` imports never reach here; the macros pass
     // evaluates and removes them first.
-    let attributes_input = attributes.as_ref().map(|attributes| format!("{:?}", attributes));
+    let attributes_input = attributes
+      .as_ref()
+      .map(|attributes| format!("{:?}", attributes));
 
     // For ESM imports, the specifier will remain unchanged.
     // For other types of dependencies, the specifier will be changed to a hash
@@ -295,6 +307,11 @@ impl<'a> DependencyCollector<'a> {
     flags.set(DependencyFlags::OPTIONAL, is_optional);
     flags.set(DependencyFlags::HELPER, span.is_dummy());
     flags.set(DependencyFlags::NEEDS_STABLE_NAME, needs_stable_name);
+    let concurrent_group = if kind == DependencyKind::DynamicImport {
+      self.concurrent_group
+    } else {
+      0
+    };
 
     self.items.push(DependencyDescriptor {
       kind,
@@ -302,6 +319,7 @@ impl<'a> DependencyCollector<'a> {
       specifier,
       attributes,
       flags,
+      concurrent_group,
       source_type: Some(source_type),
       placeholder: placeholder.clone(),
     });
@@ -366,6 +384,7 @@ impl<'a> DependencyCollector<'a> {
       flags,
       source_type: Some(source_type),
       placeholder: Some(placeholder.clone()),
+      concurrent_group: 0,
     });
 
     create_url_constructor(
@@ -408,6 +427,22 @@ impl<'a> DependencyCollector<'a> {
         "https://parceljs.org/languages/javascript/#classic-scripts",
       )),
     });
+  }
+}
+
+impl<'a> DependencyCollector<'a> {
+  /// `Promise.all([...])` with a single array literal argument.
+  fn is_concurrent_group(&self, node: &ast::CallExpr) -> bool {
+    let ast::Callee::Expr(callee) = &node.callee else {
+      return false;
+    };
+    let ast::Expr::Member(member) = &**callee else {
+      return false;
+    };
+    match_member_expr(member, vec!["Promise", "all"], self.unresolved_mark)
+      && node.args.len() == 1
+      && node.args[0].spread.is_none()
+      && matches!(&*node.args[0].expr, ast::Expr::Array(_))
   }
 }
 
@@ -545,6 +580,43 @@ impl<'a> Fold for DependencyCollector<'a> {
   fn fold_call_expr(&mut self, node: ast::CallExpr) -> ast::CallExpr {
     use ast::Expr::*;
 
+    // Dynamic imports awaited together, `Promise.all([import('a'), import('b')])`,
+    // are one loading event: each array numbers a group for the bundler. Only
+    // direct array elements qualify: an `import()` inside a callback in the
+    // same array may never run. `allSettled` is left alone, since it exists so
+    // that one import can succeed when another fails.
+    if self.is_concurrent_group(&node) {
+      let mut node = node;
+      self.concurrent_groups += 1;
+      let group = self.concurrent_groups;
+      let ast::ExprOrSpread { spread, expr } = node.args.pop().unwrap();
+      let Array(mut array) = *expr else {
+        unreachable!()
+      };
+      array.elems = array
+        .elems
+        .into_iter()
+        .map(|elem| {
+          elem.map(|ast::ExprOrSpread { spread, expr }| {
+            let was_concurrent_group = self.concurrent_group;
+            self.concurrent_group = if matches!(&*expr, Call(call) if call.callee.is_import()) {
+              group
+            } else {
+              0
+            };
+            let expr = expr.fold_with(self);
+            self.concurrent_group = was_concurrent_group;
+            ast::ExprOrSpread { spread, expr }
+          })
+        })
+        .collect();
+      node.args.push(ast::ExprOrSpread {
+        spread,
+        expr: Box::new(Array(array)),
+      });
+      return node;
+    }
+
     let kind = match &node.callee {
       Callee::Import(_) => DependencyKind::DynamicImport,
       Callee::Expr(expr) => {
@@ -662,6 +734,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                       flags: DependencyFlags::empty(),
                       source_type: None,
                       placeholder: None,
+                      concurrent_group: 0,
                     });
                   }
                 }
@@ -1852,6 +1925,8 @@ mod test {
       items,
       in_try: false,
       in_promise: false,
+      concurrent_group: 0,
+      concurrent_groups: 0,
       require_node: None,
       ignore_mark: Mark::new(),
       unresolved_mark: context.unresolved_mark,
@@ -1910,6 +1985,49 @@ mod test {
         placeholder: Some(hash),
         ..items[0].clone()
       }]
+    );
+  }
+
+  #[test]
+  fn test_concurrent_dynamic_imports() {
+    let mut items = vec![];
+    let mut diagnostics = vec![];
+    let config = Config::default();
+    let input_code = r#"
+      const [a, b] = await Promise.all([import('a'), import('b'), load(() => import('c'))]);
+      const d = await import('d');
+      const e = await Promise.all(imports);
+      const [f, g] = await Promise.all([import('f'), import('g')]);
+      const h = await Promise.allSettled([import('h')]);
+    "#;
+
+    run_fold(input_code, |context| {
+      make_dependency_collector(context, &mut items, &mut diagnostics, &config)
+    });
+
+    assert_eq!(diagnostics, []);
+    let groups: Vec<_> = items
+      .iter()
+      .map(|item| {
+        (
+          item.specifier.to_string(),
+          item.kind.clone(),
+          item.concurrent_group,
+        )
+      })
+      .collect();
+    let dynamic = DependencyKind::DynamicImport;
+    assert_eq!(
+      groups,
+      [
+        ("a".into(), dynamic.clone(), 1),
+        ("b".into(), dynamic.clone(), 1),
+        ("c".into(), dynamic.clone(), 0),
+        ("d".into(), dynamic.clone(), 0),
+        ("f".into(), dynamic.clone(), 2),
+        ("g".into(), dynamic.clone(), 2),
+        ("h".into(), dynamic, 0),
+      ]
     );
   }
 

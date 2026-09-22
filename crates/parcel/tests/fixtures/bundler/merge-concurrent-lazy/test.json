@@ -1,0 +1,18 @@
+{
+  "description": "Dynamic imports awaited together are one loading root: one file serves both, with their common payload placed once",
+  "input": "index.js",
+  "bundles": [
+    {
+      "assets": ["esmodule-helpers.js", "index.js"],
+      "references": []
+    },
+    {
+      "assets": ["a.js", "b.js", "common.js"],
+      "references": []
+    }
+  ],
+  "output": 2003,
+  "options": {
+    "config": ".parcelrc"
+  }
+}

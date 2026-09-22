@@ -116,6 +116,7 @@ mod test {
       },
       source_type: None,
       placeholder: None,
+      concurrent_group: 0,
     });
 
     let mut collect = Collect::new(

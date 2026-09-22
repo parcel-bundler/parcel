@@ -188,6 +188,7 @@ impl<'a> InlineFS<'a> {
           flags: DependencyFlags::empty(),
           source_type: None,
           placeholder: None,
+          concurrent_group: 0,
         });
 
         // If buffer, wrap in Buffer.from(base64String, 'base64')

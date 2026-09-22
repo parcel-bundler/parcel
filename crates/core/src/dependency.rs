@@ -21,6 +21,12 @@ pub struct Dependency {
   /// How the resolved asset is evaluated (i.e. the value it exports).
   pub import_type: ImportType,
   pub flags: DependencyFlags,
+  /// Non-zero for a lazy import requested together with the importing asset's
+  /// other imports of the same group, as in `Promise.all([import('a'), import('b')])`:
+  /// one loading event. Targets only ever reached this way, from the same
+  /// groups, become one loading root. Zero for every other dependency.
+  #[serde(default)]
+  pub concurrent_group: u32,
   pub target: Arc<Target>,
   #[serde(default)]
   pub loc: Option<SourceLocation>,

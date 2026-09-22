@@ -232,6 +232,7 @@ mod tests {
       range: None,
       conditions: ExportsCondition::empty(),
       resolution: crate::DependencyResolution::None,
+      concurrent_group: 0,
     };
 
     let fs: Arc<dyn FileSystem> = Arc::new(OsFileSystem {});

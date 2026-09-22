@@ -429,6 +429,7 @@ impl Transformer for JsTransformer {
         } else {
           DependencyResolution::None
         },
+        concurrent_group: dep.concurrent_group,
       })
     }
 
@@ -448,6 +449,7 @@ impl Transformer for JsTransformer {
         range: None,
         conditions: ExportsCondition::empty(),
         resolution: DependencyResolution::None,
+        concurrent_group: 0,
       });
 
       asset.symbols.imports.push(ImportedSymbol {
@@ -564,6 +566,7 @@ impl Transformer for JsTransformer {
           range: None,
           conditions: ExportsCondition::IMPORT,
           resolution: DependencyResolution::None,
+          concurrent_group: 0,
         });
         asset.symbols.imports.push(ImportedSymbol {
           dep_index,

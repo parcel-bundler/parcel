@@ -265,6 +265,7 @@ fn make_dep(
     range: None,
     conditions: ExportsCondition::empty(),
     resolution: DependencyResolution::None,
+    concurrent_group: 0,
   }
 }
 

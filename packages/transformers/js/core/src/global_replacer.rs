@@ -88,6 +88,7 @@ impl VisitMut for GlobalReplacer<'_> {
             flags: DependencyFlags::empty(),
             source_type: Some(SourceType::Module),
             placeholder: None,
+            concurrent_group: 0,
           });
         }
       }
@@ -108,6 +109,7 @@ impl VisitMut for GlobalReplacer<'_> {
             flags: DependencyFlags::empty(),
             source_type: Some(SourceType::Module),
             placeholder: None,
+            concurrent_group: 0,
           });
         }
       }

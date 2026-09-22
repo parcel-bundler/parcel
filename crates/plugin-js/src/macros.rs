@@ -110,6 +110,7 @@ impl MacroContext {
         side_effects: true,
         unique_key: Some(ordinal.to_string().into()),
       })),
+      concurrent_group: 0,
     })
   }
 

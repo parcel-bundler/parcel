@@ -453,6 +453,7 @@ fn asset_graph(
       range: None,
       conditions: Default::default(),
       resolution: DependencyResolution::Asset(AssetNodeIndex::from_index(target)),
+      concurrent_group: 0,
     });
   }
   AssetGraph {

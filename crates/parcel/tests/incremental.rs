@@ -95,9 +95,11 @@ fn bundle_consolidation_tracks_size_changes_and_configuration() {
     let mut test = IncrementalTest::with_entries_mode(
       &[
         ("/project/.parcelrc", enabled),
+        // Awaited in sequence rather than with `Promise.all`, which would
+        // make the two imports one root with no shared payload to consolidate.
         (
           "/project/index.js",
-          "module.exports = () => Promise.all([import('./a'), import('./b')]);",
+          "module.exports = async () => (await import('./a')) + (await import('./b'));",
         ),
         (
           "/project/a.js",
@@ -129,7 +131,10 @@ fn bundle_consolidation_tracks_size_changes_and_configuration() {
 
 #[test]
 fn synchronous_bundle_imports_survive_bundle_index_changes() {
-  let initial = "module.exports = () => Promise.all([import('./other'), import('./page')]);";
+  // Awaited in sequence: `Promise.all([import(), import()])` would make the
+  // two imports one bundle, and this test needs page.js in a bundle of its own.
+  let initial =
+    "module.exports = async () => { await import('./other'); return import('./page'); };";
   let updated = "module.exports = () => import('./page');";
   for mode in [BuildMode::Development, BuildMode::Production] {
     let mut test = IncrementalTest::with_entries_mode(
@@ -196,9 +201,11 @@ fn split_and_rejoin_deduplicated_async_roots() {
     let cycle = "exports.name = 'a'; exports.other = () => require('./b').name;";
     let mut test = IncrementalTest::with_entries_mode(
       &[
+        // Awaited in sequence rather than with `Promise.all`, which would
+        // make the two imports one root with no shared payload to consolidate.
         (
           "/project/index.js",
-          "module.exports = () => Promise.all([import('./a'), import('./b')]);",
+          "module.exports = async () => (await import('./a')) + (await import('./b'));",
         ),
         ("/project/a.js", cycle),
         (

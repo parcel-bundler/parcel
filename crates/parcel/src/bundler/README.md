@@ -49,6 +49,13 @@ eagerly loaded. Their constant byte costs do not affect JS merge comparisons.
   CSS, raw resources, or independently addressable lazy bundles.
 - Reject extra downloads in any existing loading context, extra copies within
   a context, new reference cycles, and moves that increase any request count.
+  Dynamic imports awaited together, `Promise.all([import('a'), import('b')])`,
+  never happen apart: the JS transformer numbers each such array as a
+  `concurrent_group`, and targets only ever reached that way from the same
+  places become one loading root at discovery (`bundle_roots.rs`), so one
+  file serves every import of the group. Modelled as separate roots, each
+  could absorb a copy of their shared payload for the other's context to
+  fetch again. A target also reached any other way keeps its own root.
 - Protected outputs (entries, loading boundaries, lazy and URL targets) may
   donate copies of their payload, but only to relieve request pressure. The
   source bundle is never changed or removed, so every boundary stays
