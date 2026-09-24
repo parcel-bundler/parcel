@@ -2,6 +2,7 @@
   "description": "Parallel script requests share an activation; protected roots and zero extra bytes bound consolidation",
   "input": ["one.html", "two.html"],
   "options": {
+    "mode": "production",
     "config": ".parcelrc"
   },
   "bundles": [

@@ -22,6 +22,7 @@
   "output": [9, 10],
   "sideEffects": ["shared"],
   "options": {
+    "mode": "production",
     "config": ".parcelrc"
   }
 }

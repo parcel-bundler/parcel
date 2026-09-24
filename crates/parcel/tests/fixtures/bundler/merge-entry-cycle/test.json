@@ -19,30 +19,6 @@
     "output": ["a", "b"],
     "sideEffects": ["entry", "entry"],
     "options": {
-      "mode": "development",
-      "config": ".parcelrc"
-    }
-  },
-  {
-    "description": "Synchronous entry cycles consolidate tiny payloads while preserving independently runnable entry files",
-    "input": ["a.js", "b.js"],
-    "skipNodeModules": true,
-    "bundles": [
-      {
-        "assets": ["a.js", "b.js"],
-        "references": [],
-        "name": "a.js"
-      },
-      {
-        "assets": ["a.js", "b.js"],
-        "references": [],
-        "name": "b.js"
-      }
-    ],
-    "internalized": [],
-    "output": ["a", "b"],
-    "sideEffects": ["entry", "entry"],
-    "options": {
       "mode": "production",
       "config": ".parcelrc"
     }

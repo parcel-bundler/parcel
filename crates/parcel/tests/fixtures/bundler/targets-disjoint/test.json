@@ -11,5 +11,8 @@
       "assets": ["main2.js", "shared.js"],
       "references": []
     }
-  ]
+  ],
+  "options": {
+    "mode": "production"
+  }
 }

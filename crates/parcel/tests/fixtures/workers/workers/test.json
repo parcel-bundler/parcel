@@ -4,8 +4,8 @@
     "input": "index.js",
     "bundles": [
       {
-        "assets": ["common.js", "feature.js", "index.js", "worker-client.js"],
-        "references": [],
+        "assets": ["feature.js", "index.js", "worker-client.js"],
+        "references": [["common.js"]],
         "name": "index.js"
       },
       {
@@ -31,13 +31,8 @@
     "input": "index-alternative.js",
     "bundles": [
       {
-        "assets": [
-          "common.js",
-          "feature.js",
-          "index-alternative.js",
-          "worker-client.js"
-        ],
-        "references": [],
+        "assets": ["feature.js", "index-alternative.js", "worker-client.js"],
+        "references": [["common.js"]],
         "name": "index-alternative.js"
       },
       {

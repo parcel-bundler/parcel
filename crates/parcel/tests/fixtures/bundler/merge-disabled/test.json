@@ -3,35 +3,6 @@
     "description": "merge-disabled preserves execution and module cache",
     "input": "index.js",
     "options": {
-      "mode": "development",
-      "config": ".parcelrc"
-    },
-    "skipNodeModules": true,
-    "bundles": [
-      {
-        "assets": ["index.js"],
-        "references": []
-      },
-      {
-        "assets": ["a.js"],
-        "references": [["shared.js"]]
-      },
-      {
-        "assets": ["b.js"],
-        "references": [["shared.js"]]
-      },
-      {
-        "assets": ["shared.js"],
-        "references": []
-      }
-    ],
-    "output": [42, 43],
-    "sideEffects": ["shared"]
-  },
-  {
-    "description": "merge-disabled preserves execution and module cache",
-    "input": "index.js",
-    "options": {
       "mode": "production",
       "config": ".parcelrc"
     },

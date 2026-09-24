@@ -91,42 +91,40 @@ fn bundle_consolidation_tracks_size_changes_and_configuration() {
   let disabled = r#"{"extends":"@parcel/config-default","bundler":{"plugin":"@parcel/bundler-default","config":{"minBundleSize":0,"maxParallelRequests":0}}}"#;
   let small = "module.exports = 'small';";
   let large = format!("module.exports = '{}';", "larger".repeat(1000));
-  for mode in [BuildMode::Development, BuildMode::Production] {
-    let mut test = IncrementalTest::with_entries_mode(
-      &[
-        ("/project/.parcelrc", enabled),
-        // Awaited in sequence rather than with `Promise.all`, which would
-        // make the two imports one root with no shared payload to consolidate.
-        (
-          "/project/index.js",
-          "module.exports = async () => (await import('./a')) + (await import('./b'));",
-        ),
-        (
-          "/project/a.js",
-          "module.exports = require('./shared').length + 1;",
-        ),
-        (
-          "/project/b.js",
-          "module.exports = require('./shared').length + 2;",
-        ),
-        ("/project/shared.js", small),
-      ],
-      &["/project/index.js"],
-      mode,
-    );
-    let outputs = test.all_outputs().len();
-    test.change(&[("/project/shared.js", &large)], &[]);
-    assert!(
-      test.all_outputs().len() > outputs,
-      "large payload should become shared"
-    );
-    test.change(&[("/project/shared.js", small)], &[]);
-    assert_eq!(test.all_outputs().len(), outputs);
-    test.change(&[("/project/.parcelrc", disabled)], &[]);
-    assert!(test.all_outputs().len() > outputs);
-    test.change(&[("/project/.parcelrc", enabled)], &[]);
-    assert_eq!(test.all_outputs().len(), outputs);
-  }
+  let mut test = IncrementalTest::with_entries_mode(
+    &[
+      ("/project/.parcelrc", enabled),
+      // Awaited in sequence rather than with `Promise.all`, which would
+      // make the two imports one root with no shared payload to consolidate.
+      (
+        "/project/index.js",
+        "module.exports = async () => (await import('./a')) + (await import('./b'));",
+      ),
+      (
+        "/project/a.js",
+        "module.exports = require('./shared').length + 1;",
+      ),
+      (
+        "/project/b.js",
+        "module.exports = require('./shared').length + 2;",
+      ),
+      ("/project/shared.js", small),
+    ],
+    &["/project/index.js"],
+    BuildMode::Production,
+  );
+  let outputs = test.all_outputs().len();
+  test.change(&[("/project/shared.js", &large)], &[]);
+  assert!(
+    test.all_outputs().len() > outputs,
+    "large payload should become shared"
+  );
+  test.change(&[("/project/shared.js", small)], &[]);
+  assert_eq!(test.all_outputs().len(), outputs);
+  test.change(&[("/project/.parcelrc", disabled)], &[]);
+  assert!(test.all_outputs().len() > outputs);
+  test.change(&[("/project/.parcelrc", enabled)], &[]);
+  assert_eq!(test.all_outputs().len(), outputs);
 }
 
 #[test]

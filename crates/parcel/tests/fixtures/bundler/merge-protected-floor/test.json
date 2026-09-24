@@ -2,6 +2,7 @@
   "description": "Independent HTML page outputs retain their mandatory script requests even below the achievable request floor",
   "input": ["one.html", "two.html"],
   "options": {
+    "mode": "production",
     "config": ".parcelrc"
   },
   "bundles": [

@@ -3,16 +3,17 @@
   "input": "index.mdx",
   "bundles": [
     {
-      "assets": [
-        "esmodule-helpers.js",
-        "helpers.js",
-        "index.js",
-        "index.mdx",
-        "jsx-dev-runtime.js",
-        "react-refresh-runtime.development.js",
-        "runtime.js"
+      "assets": ["index.mdx"],
+      "references": [
+        [
+          "esmodule-helpers.js",
+          "helpers.js",
+          "index.js",
+          "jsx-dev-runtime.js",
+          "react-refresh-runtime.development.js",
+          "runtime.js"
+        ]
       ],
-      "references": [],
       "type": "js"
     },
     {

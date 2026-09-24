@@ -1349,7 +1349,13 @@ fn consolidation_uses_estimates_without_reading_content() {
       max_parallel_requests: 0,
       ..Default::default()
     }
-    .bundle(graph, &ParcelOptions::default())
+    .bundle(
+      graph,
+      &ParcelOptions {
+        mode: parcel_core::BuildMode::Production,
+        ..Default::default()
+      },
+    )
     .unwrap();
     assert_eq!(graph.bundles.len(), expected_bundles);
   }

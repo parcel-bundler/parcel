@@ -3,31 +3,6 @@
     "description": "merge-compression consolidates a shared payload under the default brotli curve",
     "input": "index.js",
     "options": {
-      "mode": "development",
-      "config": ".parcelrc"
-    },
-    "skipNodeModules": true,
-    "bundles": [
-      {
-        "assets": ["index.js"],
-        "references": []
-      },
-      {
-        "assets": ["a.js", "shared.js"],
-        "references": []
-      },
-      {
-        "assets": ["b.js", "shared.js"],
-        "references": []
-      }
-    ],
-    "output": [42, 43],
-    "sideEffects": ["shared"]
-  },
-  {
-    "description": "merge-compression consolidates a shared payload under the default brotli curve",
-    "input": "index.js",
-    "options": {
       "mode": "production",
       "config": ".parcelrc"
     },
@@ -53,7 +28,7 @@
     "description": "merge-compression consolidates a shared payload under a gzip curve",
     "input": "index.js",
     "options": {
-      "mode": "development",
+      "mode": "production",
       "config": ".parcelrc-gzip"
     },
     "skipNodeModules": true,
@@ -78,7 +53,7 @@
     "description": "merge-compression leaves the shared payload alone with compression none",
     "input": "index.js",
     "options": {
-      "mode": "development",
+      "mode": "production",
       "config": ".parcelrc-none"
     },
     "skipNodeModules": true,

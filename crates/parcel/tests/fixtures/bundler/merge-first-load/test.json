@@ -33,6 +33,7 @@
   ],
   "output": [1007, 1007, 1007, 1007],
   "options": {
+    "mode": "production",
     "config": ".parcelrc"
   }
 }

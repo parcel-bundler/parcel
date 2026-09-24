@@ -677,22 +677,34 @@ fn test(file: PathBuf) {
 
 #[test]
 fn internalization_entry_facades_run_independently() {
-  assert_entry_outputs_run_independently("internalization-entry-cycle", true);
+  assert_entry_outputs_run_independently(
+    "internalization-entry-cycle",
+    true,
+    &[
+      parcel_core::BuildMode::Development,
+      parcel_core::BuildMode::Production,
+    ],
+  );
 }
 
 #[test]
 fn merged_entry_outputs_run_independently() {
-  assert_entry_outputs_run_independently("merge-entry-cycle", false);
+  assert_entry_outputs_run_independently(
+    "merge-entry-cycle",
+    false,
+    &[parcel_core::BuildMode::Production],
+  );
 }
 
-fn assert_entry_outputs_run_independently(fixture: &str, expect_facades: bool) {
+fn assert_entry_outputs_run_independently(
+  fixture: &str,
+  expect_facades: bool,
+  modes: &[parcel_core::BuildMode],
+) {
   let fixture_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
     .join("tests/fixtures/bundler")
     .join(fixture);
-  for mode in [
-    parcel_core::BuildMode::Development,
-    parcel_core::BuildMode::Production,
-  ] {
+  for mode in modes.iter().cloned() {
     let output_fs = Arc::new(OverlayFileSystem::new());
     let graph = bundle_with_options(
       &fixture_dir,

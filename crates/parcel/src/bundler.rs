@@ -3,9 +3,10 @@ use std::{collections::HashMap, hash::Hash};
 use fixedbitset::FixedBitSet;
 use glob_match::glob_match;
 use parcel_core::{
-  Asset, AssetGraph, AssetIndex, AssetType, Bundle, BundleBehavior, BundleFlags, BundleGraph,
-  BundleGraphDependencyResolution, Bundler, ContentType, DependencyFlags, DependencyId,
-  DiagnosticList, Environment, EnvironmentFlags, ParcelOptions, Priority, SpecifierType,
+  Asset, AssetGraph, AssetIndex, AssetType, BuildMode, Bundle, BundleBehavior, BundleFlags,
+  BundleGraph, BundleGraphDependencyResolution, Bundler, ContentType, DependencyFlags,
+  DependencyId, DiagnosticList, Environment, EnvironmentFlags, ParcelOptions, Priority,
+  SpecifierType,
 };
 
 use crate::library_bundler::LibraryBundler;
@@ -587,14 +588,16 @@ impl Bundler for DefaultBundler {
       &mut dependency_resolutions,
     );
 
-    optimizer::optimize(
-      self,
-      &asset_graph,
-      &mut bundles,
-      &root_bundles,
-      &mut dependency_resolutions,
-      options,
-    )?;
+    if options.mode == BuildMode::Production {
+      optimizer::optimize(
+        self,
+        &asset_graph,
+        &mut bundles,
+        &root_bundles,
+        &mut dependency_resolutions,
+        options,
+      )?;
+    }
 
     Ok(BundleGraph::new(
       asset_graph,
