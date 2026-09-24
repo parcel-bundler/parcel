@@ -905,6 +905,39 @@ describe('javascript', function () {
     assert.equal(stats.size, 9);
   });
 
+  it('should resolve new URL(..., import.meta.url) in an asset shared by multiple entries', async function () {
+    let dir = path.join(
+      __dirname,
+      '/integration/import-meta-url-multiple-entries',
+    );
+    let b = await bundle([path.join(dir, 'a.js'), path.join(dir, 'b.js')], {
+      mode: 'production',
+      defaultTargetOptions: {
+        shouldScopeHoist: true,
+        shouldOptimize: false,
+      },
+    });
+
+    let entryBundles = b
+      .getBundles()
+      .filter(bundle => bundle.type === 'js' && bundle.getMainEntry());
+    assert.equal(entryBundles.length, 2);
+
+    for (let entryBundle of entryBundles) {
+      let href;
+      await runBundle(b, entryBundle, {
+        output: v => {
+          href = v;
+        },
+      });
+      assert(
+        /^http:\/\/localhost\/style\.[0-9a-f]+\.css$/.test(href),
+        `${entryBundle.name}: ${String(href)}`,
+      );
+      await outputFS.stat(path.join(distDir, new URL(href).pathname));
+    }
+  });
+
   it('should support referencing a raw asset with static URL and CJS __filename', async function () {
     let b = await bundle(
       path.join(__dirname, '/integration/import-raw-import-meta-url/cjs.js'),
@@ -6132,7 +6165,7 @@ describe('javascript', function () {
         native-node
           index.js:
             output = require('@parcel/rust/index');
-            
+
           package.json:
             {
               "targets": {
@@ -6142,7 +6175,7 @@ describe('javascript', function () {
                 }
               }
             }
-            
+
           yarn.lock:`;
 
         let b = await bundle(path.join(__dirname, 'native-node/index.js'), {
@@ -6176,7 +6209,7 @@ describe('javascript', function () {
         hash.update('testing');
         export const hashed = hash.digest('hex');
         export default "Test";
-        
+
       package.json:
         {
           "targets": {
@@ -6186,7 +6219,7 @@ describe('javascript', function () {
             }
           }
         }
-        
+
       yarn.lock:`;
 
     let b = await bundle(path.join(__dirname, 'esm-externals/index.js'), {
@@ -6217,7 +6250,7 @@ describe('javascript', function () {
           test = 'pass';
         }
         export default test;
-        
+
       package.json:
         {
           "targets": {
@@ -6227,7 +6260,7 @@ describe('javascript', function () {
             }
           }
         }
-        
+
       yarn.lock:`;
 
     let b = await bundle(path.join(__dirname, 'esm-externals/index.js'), {
