@@ -1,0 +1,64 @@
+[
+  {
+    "description": "Concurrent groups that overlap across importers preserve independent loading of each target",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js", "editor.js", "dashboard.js"],
+        "references": []
+      },
+      {
+        "assets": ["a.js"],
+        "references": []
+      },
+      {
+        "assets": ["b.js"],
+        "references": []
+      },
+      {
+        "assets": ["shared.js"],
+        "references": []
+      }
+    ],
+    "options": {
+      "config": ".parcelrc",
+      "mode": "development"
+    },
+    "output": [
+      ["a", "shared"],
+      ["b", "shared"]
+    ]
+  },
+  {
+    "description": "Concurrent groups that overlap across importers preserve independent loading of each target",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js", "editor.js", "dashboard.js"],
+        "references": []
+      },
+      {
+        "assets": ["a.js"],
+        "references": []
+      },
+      {
+        "assets": ["b.js"],
+        "references": []
+      },
+      {
+        "assets": ["shared.js"],
+        "references": []
+      }
+    ],
+    "options": {
+      "config": ".parcelrc",
+      "mode": "production"
+    },
+    "output": [
+      ["a", "shared"],
+      ["b", "shared"]
+    ]
+  }
+]

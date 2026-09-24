@@ -1,0 +1,48 @@
+[
+  {
+    "description": "Concurrent server and client imports keep separate runtime environments",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js"],
+        "context": "react-server"
+      },
+      {
+        "assets": ["server.js"],
+        "context": "react-server"
+      },
+      {
+        "assets": ["client.js"],
+        "context": "react-client"
+      }
+    ],
+    "options": {
+      "config": ".parcelrc",
+      "mode": "development"
+    }
+  },
+  {
+    "description": "Concurrent server and client imports keep separate runtime environments",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js"],
+        "context": "react-server"
+      },
+      {
+        "assets": ["server.js"],
+        "context": "react-server"
+      },
+      {
+        "assets": ["client.js"],
+        "context": "react-client"
+      }
+    ],
+    "options": {
+      "config": ".parcelrc",
+      "mode": "production"
+    }
+  }
+]

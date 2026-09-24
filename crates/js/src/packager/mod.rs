@@ -676,7 +676,7 @@ fn write_runtime_globals(
   }
   for entry in &bundle.entry_assets {
     let asset = &bundle_graph.asset_graph.asset(*entry);
-    write!(printer, "'{}'", asset.id(project_root))?;
+    write!(printer, "'{}',", asset.id(project_root))?;
   }
 
   printer.write_str("];")?;

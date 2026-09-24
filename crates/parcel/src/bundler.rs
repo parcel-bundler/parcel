@@ -190,7 +190,7 @@ impl Bundler for DefaultBundler {
 
     // Explicit manual bundles keep their loading boundaries and grouping policy.
     let mut manual_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
-    for (_, root) in bundle_roots.iter_active() {
+    for (_, root) in bundle_roots.iter_members() {
       if self
         .manual_shared_bundle(asset_graph.asset(root), options)
         .is_some()
@@ -227,10 +227,23 @@ impl Bundler for DefaultBundler {
       }
     };
 
-    // Hash logical roots, independently of their eventual physical bundle indices.
+    // Hash logical roots, independently of their eventual physical bundle
+    // indices. A root of several merged concurrent imports hashes all of them.
     let root_ids: Vec<_> = bundle_roots
       .iter_all()
-      .map(|(_, root)| asset_graph.asset(root).id_u64(&options.project_root))
+      .map(|(root, asset)| match bundle_roots.members(root) {
+        [_] => asset_graph.asset(asset).id_u64(&options.project_root),
+        members => {
+          let mut hasher = xxhash_rust::xxh3::Xxh3Default::new();
+          for &member in members {
+            asset_graph
+              .asset(member)
+              .id_u64(&options.project_root)
+              .hash(&mut hasher);
+          }
+          hasher.digest()
+        }
+      })
       .collect();
 
     let mut shared_bundles = HashMap::<BundleKey, usize>::new();
@@ -257,9 +270,17 @@ impl Bundler for DefaultBundler {
         }
       };
 
+      // Only outputs something other than Parcel's own loader starts — entries,
+      // parallel scripts, workers, URL and inline/isolated targets — execute
+      // their root assets on load. A lazily imported bundle must not: the
+      // importer's runtime requires the requested module once it (and any
+      // siblings) has loaded, and a root of several merged concurrent imports
+      // would otherwise execute every member on load, in file order.
+      let members = bundle_roots.members(root_index);
+      let executes_on_load = bundle_roots.is_mandatory(root_index);
       let bundle = Bundle {
         id: match &key {
-          BundleKey::Default { .. } => asset.id_u64(&options.project_root),
+          BundleKey::Default { .. } => root_ids[root_index],
           BundleKey::Manual { .. } => key.stable_hash(&root_ids),
         },
         ty: asset.ty.clone(),
@@ -272,8 +293,13 @@ impl Bundler for DefaultBundler {
         },
         dist_path: None,
         assets: Vec::new(),
-        entry_assets: vec![bundle_root_asset_index],
-        main_entry_asset: Some(bundle_root_asset_index),
+        entry_assets: if executes_on_load {
+          members.to_vec()
+        } else {
+          Vec::new()
+        },
+        // Identity for naming and facades; several members have no single one.
+        main_entry_asset: (members.len() == 1).then_some(bundle_root_asset_index),
         referenced_bundles: Vec::new(),
       };
 
@@ -332,13 +358,15 @@ impl Bundler for DefaultBundler {
         (bundle_index, bundle_index)
       };
       root_to_bundle[root_index] = bundle_index;
-      root_bundles.insert(
-        bundle_root_asset_index,
-        RootBundle {
-          load: bundle_index,
-          content: content_bundle_index,
-        },
-      );
+      for &member in bundle_roots.members(root_index) {
+        root_bundles.insert(
+          member,
+          RootBundle {
+            load: bundle_index,
+            content: content_bundle_index,
+          },
+        );
+      }
     }
 
     // CSS cascade order is semantic: plan stylesheet bundles from each
@@ -460,7 +488,10 @@ impl Bundler for DefaultBundler {
           },
           dist_path: name,
           assets: vec![asset_index as AssetIndex],
-          entry_assets: if is_bundle_root {
+          entry_assets: if bundle_roots
+            .root_index(asset_index)
+            .is_some_and(|root| bundle_roots.is_mandatory(root))
+          {
             vec![asset_index as AssetIndex]
           } else {
             Vec::new()

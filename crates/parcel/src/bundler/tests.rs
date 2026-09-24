@@ -409,6 +409,144 @@ fn deactivating_a_root_does_not_renumber_surviving_roots() {
   assert_eq!(roots.root_index(AssetIndex(2)), Some(2));
 }
 
+fn concurrent_asset_graph(
+  count: usize,
+  entries: &[usize],
+  edges: &[(usize, usize, u32)],
+) -> AssetGraph<'static> {
+  let mut graph = asset_graph(
+    count,
+    entries,
+    &edges
+      .iter()
+      .map(|&(source, target, _)| (source, target, Priority::Lazy))
+      .collect::<Vec<_>>(),
+  );
+  for (source, asset) in graph.assets.to_mut().iter_mut().enumerate() {
+    for (dep, &(_, _, group)) in asset
+      .dependencies
+      .iter_mut()
+      .zip(edges.iter().filter(|&&(s, _, _)| s == source))
+    {
+      dep.concurrent_group = group;
+    }
+  }
+  graph
+}
+
+#[test]
+fn concurrent_roots_follow_independent_roots_and_deduplicate_members() {
+  let graph = concurrent_asset_graph(4, &[0], &[(0, 1, 1), (0, 2, 1), (0, 1, 1), (0, 3, 0)]);
+  let roots = BundleRoots::from_asset_graph(&graph);
+  assert_eq!(roots.len(), 3);
+  assert_eq!(roots.members(0), &[AssetIndex(0)]);
+  assert_eq!(roots.members(1), &[AssetIndex(3)]);
+  assert_eq!(roots.members(2), &[AssetIndex(1), AssetIndex(2)]);
+  assert_eq!(roots.root_index(AssetIndex(1)), Some(2));
+  assert_eq!(roots.root_index(AssetIndex(2)), Some(2));
+  assert!(roots.is_entry_root(0));
+  assert!(roots.is_mandatory(0));
+  assert!(!roots.is_mandatory(2));
+
+  let reachability = Reachability::from_bundle_roots(&graph, &roots);
+  for asset in [AssetIndex(1), AssetIndex(2)] {
+    assert_eq!(
+      reachability
+        .reachable_roots(asset)
+        .ones()
+        .collect::<Vec<_>>(),
+      vec![2]
+    );
+  }
+}
+
+#[test]
+fn concurrent_roots_keep_targets_from_multiple_sites_independent() {
+  // The first group overlaps across importers. Conservatively keep its
+  // repeated targets independent, even though 1 and 2 always load together.
+  // A second group in importer 0 loads 5 and 6 together.
+  let graph = concurrent_asset_graph(
+    8,
+    &[0, 7],
+    &[
+      (0, 1, 1),
+      (0, 2, 1),
+      (0, 3, 1),
+      (7, 2, 1),
+      (7, 1, 1),
+      (7, 4, 1),
+      (0, 5, 2),
+      (0, 6, 2),
+    ],
+  );
+  let roots = BundleRoots::from_asset_graph(&graph);
+  assert_eq!(roots.len(), 7);
+  for asset in [0, 1, 2, 3, 4, 7].map(AssetIndex) {
+    assert_eq!(roots.members(roots.root_index(asset).unwrap()), &[asset]);
+  }
+  let merged = roots.root_index(AssetIndex(5)).unwrap();
+  assert_eq!(roots.root_index(AssetIndex(6)), Some(merged));
+  assert_eq!(roots.members(merged), &[AssetIndex(5), AssetIndex(6)]);
+}
+
+#[test]
+fn independent_references_do_not_discard_concurrent_peers() {
+  for priority in [Priority::Sync, Priority::Lazy, Priority::Parallel] {
+    for independent in 1..=3 {
+      let mut graph = concurrent_asset_graph(
+        5,
+        &[0],
+        &[
+          (0, 1, 1),
+          (0, 2, 1),
+          (0, 3, 1),
+          (0, 4, 0),
+          (4, independent, 0),
+        ],
+      );
+      graph.assets.to_mut()[0].dependencies[3].priority = Priority::Sync;
+      graph.assets.to_mut()[4].dependencies[0].priority = priority;
+      let roots = BundleRoots::from_asset_graph(&graph);
+      assert_eq!(roots.len(), 3);
+      assert_eq!(roots.members(1), &[AssetIndex::from_index(independent)]);
+      assert_eq!(
+        roots.members(2),
+        &(1..=3)
+          .filter(|&a| a != independent)
+          .map(AssetIndex::from_index)
+          .collect::<Vec<_>>()
+      );
+      assert_eq!(roots.root_index(AssetIndex(4)), None);
+      assert_eq!(roots.is_mandatory(1), priority == Priority::Parallel);
+    }
+  }
+}
+
+#[test]
+fn concurrent_roots_preserve_environment_and_behavior_boundaries() {
+  let mut graph = concurrent_asset_graph(
+    8,
+    &[0],
+    &(1..8).map(|target| (0, target, 1)).collect::<Vec<_>>(),
+  );
+  for asset in [2, 3] {
+    std::sync::Arc::make_mut(&mut graph.assets.to_mut()[asset].target).environment =
+      Environment::WebWorker;
+  }
+  graph.assets.to_mut()[0].dependencies[6].bundle_behavior = BundleBehavior::Isolated;
+  let roots = BundleRoots::from_asset_graph(&graph);
+  assert_eq!(roots.len(), 4);
+  assert_eq!(roots.members(0), &[AssetIndex(0)]);
+  assert_eq!(roots.members(1), &[AssetIndex(7)]);
+  assert_eq!(
+    roots.members(2),
+    &[AssetIndex(1), AssetIndex(4), AssetIndex(5), AssetIndex(6)]
+  );
+  assert_eq!(roots.members(3), &[AssetIndex(2), AssetIndex(3)]);
+  assert!(roots.is_mandatory(1));
+  assert_eq!(roots.root_bundle_behavior(1), BundleBehavior::Isolated);
+}
+
 fn asset_graph(
   count: usize,
   entries: &[usize],

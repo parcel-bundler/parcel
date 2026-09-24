@@ -197,8 +197,7 @@ impl AvailabilityGraph {
 
       for (dep_index, target) in asset_graph.resolved_dependencies_with_indices(asset) {
         // Only dependencies targeting explicit roots cross a dataflow boundary.
-        // A grouped member's occurrences belong to its canonical root.
-        let Some(root) = roots.root_index(target).map(|root| roots.canonical(root)) else {
+        let Some(root) = roots.root_index(target) else {
           continue;
         };
 

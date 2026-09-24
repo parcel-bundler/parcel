@@ -1,14 +1,16 @@
 {
-  "description": "Dynamic imports awaited together are one loading root: one file serves both, with their common payload placed once",
+  "description": "Dynamic imports awaited together are one loading root: one file serves both, with their common payload placed once, and nothing executes until the importer requires it",
   "input": "index.js",
   "bundles": [
     {
       "assets": ["esmodule-helpers.js", "index.js"],
-      "references": []
+      "references": [],
+      "contains": ["var entries = [\n'"]
     },
     {
       "assets": ["a.js", "b.js", "common.js"],
-      "references": []
+      "references": [],
+      "contains": ["var entries = [\n];"]
     }
   ],
   "output": 2003,

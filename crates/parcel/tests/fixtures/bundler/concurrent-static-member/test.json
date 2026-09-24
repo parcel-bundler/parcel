@@ -1,0 +1,44 @@
+[
+  {
+    "description": "A statically imported concurrent member is internalized while its peer remains lazy",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js", "a.js"],
+        "references": []
+      },
+      {
+        "assets": ["b.js"],
+        "references": []
+      }
+    ],
+    "options": {
+      "config": ".parcelrc",
+      "mode": "development"
+    },
+    "internalized": [["index.js", "a.js"]],
+    "output": ["a", "a", "b"]
+  },
+  {
+    "description": "A statically imported concurrent member is internalized while its peer remains lazy",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js", "a.js"],
+        "references": []
+      },
+      {
+        "assets": ["b.js"],
+        "references": []
+      }
+    ],
+    "options": {
+      "config": ".parcelrc",
+      "mode": "production"
+    },
+    "internalized": [["index.js", "a.js"]],
+    "output": ["a", "a", "b"]
+  }
+]

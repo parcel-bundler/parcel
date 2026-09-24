@@ -1,0 +1,56 @@
+[
+  {
+    "description": "Targets appearing in concurrent groups in multiple importers stay independently loadable",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js", "first.js", "second.js"],
+        "references": []
+      },
+      {
+        "assets": ["a.js"],
+        "references": []
+      },
+      {
+        "assets": ["b.js"],
+        "references": []
+      }
+    ],
+    "options": {
+      "config": ".parcelrc",
+      "mode": "development"
+    },
+    "output": [
+      ["a", "b"],
+      ["a", "b"]
+    ]
+  },
+  {
+    "description": "Targets appearing in concurrent groups in multiple importers stay independently loadable",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.js", "first.js", "second.js"],
+        "references": []
+      },
+      {
+        "assets": ["a.js"],
+        "references": []
+      },
+      {
+        "assets": ["b.js"],
+        "references": []
+      }
+    ],
+    "options": {
+      "config": ".parcelrc",
+      "mode": "production"
+    },
+    "output": [
+      ["a", "b"],
+      ["a", "b"]
+    ]
+  }
+]

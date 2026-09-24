@@ -47,7 +47,8 @@ impl Reachability {
     // Iterative Tarjan: ordinary synchronous edges cross root boundaries too.
     // Lazy edges stay excluded even after their target root is removed.
     // Explicit frames with cursors into edge_targets avoid recursion on deep graphs.
-    for (_, root) in bundle_roots.iter_all() {
+    // A root with several members (concurrent imports) is entered at each.
+    for (_, root) in bundle_roots.iter_members() {
       if discovery[root.index()] != u32::MAX {
         continue;
       }
@@ -113,7 +114,7 @@ impl Reachability {
     // unreachable assets.
     let component_count = offsets.len() - 1;
     let mut reachable_roots = BitMatrix::new(component_count + 1, bundle_roots.len());
-    for (root_index, root) in bundle_roots.iter_all() {
+    for (root_index, root) in bundle_roots.iter_members() {
       reachable_roots.insert(asset_components[root.index()] as usize, root_index);
     }
 
@@ -142,24 +143,6 @@ impl Reachability {
       edge_offsets,
       seen,
     ));
-
-    // A grouped root's members load as their canonical root: rows name only
-    // that one, so members' classes are one class and one bundle.
-    if bundle_roots.has_groups() {
-      let mut renamed = Vec::new();
-      for component in 0..component_count {
-        renamed.clear();
-        renamed.extend(
-          reachable_roots[component]
-            .ones()
-            .filter(|&root| !bundle_roots.is_canonical(root)),
-        );
-        for &root in &renamed {
-          reachable_roots.set(component, root, false);
-          reachable_roots.insert(component, bundle_roots.canonical(root));
-        }
-      }
-    }
     Self::from_components(asset_components, reachable_roots)
   }
 

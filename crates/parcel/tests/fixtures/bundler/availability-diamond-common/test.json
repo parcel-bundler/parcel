@@ -1,14 +1,18 @@
 {
-  "options": {"config": ".parcelrc"},
+  "options": {
+    "config": ".parcelrc"
+  },
   "description": "Different ancestors supply the same asset even when neither root is guaranteed",
   "input": "index.js",
   "bundles": [
     {
-      "assets": ["index.js"]
+      "assets": ["index.js"],
+      "contains": ["var entries = [\n'"]
     },
     {
       "assets": ["left.js"],
-      "references": [["value.js"]]
+      "references": [["value.js"]],
+      "contains": ["var entries = [\n];"]
     },
     {
       "assets": ["right.js"],
