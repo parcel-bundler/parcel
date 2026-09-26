@@ -2244,7 +2244,7 @@ dependencies = [
 [[package]]
 name = "lightningcss"
 version = "1.0.0-alpha.72"
-source = "git+https://github.com/parcel-bundler/lightningcss?branch=binary-size#a5932cfb031db71db32e237c27e41b3a72e726d1"
+source = "git+https://github.com/parcel-bundler/lightningcss?branch=master#a862e39e55e4a2db6a1ec40a3bd7b80704edb33e"
 dependencies = [
  "ahash 0.8.12",
  "bitflags 2.13.1",
@@ -2268,7 +2268,7 @@ dependencies = [
 [[package]]
 name = "lightningcss-derive"
 version = "1.0.0-alpha.43"
-source = "git+https://github.com/parcel-bundler/lightningcss?branch=binary-size#a5932cfb031db71db32e237c27e41b3a72e726d1"
+source = "git+https://github.com/parcel-bundler/lightningcss?branch=master#a862e39e55e4a2db6a1ec40a3bd7b80704edb33e"
 dependencies = [
  "convert_case 0.6.0",
  "proc-macro2",
@@ -2806,8 +2806,8 @@ dependencies = [
 
 [[package]]
 name = "oxvg_ast"
-version = "0.0.7"
-source = "git+https://github.com/noahbald/oxvg.git#aa181cebf3df020aeafab7a67a478d7fa9d2728a"
+version = "0.0.8"
+source = "git+https://github.com/devongovett/oxvg.git?branch=lightningcss-master#e536ae900bb9d2cea0bc0eef0d08b1978224ff64"
 dependencies = [
  "bitflags 2.13.1",
  "cfg-if",
@@ -2830,8 +2830,8 @@ dependencies = [
 
 [[package]]
 name = "oxvg_collections"
-version = "0.0.7"
-source = "git+https://github.com/noahbald/oxvg.git#aa181cebf3df020aeafab7a67a478d7fa9d2728a"
+version = "0.0.8"
+source = "git+https://github.com/devongovett/oxvg.git?branch=lightningcss-master#e536ae900bb9d2cea0bc0eef0d08b1978224ff64"
 dependencies = [
  "bitflags 2.13.1",
  "cssparser",
@@ -2847,8 +2847,8 @@ dependencies = [
 
 [[package]]
 name = "oxvg_optimiser"
-version = "0.0.7"
-source = "git+https://github.com/noahbald/oxvg.git#aa181cebf3df020aeafab7a67a478d7fa9d2728a"
+version = "0.0.8"
+source = "git+https://github.com/devongovett/oxvg.git?branch=lightningcss-master#e536ae900bb9d2cea0bc0eef0d08b1978224ff64"
 dependencies = [
  "anyhow",
  "bitflags 2.13.1",
@@ -2876,8 +2876,8 @@ dependencies = [
 
 [[package]]
 name = "oxvg_parse"
-version = "0.0.7"
-source = "git+https://github.com/noahbald/oxvg.git#aa181cebf3df020aeafab7a67a478d7fa9d2728a"
+version = "0.0.8"
+source = "git+https://github.com/devongovett/oxvg.git?branch=lightningcss-master#e536ae900bb9d2cea0bc0eef0d08b1978224ff64"
 dependencies = [
  "cssparser",
  "lightningcss",
@@ -2885,8 +2885,8 @@ dependencies = [
 
 [[package]]
 name = "oxvg_path"
-version = "0.0.7"
-source = "git+https://github.com/noahbald/oxvg.git#aa181cebf3df020aeafab7a67a478d7fa9d2728a"
+version = "0.0.8"
+source = "git+https://github.com/devongovett/oxvg.git?branch=lightningcss-master#e536ae900bb9d2cea0bc0eef0d08b1978224ff64"
 dependencies = [
  "bitflags 2.13.1",
  "geo",
@@ -2903,8 +2903,8 @@ dependencies = [
 
 [[package]]
 name = "oxvg_serialize"
-version = "0.0.7"
-source = "git+https://github.com/noahbald/oxvg.git#aa181cebf3df020aeafab7a67a478d7fa9d2728a"
+version = "0.0.8"
+source = "git+https://github.com/devongovett/oxvg.git?branch=lightningcss-master#e536ae900bb9d2cea0bc0eef0d08b1978224ff64"
 dependencies = [
  "cssparser",
  "lightningcss",
@@ -2953,9 +2953,11 @@ dependencies = [
 name = "parcel"
 version = "0.1.0"
 dependencies = [
+ "anstyle",
  "base64-url",
  "criterion",
  "data-encoding",
+ "either",
  "fixedbitset",
  "glob-match",
  "indexmap 2.14.0",
@@ -3284,7 +3286,7 @@ dependencies = [
 [[package]]
 name = "parcel_selectors"
 version = "0.28.3"
-source = "git+https://github.com/parcel-bundler/lightningcss?branch=binary-size#a5932cfb031db71db32e237c27e41b3a72e726d1"
+source = "git+https://github.com/parcel-bundler/lightningcss?branch=master#a862e39e55e4a2db6a1ec40a3bd7b80704edb33e"
 dependencies = [
  "bitflags 2.13.1",
  "cssparser",
@@ -4659,7 +4661,7 @@ dependencies = [
 [[package]]
 name = "static-self"
 version = "0.1.2"
-source = "git+https://github.com/parcel-bundler/lightningcss?branch=binary-size#a5932cfb031db71db32e237c27e41b3a72e726d1"
+source = "git+https://github.com/parcel-bundler/lightningcss?branch=master#a862e39e55e4a2db6a1ec40a3bd7b80704edb33e"
 dependencies = [
  "indexmap 2.14.0",
  "smallvec",
@@ -4669,7 +4671,7 @@ dependencies = [
 [[package]]
 name = "static-self-derive"
 version = "0.1.1"
-source = "git+https://github.com/parcel-bundler/lightningcss?branch=binary-size#a5932cfb031db71db32e237c27e41b3a72e726d1"
+source = "git+https://github.com/parcel-bundler/lightningcss?branch=master#a862e39e55e4a2db6a1ec40a3bd7b80704edb33e"
 dependencies = [
  "proc-macro2",
  "quote",
