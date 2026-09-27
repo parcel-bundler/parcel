@@ -697,8 +697,15 @@ fn write_runtime_globals(
   printer.write_str("];")?;
   printer.newline()?;
 
+  // The runtime runs its main entry on load, to expose its exports. Only bundles that execute on
+  // load may do that: a bundle loaded by Parcel's loader runs once every bundle it depends on has
+  // loaded, which the loader waits for, and it doesn't import them itself.
   let runtime_main_entry = runtime_name(should_optimize, "mainEntry", RUNTIME_MAIN_ENTRY);
-  if let Some(main) = &bundle.main_entry_asset {
+  if let Some(main) = bundle
+    .main_entry_asset
+    .as_ref()
+    .filter(|_| !bundle.entry_assets.is_empty())
+  {
     let asset = &bundle_graph.asset_graph.asset(*main);
     printer.write_var(
       runtime_main_entry,

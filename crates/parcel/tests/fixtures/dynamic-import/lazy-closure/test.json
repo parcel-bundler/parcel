@@ -33,5 +33,46 @@
       }
     ],
     "skipNodeModules": true
+  },
+  {
+    "description": "lazy bundles don't run their main entry on load, before the bundles they depend on have loaded",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": [
+          "index.js"
+        ],
+        "notContains": [
+          "var mainEntry = null;"
+        ]
+      },
+      {
+        "assets": [
+          "a.js"
+        ],
+        "contains": [
+          "var mainEntry = null;"
+        ]
+      },
+      {
+        "assets": [
+          "b.js"
+        ],
+        "contains": [
+          "var mainEntry = null;"
+        ]
+      },
+      {
+        "assets": [
+          "c.js"
+        ],
+        "contains": [
+          "var mainEntry = null;"
+        ]
+      }
+    ],
+    "output": "abc"
   }
 ]
