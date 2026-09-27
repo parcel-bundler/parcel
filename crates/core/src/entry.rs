@@ -577,7 +577,6 @@ impl<'a> ExportsContext<'a> {
       source_type: SourceType::Module,
       flags,
       source_map: options.source_map.clone(),
-      loc: None,
       include_node_modules,
       engines: package_engines(pkg, self.engines, context, output_format),
       dist_dir: dir,

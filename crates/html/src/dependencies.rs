@@ -182,16 +182,10 @@ impl<'arena> DependencyCollector<'arena> {
     }
   }
 
-  fn create_env(
-    &self,
-    output_format: OutputFormat,
-    source_type: SourceType,
-    line: u32,
-  ) -> Arc<Target> {
+  fn create_env(&self, output_format: OutputFormat, source_type: SourceType) -> Arc<Target> {
     Arc::new(Target {
       output_format,
       source_type,
-      loc: self.create_loc(line),
       ..(*self.target).clone()
     })
   }
@@ -371,7 +365,7 @@ impl<'arena> DependencyCollector<'arena> {
               specifier: src.clone().to_string().into_boxed_str(),
               specifier_type: SpecifierType::Url,
               priority: Priority::Parallel,
-              target: self.create_env(OutputFormat::Global, source_type, node.line),
+              target: self.create_env(OutputFormat::Global, source_type),
               flags: DependencyFlags::empty(),
               bundle_behavior,
               import_type: ImportType::Url,
@@ -393,7 +387,7 @@ impl<'arena> DependencyCollector<'arena> {
             specifier: src.to_string().into_boxed_str(),
             specifier_type: SpecifierType::Url,
             priority: Priority::Parallel,
-            target: self.create_env(output_format, source_type, node.line),
+            target: self.create_env(output_format, source_type),
             flags: DependencyFlags::empty(),
             bundle_behavior,
             import_type: ImportType::Url,
@@ -452,7 +446,7 @@ impl<'arena> DependencyCollector<'arena> {
             content: Arc::new(BufferContent::new_string(code)),
             unique_key: Some(key.to_string().into()),
             flags: AssetFlags::IS_HTML_TAG,
-            target: self.create_env(output_format, source_type, node.line),
+            target: self.create_env(output_format, source_type),
             bundle_behavior: BundleBehavior::Inline,
             loc: self.create_loc(node.line).unwrap(),
             pipeline: None,

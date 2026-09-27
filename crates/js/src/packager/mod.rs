@@ -141,6 +141,13 @@ impl JsContent {
       write_sync_bundle_imports(&mut printer, bundle_graph, bundle, &synthetic_assets)?;
     write_bundle_references(&mut printer, bundle_graph, bundle)?;
 
+    // Classic scripts share one global scope (a page's, or a worker's with its `importScripts`), so
+    // each keeps its module table and runtime to itself. Bundles link through `globalThis`.
+    let is_global = bundle.target.output_format == OutputFormat::Global;
+    if is_global {
+      printer.write_str("(function(){")?;
+    }
+
     printer.write_var(
       runtime_name(should_optimize, "modules", RUNTIME_MODULES),
       "{",
@@ -217,6 +224,9 @@ impl JsContent {
     } else {
       DEV_RUNTIME
     })?;
+    if is_global {
+      printer.write_str("\n})();")?;
+    }
     printer.into_content()
   }
 }
@@ -315,6 +325,15 @@ fn write_bundle_references(
     let specifier = referenced.relative_specifier(bundle).unwrap();
     if bundle.target.output_format == OutputFormat::Commonjs {
       write!(printer, "require({});", serde_json::to_string(&specifier)?)?;
+    } else if bundle.target.output_format == OutputFormat::Global
+      && bundle.target.environment.is_worker()
+    {
+      // Classic workers can't `import`, but load scripts synchronously, relative to their own URL.
+      write!(
+        printer,
+        "importScripts({});",
+        serde_json::to_string(&specifier)?
+      )?;
     } else {
       write!(printer, "import {};", serde_json::to_string(&specifier)?)?;
     }

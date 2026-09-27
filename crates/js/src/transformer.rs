@@ -301,7 +301,6 @@ impl Transformer for JsTransformer {
                   _ => SourceType::Script,
                 },
                 output_format,
-                loc: Some(convert_loc(asset.loc.url.clone(), &dep.loc)),
                 ..(*asset.target).clone()
               })
             }
@@ -312,14 +311,12 @@ impl Transformer for JsTransformer {
                 _ => SourceType::Script,
               },
               output_format: OutputFormat::Global,
-              loc: Some(convert_loc(asset.loc.url.clone(), &dep.loc)),
               ..(*asset.target).clone()
             }),
             DependencyKind::Worklet => Arc::new(Target {
               environment: Environment::Worklet,
               source_type: SourceType::Module,
               output_format: OutputFormat::Esmodule,
-              loc: Some(convert_loc(asset.loc.url.clone(), &dep.loc)),
               ..(*asset.target).clone()
             }),
             DependencyKind::DynamicImport => {
@@ -347,7 +344,6 @@ impl Transformer for JsTransformer {
                 Arc::new(Target {
                   source_type: SourceType::Module,
                   output_format,
-                  loc: Some(convert_loc(asset.loc.url.clone(), &dep.loc)),
                   ..(*asset.target).clone()
                 })
               } else {

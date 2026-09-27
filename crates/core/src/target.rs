@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, hash::Hash, num::NonZeroU16, str::FromStr, sync::Arc};
 
-use crate::{AssetType, Diagnostic, PathId, SourceLocation, SourceUrl, impl_bitflags_serde};
+use crate::{AssetType, Diagnostic, PathId, SourceUrl, impl_bitflags_serde};
 use bitflags::bitflags;
 use browserslist::Distrib;
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,6 @@ pub struct Target {
   pub source_type: SourceType,
   pub flags: EnvironmentFlags,
   pub source_map: Option<TargetSourceMapOptions>,
-  pub loc: Option<SourceLocation>,
   pub include_node_modules: IncludeNodeModules,
   pub engines: Engines,
   pub dist_dir: PathId,
@@ -64,7 +63,6 @@ impl Hash for Target {
     self.source_type.hash(state);
     self.flags.hash(state);
     self.source_map.hash(state);
-    self.loc.hash(state);
     self.include_node_modules.hash(state);
     self.engines.hash(state);
     self.dist_dir.hash(state);
@@ -127,11 +125,6 @@ impl Target {
     self.source_type.hash(state);
     self.flags.hash(state);
     self.source_map.hash(state);
-    std::mem::discriminant(&self.loc).hash(state);
-    match &self.loc {
-      Some(loc) => loc.stable_hash(project_root, state),
-      None => {}
-    }
     self.include_node_modules.hash(state);
     self.engines.hash(state);
     SourceUrl::from_directory_path(&self.dist_dir).stable_hash(project_root, state);

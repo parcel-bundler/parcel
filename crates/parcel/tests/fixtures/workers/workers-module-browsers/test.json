@@ -2,17 +2,26 @@
   {
     "description": "compiles workers to non modules if browsers do not support module workers",
     "input": "index.js",
-    "options": {"mode": "production"},
+    "options": {
+      "mode": "production"
+    },
     "bundles": [
       {
         "name": "index.js",
         "assets": ["index.js"]
       },
       {
-        "assets": ["dedicated-worker.js", "esmodule-helpers.js", "index.js"]
+        "assets": ["dedicated-worker.js"],
+        "contains": ["importScripts(", "(function(){"],
+        "notContains": ["import \""]
       },
       {
-        "assets": ["esmodule-helpers.js", "index.js", "shared-worker.js"]
+        "assets": ["shared-worker.js"],
+        "contains": ["importScripts(", "(function(){"],
+        "notContains": ["import \""]
+      },
+      {
+        "assets": ["esmodule-helpers.js", "index.js"]
       }
     ]
   },
@@ -26,10 +35,17 @@
         "contains": ["name: 'worker'", "name: 'shared'"]
       },
       {
-        "assets": ["dedicated-worker.js", "esmodule-helpers.js", "index.js"]
+        "assets": ["dedicated-worker.js"],
+        "contains": ["importScripts(", "(function(){"],
+        "notContains": ["import \""]
       },
       {
-        "assets": ["esmodule-helpers.js", "index.js", "shared-worker.js"]
+        "assets": ["shared-worker.js"],
+        "contains": ["importScripts(", "(function(){"],
+        "notContains": ["import \""]
+      },
+      {
+        "assets": ["esmodule-helpers.js", "index.js"]
       }
     ]
   }
