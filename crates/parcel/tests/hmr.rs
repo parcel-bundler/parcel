@@ -32,6 +32,7 @@ fn setup(files: &[(&str, &str)]) -> (Parcel, Arc<MemoryFileSystem>) {
   let options = BuildOptions {
     mode: BuildMode::Development,
     optimize: None,
+    content_hash: None,
     source_map: Some(Default::default()),
     env: HashMap::new(),
     log_level: LogLevel::Error,

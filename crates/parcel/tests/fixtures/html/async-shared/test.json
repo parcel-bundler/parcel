@@ -1,0 +1,72 @@
+[
+  {
+    "description": "async scripts load their shared bundle before running, since the page may run them before its tag for it",
+    "input": "index.html",
+    "options": {
+      "mode": "production",
+      "config": ".parcelrc"
+    },
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.html"]
+      },
+      {
+        "assets": ["a.js"],
+        "references": [[], ["shared.js"]]
+      },
+      {
+        "assets": ["b.js"],
+        "references": [[], ["shared.js"]]
+      },
+      {
+        "assets": ["c.js"],
+        "references": [[], ["shared.js"]]
+      },
+      {
+        "assets": ["shared.js"],
+        "references": []
+      },
+      {
+        "assets": [],
+        "references": []
+      }
+    ],
+    "sideEffects": ["a:shared", "b:shared", "c:shared"]
+  },
+  {
+    "description": "async scripts load their shared bundle before running, since the page may run them before its tag for it (development runtime)",
+    "input": "index.html",
+    "options": {
+      "mode": "development",
+      "config": ".parcelrc"
+    },
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.html"]
+      },
+      {
+        "assets": ["a.js"],
+        "references": [[], ["shared.js"]]
+      },
+      {
+        "assets": ["b.js"],
+        "references": [[], ["shared.js"]]
+      },
+      {
+        "assets": ["c.js"],
+        "references": [[], ["shared.js"]]
+      },
+      {
+        "assets": ["shared.js"],
+        "references": []
+      },
+      {
+        "assets": [],
+        "references": []
+      }
+    ],
+    "sideEffects": ["a:shared", "b:shared", "c:shared"]
+  }
+]

@@ -235,13 +235,15 @@ impl Bundler for DefaultBundler {
       .map(|(root, asset)| match bundle_roots.members(root) {
         [_] => asset_graph.asset(asset).id_u64(&options.project_root),
         members => {
+          // Members are ordered by asset index, which depends on the order assets finished
+          // transforming. Sort their ids so the root's id is the same in every build.
+          let mut ids: Vec<u64> = members
+            .iter()
+            .map(|&member| asset_graph.asset(member).id_u64(&options.project_root))
+            .collect();
+          ids.sort_unstable();
           let mut hasher = xxhash_rust::xxh3::Xxh3Default::new();
-          for &member in members {
-            asset_graph
-              .asset(member)
-              .id_u64(&options.project_root)
-              .hash(&mut hasher);
-          }
+          ids.hash(&mut hasher);
           hasher.digest()
         }
       })
@@ -302,6 +304,7 @@ impl Bundler for DefaultBundler {
         // Identity for naming and facades; several members have no single one.
         main_entry_asset: (members.len() == 1).then_some(bundle_root_asset_index),
         referenced_bundles: Vec::new(),
+        name_state: Default::default(),
       };
 
       let (bundle_index, content_bundle_index) = if let Some(&existing) = shared_bundles.get(&key) {
@@ -327,6 +330,7 @@ impl Bundler for DefaultBundler {
                 main_entry_asset: Some(previous_root),
                 entry_assets: vec![previous_root],
                 referenced_bundles: vec![existing],
+                name_state: Default::default(),
               };
               let facade_index = bundles.len();
               bundles.push(facade);
@@ -437,6 +441,7 @@ impl Bundler for DefaultBundler {
                 entry_assets: Vec::new(),
                 main_entry_asset: None,
                 referenced_bundles: Vec::new(),
+                name_state: Default::default(),
               });
               slot_bundles[slot as usize] = Some(bundle_index);
               bundle_index
@@ -503,6 +508,7 @@ impl Bundler for DefaultBundler {
             None
           },
           referenced_bundles: Vec::new(),
+          name_state: Default::default(),
         };
 
         let bundle_index = bundles.len();

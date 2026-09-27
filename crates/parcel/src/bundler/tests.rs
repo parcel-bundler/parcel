@@ -740,6 +740,7 @@ pub(super) fn placement_bundles(contents: &[&[u32]]) -> Vec<Bundle> {
       entry_assets: Vec::new(),
       main_entry_asset: None,
       referenced_bundles: Vec::new(),
+      name_state: Default::default(),
     })
     .collect()
 }
@@ -1460,6 +1461,164 @@ fn css_order_diagnostics_distinguish_locations_only_when_needed() {
           "{message}"
         );
       }
+    }
+  }
+}
+
+/// Rebuilds `graph` with its assets stored in a different order: `order[new] = old`. Asset
+/// indices depend on the order assets finish transforming, so bundling must not depend on them.
+fn reindexed(graph: &AssetGraph<'static>, order: &[usize]) -> AssetGraph<'static> {
+  use parcel_core::{AssetNode, AssetNodeIndex, DependencyResolution};
+  use std::borrow::Cow;
+  let mut new_index = vec![0; order.len()];
+  for (new, &old) in order.iter().enumerate() {
+    new_index[old] = new;
+  }
+  let assets: Vec<Asset> = order
+    .iter()
+    .map(|&old| {
+      let mut asset = graph.assets[old].clone();
+      for dependency in &mut asset.dependencies {
+        if let DependencyResolution::Asset(target) = dependency.resolution {
+          dependency.resolution =
+            DependencyResolution::Asset(AssetNodeIndex::from_index(new_index[target.index()]));
+        }
+      }
+      asset
+    })
+    .collect();
+  let mut entries = graph.entries.to_vec();
+  for entry in &mut entries {
+    entry.asset = entry
+      .asset
+      .map(|asset| AssetNodeIndex::from_index(new_index[asset.index()]));
+  }
+  AssetGraph {
+    asset_nodes: Cow::Owned(
+      assets
+        .iter()
+        .enumerate()
+        .map(|(index, asset)| AssetNode::from_asset(AssetIndex::from_index(index), asset))
+        .collect(),
+    ),
+    entries: Cow::Owned(entries),
+    assets: Cow::Owned(assets),
+  }
+}
+
+#[test]
+fn bundle_ids_do_not_depend_on_asset_indices() {
+  // 0 imports 1 and 2 concurrently (one merged root) and 4 on its own. 1 and 4 share 3, so its
+  // shared bundle's id is derived from the merged root's id.
+  let mut graph = asset_graph(
+    5,
+    &[0],
+    &[
+      (0, 1, Priority::Lazy),
+      (0, 2, Priority::Lazy),
+      (0, 4, Priority::Lazy),
+      (1, 3, Priority::Sync),
+      (4, 3, Priority::Sync),
+    ],
+  );
+  for dependency in &mut graph.assets.to_mut()[0].dependencies[..2] {
+    dependency.concurrent_group = 1;
+  }
+
+  let ids = |graph: AssetGraph<'static>| {
+    let mut ids: Vec<u64> = bundle(graph)
+      .bundles
+      .iter()
+      .map(|bundle| bundle.id)
+      .collect();
+    ids.sort_unstable();
+    ids
+  };
+  let expected = ids(reindexed(&graph, &[0, 1, 2, 3, 4]));
+  assert_eq!(ids(reindexed(&graph, &[0, 2, 1, 3, 4])), expected);
+  assert_eq!(ids(reindexed(&graph, &[4, 3, 2, 1, 0])), expected);
+}
+
+#[test]
+fn bundle_graphs_do_not_depend_on_asset_indices() {
+  // Two entries with lazy, concurrent and shared imports, so the graph has entry, lazy, merged
+  // concurrent and shared bundles.
+  let mut graph = asset_graph(
+    10,
+    &[0, 5],
+    &[
+      (0, 1, Priority::Lazy),
+      (0, 2, Priority::Lazy),
+      (0, 3, Priority::Lazy),
+      (1, 4, Priority::Sync),
+      (2, 4, Priority::Sync),
+      (2, 6, Priority::Sync),
+      (3, 6, Priority::Sync),
+      (5, 6, Priority::Sync),
+      (5, 7, Priority::Lazy),
+      (7, 4, Priority::Sync),
+      (7, 8, Priority::Sync),
+      (3, 8, Priority::Sync),
+      (8, 9, Priority::Sync),
+    ],
+  );
+  for dependency in &mut graph.assets.to_mut()[0].dependencies[..2] {
+    dependency.concurrent_group = 1;
+  }
+
+  // Describes bundles by asset URLs and referenced bundle ids, independently of indices.
+  let describe = |graph: AssetGraph<'static>, mode: BuildMode| {
+    let graph = DefaultBundler {
+      min_bundle_size: 0,
+      max_parallel_requests: 0,
+      ..Default::default()
+    }
+    .bundle(
+      graph,
+      &ParcelOptions {
+        mode,
+        ..Default::default()
+      },
+    )
+    .unwrap();
+    let url = |asset: &AssetIndex| graph.asset_graph.asset(*asset).loc.url.to_string();
+    let mut bundles: Vec<String> = graph
+      .bundles
+      .iter()
+      .map(|bundle| {
+        let mut assets: Vec<String> = bundle.assets.iter().map(url).collect();
+        assets.sort();
+        let references: Vec<String> = bundle
+          .referenced_bundles
+          .iter()
+          .map(|&index| format!("{:016x}", graph.bundles[index].id))
+          .collect();
+        format!(
+          "{:016x} entries={:?} assets={:?} references={:?}",
+          bundle.id,
+          bundle.entry_assets.iter().map(url).collect::<Vec<_>>(),
+          assets,
+          references
+        )
+      })
+      .collect();
+    bundles.sort();
+    bundles
+  };
+
+  let identity: Vec<usize> = (0..10).collect();
+  for mode in [BuildMode::Development, BuildMode::Production] {
+    let expected = describe(reindexed(&graph, &identity), mode.clone());
+    for order in [
+      vec![9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+      vec![3, 7, 1, 9, 5, 0, 8, 2, 6, 4],
+      vec![5, 0, 2, 1, 8, 9, 4, 6, 3, 7],
+    ] {
+      assert_eq!(
+        describe(reindexed(&graph, &order), mode.clone()),
+        expected,
+        "{mode:?} {order:?}"
+      );
     }
   }
 }

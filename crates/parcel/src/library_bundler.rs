@@ -52,6 +52,7 @@ impl Bundler for LibraryBundler {
           main_entry_asset: Some(id),
           dist_path: name,
           referenced_bundles: Vec::new(),
+          name_state: Default::default(),
         });
         bundles_by_path.insert(key, bundle_index);
         bundle_index

@@ -15,19 +15,15 @@
       "references": []
     },
     {
-      "assets": ["a.js", "shared.js"],
-      "references": []
+      "assets": ["a.js"],
+      "references": [["shared.js"]]
     },
     {
       "assets": ["b.js"],
-      "references": []
+      "references": [["shared.js"]]
     },
     {
-      "assets": ["b.js", "shared.js"],
-      "references": []
-    },
-    {
-      "assets": ["a.js"],
+      "assets": ["shared.js"],
       "references": []
     }
   ],

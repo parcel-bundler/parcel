@@ -1,0 +1,16 @@
+{
+  "description": "an inline stylesheet keeps its reference @imports, since nothing else loads them",
+  "input": ["index.js", "other.css"],
+  "options": {"mode": "production", "contentHash": false},
+  "skipNodeModules": true,
+  "bundles": [
+    {"assets": ["index.js"], "contains": ["@import"]},
+    {
+      "assets": ["other.css"],
+      "references": [["shared.css"]],
+      "contains": ["@import"]
+    },
+    {"assets": ["sheet.css"], "references": [["shared.css"]]},
+    {"assets": ["shared.css"], "references": []}
+  ]
+}

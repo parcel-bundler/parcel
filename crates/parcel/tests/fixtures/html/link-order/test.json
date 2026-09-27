@@ -2,7 +2,8 @@
   "description": "an injected stylesheet link is inserted at its owning element's position, after earlier authored links",
   "input": "index.html",
   "options": {
-    "mode": "production"
+    "mode": "production",
+    "contentHash": false
   },
   "skipNodeModules": true,
   "bundles": [

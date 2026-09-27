@@ -29,6 +29,9 @@ pub enum RscModule {
     runtime: AssetIndex,
     exports: Vec<(SymbolName, SymbolResolution)>,
     bundles: Vec<String>,
+    /// Final names of content hashed `bundles`, by stable key. The client adds them to its runtime's
+    /// import map before loading the bundles.
+    import_map: Vec<(String, String)>,
     css_resources: Vec<String>,
     is_async: bool,
   },
@@ -148,9 +151,7 @@ pub(super) fn resolve_dependency(
     // Find the bundle containing the importer so we can get the referenced bundles for the entire bundle group.
     // TODO: the importer might not actually be the bundle root (it might also be a shared bundle).
     let bundle_index = bundle_graph
-      .bundles
-      .iter()
-      .position(|bundle| bundle.assets.contains(&importer_index))
+      .first_bundle_containing(importer_index)
       .map(|bundle_index| bundle_index as u32)
       .ok_or_else(|| {
         DiagnosticList::from(Diagnostic::from_message(
@@ -180,6 +181,7 @@ pub(super) fn resolve_dependency(
         .asset_graph
         .get_exports(resolved_index, importer.target.environment),
       bundles: client_bundle_names(bundle_graph, bundle_index),
+      import_map: client_bundle_import_map(bundle_graph, bundle_index),
       css_resources,
       is_async,
     }));
@@ -346,17 +348,66 @@ fn runtime_asset(
   }
 }
 
-fn client_bundle_names(bundle_graph: &BundleGraph, bundle_index: u32) -> Vec<String> {
+/// Client JS bundles a client reference loads, which are referenced by the server bundle.
+fn client_bundles<'a>(
+  bundle_graph: &'a BundleGraph,
+  bundle_index: u32,
+) -> impl Iterator<Item = &'a Bundle> + 'a {
   bundle_graph
     .referenced_bundles(bundle_index as usize)
-    .filter_map(|bundle_index| {
-      let bundle = &bundle_graph.bundles[bundle_index];
-      (bundle.ty == AssetType::Js
+    .map(|bundle_index| &bundle_graph.bundles[bundle_index])
+    .filter(|bundle| {
+      bundle.ty == AssetType::Js
         && bundle.target.environment == Environment::ReactClient
-        && bundle.bundle_behavior != BundleBehavior::Inline)
-        .then(|| bundle.name())
+        && bundle.bundle_behavior != BundleBehavior::Inline
     })
+}
+
+/// Final names of the bundles a client reference loads. React also emits them as script and
+/// preload URLs while server rendering, without applying the import map, so they can't be stable
+/// keys. Server bundles aren't content hashed, so naming them doesn't cascade.
+fn client_bundle_names(bundle_graph: &BundleGraph, bundle_index: u32) -> Vec<String> {
+  client_bundles(bundle_graph, bundle_index)
+    .map(|bundle| bundle.name())
     .collect()
+}
+
+/// Final names of content hashed client bundles by stable key: the bundles a client reference loads,
+/// and everything they may load in turn (e.g. lazy components), which no client page or root maps.
+fn client_bundle_import_map(
+  bundle_graph: &BundleGraph,
+  bundle_index: u32,
+) -> Vec<(String, String)> {
+  let mut entries: Vec<(String, String)> =
+    client_bundle_import_map_dependencies(bundle_graph, bundle_index)
+      .into_iter()
+      .map(|index| &bundle_graph.bundles[index])
+      .filter(|bundle| bundle.has_final_path())
+      .map(|bundle| (bundle.stable_key(), bundle.name()))
+      .filter(|(stable_key, name)| stable_key != name)
+      .collect();
+  entries.sort_unstable();
+  entries.dedup();
+  entries
+}
+
+/// Bundles `client_bundle_import_map` names.
+pub(super) fn client_bundle_import_map_dependencies(
+  bundle_graph: &BundleGraph,
+  bundle_index: u32,
+) -> Vec<usize> {
+  let mut dependencies = Vec::new();
+  for index in bundle_graph.referenced_bundles(bundle_index as usize) {
+    let bundle = &bundle_graph.bundles[index];
+    if bundle.ty == AssetType::Js
+      && bundle.target.environment == Environment::ReactClient
+      && bundle.bundle_behavior != BundleBehavior::Inline
+    {
+      dependencies.push(index);
+      dependencies.extend(bundle_graph.context_closure(bundle));
+    }
+  }
+  dependencies
 }
 
 fn server_actions(bundle_graph: &BundleGraph, project_root: &PathId) -> Vec<RscServerAction> {
@@ -376,11 +427,7 @@ fn server_actions(bundle_graph: &BundleGraph, project_root: &PathId) -> Vec<RscS
       continue;
     }
 
-    let Some(bundle_index) = bundle_graph
-      .bundles
-      .iter()
-      .position(|bundle| bundle.assets.contains(&asset_index))
-    else {
+    let Some(bundle_index) = bundle_graph.first_bundle_containing(asset_index) else {
       continue;
     };
     let names = bundle_graph
@@ -388,7 +435,7 @@ fn server_actions(bundle_graph: &BundleGraph, project_root: &PathId) -> Vec<RscS
       .filter_map(|bundle_index| {
         let bundle = &bundle_graph.bundles[bundle_index];
         (bundle.ty == AssetType::Js && bundle.target.environment == Environment::ReactServer)
-          .then(|| bundle.name())
+          .then(|| bundle.stable_key())
       })
       .collect::<Vec<_>>();
     let id = asset.id(project_root);
@@ -457,6 +504,7 @@ impl RscModule {
         runtime,
         exports,
         bundles,
+        import_map,
         css_resources,
         is_async,
         ..
@@ -468,6 +516,7 @@ impl RscModule {
         *runtime,
         exports,
         bundles,
+        import_map,
         css_resources,
         *is_async,
       ),
@@ -531,11 +580,20 @@ fn write_client_reference<W: std::fmt::Write>(
   runtime: AssetIndex,
   exports: &[(SymbolName, SymbolResolution)],
   bundles: &[String],
+  import_map: &[(String, String)],
   css_resources: &[String],
   is_async: bool,
 ) -> Result<(), DiagnosticList> {
   write_preamble(dest, should_optimize, bundle_graph, project_root, runtime)?;
-  let bundles = serde_json::to_string(bundles)?;
+  let mut bundles = serde_json::to_string(bundles)?;
+  if !import_map.is_empty() {
+    let import_map: serde_json::Map<String, serde_json::Value> = import_map
+      .iter()
+      .map(|(stable_key, name)| (stable_key.clone(), name.clone().into()))
+      .collect();
+    bundles.push(',');
+    bundles.push_str(&serde_json::to_string(&import_map)?);
+  }
   if !css_resources.is_empty() {
     write!(dest, "let $resources=[")?;
     for resource in css_resources {
@@ -693,7 +751,7 @@ fn write_resources<W: std::fmt::Write>(
     let mut css = Vec::new();
     for bundle_index in &plan.load_bundles {
       let load_bundle = &bundle_graph.bundles[*bundle_index as usize];
-      loads.push(js_bundle_load_expression(load_bundle, bundle, require));
+      loads.push(js_bundle_load_expression(load_bundle, bundle));
     }
     for url in &plan.client_css {
       // Start preloading CSS via React.
@@ -725,15 +783,19 @@ fn write_resources<W: std::fmt::Write>(
     }
     write!(dest, ");}});\nmodule.exports=$promise;\n")?;
   } else {
+    // A CommonJS target bundle is required by its path relative to this bundle, with this bundle's
+    // own Node require.
     let original = if target_bundle.target.output_format == OutputFormat::Commonjs {
-      serde_json::to_string(&target_bundle.relative_specifier(bundle).unwrap())?
+      format!(
+        "module.bundle.nodeRequire({})",
+        serde_json::to_string(&target_bundle.relative_specifier(bundle).unwrap())?
+      )
     } else {
-      original_id
+      format!("{}({})", require, original_id)
     };
     write!(
       dest,
-      "let $original={}({});\nmodule.exports=$rsc.createResourcesProxy($original,{},$resources",
-      require,
+      "let $original={};\nmodule.exports=$rsc.createResourcesProxy($original,{},$resources",
       original,
       original_asset.flags.contains(AssetFlags::IS_ESM)
     )?;

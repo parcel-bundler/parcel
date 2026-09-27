@@ -1,0 +1,15 @@
+{
+  "description": "lazily loaded server bundles load the client bundles they import synchronously with an env attribute",
+  "input": "index.jsx",
+  "skipNodeModules": true,
+  "bundles": [
+    {"assets": ["index.jsx"]},
+    {
+      "assets": ["Page.jsx"],
+      "context": "react-server",
+      "contains": ["require(\"../client/"]
+    },
+    {"assets": ["format.js"], "context": "react-client"},
+    {"assets": [], "context": "react-client"}
+  ]
+}

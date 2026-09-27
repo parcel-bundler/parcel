@@ -34,7 +34,7 @@
     "sideEffects": ["b", 42, "a", 42]
   },
   {
-    "description": "Independent HTML page environments retain their own asset providers",
+    "description": "Pages loading the same scripts in different orders share them, so neither supplies the common asset",
     "input": ["forward.html", "reverse.html"],
     "bundles": [
       {
@@ -44,16 +44,16 @@
         "assets": ["reverse.html"]
       },
       {
-        "assets": ["a.js", "value.js"]
+        "assets": ["a.js"],
+        "references": [["value.js"]]
       },
       {
-        "assets": ["b.js"]
+        "assets": ["b.js"],
+        "references": [["value.js"]]
       },
       {
-        "assets": ["b.js", "value.js"]
-      },
-      {
-        "assets": ["a.js"]
+        "assets": ["value.js"],
+        "references": []
       }
     ]
   }

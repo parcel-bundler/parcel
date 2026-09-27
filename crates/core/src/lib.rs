@@ -14,6 +14,7 @@ mod location;
 mod namer;
 mod optimizer;
 mod options;
+mod packaging;
 mod path;
 mod reporter;
 mod request;
@@ -22,14 +23,12 @@ mod target;
 mod transformer;
 
 use std::{
-  borrow::Cow,
   collections::{HashMap, HashSet},
   path::Path,
-  sync::{Arc, Mutex},
+  sync::{Arc, atomic::Ordering},
 };
 
 use crossbeam_channel::bounded;
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 pub use asset::*;
 pub use asset_graph::{AssetGraph, AssetGraphBuilder, AssetIndex, AssetNode, AssetNodeIndex};
@@ -47,6 +46,8 @@ pub use location::*;
 pub use namer::*;
 pub use optimizer::Optimizer;
 pub use options::*;
+pub use packaging::{InlineBundleCache, get_bundle_content};
+use packaging::{Packaged, PrevBundle};
 pub use path::{PathId, SubPath};
 pub use reporter::*;
 pub use resolver::Resolver;
@@ -71,8 +72,8 @@ pub struct Parcel {
   /// `invalidate` so the resolver, transformers, and JS environment all see fresh data on rebuild.
   cached_fs: Arc<CachedFileSystem>,
   /// Metadata from the previous bundle pass used to detect which bundles need re-packaging.
-  /// Keyed by bundle dist path; value is the bundle's sorted asset indices.
-  prev_bundles: HashMap<PathId, Vec<AssetIndex>>,
+  /// Keyed by the bundle's template dist path.
+  prev_bundles: HashMap<PathId, PrevBundle>,
   /// As `prev_bundles`, for inline bundles (which have no dist path), keyed by bundle id.
   /// A dirty inline bundle re-packages every bundle its content is embedded in.
   prev_inline_bundles: HashMap<u64, Vec<AssetIndex>>,
@@ -189,6 +190,9 @@ impl Parcel {
     let mut reporters = config.reporters.clone();
     reporters.extend(options.reporters.into_iter());
     let reporters = Reporters::new(reporters, options.log_level.clone());
+    let content_hash = options
+      .content_hash
+      .unwrap_or(options.mode == BuildMode::Production);
     let options = Arc::new(ParcelOptions {
       env,
       mode: options.mode,
@@ -199,6 +203,7 @@ impl Parcel {
       cwd: options.cwd,
       hmr: options.hmr,
       reporters: reporters.clone(),
+      content_hash,
     });
 
     // Weak, so the options may own the reporters without the two keeping each
@@ -388,46 +393,44 @@ fn bundle_and_package<'a>(
   config: &ParcelConfig,
   options: &ParcelOptions,
   changed_assets: &Vec<AssetIndex>,
-  prev_bundles: &mut HashMap<PathId, Vec<AssetIndex>>,
+  prev_bundles: &mut HashMap<PathId, PrevBundle>,
   prev_inline_bundles: &mut HashMap<u64, Vec<AssetIndex>>,
 ) -> Result<(BundleGraph<'a>, bool), DiagnosticList> {
   // Group assets into bundles.
   let bundle_graph = bundle(asset_graph, config, options)?;
+  let bundles = &bundle_graph.bundles;
 
   // Diff the new bundle graph against the previous build's metadata to find dirty bundles.
   // A bundle is dirty if it's new, its asset composition changed, or any of its assets
-  // were re-transformed this build. Inline bundles have no dist path, so they are tracked
-  // by bundle id instead.
-  let mut new_prev: HashMap<PathId, Vec<AssetIndex>> = HashMap::new();
+  // were re-transformed this build. Bundles are tracked by their template path (the namer's
+  // output), which is stable across builds, and inline bundles by id since they aren't written.
   let mut new_prev_inline: HashMap<u64, Vec<AssetIndex>> = HashMap::new();
-  let mut dirty: HashSet<usize> = HashSet::new();
+  let mut dirty = vec![false; bundles.len()];
+  let mut sorted_assets = Vec::with_capacity(bundles.len());
 
-  for (bundle_index, bundle) in bundle_graph.bundles.iter().enumerate() {
-    let mut sorted_assets = bundle.assets.clone();
-    sorted_assets.sort_unstable();
+  for (bundle_index, bundle) in bundles.iter().enumerate() {
+    let mut assets = bundle.assets.clone();
+    assets.sort_unstable();
 
     let prev_assets = if bundle.bundle_behavior == BundleBehavior::Inline {
       prev_inline_bundles.get(&bundle.id)
     } else {
-      prev_bundles.get(&bundle.dist_path())
+      prev_bundles
+        .get(&bundle.dist_path.unwrap())
+        .map(|prev| &prev.assets)
     };
 
-    let is_dirty = match prev_assets {
+    dirty[bundle_index] = match prev_assets {
       None => true,
       Some(prev_assets) => {
-        *prev_assets != sorted_assets || bundle.assets.iter().any(|i| changed_assets.contains(i))
+        *prev_assets != assets || bundle.assets.iter().any(|i| changed_assets.contains(i))
       }
     };
 
-    if is_dirty {
-      dirty.insert(bundle_index);
-    }
-
     if bundle.bundle_behavior == BundleBehavior::Inline {
-      new_prev_inline.insert(bundle.id, sorted_assets);
-    } else {
-      new_prev.insert(bundle.dist_path(), sorted_assets);
+      new_prev_inline.insert(bundle.id, assets.clone());
     }
+    sorted_assets.push(assets);
   }
 
   // An inline bundle's content is embedded in the bundles referencing it rather than written
@@ -435,7 +438,7 @@ fn bundle_and_package<'a>(
   // transitively (inline bundles can nest).
   let mut inline_embeds: HashMap<AssetIndex, Vec<usize>> = HashMap::new();
   for (asset_index, bundle_index) in bundle_graph.bundle_dependencies() {
-    if bundle_graph.bundles[bundle_index].bundle_behavior == BundleBehavior::Inline {
+    if bundles[bundle_index].bundle_behavior == BundleBehavior::Inline {
       inline_embeds
         .entry(asset_index)
         .or_default()
@@ -445,17 +448,17 @@ fn bundle_and_package<'a>(
   if !inline_embeds.is_empty() {
     loop {
       let mut changed = false;
-      for (bundle_index, bundle) in bundle_graph.bundles.iter().enumerate() {
-        if dirty.contains(&bundle_index) {
+      for (bundle_index, bundle) in bundles.iter().enumerate() {
+        if dirty[bundle_index] {
           continue;
         }
         let embeds_dirty_inline = bundle.assets.iter().any(|asset| {
           inline_embeds
             .get(asset)
-            .is_some_and(|embedded| embedded.iter().any(|index| dirty.contains(index)))
+            .is_some_and(|embedded| embedded.iter().any(|&index| dirty[index]))
         });
         if embeds_dirty_inline {
-          dirty.insert(bundle_index);
+          dirty[bundle_index] = true;
           changed = true;
         }
       }
@@ -465,24 +468,124 @@ fn bundle_and_package<'a>(
     }
   }
 
-  // Bundle filenames may be embedded in other bundles during packaging. If a filename changes,
-  // re-package every output bundle so none of those references are left pointing at a stale path.
-  let output_paths_changed = prev_bundles.len() != new_prev.len()
+  // Adding or removing bundles can change what other bundles contain (e.g. which bundles a
+  // loader loads) without changing their assets, so re-package every bundle. Changes to final
+  // names alone are handled while packaging, through declared dependencies.
+  let template_paths: HashSet<PathId> = bundles
+    .iter()
+    .filter(|bundle| bundle.bundle_behavior != BundleBehavior::Inline)
+    .map(|bundle| bundle.dist_path.unwrap())
+    .collect();
+  let output_paths_changed = prev_bundles.len() != template_paths.len()
     || prev_bundles
       .keys()
-      .any(|dist_path| !new_prev.contains_key(dist_path));
+      .any(|template| !template_paths.contains(template));
   if output_paths_changed {
-    dirty.extend(0..bundle_graph.bundles.len());
+    dirty.fill(true);
   }
 
-  // Only non-inline bundles are packaged directly; inline content is produced on demand while
-  // packaging the bundles that embed it.
-  dirty.retain(|index| bundle_graph.bundles[*index].bundle_behavior != BundleBehavior::Inline);
+  *prev_inline_bundles = new_prev_inline;
 
-  // Delete output files (and their sourcemaps) for bundles that no longer exist.
-  for dist_path in prev_bundles.keys() {
-    if !new_prev.contains_key(dist_path) {
-      for stale in [*dist_path, dist_path.add_extension("map")] {
+  // The hash of the content that named each bundle, if it was named by its own content.
+  let mut content_hashes: Vec<Option<u128>> = vec![None; bundles.len()];
+  if dirty
+    .iter()
+    .zip(bundles)
+    .any(|(&dirty, bundle)| dirty && bundle.bundle_behavior != BundleBehavior::Inline)
+  {
+    // Create each output directory once before packaging starts. Library builds can emit
+    // thousands of bundles into a much smaller number of shared directories, so calling
+    // create_dir_all for every bundle adds significant filesystem metadata overhead.
+    let mut output_dirs = HashSet::new();
+    for template in &template_paths {
+      let parent = template.parent().ok_or_else(|| {
+        Diagnostic::from_message(format!("{:?} has no parent directory", template))
+      })?;
+      output_dirs.insert(parent);
+    }
+
+    for dir in output_dirs {
+      options
+        .output_fs
+        .create_dir_all(dir)
+        .map_err(|e| Diagnostic::from_message(format!("Failed to create {:?}: {}", dir, e)))?;
+    }
+
+    let packaged = std::thread::scope(|scope| -> Result<Packaged, DiagnosticList> {
+      let writer_count = OUTPUT_WRITER_THREADS;
+      let (sender, receiver) = bounded::<(Arc<dyn Content>, PathId)>(writer_count * 2);
+      let mut writers = Vec::with_capacity(writer_count);
+
+      for _ in 0..writer_count {
+        let receiver = receiver.clone();
+        let output_fs = &options.output_fs;
+        writers.push(scope.spawn(move || -> Result<(), DiagnosticList> {
+          while let Ok((content, path)) = receiver.recv() {
+            if let Err(error) = content.write(&**output_fs, path) {
+              return Err(error.into());
+            }
+          }
+
+          Ok(())
+        }));
+      }
+      drop(receiver);
+
+      let package_result = packaging::package_bundles(
+        config,
+        &bundle_graph,
+        options,
+        &dirty,
+        prev_bundles,
+        &sender,
+      );
+      drop(sender);
+
+      for writer in writers {
+        match writer.join() {
+          Ok(Ok(())) => {}
+          Ok(Err(error)) => return Err(error),
+          Err(panic) => std::panic::resume_unwind(panic),
+        }
+      }
+
+      package_result
+    })?;
+
+    let stats = &packaged.stats;
+    options.log(
+      LogLevel::Verbose,
+      format!(
+        "Packaged {} bundles ({} second passes); {} naming cycles, largest has {} bundles",
+        stats.packaged.load(Ordering::Relaxed),
+        stats.second_passes.load(Ordering::Relaxed),
+        stats.cycles.load(Ordering::Relaxed),
+        stats.largest_cycle.load(Ordering::Relaxed),
+      ),
+    );
+    content_hashes = packaged.content_hashes;
+  } else {
+    // Nothing changed, so every bundle keeps its previous name.
+    for (index, bundle) in bundles.iter().enumerate() {
+      if let Some(prev) = prev_bundles.get(&bundle.dist_path.unwrap())
+        && bundle.bundle_behavior != BundleBehavior::Inline
+        && prev.final_path != bundle.dist_path.unwrap()
+      {
+        bundle.set_final_path(prev.final_path);
+        content_hashes[index] = prev.content_hash;
+      }
+    }
+  }
+
+  // Delete output files (and their sourcemaps) that no bundle writes to anymore.
+  let final_paths: HashSet<PathId> = bundles
+    .iter()
+    .filter(|bundle| bundle.bundle_behavior != BundleBehavior::Inline)
+    .map(|bundle| bundle.dist_path())
+    .collect();
+  for prev in prev_bundles.values() {
+    if !final_paths.contains(&prev.final_path) {
+      for stale in [prev.final_path, prev.final_path.add_extension("map")] {
         match options.output_fs.remove_file(stale) {
           Ok(()) => {}
           Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
@@ -496,81 +599,22 @@ fn bundle_and_package<'a>(
     }
   }
 
-  *prev_bundles = new_prev;
-  *prev_inline_bundles = new_prev_inline;
-
-  // Create each output directory once before packaging starts. Library builds can emit thousands
-  // of bundles into a much smaller number of shared directories, so calling create_dir_all for
-  // every bundle adds significant filesystem metadata overhead.
-  let mut output_dirs = HashSet::new();
-  for &bundle_index in &dirty {
-    let path = bundle_graph.bundles[bundle_index].dist_path();
-    let parent = path
-      .parent()
-      .ok_or_else(|| Diagnostic::from_message(format!("{:?} has no parent directory", path)))?;
-    output_dirs.insert(parent);
-  }
-
-  for dir in output_dirs {
-    options
-      .output_fs
-      .create_dir_all(dir)
-      .map_err(|e| Diagnostic::from_message(format!("Failed to create {:?}: {}", dir, e)))?;
-  }
-
-  if dirty.is_empty() {
-    return Ok((bundle_graph, output_paths_changed));
-  }
-
-  let cache = papaya::HashMap::new();
-
-  std::thread::scope(|scope| -> Result<(), DiagnosticList> {
-    let writer_count = dirty.len().min(OUTPUT_WRITER_THREADS);
-    let (sender, receiver) = bounded::<(Arc<dyn Content>, PathId)>(writer_count * 2);
-    let mut writers = Vec::with_capacity(writer_count);
-
-    for _ in 0..writer_count {
-      let receiver = receiver.clone();
-      let output_fs = &options.output_fs;
-      writers.push(scope.spawn(move || -> Result<(), DiagnosticList> {
-        while let Ok((content, path)) = receiver.recv() {
-          if let Err(error) = content.write(&**output_fs, path) {
-            return Err(error.into());
-          }
-        }
-
-        Ok(())
-      }));
-    }
-    drop(receiver);
-
-    let package_result = bundle_graph.bundles.par_iter().enumerate().try_for_each(
-      |(bundle_index, bundle)| -> Result<(), DiagnosticList> {
-        if dirty.contains(&bundle_index) {
-          let content = get_bundle_content(config, &bundle_graph, bundle_index, options, &cache)?;
-          let path = bundle.dist_path();
-
-          if sender.send((content, path)).is_err() {
-            return Err(
-              Diagnostic::from_message("Output writer pool stopped unexpectedly".into()).into(),
-            );
-          }
-        }
-        Ok(())
-      },
-    );
-    drop(sender);
-
-    for writer in writers {
-      match writer.join() {
-        Ok(Ok(())) => {}
-        Ok(Err(error)) => return Err(error),
-        Err(panic) => std::panic::resume_unwind(panic),
-      }
-    }
-
-    package_result
-  })?;
+  *prev_bundles = bundles
+    .iter()
+    .zip(sorted_assets)
+    .zip(content_hashes)
+    .filter(|((bundle, _), _)| bundle.bundle_behavior != BundleBehavior::Inline)
+    .map(|((bundle, assets), content_hash)| {
+      (
+        bundle.dist_path.unwrap(),
+        PrevBundle {
+          assets,
+          final_path: bundle.dist_path(),
+          content_hash,
+        },
+      )
+    })
+    .collect();
 
   Ok((bundle_graph, output_paths_changed))
 }
@@ -582,75 +626,6 @@ pub fn build(
 ) -> Result<BundleGraph<'static>, DiagnosticList> {
   let parcel = Parcel::new(entries, options, make_factory)?;
   parcel.build_owned()
-}
-
-pub fn get_bundle_content(
-  config: &ParcelConfig,
-  bundle_graph: &BundleGraph,
-  bundle_index: usize,
-  options: &ParcelOptions,
-  cache: &papaya::HashMap<usize, Arc<Mutex<Option<Arc<dyn Content>>>>>,
-) -> Result<Arc<dyn Content>, DiagnosticList> {
-  let bundle = &bundle_graph.bundles[bundle_index];
-
-  // If this is an inline bundle, it's possible that it's inlined into many parent bundles.
-  // To avoid packaging the same bundle many times, we have a cache by bundle index.
-  // Each entry is a Mutex<Option<dyn Content>>. The mutex is initially empty, and locked
-  // while the content is packaging. If the bundle is requested a second time concurrently,
-  // that thread waits on the lock and reuses the same content.
-  let slot = if bundle.bundle_behavior == BundleBehavior::Inline {
-    Some(
-      cache
-        .pin()
-        .get_or_insert_with(bundle_index, || Arc::new(Mutex::new(None)))
-        .clone(),
-    )
-  } else {
-    None
-  };
-
-  // TODO: error instead of deadlocking if there is a cycle in inline bundles. Currently this cannot happen.
-  let mut lock = slot.as_ref().map(|slot| slot.lock().unwrap());
-  if let Some(content) = lock.as_ref().and_then(|c| (*c).as_ref()) {
-    return Ok(content.clone());
-  }
-
-  // Entry facades contain no modules of their own but use the entry's packager
-  // to load the shared payload and execute the requested entry module.
-  let first_asset = bundle
-    .assets
-    .first()
-    .copied()
-    .or(bundle.main_entry_asset)
-    .ok_or_else(|| {
-      Diagnostic::from_message("Cannot package a bundle with no assets".to_string())
-    })?;
-  let first_content = &bundle_graph.asset_graph.asset(first_asset).content;
-  let get_inline_bundle_content =
-    |bundle_index| get_bundle_content(config, bundle_graph, bundle_index, options, cache);
-
-  let mut content =
-    first_content.package(&bundle_graph, &bundle, &get_inline_bundle_content, options)?;
-
-  let mut pipeline = None;
-  if let Some(main) = bundle.main_entry_asset {
-    pipeline = bundle_graph.asset_graph.asset(main).pipeline.clone();
-  }
-  // Match optimizer globs against the dist-relative name, as they were written for bundle names
-  // (e.g. "*.js"), not absolute dist paths.
-  let name = bundle.dist_path().relative(&bundle.target.dist_dir);
-  let optimizers = config
-    .optimizers
-    .get(Cow::Borrowed(name.to_str().unwrap()), &pipeline, false);
-
-  for optimizer in optimizers {
-    content = optimizer.optimize(&bundle_graph, &bundle, content, options)?;
-  }
-
-  if let Some(slot) = &mut lock {
-    **slot = Some(content.clone());
-  }
-  Ok(content)
 }
 
 // By default, bitflags serializes as a string, but we want the raw number instead.

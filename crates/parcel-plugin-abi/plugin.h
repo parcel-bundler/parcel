@@ -626,6 +626,8 @@ typedef struct ParcelApi {
                               uintptr_t hint);
   void (*options_log)(Options options, LogLevel level, const uint8_t *message, uintptr_t message_len);
   void (*options_log_diagnostic)(Options options, const struct Diagnostic *diagnostic);
+  void (*bundle_get_stable_key)(struct Buffer *buf, Bundle bundle);
+  void (*bundle_get_hash_reference)(struct Buffer *buf, Bundle bundle);
 } ParcelApi;
 
 /**
@@ -1009,6 +1011,14 @@ static inline void parcel_options_log(Options options, LogLevel level, const uin
 
 static inline void parcel_options_log_diagnostic(Options options, const struct Diagnostic *diagnostic) {
   parcel_api->options_log_diagnostic(options, diagnostic);
+}
+
+static inline void parcel_bundle_get_stable_key(struct Buffer *buf, Bundle bundle) {
+  parcel_api->bundle_get_stable_key(buf, bundle);
+}
+
+static inline void parcel_bundle_get_hash_reference(struct Buffer *buf, Bundle bundle) {
+  parcel_api->bundle_get_hash_reference(buf, bundle);
 }
 
 #endif  /* PARCEL_PLUGIN_H */

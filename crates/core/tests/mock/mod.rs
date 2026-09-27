@@ -44,6 +44,7 @@ pub fn build_options(
   BuildOptions {
     mode: BuildMode::Development,
     optimize: None,
+    content_hash: None,
     source_map: Some(Default::default()),
     env: Default::default(),
     log_level: LogLevel::Error,
@@ -156,11 +157,21 @@ impl FileSystem for RecordingFileSystem {
 #[derive(Debug)]
 struct MockContent {
   code: Vec<u8>,
+  /// Set by an `@undeclared` line: the content accesses referenced bundles' names without
+  /// declaring them, violating the `Content::bundle_dependencies` contract.
+  undeclared: bool,
 }
 
 impl Content for MockContent {
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
     Ok(self.code.clone())
+  }
+
+  fn bundle_dependencies(&self, _bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+    if self.undeclared {
+      return Vec::new();
+    }
+    bundle.referenced_bundles.clone()
   }
 
   fn package(
@@ -173,7 +184,9 @@ impl Content for MockContent {
     let mut out = Vec::new();
     for &index in &bundle.referenced_bundles {
       let referenced = &bundle_graph.bundles[index];
-      out.extend_from_slice(format!("@bundle-ref {}\n", referenced.name()).as_bytes());
+      out.extend_from_slice(
+        format!("@bundle-ref {}\n", referenced.relative_url(bundle).unwrap()).as_bytes(),
+      );
     }
     for &index in &bundle.assets {
       let asset = &bundle_graph.asset_graph.asset(index);
@@ -214,6 +227,7 @@ impl Transformer for MockTransformer {
     let url = asset.loc.url.clone();
     let target = asset.target.clone();
     let mut code = String::new();
+    let mut undeclared = false;
 
     for line in text.lines() {
       let trimmed = line.trim();
@@ -228,6 +242,8 @@ impl Transformer for MockTransformer {
         let bytes = fs.read(config_path).map_err(Diagnostic::from)?;
         code.push_str(std::str::from_utf8(&bytes).map_err(Diagnostic::from)?);
         code.push('\n');
+      } else if trimmed == "@undeclared" {
+        undeclared = true;
       } else if let Some(spec) = trimmed.strip_prefix("@async ") {
         asset
           .dependencies
@@ -240,6 +256,7 @@ impl Transformer for MockTransformer {
 
     asset.content = Arc::new(MockContent {
       code: code.into_bytes(),
+      undeclared,
     });
     Ok(asset)
   }
@@ -433,6 +450,7 @@ impl Bundler for MockBundler {
         entry_assets: vec![root],
         main_entry_asset: Some(root),
         referenced_bundles: Vec::new(),
+        name_state: Default::default(),
       });
     }
 
@@ -496,7 +514,7 @@ impl Namer for MockNamer {
     &self,
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
-    _options: &ParcelOptions,
+    options: &ParcelOptions,
   ) -> Result<Option<PathId>, DiagnosticList> {
     // Model an anonymous shared CSS bundle using its stable bundle id.
     if bundle.ty == AssetType::Css && !bundle.flags.contains(BundleFlags::ENTRY) {
@@ -504,7 +522,7 @@ impl Namer for MockNamer {
         bundle
           .target
           .dist_dir
-          .child(&format!("{:016x}.css", bundle.id)),
+          .child(&format!("{}.css", bundle.hash_reference())),
       ));
     }
 
@@ -527,6 +545,15 @@ impl Namer for MockNamer {
     let path = asset.loc.url.to_file_path().unwrap();
     let file = path.file_name();
     let stem = file.rsplit_once('.').map(|(s, _)| s).unwrap_or(file);
+    // With content hashing, non-entry bundles get a hash reference to be replaced by their hash.
+    if options.content_hash && !bundle.flags.contains(BundleFlags::ENTRY) {
+      return Ok(Some(bundle.target.dist_dir.child(&format!(
+        "{}-{}.{}",
+        stem,
+        bundle.hash_reference(),
+        bundle.ty.extension()
+      ))));
+    }
     Ok(Some(bundle.target.dist_dir.child(&format!(
       "{}.{}",
       stem,

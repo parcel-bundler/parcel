@@ -1267,6 +1267,22 @@ impl<'a> Bundle<'a> {
     unsafe { host!(bundle_get_relative_specifier)(&mut buf, self.raw, from.raw) };
     buf.to_string()
   }
+
+  /// A dist-relative name that doesn't change with the bundle's content. Runtimes resolve it to the
+  /// final name through a manifest, so accessing it is not a bundle dependency.
+  pub fn stable_key(&self) -> Option<String> {
+    let mut buf = Buffer::default();
+    unsafe { host!(bundle_get_stable_key)(&mut buf, self.raw) };
+    buf.to_string()
+  }
+
+  /// The string a namer must include exactly once in the file name of a bundle that may be
+  /// content hashed.
+  pub fn hash_reference(&self) -> String {
+    let mut buf = Buffer::default();
+    unsafe { host!(bundle_get_hash_reference)(&mut buf, self.raw) };
+    buf.to_string().unwrap_or_default()
+  }
 }
 
 // ── Target ─────────────────────────────────────────────────────────────────

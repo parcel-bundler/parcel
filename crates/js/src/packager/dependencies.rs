@@ -20,6 +20,174 @@ pub(super) fn is_async_bundle_dependency(dependency: &Dependency, bundle: &Bundl
     && !is_inline_bundle_dependency(dependency, bundle)
 }
 
+/// Bundles whose names or inline content packaging `bundle` may access. This must cover every
+/// `relative_url`/`relative_specifier`/`absolute_url` call and inline content read made by the JS
+/// packagers (see `Content::bundle_dependencies`), and mirrors the classification in
+/// `asset_dependencies` and the synthetic modules it creates.
+pub(crate) fn bundle_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+  if bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+    // Library bundles embed a relative path or the inline content for every bundle reference.
+    return bundle_graph.bundle_dependency_targets(bundle).collect();
+  }
+
+  if bundle.target.source_type == SourceType::Script {
+    // Classic scripts are emitted as is, without resolving dependencies.
+    return Vec::new();
+  }
+
+  let mut dependencies = Vec::new();
+
+  // A root's runtime maps the stable keys of everything its context loads to final names.
+  if holds_manifest(bundle_graph, bundle) {
+    dependencies.extend(bundle_graph.context_closure(bundle));
+  }
+  // Statically imported bundles are imported by relative path.
+  dependencies.extend(static_imports(bundle_graph, bundle));
+
+  let is_rsc = matches!(
+    bundle.target.environment,
+    Environment::ReactServer | Environment::ReactClient
+  );
+  if is_rsc {
+    // Client references embed URLs of CSS in the importer's bundle group, and final names of the
+    // client bundles they load (see `rsc::client_bundle_import_map`).
+    // They're computed from the first bundle containing the importer, which may be a copy of this
+    // one's assets in another bundle.
+    let mut importer_bundles: Vec<usize> = bundle.referenced_bundles.clone();
+    for &asset_index in &bundle.assets {
+      if let Some(importer_bundle) = bundle_graph.first_bundle_containing(asset_index)
+        && !importer_bundles.contains(&importer_bundle)
+      {
+        importer_bundles.push(importer_bundle);
+      }
+    }
+    for importer_bundle in importer_bundles {
+      dependencies.extend(bundle_graph.referenced_bundles(importer_bundle));
+      dependencies.extend(rsc::client_bundle_import_map_dependencies(
+        bundle_graph,
+        importer_bundle as u32,
+      ));
+    }
+  }
+
+  for &asset_index in &bundle.assets {
+    let asset = bundle_graph.asset_graph.asset(asset_index);
+    for (dep_index, dep) in asset.dependencies.iter().enumerate() {
+      let BundleGraphDependencyResolution::Bundle { bundle_index, .. } =
+        bundle_graph.dependency_resolution(asset_index, dep_index)
+      else {
+        continue;
+      };
+      let bundle_index = bundle_index as usize;
+      let resolved_bundle = &bundle_graph.bundles[bundle_index];
+
+      if is_inline_bundle_dependency(dep, resolved_bundle) {
+        dependencies.push(bundle_index);
+      } else if is_rsc {
+        // RSC boundaries embed URLs of the target's bundle group and may load it by path.
+        dependencies.extend(bundle_graph.referenced_bundles(bundle_index));
+        dependencies.extend(rsc::client_bundle_import_map_dependencies(
+          bundle_graph,
+          bundle_index as u32,
+        ));
+      } else if is_async_bundle_dependency(dep, resolved_bundle) {
+        // CommonJS bundles are loaded by relative path; others by stable key.
+        dependencies.extend(
+          bundle_graph
+            .referenced_bundles(bundle_index)
+            .filter(|&index| is_loaded_by_path(&bundle_graph.bundles[index])),
+        );
+      } else if is_sync_bundle_dependency(dep, resolved_bundle) {
+        dependencies.push(bundle_index);
+      }
+    }
+  }
+
+  dependencies
+}
+
+/// Whether `bundle`'s runtime holds its context's manifest. Roots that are only loaded by pages get
+/// it from the page instead, so they don't depend on their whole context.
+fn holds_manifest(bundle_graph: &BundleGraph, bundle: &Bundle) -> bool {
+  bundle.is_context_root() && !bundle_graph.is_page_hosted(bundle)
+}
+
+/// JS bundles `bundle` imports so they're loaded before it runs. Roots that nothing else loads
+/// the closure for import all of them. Parcel's loader, pages and RSC load a bundle's static closure
+/// within its environment, so other bundles only import the bundles they reference in other
+/// environments (e.g. server code importing modules `with {env: 'react-client'}`).
+pub(super) fn static_imports(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+  let is_root = holds_manifest(bundle_graph, bundle);
+  js_closure(bundle_graph, bundle)
+    .into_iter()
+    .filter(|&index| {
+      is_root || bundle_graph.bundles[index].target.environment != bundle.target.environment
+    })
+    .collect()
+}
+
+/// JS bundles a root loads before running its entries (see `runtime.js`). A page runs an isolated
+/// root (e.g. `<script type="module" async>`) as soon as it has loaded, possibly before the page's
+/// tags for the bundles in its closure, which it doesn't import (see `static_imports`). Waiting
+/// for them by stable key keeps it from depending on their names.
+pub(super) fn awaited_bundles(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+  if bundle.bundle_behavior != BundleBehavior::Isolated
+    || !bundle.is_context_root()
+    || !bundle_graph.is_page_hosted(bundle)
+  {
+    return Vec::new();
+  }
+  js_closure(bundle_graph, bundle)
+    .into_iter()
+    .filter(|&index| bundle_graph.bundles[index].target.environment == bundle.target.environment)
+    .collect()
+}
+
+/// The other JS bundles in `bundle`'s static closure.
+fn js_closure(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+  let mut closure: Vec<usize> = Vec::new();
+  for &referenced in &bundle.referenced_bundles {
+    for index in bundle_graph.referenced_bundles(referenced) {
+      let target = &bundle_graph.bundles[index];
+      if target.ty == AssetType::Js && target.id != bundle.id && !closure.contains(&index) {
+        closure.push(index);
+      }
+    }
+  }
+  closure
+}
+
+/// The manifest a context root's runtime starts with: the final names of content hashed bundles
+/// its context loads by stable key. Sorted by key, so the output is deterministic.
+pub(super) fn manifest_entries(
+  bundle_graph: &BundleGraph,
+  bundle: &Bundle,
+) -> Vec<(String, String)> {
+  if !holds_manifest(bundle_graph, bundle) {
+    return Vec::new();
+  }
+  let mut entries: Vec<(String, String)> = bundle_graph
+    .context_closure(bundle)
+    .into_iter()
+    .map(|index| &bundle_graph.bundles[index])
+    .filter(|target| target.has_final_path())
+    .map(|target| (target.stable_key(), target.name()))
+    .filter(|(stable_key, name)| stable_key != name)
+    .collect();
+  entries.sort_unstable();
+  entries
+}
+
+/// Whether the async loader references `bundle` by relative path rather than by stable key.
+fn is_loaded_by_path(bundle: &Bundle) -> bool {
+  bundle.ty == AssetType::Js && bundle.target.output_format == OutputFormat::Commonjs
+}
+
+/// A JSON bundle imported as JavaScript, which is imported or required synchronously by path.
+fn is_sync_bundle_dependency(dependency: &Dependency, bundle: &Bundle) -> bool {
+  bundle.ty == AssetType::Json && dependency.import_type == ImportType::JavaScript
+}
+
 /// Resolves each dependency of an asset for packaging, collecting any synthetic
 /// assets that must be emitted alongside it.
 pub fn asset_dependencies<'a>(
@@ -266,9 +434,7 @@ pub fn asset_dependencies<'a>(
             } else {
               Resolution::Asset(BundleShim::Async(asset_index).id(bundle_index, bundle_graph))
             }
-          } else if resolved_bundle.ty == AssetType::Json
-            && dep.import_type == ImportType::JavaScript
-          {
+          } else if is_sync_bundle_dependency(dep, resolved_bundle) {
             additional_assets.insert(SyntheticAsset::Bundle {
               bundle: bundle_index,
               kind: BundleShim::Sync,

@@ -44,6 +44,18 @@ pub fn bundle<'a>(
     }
   }
 
+  // Bundles are identified by id when declaring dependencies (`Content::bundle_dependencies`).
+  debug_assert!(
+    {
+      let mut ids = HashSet::new();
+      bundle_graph
+        .bundles
+        .iter()
+        .all(|bundle| ids.insert(bundle.id))
+    },
+    "bundle ids must be unique"
+  );
+
   if !duplicate_bundles.is_empty() {
     let mut duplicates = duplicate_bundles
       .into_iter()

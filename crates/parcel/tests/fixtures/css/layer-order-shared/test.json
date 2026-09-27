@@ -2,7 +2,8 @@
   "description": "a pre-import layer statement keeps its import closure in one file per page, so the declared a, b order holds and blue wins; the other page still shares",
   "input": ["pageA.html", "pageB.html"],
   "options": {
-    "mode": "production"
+    "mode": "production",
+    "contentHash": false
   },
   "skipNodeModules": true,
   "bundles": [

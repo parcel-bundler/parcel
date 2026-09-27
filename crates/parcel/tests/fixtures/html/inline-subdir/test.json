@@ -1,0 +1,39 @@
+{
+  "description": "resolves urls in inline styles relative to the page they are inlined into",
+  "input": "index.html",
+  "bundles": [
+    {
+      "name": "index.html",
+      "assets": [
+        "index.html"
+      ]
+    },
+    {
+      "name": "sub/page.html",
+      "assets": [
+        "page.html"
+      ],
+      "contains": [
+        "url(\"../img-",
+        "url(&quot;../img-"
+      ]
+    },
+    {
+      "type": "css",
+      "assets": [
+        "page.html"
+      ]
+    },
+    {
+      "type": "style",
+      "assets": [
+        "page.html"
+      ]
+    },
+    {
+      "assets": [
+        "img.png"
+      ]
+    }
+  ]
+}

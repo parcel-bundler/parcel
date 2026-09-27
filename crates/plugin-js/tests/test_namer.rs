@@ -67,6 +67,7 @@ fn run_times(
       entry_assets: vec![AssetIndex(0)],
       main_entry_asset: Some(AssetIndex(0)),
       referenced_bundles: vec![1],
+      name_state: Default::default(),
     },
     Bundle {
       id: 0,
@@ -79,6 +80,7 @@ fn run_times(
       entry_assets: vec![AssetIndex(1)],
       main_entry_asset: Some(AssetIndex(1)),
       referenced_bundles: vec![],
+      name_state: Default::default(),
     },
   ];
   let graph = BundleGraph::new(
@@ -177,6 +179,7 @@ fn test_namer_esm() {
           assert.equal(referenced.length, 1);
           assert.equal(referenced[0].type, 'css');
           assert.equal(referenced[0].bundleBehavior, 'isolated');
+          assert.equal(bundle.hashReference, '0000000000000000');
           return `custom/${bundle.getMainEntry().type}.${bundle.type}`;
         }
       });

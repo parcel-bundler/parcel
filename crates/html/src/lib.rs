@@ -158,6 +158,11 @@ pub struct PackageOptions {
   #[serde(default)]
   pub stylesheet_refs: HashMap<SerializableTendril, Vec<StyleSheetRef>>,
   pub import_map: serde_json::Map<String, serde_json::Value>,
+  /// JSON the JS runtime reads as the page's manifest: stable bundle keys to final names. It's
+  /// prepended to `<head>` as a data block, which Content Security Policies don't block, unlike
+  /// inline scripts.
+  #[serde(default)]
+  pub manifest: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -186,6 +191,7 @@ pub fn package_html(options: PackageOptions) -> Result<PackageResult, ()> {
     &options.stylesheet_media,
     &options.stylesheet_refs,
     options.import_map,
+    options.manifest,
   );
 
   let mut vec = Vec::new();
@@ -218,6 +224,7 @@ pub fn package_svg(options: PackageOptions) -> Result<PackageResult, ()> {
     &options.stylesheet_media,
     &options.stylesheet_refs,
     options.import_map,
+    options.manifest,
   );
 
   let mut vec = Vec::new();
@@ -399,6 +406,12 @@ impl Content for HtmlContent {
     parcel_core::content_type!("HtmlContent")
   }
 
+  fn bundle_dependencies(&self, bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+    let mut dependencies = prepare_to_package_dependencies(bundle_graph, bundle);
+    dependencies.extend(manifest_dependencies(bundle_graph, bundle));
+    dependencies
+  }
+
   fn package(
     &self,
     bundle_graph: &BundleGraph,
@@ -419,6 +432,7 @@ impl Content for HtmlContent {
       stylesheet_media,
       stylesheet_refs,
       import_map: Default::default(),
+      manifest: manifest_json(bundle_graph, bundle)?,
     })
     .unwrap();
 
@@ -442,6 +456,69 @@ impl Content for HtmlContent {
 
     Ok(Arc::new(BufferContent::new(code)))
   }
+}
+
+/// Bundles `prepare_to_package` accesses: each dependency's target (by URL, or its inline
+/// content), and the bundles each target references, transitively (injected as scripts and
+/// stylesheets).
+fn prepare_to_package_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+  let mut dependencies = Vec::new();
+  for target in bundle_graph.bundle_dependency_targets(bundle) {
+    dependencies.extend(bundle_graph.referenced_bundles(target));
+  }
+  dependencies
+}
+
+/// JS context roots this page loads that rely on it for their manifest (see
+/// `BundleGraph::is_page_hosted`).
+fn hosted_roots<'a>(bundle_graph: &'a BundleGraph, bundle: &'a Bundle) -> Vec<&'a Bundle> {
+  let mut roots: Vec<&Bundle> = Vec::new();
+  for target in bundle_graph.bundle_dependency_targets(bundle) {
+    let target = &bundle_graph.bundles[target];
+    if target.is_context_root()
+      && bundle_graph.is_page_hosted(target)
+      && !roots.iter().any(|root| root.id == target.id)
+    {
+      roots.push(target);
+    }
+  }
+  roots
+}
+
+/// Bundles the page's manifest maps to their final names.
+fn manifest_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+  hosted_roots(bundle_graph, bundle)
+    .into_iter()
+    .flat_map(|root| bundle_graph.context_closure(root))
+    .collect()
+}
+
+/// The final names of content hashed bundles loaded by the page's scripts, by stable key, as JSON
+/// for the runtime. Pages hold it rather than their scripts, so a script's own name doesn't depend
+/// on everything it loads.
+fn manifest_json(
+  bundle_graph: &BundleGraph,
+  bundle: &Bundle,
+) -> Result<Option<String>, DiagnosticList> {
+  let mut entries: Vec<(String, String)> = manifest_dependencies(bundle_graph, bundle)
+    .into_iter()
+    .map(|index| &bundle_graph.bundles[index])
+    .filter(|target| target.has_final_path())
+    .map(|target| (target.stable_key(), target.name()))
+    .filter(|(stable_key, name)| stable_key != name)
+    .collect();
+  if entries.is_empty() {
+    return Ok(None);
+  }
+  entries.sort_unstable();
+  entries.dedup();
+  let map: serde_json::Map<String, serde_json::Value> = entries
+    .into_iter()
+    .map(|(stable_key, name)| (stable_key, name.into()))
+    .collect();
+  // `</` would end the script element. `<\/` is the same string in JSON.
+  let json = serde_json::to_string(&map).map_err(Diagnostic::from)?;
+  Ok(Some(json.replace("</", "<\\/")))
 }
 
 fn prepare_to_package(
@@ -474,7 +551,11 @@ fn prepare_to_package(
         bundle_index: b, ..
       } => {
         let referenced_bundle = &bundle_graph.bundles[b as usize];
-        let contents = if dep.bundle_behavior == BundleBehavior::Inline {
+        // The target can be inline even when the dependency isn't (e.g. a `data-url:` pipeline),
+        // and inline bundles are never written, so there is no URL to reference.
+        let is_inline = dep.bundle_behavior == BundleBehavior::Inline
+          || referenced_bundle.bundle_behavior == BundleBehavior::Inline;
+        let contents = if is_inline {
           get_inline_bundle_content(b as usize)?
             .read_string()?
             .into_owned()
@@ -493,7 +574,7 @@ fn prepare_to_package(
         // Re-derive the media attribute of stylesheet links from the resolved
         // bundle. Correctness comes from each asset's own condition wrapping;
         // the attribute is a fetch-priority hint that must gate the whole file.
-        if referenced_bundle.ty == AssetType::Css && dep.bundle_behavior != BundleBehavior::Inline {
+        if referenced_bundle.ty == AssetType::Css && !is_inline {
           stylesheet_media.insert(
             SerializableTendril((*dep.placeholder.clone().unwrap()).into()),
             bundle_graph
@@ -503,8 +584,8 @@ fn prepare_to_package(
         }
 
         let mut refs = Vec::new();
-        for &reference in &referenced_bundle.referenced_bundles {
-          // TODO: should be recursive
+        // Bundles don't import their siblings, so the page loads everything they reference.
+        for reference in bundle_graph.referenced_bundles(b as usize).skip(1) {
           let target = &bundle_graph.bundles[reference];
           if positional_styles && target.ty == AssetType::Css {
             // Attach to this element so its stylesheets load before it, at
@@ -671,6 +752,10 @@ impl Content for SvgContent {
     parcel_core::content_type!("SvgContent")
   }
 
+  fn bundle_dependencies(&self, bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+    prepare_to_package_dependencies(bundle_graph, bundle)
+  }
+
   fn package(
     &self,
     bundle_graph: &BundleGraph,
@@ -691,6 +776,7 @@ impl Content for SvgContent {
       stylesheet_media,
       stylesheet_refs,
       import_map: Default::default(),
+      manifest: None,
     })
     .unwrap();
 
@@ -733,6 +819,27 @@ mod tests {
     assert_eq!(
       std::str::from_utf8(&res.code).unwrap(),
       "<html><head></head><body><template><div>test</div><span>hi</span></template></body></html>"
+    );
+  }
+
+  #[test]
+  fn manifest_is_a_data_block_before_every_script() {
+    let res = crate::package_html(crate::PackageOptions {
+      code: b"<html><head><script src=\"app.js\"></script></head><body></body></html>".to_vec(),
+      xml: false,
+      bundles: Vec::new(),
+      inline_bundles: Default::default(),
+      stylesheet_media: Default::default(),
+      stylesheet_refs: Default::default(),
+      import_map: Default::default(),
+      manifest: Some(r#"{"a-0123456789abcdef.js":"a-abcdefgh.js","x":"<\/script>"}"#.into()),
+    })
+    .unwrap();
+
+    // Content Security Policies block inline scripts, but not data blocks.
+    assert_eq!(
+      std::str::from_utf8(&res.code).unwrap(),
+      r#"<html><head><script type="application/json" data-parcel-manifest="">{"a-0123456789abcdef.js":"a-abcdefgh.js","x":"<\/script>"}</script><script src="app.js"></script></head><body></body></html>"#
     );
   }
 }

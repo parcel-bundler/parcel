@@ -37,6 +37,22 @@ impl Content for CssContent {
     todo!()
   }
 
+  fn bundle_dependencies(&self, bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+    // Cross-bundle @imports and url()s embed the target's URL or inline content, and referenced
+    // CSS bundles may be @imported (see `packager::imports_references`).
+    let mut dependencies: Vec<usize> = bundle_graph.bundle_dependency_targets(bundle).collect();
+    if packager::imports_references(bundle_graph, bundle) {
+      dependencies.extend(
+        bundle
+          .referenced_bundles
+          .iter()
+          .copied()
+          .filter(|&index| bundle_graph.bundles[index].ty == AssetType::Css),
+      );
+    }
+    dependencies
+  }
+
   fn package(
     &self,
     bundle_graph: &BundleGraph,
@@ -177,6 +193,11 @@ impl Content for StyleAttrContent {
 
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
     todo!()
+  }
+
+  fn bundle_dependencies(&self, bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+    // url()s embed the target's URL or inline content.
+    bundle_graph.bundle_dependency_targets(bundle).collect()
   }
 
   fn package(

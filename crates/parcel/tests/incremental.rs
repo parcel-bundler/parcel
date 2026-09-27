@@ -159,7 +159,7 @@ fn synchronous_bundle_imports_survive_bundle_index_changes() {
       .find_map(|bundle| {
         let asset = graph.asset_graph.asset(bundle.main_entry_asset?);
         (asset.loc.url.to_file_path().ok() == Some(PathId::new(Path::new("/project/page.js"))))
-          .then(|| bundle.dist_path.unwrap().to_path_buf())
+          .then(|| bundle.dist_path().to_path_buf())
       })
       .unwrap();
     let page_path = page_path.to_str().unwrap();
@@ -252,6 +252,7 @@ fn make_options(
   BuildOptions {
     mode,
     optimize: None,
+    content_hash: None,
     source_map: Some(Default::default()),
     env: Default::default(),
     log_level: LogLevel::Error,
@@ -1965,4 +1966,227 @@ fn same_file_in_multiple_pipelines() {
   let js = t.output("/project/dist/index.js");
   assert!(js.contains("#00ff02"), "got: {js}");
   assert!(!js.contains("#ff0001"), "got: {js}");
+}
+
+// ---------------------------------------------------------------------------
+// Content hashing
+// ---------------------------------------------------------------------------
+
+/// Output file names (without the directory), excluding source maps.
+fn output_names(test: &IncrementalTest) -> Vec<String> {
+  test
+    .all_outputs()
+    .keys()
+    .filter(|path| !path.ends_with(".map"))
+    .map(|path| {
+      Path::new(path)
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned()
+    })
+    .collect()
+}
+
+/// Whether `name` has an 8 character content hash before its extension, e.g. `lazy-abcd2345.js`.
+fn is_content_hashed(name: &str) -> bool {
+  let stem = name.rsplit_once('.').unwrap().0;
+  let hash = stem.rsplit(['-', '/']).next().unwrap();
+  hash.len() == 8
+    && hash
+      .bytes()
+      .all(|byte| byte.is_ascii_lowercase() || (b'2'..=b'7').contains(&byte))
+}
+
+#[test]
+fn content_hashed_names_follow_their_content() {
+  let svg =
+    |fill: &str| format!(r#"<svg xmlns="http://www.w3.org/2000/svg"><rect fill="{fill}"/></svg>"#);
+  let mut test = IncrementalTest::with_entries_mode(
+    &[
+      (
+        "/project/index.html",
+        "<script type=module src=index.js></script>",
+      ),
+      (
+        "/project/index.js",
+        "import('./lazy').then(m => console.log(m.default));",
+      ),
+      (
+        "/project/lazy.js",
+        "import './lazy.css'; export default 'v1';",
+      ),
+      ("/project/lazy.css", ".lazy { background: url(img.svg) }"),
+      ("/project/img.svg", &svg("red")),
+    ],
+    &["/project/index.html"],
+    BuildMode::Production,
+  );
+  test.assert_matches_fresh();
+
+  let initial = output_names(&test);
+  assert!(initial.contains(&"index.html".to_string()), "{initial:?}");
+  for name in initial.iter().filter(|name| *name != "index.html") {
+    assert!(is_content_hashed(name), "{name} is not content hashed");
+  }
+  let js = test.find_output("index-");
+  let lazy = test.find_output("lazy-");
+  let css = test.find_output_ext("css");
+  let img = test.find_output_ext("svg");
+
+  // The lazy bundle is loaded by stable key, which the page's manifest maps to its final name. The
+  // script the page loads doesn't name it, so it doesn't depend on it.
+  let file_name = |path: &str| {
+    Path::new(path)
+      .file_name()
+      .unwrap()
+      .to_str()
+      .unwrap()
+      .to_string()
+  };
+  let html = test.output("/project/dist/index.html");
+  assert!(html.contains(&file_name(&lazy)));
+  assert!(html.contains(&file_name(&js)));
+  assert!(!test.output(&js).contains(&file_name(&lazy)));
+
+  // Changing the lazy module renames only it (and updates the page).
+  test.change(
+    &[(
+      "/project/lazy.js",
+      "import './lazy.css'; export default 'v2';",
+    )],
+    &[],
+  );
+  assert_ne!(test.find_output("lazy-"), lazy);
+  assert_eq!(test.find_output("index-"), js);
+  assert_eq!(test.find_output_ext("css"), css);
+  assert_eq!(test.find_output_ext("svg"), img);
+
+  // Changing the image renames it and the CSS embedding its URL. The lazy bundle loads the CSS
+  // by stable key, so it keeps its name, and so does the page's script.
+  let lazy = test.find_output("lazy-");
+  test.change(&[("/project/img.svg", &svg("blue"))], &[]);
+  assert_ne!(test.find_output_ext("svg"), img);
+  assert_ne!(test.find_output_ext("css"), css);
+  assert_eq!(test.find_output("lazy-"), lazy);
+  assert_eq!(test.find_output("index-"), js);
+
+  // Names are a function of content: restoring the inputs restores them.
+  test.change(
+    &[
+      (
+        "/project/lazy.js",
+        "import './lazy.css'; export default 'v1';",
+      ),
+      ("/project/img.svg", &svg("red")),
+    ],
+    &[],
+  );
+  assert_eq!(output_names(&test), initial);
+}
+
+#[test]
+fn bundles_with_identical_content_share_a_content_hashed_file() {
+  // Each page loads the classic script in its own bundle, and the two bundles are identical.
+  let mut test = IncrementalTest::with_entries_mode(
+    &[
+      ("/project/index.html", "<script src=\"index.js\"></script>"),
+      ("/project/other.html", "<script src=\"index.js\"></script>"),
+      ("/project/index.js", "console.log('v1');"),
+    ],
+    &["/project/index.html", "/project/other.html"],
+    BuildMode::Production,
+  );
+  test.assert_matches_fresh();
+  let script = test.find_output("index-");
+  let name = Path::new(&script)
+    .file_name()
+    .unwrap()
+    .to_str()
+    .unwrap()
+    .to_string();
+  assert!(is_content_hashed(&name), "{name}");
+  assert!(test.output("/project/dist/index.html").contains(&name));
+  assert!(test.output("/project/dist/other.html").contains(&name));
+
+  // Both bundles keep sharing it across rebuilds, including when neither changes.
+  test.change(&[("/project/index.js", "console.log('v2');")], &[]);
+  let script = test.find_output("index-");
+  test.change(
+    &[(
+      "/project/other.html",
+      "<script src=\"index.js\"></script>\n",
+    )],
+    &[],
+  );
+  assert_eq!(test.find_output("index-"), script);
+}
+
+#[test]
+fn stylesheets_loaded_with_their_references_do_not_depend_on_them() {
+  let shared = |color: &str| format!(".shared {{ color: {color} }}");
+  let mut test = IncrementalTest::with_entries_mode(
+    &[
+      (
+        "/project/a.html",
+        "<link rel=stylesheet href=page-a.css><script type=module src=index.js></script>",
+      ),
+      ("/project/b.html", "<link rel=stylesheet href=page-b.css>"),
+      (
+        "/project/page-a.css",
+        "@import './shared.css'; .page-a { color: red }",
+      ),
+      (
+        "/project/page-b.css",
+        "@import './shared.css'; .page-b { color: red }",
+      ),
+      (
+        "/project/index.js",
+        "import('./lazy-a'); import('./lazy-b');",
+      ),
+      (
+        "/project/lazy-a.js",
+        "import './lazy-a.css'; import './shared.css';",
+      ),
+      (
+        "/project/lazy-b.js",
+        "import './lazy-b.css'; import './shared.css';",
+      ),
+      ("/project/lazy-a.css", ".lazy-a { color: red }"),
+      ("/project/lazy-b.css", ".lazy-b { color: red }"),
+      ("/project/shared.css", &shared("red")),
+    ],
+    &["/project/a.html", "/project/b.html"],
+    BuildMode::Production,
+  );
+  test.assert_matches_fresh();
+
+  // Pages and the lazy loaders load the shared stylesheet alongside the ones referencing it, so
+  // those don't @import it.
+  let before = test.all_outputs();
+  let css: Vec<&String> = before
+    .keys()
+    .filter(|path| path.ends_with(".css"))
+    .collect();
+  assert_eq!(css.len(), 5, "{css:?}");
+  for path in &css {
+    assert!(
+      !before[*path].contains("@import"),
+      "{path}: {}",
+      before[*path]
+    );
+  }
+
+  // So changing it renames only it, and updates the pages naming it (a.html's manifest included).
+  test.change(&[("/project/shared.css", &shared("blue"))], &[]);
+  let after = test.all_outputs();
+  for (path, contents) in before.iter().filter(|(path, _)| !path.ends_with(".map")) {
+    if path.ends_with(".html") {
+      assert_ne!(after[path], *contents, "{path}");
+    } else if contents.contains(".shared{") {
+      assert!(!after.contains_key(path), "{path} was not renamed");
+    } else {
+      assert_eq!(after.get(path), Some(contents), "{path} changed");
+    }
+  }
 }

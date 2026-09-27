@@ -36,6 +36,14 @@ struct StyleSheetWrapper {
   has_parent: bool,
 }
 
+/// Whether `bundle` @imports the CSS bundles it references. Pages and Parcel's loaders already load
+/// them (in cascade order) wherever they load this bundle, so only bundles loaded by other means,
+/// like entries and CSS reached by an @import or a URL, need to. Otherwise the @imports would only
+/// make this bundle's content hash depend on theirs, and load them twice.
+pub(crate) fn imports_references(bundle_graph: &BundleGraph, bundle: &Bundle) -> bool {
+  !bundle_graph.is_loaded_with_references(bundle)
+}
+
 impl CssContent {
   pub(crate) fn package_impl(
     &self,
@@ -95,7 +103,12 @@ impl CssContent {
     // Emit them before its own import prelude as well (including external
     // imports), so CSS entries preserve the same cascade as HTML/JS loaders.
     // Conditions are already wrapped inside each referenced bundle.
-    for &index in &bundle.referenced_bundles {
+    let references = if imports_references(bundle_graph, bundle) {
+      bundle.referenced_bundles.as_slice()
+    } else {
+      &[]
+    };
+    for &index in references {
       let referenced = &bundle_graph.bundles[index];
       if referenced.ty == AssetType::Css {
         prefix.push(CssRule::Import(ImportRule {

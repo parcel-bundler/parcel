@@ -706,6 +706,13 @@ impl JsBundle {
     self.bundles[self.index].with(|bundle| bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME))
   }
 
+  /// The string a namer must include exactly once in the file name of a bundle that may be
+  /// content hashed.
+  #[qjs(get)]
+  fn hash_reference(&self) -> rquickjs::Result<String> {
+    self.bundles[self.index].with(|bundle| bundle.hash_reference())
+  }
+
   #[qjs(get)]
   fn is_entry(&self) -> rquickjs::Result<bool> {
     self.bundles[self.index].with(|bundle| bundle.flags.contains(BundleFlags::ENTRY))

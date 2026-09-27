@@ -86,7 +86,11 @@ impl Namer for DefaultNamer {
       }
     }
 
-    Ok(Some(prefix.child(&format!("{:016x}.{}", bundle.id, ext))))
+    Ok(Some(prefix.child(&format!(
+      "{}.{}",
+      bundle.hash_reference(),
+      ext
+    ))))
   }
 }
 
@@ -117,7 +121,7 @@ fn format_name(prefix: PathId, bundle: &Bundle, name: &str, ext: &str) -> PathId
   let name = if bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME) {
     format!("{}.{}", name, ext)
   } else {
-    format!("{}-{:016x}.{}", name, bundle.id, ext)
+    format!("{}-{}.{}", name, bundle.hash_reference(), ext)
   };
   prefix.join(Path::new(&name))
 }

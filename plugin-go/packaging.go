@@ -572,6 +572,20 @@ func (b *Bundle) AbsoluteURL() (string, bool) {
 	return bundleString(func(buf *C.Buffer) { C.parcel_bundle_get_absolute_url(buf, b.ptr) })
 }
 
+// StableKey returns a dist-relative name that doesn't change with the bundle's
+// content, if named. Runtimes resolve it to the final name through a manifest,
+// so accessing it is not a bundle dependency.
+func (b *Bundle) StableKey() (string, bool) {
+	return bundleString(func(buf *C.Buffer) { C.parcel_bundle_get_stable_key(buf, b.ptr) })
+}
+
+// HashReference returns the string a namer must include exactly once in the
+// file name of a bundle that may be content hashed.
+func (b *Bundle) HashReference() string {
+	reference, _ := bundleString(func(buf *C.Buffer) { C.parcel_bundle_get_hash_reference(buf, b.ptr) })
+	return reference
+}
+
 // RelativeURL returns this bundle's URL relative to from.
 func (b *Bundle) RelativeURL(from *Bundle) (string, bool) {
 	if from == nil {

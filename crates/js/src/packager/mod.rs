@@ -15,6 +15,8 @@ mod rsc;
 mod synthetic;
 
 pub use dependencies::asset_dependencies;
+pub(crate) use dependencies::bundle_dependencies;
+use dependencies::{awaited_bundles, manifest_entries, static_imports};
 pub use parcel_js_swc_core::tree_shake::Resolution;
 pub use rsc::RscModule;
 pub use synthetic::{BundleShim, SyntheticAsset};
@@ -25,8 +27,10 @@ use printer::Printer;
 const RUNTIME_MODULES: &str = "m";
 const RUNTIME_PARCEL_REQUIRE_NAME: &str = "p";
 const RUNTIME_EXTERNALS: &str = "x";
+const RUNTIME_MANIFEST: &str = "k";
 const RUNTIME_ENTRIES: &str = "e";
 const RUNTIME_MAIN_ENTRY: &str = "n";
+const RUNTIME_AWAITED_BUNDLES: &str = "b";
 const RUNTIME_REQUIRE: &str = "r";
 const RUNTIME_DIST_DIR: &str = "d";
 const RUNTIME_PUBLIC_URL: &str = "u";
@@ -137,6 +141,13 @@ impl JsContent {
       write_sync_bundle_imports(&mut printer, bundle_graph, bundle, &synthetic_assets)?;
     write_bundle_references(&mut printer, bundle_graph, bundle)?;
 
+    // Classic scripts share one global scope (a page's, or a worker's with its `importScripts`), so
+    // each keeps its module table and runtime to itself. Bundles link through `globalThis`.
+    let is_global = bundle.target.output_format == OutputFormat::Global;
+    if is_global {
+      printer.write_str("(function(){")?;
+    }
+
     printer.write_var(
       runtime_name(should_optimize, "modules", RUNTIME_MODULES),
       "{",
@@ -213,6 +224,9 @@ impl JsContent {
     } else {
       DEV_RUNTIME
     })?;
+    if is_global {
+      printer.write_str("\n})();")?;
+    }
     printer.into_content()
   }
 }
@@ -300,21 +314,26 @@ fn write_external_imports(
   Ok(externals)
 }
 
-/// Writes imports for bundles referenced by this one, so they load first.
+/// Writes imports for the bundles this one needs loaded first (see `static_imports`).
 fn write_bundle_references(
   printer: &mut Printer,
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
 ) -> Result<(), DiagnosticList> {
-  for b in &bundle.referenced_bundles {
-    let referenced = &bundle_graph.bundles[*b];
-    if referenced.ty != AssetType::Js {
-      continue;
-    }
-
+  for b in static_imports(bundle_graph, bundle) {
+    let referenced = &bundle_graph.bundles[b];
     let specifier = referenced.relative_specifier(bundle).unwrap();
     if bundle.target.output_format == OutputFormat::Commonjs {
       write!(printer, "require({});", serde_json::to_string(&specifier)?)?;
+    } else if bundle.target.output_format == OutputFormat::Global
+      && bundle.target.environment.is_worker()
+    {
+      // Classic workers can't `import`, but load scripts synchronously, relative to their own URL.
+      write!(
+        printer,
+        "importScripts({});",
+        serde_json::to_string(&specifier)?
+      )?;
     } else {
       write!(printer, "import {};", serde_json::to_string(&specifier)?)?;
     }
@@ -644,6 +663,22 @@ fn write_runtime_globals(
   printer.write_str("};")?;
   printer.newline()?;
 
+  printer.write_var(
+    runtime_name(should_optimize, "manifest", RUNTIME_MANIFEST),
+    "{",
+    false,
+  )?;
+  for (stable_key, name) in manifest_entries(bundle_graph, bundle) {
+    write!(
+      printer,
+      "{}:{},",
+      serde_json::to_string(&stable_key)?,
+      serde_json::to_string(&name)?
+    )?;
+  }
+  printer.write_str("};")?;
+  printer.newline()?;
+
   // The path from this bundle's directory back to the dist root. Bundle ids passed to
   // parcelLoadJS are dist-root-relative, so the runtime resolves them against this prefix.
   let dist_dir_prefix = dist_dir_prefix(
@@ -682,8 +717,27 @@ fn write_runtime_globals(
   printer.write_str("];")?;
   printer.newline()?;
 
+  printer.write_var(
+    runtime_name(should_optimize, "awaitedBundles", RUNTIME_AWAITED_BUNDLES),
+    "[",
+    false,
+  )?;
+  for index in awaited_bundles(bundle_graph, bundle) {
+    let stable_key = bundle_graph.bundles[index].stable_key();
+    write!(printer, "{},", serde_json::to_string(&stable_key)?)?;
+  }
+  printer.write_str("];")?;
+  printer.newline()?;
+
+  // The runtime runs its main entry on load, to expose its exports. Only bundles that execute on
+  // load may do that: a bundle loaded by Parcel's loader runs once every bundle it depends on has
+  // loaded, which the loader waits for, and it doesn't import them itself.
   let runtime_main_entry = runtime_name(should_optimize, "mainEntry", RUNTIME_MAIN_ENTRY);
-  if let Some(main) = &bundle.main_entry_asset {
+  if let Some(main) = bundle
+    .main_entry_asset
+    .as_ref()
+    .filter(|_| !bundle.entry_assets.is_empty())
+  {
     let asset = &bundle_graph.asset_graph.asset(*main);
     printer.write_var(
       runtime_main_entry,

@@ -168,6 +168,8 @@ pub struct ParcelApi {
   pub options_log:
     unsafe extern "C" fn(options: Options, level: LogLevel, message: *const u8, message_len: usize),
   pub options_log_diagnostic: unsafe extern "C" fn(options: Options, diagnostic: *const Diagnostic),
+  pub bundle_get_stable_key: unsafe extern "C" fn(buf: *mut Buffer, bundle: Bundle),
+  pub bundle_get_hash_reference: unsafe extern "C" fn(buf: *mut Buffer, bundle: Bundle),
 }
 
 /// The instance passed to every plugin. Const-initialized, so it is in the
@@ -249,6 +251,8 @@ pub static PARCEL_API: ParcelApi = ParcelApi {
   diagnostic_get_hint: parcel_diagnostic_get_hint,
   options_log: parcel_options_log,
   options_log_diagnostic: parcel_options_log_diagnostic,
+  bundle_get_stable_key: parcel_bundle_get_stable_key,
+  bundle_get_hash_reference: parcel_bundle_get_hash_reference,
 };
 
 #[cfg(test)]

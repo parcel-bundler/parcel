@@ -58,6 +58,8 @@ fn run(
         imported = Some(require_module(ctx, path.to_str().unwrap())?);
       }
     }
+    // Settle what the scripts started, e.g. an async script waiting for its bundles to load.
+    while ctx.execute_pending_job() {}
 
     let output: rquickjs::Result<rquickjs::Value> = if is_library {
       Ok(imported.unwrap())
@@ -136,6 +138,11 @@ fn bundle_with_options(
   let options = BuildOptions {
     mode: options.mode,
     optimize: options.minify,
+    content_hash: options.content_hash.or_else(|| {
+      std::env::var("PARCEL_TEST_CONTENT_HASH")
+        .is_ok()
+        .then_some(true)
+    }),
     source_map: Some(Default::default()),
     env,
     input_fs: Arc::new(OsFileSystem {}),
@@ -254,7 +261,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
           assert!(
             contents.contains(substring),
             "Bundle {:?} did not contain expected substring {:?}\n\nBundle contents: {}",
-            bundle.dist_path.as_ref().unwrap(),
+            bundle.dist_path(),
             substring,
             contents
           );
@@ -266,7 +273,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
           assert!(
             !contents.contains(substring),
             "Bundle {:?} contained unexpected substring {:?}\n\nBundle contents: {}",
-            bundle.dist_path.as_ref().unwrap(),
+            bundle.dist_path(),
             substring,
             contents
           );
@@ -321,6 +328,31 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
           }
         }
         AssetType::Html => {
+          // Give the runtime the page's manifest data blocks, as a browser's DOM would.
+          let html = output_fs.read_to_string(path).unwrap();
+          // The attribute is `data-parcel-manifest=""`, or bare once the HTML is minified.
+          let manifests: Vec<&str> = html
+            .split("data-parcel-manifest")
+            .skip(1)
+            .map(|block| {
+              let content = &block[block.find('>').unwrap() + 1..];
+              content.split("</script>").next().unwrap()
+            })
+            .collect();
+          if !manifests.is_empty() {
+            let blocks = manifests
+              .iter()
+              .map(|json| format!("{{textContent:{}}}", serde_json::to_string(json).unwrap()))
+              .collect::<Vec<_>>()
+              .join(",");
+            let setup = format!(
+              "document.querySelectorAll = selector => selector.includes('data-parcel-manifest') ? [{blocks}] : [];"
+            );
+            let setup_path = path.with_extension("manifest.js");
+            output_fs.write(setup_path, setup.as_bytes()).unwrap();
+            scripts.push((setup_path.to_path_buf(), OutputFormat::Global));
+          }
+
           let deps = parcel_html::transform_html(parcel_html::TransformOptions {
             code: output_fs.read(path).unwrap(),
             url: bundle.dist_url(),
@@ -329,6 +361,10 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
             hmr: false,
           });
 
+          // Async scripts may run as soon as they load, before the page's other scripts. Run them
+          // first to check they don't depend on those.
+          let first_script = scripts.len();
+          let mut async_scripts = 0;
           for dep in deps.dependencies {
             match dep.resolution {
               DependencyResolution::Deferred(_) => {}
@@ -353,7 +389,15 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
                     );
                   }
 
-                  scripts.push((resolved.to_path_buf(), b.target.output_format));
+                  let script = (resolved.to_path_buf(), b.target.output_format);
+                  if dep.bundle_behavior == BundleBehavior::Isolated
+                    && b.target.output_format == OutputFormat::Esmodule
+                  {
+                    scripts.insert(first_script + async_scripts, script);
+                    async_scripts += 1;
+                  } else {
+                    scripts.push(script);
+                  }
                 }
               }
             }
@@ -625,6 +669,9 @@ struct TestOptions {
   #[serde(default)]
   mode: parcel_core::BuildMode,
   minify: Option<bool>,
+  /// Whether bundle names include a content hash. Defaults to on in production mode.
+  #[serde(rename = "contentHash")]
+  content_hash: Option<bool>,
   #[serde(default)]
   env: HashMap<String, String>,
   cwd: Option<String>,

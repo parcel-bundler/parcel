@@ -71,6 +71,7 @@ fn build_entries(files: &[(&str, &str)], entries: &[&str], mode: BuildMode) -> V
     BuildOptions {
       mode,
       optimize: None,
+      content_hash: None,
       source_map: None,
       env: Default::default(),
       log_level: LogLevel::Warn,

@@ -1,9 +1,6 @@
-use std::{
-  any::Any,
-  borrow::Cow,
-  hash::{Hash, Hasher},
-  sync::Arc,
-};
+use std::{any::Any, borrow::Cow, hash::Hash, sync::Arc};
+
+use xxhash_rust::xxh3::{Xxh3, xxh3_128};
 
 use crate::{Bundle, BundleGraph, Diagnostic, DiagnosticList, FileSystem, ParcelOptions, PathId};
 
@@ -68,9 +65,10 @@ pub trait Content: Any + Send + Sync {
     Ok(fs.write(path, &self.read()?)?)
   }
 
-  fn hash(&self, mut state: &mut dyn Hasher) {
-    let content = self.read();
-    content.hash(&mut state);
+  /// A hash of everything written for this content, used to name content hashed bundles. It must
+  /// change whenever any written byte changes, including the source map.
+  fn content_hash(&self) -> Result<u128, Diagnostic> {
+    Ok(xxh3_128(&self.read()?))
   }
 
   fn eq(&self, other: &dyn Content) -> bool {
@@ -81,6 +79,16 @@ pub trait Content: Any + Send + Sync {
 
   /// Stable id for this content type.
   fn ty(&self) -> ContentType;
+
+  /// Bundles whose names (`Bundle::relative_url` etc.) or inline content
+  /// (`get_inline_bundle_content`) `package` may access for `bundle`. Called before packaging,
+  /// to order it after the bundles it depends on. This is a contract: it may over-approximate, but
+  /// accessing a bundle that isn't listed is an error. Content that overrides `package` must
+  /// override this too. The default `package` accesses nothing.
+  #[allow(unused_variables)]
+  fn bundle_dependencies(&self, bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+    Vec::new()
+  }
 
   #[allow(unused_variables)]
   fn package(
@@ -188,8 +196,8 @@ impl Content for FileContent {
     }
   }
 
-  fn hash(&self, mut state: &mut dyn Hasher) {
-    self.path.hash(&mut state);
+  fn content_hash(&self) -> Result<u128, Diagnostic> {
+    Ok(xxh3_128(&self.fs.read(self.path)?))
   }
 
   fn ty(&self) -> ContentType {
@@ -260,6 +268,10 @@ impl Content for BufferContent {
     Ok(self.buf.to_vec())
   }
 
+  fn content_hash(&self) -> Result<u128, Diagnostic> {
+    Ok(xxh3_128(self.buf.as_bytes()))
+  }
+
   fn read_string(&self) -> Result<Cow<'_, str>, Diagnostic> {
     self.buf.as_str()
   }
@@ -308,13 +320,29 @@ impl Content for ContentWithSourceMap {
     Ok(self.code.to_vec())
   }
 
+  fn content_hash(&self) -> Result<u128, Diagnostic> {
+    // The map is written next to the code, so a map-only change (e.g. `sourcesContent`) must not
+    // keep the same name.
+    let mut hasher = Xxh3::new();
+    let code = self.code.as_bytes();
+    hasher.update(&(code.len() as u64).to_le_bytes());
+    hasher.update(code);
+    hasher.update(&self.map);
+    Ok(hasher.digest128())
+  }
+
   fn read_string(&self) -> Result<Cow<'_, str>, Diagnostic> {
     self.code.as_str()
   }
 
   fn write(&self, fs: &dyn FileSystem, path: PathId) -> Result<(), Diagnostic> {
-    fs.write(path, self.code.as_bytes())?;
-    fs.write(path.add_extension("map"), &self.map)?;
+    let map_path = path.add_extension("map");
+    let code = self.code.as_bytes();
+    match source_mapping_url_comment(path, map_path, code) {
+      Some(comment) => fs.write(path, &[code, comment.as_bytes()].concat())?,
+      None => fs.write(path, code)?,
+    }
+    fs.write(map_path, &self.map)?;
     Ok(())
   }
 
@@ -323,10 +351,71 @@ impl Content for ContentWithSourceMap {
   }
 }
 
+/// A comment linking the code written to `path` to its source map at `map_path`, if the file type
+/// supports one and the code doesn't already end with one.
+///
+/// It's added when the content is written, after the bundle's name (and so `path`) is known. A
+/// content hash can't cover it: the comment contains the name, and the name contains the hash.
+fn source_mapping_url_comment(path: PathId, map_path: PathId, code: &[u8]) -> Option<String> {
+  let url = map_path.relative_url(&path);
+  let comment = match path.extension()? {
+    "js" | "mjs" | "cjs" => format!("//# sourceMappingURL={url}"),
+    "css" => format!("/*# sourceMappingURL={url} */"),
+    _ => return None,
+  };
+  // Look for an existing comment in the last few lines only, like tools that read them do.
+  let tail = &code[code.len().saturating_sub(4096)..];
+  if tail
+    .windows(b"# sourceMappingURL=".len())
+    .any(|window| window == b"# sourceMappingURL=")
+  {
+    return None;
+  }
+  let newline = if code.ends_with(b"\n") { "" } else { "\n" };
+  Some(format!("{newline}{comment}\n"))
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
   use crate::MemoryFileSystem;
+
+  #[test]
+  fn source_maps_are_linked_from_the_code_that_uses_them() {
+    let fs = MemoryFileSystem::new();
+    fs.mkdir(std::path::Path::new("/dist")).unwrap();
+    let js = PathId::new(std::path::Path::new("/dist/a-abcd2345.js"));
+    ContentWithSourceMap::new_string("a();".into(), b"{}".to_vec())
+      .write(&fs, js)
+      .unwrap();
+    assert_eq!(
+      fs.read(js).unwrap(),
+      b"a();\n//# sourceMappingURL=a-abcd2345.js.map\n"
+    );
+    assert_eq!(fs.read(js.add_extension("map")).unwrap(), b"{}");
+
+    let css = PathId::new(std::path::Path::new("/dist/b c.css"));
+    ContentWithSourceMap::new_string(".b{}\n".into(), b"{}".to_vec())
+      .write(&fs, css)
+      .unwrap();
+    assert_eq!(
+      fs.read(css).unwrap(),
+      b".b{}\n/*# sourceMappingURL=b%20c.css.map */\n"
+    );
+
+    // An existing comment is kept as is, and other file types get none.
+    let existing = PathId::new(std::path::Path::new("/dist/c.js"));
+    let code = "c();\n//# sourceMappingURL=other.map\n";
+    ContentWithSourceMap::new_string(code.into(), b"{}".to_vec())
+      .write(&fs, existing)
+      .unwrap();
+    assert_eq!(fs.read(existing).unwrap(), code.as_bytes());
+    let html = PathId::new(std::path::Path::new("/dist/d.html"));
+    ContentWithSourceMap::new_string("<p>".into(), b"{}".to_vec())
+      .write(&fs, html)
+      .unwrap();
+    assert_eq!(fs.read(html).unwrap(), b"<p>");
+  }
 
   #[test]
   fn estimates_count_bytes_and_exclude_source_maps() {

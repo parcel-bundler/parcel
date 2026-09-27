@@ -1,5 +1,5 @@
 /* eslint-env browser */
-/* global parcelRequireName, modules, mainEntry, entries, externals, distDir, publicUrl, HMR_HOST, HMR_PORT */
+/* global parcelRequireName, modules, mainEntry, entries, awaitedBundles, externals, manifest, distDir, publicUrl, HMR_HOST, HMR_PORT */
 /* eslint-disable no-unused-vars */
 
 // Save the require from previous bundle to this closure if any
@@ -8,6 +8,23 @@ var previousRequire =
   globalThis[parcelRequireName];
 
 var importMap = previousRequire.i || {};
+// Maps stable bundle keys to content hashed names for the bundles this context can load. Every
+// bundle shares one map. The first runtime on a page seeds it from the page's manifest (see the HTML
+// packager), a JSON data block rather than an inline script so Content Security Policies allow it.
+// Context roots that aren't loaded by a page add their own.
+if (
+  !previousRequire &&
+  typeof document !== 'undefined' &&
+  typeof document.querySelectorAll === 'function'
+) {
+  var pageManifests = document.querySelectorAll(
+    'script[type="application/json"][data-parcel-manifest]',
+  );
+  for (var i = 0; i < pageManifests.length; i++) {
+    Object.assign(importMap, JSON.parse(pageManifests[i].textContent));
+  }
+}
+Object.assign(importMap, manifest);
 var cache = previousRequire.cache || {};
 
 // Do not use `require` to prevent Webpack from trying to bundle this call
@@ -161,7 +178,9 @@ function parcelResolve(bundleId) {
 }
 
 function parcelLoadCSS(bundleId, media) {
-  let url = importMap[bundleId] || bundleId;
+  // Like parcelResolve: bundle ids are dist-root-relative, and link hrefs resolve against the
+  // document rather than this bundle, so they must be based on the public URL.
+  let url = publicUrl + (importMap[bundleId] || bundleId);
   return new Promise(function (resolve, reject) {
     if (typeof document === 'undefined') {
       return resolve();
@@ -212,27 +231,42 @@ parcelRequire.extendImportMap = function (map) {
   Object.assign(importMap, map);
 };
 
-if (entries) {
-  for (var i = 0; i < entries.length; i++) {
-    parcelRequire(entries[i]);
+function runEntries() {
+  if (entries) {
+    for (var i = 0; i < entries.length; i++) {
+      parcelRequire(entries[i]);
+    }
+  }
+
+  if (mainEntry) {
+    // Expose entry point to Node, AMD or browser globals
+    // Based on https://github.com/ForbesLindesay/umd/blob/master/template.js
+    var mainExports = parcelRequire(mainEntry);
+
+    // CommonJS
+    if (typeof exports === 'object' && typeof module !== 'undefined') {
+      module.exports = mainExports;
+
+      // RequireJS
+    } else if (typeof define === 'function' && define.amd) {
+      define(function () {
+        return mainExports;
+      });
+    }
   }
 }
 
-if (mainEntry) {
-  // Expose entry point to Node, AMD or browser globals
-  // Based on https://github.com/ForbesLindesay/umd/blob/master/template.js
-  var mainExports = parcelRequire(mainEntry);
-
-  // CommonJS
-  if (typeof exports === 'object' && typeof module !== 'undefined') {
-    module.exports = mainExports;
-
-    // RequireJS
-  } else if (typeof define === 'function' && define.amd) {
-    define(function () {
-      return mainExports;
-    });
-  }
+// A root a page runs as soon as it has loaded (e.g. `<script type="module" async>`) may run before
+// the page's tags for the bundles it depends on, so it loads them first. The browser shares one
+// module instance per URL, so this doesn't load them twice.
+if (awaitedBundles.length) {
+  Promise.all(
+    awaitedBundles.map(function (bundleId) {
+      return parcelLoadJS(bundleId);
+    }),
+  ).then(runEntries);
+} else {
+  runEntries();
 }
 
 var HMR_SERVER_PORT = null;

@@ -7,15 +7,22 @@
       "environment": "browser"
     },
     {
-      "assets": ["worker-a.js", "value.js"],
-      "environment": "web-worker"
+      "assets": ["worker-a.js"],
+      "environment": "web-worker",
+      "references": [["value.js"]]
     },
     {
-      "assets": ["worker-b.js", "value.js"],
-      "environment": "web-worker"
+      "assets": ["worker-b.js"],
+      "environment": "web-worker",
+      "references": [["value.js"]]
     },
     {
       "assets": ["lazy.js"],
+      "environment": "web-worker",
+      "references": []
+    },
+    {
+      "assets": ["value.js"],
       "environment": "web-worker",
       "references": []
     }

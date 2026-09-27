@@ -2,7 +2,8 @@
   "description": "an external import must precede shared CSS in page A: local is declared after remote, so its normal declarations win; page B may still load a separate shared bundle",
   "input": ["pageA.html", "pageB.html"],
   "options": {
-    "mode": "production"
+    "mode": "production",
+    "contentHash": false
   },
   "skipNodeModules": true,
   "bundles": [

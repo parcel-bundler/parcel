@@ -1,17 +1,38 @@
-{
-  "description": "should support client references",
-  "input": "index.jsx",
-  "skipNodeModules": true,
-  "bundles": [
-    {
-      "assets": ["index.jsx"],
-      "context": "react-server",
-      "contains": ["createClientReference", "ensureAsyncLocalStorage"]
-    },
-    {
-      "assets": ["client.jsx"],
-      "context": "react-client",
-      "contains": ["var distDir = \"../\";"]
-    }
-  ]
-}
+[
+  {
+    "description": "should support client references",
+    "input": "index.jsx",
+    "skipNodeModules": true,
+    "options": {"contentHash": false},
+    "bundles": [
+      {
+        "assets": ["index.jsx"],
+        "context": "react-server",
+        "contains": ["createClientReference", "ensureAsyncLocalStorage"],
+        "notContains": ["\"],{"]
+      },
+      {
+        "assets": ["client.jsx"],
+        "context": "react-client",
+        "contains": ["var distDir = \"../\";"]
+      }
+    ]
+  },
+  {
+    "description": "should map client references' bundles to their content hashed names",
+    "input": "index.jsx",
+    "skipNodeModules": true,
+    "options": {"contentHash": true},
+    "bundles": [
+      {
+        "assets": ["index.jsx"],
+        "context": "react-server",
+        "contains": ["\"],{\"client/"]
+      },
+      {
+        "assets": ["client.jsx"],
+        "context": "react-client"
+      }
+    ]
+  }
+]
