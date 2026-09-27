@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-  AssetIndex, AssetType, BundleBehavior, BundleFlags, DependencyResolution, PathId,
+  AssetIndex, AssetType, BundleBehavior, BundleFlags, DependencyResolution, Environment, PathId,
   asset_graph::AssetGraph, bundle::Bundle,
 };
 
@@ -37,6 +37,8 @@ pub struct BundleGraph<'a> {
   /// Ids of page-hosted bundles (see `is_page_hosted`), computed on first use once bundling is
   /// complete.
   page_hosted: OnceLock<HashSet<u64>>,
+  /// The first bundle containing each asset (see `first_bundle_containing`), computed on first use.
+  first_bundles: OnceLock<Vec<u32>>,
 }
 
 impl<'a> BundleGraph<'a> {
@@ -52,6 +54,7 @@ impl<'a> BundleGraph<'a> {
       dependency_resolutions,
       project_root,
       page_hosted: OnceLock::new(),
+      first_bundles: OnceLock::new(),
     }
   }
 
@@ -164,11 +167,14 @@ impl<'a> BundleGraph<'a> {
         continue;
       }
       let bundle = &self.bundles[index];
-      // Inline content runs in this context, but has no name of its own.
+      // Inline content runs in this context, but has no name of its own. Server rendering runs
+      // client code in the same process as the server, sharing its runtime.
       let enters = bundle.bundle_behavior == BundleBehavior::Inline
         || (bundle.ty == AssetType::Js
           && !bundle.is_context_root()
-          && bundle.target.environment == root.target.environment);
+          && (bundle.target.environment == root.target.environment
+            || (root.target.environment == Environment::ReactServer
+              && bundle.target.environment == Environment::ReactClient)));
       if bundle.bundle_behavior != BundleBehavior::Inline {
         closure.push(index);
       }
@@ -211,6 +217,23 @@ impl<'a> BundleGraph<'a> {
         .collect()
     });
     page_hosted.contains(&root.id)
+  }
+
+  /// The index of the first bundle containing `asset`, if any.
+  pub fn first_bundle_containing(&self, asset: AssetIndex) -> Option<usize> {
+    let first_bundles = self.first_bundles.get_or_init(|| {
+      let mut first_bundles = vec![u32::MAX; self.asset_graph.assets.len()];
+      for (index, bundle) in self.bundles.iter().enumerate().rev() {
+        for asset in &bundle.assets {
+          first_bundles[asset.index()] = index as u32;
+        }
+      }
+      first_bundles
+    });
+    first_bundles
+      .get(asset.index())
+      .filter(|&&index| index != u32::MAX)
+      .map(|&index| index as usize)
   }
 
   /// The transitive closure of `referenced_bundles`, starting with `bundle_index` itself, in

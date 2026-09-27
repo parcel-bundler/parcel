@@ -246,15 +246,12 @@ impl SyntheticAsset {
   }
 }
 
-pub(super) fn js_bundle_load_expression(
-  bundle: &Bundle,
-  from: &Bundle,
-  require_name: &str,
-) -> String {
+pub(super) fn js_bundle_load_expression(bundle: &Bundle, from: &Bundle) -> String {
   if bundle.target.output_format == OutputFormat::Commonjs {
+    // The path is relative to `from`, so require it with `from`'s own Node require. The runtime's
+    // require would fall back to whichever bundle's Node require ends its chain.
     format!(
-      "Promise.resolve({}({}))",
-      require_name,
+      "Promise.resolve(module.bundle.nodeRequire({}))",
       serde_json::to_string(&bundle.relative_specifier(from).unwrap()).unwrap()
     )
   } else {
@@ -299,12 +296,11 @@ fn load_bundles<W: std::fmt::Write>(
         &bundle_graph.bundles[referenced_index],
         from,
         res,
-        require_name,
       )?;
       write!(res, ", ")?;
     }
 
-    load_bundle(bundle_graph, bundle, from, res, require_name)?;
+    load_bundle(bundle_graph, bundle, from, res)?;
     write!(
       res,
       "]).then(()=>{}('{}'));",
@@ -313,7 +309,7 @@ fn load_bundles<W: std::fmt::Write>(
     )?;
   } else {
     write!(res, "module.exports=")?;
-    load_bundle(bundle_graph, bundle, from, res, require_name)?;
+    load_bundle(bundle_graph, bundle, from, res)?;
     write!(
       res,
       ".then(()=>{}('{}'));",
@@ -330,15 +326,10 @@ fn load_bundle<W: std::fmt::Write>(
   bundle: &Bundle,
   from: &Bundle,
   res: &mut W,
-  require_name: &str,
 ) -> core::fmt::Result {
   match &bundle.ty {
     AssetType::Js => {
-      write!(
-        res,
-        "{}",
-        js_bundle_load_expression(bundle, from, require_name)
-      )
+      write!(res, "{}", js_bundle_load_expression(bundle, from))
     }
     AssetType::Css => {
       // A common media gate lets the runtime mark the injected link so the

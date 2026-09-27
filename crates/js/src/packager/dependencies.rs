@@ -37,21 +37,36 @@ pub(crate) fn bundle_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -
 
   let mut dependencies = Vec::new();
 
-  // A root's runtime maps the stable keys of everything its context loads to final names, and it
-  // imports its static closure by relative path.
+  // A root's runtime maps the stable keys of everything its context loads to final names.
   if holds_manifest(bundle_graph, bundle) {
     dependencies.extend(bundle_graph.context_closure(bundle));
-    dependencies.extend(static_imports(bundle_graph, bundle));
   }
+  // Statically imported bundles are imported by relative path.
+  dependencies.extend(static_imports(bundle_graph, bundle));
 
   let is_rsc = matches!(
     bundle.target.environment,
     Environment::ReactServer | Environment::ReactClient
   );
   if is_rsc {
-    // Client references embed URLs of CSS in the importer's bundle group.
-    for &referenced in &bundle.referenced_bundles {
-      dependencies.extend(bundle_graph.referenced_bundles(referenced));
+    // Client references embed URLs of CSS in the importer's bundle group, and final names of the
+    // client bundles they load (see `rsc::client_bundle_import_map`).
+    // They're computed from the first bundle containing the importer, which may be a copy of this
+    // one's assets in another bundle.
+    let mut importer_bundles: Vec<usize> = bundle.referenced_bundles.clone();
+    for &asset_index in &bundle.assets {
+      if let Some(importer_bundle) = bundle_graph.first_bundle_containing(asset_index)
+        && !importer_bundles.contains(&importer_bundle)
+      {
+        importer_bundles.push(importer_bundle);
+      }
+    }
+    for importer_bundle in importer_bundles {
+      dependencies.extend(bundle_graph.referenced_bundles(importer_bundle));
+      dependencies.extend(rsc::client_bundle_import_map_dependencies(
+        bundle_graph,
+        importer_bundle as u32,
+      ));
     }
   }
 
@@ -71,6 +86,10 @@ pub(crate) fn bundle_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -
       } else if is_rsc {
         // RSC boundaries embed URLs of the target's bundle group and may load it by path.
         dependencies.extend(bundle_graph.referenced_bundles(bundle_index));
+        dependencies.extend(rsc::client_bundle_import_map_dependencies(
+          bundle_graph,
+          bundle_index as u32,
+        ));
       } else if is_async_bundle_dependency(dep, resolved_bundle) {
         // CommonJS bundles are loaded by relative path; others by stable key.
         dependencies.extend(
@@ -93,18 +112,21 @@ fn holds_manifest(bundle_graph: &BundleGraph, bundle: &Bundle) -> bool {
   bundle.is_context_root() && !bundle_graph.is_page_hosted(bundle)
 }
 
-/// JS bundles `bundle` imports so they're loaded before it runs. Only roots that nothing else
-/// loads the closure for import them: Parcel's loader, pages and RSC load a bundle's whole static
-/// closure themselves, so other bundles never name their siblings.
+/// JS bundles `bundle` imports so they're loaded before it runs. Roots that nothing else loads
+/// the closure for import all of them. Parcel's loader, pages and RSC load a bundle's static closure
+/// within its environment, so other bundles only import the bundles they reference in other
+/// environments (e.g. server code importing modules `with {env: 'react-client'}`).
 pub(super) fn static_imports(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
-  if !holds_manifest(bundle_graph, bundle) {
-    return Vec::new();
-  }
+  let is_root = holds_manifest(bundle_graph, bundle);
   let mut imports: Vec<usize> = Vec::new();
   for &referenced in &bundle.referenced_bundles {
     for index in bundle_graph.referenced_bundles(referenced) {
       let imported = &bundle_graph.bundles[index];
-      if imported.ty == AssetType::Js && imported.id != bundle.id && !imports.contains(&index) {
+      if imported.ty == AssetType::Js
+        && imported.id != bundle.id
+        && (is_root || imported.target.environment != bundle.target.environment)
+        && !imports.contains(&index)
+      {
         imports.push(index);
       }
     }
