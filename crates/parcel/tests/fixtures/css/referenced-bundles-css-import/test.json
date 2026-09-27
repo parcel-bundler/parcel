@@ -1,0 +1,20 @@
+{
+  "description": "a stylesheet reached by another stylesheet's @import keeps its reference @imports, since the browser follows only the @import chain",
+  "input": ["page.html", "index.css", "other.css"],
+  "options": {"mode": "production", "contentHash": false},
+  "bundles": [
+    {"assets": ["page.html"]},
+    {"assets": ["index.css"], "contains": ["@import"]},
+    {
+      "assets": ["other.css"],
+      "references": [["shared.css"]],
+      "contains": ["@import"]
+    },
+    {
+      "assets": ["sheet.css"],
+      "references": [["shared.css"]],
+      "contains": ["@import"]
+    },
+    {"assets": ["shared.css"], "references": []}
+  ]
+}

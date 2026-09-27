@@ -2121,3 +2121,72 @@ fn bundles_with_identical_content_share_a_content_hashed_file() {
   );
   assert_eq!(test.find_output("index-"), script);
 }
+
+#[test]
+fn stylesheets_loaded_with_their_references_do_not_depend_on_them() {
+  let shared = |color: &str| format!(".shared {{ color: {color} }}");
+  let mut test = IncrementalTest::with_entries_mode(
+    &[
+      (
+        "/project/a.html",
+        "<link rel=stylesheet href=page-a.css><script type=module src=index.js></script>",
+      ),
+      ("/project/b.html", "<link rel=stylesheet href=page-b.css>"),
+      (
+        "/project/page-a.css",
+        "@import './shared.css'; .page-a { color: red }",
+      ),
+      (
+        "/project/page-b.css",
+        "@import './shared.css'; .page-b { color: red }",
+      ),
+      (
+        "/project/index.js",
+        "import('./lazy-a'); import('./lazy-b');",
+      ),
+      (
+        "/project/lazy-a.js",
+        "import './lazy-a.css'; import './shared.css';",
+      ),
+      (
+        "/project/lazy-b.js",
+        "import './lazy-b.css'; import './shared.css';",
+      ),
+      ("/project/lazy-a.css", ".lazy-a { color: red }"),
+      ("/project/lazy-b.css", ".lazy-b { color: red }"),
+      ("/project/shared.css", &shared("red")),
+    ],
+    &["/project/a.html", "/project/b.html"],
+    BuildMode::Production,
+  );
+  test.assert_matches_fresh();
+
+  // Pages and the lazy loaders load the shared stylesheet alongside the ones referencing it, so
+  // those don't @import it.
+  let before = test.all_outputs();
+  let css: Vec<&String> = before
+    .keys()
+    .filter(|path| path.ends_with(".css"))
+    .collect();
+  assert_eq!(css.len(), 5, "{css:?}");
+  for path in &css {
+    assert!(
+      !before[*path].contains("@import"),
+      "{path}: {}",
+      before[*path]
+    );
+  }
+
+  // So changing it renames only it, and updates the pages naming it (a.html's manifest included).
+  test.change(&[("/project/shared.css", &shared("blue"))], &[]);
+  let after = test.all_outputs();
+  for (path, contents) in before.iter().filter(|(path, _)| !path.ends_with(".map")) {
+    if path.ends_with(".html") {
+      assert_ne!(after[path], *contents, "{path}");
+    } else if contents.contains(".shared{") {
+      assert!(!after.contains_key(path), "{path} was not renamed");
+    } else {
+      assert_eq!(after.get(path), Some(contents), "{path} changed");
+    }
+  }
+}

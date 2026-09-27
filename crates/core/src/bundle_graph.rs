@@ -28,15 +28,28 @@ pub enum BundleGraphDependencyResolution {
   },
 }
 
+bitflags::bitflags! {
+  /// The kinds of bundles that reference a bundle as a dependency target.
+  #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+  struct Referrers: u8 {
+    /// HTML pages, which load its references and provide its manifest.
+    const HTML = 1 << 0;
+    /// SVG documents, which load its references.
+    const SVG = 1 << 1;
+    /// Anything else.
+    const OTHER = 1 << 2;
+  }
+}
+
 #[derive(Debug)]
 pub struct BundleGraph<'a> {
   pub asset_graph: AssetGraph<'a>,
   pub bundles: Vec<Bundle>,
   dependency_resolutions: HashMap<DependencyId, BundleGraphDependencyResolution>,
   pub project_root: PathId,
-  /// Ids of page-hosted bundles (see `is_page_hosted`), computed on first use once bundling is
-  /// complete.
-  page_hosted: OnceLock<HashSet<u64>>,
+  /// What kinds of bundles reference each bundle as a dependency target, by bundle id (see
+  /// `is_page_hosted`), computed on first use once bundling is complete.
+  referrers: OnceLock<HashMap<u64, Referrers>>,
   /// The first bundle containing each asset (see `first_bundle_containing`), computed on first use.
   first_bundles: OnceLock<Vec<u32>>,
 }
@@ -53,7 +66,7 @@ impl<'a> BundleGraph<'a> {
       bundles,
       dependency_resolutions,
       project_root,
-      page_hosted: OnceLock::new(),
+      referrers: OnceLock::new(),
       first_bundles: OnceLock::new(),
     }
   }
@@ -190,33 +203,38 @@ impl<'a> BundleGraph<'a> {
   /// Whether `root` is only ever loaded by HTML pages Parcel builds, which then provide its
   /// context's manifest and load its static closure. Entries may be loaded by anything.
   pub fn is_page_hosted(&self, root: &Bundle) -> bool {
-    let page_hosted = self.page_hosted.get_or_init(|| {
-      // Bundles referenced by a page, minus those referenced by anything else.
-      let mut by_page = vec![false; self.bundles.len()];
-      let mut by_other = vec![false; self.bundles.len()];
-      for (index, bundle) in self.bundles.iter().enumerate() {
-        let is_page = matches!(bundle.ty, AssetType::Html | AssetType::Xhtml);
-        for target in self.bundle_dependency_targets(bundle) {
-          if target != index {
-            if is_page {
-              by_page[target] = true;
-            } else {
-              by_other[target] = true;
-            }
+    let referrers = self.referrers(root);
+    !root.flags.contains(BundleFlags::ENTRY) && referrers == Referrers::HTML
+  }
+
+  /// Whether everything that loads `bundle` also loads the bundles it references
+  /// (`referenced_bundles`, transitively): pages load the closure of each script and stylesheet,
+  /// and Parcel's loaders load the closure of each bundle. Entries may be loaded by anything, and
+  /// bundles reached by other dependencies (a CSS `@import`, a URL, inline content) are loaded
+  /// without their references.
+  pub fn is_loaded_with_references(&self, bundle: &Bundle) -> bool {
+    !bundle.flags.contains(BundleFlags::ENTRY) && !self.referrers(bundle).contains(Referrers::OTHER)
+  }
+
+  fn referrers(&self, bundle: &Bundle) -> Referrers {
+    let referrers = self.referrers.get_or_init(|| {
+      let mut referrers: HashMap<u64, Referrers> = HashMap::new();
+      for (index, referrer) in self.bundles.iter().enumerate() {
+        for target in self.bundle_dependency_targets(referrer) {
+          if target == index {
+            continue;
+          }
+          let entry = referrers.entry(self.bundles[target].id).or_default();
+          match referrer.ty {
+            AssetType::Html | AssetType::Xhtml => *entry |= Referrers::HTML,
+            AssetType::Svg => *entry |= Referrers::SVG,
+            _ => *entry |= Referrers::OTHER,
           }
         }
       }
-      self
-        .bundles
-        .iter()
-        .enumerate()
-        .filter(|&(index, bundle)| {
-          by_page[index] && !by_other[index] && !bundle.flags.contains(BundleFlags::ENTRY)
-        })
-        .map(|(_, bundle)| bundle.id)
-        .collect()
+      referrers
     });
-    page_hosted.contains(&root.id)
+    referrers.get(&bundle.id).copied().unwrap_or_default()
   }
 
   /// The index of the first bundle containing `asset`, if any.

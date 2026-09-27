@@ -38,15 +38,19 @@ impl Content for CssContent {
   }
 
   fn bundle_dependencies(&self, bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
-    // Referenced CSS bundles are @imported, and cross-bundle @imports and url()s embed the
-    // target's URL or inline content.
-    bundle
-      .referenced_bundles
-      .iter()
-      .copied()
-      .filter(|&index| bundle_graph.bundles[index].ty == AssetType::Css)
-      .chain(bundle_graph.bundle_dependency_targets(bundle))
-      .collect()
+    // Cross-bundle @imports and url()s embed the target's URL or inline content, and referenced
+    // CSS bundles may be @imported (see `packager::imports_references`).
+    let mut dependencies: Vec<usize> = bundle_graph.bundle_dependency_targets(bundle).collect();
+    if packager::imports_references(bundle_graph, bundle) {
+      dependencies.extend(
+        bundle
+          .referenced_bundles
+          .iter()
+          .copied()
+          .filter(|&index| bundle_graph.bundles[index].ty == AssetType::Css),
+      );
+    }
+    dependencies
   }
 
   fn package(
