@@ -235,13 +235,15 @@ impl Bundler for DefaultBundler {
       .map(|(root, asset)| match bundle_roots.members(root) {
         [_] => asset_graph.asset(asset).id_u64(&options.project_root),
         members => {
+          // Members are ordered by asset index, which depends on the order assets finished
+          // transforming. Sort their ids so the root's id is the same in every build.
+          let mut ids: Vec<u64> = members
+            .iter()
+            .map(|&member| asset_graph.asset(member).id_u64(&options.project_root))
+            .collect();
+          ids.sort_unstable();
           let mut hasher = xxhash_rust::xxh3::Xxh3Default::new();
-          for &member in members {
-            asset_graph
-              .asset(member)
-              .id_u64(&options.project_root)
-              .hash(&mut hasher);
-          }
+          ids.hash(&mut hasher);
           hasher.digest()
         }
       })
