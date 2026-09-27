@@ -326,6 +326,16 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
           }
         }
         AssetType::Html => {
+          // Run inline classic scripts the packager added (e.g. the runtime manifest) first, as a
+          // browser would before the page's deferred module scripts.
+          let html = output_fs.read_to_string(path).unwrap();
+          for (index, script) in html.split("<script>").skip(1).enumerate() {
+            let code = script.split("</script>").next().unwrap();
+            let inline_path = path.with_extension(&format!("inline-{index}.js"));
+            output_fs.write(inline_path, code.as_bytes()).unwrap();
+            scripts.push((inline_path.to_path_buf(), OutputFormat::Global));
+          }
+
           let deps = parcel_html::transform_html(parcel_html::TransformOptions {
             code: output_fs.read(path).unwrap(),
             url: bundle.dist_url(),

@@ -16,7 +16,7 @@ mod synthetic;
 
 pub use dependencies::asset_dependencies;
 pub(crate) use dependencies::bundle_dependencies;
-use dependencies::manifest_entries;
+use dependencies::{manifest_entries, static_imports};
 pub use parcel_js_swc_core::tree_shake::Resolution;
 pub use rsc::RscModule;
 pub use synthetic::{BundleShim, SyntheticAsset};
@@ -303,18 +303,14 @@ fn write_external_imports(
   Ok(externals)
 }
 
-/// Writes imports for bundles referenced by this one, so they load first.
+/// Writes imports for the bundles this one needs loaded first (see `static_imports`).
 fn write_bundle_references(
   printer: &mut Printer,
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
 ) -> Result<(), DiagnosticList> {
-  for b in &bundle.referenced_bundles {
-    let referenced = &bundle_graph.bundles[*b];
-    if referenced.ty != AssetType::Js {
-      continue;
-    }
-
+  for b in static_imports(bundle_graph, bundle) {
+    let referenced = &bundle_graph.bundles[b];
     let specifier = referenced.relative_specifier(bundle).unwrap();
     if bundle.target.output_format == OutputFormat::Commonjs {
       write!(printer, "require({});", serde_json::to_string(&specifier)?)?;

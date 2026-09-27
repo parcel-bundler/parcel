@@ -8,9 +8,10 @@ var previousRequire =
   globalThis[parcelRequireName];
 
 var importMap = previousRequire.i || {};
-// Maps stable bundle keys to content hashed names for the bundles this context root can load.
-// Every bundle shares one map, so bundles loaded later resolve through the root's entries.
-Object.assign(importMap, manifest);
+// Maps stable bundle keys to content hashed names for the bundles this context can load. Every
+// bundle shares one map, seeded by the page (see the HTML packager) and by context roots that
+// aren't loaded by a page.
+Object.assign(importMap, globalThis[parcelRequireName + 'ImportMap'], manifest);
 var cache = previousRequire.cache || {};
 
 // Do not use `require` to prevent Webpack from trying to bundle this call

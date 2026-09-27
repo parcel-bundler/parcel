@@ -2034,21 +2034,22 @@ fn content_hashed_names_follow_their_content() {
   let css = test.find_output_ext("css");
   let img = test.find_output_ext("svg");
 
-  // The lazy bundle is loaded by stable key, which the root's manifest maps to its final name.
-  let lazy_name = Path::new(&lazy)
-    .file_name()
-    .unwrap()
-    .to_str()
-    .unwrap()
-    .to_string();
-  assert!(test.output(&js).contains(&lazy_name));
-  assert!(
-    test
-      .output("/project/dist/index.html")
-      .contains(Path::new(&js).file_name().unwrap().to_str().unwrap())
-  );
+  // The lazy bundle is loaded by stable key, which the page's manifest maps to its final name. The
+  // script the page loads doesn't name it, so it doesn't depend on it.
+  let file_name = |path: &str| {
+    Path::new(path)
+      .file_name()
+      .unwrap()
+      .to_str()
+      .unwrap()
+      .to_string()
+  };
+  let html = test.output("/project/dist/index.html");
+  assert!(html.contains(&file_name(&lazy)));
+  assert!(html.contains(&file_name(&js)));
+  assert!(!test.output(&js).contains(&file_name(&lazy)));
 
-  // Changing the lazy module renames it and the root holding the manifest, but nothing else.
+  // Changing the lazy module renames only it (and updates the page).
   test.change(
     &[(
       "/project/lazy.js",
@@ -2057,17 +2058,18 @@ fn content_hashed_names_follow_their_content() {
     &[],
   );
   assert_ne!(test.find_output("lazy-"), lazy);
-  assert_ne!(test.find_output("index-"), js);
+  assert_eq!(test.find_output("index-"), js);
   assert_eq!(test.find_output_ext("css"), css);
   assert_eq!(test.find_output_ext("svg"), img);
 
   // Changing the image renames it and the CSS embedding its URL. The lazy bundle loads the CSS
-  // by stable key, so it keeps its name.
+  // by stable key, so it keeps its name, and so does the page's script.
   let lazy = test.find_output("lazy-");
   test.change(&[("/project/img.svg", &svg("blue"))], &[]);
   assert_ne!(test.find_output_ext("svg"), img);
   assert_ne!(test.find_output_ext("css"), css);
   assert_eq!(test.find_output("lazy-"), lazy);
+  assert_eq!(test.find_output("index-"), js);
 
   // Names are a function of content: restoring the inputs restores them.
   test.change(

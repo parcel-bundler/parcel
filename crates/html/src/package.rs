@@ -50,6 +50,7 @@ pub fn insert_bundle_references<'arena>(
   stylesheet_media: &HashMap<SerializableTendril, Option<SerializableTendril>>,
   stylesheet_refs: &HashMap<SerializableTendril, Vec<StyleSheetRef>>,
   mut import_map: serde_json::map::Map<String, serde_json::Value>,
+  head_script: Option<String>,
 ) {
   let data_parcel_key = ExpandedName {
     ns: &ns!(),
@@ -224,6 +225,12 @@ pub fn insert_bundle_references<'arena>(
         }
         head.prepend(node);
       }
+    }
+
+    if let Some(head_script) = head_script {
+      let node = arena.alloc(Node::create_element(expanded_name!(html "script")));
+      node.set_text_content(arena, head_script.into());
+      head.prepend(node);
     }
   } else if let Some(svg) = dom.find(expanded_name!(svg "svg")) {
     for bundle in bundles.into_iter().rev() {

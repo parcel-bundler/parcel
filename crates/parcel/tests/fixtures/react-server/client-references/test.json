@@ -3,6 +3,7 @@
     "description": "should support client references",
     "input": "index.jsx",
     "skipNodeModules": true,
+    "options": {"contentHash": false},
     "bundles": [
       {
         "assets": ["index.jsx"],

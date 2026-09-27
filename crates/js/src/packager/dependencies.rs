@@ -37,19 +37,12 @@ pub(crate) fn bundle_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -
 
   let mut dependencies = Vec::new();
 
-  // A context root's runtime maps the stable keys of everything its context loads to final names.
-  if is_context_root(bundle) {
-    dependencies.extend(manifest_closure(bundle_graph, bundle));
+  // A root's runtime maps the stable keys of everything its context loads to final names, and it
+  // imports its static closure by relative path.
+  if holds_manifest(bundle_graph, bundle) {
+    dependencies.extend(bundle_graph.context_closure(bundle));
+    dependencies.extend(static_imports(bundle_graph, bundle));
   }
-
-  // Referenced JS bundles are imported (or required) by relative path.
-  dependencies.extend(
-    bundle
-      .referenced_bundles
-      .iter()
-      .copied()
-      .filter(|&index| bundle_graph.bundles[index].ty == AssetType::Js),
-  );
 
   let is_rsc = matches!(
     bundle.target.environment,
@@ -94,44 +87,29 @@ pub(crate) fn bundle_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -
   dependencies
 }
 
-/// Whether `bundle` starts a JS execution context: something other than Parcel's loader runs it
-/// (an entry, a script in a page, a worker, a URL import), so it executes its entries on load.
-/// Its runtime holds the manifest for the bundles loaded in that context.
-fn is_context_root(bundle: &Bundle) -> bool {
-  bundle.ty == AssetType::Js && !bundle.entry_assets.is_empty()
+/// Whether `bundle`'s runtime holds its context's manifest. Roots that are only loaded by pages get
+/// it from the page instead, so they don't depend on their whole context.
+fn holds_manifest(bundle_graph: &BundleGraph, bundle: &Bundle) -> bool {
+  bundle.is_context_root() && !bundle_graph.is_page_hosted(bundle)
 }
 
-/// Bundles that code in `root`'s context may load or resolve by stable key: everything reachable
-/// through bundle references and Parcel's loader, without entering other contexts (workers, URL
-/// imports and other roots are included, but not their contents).
-fn manifest_closure(bundle_graph: &BundleGraph, root: &Bundle) -> Vec<usize> {
-  let bundles = &bundle_graph.bundles;
-  let mut closure = Vec::new();
-  let mut visited = vec![false; bundles.len()];
-  let mut stack: Vec<usize> = bundle_graph
-    .bundle_dependency_targets(root)
-    .chain(root.referenced_bundles.iter().copied())
-    .collect();
-  while let Some(index) = stack.pop() {
-    if std::mem::replace(&mut visited[index], true) || bundles[index].id == root.id {
-      continue;
-    }
-    let bundle = &bundles[index];
-    // Inline content runs in this context, but has no name of its own.
-    let enters = bundle.bundle_behavior == BundleBehavior::Inline
-      || (bundle.ty == AssetType::Js
-        && !is_context_root(bundle)
-        && bundle.target.environment == root.target.environment);
-    if bundle.bundle_behavior != BundleBehavior::Inline {
-      closure.push(index);
-    }
-    if enters {
-      stack.extend(bundle_graph.bundle_dependency_targets(bundle));
-      stack.extend(&bundle.referenced_bundles);
+/// JS bundles `bundle` imports so they're loaded before it runs. Only roots that nothing else
+/// loads the closure for import them: Parcel's loader, pages and RSC load a bundle's whole static
+/// closure themselves, so other bundles never name their siblings.
+pub(super) fn static_imports(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+  if !holds_manifest(bundle_graph, bundle) {
+    return Vec::new();
+  }
+  let mut imports: Vec<usize> = Vec::new();
+  for &referenced in &bundle.referenced_bundles {
+    for index in bundle_graph.referenced_bundles(referenced) {
+      let imported = &bundle_graph.bundles[index];
+      if imported.ty == AssetType::Js && imported.id != bundle.id && !imports.contains(&index) {
+        imports.push(index);
+      }
     }
   }
-  closure.sort_unstable();
-  closure
+  imports
 }
 
 /// The manifest a context root's runtime starts with: the final names of content hashed bundles
@@ -140,10 +118,11 @@ pub(super) fn manifest_entries(
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
 ) -> Vec<(String, String)> {
-  if !is_context_root(bundle) {
+  if !holds_manifest(bundle_graph, bundle) {
     return Vec::new();
   }
-  let mut entries: Vec<(String, String)> = manifest_closure(bundle_graph, bundle)
+  let mut entries: Vec<(String, String)> = bundle_graph
+    .context_closure(bundle)
     .into_iter()
     .map(|index| &bundle_graph.bundles[index])
     .filter(|target| target.has_final_path())

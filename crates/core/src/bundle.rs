@@ -164,6 +164,13 @@ impl Bundle {
     format!("{:016x}", self.id)
   }
 
+  /// Whether the bundle starts a JS execution context: something other than Parcel's loader runs
+  /// it (an entry, a script in a page, a worker, a URL import), so it executes its entries on
+  /// load. The bundles it loads resolve through its context's manifest.
+  pub fn is_context_root(&self) -> bool {
+    self.ty == AssetType::Js && !self.entry_assets.is_empty()
+  }
+
   /// Whether the bundle's name gets a content hash when content hashing is enabled. Stable names,
   /// inline bundles (never written), libraries and server-side bundles are not hashed.
   pub fn may_be_content_hashed(&self) -> bool {

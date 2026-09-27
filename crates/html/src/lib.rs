@@ -158,6 +158,9 @@ pub struct PackageOptions {
   #[serde(default)]
   pub stylesheet_refs: HashMap<SerializableTendril, Vec<StyleSheetRef>>,
   pub import_map: serde_json::Map<String, serde_json::Value>,
+  /// A classic script prepended to `<head>`, before every other script.
+  #[serde(default)]
+  pub head_script: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -186,6 +189,7 @@ pub fn package_html(options: PackageOptions) -> Result<PackageResult, ()> {
     &options.stylesheet_media,
     &options.stylesheet_refs,
     options.import_map,
+    options.head_script,
   );
 
   let mut vec = Vec::new();
@@ -218,6 +222,7 @@ pub fn package_svg(options: PackageOptions) -> Result<PackageResult, ()> {
     &options.stylesheet_media,
     &options.stylesheet_refs,
     options.import_map,
+    options.head_script,
   );
 
   let mut vec = Vec::new();
@@ -400,7 +405,9 @@ impl Content for HtmlContent {
   }
 
   fn bundle_dependencies(&self, bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
-    prepare_to_package_dependencies(bundle_graph, bundle)
+    let mut dependencies = prepare_to_package_dependencies(bundle_graph, bundle);
+    dependencies.extend(manifest_dependencies(bundle_graph, bundle));
+    dependencies
   }
 
   fn package(
@@ -423,6 +430,7 @@ impl Content for HtmlContent {
       stylesheet_media,
       stylesheet_refs,
       import_map: Default::default(),
+      head_script: manifest_script(bundle_graph, bundle)?,
     })
     .unwrap();
 
@@ -449,14 +457,69 @@ impl Content for HtmlContent {
 }
 
 /// Bundles `prepare_to_package` accesses: each dependency's target (by URL, or its inline
-/// content), and the bundles each target references (injected as scripts and stylesheets).
+/// content), and the bundles each target references, transitively (injected as scripts and
+/// stylesheets).
 fn prepare_to_package_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
   let mut dependencies = Vec::new();
   for target in bundle_graph.bundle_dependency_targets(bundle) {
-    dependencies.push(target);
-    dependencies.extend(&bundle_graph.bundles[target].referenced_bundles);
+    dependencies.extend(bundle_graph.referenced_bundles(target));
   }
   dependencies
+}
+
+/// JS context roots this page loads that rely on it for their manifest (see
+/// `BundleGraph::is_page_hosted`).
+fn hosted_roots<'a>(bundle_graph: &'a BundleGraph, bundle: &'a Bundle) -> Vec<&'a Bundle> {
+  let mut roots: Vec<&Bundle> = Vec::new();
+  for target in bundle_graph.bundle_dependency_targets(bundle) {
+    let target = &bundle_graph.bundles[target];
+    if target.is_context_root()
+      && bundle_graph.is_page_hosted(target)
+      && !roots.iter().any(|root| root.id == target.id)
+    {
+      roots.push(target);
+    }
+  }
+  roots
+}
+
+/// Bundles the page's manifest maps to their final names.
+fn manifest_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+  hosted_roots(bundle_graph, bundle)
+    .into_iter()
+    .flat_map(|root| bundle_graph.context_closure(root))
+    .collect()
+}
+
+/// A script that gives the runtime the final names of content hashed bundles loaded by the page's
+/// scripts, by stable key. Pages hold it rather than their scripts, so a script's own name doesn't
+/// depend on everything it loads.
+fn manifest_script(
+  bundle_graph: &BundleGraph,
+  bundle: &Bundle,
+) -> Result<Option<String>, DiagnosticList> {
+  let mut entries: Vec<(String, String)> = manifest_dependencies(bundle_graph, bundle)
+    .into_iter()
+    .map(|index| &bundle_graph.bundles[index])
+    .filter(|target| target.has_final_path())
+    .map(|target| (target.stable_key(), target.name()))
+    .filter(|(stable_key, name)| stable_key != name)
+    .collect();
+  if entries.is_empty() {
+    return Ok(None);
+  }
+  entries.sort_unstable();
+  entries.dedup();
+  let map: serde_json::Map<String, serde_json::Value> = entries
+    .into_iter()
+    .map(|(stable_key, name)| (stable_key, name.into()))
+    .collect();
+  // Seeds the map the JS runtime reads as `globalThis[parcelRequireName + 'ImportMap']`.
+  let json = serde_json::to_string(&map).map_err(Diagnostic::from)?;
+  Ok(Some(format!(
+    "globalThis.parcelRequireImportMap=Object.assign(globalThis.parcelRequireImportMap||{{}},{});",
+    json.replace("</", "<\\/")
+  )))
 }
 
 fn prepare_to_package(
@@ -522,8 +585,8 @@ fn prepare_to_package(
         }
 
         let mut refs = Vec::new();
-        for &reference in &referenced_bundle.referenced_bundles {
-          // TODO: should be recursive
+        // Bundles don't import their siblings, so the page loads everything they reference.
+        for reference in bundle_graph.referenced_bundles(b as usize).skip(1) {
           let target = &bundle_graph.bundles[reference];
           if positional_styles && target.ty == AssetType::Css {
             // Attach to this element so its stylesheets load before it, at
@@ -714,6 +777,7 @@ impl Content for SvgContent {
       stylesheet_media,
       stylesheet_refs,
       import_map: Default::default(),
+      head_script: None,
     })
     .unwrap();
 

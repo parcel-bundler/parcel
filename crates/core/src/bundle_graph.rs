@@ -1,6 +1,12 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+  collections::{HashMap, HashSet},
+  sync::OnceLock,
+};
 
-use crate::{AssetIndex, DependencyResolution, PathId, asset_graph::AssetGraph, bundle::Bundle};
+use crate::{
+  AssetIndex, AssetType, BundleBehavior, BundleFlags, DependencyResolution, PathId,
+  asset_graph::AssetGraph, bundle::Bundle,
+};
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct DependencyId {
@@ -28,6 +34,9 @@ pub struct BundleGraph<'a> {
   pub bundles: Vec<Bundle>,
   dependency_resolutions: HashMap<DependencyId, BundleGraphDependencyResolution>,
   pub project_root: PathId,
+  /// Ids of page-hosted bundles (see `is_page_hosted`), computed on first use once bundling is
+  /// complete.
+  page_hosted: OnceLock<HashSet<u64>>,
 }
 
 impl<'a> BundleGraph<'a> {
@@ -42,6 +51,7 @@ impl<'a> BundleGraph<'a> {
       bundles,
       dependency_resolutions,
       project_root,
+      page_hosted: OnceLock::new(),
     }
   }
 
@@ -136,6 +146,71 @@ impl<'a> BundleGraph<'a> {
         }
       })
     })
+  }
+
+  /// Bundles that code in `root`'s execution context may load or resolve by stable key (see
+  /// `Bundle::is_context_root`): everything reachable through bundle references and Parcel's
+  /// loader, without entering other contexts. Workers, URL imports and other roots are included,
+  /// but not their contents. The runtime resolves these through a manifest.
+  pub fn context_closure(&self, root: &Bundle) -> Vec<usize> {
+    let mut closure = Vec::new();
+    let mut visited = vec![false; self.bundles.len()];
+    let mut stack: Vec<usize> = self
+      .bundle_dependency_targets(root)
+      .chain(root.referenced_bundles.iter().copied())
+      .collect();
+    while let Some(index) = stack.pop() {
+      if std::mem::replace(&mut visited[index], true) || self.bundles[index].id == root.id {
+        continue;
+      }
+      let bundle = &self.bundles[index];
+      // Inline content runs in this context, but has no name of its own.
+      let enters = bundle.bundle_behavior == BundleBehavior::Inline
+        || (bundle.ty == AssetType::Js
+          && !bundle.is_context_root()
+          && bundle.target.environment == root.target.environment);
+      if bundle.bundle_behavior != BundleBehavior::Inline {
+        closure.push(index);
+      }
+      if enters {
+        stack.extend(self.bundle_dependency_targets(bundle));
+        stack.extend(&bundle.referenced_bundles);
+      }
+    }
+    closure.sort_unstable();
+    closure
+  }
+
+  /// Whether `root` is only ever loaded by HTML pages Parcel builds, which then provide its
+  /// context's manifest and load its static closure. Entries may be loaded by anything.
+  pub fn is_page_hosted(&self, root: &Bundle) -> bool {
+    let page_hosted = self.page_hosted.get_or_init(|| {
+      // Bundles referenced by a page, minus those referenced by anything else.
+      let mut by_page = vec![false; self.bundles.len()];
+      let mut by_other = vec![false; self.bundles.len()];
+      for (index, bundle) in self.bundles.iter().enumerate() {
+        let is_page = matches!(bundle.ty, AssetType::Html | AssetType::Xhtml);
+        for target in self.bundle_dependency_targets(bundle) {
+          if target != index {
+            if is_page {
+              by_page[target] = true;
+            } else {
+              by_other[target] = true;
+            }
+          }
+        }
+      }
+      self
+        .bundles
+        .iter()
+        .enumerate()
+        .filter(|&(index, bundle)| {
+          by_page[index] && !by_other[index] && !bundle.flags.contains(BundleFlags::ENTRY)
+        })
+        .map(|(_, bundle)| bundle.id)
+        .collect()
+    });
+    page_hosted.contains(&root.id)
   }
 
   /// The transitive closure of `referenced_bundles`, starting with `bundle_index` itself, in
