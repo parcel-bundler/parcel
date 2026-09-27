@@ -15,6 +15,8 @@ export default (new Reporter({
     let server = serveOptions ? servers.get(serveOptions.port) : undefined;
     let hmrPort =
       (hmrOptions && hmrOptions.port) || (serveOptions && serveOptions.port);
+    let hmrHttps =
+      hmrOptions?.https ?? (serveOptions ? serveOptions.https : false);
     let hmrServer = hmrPort ? hmrServers.get(hmrPort) : undefined;
     let nodeRunner = nodeRunners.get(options.instanceId);
     switch (event.type) {
@@ -143,7 +145,7 @@ async function startDevServer(options, logger, isBrowser) {
           server?.middleware.push(handler);
         },
         logger,
-        https: options.serveOptions ? options.serveOptions.https : false,
+        https: hmrHttps,
         cacheDir: options.cacheDir,
         inputFS: options.inputFS,
         outputFS: options.outputFS,
@@ -165,7 +167,7 @@ async function startDevServer(options, logger, isBrowser) {
       port,
       host: hmrOptions?.host,
       logger,
-      https: options.serveOptions ? options.serveOptions.https : false,
+      https: hmrHttps,
       cacheDir: options.cacheDir,
       inputFS: options.inputFS,
       outputFS: options.outputFS,

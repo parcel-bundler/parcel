@@ -502,6 +502,7 @@ async function normalizeOptions(
     let hmrhost = command.hmrHost ? command.hmrHost : host;
 
     hmrOptions = {
+      https,
       port: hmrport,
       host: hmrhost,
       cors: command.cors,
