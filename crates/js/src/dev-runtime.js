@@ -9,9 +9,22 @@ var previousRequire =
 
 var importMap = previousRequire.i || {};
 // Maps stable bundle keys to content hashed names for the bundles this context can load. Every
-// bundle shares one map, seeded by the page (see the HTML packager) and by context roots that
-// aren't loaded by a page.
-Object.assign(importMap, globalThis[parcelRequireName + 'ImportMap'], manifest);
+// bundle shares one map. The first runtime on a page seeds it from the page's manifest (see the HTML
+// packager), a JSON data block rather than an inline script so Content Security Policies allow it.
+// Context roots that aren't loaded by a page add their own.
+if (
+  !previousRequire &&
+  typeof document !== 'undefined' &&
+  typeof document.querySelectorAll === 'function'
+) {
+  var pageManifests = document.querySelectorAll(
+    'script[type="application/json"][data-parcel-manifest]',
+  );
+  for (var i = 0; i < pageManifests.length; i++) {
+    Object.assign(importMap, JSON.parse(pageManifests[i].textContent));
+  }
+}
+Object.assign(importMap, manifest);
 var cache = previousRequire.cache || {};
 
 // Do not use `require` to prevent Webpack from trying to bundle this call

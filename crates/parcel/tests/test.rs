@@ -326,14 +326,29 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
           }
         }
         AssetType::Html => {
-          // Run inline classic scripts the packager added (e.g. the runtime manifest) first, as a
-          // browser would before the page's deferred module scripts.
+          // Give the runtime the page's manifest data blocks, as a browser's DOM would.
           let html = output_fs.read_to_string(path).unwrap();
-          for (index, script) in html.split("<script>").skip(1).enumerate() {
-            let code = script.split("</script>").next().unwrap();
-            let inline_path = path.with_extension(&format!("inline-{index}.js"));
-            output_fs.write(inline_path, code.as_bytes()).unwrap();
-            scripts.push((inline_path.to_path_buf(), OutputFormat::Global));
+          // The attribute is `data-parcel-manifest=""`, or bare once the HTML is minified.
+          let manifests: Vec<&str> = html
+            .split("data-parcel-manifest")
+            .skip(1)
+            .map(|block| {
+              let content = &block[block.find('>').unwrap() + 1..];
+              content.split("</script>").next().unwrap()
+            })
+            .collect();
+          if !manifests.is_empty() {
+            let blocks = manifests
+              .iter()
+              .map(|json| format!("{{textContent:{}}}", serde_json::to_string(json).unwrap()))
+              .collect::<Vec<_>>()
+              .join(",");
+            let setup = format!(
+              "document.querySelectorAll = selector => selector.includes('data-parcel-manifest') ? [{blocks}] : [];"
+            );
+            let setup_path = path.with_extension("manifest.js");
+            output_fs.write(setup_path, setup.as_bytes()).unwrap();
+            scripts.push((setup_path.to_path_buf(), OutputFormat::Global));
           }
 
           let deps = parcel_html::transform_html(parcel_html::TransformOptions {

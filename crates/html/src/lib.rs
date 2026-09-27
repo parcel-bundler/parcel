@@ -158,9 +158,11 @@ pub struct PackageOptions {
   #[serde(default)]
   pub stylesheet_refs: HashMap<SerializableTendril, Vec<StyleSheetRef>>,
   pub import_map: serde_json::Map<String, serde_json::Value>,
-  /// A classic script prepended to `<head>`, before every other script.
+  /// JSON the JS runtime reads as the page's manifest: stable bundle keys to final names. It's
+  /// prepended to `<head>` as a data block, which Content Security Policies don't block, unlike
+  /// inline scripts.
   #[serde(default)]
-  pub head_script: Option<String>,
+  pub manifest: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -189,7 +191,7 @@ pub fn package_html(options: PackageOptions) -> Result<PackageResult, ()> {
     &options.stylesheet_media,
     &options.stylesheet_refs,
     options.import_map,
-    options.head_script,
+    options.manifest,
   );
 
   let mut vec = Vec::new();
@@ -222,7 +224,7 @@ pub fn package_svg(options: PackageOptions) -> Result<PackageResult, ()> {
     &options.stylesheet_media,
     &options.stylesheet_refs,
     options.import_map,
-    options.head_script,
+    options.manifest,
   );
 
   let mut vec = Vec::new();
@@ -430,7 +432,7 @@ impl Content for HtmlContent {
       stylesheet_media,
       stylesheet_refs,
       import_map: Default::default(),
-      head_script: manifest_script(bundle_graph, bundle)?,
+      manifest: manifest_json(bundle_graph, bundle)?,
     })
     .unwrap();
 
@@ -491,10 +493,10 @@ fn manifest_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usi
     .collect()
 }
 
-/// A script that gives the runtime the final names of content hashed bundles loaded by the page's
-/// scripts, by stable key. Pages hold it rather than their scripts, so a script's own name doesn't
-/// depend on everything it loads.
-fn manifest_script(
+/// The final names of content hashed bundles loaded by the page's scripts, by stable key, as JSON
+/// for the runtime. Pages hold it rather than their scripts, so a script's own name doesn't depend
+/// on everything it loads.
+fn manifest_json(
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
 ) -> Result<Option<String>, DiagnosticList> {
@@ -514,12 +516,9 @@ fn manifest_script(
     .into_iter()
     .map(|(stable_key, name)| (stable_key, name.into()))
     .collect();
-  // Seeds the map the JS runtime reads as `globalThis[parcelRequireName + 'ImportMap']`.
+  // `</` would end the script element. `<\/` is the same string in JSON.
   let json = serde_json::to_string(&map).map_err(Diagnostic::from)?;
-  Ok(Some(format!(
-    "globalThis.parcelRequireImportMap=Object.assign(globalThis.parcelRequireImportMap||{{}},{});",
-    json.replace("</", "<\\/")
-  )))
+  Ok(Some(json.replace("</", "<\\/")))
 }
 
 fn prepare_to_package(
@@ -777,7 +776,7 @@ impl Content for SvgContent {
       stylesheet_media,
       stylesheet_refs,
       import_map: Default::default(),
-      head_script: None,
+      manifest: None,
     })
     .unwrap();
 
@@ -820,6 +819,27 @@ mod tests {
     assert_eq!(
       std::str::from_utf8(&res.code).unwrap(),
       "<html><head></head><body><template><div>test</div><span>hi</span></template></body></html>"
+    );
+  }
+
+  #[test]
+  fn manifest_is_a_data_block_before_every_script() {
+    let res = crate::package_html(crate::PackageOptions {
+      code: b"<html><head><script src=\"app.js\"></script></head><body></body></html>".to_vec(),
+      xml: false,
+      bundles: Vec::new(),
+      inline_bundles: Default::default(),
+      stylesheet_media: Default::default(),
+      stylesheet_refs: Default::default(),
+      import_map: Default::default(),
+      manifest: Some(r#"{"a-0123456789abcdef.js":"a-abcdefgh.js","x":"<\/script>"}"#.into()),
+    })
+    .unwrap();
+
+    // Content Security Policies block inline scripts, but not data blocks.
+    assert_eq!(
+      std::str::from_utf8(&res.code).unwrap(),
+      r#"<html><head><script type="application/json" data-parcel-manifest="">{"a-0123456789abcdef.js":"a-abcdefgh.js","x":"<\/script>"}</script><script src="app.js"></script></head><body></body></html>"#
     );
   }
 }

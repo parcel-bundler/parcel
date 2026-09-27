@@ -1,6 +1,19 @@
-{
-  "description": "lazily loaded bundles resolve their content hashed names through the root's manifest",
-  "input": "index.html",
-  "options": {"contentHash": true},
-  "output": "a!b!"
-}
+[
+  {
+    "description": "lazily loaded bundles resolve their content hashed names through the root's manifest",
+    "input": "index.html",
+    "options": {
+      "contentHash": true
+    },
+    "output": "a!b!"
+  },
+  {
+    "description": "the page's manifest is a JSON data block, which Content Security Policies allow, read by the runtime",
+    "input": "index.html",
+    "options": {
+      "contentHash": true,
+      "mode": "production"
+    },
+    "output": "a!b!"
+  }
+]
