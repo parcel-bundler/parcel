@@ -1096,3 +1096,39 @@ fn packaging_rejects_undeclared_name_access() {
   );
   let _ = parcel.build();
 }
+
+#[test]
+fn bundles_that_reference_each_other_are_packaged_together() {
+  // index.js and page.js each embed the other's name, so neither can be packaged first.
+  let (mut parcel, input, output) = setup(
+    &[
+      ("/project/index.js", "@async ./page.js\nindex v1"),
+      ("/project/page.js", "@async ./index.js\npage"),
+    ],
+    &["/project/index.js"],
+  );
+
+  parcel.build().expect("initial build failed");
+  assert_eq!(written_names(&output), vec!["index.js", "page.js"]);
+  assert_eq!(
+    read_dist(&output, "index.js"),
+    "@bundle-ref page.js\nindex v1\n\n"
+  );
+  assert_eq!(
+    read_dist(&output, "page.js"),
+    "@bundle-ref index.js\npage\n\n"
+  );
+
+  // A cycle is packaged as a unit (its members are named together), so changing one member
+  // re-packages all of them.
+  write_file(&input, "/project/index.js", "@async ./page.js\nindex v2");
+  parcel
+    .invalidate(&[path_id("/project/index.js")], &[], &[])
+    .unwrap();
+  parcel.build().expect("rebuild failed");
+  assert_eq!(written_names(&output), vec!["index.js", "page.js"]);
+  assert_eq!(
+    read_dist(&output, "index.js"),
+    "@bundle-ref page.js\nindex v2\n\n"
+  );
+}

@@ -90,9 +90,11 @@ pub extern "C" fn parcel_bundle_get_dist_path(buf: *mut Buffer, bundle: Bundle) 
     return;
   }
   let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
-  let Some(path) = bundle.dist_path else {
+  if bundle.dist_path.is_none() {
     return;
-  };
+  }
+  // The final path once known, otherwise the template. A hash never changes the directory.
+  let path = bundle.dist_path();
   unsafe {
     write_buffer(
       buf,
@@ -157,24 +159,26 @@ pub extern "C" fn parcel_bundle_get_main_entry_asset(bundle: Bundle) -> AssetInd
     .map_or(PARCEL_INVALID_ASSET_INDEX, |asset| asset.0)
 }
 
-/// Returns the dist-relative bundle name into `*buf`, or leaves it empty when unnamed.
+/// Returns the dist-relative bundle name into `*buf`, or leaves it empty when unnamed, or while
+/// the name is only known after the bundle is packaged.
 pub extern "C" fn parcel_bundle_get_name(buf: *mut Buffer, bundle: Bundle) {
   if buf.is_null() || bundle == 0 {
     return;
   }
   let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
-  if bundle.dist_path.is_some() {
+  if bundle.dist_path.is_some() && bundle.is_name_available() {
     unsafe { write_buffer(buf, bundle.name().into_bytes(), true) };
   }
 }
 
-/// Returns the public bundle URL into `*buf`, or leaves it empty when unnamed.
+/// Returns the public bundle URL into `*buf`, or leaves it empty when unnamed, or while the name
+/// is only known after the bundle is packaged.
 pub extern "C" fn parcel_bundle_get_absolute_url(buf: *mut Buffer, bundle: Bundle) {
   if buf.is_null() || bundle == 0 {
     return;
   }
   let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
-  if bundle.dist_path.is_some() {
+  if bundle.dist_path.is_some() && bundle.is_name_available() {
     unsafe { write_buffer(buf, bundle.absolute_url().into_bytes(), true) };
   }
 }
@@ -210,7 +214,7 @@ pub extern "C" fn parcel_bundle_get_relative_url(buf: *mut Buffer, bundle: Bundl
   }
   let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
   let from: &parcel_core::Bundle = unsafe { &*(from as *const parcel_core::Bundle) };
-  if !from.may_access(bundle) {
+  if !from.may_access(bundle) || (bundle.id != from.id && !bundle.is_name_available()) {
     return;
   }
   if let Some(url) = bundle.relative_url(from) {
@@ -231,7 +235,7 @@ pub extern "C" fn parcel_bundle_get_relative_specifier(
   }
   let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
   let from: &parcel_core::Bundle = unsafe { &*(from as *const parcel_core::Bundle) };
-  if !from.may_access(bundle) {
+  if !from.may_access(bundle) || (bundle.id != from.id && !bundle.is_name_available()) {
     return;
   }
   if let Some(specifier) = bundle.relative_specifier(from) {

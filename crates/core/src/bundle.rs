@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{
+  Arc, Mutex, OnceLock,
+  atomic::{AtomicU8, Ordering},
+};
 
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
@@ -31,6 +34,39 @@ pub struct NameState {
   /// Sorted ids of the bundles this bundle declared in `Content::bundle_dependencies`. Only set
   /// while the bundle is being packaged; name access is unchecked otherwise.
   declared: Mutex<Option<Box<[u64]>>>,
+  /// Whether reading the name before the final path is set is an error. See `NameStatus`.
+  status: AtomicU8,
+}
+
+/// How the name of a bundle without a final path may be read.
+#[repr(u8)]
+enum NameStatus {
+  /// The template is used. This is the case before packaging starts, and for bundles whose final
+  /// path is their template. It is the default, so it's never constructed explicitly.
+  #[allow(dead_code)]
+  Template = 0,
+  /// The name is only known after the bundle is packaged, so reading it earlier is an error: the
+  /// reader did not declare it as a dependency.
+  Pending = 1,
+  /// The bundle is in a cycle of bundles that embed each other's names, which are packaged with
+  /// provisional (template) names first.
+  Provisional = 2,
+}
+
+impl NameState {
+  /// Marks the bundle's name as only known once it has been packaged.
+  pub fn mark_pending(&self) {
+    self
+      .status
+      .store(NameStatus::Pending as u8, Ordering::Relaxed);
+  }
+
+  /// Allows the bundle's provisional name to be read before its final path is set.
+  pub fn mark_provisional(&self) {
+    self
+      .status
+      .store(NameStatus::Provisional as u8, Ordering::Relaxed);
+  }
 }
 
 impl Clone for NameState {
@@ -39,6 +75,7 @@ impl Clone for NameState {
     NameState {
       final_path: self.final_path.clone(),
       declared: Mutex::new(None),
+      status: AtomicU8::new(self.status.load(Ordering::Relaxed)),
     }
   }
 }
@@ -69,7 +106,12 @@ impl Bundle {
   /// dependency if it is being packaged.
   pub fn relative_url(&self, from: &Bundle) -> Option<String> {
     from.check_name_access(self);
-    Some(self.current_path()?.relative_url(&from.dist_path?))
+    let path = if self.id == from.id {
+      self.current_path()?
+    } else {
+      self.reference_path()?
+    };
+    Some(path.relative_url(&from.dist_path?))
   }
 
   pub fn relative_specifier(&self, from: &Bundle) -> Option<String> {
@@ -93,7 +135,8 @@ impl Bundle {
   /// The dist-root-relative name of the bundle.
   pub fn name(&self) -> String {
     self
-      .dist_path()
+      .reference_path()
+      .unwrap()
       .relative_url_from_dir(&self.target.dist_dir)
   }
 
@@ -146,6 +189,23 @@ impl Bundle {
 
   fn current_path(&self) -> Option<PathId> {
     self.name_state.final_path.get().copied().or(self.dist_path)
+  }
+
+  /// Whether the bundle's name can be read: it has its final path, or doesn't need one yet.
+  pub fn is_name_available(&self) -> bool {
+    self.has_final_path()
+      || self.name_state.status.load(Ordering::Relaxed) != NameStatus::Pending as u8
+  }
+
+  /// The path to embed when another bundle references this one by name.
+  fn reference_path(&self) -> Option<PathId> {
+    if !self.is_name_available() {
+      panic!(
+        "The name of bundle {} was read before it was known. Declare the bundles whose names a packager reads in `Content::bundle_dependencies`.",
+        self.stable_key()
+      );
+    }
+    self.current_path()
   }
 
   /// Declares the bundles whose names or inline content this bundle may access while it is being

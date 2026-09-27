@@ -593,6 +593,30 @@ fn bundle_accessors_return_fields_urls_indices_and_fallbacks() {
   );
   from.end_packaging();
 
+  // A pending bundle's name is unavailable until its final path is set.
+  let pending = bundle_fixture(target.clone(), Some("/project/dist/pending-template.js"));
+  let pending_handle = bundle_handle(&pending);
+  pending.name_state.mark_pending();
+  assert!(string_output(|buffer| parcel_bundle_get_name(buffer, pending_handle)).is_none());
+  assert!(string_output(|buffer| parcel_bundle_get_absolute_url(buffer, pending_handle)).is_none());
+  assert!(
+    string_output(|buffer| parcel_bundle_get_relative_url(buffer, pending_handle, from_handle))
+      .is_none()
+  );
+  assert_eq!(
+    string_output(|buffer| parcel_bundle_get_stable_key(buffer, pending_handle)).as_deref(),
+    Some("pending-template.js")
+  );
+  pending.set_final_path(path("/project/dist/pending-final.js"));
+  assert_eq!(
+    string_output(|buffer| parcel_bundle_get_name(buffer, pending_handle)).as_deref(),
+    Some("pending-final.js")
+  );
+  assert_eq!(
+    string_output(|buffer| parcel_bundle_get_dist_path(buffer, pending_handle)).as_deref(),
+    Some("/project/dist/pending-final.js")
+  );
+
   let behavior_cases = [
     (
       CoreBundleBehavior::None,
