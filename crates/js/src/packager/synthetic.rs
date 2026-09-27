@@ -181,7 +181,7 @@ impl SyntheticAsset {
           write!(
             dest,
             "module.exports=module.bundle.resolve({:?})",
-            resolved_bundle.name()
+            resolved_bundle.stable_key()
           )?;
         }
         BundleShim::Inline(inline_type) => {
@@ -261,7 +261,7 @@ pub(super) fn js_bundle_load_expression(
     // parcelLoadJS resolves dist-root-relative names against the runtime's distDir prefix.
     format!(
       "module.bundle.loadJS({})",
-      serde_json::to_string(&bundle.name()).unwrap()
+      serde_json::to_string(&bundle.stable_key()).unwrap()
     )
   }
 }
@@ -347,14 +347,14 @@ fn load_bundle<W: std::fmt::Write>(
         write!(
           res,
           "module.bundle.loadCSS({},{})",
-          serde_json::to_string(&bundle.name()).unwrap(),
+          serde_json::to_string(&bundle.stable_key()).unwrap(),
           serde_json::to_string(&media).unwrap()
         )
       } else {
         write!(
           res,
           "module.bundle.loadCSS({})",
-          serde_json::to_string(&bundle.name()).unwrap()
+          serde_json::to_string(&bundle.stable_key()).unwrap()
         )
       }
     }

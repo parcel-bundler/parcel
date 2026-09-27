@@ -119,6 +119,25 @@ impl<'a> BundleGraph<'a> {
     })
   }
 
+  /// Bundles that dependencies of `bundle`'s assets resolve to (URL, lazy, isolated and inline
+  /// references), in dependency order. May contain duplicates.
+  pub fn bundle_dependency_targets<'b>(
+    &'b self,
+    bundle: &'b Bundle,
+  ) -> impl Iterator<Item = usize> + 'b {
+    bundle.assets.iter().flat_map(move |&asset_index| {
+      let dependency_count = self.asset_graph.asset(asset_index).dependencies.len();
+      (0..dependency_count).filter_map(move |dependency_index| {
+        match self.dependency_resolution(asset_index, dependency_index) {
+          BundleGraphDependencyResolution::Bundle { bundle_index, .. } => {
+            Some(bundle_index as usize)
+          }
+          _ => None,
+        }
+      })
+    })
+  }
+
   /// The transitive closure of `referenced_bundles`, starting with `bundle_index` itself, in
   /// pre-order. Siblings keep their reference order, which is cascade order for CSS.
   pub fn referenced_bundles(&self, bundle_index: usize) -> impl Iterator<Item = usize> + '_ {

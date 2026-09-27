@@ -740,6 +740,7 @@ pub(super) fn placement_bundles(contents: &[&[u32]]) -> Vec<Bundle> {
       entry_assets: Vec::new(),
       main_entry_asset: None,
       referenced_bundles: Vec::new(),
+      name_state: Default::default(),
     })
     .collect()
 }

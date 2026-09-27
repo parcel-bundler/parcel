@@ -181,6 +181,23 @@ impl Content for CContent {
     }
   }
 
+  fn bundle_dependencies(
+    &self,
+    bundle_graph: &parcel_core::BundleGraph,
+    bundle: &parcel_core::Bundle,
+  ) -> Vec<usize> {
+    if self.package.is_none() {
+      return Vec::new();
+    }
+
+    // Plugins can't declare dependencies yet, so allow every bundle this one could reference.
+    let mut dependencies: Vec<usize> = bundle_graph.bundle_dependency_targets(bundle).collect();
+    for &referenced in &bundle.referenced_bundles {
+      dependencies.extend(bundle_graph.referenced_bundles(referenced));
+    }
+    dependencies
+  }
+
   fn package(
     &self,
     bundle_graph: &parcel_core::BundleGraph,

@@ -179,19 +179,48 @@ pub extern "C" fn parcel_bundle_get_absolute_url(buf: *mut Buffer, bundle: Bundl
   }
 }
 
-/// Returns `bundle`'s URL relative to `from`, or leaves `*buf` empty when unavailable.
+/// Returns the bundle's stable key into `*buf`: a dist-relative name that doesn't change with the
+/// bundle's content, which runtimes resolve to the final name through a manifest. Accessing it is
+/// not a bundle dependency. Leaves `*buf` empty when unnamed.
+pub extern "C" fn parcel_bundle_get_stable_key(buf: *mut Buffer, bundle: Bundle) {
+  if buf.is_null() || bundle == 0 {
+    return;
+  }
+  let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
+  if bundle.dist_path.is_some() {
+    unsafe { write_buffer(buf, bundle.stable_key().into_bytes(), true) };
+  }
+}
+
+/// Returns into `*buf` the string a namer must include exactly once in the file name of a bundle
+/// that may be content hashed.
+pub extern "C" fn parcel_bundle_get_hash_reference(buf: *mut Buffer, bundle: Bundle) {
+  if buf.is_null() || bundle == 0 {
+    return;
+  }
+  let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
+  unsafe { write_buffer(buf, bundle.hash_reference().into_bytes(), true) };
+}
+
+/// Returns `bundle`'s URL relative to `from`, or leaves `*buf` empty when unavailable. It is
+/// unavailable while `from` is being packaged if `from` did not declare `bundle` as a dependency.
 pub extern "C" fn parcel_bundle_get_relative_url(buf: *mut Buffer, bundle: Bundle, from: Bundle) {
   if buf.is_null() || bundle == 0 || from == 0 {
     return;
   }
   let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
   let from: &parcel_core::Bundle = unsafe { &*(from as *const parcel_core::Bundle) };
+  if !from.may_access(bundle) {
+    return;
+  }
   if let Some(url) = bundle.relative_url(from) {
     unsafe { write_buffer(buf, url.into_bytes(), true) };
   }
 }
 
 /// Returns `bundle`'s module specifier relative to `from`, or leaves `*buf` empty when unavailable.
+/// It is unavailable while `from` is being packaged if `from` did not declare `bundle` as a
+/// dependency.
 pub extern "C" fn parcel_bundle_get_relative_specifier(
   buf: *mut Buffer,
   bundle: Bundle,
@@ -202,6 +231,9 @@ pub extern "C" fn parcel_bundle_get_relative_specifier(
   }
   let bundle: &parcel_core::Bundle = unsafe { &*(bundle as *const parcel_core::Bundle) };
   let from: &parcel_core::Bundle = unsafe { &*(from as *const parcel_core::Bundle) };
+  if !from.may_access(bundle) {
+    return;
+  }
   if let Some(specifier) = bundle.relative_specifier(from) {
     unsafe { write_buffer(buf, specifier.into_bytes(), true) };
   }

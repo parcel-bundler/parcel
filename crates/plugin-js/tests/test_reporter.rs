@@ -93,6 +93,7 @@ fn bundle_graph() -> BundleGraph<'static> {
     entry_assets: vec![AssetIndex(0)],
     main_entry_asset: Some(AssetIndex(0)),
     referenced_bundles: vec![],
+    name_state: Default::default(),
   }];
 
   BundleGraph::new(

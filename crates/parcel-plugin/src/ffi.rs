@@ -633,10 +633,14 @@ pub struct ParcelApi {
   >,
   pub options_log_diagnostic:
     ::std::option::Option<unsafe extern "C" fn(options: Options, diagnostic: *const Diagnostic)>,
+  pub bundle_get_stable_key:
+    ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, bundle: Bundle)>,
+  pub bundle_get_hash_reference:
+    ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, bundle: Bundle)>,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 584usize];
+  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 600usize];
   ["Alignment of ParcelApi"][::std::mem::align_of::<ParcelApi>() - 8usize];
   ["Offset of field: ParcelApi::header"][::std::mem::offset_of!(ParcelApi, header) - 0usize];
   ["Offset of field: ParcelApi::asset_get_content"]
@@ -781,6 +785,10 @@ const _: () = {
     [::std::mem::offset_of!(ParcelApi, options_log) - 568usize];
   ["Offset of field: ParcelApi::options_log_diagnostic"]
     [::std::mem::offset_of!(ParcelApi, options_log_diagnostic) - 576usize];
+  ["Offset of field: ParcelApi::bundle_get_stable_key"]
+    [::std::mem::offset_of!(ParcelApi, bundle_get_stable_key) - 584usize];
+  ["Offset of field: ParcelApi::bundle_get_hash_reference"]
+    [::std::mem::offset_of!(ParcelApi, bundle_get_hash_reference) - 592usize];
 };
 #[doc = " Result filled by a resolver plugin's `parcel_plugin_resolve()`.\n The struct is zero-initialised by the host before the call.\n\n When type == PARCEL_RESOLUTION_FILE_PATH, fill `file_path` (and optionally `pipeline`) via `parcel_buffer_alloc()`."]
 #[repr(C)]

@@ -20,6 +20,85 @@ pub(super) fn is_async_bundle_dependency(dependency: &Dependency, bundle: &Bundl
     && !is_inline_bundle_dependency(dependency, bundle)
 }
 
+/// Bundles whose names or inline content packaging `bundle` may access. This must cover every
+/// `relative_url`/`relative_specifier`/`absolute_url` call and inline content read made by the JS
+/// packagers (see `Content::bundle_dependencies`), and mirrors the classification in
+/// `asset_dependencies` and the synthetic modules it creates.
+pub(crate) fn bundle_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+  if bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+    // Library bundles embed a relative path or the inline content for every bundle reference.
+    return bundle_graph.bundle_dependency_targets(bundle).collect();
+  }
+
+  if bundle.target.source_type == SourceType::Script {
+    // Classic scripts are emitted as is, without resolving dependencies.
+    return Vec::new();
+  }
+
+  let mut dependencies = Vec::new();
+
+  // Referenced JS bundles are imported (or required) by relative path.
+  dependencies.extend(
+    bundle
+      .referenced_bundles
+      .iter()
+      .copied()
+      .filter(|&index| bundle_graph.bundles[index].ty == AssetType::Js),
+  );
+
+  let is_rsc = matches!(
+    bundle.target.environment,
+    Environment::ReactServer | Environment::ReactClient
+  );
+  if is_rsc {
+    // Client references embed URLs of CSS in the importer's bundle group.
+    for &referenced in &bundle.referenced_bundles {
+      dependencies.extend(bundle_graph.referenced_bundles(referenced));
+    }
+  }
+
+  for &asset_index in &bundle.assets {
+    let asset = bundle_graph.asset_graph.asset(asset_index);
+    for (dep_index, dep) in asset.dependencies.iter().enumerate() {
+      let BundleGraphDependencyResolution::Bundle { bundle_index, .. } =
+        bundle_graph.dependency_resolution(asset_index, dep_index)
+      else {
+        continue;
+      };
+      let bundle_index = bundle_index as usize;
+      let resolved_bundle = &bundle_graph.bundles[bundle_index];
+
+      if is_inline_bundle_dependency(dep, resolved_bundle) {
+        dependencies.push(bundle_index);
+      } else if is_rsc {
+        // RSC boundaries embed URLs of the target's bundle group and may load it by path.
+        dependencies.extend(bundle_graph.referenced_bundles(bundle_index));
+      } else if is_async_bundle_dependency(dep, resolved_bundle) {
+        // CommonJS bundles are loaded by relative path; others by stable key.
+        dependencies.extend(
+          bundle_graph
+            .referenced_bundles(bundle_index)
+            .filter(|&index| is_loaded_by_path(&bundle_graph.bundles[index])),
+        );
+      } else if is_sync_bundle_dependency(dep, resolved_bundle) {
+        dependencies.push(bundle_index);
+      }
+    }
+  }
+
+  dependencies
+}
+
+/// Whether the async loader references `bundle` by relative path rather than by stable key.
+fn is_loaded_by_path(bundle: &Bundle) -> bool {
+  bundle.ty == AssetType::Js && bundle.target.output_format == OutputFormat::Commonjs
+}
+
+/// A JSON bundle imported as JavaScript, which is imported or required synchronously by path.
+fn is_sync_bundle_dependency(dependency: &Dependency, bundle: &Bundle) -> bool {
+  bundle.ty == AssetType::Json && dependency.import_type == ImportType::JavaScript
+}
+
 /// Resolves each dependency of an asset for packaging, collecting any synthetic
 /// assets that must be emitted alongside it.
 pub fn asset_dependencies<'a>(
@@ -266,9 +345,7 @@ pub fn asset_dependencies<'a>(
             } else {
               Resolution::Asset(BundleShim::Async(asset_index).id(bundle_index, bundle_graph))
             }
-          } else if resolved_bundle.ty == AssetType::Json
-            && dep.import_type == ImportType::JavaScript
-          {
+          } else if is_sync_bundle_dependency(dep, resolved_bundle) {
             additional_assets.insert(SyntheticAsset::Bundle {
               bundle: bundle_index,
               kind: BundleShim::Sync,

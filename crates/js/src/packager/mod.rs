@@ -15,6 +15,7 @@ mod rsc;
 mod synthetic;
 
 pub use dependencies::asset_dependencies;
+pub(crate) use dependencies::bundle_dependencies;
 pub use parcel_js_swc_core::tree_shake::Resolution;
 pub use rsc::RscModule;
 pub use synthetic::{BundleShim, SyntheticAsset};

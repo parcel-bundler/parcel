@@ -175,6 +175,14 @@ content.Package(bundleGraph, bundle, options)
 The graph, bundle, assets, dependencies, and targets obtained through these
 wrappers are borrowed views. They must not be retained after `Package` returns.
 
+While packaging, `Bundle.RelativeURL(from)` and `Bundle.RelativeSpecifier(from)`
+only return names of bundles that `from` may depend on: the bundles its assets'
+dependencies resolve to, and the bundles it references, transitively. Other
+names are reported as unavailable, because Parcel orders packaging by these
+dependencies so that names are final when they are read. To refer to a bundle
+through a runtime lookup instead, use `Bundle.StableKey()`, which is always
+available and never changes with the bundle's content.
+
 ### Buffer ownership
 
 The callback may temporarily pass a pointer to a Go byte slice to

@@ -399,6 +399,10 @@ impl Content for HtmlContent {
     parcel_core::content_type!("HtmlContent")
   }
 
+  fn bundle_dependencies(&self, bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+    prepare_to_package_dependencies(bundle_graph, bundle)
+  }
+
   fn package(
     &self,
     bundle_graph: &BundleGraph,
@@ -442,6 +446,17 @@ impl Content for HtmlContent {
 
     Ok(Arc::new(BufferContent::new(code)))
   }
+}
+
+/// Bundles `prepare_to_package` accesses: each dependency's target (by URL, or its inline
+/// content), and the bundles each target references (injected as scripts and stylesheets).
+fn prepare_to_package_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+  let mut dependencies = Vec::new();
+  for target in bundle_graph.bundle_dependency_targets(bundle) {
+    dependencies.push(target);
+    dependencies.extend(&bundle_graph.bundles[target].referenced_bundles);
+  }
+  dependencies
 }
 
 fn prepare_to_package(
@@ -673,6 +688,10 @@ impl Content for SvgContent {
 
   fn ty(&self) -> ContentType {
     parcel_core::content_type!("SvgContent")
+  }
+
+  fn bundle_dependencies(&self, bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+    prepare_to_package_dependencies(bundle_graph, bundle)
   }
 
   fn package(

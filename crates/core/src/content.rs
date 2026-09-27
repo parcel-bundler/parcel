@@ -82,6 +82,16 @@ pub trait Content: Any + Send + Sync {
   /// Stable id for this content type.
   fn ty(&self) -> ContentType;
 
+  /// Bundles whose names (`Bundle::relative_url` etc.) or inline content
+  /// (`get_inline_bundle_content`) `package` may access for `bundle`. Called before packaging,
+  /// to order it after the bundles it depends on. This is a contract: it may over-approximate, but
+  /// accessing a bundle that isn't listed is an error. Content that overrides `package` must
+  /// override this too. The default `package` accesses nothing.
+  #[allow(unused_variables)]
+  fn bundle_dependencies(&self, bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+    Vec::new()
+  }
+
   #[allow(unused_variables)]
   fn package(
     &self,

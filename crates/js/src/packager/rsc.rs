@@ -354,7 +354,7 @@ fn client_bundle_names(bundle_graph: &BundleGraph, bundle_index: u32) -> Vec<Str
       (bundle.ty == AssetType::Js
         && bundle.target.environment == Environment::ReactClient
         && bundle.bundle_behavior != BundleBehavior::Inline)
-        .then(|| bundle.name())
+        .then(|| bundle.stable_key())
     })
     .collect()
 }
@@ -388,7 +388,7 @@ fn server_actions(bundle_graph: &BundleGraph, project_root: &PathId) -> Vec<RscS
       .filter_map(|bundle_index| {
         let bundle = &bundle_graph.bundles[bundle_index];
         (bundle.ty == AssetType::Js && bundle.target.environment == Environment::ReactServer)
-          .then(|| bundle.name())
+          .then(|| bundle.stable_key())
       })
       .collect::<Vec<_>>();
     let id = asset.id(project_root);

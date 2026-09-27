@@ -50,6 +50,10 @@ impl Content for JsContent {
     parcel_core::content_type!("JsContent")
   }
 
+  fn bundle_dependencies(&self, bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+    packager::bundle_dependencies(bundle_graph, bundle)
+  }
+
   fn package(
     &self,
     bundle_graph: &BundleGraph,

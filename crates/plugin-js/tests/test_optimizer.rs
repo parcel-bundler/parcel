@@ -70,6 +70,7 @@ fn run(
     entry_assets: vec![AssetIndex::from_index(0)],
     main_entry_asset: Some(AssetIndex::from_index(0)),
     referenced_bundles: vec![],
+    name_state: Default::default(),
   }];
   let graph = BundleGraph::new(
     AssetGraph {

@@ -584,6 +584,22 @@ pub fn build(
   parcel.build_owned()
 }
 
+/// Declares a bundle's dependencies for the duration of its packaging.
+struct PackagingGuard<'a>(&'a Bundle);
+
+impl<'a> PackagingGuard<'a> {
+  fn new(bundle: &'a Bundle, declared: Vec<u64>) -> Self {
+    bundle.begin_packaging(declared);
+    PackagingGuard(bundle)
+  }
+}
+
+impl Drop for PackagingGuard<'_> {
+  fn drop(&mut self) {
+    self.0.end_packaging();
+  }
+}
+
 /// Packaged inline bundles, keyed by bundle index and the directory the content was packaged for.
 pub type InlineBundleCache = papaya::HashMap<(usize, PathId), Arc<Mutex<Option<Arc<dyn Content>>>>>;
 
@@ -645,8 +661,49 @@ fn package_bundle(
       Diagnostic::from_message("Cannot package a bundle with no assets".to_string())
     })?;
   let first_content = &bundle_graph.asset_graph.asset(first_asset).content;
+
+  let mut pipeline = None;
+  if let Some(main) = bundle.main_entry_asset {
+    pipeline = bundle_graph.asset_graph.asset(main).pipeline.clone();
+  }
+  // Match optimizer globs against the dist-relative name, as they were written for bundle names
+  // (e.g. "*.js"), not absolute dist paths.
+  let name = bundle.dist_path().relative(&bundle.target.dist_dir);
+  let optimizers: Vec<_> = config
+    .optimizers
+    .get(Cow::Borrowed(name.to_str().unwrap()), &pipeline, false)
+    .collect();
+
+  // Declare which bundles packaging may access. Name and inline content access is checked against
+  // this until packaging ends.
+  let mut declared: Vec<u64> = first_content
+    .bundle_dependencies(bundle_graph, bundle)
+    .into_iter()
+    .map(|index| bundle_graph.bundles[index].id)
+    .collect();
+  for optimizer in &optimizers {
+    declared.extend(
+      optimizer
+        .bundle_dependencies(bundle_graph, bundle)
+        .into_iter()
+        .map(|index| bundle_graph.bundles[index].id),
+    );
+  }
+  let _packaging = PackagingGuard::new(bundle, declared);
+
   let get_inline_bundle_content = |inline_index: usize| {
     let inline = &bundle_graph.bundles[inline_index];
+    if !bundle.may_access(inline) {
+      return Err(
+        Diagnostic::from_message(format!(
+          "The packager for bundle {} accessed the content of bundle {}, which it did not declare in `Content::bundle_dependencies`.",
+          bundle.stable_key(),
+          inline.stable_key()
+        ))
+        .into(),
+      );
+    }
+
     if inline.bundle_behavior != BundleBehavior::Inline {
       return get_bundle_content(config, bundle_graph, inline_index, options, cache);
     }
@@ -677,17 +734,6 @@ fn package_bundle(
 
   let mut content =
     first_content.package(&bundle_graph, &bundle, &get_inline_bundle_content, options)?;
-
-  let mut pipeline = None;
-  if let Some(main) = bundle.main_entry_asset {
-    pipeline = bundle_graph.asset_graph.asset(main).pipeline.clone();
-  }
-  // Match optimizer globs against the dist-relative name, as they were written for bundle names
-  // (e.g. "*.js"), not absolute dist paths.
-  let name = bundle.dist_path().relative(&bundle.target.dist_dir);
-  let optimizers = config
-    .optimizers
-    .get(Cow::Borrowed(name.to_str().unwrap()), &pipeline, false);
 
   for optimizer in optimizers {
     content = optimizer.optimize(&bundle_graph, &bundle, content, options)?;

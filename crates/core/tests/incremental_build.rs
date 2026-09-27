@@ -6,6 +6,7 @@
 //!
 //! * A line `@import ./foo.js` declares a synchronous dependency.
 //! * A line `@async ./foo.js` declares an async (separate-bundle) dependency.
+//! * A line `@undeclared` makes the bundle's content access names it did not declare.
 //! * Every other line is treated as code and passed through verbatim.
 //!
 //! This is enough to build interesting asset/bundle graphs and to verify that incremental
@@ -1076,4 +1077,22 @@ fn plugins_log_through_the_options() {
       "log error: 1 diagnostics"
     ]
   );
+}
+
+#[test]
+#[should_panic(
+  expected = "The packager for bundle index.js accessed the name of bundle lazy.js, which it did not declare in `Content::bundle_dependencies`."
+)]
+fn packaging_rejects_undeclared_name_access() {
+  let (mut parcel, _input_fs, _output_fs) = setup(
+    &[
+      (
+        "/project/index.js",
+        "@undeclared\n@async ./lazy.js\nindex\n",
+      ),
+      ("/project/lazy.js", "lazy\n"),
+    ],
+    &["/project/index.js"],
+  );
+  let _ = parcel.build();
 }

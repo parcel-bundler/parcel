@@ -85,6 +85,7 @@ fn bundle_fixture(target: Arc<CoreTarget>, dist_path: Option<&str>) -> CoreBundl
     entry_assets: vec![CoreAssetIndex(5)],
     main_entry_asset: Some(CoreAssetIndex(5)),
     referenced_bundles: Vec::new(),
+    name_state: Default::default(),
   }
 }
 
@@ -514,7 +515,8 @@ fn dependency_accessors_return_values_and_map_every_enum_variant() {
 fn bundle_accessors_return_fields_urls_indices_and_fallbacks() {
   let target = target_fixture();
   let bundle = bundle_fixture(target.clone(), Some("/project/dist/chunks/app.js"));
-  let from = bundle_fixture(target.clone(), Some("/project/dist/index.js"));
+  let mut from = bundle_fixture(target.clone(), Some("/project/dist/index.js"));
+  from.id = 1;
   let handle = bundle_handle(&bundle);
   let from_handle = bundle_handle(&from);
 
@@ -566,6 +568,30 @@ fn bundle_accessors_return_fields_urls_indices_and_fallbacks() {
       .as_deref(),
     bundle.relative_specifier(&from).as_deref()
   );
+  assert_eq!(
+    string_output(|buffer| parcel_bundle_get_stable_key(buffer, handle)).as_deref(),
+    Some("chunks/app.js")
+  );
+  assert_eq!(
+    string_output(|buffer| parcel_bundle_get_hash_reference(buffer, handle)),
+    Some(bundle.hash_reference())
+  );
+
+  // While `from` is being packaged, only the bundles it declared are available.
+  from.begin_packaging(vec![]);
+  assert!(
+    string_output(|buffer| parcel_bundle_get_relative_url(buffer, handle, from_handle)).is_none()
+  );
+  assert!(
+    string_output(|buffer| parcel_bundle_get_relative_specifier(buffer, handle, from_handle))
+      .is_none()
+  );
+  from.begin_packaging(vec![bundle.id]);
+  assert_eq!(
+    string_output(|buffer| parcel_bundle_get_relative_url(buffer, handle, from_handle)).as_deref(),
+    Some("chunks/app.js")
+  );
+  from.end_packaging();
 
   let behavior_cases = [
     (
@@ -597,6 +623,7 @@ fn bundle_accessors_return_fields_urls_indices_and_fallbacks() {
   assert!(string_output(|buffer| parcel_bundle_get_dist_path(buffer, unnamed_handle)).is_none());
   assert!(string_output(|buffer| parcel_bundle_get_name(buffer, unnamed_handle)).is_none());
   assert!(string_output(|buffer| parcel_bundle_get_absolute_url(buffer, unnamed_handle)).is_none());
+  assert!(string_output(|buffer| parcel_bundle_get_stable_key(buffer, unnamed_handle)).is_none());
   assert!(
     string_output(|buffer| parcel_bundle_get_relative_url(buffer, unnamed_handle, from_handle))
       .is_none()
@@ -633,6 +660,8 @@ fn bundle_accessors_return_fields_urls_indices_and_fallbacks() {
   assert!(string_output(|buffer| parcel_bundle_get_dist_path(buffer, 0)).is_none());
   assert!(string_output(|buffer| parcel_bundle_get_name(buffer, 0)).is_none());
   assert!(string_output(|buffer| parcel_bundle_get_absolute_url(buffer, 0)).is_none());
+  assert!(string_output(|buffer| parcel_bundle_get_stable_key(buffer, 0)).is_none());
+  assert!(string_output(|buffer| parcel_bundle_get_hash_reference(buffer, 0)).is_none());
   assert!(string_output(|buffer| parcel_bundle_get_relative_url(buffer, 0, from_handle)).is_none());
   assert!(
     string_output(|buffer| parcel_bundle_get_relative_specifier(buffer, handle, 0)).is_none()
