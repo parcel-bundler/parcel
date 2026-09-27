@@ -20,6 +20,7 @@ const RUNTIME_GLOBALS: &[(&str, &str)] = &[
   ("modules", "m"),
   ("parcelRequireName", "p"),
   ("externals", "x"),
+  ("manifest", "k"),
   ("entries", "e"),
   ("mainEntry", "n"),
   ("require", "r"),

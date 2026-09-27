@@ -905,6 +905,7 @@ fn run_case(label: &str, case: &Case, mode: BuildMode, expected_error: Option<&s
   let options = BuildOptions {
     mode,
     optimize: Some(optimize),
+    content_hash: None,
     source_map: None,
     env,
     input_fs: Arc::new(OsFileSystem {}),

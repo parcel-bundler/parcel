@@ -1,0 +1,6 @@
+{
+  "description": "lazily loaded bundles resolve their content hashed names through the root's manifest",
+  "input": "index.html",
+  "options": {"contentHash": true},
+  "output": "a!b!"
+}

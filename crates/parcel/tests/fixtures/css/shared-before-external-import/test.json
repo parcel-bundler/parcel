@@ -2,7 +2,8 @@
   "description": "shared CSS before an external import is deduplicated and linked first on both pages; remote is declared after local on page A",
   "input": ["pageA.html", "pageB.html"],
   "options": {
-    "mode": "production"
+    "mode": "production",
+    "contentHash": false
   },
   "skipNodeModules": true,
   "bundles": [

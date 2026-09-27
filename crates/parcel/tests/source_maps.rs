@@ -45,6 +45,7 @@ fn assert_bundle_source_maps(mode: BuildMode, minify: Option<bool>) {
     BuildOptions {
       mode,
       optimize: minify,
+      content_hash: None,
       source_map: Some(Default::default()),
       env: HashMap::from([("NODE_ENV".into(), "test".into())]),
       log_level: LogLevel::Verbose,

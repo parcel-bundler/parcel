@@ -25,7 +25,7 @@ mod transformer;
 use std::{
   collections::{HashMap, HashSet},
   path::Path,
-  sync::Arc,
+  sync::{Arc, atomic::Ordering},
 };
 
 use crossbeam_channel::bounded;
@@ -47,7 +47,7 @@ pub use namer::*;
 pub use optimizer::Optimizer;
 pub use options::*;
 pub use packaging::{InlineBundleCache, get_bundle_content};
-use packaging::{PackagingStats, PrevBundle};
+use packaging::{Packaged, PrevBundle};
 pub use path::{PathId, SubPath};
 pub use reporter::*;
 pub use resolver::Resolver;
@@ -190,6 +190,9 @@ impl Parcel {
     let mut reporters = config.reporters.clone();
     reporters.extend(options.reporters.into_iter());
     let reporters = Reporters::new(reporters, options.log_level.clone());
+    let content_hash = options
+      .content_hash
+      .unwrap_or(options.mode == BuildMode::Production);
     let options = Arc::new(ParcelOptions {
       env,
       mode: options.mode,
@@ -200,6 +203,7 @@ impl Parcel {
       cwd: options.cwd,
       hmr: options.hmr,
       reporters: reporters.clone(),
+      content_hash,
     });
 
     // Weak, so the options may own the reporters without the two keeping each
@@ -482,6 +486,8 @@ fn bundle_and_package<'a>(
 
   *prev_inline_bundles = new_prev_inline;
 
+  // The hash of the content that named each bundle, if it was named by its own content.
+  let mut content_hashes: Vec<Option<u128>> = vec![None; bundles.len()];
   if dirty
     .iter()
     .zip(bundles)
@@ -505,7 +511,7 @@ fn bundle_and_package<'a>(
         .map_err(|e| Diagnostic::from_message(format!("Failed to create {:?}: {}", dir, e)))?;
     }
 
-    let stats = std::thread::scope(|scope| -> Result<PackagingStats, DiagnosticList> {
+    let packaged = std::thread::scope(|scope| -> Result<Packaged, DiagnosticList> {
       let writer_count = OUTPUT_WRITER_THREADS;
       let (sender, receiver) = bounded::<(Arc<dyn Content>, PathId)>(writer_count * 2);
       let mut writers = Vec::with_capacity(writer_count);
@@ -546,24 +552,27 @@ fn bundle_and_package<'a>(
       package_result
     })?;
 
+    let stats = &packaged.stats;
     options.log(
       LogLevel::Verbose,
       format!(
         "Packaged {} bundles ({} second passes); {} naming cycles, largest has {} bundles",
-        stats.packaged.into_inner(),
-        stats.second_passes.into_inner(),
-        stats.cycles.into_inner(),
-        stats.largest_cycle.into_inner(),
+        stats.packaged.load(Ordering::Relaxed),
+        stats.second_passes.load(Ordering::Relaxed),
+        stats.cycles.load(Ordering::Relaxed),
+        stats.largest_cycle.load(Ordering::Relaxed),
       ),
     );
+    content_hashes = packaged.content_hashes;
   } else {
     // Nothing changed, so every bundle keeps its previous name.
-    for bundle in bundles {
+    for (index, bundle) in bundles.iter().enumerate() {
       if let Some(prev) = prev_bundles.get(&bundle.dist_path.unwrap())
         && bundle.bundle_behavior != BundleBehavior::Inline
         && prev.final_path != bundle.dist_path.unwrap()
       {
         bundle.set_final_path(prev.final_path);
+        content_hashes[index] = prev.content_hash;
       }
     }
   }
@@ -593,13 +602,15 @@ fn bundle_and_package<'a>(
   *prev_bundles = bundles
     .iter()
     .zip(sorted_assets)
-    .filter(|(bundle, _)| bundle.bundle_behavior != BundleBehavior::Inline)
-    .map(|(bundle, assets)| {
+    .zip(content_hashes)
+    .filter(|((bundle, _), _)| bundle.bundle_behavior != BundleBehavior::Inline)
+    .map(|((bundle, assets), content_hash)| {
       (
         bundle.dist_path.unwrap(),
         PrevBundle {
           assets,
           final_path: bundle.dist_path(),
+          content_hash,
         },
       )
     })

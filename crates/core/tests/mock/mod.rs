@@ -44,6 +44,7 @@ pub fn build_options(
   BuildOptions {
     mode: BuildMode::Development,
     optimize: None,
+    content_hash: None,
     source_map: Some(Default::default()),
     env: Default::default(),
     log_level: LogLevel::Error,
@@ -513,7 +514,7 @@ impl Namer for MockNamer {
     &self,
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
-    _options: &ParcelOptions,
+    options: &ParcelOptions,
   ) -> Result<Option<PathId>, DiagnosticList> {
     // Model an anonymous shared CSS bundle using its stable bundle id.
     if bundle.ty == AssetType::Css && !bundle.flags.contains(BundleFlags::ENTRY) {
@@ -544,6 +545,15 @@ impl Namer for MockNamer {
     let path = asset.loc.url.to_file_path().unwrap();
     let file = path.file_name();
     let stem = file.rsplit_once('.').map(|(s, _)| s).unwrap_or(file);
+    // With content hashing, non-entry bundles get a hash reference to be replaced by their hash.
+    if options.content_hash && !bundle.flags.contains(BundleFlags::ENTRY) {
+      return Ok(Some(bundle.target.dist_dir.child(&format!(
+        "{}-{}.{}",
+        stem,
+        bundle.hash_reference(),
+        bundle.ty.extension()
+      ))));
+    }
     Ok(Some(bundle.target.dist_dir.child(&format!(
       "{}.{}",
       stem,

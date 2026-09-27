@@ -61,6 +61,7 @@ pub fn main() -> ExitCode {
     log_level: parcel_core::LogLevel::Verbose,
     mode,
     optimize: None,
+    content_hash: None,
     config: None,
     source_map: Some(Default::default()),
     cwd: PathId::new(&std::env::current_dir().unwrap()),
@@ -82,6 +83,9 @@ pub fn main() -> ExitCode {
         }
         "--optimize" => {
           options.optimize = Some(true);
+        }
+        "--no-content-hash" => {
+          options.content_hash = Some(false);
         }
         "--port" | "-p" => {
           if let Some(port) = args.next() {

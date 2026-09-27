@@ -29,6 +29,9 @@ pub enum RscModule {
     runtime: AssetIndex,
     exports: Vec<(SymbolName, SymbolResolution)>,
     bundles: Vec<String>,
+    /// Final names of content hashed `bundles`, by stable key. The client adds them to its runtime's
+    /// import map before loading the bundles.
+    import_map: Vec<(String, String)>,
     css_resources: Vec<String>,
     is_async: bool,
   },
@@ -180,6 +183,7 @@ pub(super) fn resolve_dependency(
         .asset_graph
         .get_exports(resolved_index, importer.target.environment),
       bundles: client_bundle_names(bundle_graph, bundle_index),
+      import_map: client_bundle_import_map(bundle_graph, bundle_index),
       css_resources,
       is_async,
     }));
@@ -346,16 +350,35 @@ fn runtime_asset(
   }
 }
 
-fn client_bundle_names(bundle_graph: &BundleGraph, bundle_index: u32) -> Vec<String> {
+/// Client JS bundles a client reference loads, which are referenced by the server bundle.
+fn client_bundles<'a>(
+  bundle_graph: &'a BundleGraph,
+  bundle_index: u32,
+) -> impl Iterator<Item = &'a Bundle> + 'a {
   bundle_graph
     .referenced_bundles(bundle_index as usize)
-    .filter_map(|bundle_index| {
-      let bundle = &bundle_graph.bundles[bundle_index];
-      (bundle.ty == AssetType::Js
+    .map(|bundle_index| &bundle_graph.bundles[bundle_index])
+    .filter(|bundle| {
+      bundle.ty == AssetType::Js
         && bundle.target.environment == Environment::ReactClient
-        && bundle.bundle_behavior != BundleBehavior::Inline)
-        .then(|| bundle.stable_key())
+        && bundle.bundle_behavior != BundleBehavior::Inline
     })
+}
+
+fn client_bundle_names(bundle_graph: &BundleGraph, bundle_index: u32) -> Vec<String> {
+  client_bundles(bundle_graph, bundle_index)
+    .map(|bundle| bundle.stable_key())
+    .collect()
+}
+
+fn client_bundle_import_map(
+  bundle_graph: &BundleGraph,
+  bundle_index: u32,
+) -> Vec<(String, String)> {
+  client_bundles(bundle_graph, bundle_index)
+    .filter(|bundle| bundle.has_final_path())
+    .map(|bundle| (bundle.stable_key(), bundle.name()))
+    .filter(|(stable_key, name)| stable_key != name)
     .collect()
 }
 
@@ -457,6 +480,7 @@ impl RscModule {
         runtime,
         exports,
         bundles,
+        import_map,
         css_resources,
         is_async,
         ..
@@ -468,6 +492,7 @@ impl RscModule {
         *runtime,
         exports,
         bundles,
+        import_map,
         css_resources,
         *is_async,
       ),
@@ -531,11 +556,20 @@ fn write_client_reference<W: std::fmt::Write>(
   runtime: AssetIndex,
   exports: &[(SymbolName, SymbolResolution)],
   bundles: &[String],
+  import_map: &[(String, String)],
   css_resources: &[String],
   is_async: bool,
 ) -> Result<(), DiagnosticList> {
   write_preamble(dest, should_optimize, bundle_graph, project_root, runtime)?;
-  let bundles = serde_json::to_string(bundles)?;
+  let mut bundles = serde_json::to_string(bundles)?;
+  if !import_map.is_empty() {
+    let import_map: serde_json::Map<String, serde_json::Value> = import_map
+      .iter()
+      .map(|(stable_key, name)| (stable_key.clone(), name.clone().into()))
+      .collect();
+    bundles.push(',');
+    bundles.push_str(&serde_json::to_string(&import_map)?);
+  }
   if !css_resources.is_empty() {
     write!(dest, "let $resources=[")?;
     for resource in css_resources {

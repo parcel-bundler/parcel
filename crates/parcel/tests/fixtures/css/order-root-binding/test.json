@@ -2,7 +2,8 @@
   "description": "only the segment adjacent to a stylesheet root joins its bundle, so links preserve local1, shared, local2 order and blue wins",
   "input": ["a.html", "b.html"],
   "options": {
-    "mode": "production"
+    "mode": "production",
+    "contentHash": false
   },
   "skipNodeModules": true,
   "bundles": [

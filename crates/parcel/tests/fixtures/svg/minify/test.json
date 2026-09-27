@@ -1,7 +1,7 @@
 {
   "description": "should minify SVG bundles",
   "input": "circle.svg",
-  "options": {"mode": "production"},
+  "options": {"mode": "production", "contentHash": false},
   "bundles": [
     {"type": "svg", "assets": ["circle.svg"]},
     {"type": "html", "assets": ["other1.html"]},

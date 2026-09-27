@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::{
-  BundleBehavior, Diagnostic, DiagnosticList, LogLevel, ParcelOptions, asset_graph::AssetGraph,
+  BundleBehavior, Diagnostic, DiagnosticList, ParcelOptions, asset_graph::AssetGraph,
   bundle_graph::BundleGraph, config::ParcelConfig, namer::name,
 };
 
@@ -55,33 +55,6 @@ pub fn bundle<'a>(
     },
     "bundle ids must be unique"
   );
-
-  // A content hash replaces the hash reference in the file name, so it must be there exactly once.
-  // TODO: alternatively we could determine whether the bundle is content hashed based on what the namer returned.
-  let mut missing_hash_references = bundle_graph
-    .bundles
-    .iter()
-    .filter(|bundle| {
-      bundle.may_be_content_hashed()
-        && bundle
-          .dist_path()
-          .file_name()
-          .matches(&bundle.hash_reference())
-          .count()
-          != 1
-    })
-    .map(|bundle| bundle.stable_key())
-    .collect::<Vec<_>>();
-  if !missing_hash_references.is_empty() {
-    missing_hash_references.sort();
-    options.log_diagnostic(
-      LogLevel::Warn,
-      Diagnostic::from_message(format!(
-        "The file names of these bundles must contain their hash reference exactly once to be content hashed:\n  • {}",
-        missing_hash_references.join("\n  • ")
-      )),
-    );
-  }
 
   if !duplicate_bundles.is_empty() {
     let mut duplicates = duplicate_bundles

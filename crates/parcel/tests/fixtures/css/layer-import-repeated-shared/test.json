@@ -2,7 +2,8 @@
   "description": "a repeated layered import keeps its first-occurrence declaration ahead of shared content by loading the affected span in one file; the other page still shares",
   "input": ["a.html", "b.html"],
   "options": {
-    "mode": "production"
+    "mode": "production",
+    "contentHash": false
   },
   "skipNodeModules": true,
   "bundles": [

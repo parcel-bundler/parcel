@@ -1,9 +1,6 @@
-use std::{
-  any::Any,
-  borrow::Cow,
-  hash::{Hash, Hasher},
-  sync::Arc,
-};
+use std::{any::Any, borrow::Cow, hash::Hash, sync::Arc};
+
+use xxhash_rust::xxh3::{Xxh3, xxh3_128};
 
 use crate::{Bundle, BundleGraph, Diagnostic, DiagnosticList, FileSystem, ParcelOptions, PathId};
 
@@ -68,9 +65,10 @@ pub trait Content: Any + Send + Sync {
     Ok(fs.write(path, &self.read()?)?)
   }
 
-  fn hash(&self, mut state: &mut dyn Hasher) {
-    let content = self.read();
-    content.hash(&mut state);
+  /// A hash of everything written for this content, used to name content hashed bundles. It must
+  /// change whenever any written byte changes, including the source map.
+  fn content_hash(&self) -> Result<u128, Diagnostic> {
+    Ok(xxh3_128(&self.read()?))
   }
 
   fn eq(&self, other: &dyn Content) -> bool {
@@ -198,8 +196,8 @@ impl Content for FileContent {
     }
   }
 
-  fn hash(&self, mut state: &mut dyn Hasher) {
-    self.path.hash(&mut state);
+  fn content_hash(&self) -> Result<u128, Diagnostic> {
+    Ok(xxh3_128(&self.fs.read(self.path)?))
   }
 
   fn ty(&self) -> ContentType {
@@ -270,6 +268,10 @@ impl Content for BufferContent {
     Ok(self.buf.to_vec())
   }
 
+  fn content_hash(&self) -> Result<u128, Diagnostic> {
+    Ok(xxh3_128(self.buf.as_bytes()))
+  }
+
   fn read_string(&self) -> Result<Cow<'_, str>, Diagnostic> {
     self.buf.as_str()
   }
@@ -316,6 +318,17 @@ impl Content for ContentWithSourceMap {
 
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
     Ok(self.code.to_vec())
+  }
+
+  fn content_hash(&self) -> Result<u128, Diagnostic> {
+    // The map is written next to the code, so a map-only change (e.g. `sourcesContent`) must not
+    // keep the same name.
+    let mut hasher = Xxh3::new();
+    let code = self.code.as_bytes();
+    hasher.update(&(code.len() as u64).to_le_bytes());
+    hasher.update(code);
+    hasher.update(&self.map);
+    Ok(hasher.digest128())
   }
 
   fn read_string(&self) -> Result<Cow<'_, str>, Diagnostic> {

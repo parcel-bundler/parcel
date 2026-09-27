@@ -1,5 +1,5 @@
 /* eslint-env browser */
-/* global parcelRequireName, modules, mainEntry, entries, externals, distDir, publicUrl */
+/* global parcelRequireName, modules, mainEntry, entries, externals, manifest, distDir, publicUrl */
 /* eslint-disable no-unused-vars */
 
 // Save the require from previous bundle to this closure if any
@@ -8,6 +8,9 @@ var previousRequire =
   globalThis[parcelRequireName];
 
 var importMap = previousRequire.i || {};
+// Maps stable bundle keys to content hashed names for the bundles this context root can load.
+// Every bundle shares one map, so bundles loaded later resolve through the root's entries.
+Object.assign(importMap, manifest);
 var cache = previousRequire.cache || {};
 
 // Do not use `require` to prevent Webpack from trying to bundle this call

@@ -16,6 +16,7 @@ mod synthetic;
 
 pub use dependencies::asset_dependencies;
 pub(crate) use dependencies::bundle_dependencies;
+use dependencies::manifest_entries;
 pub use parcel_js_swc_core::tree_shake::Resolution;
 pub use rsc::RscModule;
 pub use synthetic::{BundleShim, SyntheticAsset};
@@ -26,6 +27,7 @@ use printer::Printer;
 const RUNTIME_MODULES: &str = "m";
 const RUNTIME_PARCEL_REQUIRE_NAME: &str = "p";
 const RUNTIME_EXTERNALS: &str = "x";
+const RUNTIME_MANIFEST: &str = "k";
 const RUNTIME_ENTRIES: &str = "e";
 const RUNTIME_MAIN_ENTRY: &str = "n";
 const RUNTIME_REQUIRE: &str = "r";
@@ -640,6 +642,22 @@ fn write_runtime_globals(
       "{:?}:{},",
       BundleShim::Sync.id(*bundle_index, bundle_graph),
       sync_bundle_binding(&bundle_graph.bundles[*bundle_index as usize]),
+    )?;
+  }
+  printer.write_str("};")?;
+  printer.newline()?;
+
+  printer.write_var(
+    runtime_name(should_optimize, "manifest", RUNTIME_MANIFEST),
+    "{",
+    false,
+  )?;
+  for (stable_key, name) in manifest_entries(bundle_graph, bundle) {
+    write!(
+      printer,
+      "{}:{},",
+      serde_json::to_string(&stable_key)?,
+      serde_json::to_string(&name)?
     )?;
   }
   printer.write_str("};")?;

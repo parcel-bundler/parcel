@@ -10,6 +10,9 @@ use crate::{
 pub struct BuildOptions {
   pub mode: BuildMode,
   pub optimize: Option<bool>,
+  /// Whether to include a hash of each bundle's content in its name. Defaults to on in
+  /// production mode.
+  pub content_hash: Option<bool>,
   pub source_map: Option<TargetSourceMapOptions>,
   pub env: HashMap<String, String>,
   pub log_level: LogLevel,
@@ -34,6 +37,8 @@ pub struct ParcelOptions {
   pub cwd: PathId,
   pub hmr: Option<HmrOptions>,
   pub reporters: Arc<Reporters>,
+  /// Whether bundle names include a hash of their content.
+  pub content_hash: bool,
 }
 
 impl Default for ParcelOptions {
@@ -48,6 +53,7 @@ impl Default for ParcelOptions {
       cwd: PathId::new(&std::env::current_dir().unwrap()),
       hmr: None,
       reporters: Reporters::none(),
+      content_hash: false,
     }
   }
 }

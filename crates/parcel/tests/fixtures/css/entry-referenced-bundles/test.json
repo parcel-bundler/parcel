@@ -1,7 +1,7 @@
 {
   "description": "CSS entries import their shared bundles in cascade order without an HTML or JS loader",
   "input": ["a.css", "b.css", "c.css"],
-  "options": {"mode": "production"},
+  "options": {"mode": "production", "contentHash": false},
   "bundles": [
     {
       "assets": ["a.css"],

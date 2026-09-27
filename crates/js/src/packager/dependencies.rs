@@ -37,6 +37,11 @@ pub(crate) fn bundle_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -
 
   let mut dependencies = Vec::new();
 
+  // A context root's runtime maps the stable keys of everything its context loads to final names.
+  if is_context_root(bundle) {
+    dependencies.extend(manifest_closure(bundle_graph, bundle));
+  }
+
   // Referenced JS bundles are imported (or required) by relative path.
   dependencies.extend(
     bundle
@@ -87,6 +92,66 @@ pub(crate) fn bundle_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -
   }
 
   dependencies
+}
+
+/// Whether `bundle` starts a JS execution context: something other than Parcel's loader runs it
+/// (an entry, a script in a page, a worker, a URL import), so it executes its entries on load.
+/// Its runtime holds the manifest for the bundles loaded in that context.
+fn is_context_root(bundle: &Bundle) -> bool {
+  bundle.ty == AssetType::Js && !bundle.entry_assets.is_empty()
+}
+
+/// Bundles that code in `root`'s context may load or resolve by stable key: everything reachable
+/// through bundle references and Parcel's loader, without entering other contexts (workers, URL
+/// imports and other roots are included, but not their contents).
+fn manifest_closure(bundle_graph: &BundleGraph, root: &Bundle) -> Vec<usize> {
+  let bundles = &bundle_graph.bundles;
+  let mut closure = Vec::new();
+  let mut visited = vec![false; bundles.len()];
+  let mut stack: Vec<usize> = bundle_graph
+    .bundle_dependency_targets(root)
+    .chain(root.referenced_bundles.iter().copied())
+    .collect();
+  while let Some(index) = stack.pop() {
+    if std::mem::replace(&mut visited[index], true) || bundles[index].id == root.id {
+      continue;
+    }
+    let bundle = &bundles[index];
+    // Inline content runs in this context, but has no name of its own.
+    let enters = bundle.bundle_behavior == BundleBehavior::Inline
+      || (bundle.ty == AssetType::Js
+        && !is_context_root(bundle)
+        && bundle.target.environment == root.target.environment);
+    if bundle.bundle_behavior != BundleBehavior::Inline {
+      closure.push(index);
+    }
+    if enters {
+      stack.extend(bundle_graph.bundle_dependency_targets(bundle));
+      stack.extend(&bundle.referenced_bundles);
+    }
+  }
+  closure.sort_unstable();
+  closure
+}
+
+/// The manifest a context root's runtime starts with: the final names of content hashed bundles
+/// its context loads by stable key. Sorted by key, so the output is deterministic.
+pub(super) fn manifest_entries(
+  bundle_graph: &BundleGraph,
+  bundle: &Bundle,
+) -> Vec<(String, String)> {
+  if !is_context_root(bundle) {
+    return Vec::new();
+  }
+  let mut entries: Vec<(String, String)> = manifest_closure(bundle_graph, bundle)
+    .into_iter()
+    .map(|index| &bundle_graph.bundles[index])
+    .filter(|target| target.has_final_path())
+    .map(|target| (target.stable_key(), target.name()))
+    .filter(|(stable_key, name)| stable_key != name)
+    .collect();
+  entries.sort_unstable();
+  entries
 }
 
 /// Whether the async loader references `bundle` by relative path rather than by stable key.

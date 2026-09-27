@@ -116,6 +116,7 @@ fn build_fixture(parcelrc_path: &Path) -> Result<String, String> {
       output_fs: output_fs.clone(),
       mode: parcel_core::BuildMode::Development,
       optimize: None,
+      content_hash: None,
       env: Default::default(),
       log_level: LogLevel::Verbose,
       source_map: Some(Default::default()),

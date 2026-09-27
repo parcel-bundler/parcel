@@ -136,6 +136,11 @@ fn bundle_with_options(
   let options = BuildOptions {
     mode: options.mode,
     optimize: options.minify,
+    content_hash: options.content_hash.or_else(|| {
+      std::env::var("PARCEL_TEST_CONTENT_HASH")
+        .is_ok()
+        .then_some(true)
+    }),
     source_map: Some(Default::default()),
     env,
     input_fs: Arc::new(OsFileSystem {}),
@@ -254,7 +259,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
           assert!(
             contents.contains(substring),
             "Bundle {:?} did not contain expected substring {:?}\n\nBundle contents: {}",
-            bundle.dist_path.as_ref().unwrap(),
+            bundle.dist_path(),
             substring,
             contents
           );
@@ -266,7 +271,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
           assert!(
             !contents.contains(substring),
             "Bundle {:?} contained unexpected substring {:?}\n\nBundle contents: {}",
-            bundle.dist_path.as_ref().unwrap(),
+            bundle.dist_path(),
             substring,
             contents
           );
@@ -625,6 +630,9 @@ struct TestOptions {
   #[serde(default)]
   mode: parcel_core::BuildMode,
   minify: Option<bool>,
+  /// Whether bundle names include a content hash. Defaults to on in production mode.
+  #[serde(rename = "contentHash")]
+  content_hash: Option<bool>,
   #[serde(default)]
   env: HashMap<String, String>,
   cwd: Option<String>,

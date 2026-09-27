@@ -10,13 +10,14 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   sync::{
-    Arc, Mutex,
+    Arc, Mutex, OnceLock,
     atomic::{AtomicBool, AtomicUsize, Ordering},
   },
 };
 
 use crossbeam_channel::Sender;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use xxhash_rust::xxh3::Xxh3;
 
 use crate::{
   AssetIndex, Bundle, BundleBehavior, BundleGraph, Content, Diagnostic, DiagnosticList, Optimizer,
@@ -32,6 +33,8 @@ pub(crate) struct PrevBundle {
   pub assets: Vec<AssetIndex>,
   /// The path the bundle was written to.
   pub final_path: PathId,
+  /// The hash of the content that named the bundle, if it was named by its own content.
+  pub content_hash: Option<u128>,
 }
 
 /// Declares a bundle's dependencies for the duration of its packaging.
@@ -199,6 +202,13 @@ fn package_bundle(
   Ok(content)
 }
 
+/// What packaging produced, besides the content sent to be written.
+pub(crate) struct Packaged {
+  /// For each bundle, the hash of the content that named it, if it was named by its own content.
+  pub content_hashes: Vec<Option<u128>>,
+  pub stats: PackagingStats,
+}
+
 /// Counts reported after packaging.
 #[derive(Debug, Default)]
 pub(crate) struct PackagingStats {
@@ -212,11 +222,36 @@ pub(crate) struct PackagingStats {
   pub second_passes: AtomicUsize,
 }
 
-/// Whether a bundle's name is only known once it has been packaged.
-fn is_pending(bundle: &Bundle) -> bool {
-  // Content hashing is not implemented yet, so a pending bundle's final name is its template. It
-  // is still ordered as if it were hashed.
-  bundle.may_be_content_hashed()
+/// Whether a bundle's name contains a hash of its content, so it's only known once the bundle has
+/// been packaged.
+pub(crate) fn is_content_hashed(bundle: &Bundle, options: &ParcelOptions) -> bool {
+  options.content_hash && bundle.may_be_content_hashed() && has_one_hash_reference(bundle)
+}
+
+/// Whether the bundle's file name contains its hash reference exactly once, so the reference can
+/// be replaced by the content hash. Namers opt a bundle out of content hashing by omitting it.
+fn has_one_hash_reference(bundle: &Bundle) -> bool {
+  let template = bundle.dist_path.unwrap();
+  template
+    .file_name()
+    .matches(&bundle.hash_reference())
+    .count()
+    == 1
+}
+
+/// The bundle's path with the hash reference in its file name replaced by `hash`, formatted as 8
+/// lowercase base32 characters (40 bits). Lowercase so names can't differ only by case, which
+/// would collide on case-insensitive file systems.
+fn hashed_path(bundle: &Bundle, hash: u128) -> PathId {
+  const ALPHABET: &[u8; 32] = b"abcdefghijklmnopqrstuvwxyz234567";
+  let hash = (0..8)
+    .map(|i| ALPHABET[((hash >> (i * 5)) & 31) as usize] as char)
+    .collect::<String>();
+  let template = bundle.dist_path.unwrap();
+  let file_name = template
+    .file_name()
+    .replacen(&bundle.hash_reference(), &hash, 1);
+  template.parent().unwrap().child(&file_name)
 }
 
 /// Packages every bundle that is dirty, or that embeds a name which changed since the previous
@@ -229,7 +264,7 @@ pub(crate) fn package_bundles(
   dirty: &[bool],
   prev: &HashMap<PathId, PrevBundle>,
   sender: &Sender<(Arc<dyn Content>, PathId)>,
-) -> Result<PackagingStats, DiagnosticList> {
+) -> Result<Packaged, DiagnosticList> {
   let bundles = &bundle_graph.bundles;
 
   // Declared dependencies of every bundle, including inline bundles.
@@ -240,7 +275,10 @@ pub(crate) fn package_bundles(
 
   // Inline bundles are packaged inside the bundles that embed them, so their dependencies are
   // their embedders' dependencies. Only pending, written bundles constrain the order.
-  let pending: Vec<bool> = bundles.iter().map(is_pending).collect();
+  let pending: Vec<bool> = bundles
+    .iter()
+    .map(|bundle| is_content_hashed(bundle, options))
+    .collect();
   let dependencies: Vec<Vec<usize>> = (0..bundles.len())
     .map(|index| {
       if bundles[index].bundle_behavior == BundleBehavior::Inline {
@@ -293,9 +331,17 @@ pub(crate) fn package_bundles(
     }
   }
 
+  // Paths are claimed as bundles are named, to catch two bundles written to the same file.
+  // Bundles that aren't content hashed are written to their template path.
+  let mut written_paths = HashMap::new();
   for (index, bundle) in bundles.iter().enumerate() {
     if pending[index] {
       bundle.name_state.mark_pending();
+    } else if bundle.bundle_behavior != BundleBehavior::Inline {
+      written_paths.insert(
+        path_key(bundle.dist_path()),
+        WrittenPath::Template(bundle.id),
+      );
     }
   }
 
@@ -312,6 +358,8 @@ pub(crate) fn package_bundles(
     dependents: &dependents,
     remaining: remaining.into_iter().map(AtomicUsize::new).collect(),
     cache: InlineBundleCache::new(),
+    content_hashes: (0..bundles.len()).map(|_| OnceLock::new()).collect(),
+    written_paths: Mutex::new(written_paths),
     error: Mutex::new(None),
     aborted: AtomicBool::new(false),
     stats: PackagingStats::default(),
@@ -335,7 +383,14 @@ pub(crate) fn package_bundles(
       .all(|&index| !pending[index] || bundles[index].has_final_path()),
     "every pending bundle must be named after packaging"
   );
-  Ok(scheduler.stats)
+  Ok(Packaged {
+    content_hashes: scheduler
+      .content_hashes
+      .into_iter()
+      .map(|hash| hash.into_inner())
+      .collect(),
+    stats: scheduler.stats,
+  })
 }
 
 struct Scheduler<'a, 'g> {
@@ -353,6 +408,10 @@ struct Scheduler<'a, 'g> {
   /// The number of components each component still waits on.
   remaining: Vec<AtomicUsize>,
   cache: InlineBundleCache,
+  /// The hash of the content that named each bundle, if it was named by its own content.
+  content_hashes: Vec<OnceLock<u128>>,
+  /// Written paths (see `path_key`) and what is written to each.
+  written_paths: Mutex<HashMap<String, WrittenPath>>,
   error: Mutex<Option<DiagnosticList>>,
   aborted: AtomicBool,
   stats: PackagingStats,
@@ -392,7 +451,7 @@ impl<'a, 'g> Scheduler<'a, 'g> {
       for &member in members {
         if self.pending[member] {
           let prev = &self.prev[&bundles[member].dist_path.unwrap()];
-          bundles[member].set_final_path(prev.final_path);
+          self.claim_path(member, prev.final_path, prev.content_hash)?;
         }
       }
       return Ok(());
@@ -402,7 +461,13 @@ impl<'a, 'g> Scheduler<'a, 'g> {
     if !is_cycle {
       let member = members[0];
       let content = self.package(member, &self.cache)?;
-      self.name(member);
+      if self.pending[member] {
+        let hash = content.content_hash()?;
+        let path = hashed_path(&bundles[member], hash);
+        if !self.claim_path(member, path, Some(hash))? {
+          return Ok(());
+        }
+      }
       return self.write(member, content);
     }
 
@@ -422,8 +487,28 @@ impl<'a, 'g> Scheduler<'a, 'g> {
       .par_iter()
       .map(|&member| self.package(member, &first_pass_cache))
       .collect::<Result<Vec<_>, _>>()?;
+
+    // The first pass embeds every name outside the cycle, and members' provisional names, which
+    // only depend on their ids. So together, the first pass contents of all members determine the
+    // second pass contents, and one hash of them names every member.
+    let mut member_hashes = members
+      .iter()
+      .zip(&first_pass)
+      .map(|(&member, content)| Ok((bundles[member].id, content.content_hash()?)))
+      .collect::<Result<Vec<_>, Diagnostic>>()?;
+    member_hashes.sort_unstable();
+    let mut hasher = Xxh3::new();
+    for (id, hash) in &member_hashes {
+      hasher.update(&id.to_le_bytes());
+      hasher.update(&hash.to_le_bytes());
+    }
+    let cycle_hash = hasher.digest128();
     for &member in members {
-      self.name(member);
+      let mut hasher = Xxh3::new();
+      hasher.update(&cycle_hash.to_le_bytes());
+      hasher.update(&bundles[member].id.to_le_bytes());
+      let path = hashed_path(&bundles[member], hasher.digest128());
+      self.claim_path(member, path, None)?;
     }
 
     // A second pass is only needed if a member's name changed from the provisional one.
@@ -468,11 +553,38 @@ impl<'a, 'g> Scheduler<'a, 'g> {
     get_bundle_content(self.config, self.bundle_graph, index, self.options, cache)
   }
 
-  /// Sets the final path of a pending bundle once its content is known.
-  fn name(&self, index: usize) {
-    if self.pending[index] {
-      let bundle = &self.bundle_graph.bundles[index];
-      bundle.set_final_path(bundle.dist_path.unwrap());
+  /// Sets the final path of a pending bundle. `hash` is the hash of its content, if it was named
+  /// by it. Bundles with identical content and names share a file, so this returns whether the
+  /// bundle should write it; it's an error for a different bundle to be written to the same path.
+  fn claim_path(
+    &self,
+    index: usize,
+    path: PathId,
+    hash: Option<u128>,
+  ) -> Result<bool, DiagnosticList> {
+    let bundle = &self.bundle_graph.bundles[index];
+    bundle.set_final_path(path);
+    if let Some(hash) = hash {
+      self.content_hashes[index].set(hash).unwrap();
+    }
+    let claim = match hash {
+      Some(hash) => WrittenPath::Content(hash),
+      None => WrittenPath::Template(bundle.id),
+    };
+    let mut written_paths = self.written_paths.lock().unwrap();
+    match written_paths.get(&path_key(path)) {
+      None => {
+        written_paths.insert(path_key(path), claim);
+        Ok(true)
+      }
+      Some(existing) if *existing == claim && matches!(claim, WrittenPath::Content(_)) => Ok(false),
+      Some(_) => Err(
+        Diagnostic::from_message(format!(
+          "Multiple bundles with the same name were found: {}",
+          path.to_path_buf().display()
+        ))
+        .into(),
+      ),
     }
   }
 
@@ -484,6 +596,20 @@ impl<'a, 'g> Scheduler<'a, 'g> {
       ))
     })
   }
+}
+
+/// What a bundle writes to a path.
+#[derive(PartialEq)]
+enum WrittenPath {
+  /// A bundle named by the hash of its content. Bundles with the same content hash share it.
+  Content(u128),
+  /// A bundle that isn't named by its own content (a template, or a naming cycle's shared hash).
+  Template(u64),
+}
+
+/// Paths compared case-insensitively, since file systems may be.
+fn path_key(path: PathId) -> String {
+  path.to_path_buf().to_string_lossy().to_lowercase()
 }
 
 /// Tarjan's algorithm over `nodes`, where `edges[node]` are the nodes it depends on. Returns

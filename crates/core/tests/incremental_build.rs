@@ -44,13 +44,24 @@ fn setup_with_reporter(
   entries: &[&str],
   reporter: Option<Arc<dyn Reporter>>,
 ) -> (Parcel, Arc<MemoryFileSystem>, Arc<RecordingFileSystem>) {
+  setup_with_options(files, entries, reporter, |_| {})
+}
+
+/// As [`setup_with_reporter`], adjusting the build options first.
+fn setup_with_options(
+  files: &[(&str, &str)],
+  entries: &[&str],
+  reporter: Option<Arc<dyn Reporter>>,
+  configure: impl FnOnce(&mut parcel_core::BuildOptions),
+) -> (Parcel, Arc<MemoryFileSystem>, Arc<RecordingFileSystem>) {
   let input_fs = Arc::new(MemoryFileSystem::new());
   for (path, contents) in files {
     write_file(&input_fs, path, contents);
   }
 
   let output_fs = Arc::new(RecordingFileSystem::new());
-  let options = build_options(input_fs.clone(), output_fs.clone());
+  let mut options = build_options(input_fs.clone(), output_fs.clone());
+  configure(&mut options);
 
   let entries: Vec<String> = entries.iter().map(|e| e.to_string()).collect();
   let make_factory: Arc<FactoryBuilder> = Arc::new(move |_fs| {
@@ -1098,8 +1109,9 @@ fn packaging_rejects_undeclared_name_access() {
 }
 
 #[test]
-fn bundles_that_reference_each_other_are_packaged_together() {
-  // index.js and page.js each embed the other's name, so neither can be packaged first.
+fn bundles_that_reference_each_other_by_unhashed_names_are_packaged_independently() {
+  // index.js and page.js each embed the other's name. Without content hashing their names are
+  // known up front, so neither waits on the other and each is only re-packaged when it changes.
   let (mut parcel, input, output) = setup(
     &[
       ("/project/index.js", "@async ./page.js\nindex v1"),
@@ -1119,16 +1131,79 @@ fn bundles_that_reference_each_other_are_packaged_together() {
     "@bundle-ref index.js\npage\n\n"
   );
 
-  // A cycle is packaged as a unit (its members are named together), so changing one member
-  // re-packages all of them.
   write_file(&input, "/project/index.js", "@async ./page.js\nindex v2");
   parcel
     .invalidate(&[path_id("/project/index.js")], &[], &[])
     .unwrap();
   parcel.build().expect("rebuild failed");
-  assert_eq!(written_names(&output), vec!["index.js", "page.js"]);
+  assert_eq!(written_names(&output), vec!["index.js"]);
   assert_eq!(
     read_dist(&output, "index.js"),
     "@bundle-ref page.js\nindex v2\n\n"
   );
+}
+
+#[test]
+fn bundles_that_reference_each_other_are_hashed_together() {
+  // page.js and other.js embed each other's names, so their names come from one hash of both.
+  let files = [
+    ("/project/index.js", "@async ./page.js\nindex"),
+    ("/project/page.js", "@async ./other.js\npage v1"),
+    ("/project/other.js", "@async ./page.js\nother"),
+  ];
+  let build = |files: &[(&str, &str)]| {
+    let (mut parcel, input, output) =
+      setup_with_options(files, &["/project/index.js"], None, |options| {
+        options.content_hash = Some(true)
+      });
+    parcel.build().expect("build failed");
+    (parcel, input, output)
+  };
+  let (mut parcel, input, output) = build(&files);
+
+  let names = written_names(&output);
+  let page = names
+    .iter()
+    .find(|name| name.starts_with("page-"))
+    .unwrap()
+    .clone();
+  let other = names
+    .iter()
+    .find(|name| name.starts_with("other-"))
+    .unwrap()
+    .clone();
+  assert_eq!(
+    names,
+    vec!["index.js".to_string(), other.clone(), page.clone()]
+  );
+  for name in [&page, &other] {
+    let hash = name.split(['-', '.']).nth(1).unwrap();
+    assert_eq!(hash.len(), 8, "{name}");
+  }
+  // Each embeds the other's final name, from the second pass.
+  assert!(read_dist(&output, &page).starts_with(&format!("@bundle-ref {other}\n")));
+  assert!(read_dist(&output, &other).starts_with(&format!("@bundle-ref {page}\n")));
+  assert!(read_dist(&output, "index.js").starts_with(&format!("@bundle-ref {page}\n")));
+
+  // The same input always produces the same names.
+  let (_, _, fresh_output) = build(&files);
+  assert_eq!(written_names(&fresh_output), names);
+
+  // Changing one member renames every member, and the stale outputs are removed.
+  write_file(&input, "/project/page.js", "@async ./other.js\npage v2");
+  parcel
+    .invalidate(&[path_id("/project/page.js")], &[], &[])
+    .unwrap();
+  parcel.build().expect("rebuild failed");
+  let renamed = written_names(&output);
+  assert_eq!(renamed.len(), 3);
+  assert!(!renamed.contains(&page) && !renamed.contains(&other));
+  let mut removed: Vec<String> = output
+    .take_removes()
+    .into_iter()
+    .map(|path| path.file_name().unwrap().to_string_lossy().into_owned())
+    .filter(|name| !name.ends_with(".map"))
+    .collect();
+  removed.sort();
+  assert_eq!(removed, vec![other, page]);
 }

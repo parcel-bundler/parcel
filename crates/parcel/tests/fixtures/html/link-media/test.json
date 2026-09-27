@@ -2,7 +2,8 @@
   "description": "a media attribute on a stylesheet link gates its whole import subtree and is kept on the emitted link",
   "input": "index.html",
   "options": {
-    "mode": "production"
+    "mode": "production",
+    "contentHash": false
   },
   "skipNodeModules": true,
   "bundles": [

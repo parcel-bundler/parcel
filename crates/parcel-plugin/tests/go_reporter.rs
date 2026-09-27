@@ -164,6 +164,7 @@ fn test_go_reporter_plugin_in_a_build() {
       output_fs: output_fs.clone(),
       mode: parcel_core::BuildMode::Development,
       optimize: None,
+      content_hash: None,
       env: Default::default(),
       log_level: parcel_core::LogLevel::Verbose,
       source_map: Some(Default::default()),
