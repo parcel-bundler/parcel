@@ -118,20 +118,43 @@ fn holds_manifest(bundle_graph: &BundleGraph, bundle: &Bundle) -> bool {
 /// environments (e.g. server code importing modules `with {env: 'react-client'}`).
 pub(super) fn static_imports(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
   let is_root = holds_manifest(bundle_graph, bundle);
-  let mut imports: Vec<usize> = Vec::new();
+  js_closure(bundle_graph, bundle)
+    .into_iter()
+    .filter(|&index| {
+      is_root || bundle_graph.bundles[index].target.environment != bundle.target.environment
+    })
+    .collect()
+}
+
+/// JS bundles a root loads before running its entries (see `runtime.js`). A page runs an isolated
+/// root (e.g. `<script type="module" async>`) as soon as it has loaded, possibly before the page's
+/// tags for the bundles in its closure, which it doesn't import (see `static_imports`). Waiting
+/// for them by stable key keeps it from depending on their names.
+pub(super) fn awaited_bundles(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+  if bundle.bundle_behavior != BundleBehavior::Isolated
+    || !bundle.is_context_root()
+    || !bundle_graph.is_page_hosted(bundle)
+  {
+    return Vec::new();
+  }
+  js_closure(bundle_graph, bundle)
+    .into_iter()
+    .filter(|&index| bundle_graph.bundles[index].target.environment == bundle.target.environment)
+    .collect()
+}
+
+/// The other JS bundles in `bundle`'s static closure.
+fn js_closure(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+  let mut closure: Vec<usize> = Vec::new();
   for &referenced in &bundle.referenced_bundles {
     for index in bundle_graph.referenced_bundles(referenced) {
-      let imported = &bundle_graph.bundles[index];
-      if imported.ty == AssetType::Js
-        && imported.id != bundle.id
-        && (is_root || imported.target.environment != bundle.target.environment)
-        && !imports.contains(&index)
-      {
-        imports.push(index);
+      let target = &bundle_graph.bundles[index];
+      if target.ty == AssetType::Js && target.id != bundle.id && !closure.contains(&index) {
+        closure.push(index);
       }
     }
   }
-  imports
+  closure
 }
 
 /// The manifest a context root's runtime starts with: the final names of content hashed bundles

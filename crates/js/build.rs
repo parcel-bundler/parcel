@@ -23,6 +23,7 @@ const RUNTIME_GLOBALS: &[(&str, &str)] = &[
   ("manifest", "k"),
   ("entries", "e"),
   ("mainEntry", "n"),
+  ("awaitedBundles", "b"),
   ("require", "r"),
   ("distDir", "d"),
   ("publicUrl", "u"),

@@ -58,6 +58,8 @@ fn run(
         imported = Some(require_module(ctx, path.to_str().unwrap())?);
       }
     }
+    // Settle what the scripts started, e.g. an async script waiting for its bundles to load.
+    while ctx.execute_pending_job() {}
 
     let output: rquickjs::Result<rquickjs::Value> = if is_library {
       Ok(imported.unwrap())
@@ -359,6 +361,10 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
             hmr: false,
           });
 
+          // Async scripts may run as soon as they load, before the page's other scripts. Run them
+          // first to check they don't depend on those.
+          let first_script = scripts.len();
+          let mut async_scripts = 0;
           for dep in deps.dependencies {
             match dep.resolution {
               DependencyResolution::Deferred(_) => {}
@@ -383,7 +389,15 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
                     );
                   }
 
-                  scripts.push((resolved.to_path_buf(), b.target.output_format));
+                  let script = (resolved.to_path_buf(), b.target.output_format);
+                  if dep.bundle_behavior == BundleBehavior::Isolated
+                    && b.target.output_format == OutputFormat::Esmodule
+                  {
+                    scripts.insert(first_script + async_scripts, script);
+                    async_scripts += 1;
+                  } else {
+                    scripts.push(script);
+                  }
                 }
               }
             }

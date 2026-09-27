@@ -16,7 +16,7 @@ mod synthetic;
 
 pub use dependencies::asset_dependencies;
 pub(crate) use dependencies::bundle_dependencies;
-use dependencies::{manifest_entries, static_imports};
+use dependencies::{awaited_bundles, manifest_entries, static_imports};
 pub use parcel_js_swc_core::tree_shake::Resolution;
 pub use rsc::RscModule;
 pub use synthetic::{BundleShim, SyntheticAsset};
@@ -30,6 +30,7 @@ const RUNTIME_EXTERNALS: &str = "x";
 const RUNTIME_MANIFEST: &str = "k";
 const RUNTIME_ENTRIES: &str = "e";
 const RUNTIME_MAIN_ENTRY: &str = "n";
+const RUNTIME_AWAITED_BUNDLES: &str = "b";
 const RUNTIME_REQUIRE: &str = "r";
 const RUNTIME_DIST_DIR: &str = "d";
 const RUNTIME_PUBLIC_URL: &str = "u";
@@ -694,6 +695,18 @@ fn write_runtime_globals(
     write!(printer, "'{}',", asset.id(project_root))?;
   }
 
+  printer.write_str("];")?;
+  printer.newline()?;
+
+  printer.write_var(
+    runtime_name(should_optimize, "awaitedBundles", RUNTIME_AWAITED_BUNDLES),
+    "[",
+    false,
+  )?;
+  for index in awaited_bundles(bundle_graph, bundle) {
+    let stable_key = bundle_graph.bundles[index].stable_key();
+    write!(printer, "{},", serde_json::to_string(&stable_key)?)?;
+  }
   printer.write_str("];")?;
   printer.newline()?;
 
