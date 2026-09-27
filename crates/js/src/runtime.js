@@ -94,7 +94,9 @@ function parcelResolve(bundleId) {
 }
 
 function parcelLoadCSS(bundleId, media) {
-  let url = importMap[bundleId] || bundleId;
+  // Like parcelResolve: bundle ids are dist-root-relative, and link hrefs resolve against the
+  // document rather than this bundle, so they must be based on the public URL.
+  let url = publicUrl + (importMap[bundleId] || bundleId);
   return new Promise(function (resolve, reject) {
     if (typeof document === 'undefined') {
       return resolve();

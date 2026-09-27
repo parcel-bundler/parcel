@@ -522,7 +522,7 @@ fn bundle_and_package<'a>(
     return Ok((bundle_graph, output_paths_changed));
   }
 
-  let cache = papaya::HashMap::new();
+  let cache = InlineBundleCache::new();
 
   std::thread::scope(|scope| -> Result<(), DiagnosticList> {
     let writer_count = dirty.len().min(OUTPUT_WRITER_THREADS);
@@ -584,25 +584,44 @@ pub fn build(
   parcel.build_owned()
 }
 
+/// Packaged inline bundles, keyed by bundle index and the directory the content was packaged for.
+pub type InlineBundleCache = papaya::HashMap<(usize, PathId), Arc<Mutex<Option<Arc<dyn Content>>>>>;
+
 pub fn get_bundle_content(
   config: &ParcelConfig,
   bundle_graph: &BundleGraph,
   bundle_index: usize,
   options: &ParcelOptions,
-  cache: &papaya::HashMap<usize, Arc<Mutex<Option<Arc<dyn Content>>>>>,
+  cache: &InlineBundleCache,
 ) -> Result<Arc<dyn Content>, DiagnosticList> {
   let bundle = &bundle_graph.bundles[bundle_index];
+  package_bundle(config, bundle_graph, bundle_index, bundle, options, cache)
+}
 
+/// Packages `bundle`, which is `bundle_graph.bundles[bundle_index]`, possibly relocated to the
+/// directory of the bundle it is inlined into.
+fn package_bundle(
+  config: &ParcelConfig,
+  bundle_graph: &BundleGraph,
+  bundle_index: usize,
+  bundle: &Bundle,
+  options: &ParcelOptions,
+  cache: &InlineBundleCache,
+) -> Result<Arc<dyn Content>, DiagnosticList> {
   // If this is an inline bundle, it's possible that it's inlined into many parent bundles.
-  // To avoid packaging the same bundle many times, we have a cache by bundle index.
+  // To avoid packaging the same bundle many times, we have a cache by bundle index and directory.
   // Each entry is a Mutex<Option<dyn Content>>. The mutex is initially empty, and locked
   // while the content is packaging. If the bundle is requested a second time concurrently,
   // that thread waits on the lock and reuses the same content.
   let slot = if bundle.bundle_behavior == BundleBehavior::Inline {
+    let dir = bundle
+      .dist_path()
+      .parent()
+      .unwrap_or(bundle.target.dist_dir);
     Some(
       cache
         .pin()
-        .get_or_insert_with(bundle_index, || Arc::new(Mutex::new(None)))
+        .get_or_insert_with((bundle_index, dir), || Arc::new(Mutex::new(None)))
         .clone(),
     )
   } else {
@@ -626,8 +645,35 @@ pub fn get_bundle_content(
       Diagnostic::from_message("Cannot package a bundle with no assets".to_string())
     })?;
   let first_content = &bundle_graph.asset_graph.asset(first_asset).content;
-  let get_inline_bundle_content =
-    |bundle_index| get_bundle_content(config, bundle_graph, bundle_index, options, cache);
+  let get_inline_bundle_content = |inline_index: usize| {
+    let inline = &bundle_graph.bundles[inline_index];
+    if inline.bundle_behavior != BundleBehavior::Inline {
+      return get_bundle_content(config, bundle_graph, inline_index, options, cache);
+    }
+
+    // Inline content is embedded in this bundle, so relative URLs inside it must resolve from
+    // this bundle's directory rather than from the inline bundle's own (never written) path.
+    let dir = bundle
+      .dist_path()
+      .parent()
+      .unwrap_or(bundle.target.dist_dir);
+    let inline_path = inline.dist_path();
+    if inline_path.parent() == Some(dir) {
+      return package_bundle(config, bundle_graph, inline_index, inline, options, cache);
+    }
+    let relocated = Bundle {
+      dist_path: Some(dir.child(inline_path.file_name())),
+      ..inline.clone()
+    };
+    package_bundle(
+      config,
+      bundle_graph,
+      inline_index,
+      &relocated,
+      options,
+      cache,
+    )
+  };
 
   let mut content =
     first_content.package(&bundle_graph, &bundle, &get_inline_bundle_content, options)?;

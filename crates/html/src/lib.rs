@@ -474,7 +474,11 @@ fn prepare_to_package(
         bundle_index: b, ..
       } => {
         let referenced_bundle = &bundle_graph.bundles[b as usize];
-        let contents = if dep.bundle_behavior == BundleBehavior::Inline {
+        // The target can be inline even when the dependency isn't (e.g. a `data-url:` pipeline),
+        // and inline bundles are never written, so there is no URL to reference.
+        let is_inline = dep.bundle_behavior == BundleBehavior::Inline
+          || referenced_bundle.bundle_behavior == BundleBehavior::Inline;
+        let contents = if is_inline {
           get_inline_bundle_content(b as usize)?
             .read_string()?
             .into_owned()
@@ -493,7 +497,7 @@ fn prepare_to_package(
         // Re-derive the media attribute of stylesheet links from the resolved
         // bundle. Correctness comes from each asset's own condition wrapping;
         // the attribute is a fetch-priority hint that must gate the whole file.
-        if referenced_bundle.ty == AssetType::Css && dep.bundle_behavior != BundleBehavior::Inline {
+        if referenced_bundle.ty == AssetType::Css && !is_inline {
           stylesheet_media.insert(
             SerializableTendril((*dep.placeholder.clone().unwrap()).into()),
             bundle_graph

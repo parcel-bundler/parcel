@@ -119,6 +119,8 @@ impl<'a> BundleGraph<'a> {
     })
   }
 
+  /// The transitive closure of `referenced_bundles`, starting with `bundle_index` itself, in
+  /// pre-order. Siblings keep their reference order, which is cascade order for CSS.
   pub fn referenced_bundles(&self, bundle_index: usize) -> impl Iterator<Item = usize> + '_ {
     let mut stack = vec![bundle_index];
     let mut seen = HashSet::new();
@@ -126,7 +128,7 @@ impl<'a> BundleGraph<'a> {
     std::iter::from_fn(move || {
       while let Some(index) = stack.pop() {
         if seen.insert(index) {
-          stack.extend(self.bundles[index].referenced_bundles.iter().copied());
+          stack.extend(self.bundles[index].referenced_bundles.iter().rev().copied());
           return Some(index);
         }
       }

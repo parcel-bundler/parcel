@@ -1,17 +1,28 @@
 [
   {
-    "description": "bundles service workers",
+    "description": "bundles service workers with stable names",
     "input": "a/index.js",
     "bundles": [
       {
-        "name": "index.js",
-        "assets": ["index.js", "index.js"]
+        "name": "a/index.js",
+        "assets": [
+          "index.js",
+          "index.js"
+        ]
       },
       {
-        "assets": ["worker-nested.js"]
+        "name": "b/nested/worker-nested.js",
+        "environment": "service-worker",
+        "assets": [
+          "worker-nested.js"
+        ]
       },
       {
-        "assets": ["worker-outside.js"]
+        "name": "b/worker-outside.js",
+        "environment": "service-worker",
+        "assets": [
+          "worker-outside.js"
+        ]
       }
     ]
   },
@@ -21,10 +32,17 @@
     "bundles": [
       {
         "name": "module.js",
-        "assets": ["module.js"]
+        "assets": [
+          "module.js"
+        ]
       },
       {
-        "assets": ["esmodule-helpers.js", "module-worker.js"]
+        "name": "module-worker.js",
+        "environment": "service-worker",
+        "assets": [
+          "esmodule-helpers.js",
+          "module-worker.js"
+        ]
       }
     ]
   },
@@ -33,23 +51,29 @@
     "input": "scope.js",
     "bundles": [
       {
-        "assets": ["scope.js"],
-        "contains": ["scope: 'foo'"]
+        "assets": [
+          "scope.js"
+        ],
+        "contains": [
+          "scope: 'foo'"
+        ]
       },
       {
-        "assets": ["esmodule-helpers.js", "module-worker.js"]
+        "name": "module-worker.js",
+        "assets": [
+          "esmodule-helpers.js",
+          "module-worker.js"
+        ]
       }
     ]
   },
   {
-    "description": "bundles service worker without type: module even when it has exports",
+    "description": "errors when a classic service worker has exports",
     "input": "error.js",
-    "bundles": [
+    "diagnostics": [
       {
-        "assets": ["error.js"]
-      },
-      {
-        "assets": ["esmodule-helpers.js", "module-worker.js"]
+        "message": "SCRIPT_ERROR",
+        "origin": "@parcel/transformer-js"
       }
     ]
   }

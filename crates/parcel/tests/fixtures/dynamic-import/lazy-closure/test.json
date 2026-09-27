@@ -1,0 +1,37 @@
+[
+  {
+    "description": "lazy bundles load everything they reference",
+    "input": "index.js",
+    "output": "abc"
+  },
+  {
+    "description": "lazy stylesheets are loaded by their dist-root-relative name",
+    "input": "css.js",
+    "bundles": [
+      {
+        "name": "css.js",
+        "assets": [
+          "css.js"
+        ],
+        "contains": [
+          "module.bundle.loadCSS(\""
+        ],
+        "notContains": [
+          "loadCSS('./"
+        ]
+      },
+      {
+        "assets": [
+          "styled.js"
+        ]
+      },
+      {
+        "type": "css",
+        "assets": [
+          "styled.css"
+        ]
+      }
+    ],
+    "skipNodeModules": true
+  }
+]

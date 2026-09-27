@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{AssetIndex, AssetType, PathId, SourceUrl, Target, impl_bitflags_serde};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Bundle {
   pub id: u64,
   pub ty: AssetType,

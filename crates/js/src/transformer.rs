@@ -257,6 +257,11 @@ impl Transformer for JsTransformer {
           if dep.kind == DependencyKind::WebWorker {
             flags |= DependencyFlags::IS_WEBWORKER;
           }
+          // Browsers identify a service worker registration by its script URL, and check that
+          // URL for updates. It must not change between builds.
+          if dep.kind == DependencyKind::ServiceWorker {
+            flags |= DependencyFlags::NEEDS_STABLE_NAME;
+          }
           if dep
             .flags
             .contains(parcel_js_swc_core::DependencyFlags::REACT_LAZY)
