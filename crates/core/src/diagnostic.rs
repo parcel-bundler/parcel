@@ -1032,7 +1032,7 @@ mod tests {
       assert!(rendered.contains("  2 | source line 2"), "{rendered}");
       assert!(rendered.contains(" 90 | source line 90"), "{rendered}");
       assert!(rendered.contains("highlight 2") && rendered.contains("highlight 90"));
-      assert!(rendered.contains("| ..."));
+      assert!(rendered.contains("\n  ···"), "{rendered}");
       assert!(!rendered.contains("source line 50"));
       assert!(rendered.lines().count() < 15);
     }
@@ -1057,7 +1057,7 @@ mod tests {
     assert!(rendered.contains("source line 1\n"));
     assert!(rendered.contains("source line 99\n"));
     assert!(rendered.contains("the end"));
-    assert!(rendered.contains("| ..."));
+    assert!(rendered.contains("\n  ···"), "{rendered}");
     assert!(!rendered.contains("source line 50"));
   }
 
