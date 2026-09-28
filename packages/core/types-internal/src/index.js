@@ -103,6 +103,7 @@ export type RawParcelConfigPipeline = Array<PackageName>;
 export type HMROptions = {
   port?: number,
   host?: string,
+  https?: HTTPSOptions | boolean,
   cors?: boolean,
   ...
 };

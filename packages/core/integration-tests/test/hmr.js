@@ -340,6 +340,38 @@ describe('hmr', function () {
       assert.equal(message.type, 'update');
     });
 
+    it('should make a secure connection with custom certificate in watch mode', async function () {
+      let port = await getPort();
+      let b = bundler(path.join(__dirname, '/input/index.js'), {
+        hmrOptions: {
+          https: {
+            key: path.join(__dirname, '/integration/https/private.pem'),
+            cert: path.join(__dirname, '/integration/https/primary.crt'),
+          },
+          port,
+          host: 'localhost',
+        },
+        inputFS: overlayFS,
+        config,
+      });
+
+      subscription = await b.watch();
+      await getNextBuild(b);
+
+      ws = await openSocket('wss://localhost:' + port, {
+        rejectUnauthorized: false,
+      });
+
+      await outputFS.writeFile(
+        path.join(__dirname, '/input/local.js'),
+        'exports.a = 5;\nexports.b = 5;',
+      );
+
+      let message = await nextWSMessage(nullthrows(ws));
+
+      assert.equal(message.type, 'update');
+    });
+
     it('should respond to requests for assets by id', async function () {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
