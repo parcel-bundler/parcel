@@ -7,11 +7,8 @@
       "references": [
         [
           "esmodule-helpers.js",
-          "helpers.js",
           "index.js",
-          "jsx-dev-runtime.js",
-          "react-refresh-runtime.development.js",
-          "runtime.js"
+          "jsx-dev-runtime.js"
         ]
       ],
       "type": "js"
@@ -26,11 +23,8 @@
       "references": [
         [
           "esmodule-helpers.js",
-          "helpers.js",
           "index.js",
-          "jsx-dev-runtime.js",
-          "react-refresh-runtime.development.js",
-          "runtime.js"
+          "jsx-dev-runtime.js"
         ]
       ],
       "type": "js"
@@ -43,11 +37,8 @@
     {
       "assets": [
         "esmodule-helpers.js",
-        "helpers.js",
         "index.js",
-        "jsx-dev-runtime.js",
-        "react-refresh-runtime.development.js",
-        "runtime.js"
+        "jsx-dev-runtime.js"
       ],
       "references": [],
       "type": "js"

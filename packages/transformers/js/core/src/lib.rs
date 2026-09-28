@@ -46,11 +46,11 @@ use serde::{Deserialize, Serialize};
 pub use swc_core::ecma::preset_env::{Version, Versions};
 use swc_core::{
   common::{
-    FileName, Globals, Mark, SourceMap, errors::Handler, pass::Optional,
+    DUMMY_SP, FileName, Globals, Mark, SourceMap, SyntaxContext, errors::Handler, pass::Optional,
     source_map::SourceMapGenConfig, sync::Lrc,
   },
   ecma::{
-    ast::{BlockStmt, Expr, ExprStmt, Lit, Module, ModuleItem, Program, Stmt, Str, TryStmt},
+    ast::{BlockStmt, Expr, ExprStmt, Ident, Lit, Module, ModuleItem, Program, Stmt, Str, TryStmt},
     atoms::Atom as JsWord,
     codegen::text_writer::JsWriter,
     parser::{EsSyntax, Parser, StringInput, Syntax, TsSyntax, error::Error, lexer::Lexer},
@@ -825,20 +825,28 @@ pub fn transform_to_ast(
             result.diagnostics = Some(diagnostics);
           }
 
-          if config.react_refresh && result.dependencies.iter().any(|d| matches!(d.specifier.as_str(), "react" | "react/jsx-runtime" | "react/jsx-dev-runtime" | "'@emotion/react" | "@emotion/react/jsx-runtime" | "@emotion/react/jsx-dev-runtime")) {
+          if config.react_refresh() && result.dependencies.iter().any(|d| matches!(d.specifier.as_str(), "react" | "react/jsx-runtime" | "react/jsx-dev-runtime" | "'@emotion/react" | "@emotion/react/jsx-runtime" | "@emotion/react/jsx-dev-runtime")) {
             result.react_refresh_wrapped = true;
+            // `module` and `require` are the module wrapper's, like the module's own references to
+            // them, so the packager binds them the same way.
+            let unresolved = SyntaxContext::empty().apply_mark(unresolved_mark);
+            let module_ident = Ident::new("module".into(), DUMMY_SP, unresolved);
+            let require_ident = Ident::new("require".into(), DUMMY_SP, unresolved);
             module.body = vec![
-              quote!("var $parcel$ReactRefreshHelpers = require('@parcel/transformer-react-refresh-wrap/src/helpers/helpers.js');" as ModuleItem),
+              quote!(
+                "var $parcel$ReactRefreshHelpers = $require('@parcel/transformer-react-refresh-wrap/src/helpers/helpers.js');" as ModuleItem,
+                require: Ident = require_ident
+              ),
               quote!("$parcel$ReactRefreshHelpers.init()" as ModuleItem),
               quote!("var prevRefreshReg = globalThis.$RefreshReg$;" as ModuleItem),
               quote!("var prevRefreshSig = globalThis.$RefreshSig$;" as ModuleItem),
-              quote!("$parcel$ReactRefreshHelpers.prelude(module);" as ModuleItem),
+              quote!("$parcel$ReactRefreshHelpers.prelude($module);" as ModuleItem, module: Ident = module_ident.clone()),
               ModuleItem::Stmt(Stmt::Try(Box::new(TryStmt {
                 block: BlockStmt {
                   stmts: module.body
                     .into_iter()
                     .map(|item| item.expect_stmt())
-                    .chain(std::iter::once(quote!("$parcel$ReactRefreshHelpers.postlude(module);" as Stmt)))
+                    .chain(std::iter::once(quote!("$parcel$ReactRefreshHelpers.postlude($module);" as Stmt, module: Ident = module_ident)))
                     .collect(),
                   ..Default::default()
                 },

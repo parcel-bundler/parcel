@@ -804,8 +804,11 @@ fn config(
           }
         }
 
-        // TODO: hmrOptions
-        react_refresh = options.mode == BuildMode::Development && pkg.has_dependency("react");
+        // React Refresh updates components in place over HMR. The transformer further limits it
+        // to browser code (see `Config::react_refresh`).
+        react_refresh = options.mode == BuildMode::Development
+          && options.hmr.is_some()
+          && pkg.has_dependency("react");
       }
     }
 

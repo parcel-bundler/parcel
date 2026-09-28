@@ -3,25 +3,27 @@
     "description": "top-level await: re-exports an async server entry's exports, including names only known at runtime, through its resources proxy, with ES module output",
     "input": "index.jsx",
     "output": {
-      "keys": ["dynamic", "value"],
+      "keys": [
+        "dynamic",
+        "value"
+      ],
       "value": 42,
       "dynamic": "cjs"
-    },
-    "options": {
-      "mode": "production"
     }
   },
   {
     "description": "top-level await: re-exports an async server entry's exports, including names only known at runtime, through its resources proxy, with ES module output (minified)",
     "input": "index.jsx",
     "output": {
-      "keys": ["dynamic", "value"],
+      "keys": [
+        "dynamic",
+        "value"
+      ],
       "value": 42,
       "dynamic": "cjs"
     },
     "options": {
-      "minify": true,
-      "mode": "production"
+      "minify": true
     }
   }
 ]

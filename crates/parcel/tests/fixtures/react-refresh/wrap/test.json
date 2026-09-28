@@ -1,0 +1,61 @@
+[
+  {
+    "description": "should wrap modules for React Refresh with HMR, binding the wrapper to the module (minified)",
+    "input": "index.js",
+    "options": {
+      "hmr": true,
+      "minify": true
+    },
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": [
+          "index.js"
+        ],
+        "contains": [
+          "prelude("
+        ],
+        "notContains": [
+          "prelude(module)",
+          "transformer-react-refresh-wrap"
+        ]
+      }
+    ],
+    "skipNodeModules": true
+  },
+  {
+    "description": "should wrap modules for React Refresh with HMR",
+    "input": "index.js",
+    "options": {
+      "hmr": true
+    },
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": [
+          "index.js"
+        ],
+        "contains": [
+          "$parcel$ReactRefreshHelpers.prelude(module)"
+        ]
+      }
+    ],
+    "skipNodeModules": true
+  },
+  {
+    "description": "should not wrap modules for React Refresh without HMR",
+    "input": "index.js",
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": [
+          "index.js"
+        ],
+        "notContains": [
+          "ReactRefreshHelpers"
+        ]
+      }
+    ],
+    "skipNodeModules": true
+  }
+]

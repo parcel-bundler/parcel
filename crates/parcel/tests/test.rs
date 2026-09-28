@@ -152,7 +152,10 @@ fn bundle_with_options(
     cwd: PathId::new(cwd),
     dist_dir: None,
     public_url: Default::default(),
-    hmr: None,
+    hmr: options.hmr.then(|| parcel_core::HmrOptions {
+      host: "localhost".into(),
+      port: 1234,
+    }),
     reporters: Vec::new(),
   };
 
@@ -676,6 +679,9 @@ struct TestOptions {
   env: HashMap<String, String>,
   cwd: Option<String>,
   config: Option<String>,
+  /// Whether to build for HMR (without starting a server).
+  #[serde(default)]
+  hmr: bool,
 }
 
 fn run_test_json(path: &Path) {

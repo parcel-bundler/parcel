@@ -1,0 +1,18 @@
+{
+  "description": "should not wrap server modules for React Refresh, even with HMR",
+  "input": "index.js",
+  "options": {
+    "hmr": true
+  },
+  "bundles": [
+    {
+      "assets": [
+        "index.js"
+      ],
+      "notContains": [
+        "ReactRefreshHelpers"
+      ]
+    }
+  ],
+  "skipNodeModules": true
+}
