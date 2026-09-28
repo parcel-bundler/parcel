@@ -1,0 +1,35 @@
+[
+  {
+    "description": "top-level await: sync siblings run while an async sibling is suspended, and waiting ancestors run together",
+    "input": "e.js",
+    "sideEffects": [
+      "b start",
+      "c",
+      "f",
+      "b end",
+      "c microtask",
+      "d",
+      "a",
+      "e",
+      "d microtask"
+    ]
+  },
+  {
+    "description": "top-level await: sync siblings run while an async sibling is suspended, and waiting ancestors run together (minified)",
+    "input": "e.js",
+    "options": {
+      "minify": true
+    },
+    "sideEffects": [
+      "b start",
+      "c",
+      "f",
+      "b end",
+      "c microtask",
+      "d",
+      "a",
+      "e",
+      "d microtask"
+    ]
+  }
+]

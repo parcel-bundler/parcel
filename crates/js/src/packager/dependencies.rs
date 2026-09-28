@@ -218,6 +218,14 @@ pub fn asset_dependencies<'a>(
       _ => None,
     };
 
+    // Like Node's require(esm), CommonJS can't wait for a module to evaluate asynchronously.
+    if dep.specifier_type == SpecifierType::Commonjs
+      && let Some((resolved_asset, _)) = resolved
+      && bundle_graph.is_async_asset(resolved_asset)
+    {
+      return Err(require_async_module_diagnostic(asset, dep));
+    }
+
     if let Some((resolved_asset, bundle_index)) = resolved
       && let Some(module) = rsc::resolve_dependency(
         asset_index,
@@ -230,6 +238,9 @@ pub fn asset_dependencies<'a>(
       )?
     {
       dependencies.insert((&**placeholder).into(), Resolution::Asset(module.id()));
+      if module.needs_async_evaluator(bundle_graph) {
+        additional_assets.insert(SyntheticAsset::AsyncEvaluator);
+      }
       additional_assets.insert(SyntheticAsset::Rsc(module));
       continue;
     }
@@ -423,6 +434,9 @@ pub fn asset_dependencies<'a>(
               bundle: bundle_index,
               kind: BundleShim::Async(asset_index),
             });
+            if bundle_graph.is_async_asset(asset_index) {
+              additional_assets.insert(SyntheticAsset::AsyncEvaluator);
+            }
             if needs_esm_interop {
               additional_assets.insert(SyntheticAsset::Bundle {
                 bundle: bundle_index,
@@ -459,14 +473,81 @@ pub fn asset_dependencies<'a>(
           let id = shim.id(bundle_graph, project_root);
           additional_assets.insert(shim);
           Resolution::Asset(id)
+        } else if bundle_graph.is_async_asset(asset_index) {
+          // The synthetic module knows how to evaluate an async module; the inlined form doesn't.
+          Resolution::Asset(
+            SyntheticAsset::Internalized(asset_index).id(bundle_graph, project_root),
+          )
         } else {
           Resolution::Internalized(resolved.id(project_root))
         };
         dependencies.insert((&**placeholder).into(), resolution);
         additional_assets.insert(SyntheticAsset::Internalized(asset_index));
+        if bundle_graph.is_async_asset(asset_index) {
+          additional_assets.insert(SyntheticAsset::AsyncEvaluator);
+        }
       }
     }
   }
 
   Ok(dependencies)
+}
+
+/// The ids of the modules `asset` statically imports, in source order, as the runtime's async
+/// module evaluator requires them (see `tla-runtime.js`).
+pub(super) fn static_import_ids(
+  asset: &Asset,
+  dependencies: &IndexMap<String, Resolution<'_>>,
+) -> Vec<String> {
+  let mut ids: Vec<String> = Vec::new();
+  let mut push = |id: &str| {
+    if !ids.iter().any(|existing| existing == id) {
+      ids.push(id.to_string());
+    }
+  };
+  for dep in &asset.dependencies {
+    if !dep.is_static_import() {
+      continue;
+    }
+    let placeholder = dep.placeholder.as_ref().unwrap_or(&dep.specifier);
+    match dependencies.get(&**placeholder) {
+      Some(Resolution::Asset(id)) => push(id),
+      Some(Resolution::External(specifier)) => push(specifier),
+      Some(Resolution::Symbols(symbols)) => {
+        for (_, id, _) in symbols {
+          push(id);
+        }
+      }
+      _ => {}
+    }
+  }
+  ids
+}
+
+fn require_async_module_diagnostic(asset: &Asset, dep: &Dependency) -> DiagnosticList {
+  DiagnosticList(vec![Diagnostic {
+    origin: Some("@parcel/packager-js".into()),
+    message: format!(
+      "Cannot require() '{}' because it uses top-level await, or imports a module that does.",
+      dep.specifier
+    ),
+    code_frames: dep
+      .loc
+      .as_ref()
+      .map(|loc| CodeFrame {
+        url: Some(loc.url.clone()),
+        code: None,
+        language: Some(asset.ty.clone()),
+        code_highlights: vec![CodeHighlight {
+          message: None,
+          start: loc.start.clone(),
+          end: loc.end.clone(),
+        }],
+      })
+      .into_iter()
+      .collect(),
+    hints: vec!["Use import or import() instead.".into()],
+    severity: DiagnosticSeverity::Error,
+    documentation_url: None,
+  }])
 }

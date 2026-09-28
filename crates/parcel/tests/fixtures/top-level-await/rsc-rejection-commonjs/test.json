@@ -1,0 +1,17 @@
+[
+  {
+    "description": "top-level await: catches an async server entry failure without an unhandled rejection from its CommonJS bundle",
+    "input": "index.js",
+    "sideEffects": ["caught page failed"],
+    "output": "done"
+  },
+  {
+    "description": "top-level await: catches an async server entry failure without an unhandled rejection from its CommonJS bundle (minified)",
+    "input": "index.js",
+    "sideEffects": ["caught page failed"],
+    "output": "done",
+    "options": {
+      "minify": true
+    }
+  }
+]

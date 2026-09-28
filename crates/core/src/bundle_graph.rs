@@ -3,9 +3,11 @@ use std::{
   sync::OnceLock,
 };
 
+use fixedbitset::FixedBitSet;
+
 use crate::{
-  AssetIndex, AssetType, BundleBehavior, BundleFlags, DependencyResolution, Environment, PathId,
-  asset_graph::AssetGraph, bundle::Bundle,
+  AssetFlags, AssetIndex, AssetType, BundleBehavior, BundleFlags, DependencyResolution,
+  Environment, PathId, asset_graph::AssetGraph, bundle::Bundle,
 };
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -52,6 +54,9 @@ pub struct BundleGraph<'a> {
   referrers: OnceLock<HashMap<u64, Referrers>>,
   /// The first bundle containing each asset (see `first_bundle_containing`), computed on first use.
   first_bundles: OnceLock<Vec<u32>>,
+  /// Assets that evaluate asynchronously (see `is_async_asset`), computed on first use. `None`
+  /// when no asset contains top-level await, which is almost always.
+  async_assets: OnceLock<Option<FixedBitSet>>,
 }
 
 impl<'a> BundleGraph<'a> {
@@ -68,6 +73,7 @@ impl<'a> BundleGraph<'a> {
       project_root,
       referrers: OnceLock::new(),
       first_bundles: OnceLock::new(),
+      async_assets: OnceLock::new(),
     }
   }
 
@@ -235,6 +241,73 @@ impl<'a> BundleGraph<'a> {
       referrers
     });
     referrers.get(&bundle.id).copied().unwrap_or_default()
+  }
+
+  /// Whether `asset` evaluates asynchronously: it contains top-level await, or statically imports
+  /// an asset that does within its environment. Such assets are evaluated by the runtime's module
+  /// evaluator rather than by `require`.
+  pub fn is_async_asset(&self, asset: AssetIndex) -> bool {
+    self
+      .async_assets()
+      .is_some_and(|assets| assets.contains(asset.index()))
+  }
+
+  /// Whether any asset evaluates asynchronously.
+  pub fn has_async_assets(&self) -> bool {
+    self.async_assets().is_some()
+  }
+
+  fn async_assets(&self) -> Option<&FixedBitSet> {
+    self
+      .async_assets
+      .get_or_init(|| {
+        let assets = &self.asset_graph.assets;
+        let mut stack: Vec<usize> = assets
+          .iter()
+          .enumerate()
+          .filter(|(_, asset)| asset.flags.contains(AssetFlags::HAS_TOP_LEVEL_AWAIT))
+          .map(|(index, _)| index)
+          .collect();
+        if stack.is_empty() {
+          return None;
+        }
+
+        // Importers of each asset through static imports that evaluate it. An import that crosses
+        // environments (e.g. a client reference from the server) doesn't, and neither does one
+        // resolved to another bundle's URL or content. React Server Components are the exception:
+        // a server bundle group boundary's proxy module requires the original.
+        let mut importers = vec![Vec::new(); assets.len()];
+        for (index, asset) in assets.iter().enumerate() {
+          for (dep_index, target) in self.asset_graph.resolved_dependencies_with_indices(asset) {
+            let dep = &asset.dependencies[dep_index];
+            if !dep.is_static_import()
+              || assets[target.index()].target.environment != asset.target.environment
+            {
+              continue;
+            }
+            let evaluates = match self.dependency_resolution(AssetIndex(index as u32), dep_index) {
+              BundleGraphDependencyResolution::Asset(_) => true,
+              BundleGraphDependencyResolution::Bundle { .. } => matches!(
+                asset.target.environment,
+                Environment::ReactServer | Environment::ReactClient
+              ),
+              _ => false,
+            };
+            if evaluates {
+              importers[target.index()].push(index);
+            }
+          }
+        }
+
+        let mut async_assets = FixedBitSet::with_capacity(assets.len());
+        while let Some(index) = stack.pop() {
+          if !async_assets.put(index) {
+            stack.extend(&importers[index]);
+          }
+        }
+        Some(async_assets)
+      })
+      .as_ref()
   }
 
   /// The index of the first bundle containing `asset`, if any.

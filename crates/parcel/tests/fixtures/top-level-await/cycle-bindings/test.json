@@ -1,0 +1,25 @@
+[
+  {
+    "description": "top-level await: gives a cycle an async module's import bindings and temporal dead zones before its body runs",
+    "input": "index.js",
+    "sideEffects": [
+      "dep",
+      "ReferenceError",
+      "ReferenceError",
+      "index"
+    ]
+  },
+  {
+    "description": "top-level await: gives a cycle an async module's import bindings and temporal dead zones before its body runs (minified)",
+    "input": "index.js",
+    "sideEffects": [
+      "dep",
+      "ReferenceError",
+      "ReferenceError",
+      "index"
+    ],
+    "options": {
+      "minify": true
+    }
+  }
+]

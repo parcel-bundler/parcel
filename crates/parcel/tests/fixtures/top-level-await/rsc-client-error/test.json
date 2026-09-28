@@ -1,0 +1,9 @@
+{
+  "description": "top-level await: is an error in client components, which React requires synchronously",
+  "input": "index.jsx",
+  "diagnostics": [
+    {
+      "message": "Top-level await is not supported in client components or the modules they import, because React loads them synchronously."
+    }
+  ]
+}

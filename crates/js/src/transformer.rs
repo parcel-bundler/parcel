@@ -590,6 +590,29 @@ impl Transformer for JsTransformer {
     asset
       .flags
       .set(AssetFlags::HAS_NODE_REPLACEMENTS, res.has_node_replacements);
+    if res.has_top_level_await {
+      // Libraries keep each module as is, so a CommonJS library has no way to wait for one.
+      if asset.target.flags.contains(EnvironmentFlags::IS_LIBRARY)
+        && asset.target.output_format != OutputFormat::Esmodule
+      {
+        return Err(DiagnosticList(vec![Diagnostic {
+          origin: Some("@parcel/transformer-js".into()),
+          message: "Top-level await is only supported in libraries with ES module output.".into(),
+          code_frames: vec![CodeFrame {
+            url: Some(asset.loc.url.clone()),
+            code: None,
+            language: Some(asset.ty.clone()),
+            code_highlights: vec![],
+          }],
+          hints: vec![],
+          severity: parcel_core::DiagnosticSeverity::Error,
+          documentation_url: None,
+        }]));
+      }
+    }
+    asset
+      .flags
+      .set(AssetFlags::HAS_TOP_LEVEL_AWAIT, res.has_top_level_await);
     asset.content = Arc::new(JsContent {
       source_size,
       ast: res.ast,
@@ -598,6 +621,8 @@ impl Transformer for JsTransformer {
       rsc_runtime_dep,
       needs_filename: res.needs_filename,
       needs_dirname: res.needs_dirname,
+      esm_prologue_len: res.esm_prologue_len,
+      react_refresh_wrapped: res.react_refresh_wrapped,
     });
     Ok(asset)
   }

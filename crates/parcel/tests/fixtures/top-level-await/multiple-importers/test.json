@@ -1,0 +1,33 @@
+[
+  {
+    "description": "top-level await: importers of async modules resume in the order they started evaluating",
+    "input": "index.js",
+    "sideEffects": [
+      "async1 before",
+      "async2 before",
+      "async1 after",
+      "async2 after",
+      "a",
+      "x",
+      "b",
+      "index"
+    ]
+  },
+  {
+    "description": "top-level await: importers of async modules resume in the order they started evaluating (minified)",
+    "input": "index.js",
+    "options": {
+      "minify": true
+    },
+    "sideEffects": [
+      "async1 before",
+      "async2 before",
+      "async1 after",
+      "async2 after",
+      "a",
+      "x",
+      "b",
+      "index"
+    ]
+  }
+]

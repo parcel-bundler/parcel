@@ -1,0 +1,33 @@
+[
+  {
+    "description": "top-level await: evaluates async modules imported dynamically, from the same bundle and a lazy bundle",
+    "input": "index.js",
+    "sideEffects": [
+      "shared before",
+      "shared after",
+      "index",
+      "shared s",
+      "lazy-dep before",
+      "lazy-dep after",
+      "lazy",
+      "lazy sl"
+    ]
+  },
+  {
+    "description": "top-level await: evaluates async modules imported dynamically, from the same bundle and a lazy bundle (minified)",
+    "input": "index.js",
+    "options": {
+      "minify": true
+    },
+    "sideEffects": [
+      "shared before",
+      "shared after",
+      "index",
+      "shared s",
+      "lazy-dep before",
+      "lazy-dep after",
+      "lazy",
+      "lazy sl"
+    ]
+  }
+]

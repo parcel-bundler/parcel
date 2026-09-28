@@ -1,0 +1,21 @@
+[
+  {
+    "description": "top-level await: exposes exports and function declarations to a cycle before the body runs",
+    "input": "index.js",
+    "sideEffects": [
+      "hello",
+      "index"
+    ]
+  },
+  {
+    "description": "top-level await: exposes exports and function declarations to a cycle before the body runs (minified)",
+    "input": "index.js",
+    "sideEffects": [
+      "hello",
+      "index"
+    ],
+    "options": {
+      "minify": true
+    }
+  }
+]

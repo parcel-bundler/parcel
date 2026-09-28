@@ -1,0 +1,10 @@
+{
+  "description": "top-level await: is an error in CommonJS libraries",
+  "input": ".",
+  "options": {"mode": "production"},
+  "diagnostics": [
+    {
+      "message": "Top-level await is only supported in libraries with ES module output."
+    }
+  ]
+}

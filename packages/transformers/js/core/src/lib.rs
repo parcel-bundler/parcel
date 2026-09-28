@@ -1,3 +1,4 @@
+pub mod async_module;
 mod collect;
 mod constant_module;
 mod dependency_collector;
@@ -225,6 +226,8 @@ pub struct TransformResult {
   pub has_node_replacements: bool,
   pub needs_filename: bool,
   pub needs_dirname: bool,
+  /// Whether the module contains top-level await, i.e. evaluates asynchronously.
+  pub has_top_level_await: bool,
   pub is_constant_module: bool,
   pub directives: Vec<JsWord>,
   pub helpers: Helpers,
@@ -274,6 +277,13 @@ pub struct TransformAstResult {
   pub has_node_replacements: bool,
   pub needs_filename: bool,
   pub needs_dirname: bool,
+  /// Whether the module contains top-level await, i.e. evaluates asynchronously.
+  pub has_top_level_await: bool,
+  /// The number of statements the module starts with that define its exports and require its
+  /// imports (see `async_module`).
+  pub esm_prologue_len: usize,
+  /// Whether the module's body is wrapped for React Refresh, in the `try` block of its last statement.
+  pub react_refresh_wrapped: bool,
   pub is_constant_module: bool,
   pub directives: Vec<JsWord>,
   pub helpers: Helpers,
@@ -372,6 +382,7 @@ pub fn transform(
     has_node_replacements: res.has_node_replacements,
     needs_filename: res.needs_filename,
     needs_dirname: res.needs_dirname,
+    has_top_level_await: res.has_top_level_await,
     is_constant_module: res.is_constant_module,
     directives: res.directives,
     helpers: res.helpers,
@@ -557,7 +568,7 @@ pub fn transform_to_ast(
             ),
           ));
 
-          let is_module = module.is_module();
+          let mut is_module = module.is_module();
           // If it's a script, convert into module. This needs to happen after
           // the resolver (which behaves differently for non-/strict mode).
           let module = match module {
@@ -568,6 +579,12 @@ pub fn transform_to_ast(
               body: script.body.into_iter().map(ModuleItem::Stmt).collect(),
             },
           };
+
+          // Most modules don't mention `await` at all. Top-level await makes a file a module even
+          // without imports or exports, which the parser otherwise returns as a script.
+          result.has_top_level_await =
+            code.contains("await") && utils::has_top_level_await(&module);
+          is_module |= result.has_top_level_await;
 
           let mut program = Program::Module(module);
           program.mutate(&mut Optional::new(
@@ -786,7 +803,7 @@ pub fn transform_to_ast(
             }
 
             if !config.is_library || !config.is_esm_output {
-              let (module, needs_helpers) =
+              let (module, needs_helpers, prologue_len) =
                 esm2cjs(
                   module,
                   unresolved_mark,
@@ -794,6 +811,7 @@ pub fn transform_to_ast(
                   config.esm_helpers.as_deref().unwrap_or(DEFAULT_ESM_HELPERS),
                 );
               result.needs_esm_helpers = needs_helpers;
+              result.esm_prologue_len = prologue_len;
               module
             } else {
               module
@@ -808,6 +826,7 @@ pub fn transform_to_ast(
           }
 
           if config.react_refresh && result.dependencies.iter().any(|d| matches!(d.specifier.as_str(), "react" | "react/jsx-runtime" | "react/jsx-dev-runtime" | "'@emotion/react" | "@emotion/react/jsx-runtime" | "@emotion/react/jsx-dev-runtime")) {
+            result.react_refresh_wrapped = true;
             module.body = vec![
               quote!("var $parcel$ReactRefreshHelpers = require('@parcel/transformer-react-refresh-wrap/src/helpers/helpers.js');" as ModuleItem),
               quote!("$parcel$ReactRefreshHelpers.init()" as ModuleItem),

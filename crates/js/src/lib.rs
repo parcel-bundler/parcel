@@ -28,6 +28,9 @@ struct JsContent {
   rsc_runtime_dep: Option<u32>,
   needs_filename: bool,
   needs_dirname: bool,
+  /// See `parcel_js_swc_core::async_module::wrap_async_module`.
+  esm_prologue_len: usize,
+  react_refresh_wrapped: bool,
 }
 
 impl std::fmt::Debug for JsContent {

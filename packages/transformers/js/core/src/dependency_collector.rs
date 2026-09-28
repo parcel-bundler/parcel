@@ -861,6 +861,9 @@ impl<'a> Fold for DependencyCollector<'a> {
                           if let Some(arg) = node.args.first() {
                             match &*arg.expr {
                               Fn(_) | Arrow(_) => {
+                                // Only a dynamic import within this callback belongs to the chain,
+                                // not one from earlier in the module.
+                                self.require_node = None;
                                 self.in_promise = true;
                                 let node = node.clone().fold_children_with(self);
                                 self.in_promise = was_in_promise;
@@ -2259,6 +2262,37 @@ Promise.resolve().then(()=>import("{}"));
         ..items[0].clone()
       }]
     );
+  }
+
+  #[test]
+  fn test_promise_chain_after_dynamic_import() {
+    let mut items = vec![];
+    let mut diagnostics = vec![];
+    let config = make_config();
+    let input_code = r#"
+import('other');
+Promise.resolve().then(() => console.log('done'));
+    "#;
+
+    let RunVisitResult { output_code, .. } = run_fold(input_code, |context| {
+      make_dependency_collector(context, &mut items, &mut diagnostics, &config)
+    });
+
+    let hash = make_placeholder_hash("other", DependencyKind::DynamicImport);
+    let expected_code = format!(
+      r#"
+import("{}");
+Promise.resolve().then(()=>console.log('done'));
+    "#,
+      hash
+    );
+    let expected_code = expected_code
+      .trim_start()
+      .trim_end_matches(|p: char| p == ' ');
+
+    assert_eq!(output_code, expected_code);
+    assert_eq!(diagnostics, []);
+    assert_eq!(items.len(), 1);
   }
 
   // Require is treated as dynamic import

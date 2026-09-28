@@ -1,0 +1,15 @@
+[
+  {
+    "description": "top-level await: importers of a module in a cycle wait for the whole cycle",
+    "input": "index.js",
+    "sideEffects": ["c2", "async before", "async after", "c1", "x", "index"]
+  },
+  {
+    "description": "top-level await: importers of a module in a cycle wait for the whole cycle (minified)",
+    "input": "index.js",
+    "options": {
+      "minify": true
+    },
+    "sideEffects": ["c2", "async before", "async after", "c1", "x", "index"]
+  }
+]

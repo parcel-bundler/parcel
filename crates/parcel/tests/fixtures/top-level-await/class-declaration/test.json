@@ -1,0 +1,19 @@
+[
+  {
+    "description": "top-level await: keeps a class's own binding in its body in async modules",
+    "input": "index.js",
+    "sideEffects": [
+      true
+    ]
+  },
+  {
+    "description": "top-level await: keeps a class's own binding in its body in async modules (minified)",
+    "input": "index.js",
+    "sideEffects": [
+      true
+    ],
+    "options": {
+      "minify": true
+    }
+  }
+]

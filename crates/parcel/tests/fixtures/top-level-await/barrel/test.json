@@ -1,0 +1,15 @@
+[
+  {
+    "description": "top-level await: evaluates an async module re-exported by a side effect free barrel",
+    "input": "index.js",
+    "sideEffects": ["value before", "value after", "index v"]
+  },
+  {
+    "description": "top-level await: evaluates an async module re-exported by a side effect free barrel (minified)",
+    "input": "index.js",
+    "sideEffects": ["value before", "value after", "index v"],
+    "options": {
+      "minify": true
+    }
+  }
+]

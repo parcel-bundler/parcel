@@ -1,0 +1,91 @@
+[
+  {
+    "description": "top-level await: evaluates an async server entry through its resources proxy, with CommonJS output",
+    "input": "index.jsx",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": [
+          "index.jsx"
+        ],
+        "contains": [
+          "createResourcesProxy"
+        ]
+      },
+      {
+        "assets": [
+          "Page.jsx"
+        ]
+      },
+      {
+        "assets": [
+          "server.css"
+        ],
+        "type": "css"
+      },
+      {
+        "assets": []
+      }
+    ],
+    "sideEffects": [
+      "page before",
+      "page after",
+      "index"
+    ],
+    "output": {
+      "foo": [
+        2,
+        4,
+        6
+      ],
+      "server": "function",
+      "page": "function"
+    }
+  },
+  {
+    "description": "top-level await: evaluates an async server entry through its resources proxy, with CommonJS output (minified)",
+    "input": "index.jsx",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": [
+          "index.jsx"
+        ],
+        "contains": [
+          "createResourcesProxy"
+        ]
+      },
+      {
+        "assets": [
+          "Page.jsx"
+        ]
+      },
+      {
+        "assets": [
+          "server.css"
+        ],
+        "type": "css"
+      },
+      {
+        "assets": []
+      }
+    ],
+    "sideEffects": [
+      "page before",
+      "page after",
+      "index"
+    ],
+    "output": {
+      "foo": [
+        2,
+        4,
+        6
+      ],
+      "server": "function",
+      "page": "function"
+    },
+    "options": {
+      "minify": true
+    }
+  }
+]

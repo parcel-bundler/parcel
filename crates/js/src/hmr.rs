@@ -47,6 +47,15 @@ pub fn get_hmr_update<'a>(
 ) -> HmrUpdate<'a> {
   let mut synthetic_assets = IndexSet::new();
   let mut esm_sync_bundles = IndexSet::new();
+  // Updates re-run modules synchronously, but async modules are evaluated by the runtime's module
+  // evaluator (see `tla-runtime.js`).
+  if changed_assets
+    .iter()
+    .any(|(id, _)| bundle_graph.is_async_asset(*id))
+  {
+    return HmrUpdate::Reload;
+  }
+
   let mut assets = Vec::with_capacity(changed_assets.len());
   for (id, asset) in changed_assets {
     let mut additional_assets = IndexSet::new();

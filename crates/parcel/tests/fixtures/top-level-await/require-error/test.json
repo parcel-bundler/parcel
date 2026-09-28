@@ -1,0 +1,10 @@
+{
+  "description": "top-level await: require() of a module that evaluates asynchronously is an error",
+  "input": "index.js",
+  "diagnostics": [
+    {
+      "message": "Cannot require() './value.js' because it uses top-level await, or imports a module that does.",
+      "hints": ["Use import or import() instead."]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+[
+  {
+    "description": "top-level await: re-exports an async server entry's exports, including names only known at runtime, through its resources proxy, with CommonJS output",
+    "input": "index.jsx",
+    "output": {
+      "keys": [
+        "dynamic",
+        "value"
+      ],
+      "value": 42,
+      "dynamic": "cjs"
+    }
+  },
+  {
+    "description": "top-level await: re-exports an async server entry's exports, including names only known at runtime, through its resources proxy, with CommonJS output (minified)",
+    "input": "index.jsx",
+    "output": {
+      "keys": [
+        "dynamic",
+        "value"
+      ],
+      "value": 42,
+      "dynamic": "cjs"
+    },
+    "options": {
+      "minify": true
+    }
+  }
+]

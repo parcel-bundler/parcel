@@ -851,6 +851,45 @@ fn hmr_runtime_updates_module_containing_dynamic_import() {
 }
 
 #[test]
+fn hmr_update_reloads_when_async_module_changes() {
+  let (mut parcel, input_fs) = setup(&[
+    (
+      "/project/index.js",
+      "import './async.js';\nconsole.log('index');",
+    ),
+    ("/project/async.js", "await 0;\nconsole.log('async v1');"),
+  ]);
+
+  let (json, _, _) = hmr_update_after_change(
+    &mut parcel,
+    &input_fs,
+    "/project/async.js",
+    "await 0;\nconsole.log('async v2');",
+  );
+
+  assert_eq!(json, serde_json::json!({"type": "reload"}));
+}
+
+#[test]
+fn hmr_runtime_reloads_when_update_bubbles_to_async_module() {
+  let mut hmr = HmrRuntimeTest::new(&[
+    (
+      "/project/index.js",
+      "let local = require('./local.js');
+await 0;
+output(['index', local.value]);
+if (module.hot) module.hot.accept();",
+    ),
+    ("/project/local.js", "exports.value = 1;"),
+  ]);
+
+  hmr.update(&[("/project/local.js", "exports.value = 2;")]);
+
+  assert!(hmr.reloaded());
+  assert_eq!(hmr.outputs(), Vec::<serde_json::Value>::new());
+}
+
+#[test]
 fn hmr_runtime_reloads_when_update_is_not_accepted() {
   let mut hmr = HmrRuntimeTest::new(&[
     (

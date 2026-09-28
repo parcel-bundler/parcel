@@ -13,7 +13,7 @@ use swc_core::ecma::minifier::option::{
   CompressOptions, ExtraOptions, MangleOptions, MinifyOptions,
 };
 use swc_core::ecma::parser::{EsSyntax, Parser, StringInput, Syntax, lexer::Lexer};
-use swc_core::ecma::transforms::base::resolver;
+use swc_core::ecma::transforms::base::{fixer::fixer, resolver};
 use swc_core::ecma::visit::{VisitMut, VisitMutWith};
 
 const RUNTIME_GLOBALS: &[(&str, &str)] = &[
@@ -33,13 +33,17 @@ const RUNTIME_GLOBALS: &[(&str, &str)] = &[
 
 fn main() {
   println!("cargo:rerun-if-changed=build.rs");
-  println!("cargo:rerun-if-changed=src/runtime.js");
-
-  let runtime = fs::read_to_string("src/runtime.js").expect("failed to read src/runtime.js");
-  let minified = minify_runtime(&runtime);
-
   let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR is not set"));
-  fs::write(out_dir.join("runtime.min.js"), minified).expect("failed to write runtime.min.js");
+  for name in ["runtime", "tla-runtime"] {
+    println!("cargo:rerun-if-changed=src/{name}.js");
+    let source =
+      fs::read_to_string(format!("src/{name}.js")).expect(&format!("failed to read src/{name}.js"));
+    fs::write(
+      out_dir.join(format!("{name}.min.js")),
+      minify_runtime(&source),
+    )
+    .expect(&format!("failed to write {name}.min.js"));
+  }
 }
 
 fn minify_runtime(source: &str) -> String {
@@ -99,6 +103,9 @@ fn minify_runtime(source: &str) -> String {
       },
     );
 
+    // The minifier's output relies on the fixer to parenthesize e.g. assignments within `&&`.
+    let mut program = program;
+    program.visit_mut_with(&mut fixer(Some(&comments)));
     emit_runtime(program, source_map)
   })
 }

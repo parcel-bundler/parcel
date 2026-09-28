@@ -1,0 +1,27 @@
+[
+  {
+    "description": "top-level await: rejects importers of a module that throws after awaiting, and caches the error",
+    "input": "index.js",
+    "sideEffects": [
+      "throws before",
+      "sibling",
+      "caught boom",
+      "caught again boom",
+      "caught throws boom"
+    ]
+  },
+  {
+    "description": "top-level await: rejects importers of a module that throws after awaiting, and caches the error (minified)",
+    "input": "index.js",
+    "options": {
+      "minify": true
+    },
+    "sideEffects": [
+      "throws before",
+      "sibling",
+      "caught boom",
+      "caught again boom",
+      "caught throws boom"
+    ]
+  }
+]

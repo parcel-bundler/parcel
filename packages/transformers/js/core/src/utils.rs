@@ -467,3 +467,34 @@ pub fn error_buffer_to_diagnostics(
     })
     .collect()
 }
+
+/// Whether a module evaluates asynchronously: it contains an `await` expression, a `for await`
+/// loop, or an `await using` declaration outside of any function.
+pub fn has_top_level_await(module: &ast::Module) -> bool {
+  use swc_core::ecma::{
+    utils::contains_top_level_await,
+    visit::{Visit, VisitWith},
+  };
+
+  // `contains_top_level_await` skips functions and classes but not `await using` declarations.
+  struct AwaitUsing(bool);
+  impl Visit for AwaitUsing {
+    fn visit_function(&mut self, _: &ast::Function) {}
+    fn visit_arrow_expr(&mut self, _: &ast::ArrowExpr) {}
+    fn visit_class(&mut self, _: &ast::Class) {}
+    fn visit_using_decl(&mut self, node: &ast::UsingDecl) {
+      if node.is_await {
+        self.0 = true;
+      } else {
+        node.visit_children_with(self);
+      }
+    }
+  }
+
+  if contains_top_level_await(module) {
+    return true;
+  }
+  let mut visitor = AwaitUsing(false);
+  module.visit_with(&mut visitor);
+  visitor.0
+}

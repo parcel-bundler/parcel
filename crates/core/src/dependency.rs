@@ -39,6 +39,15 @@ pub struct Dependency {
 }
 
 impl Dependency {
+  /// Whether this is a static `import`/`export ... from` of a JS module, which the importer
+  /// evaluates before its own body runs.
+  pub fn is_static_import(&self) -> bool {
+    self.specifier_type == SpecifierType::Esm
+      && self.priority == Priority::Sync
+      && self.import_type == ImportType::JavaScript
+      && self.bundle_behavior == BundleBehavior::None
+  }
+
   pub fn set_placeholder(&mut self) -> &str {
     let mut hasher = DefaultHasher::new();
     self.specifier.hash(&mut hasher);

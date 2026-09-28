@@ -1,0 +1,33 @@
+[
+  {
+    "description": "top-level await: evaluates async modules imported dynamically in the browser",
+    "input": "index.html",
+    "sideEffects": [
+      "shared before",
+      "shared after",
+      "index",
+      "shared s",
+      "lazy-dep before",
+      "lazy-dep after",
+      "lazy",
+      "lazy sl"
+    ]
+  },
+  {
+    "description": "top-level await: evaluates async modules imported dynamically in the browser (minified)",
+    "input": "index.html",
+    "sideEffects": [
+      "shared before",
+      "shared after",
+      "index",
+      "shared s",
+      "lazy-dep before",
+      "lazy-dep after",
+      "lazy",
+      "lazy sl"
+    ],
+    "options": {
+      "minify": true
+    }
+  }
+]

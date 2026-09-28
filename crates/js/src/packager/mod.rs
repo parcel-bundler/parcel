@@ -2,7 +2,7 @@ use std::{fmt::Write, sync::Arc};
 
 use indexmap::{IndexMap, IndexSet};
 use parcel_core::*;
-use parcel_js_swc_core::{Ast, tree_shake::tree_shake};
+use parcel_js_swc_core::{Ast, async_module::wrap_async_module, tree_shake::tree_shake};
 use swc_core::{
   common::{DUMMY_SP, SyntaxContext},
   ecma::ast::{Ident, ImportDecl, ImportSpecifier, ImportStarAsSpecifier, ModuleDecl, ModuleItem},
@@ -16,9 +16,10 @@ mod synthetic;
 
 pub use dependencies::asset_dependencies;
 pub(crate) use dependencies::bundle_dependencies;
-use dependencies::{awaited_bundles, manifest_entries, static_imports};
+use dependencies::{awaited_bundles, manifest_entries, static_import_ids, static_imports};
 pub use parcel_js_swc_core::tree_shake::Resolution;
 pub use rsc::RscModule;
+use synthetic::AsyncRegistration;
 pub use synthetic::{BundleShim, SyntheticAsset};
 
 use crate::JsContent;
@@ -116,6 +117,21 @@ impl JsContent {
       asset_plans.push((*asset_index, dependencies));
     }
 
+    // Async modules are entered through the runtime's module evaluator, and async entries evaluated
+    // by it (see `tla-runtime.js`).
+    if bundle
+      .assets
+      .iter()
+      .any(|asset| bundle_graph.is_async_asset(*asset))
+    {
+      synthetic_assets.insert(SyntheticAsset::AsyncEvaluator);
+    }
+    for entry in &bundle.entry_assets {
+      if bundle_graph.is_async_asset(*entry) {
+        synthetic_assets.insert(SyntheticAsset::AsyncEntry(*entry));
+      }
+    }
+
     let rsc_server_entry =
       if let Some(module) = rsc::server_entry(bundle, bundle_graph, &options.project_root)? {
         let id = module.id();
@@ -167,6 +183,7 @@ impl JsContent {
         &mut printer,
         asset,
         bundle,
+        bundle_graph.is_async_asset(asset_index),
         dependencies,
         options,
         should_build_source_map,
@@ -347,6 +364,7 @@ fn write_asset_module<'a>(
   printer: &mut Printer,
   asset: &Asset,
   bundle: &Bundle,
+  is_async: bool,
   dependencies: IndexMap<String, Resolution<'a>>,
   options: &ParcelOptions,
   should_build_source_map: bool,
@@ -354,6 +372,21 @@ fn write_asset_module<'a>(
 ) -> Result<(), DiagnosticList> {
   if let Some(content) = asset.content.downcast_ref::<JsContent>() {
     let mut ast = content.ast.clone();
+    if is_async {
+      // The runtime's module evaluator runs it (see `tla-runtime.js`).
+      wrap_async_module(
+        &mut ast,
+        content.esm_prologue_len,
+        content.react_refresh_wrapped,
+        &static_import_ids(asset, &dependencies),
+        asset.flags.contains(AssetFlags::HAS_TOP_LEVEL_AWAIT),
+      );
+      // Rename bindings so the wrapper's names can't collide with the module's. Optimized output is
+      // finalized after tree shaking below.
+      if !should_optimize {
+        ast.finalize();
+      }
+    }
     insert_node_replacements(&mut ast, content, asset, bundle, should_optimize);
     let serialized_dependencies = if should_optimize {
       None
@@ -596,10 +629,16 @@ fn write_synthetic_module(
   should_optimize: bool,
 ) -> Result<(), DiagnosticList> {
   let id = synthetic_asset.id(bundle_graph, project_root);
+  let registration = synthetic_asset.async_registration(bundle_graph, bundle, project_root);
+  printer.write_module_header(id)?;
   if should_optimize {
-    write!(printer, "'{}':function(module,exports){{", id)?;
-  } else {
-    printer.write_module_header(id)?;
+    printer.write_str("function(module,exports){")?;
+  }
+  if let Some(registration) = &registration {
+    printer.write_str(&async_module_header(
+      registration,
+      runtime_name(should_optimize, "require", RUNTIME_REQUIRE),
+    )?)?;
   }
   synthetic_asset.write_content(
     printer,
@@ -610,10 +649,13 @@ fn write_synthetic_module(
     project_root,
   )?;
   let deps = serde_json::to_string(&synthetic_asset.dependencies(bundle_graph, project_root))?;
-  if !should_optimize {
-    printer.write_module_trailer(deps)?;
-  } else {
+  if registration.is_some() {
+    printer.write_str(ASYNC_MODULE_FOOTER)?;
+  }
+  if should_optimize {
     printer.write_char('}')?;
+  } else {
+    printer.write_module_trailer(deps)?;
   }
 
   Ok(())
@@ -710,8 +752,11 @@ fn write_runtime_globals(
     write!(printer, "'{}',", entry)?;
   }
   for entry in &bundle.entry_assets {
-    let asset = &bundle_graph.asset_graph.asset(*entry);
-    write!(printer, "'{}',", asset.id(project_root))?;
+    write!(
+      printer,
+      "'{}',",
+      entry_id(bundle_graph, *entry, project_root)
+    )?;
   }
 
   printer.write_str("];")?;
@@ -738,10 +783,9 @@ fn write_runtime_globals(
     .as_ref()
     .filter(|_| !bundle.entry_assets.is_empty())
   {
-    let asset = &bundle_graph.asset_graph.asset(*main);
     printer.write_var(
       runtime_main_entry,
-      &format!("'{}'", asset.id(project_root)),
+      &format!("'{}'", entry_id(bundle_graph, *main, project_root)),
       true,
     )?;
   } else {
@@ -759,6 +803,32 @@ fn write_runtime_globals(
   }
 
   Ok(())
+}
+
+/// Starts the content of a synthetic module that the runtime's async module evaluator runs, like an
+/// asset module wrapped by `wrap_async_module`. Its link code runs first, then the evaluator enters
+/// its imports, then its content runs, before it waits for them. `ASYNC_MODULE_FOOTER` ends it.
+fn async_module_header(
+  registration: &AsyncRegistration,
+  require: &str,
+) -> Result<String, DiagnosticList> {
+  Ok(format!(
+    "{require}(\"_tla\").enter(module,{},0,async function($parcel$tla){{try{{{}var $parcel$wait=$parcel$tla();\n",
+    serde_json::to_string(&registration.imports)?,
+    registration.link,
+  ))
+}
+
+const ASYNC_MODULE_FOOTER: &str = "\n;if($parcel$wait)(await $parcel$wait)();$parcel$tla.d()}catch($parcel$error){$parcel$tla.c($parcel$error)}});";
+
+/// The id the runtime requires to run an entry. For an async entry, that's a shim evaluating it,
+/// which exposes a promise for its exports.
+fn entry_id(bundle_graph: &BundleGraph, entry: AssetIndex, project_root: &PathId) -> String {
+  if bundle_graph.is_async_asset(entry) {
+    SyntheticAsset::AsyncEntry(entry).id(bundle_graph, project_root)
+  } else {
+    bundle_graph.asset_graph.asset(entry).id(project_root)
+  }
 }
 
 fn dist_dir_prefix(dist_dir: &PathId, bundle_dir: &PathId) -> String {

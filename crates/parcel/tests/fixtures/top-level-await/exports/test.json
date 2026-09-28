@@ -1,0 +1,17 @@
+[
+  {
+    "description": "top-level await: exposes an async entry's exports once evaluated",
+    "input": "index.js",
+    "sideEffects": [40],
+    "output": 42
+  },
+  {
+    "description": "top-level await: exposes an async entry's exports once evaluated (minified)",
+    "input": "index.js",
+    "options": {
+      "minify": true
+    },
+    "sideEffects": [40],
+    "output": 42
+  }
+]

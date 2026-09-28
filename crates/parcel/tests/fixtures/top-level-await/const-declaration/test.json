@@ -1,0 +1,7 @@
+{
+  "description": "top-level await: keeps const bindings immutable in async modules (the minifier drops the reassignment in any module, so this isn't tested minified)",
+  "input": "index.js",
+  "sideEffects": [
+    "TypeError"
+  ]
+}

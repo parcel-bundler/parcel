@@ -7,8 +7,10 @@ use indexmap::IndexMap;
 use parcel_core::*;
 
 use super::{
-  RUNTIME_REQUIRE, dependencies::is_async_bundle_dependency, runtime_name,
-  synthetic::js_bundle_load_expression,
+  RUNTIME_REQUIRE,
+  dependencies::is_async_bundle_dependency,
+  runtime_name,
+  synthetic::{AsyncRegistration, evaluate_async_expression, js_bundle_load_expression},
 };
 use crate::JsContent;
 
@@ -148,6 +150,14 @@ pub(super) fn resolve_dependency(
     && resolved.target.environment == Environment::ReactClient
     && directives.iter().any(|directive| directive == "use client")
   {
+    // React requires client components synchronously once their bundles load.
+    if bundle_graph.is_async_asset(resolved_index) {
+      return Err(async_boundary_diagnostic(
+        "client components",
+        resolved,
+        dependency.loc.as_ref(),
+      ));
+    }
     // Find the bundle containing the importer so we can get the referenced bundles for the entire bundle group.
     // TODO: the importer might not actually be the bundle root (it might also be a shared bundle).
     let bundle_index = bundle_graph
@@ -246,7 +256,7 @@ pub(super) fn server_entry(
     Ok(Some(RscModule::ServerEntry {
       entry: entry,
       runtime: runtime_asset(entry, asset, bundle_graph)?,
-      actions: server_actions(bundle_graph, project_root),
+      actions: server_actions(bundle_graph, project_root)?,
     }))
   } else {
     Ok(None)
@@ -410,7 +420,10 @@ pub(super) fn client_bundle_import_map_dependencies(
   dependencies
 }
 
-fn server_actions(bundle_graph: &BundleGraph, project_root: &PathId) -> Vec<RscServerAction> {
+fn server_actions(
+  bundle_graph: &BundleGraph,
+  project_root: &PathId,
+) -> Result<Vec<RscServerAction>, DiagnosticList> {
   let mut actions: IndexMap<String, RscServerAction> = IndexMap::new();
   for (asset_index, asset) in bundle_graph.asset_graph.assets.iter().enumerate() {
     let asset_index = AssetIndex(asset_index as u32);
@@ -425,6 +438,14 @@ fn server_actions(bundle_graph: &BundleGraph, project_root: &PathId) -> Vec<RscS
       });
     if !is_server_action {
       continue;
+    }
+    // React requires server actions synchronously once their bundles load.
+    if bundle_graph.is_async_asset(asset_index) {
+      return Err(async_boundary_diagnostic(
+        "'use server' modules",
+        asset,
+        None,
+      ));
     }
 
     let Some(bundle_index) = bundle_graph.first_bundle_containing(asset_index) else {
@@ -455,10 +476,98 @@ fn server_actions(bundle_graph: &BundleGraph, project_root: &PathId) -> Vec<RscS
       );
     }
   }
-  actions.into_values().collect()
+  Ok(actions.into_values().collect())
+}
+
+fn async_boundary_diagnostic(
+  kind: &str,
+  asset: &Asset,
+  loc: Option<&SourceLocation>,
+) -> DiagnosticList {
+  let code_frame = match loc {
+    Some(loc) => CodeFrame {
+      url: Some(loc.url.clone()),
+      code: None,
+      language: None,
+      code_highlights: vec![CodeHighlight {
+        message: None,
+        start: loc.start.clone(),
+        end: loc.end.clone(),
+      }],
+    },
+    None => CodeFrame {
+      url: Some(asset.loc.url.clone()),
+      code: None,
+      language: Some(asset.ty.clone()),
+      code_highlights: vec![],
+    },
+  };
+  DiagnosticList(vec![Diagnostic {
+    origin: Some("@parcel/packager-js".into()),
+    message: format!(
+      "Top-level await is not supported in {kind} or the modules they import, because React loads them synchronously."
+    ),
+    code_frames: vec![code_frame],
+    hints: vec![],
+    severity: DiagnosticSeverity::Error,
+    documentation_url: None,
+  }])
 }
 
 impl RscModule {
+  /// For a module that requires an async module synchronously, how the async module evaluator runs
+  /// it (see `tla-runtime.js`).
+  pub(super) fn async_registration(
+    &self,
+    bundle_graph: &BundleGraph,
+    bundle: &Bundle,
+    project_root: &PathId,
+  ) -> Option<AsyncRegistration> {
+    let RscModule::Resources {
+      bundle: target_bundle,
+      plan,
+      is_async: false,
+      ..
+    } = self
+    else {
+      return None;
+    };
+    if !bundle_graph.is_async_asset(plan.original_asset) {
+      return None;
+    }
+    // The proxy wraps the original's exports, which it defines (dynamic names included) when it's
+    // entered. Importers wait for its evaluation through this module.
+    let target_bundle = &bundle_graph.bundles[*target_bundle as usize];
+    let link = if target_bundle.target.output_format == OutputFormat::Commonjs {
+      // Loading a CommonJS bundle registers the original. The evaluator defers the bundle's own
+      // evaluation of its entry, and enters the original from here instead.
+      format!(
+        "module.bundle.nodeRequire({}).catch(()=>{{}});",
+        serde_json::to_string(&target_bundle.relative_specifier(bundle).unwrap()).unwrap()
+      )
+    } else {
+      String::new()
+    };
+    Some(AsyncRegistration {
+      imports: vec![
+        bundle_graph
+          .asset_graph
+          .asset(plan.original_asset)
+          .id(project_root),
+      ],
+      link,
+    })
+  }
+
+  /// Whether this module evaluates an async module itself, so needs the evaluator.
+  pub(super) fn needs_async_evaluator(&self, bundle_graph: &BundleGraph) -> bool {
+    matches!(
+      self,
+      RscModule::Resources { plan, is_async: true, .. }
+        if bundle_graph.is_async_asset(plan.original_asset)
+    )
+  }
+
   pub fn id(&self) -> String {
     match self {
       RscModule::Empty {
@@ -771,13 +880,22 @@ fn write_resources<W: std::fmt::Write>(
     if !css.is_empty() {
       write!(dest, ".then(()=>Promise.all([{}]))", css.join(","))?;
     }
-    write!(
-      dest,
-      ".then(()=>{{let $original={}({});return $rsc.createResourcesProxy($original,{},$resources",
-      require,
-      original_id,
-      original_asset.flags.contains(AssetFlags::IS_ESM)
-    )?;
+    if bundle_graph.is_async_asset(plan.original_asset) {
+      write!(
+        dest,
+        ".then(()=>{}).then($original=>{{return $rsc.createResourcesProxy($original,{},$resources",
+        evaluate_async_expression(require, &original_asset.id(project_root)),
+        original_asset.flags.contains(AssetFlags::IS_ESM)
+      )?;
+    } else {
+      write!(
+        dest,
+        ".then(()=>{{let $original={}({});return $rsc.createResourcesProxy($original,{},$resources",
+        require,
+        original_id,
+        original_asset.flags.contains(AssetFlags::IS_ESM)
+      )?;
+    }
     if bootstrap_script.is_some() {
       write!(dest, ",$bootstrapScript")?;
     }
@@ -785,7 +903,10 @@ fn write_resources<W: std::fmt::Write>(
   } else {
     // A CommonJS target bundle is required by its path relative to this bundle, with this bundle's
     // own Node require.
-    let original = if target_bundle.target.output_format == OutputFormat::Commonjs {
+    // An async original has already been loaded and entered (see `RscModule::async_registration`).
+    let original = if target_bundle.target.output_format == OutputFormat::Commonjs
+      && !bundle_graph.is_async_asset(plan.original_asset)
+    {
       format!(
         "module.bundle.nodeRequire({})",
         serde_json::to_string(&target_bundle.relative_specifier(bundle).unwrap())?

@@ -1,0 +1,13 @@
+{
+  "name": "tla-rsc-resources-commonjs-test",
+  "private": true,
+  "dependencies": {
+    "react": "^19"
+  },
+  "targets": {
+    "default": {
+      "context": "react-server",
+      "outputFormat": "commonjs"
+    }
+  }
+}

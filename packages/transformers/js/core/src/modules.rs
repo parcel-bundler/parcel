@@ -23,7 +23,7 @@ pub fn esm2cjs(
   unresolved_mark: Mark,
   versions: Option<Versions>,
   esm_helpers: &str,
-) -> (Module, bool) {
+) -> (Module, bool, usize) {
   let mut fold = ESMFold {
     imports: HashMap::new(),
     require_names: HashMap::new(),
@@ -39,10 +39,11 @@ pub fn esm2cjs(
     versions,
     is_esm: false,
     esm_helpers: esm_helpers.into(),
+    prologue_len: 0,
   };
 
   let module = node.fold_with(&mut fold);
-  (module, fold.needs_helpers)
+  (module, fold.needs_helpers, fold.prologue_len)
 }
 
 struct ESMFold {
@@ -65,6 +66,9 @@ struct ESMFold {
   versions: Option<Versions>,
   is_esm: bool,
   esm_helpers: JsWord,
+  // The number of statements the module starts with that define its exports and require its
+  // imports, before the rest of its body.
+  prologue_len: usize,
 }
 
 fn local_name_for_src(src: &JsWord) -> JsWord {
@@ -604,6 +608,7 @@ impl Fold for ESMFold {
     let mut node = node;
     items.splice(0..0, self.requires.clone());
     items.splice(0..0, self.exports.clone());
+    self.prologue_len = self.exports.len() + self.requires.len() + self.needs_helpers as usize;
 
     if self.needs_helpers {
       items.insert(
@@ -711,7 +716,7 @@ mod tests {
   fn uses_configured_esm_helpers() {
     let (output, needs_helpers) =
       run_with_transformation("export default 42", |context, module| {
-        let (result, needs_helpers) = esm2cjs(
+        let (result, needs_helpers, _) = esm2cjs(
           module.clone(),
           context.unresolved_mark,
           None,

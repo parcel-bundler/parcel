@@ -307,6 +307,8 @@ bitflags! {
     const IS_HTML_TAG = 1 << 11;
     const IS_ESM = 1 << 12;
     const AUTOMATIC_JSX_RUNTIME = 1 << 13;
+    /// The module contains top-level await, so it evaluates asynchronously.
+    const HAS_TOP_LEVEL_AWAIT = 1 << 14;
   }
 }
 

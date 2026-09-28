@@ -1,0 +1,15 @@
+[
+  {
+    "description": "top-level await: evaluates an async module imported dynamically from CommonJS",
+    "input": "index.js",
+    "sideEffects": ["async before", "cjs", "async after", "index", "a"]
+  },
+  {
+    "description": "top-level await: evaluates an async module imported dynamically from CommonJS (minified)",
+    "input": "index.js",
+    "sideEffects": ["async before", "cjs", "async after", "index", "a"],
+    "options": {
+      "minify": true
+    }
+  }
+]

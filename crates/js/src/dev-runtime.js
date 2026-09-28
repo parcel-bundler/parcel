@@ -946,8 +946,16 @@ function hmrDispose(bundle /*: ParcelRequire */, id /*: string */) {
 }
 
 function hmrAccept(bundle /*: ParcelRequire */, id /*: string */) {
-  // Execute the module.
-  bundle(id);
+  // Execute the module. Re-evaluating a module that evaluates asynchronously (it uses top-level
+  // await, or imports a module that does) isn't supported.
+  try {
+    bundle(id);
+  } catch (err) {
+    if (err && err.code === 'ERR_REQUIRE_ASYNC_MODULE') {
+      return fullReload();
+    }
+    throw err;
+  }
 
   // Run the accept callbacks in the new version of the module.
   var cached = bundle.cache[id];

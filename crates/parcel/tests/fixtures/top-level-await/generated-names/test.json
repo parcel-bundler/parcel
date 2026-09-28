@@ -1,0 +1,27 @@
+[
+  {
+    "description": "top-level await: keeps generated names from colliding with the module's",
+    "input": "index.js",
+    "sideEffects": [
+      [
+        "tla",
+        "wait",
+        "error"
+      ]
+    ]
+  },
+  {
+    "description": "top-level await: keeps generated names from colliding with the module's (minified)",
+    "input": "index.js",
+    "sideEffects": [
+      [
+        "tla",
+        "wait",
+        "error"
+      ]
+    ],
+    "options": {
+      "minify": true
+    }
+  }
+]

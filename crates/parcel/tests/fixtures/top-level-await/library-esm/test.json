@@ -1,0 +1,6 @@
+{
+  "description": "top-level await: is kept as is in ES module libraries",
+  "input": ".",
+  "options": {"mode": "production"},
+  "output": 42
+}

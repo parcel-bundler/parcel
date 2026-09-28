@@ -19,6 +19,31 @@ pub enum SyntheticAsset {
   InternalizedInterop(AssetIndex),
   /// A generated React Server Components module.
   Rsc(RscModule),
+  /// The module evaluator for modules with top-level await (see `tla-runtime.js`), shared by every
+  /// bundle through the require cache. Included by bundles that start evaluating one.
+  AsyncEvaluator,
+  /// Evaluates an async entry asset, which only the async module evaluator can run.
+  AsyncEntry(AssetIndex),
+}
+
+/// How the async module evaluator runs a synthetic module that requires an async module synchronously
+/// (see `tla-runtime.js`).
+///
+/// Such a module is a wrapper: its content only needs its imports entered, not evaluated, so all of it
+/// runs before it waits for them, and its importers see its exports as they would a synchronous one's.
+pub(super) struct AsyncRegistration {
+  /// Its static imports.
+  pub imports: Vec<String>,
+  /// Code that makes its imports available before they're entered, e.g. by loading their bundle.
+  pub link: String,
+}
+
+/// The id of `SyntheticAsset::AsyncEvaluator`. Can't collide with asset ids or package names.
+pub(super) const ASYNC_EVALUATOR_ID: &str = "_tla";
+
+/// An expression evaluating the async module `id`, resolving to its exports.
+pub(super) fn evaluate_async_expression(require_name: &str, id: &str) -> String {
+  format!("{require_name}({ASYNC_EVALUATOR_ID:?})({id:?})")
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -95,6 +120,26 @@ impl SyntheticAsset {
         SyntheticAsset::Internalized(*asset_index).id(bundle_graph, project_root)
       ),
       SyntheticAsset::Rsc(module) => module.id(),
+      SyntheticAsset::AsyncEvaluator => ASYNC_EVALUATOR_ID.into(),
+      SyntheticAsset::AsyncEntry(asset_index) => format!(
+        "e_{}",
+        bundle_graph
+          .asset_graph
+          .asset(*asset_index)
+          .id(project_root)
+      ),
+    }
+  }
+
+  pub(super) fn async_registration(
+    &self,
+    bundle_graph: &BundleGraph,
+    bundle: &Bundle,
+    project_root: &PathId,
+  ) -> Option<AsyncRegistration> {
+    match self {
+      SyntheticAsset::Rsc(module) => module.async_registration(bundle_graph, bundle, project_root),
+      _ => None,
     }
   }
 
@@ -222,12 +267,22 @@ impl SyntheticAsset {
       SyntheticAsset::Internalized(asset_index) => {
         let asset = bundle_graph.asset_graph.asset(*asset_index);
         let id = asset.id(project_root);
-        write!(
-          dest,
-          "module.exports=Promise.resolve().then(()=>{}({:?}))",
-          runtime_name(should_optimize, "require", RUNTIME_REQUIRE),
-          id
-        )?;
+        let require = runtime_name(should_optimize, "require", RUNTIME_REQUIRE);
+        // Evaluation starts in a later job, like a native dynamic import, and never within
+        // another module's evaluation.
+        if bundle_graph.is_async_asset(*asset_index) {
+          write!(
+            dest,
+            "module.exports=Promise.resolve().then(()=>{})",
+            evaluate_async_expression(require, &id)
+          )?;
+        } else {
+          write!(
+            dest,
+            "module.exports=Promise.resolve().then(()=>{}({:?}))",
+            require, id
+          )?;
+        }
       }
       SyntheticAsset::InternalizedInterop(asset_index) => {
         write!(
@@ -239,6 +294,24 @@ impl SyntheticAsset {
       }
       SyntheticAsset::Rsc(module) => {
         module.write(dest, should_optimize, bundle_graph, bundle, project_root)?;
+      }
+      SyntheticAsset::AsyncEvaluator => {
+        dest.write_str(if should_optimize {
+          include_str!(concat!(env!("OUT_DIR"), "/tla-runtime.min.js"))
+        } else {
+          include_str!("../tla-runtime.js")
+        })?;
+      }
+      SyntheticAsset::AsyncEntry(asset_index) => {
+        let asset = bundle_graph.asset_graph.asset(*asset_index);
+        write!(
+          dest,
+          "module.exports={}",
+          evaluate_async_expression(
+            runtime_name(should_optimize, "require", RUNTIME_REQUIRE),
+            &asset.id(project_root)
+          )
+        )?;
       }
     }
 
@@ -274,6 +347,12 @@ fn load_bundles<W: std::fmt::Write>(
 ) -> core::fmt::Result {
   let asset = &bundle_graph.asset_graph.asset(main_entry_id);
   let bundle = &bundle_graph.bundles[bundle_index];
+  let id = asset.id(project_root);
+  let load = if bundle_graph.is_async_asset(main_entry_id) {
+    evaluate_async_expression(require_name, &id)
+  } else {
+    format!("{require_name}('{id}')")
+  };
 
   // Load everything the bundle depends on, transitively, rather than relying on each bundle to
   // import its own siblings. Only JS and CSS bundles have loaders.
@@ -301,21 +380,11 @@ fn load_bundles<W: std::fmt::Write>(
     }
 
     load_bundle(bundle_graph, bundle, from, res)?;
-    write!(
-      res,
-      "]).then(()=>{}('{}'));",
-      require_name,
-      asset.id(project_root)
-    )?;
+    write!(res, "]).then(()=>{});", load)?;
   } else {
     write!(res, "module.exports=")?;
     load_bundle(bundle_graph, bundle, from, res)?;
-    write!(
-      res,
-      ".then(()=>{}('{}'));",
-      require_name,
-      asset.id(project_root)
-    )?;
+    write!(res, ".then(()=>{});", load)?;
   }
 
   Ok(())
