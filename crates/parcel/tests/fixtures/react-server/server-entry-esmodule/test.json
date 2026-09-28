@@ -1,0 +1,27 @@
+[
+  {
+    "description": "should load a server entry's bundle for a synchronous boundary with ES module output",
+    "input": "index.jsx",
+    "output": {
+      "keys": ["dynamic", "value"],
+      "value": 42,
+      "dynamic": "cjs"
+    },
+    "options": {
+      "mode": "production"
+    }
+  },
+  {
+    "description": "should load a server entry's bundle for a synchronous boundary with ES module output (minified)",
+    "input": "index.jsx",
+    "output": {
+      "keys": ["dynamic", "value"],
+      "value": 42,
+      "dynamic": "cjs"
+    },
+    "options": {
+      "minify": true,
+      "mode": "production"
+    }
+  }
+]

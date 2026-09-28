@@ -1,0 +1,14 @@
+{
+  "name": "tla-rsc-star-reexport-esmodule-test",
+  "private": true,
+  "dependencies": {
+    "react": "^19"
+  },
+  "targets": {
+    "default": {
+      "context": "react-server",
+      "outputFormat": "esmodule"
+    }
+  },
+  "type": "module"
+}

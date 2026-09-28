@@ -115,15 +115,23 @@ fn holds_manifest(bundle_graph: &BundleGraph, bundle: &Bundle) -> bool {
 /// JS bundles `bundle` imports so they're loaded before it runs. Roots that nothing else loads
 /// the closure for import all of them. Parcel's loader, pages and RSC load a bundle's static closure
 /// within its environment, so other bundles only import the bundles they reference in other
-/// environments (e.g. server code importing modules `with {env: 'react-client'}`).
+/// environments (e.g. server code importing modules `with {env: 'react-client'}`). Bundles also
+/// import the bundle groups their synchronous RSC boundaries require modules from, which are
+/// outside their static closure.
 pub(super) fn static_imports(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
   let is_root = holds_manifest(bundle_graph, bundle);
-  js_closure(bundle_graph, bundle)
+  let mut imports: Vec<usize> = js_closure(bundle_graph, bundle)
     .into_iter()
     .filter(|&index| {
       is_root || bundle_graph.bundles[index].target.environment != bundle.target.environment
     })
-    .collect()
+    .collect();
+  for index in rsc::sync_boundary_bundles(bundle_graph, bundle) {
+    if !imports.contains(&index) {
+      imports.push(index);
+    }
+  }
+  imports
 }
 
 /// JS bundles a root loads before running its entries (see `runtime.js`). A page runs an isolated

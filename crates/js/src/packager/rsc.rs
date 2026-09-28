@@ -242,6 +242,52 @@ pub(super) fn resolve_dependency(
   Ok(None)
 }
 
+/// Bundles that `bundle`'s synchronous bundle group boundaries require their original module from
+/// (see `write_resources`). Except in CommonJS, where the boundary loads the bundle itself, `bundle`
+/// must load them before it runs.
+pub(super) fn sync_boundary_bundles(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+  let mut bundles = Vec::new();
+  if !matches!(
+    bundle.target.environment,
+    Environment::ReactServer | Environment::ReactClient
+  ) {
+    return bundles;
+  }
+  for &asset_index in &bundle.assets {
+    let asset = bundle_graph.asset_graph.asset(asset_index);
+    for (dep_index, dep) in asset.dependencies.iter().enumerate() {
+      let BundleGraphDependencyResolution::Bundle {
+        bundle_index,
+        asset_index: resolved,
+      } = bundle_graph.dependency_resolution(asset_index, dep_index)
+      else {
+        continue;
+      };
+      if let Ok(Some(RscModule::Resources {
+        bundle: target,
+        is_async: false,
+        ..
+      })) = resolve_dependency(
+        asset_index,
+        dep_index,
+        asset,
+        dep,
+        resolved,
+        Some(bundle_index),
+        bundle_graph,
+      ) {
+        let target = target as usize;
+        if bundle_graph.bundles[target].target.output_format != OutputFormat::Commonjs
+          && !bundles.contains(&target)
+        {
+          bundles.push(target);
+        }
+      }
+    }
+  }
+  bundles
+}
+
 /// Returns the setup module for a React server entry bundle, if this is one.
 pub(super) fn server_entry(
   bundle: &Bundle,

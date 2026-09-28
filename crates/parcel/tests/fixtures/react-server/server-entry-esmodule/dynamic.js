@@ -1,0 +1,1 @@
+exports['dyn' + 'amic'] = 'cjs';
