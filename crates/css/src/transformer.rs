@@ -163,8 +163,9 @@ impl Transformer for CssTransformer {
           ..Default::default()
         })
         .map_err(|err| convert_error(Some(asset.loc.url.clone()), err))?;
-      let exports = res.exports.clone().unwrap_or(HashMap::new());
+      let exports = res.exports.clone().unwrap_or_default();
       let mut refs = HashMap::new();
+      // Exports and references are in source order, which the asset's exports and dependencies follow.
       if let Some(exports) = res.exports {
         for (name, exp) in exports {
           asset.symbols.exports.push(LocalSymbol {
@@ -262,7 +263,7 @@ impl Transformer for CssTransformer {
         source_size: code.len(),
         order_flags: crate::bundling::summarize(&stylesheet.rules.0),
         stylesheet: stylesheet.into_owned(),
-        exports: HashMap::new(),
+        exports: Default::default(),
         references: HashMap::new(),
         pseudo_classes: self.pseudo_classes.clone(),
       });

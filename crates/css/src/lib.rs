@@ -4,7 +4,7 @@ use std::{
 };
 
 use lightningcss::{
-  css_modules::{CssModuleExport, CssModuleReference},
+  css_modules::{CssModuleExports, CssModuleReference},
   error::Error,
   stylesheet::{StyleAttribute, StyleSheet},
 };
@@ -23,7 +23,7 @@ pub struct CssContent {
   source_size: usize,
   stylesheet: StyleSheet<'static>,
   order_flags: bundling::OrderFlags,
-  exports: HashMap<String, CssModuleExport>,
+  exports: CssModuleExports,
   references: HashMap<String, usize>,
   pseudo_classes: Option<Arc<PseudoClasses>>,
 }

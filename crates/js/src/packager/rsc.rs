@@ -614,17 +614,25 @@ impl RscModule {
     )
   }
 
-  pub fn id(&self) -> String {
+  /// A stable id: the importer's asset id (from its path) and the dependency's index within it.
+  /// Asset indices aren't stable between builds.
+  pub fn id(&self, bundle_graph: &BundleGraph) -> String {
+    let asset_id = |asset| {
+      bundle_graph
+        .asset_graph
+        .asset(asset)
+        .id(&bundle_graph.project_root)
+    };
     match self {
       RscModule::Empty {
         importer,
         dependency,
-      } => format!("rsc_e_{}_{}", importer, dependency),
+      } => format!("rsc_e_{}_{}", asset_id(*importer), dependency),
       RscModule::ClientReference {
         importer,
         dependency,
         ..
-      } => format!("rsc_c_{}_{}", importer, dependency),
+      } => format!("rsc_c_{}_{}", asset_id(*importer), dependency),
       RscModule::ServerReference {
         importer,
         dependency,
@@ -633,15 +641,15 @@ impl RscModule {
       } => format!(
         "rsc_s{}_{}_{}",
         if *is_client { "c" } else { "s" },
-        importer,
+        asset_id(*importer),
         dependency
       ),
       RscModule::Resources {
         importer,
         dependency,
         ..
-      } => format!("rsc_r_{}_{}", importer, dependency),
-      RscModule::ServerEntry { entry, .. } => format!("rsc_entry_{}", entry),
+      } => format!("rsc_r_{}_{}", asset_id(*importer), dependency),
+      RscModule::ServerEntry { entry, .. } => format!("rsc_entry_{}", asset_id(*entry)),
     }
   }
 

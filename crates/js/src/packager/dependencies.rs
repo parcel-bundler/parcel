@@ -245,7 +245,10 @@ pub fn asset_dependencies<'a>(
         bundle_graph,
       )?
     {
-      dependencies.insert((&**placeholder).into(), Resolution::Asset(module.id()));
+      dependencies.insert(
+        (&**placeholder).into(),
+        Resolution::Asset(module.id(bundle_graph)),
+      );
       if module.needs_async_evaluator(bundle_graph) {
         additional_assets.insert(SyntheticAsset::AsyncEvaluator);
       }

@@ -134,7 +134,7 @@ impl JsContent {
 
     let rsc_server_entry =
       if let Some(module) = rsc::server_entry(bundle, bundle_graph, &options.project_root)? {
-        let id = module.id();
+        let id = module.id(bundle_graph);
         synthetic_assets.insert(SyntheticAsset::Rsc(module));
         Some(id)
       } else {

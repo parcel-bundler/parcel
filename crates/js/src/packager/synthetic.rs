@@ -119,7 +119,7 @@ impl SyntheticAsset {
         "{}_esm",
         SyntheticAsset::Internalized(*asset_index).id(bundle_graph, project_root)
       ),
-      SyntheticAsset::Rsc(module) => module.id(),
+      SyntheticAsset::Rsc(module) => module.id(bundle_graph),
       SyntheticAsset::AsyncEvaluator => ASYNC_EVALUATOR_ID.into(),
       SyntheticAsset::AsyncEntry(asset_index) => format!(
         "e_{}",

@@ -2244,7 +2244,7 @@ dependencies = [
 [[package]]
 name = "lightningcss"
 version = "1.0.0-alpha.72"
-source = "git+https://github.com/parcel-bundler/lightningcss?branch=master#a862e39e55e4a2db6a1ec40a3bd7b80704edb33e"
+source = "git+https://github.com/parcel-bundler/lightningcss?branch=master#987e1bf1800c6f3223b097037be326c64a81b694"
 dependencies = [
  "ahash 0.8.12",
  "bitflags 2.13.1",
@@ -2268,7 +2268,7 @@ dependencies = [
 [[package]]
 name = "lightningcss-derive"
 version = "1.0.0-alpha.43"
-source = "git+https://github.com/parcel-bundler/lightningcss?branch=master#a862e39e55e4a2db6a1ec40a3bd7b80704edb33e"
+source = "git+https://github.com/parcel-bundler/lightningcss?branch=master#987e1bf1800c6f3223b097037be326c64a81b694"
 dependencies = [
  "convert_case 0.6.0",
  "proc-macro2",
@@ -3286,7 +3286,7 @@ dependencies = [
 [[package]]
 name = "parcel_selectors"
 version = "0.28.3"
-source = "git+https://github.com/parcel-bundler/lightningcss?branch=master#a862e39e55e4a2db6a1ec40a3bd7b80704edb33e"
+source = "git+https://github.com/parcel-bundler/lightningcss?branch=master#987e1bf1800c6f3223b097037be326c64a81b694"
 dependencies = [
  "bitflags 2.13.1",
  "cssparser",
@@ -4661,7 +4661,7 @@ dependencies = [
 [[package]]
 name = "static-self"
 version = "0.1.2"
-source = "git+https://github.com/parcel-bundler/lightningcss?branch=master#a862e39e55e4a2db6a1ec40a3bd7b80704edb33e"
+source = "git+https://github.com/parcel-bundler/lightningcss?branch=master#987e1bf1800c6f3223b097037be326c64a81b694"
 dependencies = [
  "indexmap 2.14.0",
  "smallvec",
@@ -4671,7 +4671,7 @@ dependencies = [
 [[package]]
 name = "static-self-derive"
 version = "0.1.1"
-source = "git+https://github.com/parcel-bundler/lightningcss?branch=master#a862e39e55e4a2db6a1ec40a3bd7b80704edb33e"
+source = "git+https://github.com/parcel-bundler/lightningcss?branch=master#987e1bf1800c6f3223b097037be326c64a81b694"
 dependencies = [
  "proc-macro2",
  "quote",
