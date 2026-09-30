@@ -173,10 +173,57 @@ export class ScopeHoistingPackager {
       }
     }
 
+    let entries = this.bundle.getEntryAssets();
+    let mainEntry = this.bundle.getMainEntry();
+    if (this.isAsyncBundle) {
+      // In async bundles we don't want the main entry to execute until we require it
+      // as there might be dependencies in a sibling bundle that hasn't loaded yet.
+      entries = entries.filter(a => a.id !== mainEntry?.id);
+      mainEntry = null;
+    }
+
+    let needsBundleQueue = this.shouldBundleQueue(this.bundle);
+
+    let requireEntry = entry => {
+      let parcelRequire = `parcelRequire(${JSON.stringify(
+        this.bundleGraph.getAssetPublicId(entry),
+      )});\n`;
+
+      let entryExports = entry.symbols.get('*')?.local;
+
+      if (
+        entryExports &&
+        entry.id === mainEntry?.id &&
+        this.exportedSymbols.has(entryExports)
+      ) {
+        invariant(
+          !needsBundleQueue,
+          'Entry exports are not yet compaitble with async bundles',
+        );
+        res += `\nvar ${entryExports} = ${parcelRequire}`;
+      } else {
+        if (needsBundleQueue) {
+          parcelRequire = this.runWhenReady(this.bundle, parcelRequire);
+        }
+
+        res += `\n${parcelRequire}`;
+      }
+
+      lineCount += 2;
+    };
+
     // Add each asset that is directly connected to the bundle. Dependencies will be handled
     // by replacing `import` statements in the code.
     this.bundle.traverseAssets((asset, _, actions) => {
       if (this.seenAssets.has(asset.id)) {
+        // If any of the entry assets are wrapped, call parcelRequire so they are executed.
+        if (
+          this.wrappedAssets.has(asset.id) &&
+          !this.isScriptEntry(asset) &&
+          entries.some(entry => entry.id === asset.id)
+        ) {
+          requireEntry(asset);
+        }
         actions.skipChildren();
         return;
       }
@@ -189,48 +236,6 @@ export class ScopeHoistingPackager {
     res = prelude + res;
     lineCount += preludeLines;
     sourceMap?.offsetLines(1, preludeLines);
-
-    let entries = this.bundle.getEntryAssets();
-    let mainEntry = this.bundle.getMainEntry();
-    if (this.isAsyncBundle) {
-      // In async bundles we don't want the main entry to execute until we require it
-      // as there might be dependencies in a sibling bundle that hasn't loaded yet.
-      entries = entries.filter(a => a.id !== mainEntry?.id);
-      mainEntry = null;
-    }
-
-    let needsBundleQueue = this.shouldBundleQueue(this.bundle);
-
-    // If any of the entry assets are wrapped, call parcelRequire so they are executed.
-    for (let entry of entries) {
-      if (this.wrappedAssets.has(entry.id) && !this.isScriptEntry(entry)) {
-        let parcelRequire = `parcelRequire(${JSON.stringify(
-          this.bundleGraph.getAssetPublicId(entry),
-        )});\n`;
-
-        let entryExports = entry.symbols.get('*')?.local;
-
-        if (
-          entryExports &&
-          entry === mainEntry &&
-          this.exportedSymbols.has(entryExports)
-        ) {
-          invariant(
-            !needsBundleQueue,
-            'Entry exports are not yet compaitble with async bundles',
-          );
-          res += `\nvar ${entryExports} = ${parcelRequire}`;
-        } else {
-          if (needsBundleQueue) {
-            parcelRequire = this.runWhenReady(this.bundle, parcelRequire);
-          }
-
-          res += `\n${parcelRequire}`;
-        }
-
-        lineCount += 2;
-      }
-    }
 
     let [postlude, postludeLines] = this.outputFormat.buildBundlePostlude();
     res += postlude;
