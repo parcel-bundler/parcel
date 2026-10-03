@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <id>100x100.png</id>
+  <entry>
+    <content type="html">&lt;p style="background-image: url(100x100.png)"&gt;A &amp;amp; B&lt;/p&gt;&lt;p&gt;asset-0&lt;/p&gt;&lt;img src="100x100.png"&gt;&lt;style&gt;.one { background-image: url(100x100.png); }&lt;/style&gt;&lt;script&gt;console.log("inline-one")&lt;/script&gt;</content>
+  </entry>
+  <entry>
+    <content type="html"><![CDATA[<img src="100x100.png"><style>.two { background-image: url(100x100.png); }</style><script>console.log("inline-two")</script>]]></content>
+  </entry>
+  <entry>
+    <content type="text">&lt;img src="missing.png"&gt;</content>
+  </entry>
+  <entry>
+    <content type="xhtml"><xhtml:div><xhtml:img src="100x100.png" /></xhtml:div></content>
+  </entry>
+</feed>

@@ -1,4 +1,4 @@
-<?xml-stylesheet href="a9220ce37b9ed0b1.css"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 30 10">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 30 10">
   <!-- This is a comment -->
   <circle id="circle" cx="5" cy="5" r="4" stroke="blue"/>
   <a href="other1.html">
@@ -12,5 +12,5 @@
     </textPath>
   </text>
   <script xlink:href="script-3f9249dc78ca5453.js"/>
-  <script href="module-85eff26155cfc86e.js"/>
+  <style>@import url(a9220ce37b9ed0b1.css);</style><script href="module-85eff26155cfc86e.js"/>
 </svg>

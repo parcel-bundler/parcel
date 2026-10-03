@@ -5,7 +5,7 @@ use parcel_core::{
   PluginFactory, Reporter, Transformer,
 };
 use parcel_css::{CssTransformer, StyleAttrTransformer};
-use parcel_html::{HtmlTransformer, SvgToJsxTransformer, SvgTransformer};
+use parcel_html::{HtmlTransformer, SvgToJsxTransformer, SvgTransformer, XmlTransformer};
 use parcel_image::ImageTransformer;
 use parcel_js::JsTransformer;
 use parcel_plugin_abi::{
@@ -58,6 +58,7 @@ impl PluginFactory for DefaultPluginFactory {
       }),
       "@parcel/transformer-style-attr" => Arc::new(StyleAttrTransformer {}),
       "@parcel/transformer-html" => Arc::new(HtmlTransformer {}),
+      "@parcel/transformer-xml" => Arc::new(XmlTransformer {}),
       "@parcel/transformer-svg" => Arc::new(if let Some(config) = config {
         SvgTransformer {
           config: serde_json::from_value(config)?,

@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use crate::arena::{Node, NodeData};
 use crate::srcset::{parse_srcset, serialize_srcset};
+use crate::xml::{ATOM_NS, is_rss};
 use html5ever::tendril::{StrTendril, format_tendril};
 use html5ever::{Attribute, ExpandedName, QualName, expanded_name, local_name, namespace_url, ns};
 use parcel_core::{
@@ -54,6 +55,7 @@ pub fn collect_dependencies<'arena>(
   hmr: bool,
 ) -> (Vec<Dependency>, Vec<Asset>, Vec<Diagnostic>) {
   let mut collector = DependencyCollector::new(arena, url, ty, target);
+  collector.rss = collector.ty == AssetType::Xml && is_rss(dom);
 
   dom.walk(&mut |node| match &node.data {
     NodeData::Element { name, .. } => {
@@ -160,6 +162,7 @@ struct DependencyCollector<'arena> {
   key: u32,
   has_module_scripts: bool,
   errors: Vec<Diagnostic>,
+  rss: bool,
 }
 
 impl<'arena> DependencyCollector<'arena> {
@@ -179,6 +182,7 @@ impl<'arena> DependencyCollector<'arena> {
       key: 0,
       has_module_scripts: false,
       errors: Vec::new(),
+      rss: false,
     }
   }
 
@@ -218,6 +222,38 @@ impl<'arena> DependencyCollector<'arena> {
   }
 
   fn visit_element(&mut self, node: &'arena Node<'arena>, name: &QualName) {
+    if self.ty == AssetType::Xml {
+      if name.ns.as_ref() == ATOM_NS {
+        match name.local.as_ref() {
+          "link" => self.handle_feed_attr(node, expanded_name!("", "href"), true),
+          "icon" | "logo" => self.handle_text_url(node),
+          _ => {}
+        }
+        return;
+      }
+
+      if self.rss && name.ns.is_empty() {
+        match name.local.as_ref() {
+          "link" | "url" | "comments" => self.handle_text_url(node),
+          "enclosure" => self.handle_feed_attr(
+            node,
+            ExpandedName {
+              ns: &ns!(),
+              local: &"url".into(),
+            },
+            false,
+          ),
+          _ => {}
+        }
+        return;
+      }
+
+      // Arbitrary XML vocabularies must not acquire HTML attribute semantics.
+      if name.ns != ns!(html) && name.ns != ns!(svg) {
+        return;
+      }
+    }
+
     match name.expanded() {
       expanded_name!(html "link") => {
         let href = node.get_attribute(expanded_name!("", "href"));
@@ -656,6 +692,29 @@ impl<'arena> DependencyCollector<'arena> {
           }
         }
       }
+    }
+  }
+
+  fn handle_text_url(&mut self, node: &'arena Node<'arena>) {
+    let contents = node.text_content();
+    let url = contents.trim();
+    if !url.is_empty() && !url.starts_with('#') {
+      let placeholder = self.add_dep(url.into(), true, Priority::Lazy, node.line);
+      node.set_text_content(self.arena, placeholder);
+    }
+  }
+
+  fn handle_feed_attr(
+    &mut self,
+    node: &'arena Node<'arena>,
+    name: ExpandedName,
+    needs_stable_name: bool,
+  ) {
+    if node
+      .get_attribute(name.clone())
+      .is_some_and(|url| !url.is_empty())
+    {
+      self.handle_attr(node, name, needs_stable_name, node.line);
     }
   }
 

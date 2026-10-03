@@ -1,0 +1,42 @@
+[
+  {
+    "description": "transform .rss feeds while preserving the output extension",
+    "input": "feed.rss",
+    "options": {
+      "publicUrl": "https://example.org/"
+    },
+    "bundles": [
+      {
+        "name": "feed.rss",
+        "type": "rss",
+        "assets": ["feed.rss"],
+        "contains": ["https://example.org/post.html"]
+      },
+      {
+        "name": "post.html",
+        "type": "html",
+        "assets": ["post.html"]
+      }
+    ]
+  },
+  {
+    "description": "transform .atom feeds while preserving the output extension",
+    "input": "feed.atom",
+    "options": {
+      "publicUrl": "https://example.org/"
+    },
+    "bundles": [
+      {
+        "name": "feed.atom",
+        "type": "atom",
+        "assets": ["feed.atom"],
+        "contains": ["https://example.org/post.html"]
+      },
+      {
+        "name": "post.html",
+        "type": "html",
+        "assets": ["post.html"]
+      }
+    ]
+  }
+]

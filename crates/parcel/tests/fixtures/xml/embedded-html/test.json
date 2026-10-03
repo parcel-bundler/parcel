@@ -1,0 +1,116 @@
+[
+  {
+    "description": "escaped HTML, CDATA and prefixed XHTML collect dependencies directly, retaining nested JS/CSS transforms (development)",
+    "input": "feed.xml",
+    "options": {
+      "mode": "development",
+      "contentHash": false,
+      "publicUrl": "https://example.org/assets/"
+    },
+    "bundles": [
+      {
+        "name": "feed.xml",
+        "type": "xml",
+        "assets": ["feed.xml"],
+        "contains": [
+          "A &amp;amp; B",
+          "&lt;img src=\"{{bundle:100x100.png}}\"&gt;",
+          "<xhtml:div><xhtml:img src=\"{{bundle:100x100.png}}\"/></xhtml:div>",
+          "<content type=\"text\">&lt;img src=\"missing.png\"&gt;</content>",
+          "inline-one",
+          "inline-two",
+          "{{bundle:100x100.png}}",
+          "&lt;p&gt;asset-0&lt;/p&gt;"
+        ],
+        "notContains": [
+          "data-parcel-key",
+          "https://parceljs.org",
+          "&lt;html",
+          "&lt;body",
+          "&lt;head"
+        ]
+      },
+      {
+        "type": "png",
+        "assets": ["100x100.png"]
+      },
+      {
+        "type": "style",
+        "assets": ["feed.xml"]
+      },
+      {
+        "type": "css",
+        "assets": ["feed.xml"]
+      },
+      {
+        "type": "js",
+        "assets": ["feed.xml"]
+      },
+      {
+        "type": "css",
+        "assets": ["feed.xml"]
+      },
+      {
+        "type": "js",
+        "assets": ["feed.xml"]
+      }
+    ]
+  },
+  {
+    "description": "escaped HTML, CDATA and prefixed XHTML collect dependencies directly, retaining nested JS/CSS transforms (production)",
+    "input": "feed.xml",
+    "options": {
+      "mode": "production",
+      "contentHash": false,
+      "publicUrl": "https://example.org/assets/"
+    },
+    "bundles": [
+      {
+        "name": "feed.xml",
+        "type": "xml",
+        "assets": ["feed.xml"],
+        "contains": [
+          "A &amp;amp; B",
+          "&lt;img src=\"{{bundle:100x100.png}}\"&gt;",
+          "<xhtml:div><xhtml:img src=\"{{bundle:100x100.png}}\"/></xhtml:div>",
+          "<content type=\"text\">&lt;img src=\"missing.png\"&gt;</content>",
+          "inline-one",
+          "inline-two",
+          "{{bundle:100x100.png}}",
+          "&lt;p&gt;asset-0&lt;/p&gt;"
+        ],
+        "notContains": [
+          "data-parcel-key",
+          "https://parceljs.org",
+          "&lt;html",
+          "&lt;body",
+          "&lt;head"
+        ]
+      },
+      {
+        "type": "png",
+        "assets": ["100x100.png"]
+      },
+      {
+        "type": "style",
+        "assets": ["feed.xml"]
+      },
+      {
+        "type": "css",
+        "assets": ["feed.xml"]
+      },
+      {
+        "type": "js",
+        "assets": ["feed.xml"]
+      },
+      {
+        "type": "css",
+        "assets": ["feed.xml"]
+      },
+      {
+        "type": "js",
+        "assets": ["feed.xml"]
+      }
+    ]
+  }
+]

@@ -1,0 +1,36 @@
+[
+  {
+    "description": "CSS imported by inline SVG scripts follows existing styles (development)",
+    "input": "index.html",
+    "options": {"mode": "development"},
+    "bundles": [
+      {
+        "type": "html",
+        "assets": ["index.html"],
+        "contains": ["</style><style>@import ", ";</style><script"],
+        "notContains": ["<link", "xml-stylesheet"]
+      },
+      {"type": "css", "assets": ["index.html"]},
+      {"type": "css", "assets": ["index.html"]},
+      {"type": "js", "assets": ["script.js"]},
+      {"type": "css", "assets": ["theme.css"]}
+    ]
+  },
+  {
+    "description": "CSS imported by inline SVG scripts follows existing styles (production)",
+    "input": "index.html",
+    "options": {"mode": "production"},
+    "bundles": [
+      {
+        "type": "html",
+        "assets": ["index.html"],
+        "contains": ["</style><style>@import ", ";</style><script"],
+        "notContains": ["<link", "xml-stylesheet"]
+      },
+      {"type": "css", "assets": ["index.html"]},
+      {"type": "css", "assets": ["index.html"]},
+      {"type": "js", "assets": ["script.js"]},
+      {"type": "css", "assets": ["theme.css"]}
+    ]
+  }
+]

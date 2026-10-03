@@ -36,8 +36,8 @@ bitflags::bitflags! {
   struct Referrers: u8 {
     /// HTML pages, which load its references and provide its manifest.
     const HTML = 1 << 0;
-    /// SVG documents, which load its references.
-    const SVG = 1 << 1;
+    /// SVG and XML documents, which load its references.
+    const DOCUMENT = 1 << 1;
     /// Anything else.
     const OTHER = 1 << 2;
   }
@@ -233,7 +233,9 @@ impl<'a> BundleGraph<'a> {
           let entry = referrers.entry(self.bundles[target].id).or_default();
           match referrer.ty {
             AssetType::Html | AssetType::Xhtml => *entry |= Referrers::HTML,
-            AssetType::Svg => *entry |= Referrers::SVG,
+            AssetType::Svg | AssetType::Xml | AssetType::Rss | AssetType::Atom => {
+              *entry |= Referrers::DOCUMENT
+            }
             _ => *entry |= Referrers::OTHER,
           }
         }

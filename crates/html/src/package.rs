@@ -1,31 +1,24 @@
-use std::{cell::RefCell, collections::HashMap};
+use std::{
+  cell::RefCell,
+  collections::{HashMap, HashSet},
+};
 
 use crate::{
   SerializableTendril,
-  arena::{Node, NodeData},
+  arena::{Node, NodeData, Ref},
   dependencies::{is_func_iri_attr, parse_xml_stylesheet, serialize_xml_stylesheet},
   srcset::{parse_srcset, serialize_srcset},
 };
-use html5ever::{ExpandedName, expanded_name, local_name, namespace_url, ns, tendril::StrTendril};
+use html5ever::{ExpandedName, expanded_name, local_name, namespace_url, ns};
 use serde::Deserialize;
 use typed_arena::Arena;
-
-/// A stylesheet bundle loaded by a specific element's bundle, emitted as a
-/// link inserted before that element so cascade order follows the element's
-/// document position.
-#[derive(Deserialize)]
-pub struct StyleSheetRef {
-  pub href: SerializableTendril,
-  #[serde(default)]
-  pub media: Option<SerializableTendril>,
-}
 
 #[derive(Deserialize)]
 #[serde(tag = "type", content = "value")]
 pub enum BundleReference {
   StyleSheet {
     href: SerializableTendril,
-    /// Derived media gate for the whole bundle, emitted on the injected link.
+    /// Derived media gate for the whole bundle, emitted on the link or @import.
     #[serde(default)]
     media: Option<SerializableTendril>,
   },
@@ -34,6 +27,114 @@ pub enum BundleReference {
     module: bool,
     nomodule: bool,
   },
+}
+
+impl BundleReference {
+  fn url(&self) -> &SerializableTendril {
+    match self {
+      BundleReference::StyleSheet { href, .. } => href,
+      BundleReference::Script { src, .. } => src,
+    }
+  }
+
+  fn create_element<'arena>(
+    &self,
+    arena: &'arena Arena<Node<'arena>>,
+    source: Option<Ref<'arena>>,
+  ) -> Ref<'arena> {
+    let svg = source.is_some_and(
+      |node| matches!(&node.data, NodeData::Element { name, .. } if name.ns == ns!(svg)),
+    );
+    let local = match self {
+      BundleReference::StyleSheet { .. } if svg => local_name!("style"),
+      BundleReference::StyleSheet { .. } => local_name!("link"),
+      BundleReference::Script { .. } => local_name!("script"),
+    };
+    let namespace = if svg { ns!(svg) } else { ns!(html) };
+    let mut element = Node::create_element(ExpandedName {
+      ns: &namespace,
+      local: &local,
+    });
+
+    if let Some(source) = source {
+      if let (
+        NodeData::Element { name, attrs, .. },
+        NodeData::Element {
+          name: element_name,
+          attrs: element_attrs,
+          ..
+        },
+      ) = (&source.data, &mut element.data)
+      {
+        element_name.prefix = name.prefix.clone();
+        // A namespace declared on the referring element isn't in scope for
+        // its new sibling. Copy that binding when preserving the prefix.
+        let binding = name
+          .prefix
+          .as_ref()
+          .map(|prefix| prefix.as_ref())
+          .unwrap_or("xmlns");
+        if let Some(attr) = attrs
+          .borrow()
+          .iter()
+          .find(|attr| attr.name.ns == ns!(xmlns) && attr.name.local.as_ref() == binding)
+        {
+          element_attrs.get_mut().push(attr.clone());
+        }
+      }
+    }
+
+    let element: Ref = arena.alloc(element);
+    match self {
+      BundleReference::StyleSheet { href, media } if svg => {
+        // SVG styles preserve cascade position in both standalone XML and
+        // inline HTML. xml-stylesheet PIs can only apply in the XML prolog,
+        // and HTML links cannot be parsed inside inline SVG in text/html.
+        use cssparser::ToCss;
+        let url = cssparser::Token::UnquotedUrl(href.0.as_ref().into()).to_css_string();
+        let mut css = format!("@import {url}");
+        if let Some(media) = media {
+          css.push(' ');
+          css.push_str(&media.0);
+        }
+        css.push(';');
+        element.set_text_content(arena, css.into());
+      }
+      BundleReference::StyleSheet { href, media } => {
+        element.set_attribute(expanded_name!("", "rel"), "stylesheet");
+        element.set_attribute(expanded_name!("", "href"), &href.0);
+        if let Some(media) = media {
+          element.set_attribute(expanded_name!("", "media"), &media.0);
+        }
+      }
+      BundleReference::Script {
+        src,
+        module,
+        nomodule,
+      } => {
+        if *module {
+          element.set_attribute(expanded_name!("", "type"), "module");
+        }
+        if *nomodule {
+          element.set_attribute(expanded_name!("", "nomodule"), "");
+          element.set_attribute(expanded_name!("", "defer"), "");
+        }
+        let attr = if svg {
+          local_name!("href")
+        } else {
+          local_name!("src")
+        };
+        element.set_attribute(
+          ExpandedName {
+            ns: &ns!(),
+            local: &attr,
+          },
+          &src.0,
+        );
+      }
+    }
+    element
+  }
 }
 
 #[derive(Deserialize)]
@@ -48,7 +149,8 @@ pub fn insert_bundle_references<'arena>(
   bundles: Vec<BundleReference>,
   inline_bundles: HashMap<SerializableTendril, InlineBundle>,
   stylesheet_media: &HashMap<SerializableTendril, Option<SerializableTendril>>,
-  stylesheet_refs: &HashMap<SerializableTendril, Vec<StyleSheetRef>>,
+  element_refs: &HashMap<SerializableTendril, Vec<BundleReference>>,
+  reference_scopes: &[Ref<'arena>],
   mut import_map: serde_json::map::Map<String, serde_json::Value>,
   manifest: Option<String>,
 ) {
@@ -58,32 +160,52 @@ pub fn insert_bundle_references<'arena>(
   };
 
   let mut import_map_node = None;
+  // An HTML document has one scope. XML supplies its embedded content roots,
+  // each of which needs its own copy of shared scripts and stylesheets.
+  let scope_roots: HashSet<*const Node> = reference_scopes
+    .iter()
+    .map(|node| *node as *const Node)
+    .collect();
+  let mut inserted: HashMap<*const Node, HashSet<SerializableTendril>> = HashMap::new();
 
   dom.walk(&mut |node| {
     if let NodeData::Element { name, attrs, .. } = &node.data {
-      // Stylesheets referenced by this element's bundle load before it, in
-      // the bundle's application order. Attribute values still hold the
-      // placeholders at this point, before the replacement loop below.
-      if !stylesheet_refs.is_empty() {
-        let placeholders: Vec<StrTendril> = attrs
-          .borrow()
-          .iter()
-          .map(|attr| attr.value.clone())
-          .collect();
-        for value in placeholders {
-          if let Some(refs) = stylesheet_refs.get(&SerializableTendril(value)) {
-            for reference in refs {
-              let link = arena.alloc(Node::create_element(expanded_name!(html "link")));
-              link.set_attribute(expanded_name!("", "rel"), "stylesheet");
-              link.set_attribute(expanded_name!("", "href"), &reference.href.0);
-              if let Some(media) = &reference.media {
-                link.set_attribute(expanded_name!("", "media"), &media.0);
+      // Resolve positional references before replacing attribute placeholders.
+      if (name.ns == ns!(html) || name.ns == ns!(svg)) && !element_refs.is_empty() {
+        let scope = if scope_roots.is_empty() {
+          Some(dom as *const Node)
+        } else {
+          let mut ancestor = Some(node);
+          let mut scope = None;
+          while let Some(parent) = ancestor {
+            let key = parent as *const Node;
+            if scope_roots.contains(&key) {
+              scope = Some(key);
+              break;
+            }
+            ancestor = parent.parent.get();
+          }
+          scope
+        };
+
+        if let Some(scope) = scope {
+          for attr in attrs.borrow().iter() {
+            if let Some(refs) = element_refs.get(&SerializableTendril(attr.value.clone())) {
+              for reference in refs {
+                if inserted
+                  .entry(scope)
+                  .or_default()
+                  .insert(reference.url().clone())
+                {
+                  let element = reference.create_element(arena, Some(node));
+                  node.insert_before(element);
+                }
               }
-              node.insert_before(link);
             }
           }
         }
       }
+
       match name.expanded() {
         expanded_name!(html "script") | expanded_name!(svg "script") => {
           if let Some(key) = node.get_attribute(data_parcel_key.clone()) {
@@ -129,8 +251,9 @@ pub fn insert_bundle_references<'arena>(
       }
 
       for attr in attrs.borrow_mut().iter_mut() {
-        if attr.name.expanded() == expanded_name!("", "srcset")
-          || attr.name.local.as_ref() == "imagesrcset"
+        if name.ns == ns!(html)
+          && (attr.name.expanded() == expanded_name!("", "srcset")
+            || attr.name.local.as_ref() == "imagesrcset")
         {
           let mut srcset = parse_srcset(&attr.value);
           for img in &mut srcset {
@@ -171,33 +294,7 @@ pub fn insert_bundle_references<'arena>(
 
   if let Some(head) = dom.find(expanded_name!(html "head")) {
     for bundle in bundles.into_iter().rev() {
-      match bundle {
-        BundleReference::StyleSheet { href, media } => {
-          let node = arena.alloc(Node::create_element(expanded_name!(html "link")));
-          node.set_attribute(expanded_name!("", "rel"), "stylesheet");
-          node.set_attribute(expanded_name!("", "href"), &href.0);
-          if let Some(media) = media {
-            node.set_attribute(expanded_name!("", "media"), &media.0);
-          }
-          head.prepend(node);
-        }
-        BundleReference::Script {
-          src,
-          module,
-          nomodule,
-        } => {
-          let node = arena.alloc(Node::create_element(expanded_name!(html "script")));
-          if module {
-            node.set_attribute(expanded_name!("", "type"), "module");
-          }
-          if nomodule {
-            node.set_attribute(expanded_name!("", "nomodule"), "");
-            node.set_attribute(expanded_name!("", "defer"), "");
-          }
-          node.set_attribute(expanded_name!("", "src"), &src.0);
-          head.prepend(node);
-        }
-      }
+      head.prepend(bundle.create_element(arena, None));
     }
 
     if !import_map.is_empty() {
@@ -272,5 +369,129 @@ pub fn insert_bundle_references<'arena>(
         }
       }
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::{PackageOptions, arena::Sink, package_html, package_svg, serialize_xml};
+  use html5ever::tendril::TendrilSink;
+
+  fn references() -> Vec<BundleReference> {
+    vec![
+      BundleReference::StyleSheet {
+        href: SerializableTendril("theme.css".into()),
+        media: Some(SerializableTendril("print".into())),
+      },
+      BundleReference::Script {
+        src: SerializableTendril("shared.js".into()),
+        module: true,
+        nomodule: false,
+      },
+    ]
+  }
+
+  #[test]
+  fn positional_scripts_and_stylesheets_keep_order_and_deduplicate_per_page() {
+    let result = package_html(PackageOptions {
+      code: br#"<html><head><script src="one.js"></script><script src="two.js"></script></head><body></body></html>"#.to_vec(),
+      xml: false,
+      bundles: Vec::new(),
+      inline_bundles: Default::default(),
+      stylesheet_media: Default::default(),
+      element_refs: [
+        (SerializableTendril("one.js".into()), references()),
+        (SerializableTendril("two.js".into()), references()),
+      ].into(),
+      import_map: Default::default(),
+      manifest: None,
+    }).unwrap();
+    assert_eq!(
+      String::from_utf8(result.code).unwrap(),
+      r#"<html><head><link rel="stylesheet" href="theme.css" media="print"><script type="module" src="shared.js"></script><script src="one.js"></script><script src="two.js"></script></head><body></body></html>"#
+    );
+  }
+
+  #[test]
+  fn positional_svg_styles_preserve_order_media_and_local_namespace_bindings() {
+    let result = package_svg(PackageOptions {
+      code: br#"<svg xmlns="http://www.w3.org/2000/svg"><style>.shape{fill:red}</style><s:script xmlns:s="http://www.w3.org/2000/svg" href="one.js"/><script href="two.js"/><style>.shape{fill:blue}</style></svg>"#.to_vec(),
+      xml: true,
+      bundles: Vec::new(),
+      inline_bundles: Default::default(),
+      stylesheet_media: Default::default(),
+      element_refs: [
+        (SerializableTendril("one.js".into()), references()),
+        (SerializableTendril("two.js".into()), references()),
+      ].into(),
+      import_map: Default::default(),
+      manifest: None,
+    }).unwrap();
+    assert_eq!(
+      String::from_utf8(result.code).unwrap(),
+      r#"<svg xmlns="http://www.w3.org/2000/svg"><style>.shape{fill:red}</style><s:style xmlns:s="http://www.w3.org/2000/svg">@import url(theme.css) print;</s:style><s:script xmlns:s="http://www.w3.org/2000/svg" type="module" href="shared.js"/><s:script xmlns:s="http://www.w3.org/2000/svg" href="one.js"/><script href="two.js"/><style>.shape{fill:blue}</style></svg>"#
+    );
+  }
+
+  #[test]
+  fn positional_styles_in_inline_svg_escape_css_urls() {
+    let result = package_html(PackageOptions {
+      code: br#"<svg><style>.shape{fill:red}</style><script href="one.js"></script><script href="two.js"></script><style>.shape{fill:blue}</style></svg>"#.to_vec(),
+      xml: false,
+      bundles: Vec::new(),
+      inline_bundles: Default::default(),
+      stylesheet_media: Default::default(),
+      element_refs: ["one.js", "two.js"].into_iter().map(|key| (
+        SerializableTendril(key.into()),
+        vec![BundleReference::StyleSheet {
+          href: SerializableTendril("theme (dark).css".into()),
+          media: None,
+        }],
+      )).collect(),
+      import_map: Default::default(),
+      manifest: None,
+    }).unwrap();
+    assert_eq!(
+      String::from_utf8(result.code).unwrap(),
+      r#"<html><head></head><body><svg><style>.shape{fill:red}</style><style>@import url(theme\20 \(dark\).css);</style><script href="one.js"></script><script href="two.js"></script><style>.shape{fill:blue}</style></svg></body></html>"#
+    );
+  }
+
+  #[test]
+  fn fragment_scopes_deduplicate_locally_and_preserve_xhtml_bindings() {
+    let arena = Arena::new();
+    let dom = xml5ever::driver::parse_document(Sink::new(&arena), Default::default()).one(
+      r#"<feed xmlns="http://www.w3.org/2005/Atom"><content type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml"><s:script xmlns:s="http://www.w3.org/1999/xhtml" src="one.js"/><script src="two.js"/></div></content><content type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml"><script src="three.js"/></div></content><script xmlns="http://www.w3.org/1999/xhtml" src="one.js"/></feed>"#,
+    );
+    let mut scopes = Vec::new();
+    dom.walk(&mut |node| {
+      if let NodeData::Element { name, .. } = &node.data {
+        if name.ns.as_ref() == crate::xml::ATOM_NS && name.local.as_ref() == "content" {
+          scopes.push(node);
+        }
+      }
+    });
+    let element_refs = ["one.js", "two.js", "three.js"]
+      .into_iter()
+      .map(|key| (SerializableTendril(key.into()), references()))
+      .collect();
+    insert_bundle_references(
+      &arena,
+      dom,
+      Vec::new(),
+      Default::default(),
+      &Default::default(),
+      &element_refs,
+      &scopes,
+      Default::default(),
+      None,
+    );
+    let mut code = Vec::new();
+    serialize_xml::serialize(&mut code, dom).unwrap();
+    let code = String::from_utf8(code).unwrap();
+    assert_eq!(code.matches("href=\"theme.css\"").count(), 2);
+    assert_eq!(code.matches("src=\"shared.js\"").count(), 2);
+    assert!(code.contains(r#"<s:link xmlns:s="http://www.w3.org/1999/xhtml" rel="stylesheet" href="theme.css" media="print"/><s:script xmlns:s="http://www.w3.org/1999/xhtml" type="module" src="shared.js"/>"#));
   }
 }

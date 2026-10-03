@@ -1,0 +1,74 @@
+[
+  {
+    "description": "port xml.js: transform atom feed (development), collecting embedded HTML dependencies directly",
+    "input": "atom.xml",
+    "options": {
+      "mode": "development",
+      "contentHash": false,
+      "publicUrl": "http://example.org/"
+    },
+    "bundles": [
+      {
+        "name": "atom.xml",
+        "type": "xml",
+        "assets": ["atom.xml"],
+        "contains": [
+          "<link href=\"http://example.org/post.html\"/>",
+          "<img src=\"{{bundle:100x100.png}}\"/>",
+          "<?xml-stylesheet type=\"text/xsl\" href=\"{{bundle:atom.xsl}}\"?>",
+          "<div xmlns=\"http://www.w3.org/1999/xhtml\">"
+        ],
+        "notContains": ["data-parcel-key", "https://parceljs.org"]
+      },
+      {
+        "type": "png",
+        "assets": ["100x100.png"]
+      },
+      {
+        "name": "post.html",
+        "type": "html",
+        "assets": ["post.html"]
+      },
+      {
+        "type": "xsl",
+        "assets": ["atom.xsl"]
+      }
+    ]
+  },
+  {
+    "description": "port xml.js: transform atom feed (production), collecting embedded HTML dependencies directly",
+    "input": "atom.xml",
+    "options": {
+      "mode": "production",
+      "contentHash": false,
+      "publicUrl": "http://example.org/"
+    },
+    "bundles": [
+      {
+        "name": "atom.xml",
+        "type": "xml",
+        "assets": ["atom.xml"],
+        "contains": [
+          "<link href=\"http://example.org/post.html\"/>",
+          "<img src=\"{{bundle:100x100.png}}\"/>",
+          "<?xml-stylesheet type=\"text/xsl\" href=\"{{bundle:atom.xsl}}\"?>",
+          "<div xmlns=\"http://www.w3.org/1999/xhtml\">"
+        ],
+        "notContains": ["data-parcel-key", "https://parceljs.org"]
+      },
+      {
+        "type": "png",
+        "assets": ["100x100.png"]
+      },
+      {
+        "name": "post.html",
+        "type": "html",
+        "assets": ["post.html"]
+      },
+      {
+        "type": "xsl",
+        "assets": ["atom.xsl"]
+      }
+    ]
+  }
+]

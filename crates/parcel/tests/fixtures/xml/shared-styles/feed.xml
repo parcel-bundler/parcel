@@ -1,0 +1,5 @@
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:x="http://www.w3.org/1999/xhtml">
+<entry><content type="html">one&lt;script type="module"&gt;import './theme.css'; console.log('one');&lt;/script&gt;</content></entry>
+<entry><content type="html">two&lt;script type="module"&gt;import './theme.css'; console.log('two');&lt;/script&gt;</content></entry>
+<entry><content type="xhtml"><x:div><s:script xmlns:s="http://www.w3.org/1999/xhtml" type="module">import './theme.css'; console.log('three');</s:script></x:div></content></entry>
+</feed>

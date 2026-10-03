@@ -15,7 +15,8 @@ use serde::{Deserialize, Serialize, Serializer};
 use swc_core::ecma::codegen::to_code;
 use typed_arena::Arena;
 
-pub use package::{BundleReference, InlineBundle, StyleSheetRef};
+pub use package::{BundleReference, InlineBundle};
+pub use xml::{XmlTransformer, transform_xml};
 
 mod arena;
 mod dependencies;
@@ -26,6 +27,7 @@ mod package;
 mod serialize_html;
 mod serialize_xml;
 mod srcset;
+mod xml;
 
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Default, Clone)]
 pub struct SerializableTendril(pub StrTendril);
@@ -153,10 +155,10 @@ pub struct PackageOptions {
   /// attribute, None removes it. Keyed by the href placeholder value.
   #[serde(default)]
   pub stylesheet_media: HashMap<SerializableTendril, Option<SerializableTendril>>,
-  /// Stylesheet bundles loaded by each element's bundle, keyed by the
-  /// element's placeholder, emitted as links inserted before the element.
+  /// Scripts and stylesheets loaded by each element's bundle, keyed by the
+  /// element's placeholder and inserted before that element.
   #[serde(default)]
-  pub stylesheet_refs: HashMap<SerializableTendril, Vec<StyleSheetRef>>,
+  pub element_refs: HashMap<SerializableTendril, Vec<BundleReference>>,
   pub import_map: serde_json::Map<String, serde_json::Value>,
   /// JSON the JS runtime reads as the page's manifest: stable bundle keys to final names. It's
   /// prepended to `<head>` as a data block, which Content Security Policies don't block, unlike
@@ -189,7 +191,8 @@ pub fn package_html(options: PackageOptions) -> Result<PackageResult, ()> {
     options.bundles,
     options.inline_bundles,
     &options.stylesheet_media,
-    &options.stylesheet_refs,
+    &options.element_refs,
+    &[],
     options.import_map,
     options.manifest,
   );
@@ -222,7 +225,8 @@ pub fn package_svg(options: PackageOptions) -> Result<PackageResult, ()> {
     options.bundles,
     options.inline_bundles,
     &options.stylesheet_media,
-    &options.stylesheet_refs,
+    &options.element_refs,
+    &[],
     options.import_map,
     options.manifest,
   );
@@ -421,8 +425,8 @@ impl Content for HtmlContent {
   ) -> Result<std::sync::Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
-    let (code, bundles, inline_bundles, stylesheet_media, stylesheet_refs) =
-      prepare_to_package(bundle_graph, bundle, get_inline_bundle_content, true)?;
+    let (code, bundles, inline_bundles, stylesheet_media, element_refs) =
+      prepare_to_package(bundle_graph, bundle, get_inline_bundle_content)?;
 
     let res = package_html(PackageOptions {
       code,
@@ -430,7 +434,7 @@ impl Content for HtmlContent {
       bundles,
       inline_bundles,
       stylesheet_media,
-      stylesheet_refs,
+      element_refs,
       import_map: Default::default(),
       manifest: manifest_json(bundle_graph, bundle)?,
     })
@@ -521,18 +525,46 @@ fn manifest_json(
   Ok(Some(json.replace("</", "<\\/")))
 }
 
+/// Construct a reference once for both document-wide and element-local insertion.
+fn bundle_reference(
+  graph: &BundleGraph,
+  target: &Bundle,
+  from: &Bundle,
+) -> Option<BundleReference> {
+  let url = || {
+    SerializableTendril(if from.ty.is_xml() {
+      target.absolute_url().into()
+    } else {
+      target.relative_url(from).unwrap().into()
+    })
+  };
+  match target.ty {
+    AssetType::Js => Some(BundleReference::Script {
+      src: url(),
+      module: target.target.output_format == OutputFormat::Esmodule,
+      nomodule: false,
+    }),
+    AssetType::Css => Some(BundleReference::StyleSheet {
+      href: url(),
+      media: graph
+        .common_style_media(target)
+        .map(|media| SerializableTendril(media.into())),
+    }),
+    _ => None,
+  }
+}
+
 fn prepare_to_package(
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
   get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
-  positional_styles: bool,
 ) -> Result<
   (
     Vec<u8>,
     Vec<BundleReference>,
     HashMap<SerializableTendril, InlineBundle>,
     HashMap<SerializableTendril, Option<SerializableTendril>>,
-    HashMap<SerializableTendril, Vec<StyleSheetRef>>,
+    HashMap<SerializableTendril, Vec<BundleReference>>,
   ),
   DiagnosticList,
 > {
@@ -542,9 +574,14 @@ fn prepare_to_package(
 
   let mut inline_bundles = HashMap::new();
   let mut stylesheet_media = HashMap::new();
-  let mut stylesheet_refs: HashMap<SerializableTendril, Vec<StyleSheetRef>> = HashMap::new();
+  let mut element_refs: HashMap<SerializableTendril, Vec<BundleReference>> = HashMap::new();
   // Preserve reference order: stylesheet link order is cascade order.
   let mut referenced_bundles = Vec::<usize>::new();
+  let positional_styles = matches!(
+    bundle.ty,
+    AssetType::Html | AssetType::Xhtml | AssetType::Svg
+  );
+  let xml = bundle.ty.is_xml();
   for (dep_index, dep) in asset.dependencies.iter().enumerate() {
     match bundle_graph.dependency_resolution(bundle.assets[0], dep_index) {
       BundleGraphDependencyResolution::Bundle {
@@ -560,7 +597,11 @@ fn prepare_to_package(
             .read_string()?
             .into_owned()
         } else {
-          referenced_bundle.relative_url(&bundle).unwrap()
+          if bundle.ty.is_xml() {
+            referenced_bundle.absolute_url()
+          } else {
+            referenced_bundle.relative_url(&bundle).unwrap()
+          }
         };
 
         inline_bundles.insert(
@@ -584,28 +625,35 @@ fn prepare_to_package(
         }
 
         let mut refs = Vec::new();
-        // Bundles don't import their siblings, so the page loads everything they reference.
-        for reference in bundle_graph.referenced_bundles(b as usize).skip(1) {
-          let target = &bundle_graph.bundles[reference];
-          if positional_styles && target.ty == AssetType::Css {
-            // Attach to this element so its stylesheets load before it, at
-            // its document position. First occurrence wins page-wide: the
-            // earliest consumer needs the sheet first.
-            if !referenced_bundles.contains(&reference) {
-              referenced_bundles.push(reference);
-              refs.push(StyleSheetRef {
-                href: SerializableTendril(target.relative_url(&bundle).unwrap().into()),
-                media: bundle_graph
-                  .common_style_media(target)
-                  .map(|media| SerializableTendril(media.into())),
-              });
+        // Bundles don't import their siblings, so the document loads their
+        // references. HTML and SVG styles follow the element's cascade position;
+        // feed content loads scripts and styles within each fragment.
+        let loads_references =
+          !xml || matches!(referenced_bundle.ty, AssetType::Js | AssetType::Css);
+        if loads_references {
+          for reference in bundle_graph.referenced_bundles(b as usize).skip(1) {
+            let target = &bundle_graph.bundles[reference];
+            if target.bundle_behavior == BundleBehavior::Inline {
+              continue;
             }
-          } else if !referenced_bundles.contains(&reference) {
-            referenced_bundles.push(reference);
+            if xml || (positional_styles && target.ty == AssetType::Css) {
+              // First occurrence wins page-wide for HTML. XML keeps references
+              // for every consumer, which the packager deduplicates per fragment.
+              if xml || !referenced_bundles.contains(&reference) {
+                if !xml {
+                  referenced_bundles.push(reference);
+                }
+                if let Some(reference) = bundle_reference(bundle_graph, target, bundle) {
+                  refs.push(reference);
+                }
+              }
+            } else if !referenced_bundles.contains(&reference) {
+              referenced_bundles.push(reference);
+            }
           }
         }
         if !refs.is_empty() {
-          stylesheet_refs.insert(
+          element_refs.insert(
             SerializableTendril((*dep.placeholder.clone().unwrap()).into()),
             refs,
           );
@@ -623,40 +671,23 @@ fn prepare_to_package(
     }
   }
 
-  let mut bundles: Vec<BundleReference> = Vec::new();
-  for reference in referenced_bundles {
-    let referenced_bundle = &bundle_graph.bundles[reference];
-    if positional_styles && referenced_bundle.ty == AssetType::Css {
-      continue;
-    }
-    match &referenced_bundle.ty {
-      AssetType::Js => {
-        let src = referenced_bundle.relative_url(&bundle).unwrap();
-        bundles.push(BundleReference::Script {
-          src: SerializableTendril(src.into()),
-          module: referenced_bundle.target.output_format == OutputFormat::Esmodule,
-          nomodule: false,
-        });
+  let bundles = referenced_bundles
+    .into_iter()
+    .filter_map(|reference| {
+      let referenced_bundle = &bundle_graph.bundles[reference];
+      if positional_styles && referenced_bundle.ty == AssetType::Css {
+        return None;
       }
-      AssetType::Css => {
-        let src = referenced_bundle.relative_url(&bundle).unwrap();
-        bundles.push(BundleReference::StyleSheet {
-          href: SerializableTendril(src.into()),
-          media: bundle_graph
-            .common_style_media(referenced_bundle)
-            .map(|media| SerializableTendril(media.into())),
-        });
-      }
-      _ => {}
-    }
-  }
+      bundle_reference(bundle_graph, referenced_bundle, bundle)
+    })
+    .collect();
 
   Ok((
     code,
     bundles,
     inline_bundles,
     stylesheet_media,
-    stylesheet_refs,
+    element_refs,
   ))
 }
 
@@ -765,8 +796,8 @@ impl Content for SvgContent {
   ) -> Result<std::sync::Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
-    let (code, bundles, inline_bundles, stylesheet_media, stylesheet_refs) =
-      prepare_to_package(bundle_graph, bundle, get_inline_bundle_content, false)?;
+    let (code, bundles, inline_bundles, stylesheet_media, element_refs) =
+      prepare_to_package(bundle_graph, bundle, get_inline_bundle_content)?;
 
     let res = package_svg(PackageOptions {
       code,
@@ -774,7 +805,7 @@ impl Content for SvgContent {
       bundles,
       inline_bundles,
       stylesheet_media,
-      stylesheet_refs,
+      element_refs,
       import_map: Default::default(),
       manifest: None,
     })
@@ -830,7 +861,7 @@ mod tests {
       bundles: Vec::new(),
       inline_bundles: Default::default(),
       stylesheet_media: Default::default(),
-      stylesheet_refs: Default::default(),
+      element_refs: Default::default(),
       import_map: Default::default(),
       manifest: Some(r#"{"a-0123456789abcdef.js":"a-abcdefgh.js","x":"<\/script>"}"#.into()),
     })

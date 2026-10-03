@@ -1,9 +1,9 @@
 use std::cell::RefCell;
 
 use crate::arena::{Arena, Node, NodeData, Ref};
-use html5ever::{Attribute, QualName};
+use html5ever::{Attribute, QualName, namespace_url, ns};
 use lightningcss::{
-  rules::CssRuleList,
+  rules::{CssRule, CssRuleList},
   stylesheet::{ParserFlags, ParserOptions, StyleSheet},
 };
 use oxvg_ast::{
@@ -29,6 +29,24 @@ pub fn optimize<'arena>(
   root: Ref<'arena>,
   jobs: &oxvg_optimiser::Jobs,
 ) -> Result<(), String> {
+  let mut jobs = jobs.clone();
+  root.walk(&mut |node| {
+    if let NodeData::Element { name, .. } = &node.data
+      && name.ns == ns!(svg)
+      && name.local.as_ref() == "style"
+      && let Ok(style) = StyleSheet::parse(&node.text_content(), ParserOptions::default())
+      && style
+        .rules
+        .0
+        .iter()
+        .any(|rule| matches!(rule, CssRule::Import(_)))
+    {
+      // Merging moves @imports before preceding rules, while inlining gives
+      // local declarations precedence over unknown imported declarations.
+      jobs.merge_styles = None;
+      jobs.inline_styles = None;
+    }
+  });
   let values = OxvgAllocator::new_values();
   let mut oxvg_arena = OxvgAllocator::new_arena();
   let allocator = OxvgAllocator::new(&mut oxvg_arena, &values);

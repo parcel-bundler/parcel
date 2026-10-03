@@ -101,6 +101,10 @@ pub enum AssetType {
   Ico,
   Avif,
   Other(hstr::Atom),
+  // Append new variants so existing asset hashes keep their discriminants.
+  Xml,
+  Rss,
+  Atom,
 }
 
 impl Serialize for AssetType {
@@ -123,6 +127,10 @@ impl<'de> Deserialize<'de> for AssetType {
 }
 
 impl AssetType {
+  pub fn is_xml(&self) -> bool {
+    matches!(self, AssetType::Xml | AssetType::Rss | AssetType::Atom)
+  }
+
   pub fn extension(&self) -> &str {
     match self {
       AssetType::Js => "js",
@@ -136,6 +144,9 @@ impl AssetType {
       AssetType::Scss => "scss",
       AssetType::Html => "html",
       AssetType::Xhtml => "xhtml",
+      AssetType::Xml => "xml",
+      AssetType::Rss => "rss",
+      AssetType::Atom => "atom",
       AssetType::Svg => "svg",
       AssetType::Json => "json",
       AssetType::Jsonld => "jsonld",
@@ -168,6 +179,9 @@ impl AssetType {
       "scss" => AssetType::Scss,
       "html" | "htm" => AssetType::Html,
       "xhtml" => AssetType::Xhtml,
+      "xml" => AssetType::Xml,
+      "rss" => AssetType::Rss,
+      "atom" => AssetType::Atom,
       "svg" => AssetType::Svg,
       "json" => AssetType::Json,
       "jsonld" => AssetType::Jsonld,
@@ -228,6 +242,9 @@ impl AssetType {
       "text/scss" => AssetType::Scss,
       "text/html" => AssetType::Html,
       "application/xhtml+xml" => AssetType::Xhtml,
+      "application/xml" | "text/xml" => AssetType::Xml,
+      "application/rss+xml" => AssetType::Rss,
+      "application/atom+xml" => AssetType::Atom,
       "image/svg+xml" => AssetType::Svg,
       "image/png" => AssetType::Png,
       "image/jpeg" => AssetType::Jpeg,
@@ -260,6 +277,9 @@ impl AssetType {
       AssetType::Scss => "text/scss",
       AssetType::Html => "text/html",
       AssetType::Xhtml => "application/xhtml+xml",
+      AssetType::Xml => "application/xml",
+      AssetType::Rss => "application/rss+xml",
+      AssetType::Atom => "application/atom+xml",
       AssetType::Svg => "image/svg+xml",
       AssetType::Json => "application/json",
       AssetType::Jsonld => "application/json",

@@ -257,14 +257,16 @@ impl<'arena> Node<'arena> {
   }
 
   pub fn set_text_content(&'arena self, arena: Arena<'arena>, content: StrTendril) {
+    while let Some(child) = self.first_child.get() {
+      child.detach();
+    }
     let text = arena.alloc(Node::new(
       NodeData::Text {
         contents: RefCell::new(content),
       },
       0,
     ));
-    self.first_child.set(Some(text));
-    self.last_child.set(Some(text));
+    self.append(text);
   }
 
   pub fn find(&'arena self, element: ExpandedName) -> Option<Ref<'arena>> {

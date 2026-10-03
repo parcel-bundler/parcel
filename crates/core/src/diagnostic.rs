@@ -878,7 +878,12 @@ fn highlight_tokens(code: &str, lang: AssetType) -> Vec<HighlightToken<'_>> {
     AssetType::Css => Language::Css,
     AssetType::StyleAttribute => Language::CssDeclarations,
     AssetType::Json | AssetType::Jsonld => Language::Json,
-    AssetType::Html | AssetType::Xhtml | AssetType::Svg => Language::Html,
+    AssetType::Html
+    | AssetType::Xhtml
+    | AssetType::Xml
+    | AssetType::Rss
+    | AssetType::Atom
+    | AssetType::Svg => Language::Html,
     _ => {
       return vec![HighlightToken {
         style: None,

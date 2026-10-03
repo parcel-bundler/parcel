@@ -151,7 +151,7 @@ fn bundle_with_options(
     config: options.config,
     cwd: PathId::new(cwd),
     dist_dir: None,
-    public_url: Default::default(),
+    public_url: options.public_url.unwrap_or_default(),
     hmr: options.hmr.then(|| parcel_core::HmrOptions {
       host: "localhost".into(),
       port: 1234,
@@ -261,8 +261,9 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
       if !found.contains.is_empty() {
         let contents = output_fs.read_to_string(bundle.dist_path()).unwrap();
         for substring in &found.contains {
+          let substring = expand_bundle_urls(substring, &bundle_graph);
           assert!(
-            contents.contains(substring),
+            contents.contains(&substring),
             "Bundle {:?} did not contain expected substring {:?}\n\nBundle contents: {}",
             bundle.dist_path(),
             substring,
@@ -506,6 +507,45 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
   }
 }
 
+/// Resolve {{bundle:asset-name}} to the emitted public URL, so fixtures can
+/// assert references without hard-coding generated bundle names.
+fn expand_bundle_urls(pattern: &str, graph: &BundleGraph) -> String {
+  let mut result = String::new();
+  let mut remaining = pattern;
+  while let Some(start) = remaining.find("{{bundle:") {
+    result.push_str(&remaining[..start]);
+    let reference = &remaining[start + "{{bundle:".len()..];
+    let end = reference
+      .find("}}")
+      .expect("Unterminated bundle URL assertion");
+    let name = &reference[..end];
+    let matches: Vec<_> = graph
+      .bundles
+      .iter()
+      .filter(|bundle| {
+        bundle.assets.iter().any(|asset| {
+          graph
+            .asset_graph
+            .asset(*asset)
+            .loc
+            .url
+            .to_file_path()
+            .is_ok_and(|path| path.file_name() == name)
+        })
+      })
+      .collect();
+    assert_eq!(
+      matches.len(),
+      1,
+      "Expected one bundle for URL assertion {name}"
+    );
+    result.push_str(&matches[0].absolute_url());
+    remaining = &reference[end + 2..];
+  }
+  result.push_str(remaining);
+  result
+}
+
 fn deserialize_input<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<String>, D::Error> {
   use serde::de::{self, Visitor};
   struct InputVisitor;
@@ -660,6 +700,7 @@ struct TestBundle {
   #[serde(rename = "type")]
   ty: Option<AssetType>,
   #[serde(default)]
+  /// Substrings may use {{bundle:asset-name}} for generated public URLs.
   contains: Vec<String>,
   #[serde(default)]
   not_contains: Vec<String>,
@@ -675,6 +716,8 @@ struct TestOptions {
   /// Whether bundle names include a content hash. Defaults to on in production mode.
   #[serde(rename = "contentHash")]
   content_hash: Option<bool>,
+  #[serde(rename = "publicUrl")]
+  public_url: Option<String>,
   #[serde(default)]
   env: HashMap<String, String>,
   cwd: Option<String>,

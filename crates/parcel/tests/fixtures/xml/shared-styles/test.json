@@ -1,0 +1,78 @@
+[
+  {
+    "description": "shared CSS references load within each escaped HTML and prefixed XHTML content (development)",
+    "input": "feed.xml",
+    "options": {
+      "mode": "development",
+      "contentHash": true,
+      "publicUrl": "https://example.org/"
+    },
+    "bundles": [
+      {
+        "name": "feed.xml",
+        "type": "xml",
+        "assets": ["feed.xml"],
+        "contains": [
+          "one&lt;link rel=\"stylesheet\" href=\"{{bundle:theme.css}}\"&gt;",
+          "two&lt;link rel=\"stylesheet\" href=\"{{bundle:theme.css}}\"&gt;",
+          "<x:div><s:link xmlns:s=\"http://www.w3.org/1999/xhtml\" rel=\"stylesheet\" href=\"{{bundle:theme.css}}\"/>"
+        ],
+        "notContains": ["data-parcel-key"]
+      },
+      {
+        "type": "css",
+        "assets": ["theme.css"]
+      },
+      {
+        "type": "js",
+        "assets": ["feed.xml"]
+      },
+      {
+        "type": "js",
+        "assets": ["feed.xml"]
+      },
+      {
+        "type": "js",
+        "assets": ["feed.xml"]
+      }
+    ]
+  },
+  {
+    "description": "shared CSS references load within each escaped HTML and prefixed XHTML content (production)",
+    "input": "feed.xml",
+    "options": {
+      "mode": "production",
+      "contentHash": true,
+      "publicUrl": "https://example.org/"
+    },
+    "bundles": [
+      {
+        "name": "feed.xml",
+        "type": "xml",
+        "assets": ["feed.xml"],
+        "contains": [
+          "one&lt;link rel=\"stylesheet\" href=\"{{bundle:theme.css}}\"&gt;",
+          "two&lt;link rel=\"stylesheet\" href=\"{{bundle:theme.css}}\"&gt;",
+          "<x:div><s:link xmlns:s=\"http://www.w3.org/1999/xhtml\" rel=\"stylesheet\" href=\"{{bundle:theme.css}}\"/>"
+        ],
+        "notContains": ["data-parcel-key"]
+      },
+      {
+        "type": "css",
+        "assets": ["theme.css"]
+      },
+      {
+        "type": "js",
+        "assets": ["feed.xml"]
+      },
+      {
+        "type": "js",
+        "assets": ["feed.xml"]
+      },
+      {
+        "type": "js",
+        "assets": ["feed.xml"]
+      }
+    ]
+  }
+]

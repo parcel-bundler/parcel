@@ -1,0 +1,62 @@
+[
+  {
+    "description": "port xml.js: transform rss feed (development), collecting embedded HTML dependencies directly",
+    "input": "rss.xml",
+    "options": {
+      "mode": "development",
+      "contentHash": false,
+      "publicUrl": "http://example.org/"
+    },
+    "bundles": [
+      {
+        "name": "rss.xml",
+        "type": "xml",
+        "assets": ["rss.xml"],
+        "contains": [
+          "<link>http://example.org/post.html</link>",
+          "&lt;img src=\"{{bundle:100x100.png}}\"&gt;"
+        ],
+        "notContains": ["data-parcel-key", "https://parceljs.org"]
+      },
+      {
+        "type": "png",
+        "assets": ["100x100.png"]
+      },
+      {
+        "name": "post.html",
+        "type": "html",
+        "assets": ["post.html"]
+      }
+    ]
+  },
+  {
+    "description": "port xml.js: transform rss feed (production), collecting embedded HTML dependencies directly",
+    "input": "rss.xml",
+    "options": {
+      "mode": "production",
+      "contentHash": false,
+      "publicUrl": "http://example.org/"
+    },
+    "bundles": [
+      {
+        "name": "rss.xml",
+        "type": "xml",
+        "assets": ["rss.xml"],
+        "contains": [
+          "<link>http://example.org/post.html</link>",
+          "&lt;img src=\"{{bundle:100x100.png}}\"&gt;"
+        ],
+        "notContains": ["data-parcel-key", "https://parceljs.org"]
+      },
+      {
+        "type": "png",
+        "assets": ["100x100.png"]
+      },
+      {
+        "name": "post.html",
+        "type": "html",
+        "assets": ["post.html"]
+      }
+    ]
+  }
+]
