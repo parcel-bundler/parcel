@@ -1,0 +1,121 @@
+[
+  {
+    "description": "collect and package manifest icons, screenshots, shortcut icons, and file handler icons",
+    "input": "index.html",
+    "bundles": [
+      {
+        "name": "index.html",
+        "assets": [
+          "index.html"
+        ],
+        "contains": [
+          "manifest.webmanifest"
+        ]
+      },
+      {
+        "name": "manifest.webmanifest",
+        "type": "webmanifest",
+        "assets": [
+          "manifest.json"
+        ],
+        "contains": [
+          "icon-",
+          "screenshot-",
+          "shortcut-icon-",
+          "file-handler-icon-"
+        ],
+        "notContains": [
+          "\"src\":\"icon.png\"",
+          "\"src\":\"screenshot.png\"",
+          "\"src\":\"shortcut-icon.png\"",
+          "\"src\":\"file-handler-icon.png\""
+        ]
+      },
+      {
+        "type": "png",
+        "assets": [
+          "icon.png"
+        ]
+      },
+      {
+        "type": "png",
+        "assets": [
+          "screenshot.png"
+        ]
+      },
+      {
+        "type": "png",
+        "assets": [
+          "shortcut-icon.png"
+        ]
+      },
+      {
+        "type": "png",
+        "assets": [
+          "file-handler-icon.png"
+        ]
+      }
+    ]
+  },
+  {
+    "description": "collect and package manifest icons, screenshots, shortcut icons, and file handler icons",
+    "input": "index.html",
+    "bundles": [
+      {
+        "name": "index.html",
+        "assets": [
+          "index.html"
+        ],
+        "contains": [
+          "manifest.webmanifest"
+        ]
+      },
+      {
+        "name": "manifest.webmanifest",
+        "type": "webmanifest",
+        "assets": [
+          "manifest.json"
+        ],
+        "contains": [
+          "icon-",
+          "screenshot-",
+          "shortcut-icon-",
+          "file-handler-icon-"
+        ],
+        "notContains": [
+          "\"src\":\"icon.png\"",
+          "\"src\":\"screenshot.png\"",
+          "\"src\":\"shortcut-icon.png\"",
+          "\"src\":\"file-handler-icon.png\""
+        ]
+      },
+      {
+        "type": "png",
+        "assets": [
+          "icon.png"
+        ]
+      },
+      {
+        "type": "png",
+        "assets": [
+          "screenshot.png"
+        ]
+      },
+      {
+        "type": "png",
+        "assets": [
+          "shortcut-icon.png"
+        ]
+      },
+      {
+        "type": "png",
+        "assets": [
+          "file-handler-icon.png"
+        ]
+      }
+    ],
+    "options": {
+      "mode": "production"
+    }
+  }
+]

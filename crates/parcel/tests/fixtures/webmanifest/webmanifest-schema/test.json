@@ -1,0 +1,93 @@
+{
+  "description": "validate malformed manifest resource lists",
+  "input": "index.html",
+  "diagnostics": [
+    {
+      "message": "Invalid webmanifest",
+      "origin": "@parcel/transformer-webmanifest",
+      "codeFrames": [
+        {
+          "codeHighlights": [
+            {
+              "start": {
+                "line": 9,
+                "column": 5
+              },
+              "end": {
+                "line": 12,
+                "column": 5
+              },
+              "message": "Missing property src"
+            },
+            {
+              "start": {
+                "line": 13,
+                "column": 5
+              },
+              "end": {
+                "line": 13,
+                "column": 6
+              },
+              "message": "Missing property src"
+            },
+            {
+              "start": {
+                "line": 15,
+                "column": 18
+              },
+              "end": {
+                "line": 15,
+                "column": 19
+              },
+              "message": "Expected type array"
+            },
+            {
+              "start": {
+                "line": 18,
+                "column": 16
+              },
+              "end": {
+                "line": 18,
+                "column": 17
+              },
+              "message": "Expected type array"
+            },
+            {
+              "start": {
+                "line": 27,
+                "column": 9
+              },
+              "end": {
+                "line": 30,
+                "column": 9
+              },
+              "message": "Missing property src"
+            },
+            {
+              "start": {
+                "line": 31,
+                "column": 9
+              },
+              "end": {
+                "line": 31,
+                "column": 10
+              },
+              "message": "Missing property src"
+            },
+            {
+              "start": {
+                "line": 35,
+                "column": 20
+              },
+              "end": {
+                "line": 35,
+                "column": 21
+              },
+              "message": "Expected type array"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

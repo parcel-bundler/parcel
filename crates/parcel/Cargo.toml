@@ -26,6 +26,7 @@ parcel-html = { path = "../html" }
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 parcel-image = { path = "../image" }
 serde_json = { version = "1.0.91", features = ["preserve_order"] }
+json-sourcemap = "0.2.0"
 serde = { version = "1.0.228", features = ["derive", "rc"] }
 parcel-watcher = { git = "https://github.com/parcel-bundler/watcher.git", branch = "rust" }
 parcel-plugin-js = { path = "../plugin-js" }

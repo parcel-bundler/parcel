@@ -19,8 +19,9 @@ use parcel_tailwind::TailwindTransformer;
 
 use crate::{
   bundler::DefaultBundler, data_url::DataUrlOptimizer, glob_resolver::GlobResolver,
-  inline::InlineTransformer, json::JsonTransformer, library_bundler::LibraryBundler,
-  namer::DefaultNamer, raw::RawTransformer, resolver::DefaultResolver, toml::TomlTransformer,
+  inline::InlineTransformer, json::JsonTransformer, jsonld::JsonLdTransformer,
+  library_bundler::LibraryBundler, namer::DefaultNamer, raw::RawTransformer,
+  resolver::DefaultResolver, toml::TomlTransformer, webmanifest::WebManifestTransformer,
   yaml::YamlTransformer,
 };
 
@@ -74,6 +75,8 @@ impl PluginFactory for DefaultPluginFactory {
       }),
       "@parcel/transformer-image" => Arc::new(ImageTransformer {}),
       "@parcel/transformer-json" => Arc::new(JsonTransformer {}),
+      "@parcel/transformer-jsonld" => Arc::new(JsonLdTransformer {}),
+      "@parcel/transformer-webmanifest" => Arc::new(WebManifestTransformer {}),
       "@parcel/transformer-toml" => Arc::new(TomlTransformer {}),
       "@parcel/transformer-yaml" => Arc::new(YamlTransformer {}),
       "@parcel/transformer-tailwind" => Arc::new(TailwindTransformer {}),

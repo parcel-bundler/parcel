@@ -1,0 +1,22 @@
+{
+  "description": "manifest JSON with a package target is transformed as a webmanifest",
+  "input": "index.html",
+  "bundles": [
+    {
+      "name": "index.html",
+      "assets": [
+        "index.html"
+      ]
+    },
+    {
+      "name": "manifest.webmanifest",
+      "type": "webmanifest",
+      "assets": [
+        "manifest.json"
+      ],
+      "contains": [
+        "\"icons\":[]"
+      ]
+    }
+  ]
+}

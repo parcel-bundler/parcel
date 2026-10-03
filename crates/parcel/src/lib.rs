@@ -11,6 +11,8 @@ mod data_url;
 mod glob_resolver;
 mod inline;
 mod json;
+mod json_urls;
+mod jsonld;
 mod library_bundler;
 mod namer;
 mod plugin_factory;
@@ -19,6 +21,7 @@ mod resolver;
 mod run;
 mod server;
 mod toml;
+mod webmanifest;
 mod yaml;
 
 pub fn make_parcel(

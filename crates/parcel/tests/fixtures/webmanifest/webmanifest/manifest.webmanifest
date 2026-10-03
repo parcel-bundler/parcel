@@ -1,0 +1,41 @@
+{
+  "name": "pwa-webmanifest-example",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "100x100",
+      "type": "image/png"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshot.png",
+      "sizes": "100x100",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "example-shortcut",
+      "icons": [
+        {
+          "src": "shortcut-icon.png",
+          "sizes": "100x100",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "file_handlers": [
+    {
+      "name": "example-file-handler",
+      "icons": [
+        {
+          "src": "file-handler-icon.png",
+          "sizes": "100x100",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

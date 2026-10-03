@@ -1,0 +1,91 @@
+[
+  {
+    "description": "JSON-LD supports all schema URL attributes, nested objects and arrays, and leaves unrelated fields, external URLs, and primitives intact",
+    "input": "schema.jsonld",
+    "options": {
+      "publicUrl": "https://cdn.example.com/assets/"
+    },
+    "bundles": [
+      {
+        "name": "schema.jsonld",
+        "type": "jsonld",
+        "assets": [
+          "schema.jsonld"
+        ],
+        "contains": [
+          "\"name\":\"icon.png\"",
+          "\"other\":{\"image\":\"missing.png\"}",
+          "\"caption\":\"icon.png\"",
+          "\"url\":\"https://cdn.example.com/assets/icon-",
+          "#logo\"",
+          "\"photo\":\"https://cdn.example.com/assets/icon-",
+          "\"image\":[\"https://cdn.example.com/assets/icon-",
+          "\"contentUrl\":\"https://cdn.example.com/assets/icon-",
+          "\"thumbnailUrl\":\"https://cdn.example.com/assets/icon-",
+          "\"embedUrl\":\"https://cdn.example.com/assets/icon-",
+          "\"thumbnail\":\"https://example.com/remote.png\"",
+          "\"screenshot\":\"data:image/png;base64,AAAA\"",
+          "null,42,true"
+        ],
+        "notContains": [
+          "\"url\":\"icon.png\"",
+          "\"photo\":\"icon.png\"",
+          "\"contentUrl\":\"icon.png\"",
+          "\"thumbnailUrl\":\"icon.png\"",
+          "\"embedUrl\":\"icon.png\""
+        ]
+      },
+      {
+        "type": "png",
+        "assets": [
+          "icon.png"
+        ]
+      }
+    ]
+  },
+  {
+    "description": "JSON-LD supports all schema URL attributes, nested objects and arrays, and leaves unrelated fields, external URLs, and primitives intact",
+    "input": "schema.jsonld",
+    "options": {
+      "publicUrl": "https://cdn.example.com/assets/",
+      "mode": "production"
+    },
+    "bundles": [
+      {
+        "name": "schema.jsonld",
+        "type": "jsonld",
+        "assets": [
+          "schema.jsonld"
+        ],
+        "contains": [
+          "\"name\":\"icon.png\"",
+          "\"other\":{\"image\":\"missing.png\"}",
+          "\"caption\":\"icon.png\"",
+          "\"url\":\"https://cdn.example.com/assets/icon-",
+          "#logo\"",
+          "\"photo\":\"https://cdn.example.com/assets/icon-",
+          "\"image\":[\"https://cdn.example.com/assets/icon-",
+          "\"contentUrl\":\"https://cdn.example.com/assets/icon-",
+          "\"thumbnailUrl\":\"https://cdn.example.com/assets/icon-",
+          "\"embedUrl\":\"https://cdn.example.com/assets/icon-",
+          "\"thumbnail\":\"https://example.com/remote.png\"",
+          "\"screenshot\":\"data:image/png;base64,AAAA\"",
+          "null,42,true"
+        ],
+        "notContains": [
+          "\"url\":\"icon.png\"",
+          "\"photo\":\"icon.png\"",
+          "\"contentUrl\":\"icon.png\"",
+          "\"thumbnailUrl\":\"icon.png\"",
+          "\"embedUrl\":\"icon.png\""
+        ]
+      },
+      {
+        "type": "png",
+        "assets": [
+          "icon.png"
+        ]
+      }
+    ]
+  }
+]

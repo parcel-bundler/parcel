@@ -1,0 +1,29 @@
+{
+  "description": "missing manifest URLs include their JSON source location",
+  "input": "index.html",
+  "diagnostics": [
+    {
+      "message": "Failed to resolve 'icon.png'",
+      "codeFrames": [
+        {
+          "codeHighlights": [
+            {
+              "start": {
+                "line": 5,
+                "column": 14
+              },
+              "end": {
+                "line": 5,
+                "column": 23
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "message": "Cannot load file 'icon.png'",
+      "origin": "@parcel/resolver-default"
+    }
+  ]
+}

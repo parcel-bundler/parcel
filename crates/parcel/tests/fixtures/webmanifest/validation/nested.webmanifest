@@ -1,0 +1,18 @@
+{
+  "shortcuts": [
+    false,
+    {
+      "icons": [
+        {
+          "src": null
+        }
+      ]
+    }
+  ],
+  "file_handlers": [
+    null,
+    {
+      "icons": "invalid"
+    }
+  ]
+}
