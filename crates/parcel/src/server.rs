@@ -1,5 +1,6 @@
 use parcel_core::{
-  Asset, AssetIndex, AssetType, BundleGraph, DiagnosticList, ParcelConfig, ParcelOptions,
+  Asset, AssetIndex, AssetType, BundleGraph, DiagnosticList, LogLevel, ParcelConfig, ParcelOptions,
+  Reporters,
 };
 use parcel_js::hmr::{HmrUpdate, get_hmr_update};
 use std::{
@@ -33,16 +34,19 @@ pub struct DevServer {
   sockets: Arc<Mutex<Vec<WebSocket<Box<dyn ReadWrite + Send>>>>>,
 }
 
-pub fn serve_dir(path: &Path, options: ServerOptions) -> DevServer {
+pub fn serve_dir(path: &Path, options: ServerOptions, reporters: Arc<Reporters>) -> DevServer {
   let path = path.to_owned();
   let sockets = Arc::new(Mutex::new(Vec::new()));
   let sockets_clone = Arc::clone(&sockets);
   std::thread::spawn(move || {
     let server = Server::http((&*options.host, options.port)).unwrap();
-    println!("Server listening on http://localhost:{}", options.port);
+    reporters.log(
+      LogLevel::Info,
+      &format!("Server listening on http://localhost:{}", options.port),
+    );
 
     for request in server.incoming_requests() {
-      if is_websocket_upgrade(&request) {
+      if options.hmr && is_websocket_upgrade(&request) {
         let ws_key = request
           .headers()
           .iter()

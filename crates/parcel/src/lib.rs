@@ -76,9 +76,11 @@ pub fn serve(
   let project_root = parcel.project_root();
 
   let graph = parcel.build()?;
+  let hmr = server_options.hmr;
   let server = server::serve_dir(
     &graph.asset_graph.entries[0].target.dist_dir.to_path_buf(),
     server_options,
+    parcel.options.reporters.clone(),
   );
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
@@ -102,7 +104,7 @@ pub fn serve(
       Ok(result) => {
         // On a config change the Parcel was rebuilt from scratch, so HMR is skipped in favour of
         // the full rebuild's output.
-        if !config_changed {
+        if hmr && !config_changed {
           if result.output_paths_changed {
             server.emit_hmr_reload();
           } else {
@@ -115,7 +117,9 @@ pub fn serve(
         }
       }
       Err(e) => {
-        server.emit_hmr_error(&e);
+        if hmr {
+          server.emit_hmr_error(&e);
+        }
       }
     }
   }

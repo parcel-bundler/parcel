@@ -793,12 +793,21 @@ fn write_runtime_globals(
   }
 
   if !should_optimize {
+    printer.write_var(
+      "HMR_ENABLED",
+      if options.hmr.is_some() {
+        "true"
+      } else {
+        "false"
+      },
+      true,
+    )?;
     if let Some(hmr) = &options.hmr {
       printer.write_var("HMR_HOST", &serde_json::to_string(&hmr.host)?, true)?;
       printer.write_var("HMR_PORT", &serde_json::to_string(&hmr.port)?, true)?;
     } else {
       printer.write_var("HMR_HOST", "null", true)?;
-      printer.write_var("HMR_PORT", "'1234'", true)?;
+      printer.write_var("HMR_PORT", "null", true)?;
     }
   }
 

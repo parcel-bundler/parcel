@@ -1,5 +1,5 @@
 /* eslint-env browser */
-/* global parcelRequireName, modules, mainEntry, entries, awaitedBundles, externals, manifest, distDir, publicUrl, HMR_HOST, HMR_PORT */
+/* global parcelRequireName, modules, mainEntry, entries, awaitedBundles, externals, manifest, distDir, publicUrl, HMR_ENABLED, HMR_HOST, HMR_PORT */
 /* eslint-disable no-unused-vars */
 
 // Save the require from previous bundle to this closure if any
@@ -282,6 +282,10 @@ function Module(moduleName) {
   this.require = nodeRequire;
   this.exports = {};
 
+  if (!HMR_ENABLED) {
+    return;
+  }
+
   this.hot = {
     data: parcelRequire.hotData[moduleName],
     _acceptCallbacks: [],
@@ -320,7 +324,7 @@ function getPort() {
 
 // eslint-disable-next-line no-redeclare
 let WebSocket = globalThis.WebSocket;
-if (!WebSocket && typeof parcelRequire.root === 'function') {
+if (HMR_ENABLED && !WebSocket && typeof parcelRequire.root === 'function') {
   try {
     // eslint-disable-next-line no-global-assign
     WebSocket = parcelRequire.root('ws');
@@ -350,7 +354,7 @@ var supportsSourceURL = true; // TODO
 //   supportsSourceURL = err.stack.includes('test.js');
 // }
 
-if (!parent || !parent.isParcelRequire) {
+if (HMR_ENABLED && (!parent || !parent.isParcelRequire)) {
   // Web extension context
   var extCtx =
     typeof browser === 'undefined'
