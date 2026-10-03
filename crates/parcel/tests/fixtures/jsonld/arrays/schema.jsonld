@@ -1,0 +1,43 @@
+[
+  {
+    "@context": "https://schema.org",
+    "name": "icon.png",
+    "other": {
+      "image": "missing.png"
+    },
+    "logo": {
+      "url": "icon.png#logo",
+      "width": 180,
+      "caption": "icon.png"
+    },
+    "photo": "icon.png",
+    "image": [
+      "icon.png",
+      {
+        "contentUrl": "icon.png"
+      },
+      null,
+      42,
+      true
+    ],
+    "thumbnail": "https://example.com/remote.png",
+    "screenshot": "data:image/png;base64,AAAA",
+    "primaryImageOfPage": {
+      "thumbnailUrl": "icon.png"
+    },
+    "embedUrl": "icon.png",
+    "thumbnailUrl": "icon.png",
+    "video": {
+      "contentUrl": "icon.png",
+      "url": "https://example.com/video"
+    },
+    "contentUrl": "icon.png",
+    "url": "icon.png"
+  },
+  [
+    "icon.png"
+  ],
+  null,
+  42,
+  true
+]

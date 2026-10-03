@@ -17,6 +17,9 @@
     "*.style": ["@parcel/transformer-style-attr"],
     "*.{sass,scss}": ["@parcel/transformer-sass"],
     "*.{html,xhtml}": ["@parcel/transformer-html"],
+    "*.jsonld": ["@parcel/transformer-jsonld"],
+    "*.webmanifest": ["@parcel/transformer-webmanifest"],
+    "webmanifest:*.{json,webmanifest}": ["@parcel/transformer-webmanifest"],
     "*.svg": ["@parcel/transformer-svg"],
     "*.{png,jpeg,jpg,gif,webp,tiff,bmp,ico,avif}": [
       "@parcel/transformer-image"

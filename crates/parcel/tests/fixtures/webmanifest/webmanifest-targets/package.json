@@ -1,0 +1,10 @@
+{
+  "name": "webmanifest-targets",
+  "web": "./dist/index.html",
+  "targets": {
+    "web": {
+      "context": "browser",
+      "publicUrl": "./"
+    }
+  }
+}

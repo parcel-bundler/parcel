@@ -1,0 +1,97 @@
+[
+  {
+    "description": "parse inline JSON-LD and collect URLs from ImageObjects and arrays",
+    "input": "index.html",
+    "bundles": [
+      {
+        "name": "index.html",
+        "assets": [
+          "index.html"
+        ],
+        "contains": [
+          "\"url\":\"https://place.holder/logo-",
+          "\"image\":[\"https://place.holder/image-"
+        ],
+        "notContains": [
+          "images/logo.png",
+          "images/image.jpeg"
+        ]
+      },
+      {
+        "type": "jsonld",
+        "assets": [
+          "index.html"
+        ]
+      },
+      {
+        "type": "css",
+        "assets": [
+          "other.css"
+        ]
+      },
+      {
+        "type": "png",
+        "assets": [
+          "logo.png"
+        ]
+      },
+      {
+        "type": "jpg",
+        "assets": [
+          "image.jpeg"
+        ]
+      }
+    ],
+    "options": {
+      "publicUrl": "https://place.holder/"
+    }
+  },
+  {
+    "description": "parse inline JSON-LD and collect URLs from ImageObjects and arrays",
+    "input": "index.html",
+    "bundles": [
+      {
+        "name": "index.html",
+        "assets": [
+          "index.html"
+        ],
+        "contains": [
+          "\"url\":\"https://place.holder/logo-",
+          "\"image\":[\"https://place.holder/image-"
+        ],
+        "notContains": [
+          "images/logo.png",
+          "images/image.jpeg"
+        ]
+      },
+      {
+        "type": "jsonld",
+        "assets": [
+          "index.html"
+        ]
+      },
+      {
+        "type": "css",
+        "assets": [
+          "other.css"
+        ]
+      },
+      {
+        "type": "png",
+        "assets": [
+          "logo.png"
+        ]
+      },
+      {
+        "type": "jpg",
+        "assets": [
+          "image.jpeg"
+        ]
+      }
+    ],
+    "options": {
+      "mode": "production",
+      "publicUrl": "https://place.holder/"
+    }
+  }
+]

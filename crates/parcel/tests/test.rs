@@ -151,7 +151,7 @@ fn bundle_with_options(
     config: options.config,
     cwd: PathId::new(cwd),
     dist_dir: None,
-    public_url: Default::default(),
+    public_url: options.public_url,
     hmr: options.hmr.then(|| parcel_core::HmrOptions {
       host: "localhost".into(),
       port: 1234,
@@ -675,6 +675,8 @@ struct TestOptions {
   /// Whether bundle names include a content hash. Defaults to on in production mode.
   #[serde(rename = "contentHash")]
   content_hash: Option<bool>,
+  #[serde(default, rename = "publicUrl")]
+  public_url: String,
   #[serde(default)]
   env: HashMap<String, String>,
   cwd: Option<String>,
@@ -726,6 +728,111 @@ fn run_test_json_test(path: &Path, test: serde_json::Value) {
 #[testing_macros::fixture("../../crates/parcel/tests/fixtures/**/test.json")]
 fn test(file: PathBuf) {
   run_test_json(&file);
+}
+
+#[test]
+fn json_url_content_packages_final_bundle_urls() {
+  for fixture in [
+    "webmanifest/webmanifest",
+    "webmanifest/webmanifest-json",
+    "jsonld/schema-jsonld",
+  ] {
+    let fixture_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+      .join("tests/fixtures")
+      .join(fixture);
+    for mode in [
+      parcel_core::BuildMode::Development,
+      parcel_core::BuildMode::Production,
+    ] {
+      let output_fs = Arc::new(MemoryFileSystem::new());
+      let graph = bundle_with_options(
+        &fixture_dir,
+        vec!["index.html".into()],
+        output_fs.clone(),
+        TestOptions {
+          mode,
+          public_url: "https://place.holder/assets/".into(),
+          ..Default::default()
+        },
+      )
+      .unwrap();
+      let url_for = |name: &str| {
+        graph
+          .bundles
+          .iter()
+          .find(|bundle| {
+            bundle.assets.iter().any(|&index| {
+              graph
+                .asset_graph
+                .asset(index)
+                .loc
+                .url
+                .to_file_path()
+                .unwrap()
+                .file_name()
+                == name
+            })
+          })
+          .unwrap()
+          .absolute_url()
+      };
+      let json_bundle = graph
+        .bundles
+        .iter()
+        .find(|bundle| matches!(bundle.ty.extension(), "webmanifest" | "jsonld"))
+        .unwrap();
+      // Packaging must leave the parsed source intact so the content can be reused.
+      let original: serde_json::Value = serde_json::from_slice(
+        &graph
+          .asset_graph
+          .asset(json_bundle.assets[0])
+          .content
+          .read()
+          .unwrap(),
+      )
+      .unwrap();
+      if json_bundle.ty == AssetType::Jsonld {
+        let html_bundle = graph
+          .bundles
+          .iter()
+          .find(|bundle| bundle.ty == AssetType::Html)
+          .unwrap();
+        let html = output_fs.read_to_string(html_bundle.dist_path()).unwrap();
+        let script = html.split("application/ld+json").nth(1).unwrap();
+        let json = script
+          .split_once('>')
+          .unwrap()
+          .1
+          .split("</script>")
+          .next()
+          .unwrap();
+        let json: serde_json::Value = serde_json::from_str(json).unwrap();
+        assert_eq!(json["logo"]["url"], url_for("logo.png"));
+        assert_eq!(
+          json["image"],
+          serde_json::json!([url_for("image.jpeg"), url_for("image.jpeg")])
+        );
+        assert_eq!(json["@context"], original["@context"]);
+        assert_eq!(original["logo"]["url"], "images/logo.png");
+      } else {
+        let json: serde_json::Value =
+          serde_json::from_slice(&output_fs.read(json_bundle.dist_path()).unwrap()).unwrap();
+        for (pointer, name) in [
+          ("/icons/0/src", "icon.png"),
+          ("/screenshots/0/src", "screenshot.png"),
+          ("/shortcuts/0/icons/0/src", "shortcut-icon.png"),
+          ("/file_handlers/0/icons/0/src", "file-handler-icon.png"),
+        ] {
+          assert_eq!(
+            json.pointer(pointer).unwrap(),
+            &serde_json::Value::String(url_for(name))
+          );
+          assert_eq!(original.pointer(pointer).unwrap(), name);
+        }
+        assert_eq!(json["name"], original["name"]);
+      }
+    }
+  }
 }
 
 #[test]

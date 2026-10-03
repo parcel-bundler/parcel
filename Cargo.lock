@@ -2962,6 +2962,7 @@ dependencies = [
  "glob-match",
  "indexmap 2.14.0",
  "is-macro",
+ "json-sourcemap",
  "lightningcss",
  "log",
  "mimalloc",

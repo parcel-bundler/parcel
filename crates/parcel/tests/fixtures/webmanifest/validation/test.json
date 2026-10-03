@@ -1,0 +1,80 @@
+[
+  {
+    "description": "validate root manifest values",
+    "input": "root.webmanifest",
+    "diagnostics": [
+      {
+        "message": "Invalid webmanifest",
+        "origin": "@parcel/transformer-webmanifest",
+        "codeFrames": [
+          {
+            "codeHighlights": [
+              {
+                "message": "Expected type object"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "description": "validate resources manifest values",
+    "input": "resources.webmanifest",
+    "diagnostics": [
+      {
+        "message": "Invalid webmanifest",
+        "origin": "@parcel/transformer-webmanifest",
+        "codeFrames": [
+          {
+            "codeHighlights": [
+              {
+                "message": "Expected type object"
+              },
+              {
+                "message": "Must not be empty"
+              },
+              {
+                "message": "Expected type string"
+              },
+              {
+                "message": "Missing property src"
+              },
+              {
+                "message": "Expected type array"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "description": "validate nested manifest values",
+    "input": "nested.webmanifest",
+    "diagnostics": [
+      {
+        "message": "Invalid webmanifest",
+        "origin": "@parcel/transformer-webmanifest",
+        "codeFrames": [
+          {
+            "codeHighlights": [
+              {
+                "message": "Expected type object"
+              },
+              {
+                "message": "Expected type string"
+              },
+              {
+                "message": "Expected type object"
+              },
+              {
+                "message": "Expected type array"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]
