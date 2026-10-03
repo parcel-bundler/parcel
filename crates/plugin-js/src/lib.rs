@@ -1,4 +1,11 @@
-use std::{borrow::Cow, cell::RefCell, collections::HashMap, path::Path, rc::Rc, sync::Arc};
+use std::{
+  borrow::Cow,
+  cell::{Cell, RefCell},
+  collections::HashMap,
+  path::Path,
+  rc::Rc,
+  sync::Arc,
+};
 
 use parcel_core::{
   CodeFrame, CodeHighlight, Diagnostic, DiagnosticList, Environment, FileSystem, Location, PathId,
@@ -8,7 +15,6 @@ use rquickjs::{
   Coerced, Context, Ctx, Function, Object, Persistent, Runtime, Value, class::JsClass,
   function::This, object::Accessor,
 };
-use rquickjs_extra_console::Formatter;
 
 use crate::fs::FileSystemData;
 pub use crate::{cjs::CjsLoader, esm::create_esm_loader, macros::call_macro};
@@ -39,6 +45,7 @@ pub struct JsEnv {
 
 thread_local! {
   static JS_ENV: RefCell<Option<JsEnv>> = RefCell::new(None);
+  static DELIVERING_CONSOLE_LOGS: Cell<bool> = const { Cell::new(false) };
 }
 
 pub fn with_js_env<F, R>(
@@ -54,14 +61,59 @@ where
     let mut context = cell.borrow_mut();
 
     if context.is_none() {
-      let ctx = create_runtime(fs, env_vars, cwd, Environment::Node)
+      let ctx = create_runtime(fs.clone(), env_vars, cwd, Environment::Node)
         .map_err(|e| DiagnosticList::from(Diagnostic::from_message(e.to_string())))?;
       *context = Some(ctx);
     }
 
     let env = context.as_ref().unwrap();
-    env.with(f)
+    // Imported fs and newly loaded modules must use this request's tracker,
+    // even when the thread reuses its JavaScript runtime.
+    let (resolver, loader) = create_esm_loader(PathId::root(), fs.clone(), Environment::Node);
+    env.context.runtime().set_loader(resolver, loader);
+    env.with(|ctx| {
+      ctx.store_userdata(CjsLoader::new(PathId::root(), fs.clone()))?;
+      ctx.store_userdata(FileSystemData(fs))?;
+      f(ctx)
+    })
   })
+}
+
+pub(crate) fn with_plugin_env<F, R>(
+  fs: Arc<dyn FileSystem>,
+  options: &parcel_core::ParcelOptions,
+  f: F,
+) -> Result<R, DiagnosticList>
+where
+  F: FnOnce(&Ctx) -> rquickjs::Result<R>,
+{
+  let logs = Rc::new(RefCell::new(Vec::new()));
+  let result = with_js_env(fs, &options.env, options.cwd, |ctx| {
+    ctx.store_userdata(console::ConsoleLogs(logs.clone()))?;
+    let result = f(ctx);
+    ctx.remove_userdata::<console::ConsoleLogs>()?;
+    result
+  });
+
+  // Rust reporters may themselves run JS. Deliver after releasing JS_ENV's
+  // borrow, and suppress console output produced while delivering log events
+  // so a reporter that logs an event cannot recursively report itself.
+  DELIVERING_CONSOLE_LOGS.with(|delivering| {
+    if delivering.replace(true) {
+      return;
+    }
+    struct Reset<'a>(&'a Cell<bool>);
+    impl Drop for Reset<'_> {
+      fn drop(&mut self) {
+        self.0.set(false);
+      }
+    }
+    let _reset = Reset(delivering);
+    for (level, message) in logs.borrow_mut().drain(..) {
+      options.log(level, message);
+    }
+  });
+  result
 }
 
 impl JsEnv {
@@ -145,7 +197,7 @@ pub fn create_runtime(
     ctx.store_userdata(FileSystemData(fs))?;
 
     let global = ctx.globals();
-    let console = console::Console::new(Formatter::default());
+    let console = console::Console::create(&ctx)?;
     global.set("console", console)?;
 
     global.set("TextDecoder", encoding::TextDecoder::constructor(&ctx))?;

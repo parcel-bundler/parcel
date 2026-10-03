@@ -15,7 +15,7 @@ use rquickjs::{
   methods,
 };
 
-use crate::{await_promise, plugin::load_module, with_js_env};
+use crate::{await_promise, plugin::load_module, with_plugin_env};
 
 #[derive(JsLifetime)]
 #[rquickjs::class]
@@ -138,7 +138,7 @@ pub fn call_macro(
   fs: &Arc<dyn FileSystem>,
 ) -> Result<(JsValue, Vec<Dependency>), MacroError> {
   let mut is_load_error = false;
-  with_js_env(fs.clone(), &options.env, options.cwd, |ctx| {
+  with_plugin_env(fs.clone(), options, |ctx| {
     let module = load_module(&ctx, &src).map_err(|e| {
       is_load_error = true;
       e

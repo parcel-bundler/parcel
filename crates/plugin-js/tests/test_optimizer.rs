@@ -91,6 +91,13 @@ fn run(
   let plugin = JsPlugin::new(plugin_path, config);
   let options = ParcelOptions {
     input_fs: fs,
+    mode: parcel_core::BuildMode::Production,
+    env: HashMap::from([("OPTIMIZER_TEST".into(), "value".into())]),
+    log_level: parcel_core::LogLevel::Warn,
+    hmr: Some(parcel_core::HmrOptions {
+      host: "localhost".into(),
+      port: 1234,
+    }),
     ..Default::default()
   };
 
@@ -108,13 +115,17 @@ fn test_optimizer_esm_async_with_source_map() {
       import assert from 'assert';
 
       export default new Optimizer({
-        async optimize({bundle, bundleGraph, contents, map, config}) {
+        async optimize({bundle, bundleGraph, contents, map, config, options}) {
           await Promise.resolve();
           assert(contents instanceof Uint8Array);
           assert(map instanceof Uint8Array);
           assert.deepEqual([...contents], [...new TextEncoder().encode('hello')]);
           assert.deepEqual([...map], [1, 2, 3]);
           assert.deepEqual(config, {suffix: '!'});
+          assert.equal(options.mode, 'production');
+          assert.deepEqual(options.env, {OPTIMIZER_TEST: 'value'});
+          assert.equal(options.logLevel, 'warn');
+          assert.deepEqual(options.hmrOptions, {host: 'localhost', port: 1234});
           assert.equal(bundle.type, 'js');
           assert.equal(bundle.isEntry, true);
           assert.equal(bundle.getMainEntry().url, 'file:///src/index.js');
