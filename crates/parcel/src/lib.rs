@@ -153,25 +153,6 @@ pub fn hmr_update<'a>(
   ))
 }
 
-/// Like [`Parcel::invalidate`], but also rebuilds from scratch when a module loaded by a JS plugin
-/// (or macro, config, etc.) changes, since the JS runtime caches it.
-pub fn invalidate(
-  parcel: &mut Parcel,
-  changed: &[PathId],
-  created: &[PathId],
-  deleted: &[PathId],
-) -> Result<InvalidateResult, DiagnosticList> {
-  if parcel_plugin_js::invalidate_modules(changed.iter().chain(deleted)) {
-    parcel.reset()?;
-    return Ok(InvalidateResult {
-      config_changed: true,
-      ..Default::default()
-    });
-  }
-
-  parcel.invalidate(changed, created, deleted)
-}
-
 /// Invalidates the files changed by watcher `events`, returning `None` if there is nothing to
 /// rebuild (or the config is now invalid).
 fn invalidate_events(
@@ -179,7 +160,7 @@ fn invalidate_events(
   events: &[parcel_watcher::Event],
 ) -> Option<InvalidateResult> {
   let (changed, created, deleted) = split_events(events);
-  let result = invalidate(parcel, &changed, &created, &deleted).ok()?;
+  let result = parcel.invalidate(&changed, &created, &deleted).ok()?;
   result.needs_rebuild().then_some(result)
 }
 

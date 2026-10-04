@@ -84,30 +84,28 @@ pub struct InvalidationMap {
 
 impl InvalidationMap {
   pub fn add(&mut self, asset_index: AssetNodeIndex, invalidations: Invalidations) {
+    // Skips repeats, e.g. a file read many times while transforming one asset.
+    fn push(assets: &mut Vec<AssetNodeIndex>, asset_index: AssetNodeIndex) {
+      if assets.last() != Some(&asset_index) {
+        assets.push(asset_index);
+      }
+    }
+
     for url in invalidations.invalidate_on_file_change {
-      self
-        .on_file_change
-        .entry(url)
-        .or_default()
-        .push(asset_index);
+      push(self.on_file_change.entry(url).or_default(), asset_index);
     }
 
     for url in invalidations.invalidate_on_file_delete {
-      self
-        .on_file_delete
-        .entry(url)
-        .or_default()
-        .push(asset_index);
+      push(self.on_file_delete.entry(url).or_default(), asset_index);
     }
 
     for inv in invalidations.invalidate_on_file_create {
       match inv {
         FileCreateInvalidation::Path(url) => {
-          self
-            .on_file_create_path
-            .entry(url)
-            .or_default()
-            .push(asset_index);
+          push(
+            self.on_file_create_path.entry(url).or_default(),
+            asset_index,
+          );
         }
         FileCreateInvalidation::FileName { file_name, above } => {
           self

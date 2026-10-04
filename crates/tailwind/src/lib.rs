@@ -34,8 +34,11 @@ impl Transformer for TailwindTransformer {
 
     let resolver = Resolver::node(project_root_path);
     let resolver_fs = fs.clone();
+    let read_fs = fs.clone();
 
-    let result_css = with_js_env(fs.clone(), &options.env, options.cwd, move |ctx| {
+    // Modules loaded by the runtime are tracked by `plugin_fs`. Per-asset reads go through Rust
+    // callbacks using this asset's `fs`, so editing them only re-transforms this asset.
+    let result_css = with_js_env(options.plugin_fs(), &options.env, options.cwd, move |ctx| {
       let module = require_source(ctx, "tailwind", COMPILE_JS)?;
       let func: Function = module
         .as_object()
@@ -83,6 +86,17 @@ impl Transformer for TailwindTransformer {
 
       let resolve = Function::new(ctx.clone(), resolve_fn)?;
 
+      let read_file = Function::new(
+        ctx.clone(),
+        move |ctx: Ctx, path: String| -> rquickjs::Result<String> {
+          read_fs
+            .read_to_string(parcel_core::PathId::new(Path::new(&path)))
+            .map_err(|e| {
+              rquickjs::Exception::throw_message(&ctx, &format!("Failed to read '{}': {}", path, e))
+            })
+        },
+      )?;
+
       let get_candidates = Function::new(
         ctx.clone(),
         move |sources: Array| -> rquickjs::Result<Vec<String>> {
@@ -113,6 +127,7 @@ impl Transformer for TailwindTransformer {
         base.as_str(),
         css.as_ref(),
         get_candidates,
+        read_file,
       ))?;
 
       let result = await_promise(ctx, promise)?;

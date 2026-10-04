@@ -3,7 +3,8 @@ use std::{borrow::Cow, collections::HashMap, sync::Arc};
 use serde::Deserialize;
 
 use crate::{
-  Diagnostic, OsFileSystem, PathId, Reporter, Reporters, TargetSourceMapOptions, fs::FileSystem,
+  Diagnostic, OsFileSystem, PathId, Reporter, Reporters, TargetSourceMapOptions,
+  TrackingFileSystem, fs::FileSystem,
 };
 
 #[derive(Clone)]
@@ -39,6 +40,10 @@ pub struct ParcelOptions {
   pub reporters: Arc<Reporters>,
   /// Whether bundle names include a hash of their content.
   pub content_hash: bool,
+  /// Tracks every read made by code running in JS runtimes (plugins, macros, and the modules
+  /// they load). Runtimes cache modules and whatever state they hold, so a change to anything
+  /// read here requires a full rebuild. `None` leaves reads untracked, using `input_fs`.
+  pub plugin_tracker: Option<Arc<TrackingFileSystem>>,
 }
 
 impl Default for ParcelOptions {
@@ -54,6 +59,7 @@ impl Default for ParcelOptions {
       hmr: None,
       reporters: Reporters::none(),
       content_hash: false,
+      plugin_tracker: None,
     }
   }
 }
@@ -114,6 +120,14 @@ impl std::fmt::Display for LogLevel {
 }
 
 impl ParcelOptions {
+  /// The file system JS runtimes read through. See [`ParcelOptions::plugin_tracker`].
+  pub fn plugin_fs(&self) -> Arc<dyn FileSystem> {
+    match &self.plugin_tracker {
+      Some(tracker) => tracker.clone(),
+      None => self.input_fs.clone(),
+    }
+  }
+
   /// Logs a message to the configured reporters. Discarded when the build has no
   /// reporters, or when `level` is below the build's log level.
   pub fn log(&self, level: LogLevel, message: impl AsRef<str>) {

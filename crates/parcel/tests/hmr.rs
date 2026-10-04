@@ -121,13 +121,9 @@ fn hmr_reloads_when_config_changes() {
     "/project/.parcelrc",
     r#"{"extends": "@parcel/config-default", "transformers": {}}"#,
   );
-  let invalidate_result = parcel::invalidate(
-    &mut parcel,
-    &[PathId::new(Path::new("/project/.parcelrc"))],
-    &[],
-    &[],
-  )
-  .expect("invalidate failed");
+  let invalidate_result = parcel
+    .invalidate(&[PathId::new(Path::new("/project/.parcelrc"))], &[], &[])
+    .expect("invalidate failed");
   assert!(invalidate_result.config_changed);
 
   let config = parcel.config.clone();

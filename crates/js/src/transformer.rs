@@ -78,7 +78,6 @@ impl Transformer for JsTransformer {
             export,
             args,
             loc,
-            fs,
           )?;
           macro_deps_cloned.borrow_mut().extend(deps);
           return Ok(res);

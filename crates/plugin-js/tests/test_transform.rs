@@ -320,7 +320,7 @@ fn test_plugin_options_defaults_and_target_variants() {
 }
 
 #[test]
-fn imported_fs_tracks_config_reads_for_each_transform() {
+fn plugin_fs_reads_are_tracked_by_the_plugin_tracker() {
   use parcel_core::TrackingFileSystem;
   let fs = Arc::new(OverlayFileSystem::new());
   let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
@@ -340,34 +340,31 @@ fn imported_fs_tracks_config_reads_for_each_transform() {
   );
   fs.write(path, source.as_bytes()).unwrap();
   let plugin = JsPlugin::new(path, None);
+  // The plugin may cache what it reads, so reads go to the build-wide plugin tracker rather than
+  // the asset's.
+  let plugin_tracker = Arc::new(TrackingFileSystem::new(fs.clone()));
   let options = ParcelOptions {
     input_fs: fs.clone(),
+    plugin_tracker: Some(plugin_tracker.clone()),
     ..Default::default()
   };
-  let mut previous = None;
   for value in ["first", "second"] {
     fs.write(
       config_path,
       serde_json::json!({"value": value}).to_string().as_bytes(),
     )
     .unwrap();
-    let tracker = Arc::new(TrackingFileSystem::new(fs.clone()));
-    let tracked_fs: Arc<dyn FileSystem> = tracker.clone();
-    let result = plugin
-      .transform(test_asset(), &options, &tracked_fs)
-      .unwrap();
+    let asset_tracker = Arc::new(TrackingFileSystem::new(fs.clone()));
+    let asset_fs: Arc<dyn FileSystem> = asset_tracker.clone();
+    let result = plugin.transform(test_asset(), &options, &asset_fs).unwrap();
     assert_eq!(result.content.read().unwrap(), value.as_bytes());
     assert!(
-      tracker
+      plugin_tracker
         .take()
         .invalidate_on_file_change
         .contains(&config_path)
     );
-    if let Some(previous) = previous {
-      let previous: Arc<TrackingFileSystem> = previous;
-      assert!(previous.take().invalidate_on_file_change.is_empty());
-    }
-    previous = Some(tracker);
+    assert!(asset_tracker.take().invalidate_on_file_change.is_empty());
   }
 }
 

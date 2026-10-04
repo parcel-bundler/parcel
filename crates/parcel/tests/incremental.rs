@@ -403,7 +403,7 @@ impl IncrementalTest {
       }
     }
 
-    let result = parcel::invalidate(&mut self.parcel, &changed, &created, &deleted)?;
+    let result = self.parcel.invalidate(&changed, &created, &deleted)?;
     if !result.needs_rebuild() {
       return Ok(());
     }
@@ -1414,8 +1414,7 @@ fn parcelrc_change_produces_fresh_state() {
 // JS plugin and macro modules are cached by each worker thread's JS runtime, so editing one (or a
 // module it imports) must re-evaluate it rather than reuse the cached version. There are more
 // modules than transform workers, so some worker transforms several of them and only the first
-// reads the plugin file — the rest would keep the stale module if it weren't reloaded. The file
-// names are unique across tests because loaded modules are tracked process-wide.
+// reads the plugin file — the rest would keep the stale module if it weren't reloaded.
 
 /// More modules than there are transform workers, imported by `/project/index.js`.
 fn many_modules(source: &str) -> Vec<(String, String)> {
@@ -1521,6 +1520,67 @@ fn macro_change_reloads_macro() {
     &[],
   );
   assert_eq!(t.output(&out).matches("macro v2 dep v2").count(), count);
+}
+
+#[test]
+fn macro_memoized_read_change_rebuilds() {
+  // Only the first call on each thread reads the file, so the other assets don't record it.
+  let modules = many_modules(
+    "import {value} from '../memoized-read.mjs' with {type: 'macro'};\noutput(value());",
+  );
+  let count = modules.len() - 1;
+  let mut files: Vec<(&str, &str)> = modules
+    .iter()
+    .map(|(path, source)| (path.as_str(), source.as_str()))
+    .collect();
+  files.extend([
+    (
+      "/project/memoized-read.mjs",
+      "import * as fs from 'fs';\nlet data;\nexport function value() { data ??= fs.readFileSync('/project/memoized-read.txt', 'utf8'); return data; }",
+    ),
+    ("/project/memoized-read.txt", "data v1"),
+  ]);
+  let mut t = IncrementalTest::new(&files);
+  let out = t.find_output_ext("js");
+  assert_eq!(t.output(&out).matches("data v1").count(), count);
+
+  t.change(&[("/project/memoized-read.txt", "data v2")], &[]);
+  assert_eq!(t.output(&out).matches("data v2").count(), count);
+}
+
+#[test]
+fn macro_dependency_resolution_change_rebuilds() {
+  // Creating `helper.js` shadows `helper/index.js` for the macro's `require('./helper')`.
+  let modules = many_modules(
+    "import {value} from '../resolution-change/macro.cjs' with {type: 'macro'};\noutput(value());",
+  );
+  let count = modules.len() - 1;
+  let mut files: Vec<(&str, &str)> = modules
+    .iter()
+    .map(|(path, source)| (path.as_str(), source.as_str()))
+    .collect();
+  files.extend([
+    (
+      "/project/resolution-change/macro.cjs",
+      "exports.value = () => require('./helper');",
+    ),
+    (
+      "/project/resolution-change/helper/index.js",
+      "module.exports = 'helper directory';",
+    ),
+  ]);
+  let mut t = IncrementalTest::new(&files);
+  let out = t.find_output_ext("js");
+  assert_eq!(t.output(&out).matches("helper directory").count(), count);
+
+  t.change(
+    &[(
+      "/project/resolution-change/helper.js",
+      "module.exports = 'helper file';",
+    )],
+    &[],
+  );
+  assert_eq!(t.output(&out).matches("helper file").count(), count);
 }
 
 // ---------------------------------------------------------------------------

@@ -112,7 +112,7 @@ impl Optimizer for JsPlugin {
           .collect::<Vec<_>>(),
       );
 
-      with_plugin_env(options.input_fs.clone(), options, |ctx| {
+      with_plugin_env(options, |ctx| {
         let config = plugin_config(ctx, &self.path)?;
         let optimize: Function = config.get("optimize")?;
         let args = Object::new(ctx.clone())?;
@@ -264,7 +264,7 @@ impl Transformer for JsPlugin {
     fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
   ) -> std::result::Result<Asset, parcel_core::DiagnosticList> {
     with_call_scope(|scope| {
-      let asset = with_plugin_env(fs.clone(), options, |ctx| {
+      let asset = with_plugin_env(options, |ctx| {
         let config = plugin_config(&ctx, &self.path)?;
         let transform: Function = config.get("transform")?;
         let asset = JsAsset::owned(asset);
@@ -362,10 +362,10 @@ impl Resolver for JsPlugin {
     specifier: &str,
     pipeline: Option<&str>,
     options: &parcel_core::ParcelOptions,
-    fs: &Arc<dyn parcel_core::FileSystem>,
+    _fs: &Arc<dyn parcel_core::FileSystem>,
   ) -> Result<parcel_core::DependencyResolution, parcel_core::DiagnosticList> {
     with_call_scope(|scope| {
-      with_plugin_env(fs.clone(), options, |ctx| {
+      with_plugin_env(options, |ctx| {
         let config = plugin_config(&ctx, &self.path)?;
         let resolve: Function = config.get("resolve")?;
         let js_dep = JsDependency {
@@ -473,7 +473,7 @@ impl Namer for JsPlugin {
           .collect::<Vec<_>>(),
       );
 
-      with_plugin_env(options.input_fs.clone(), options, |ctx| {
+      with_plugin_env(options, |ctx| {
         let config = plugin_config(&ctx, &self.path)?;
         let name: Function = config.get("name")?;
         let args = Object::new(ctx.clone())?;
@@ -515,7 +515,7 @@ impl JsPlugin {
       return Ok(&self.reporter_methods);
     }
 
-    let methods = with_plugin_env(options.input_fs.clone(), options, |ctx| {
+    let methods = with_plugin_env(options, |ctx| {
       let config = plugin_config(ctx, &self.path)?;
       let exports = |name: &str| -> rquickjs::Result<bool> {
         Ok(
@@ -614,7 +614,7 @@ impl Reporter for JsPlugin {
         _ => None,
       };
 
-      with_plugin_env(options.input_fs.clone(), options, |ctx| {
+      with_plugin_env(options, |ctx| {
         let args = Object::new(ctx.clone())?;
         args.set(
           "options",

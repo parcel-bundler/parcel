@@ -85,8 +85,9 @@ pub struct Parcel {
   entries: Vec<String>,
   build_options: BuildOptions,
   make_factory: Arc<FactoryBuilder>,
-  /// Files read while loading configuration during `Parcel::new`. A change to any of them
-  /// requires a full rebuild rather than an incremental one.
+  /// Files read while loading configuration during `Parcel::new`, plus everything read by JS
+  /// runtimes since. A change to any of them requires a full rebuild rather than an incremental
+  /// one.
   config_invalidations: InvalidationMap,
 }
 
@@ -207,6 +208,7 @@ impl Parcel {
       hmr: options.hmr,
       reporters: reporters.clone(),
       content_hash,
+      plugin_tracker: Some(Arc::new(TrackingFileSystem::new(cached_fs.clone()))),
     });
 
     // Weak, so the options may own the reporters without the two keeping each
@@ -248,6 +250,14 @@ impl Parcel {
     created: &[PathId],
     deleted: &[PathId],
   ) -> Result<InvalidateResult, DiagnosticList> {
+    // JS runtimes cache modules and any state derived from what they read, which can't be
+    // invalidated piecemeal, so their reads are treated like configuration.
+    if let Some(tracker) = &self.options.plugin_tracker {
+      self
+        .config_invalidations
+        .add(AssetNodeIndex(0), tracker.take());
+    }
+
     if self.is_config_change(changed, created, deleted) {
       self.reset()?;
       return Ok(InvalidateResult {

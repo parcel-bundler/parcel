@@ -1,13 +1,10 @@
 use std::{
   borrow::Cow,
   cell::{Cell, RefCell},
-  collections::{HashMap, HashSet},
+  collections::HashMap,
   path::Path,
   rc::Rc,
-  sync::{
-    Arc, LazyLock, Mutex,
-    atomic::{AtomicUsize, Ordering},
-  },
+  sync::Arc,
 };
 
 use parcel_core::{
@@ -44,38 +41,22 @@ mod zlib;
 
 pub struct JsEnv {
   pub context: Context,
+  /// The file system modules and `fs` calls read through.
+  fs: Arc<dyn FileSystem>,
   rejected_promises: Rc<RefCell<HashMap<Persistent<Value<'static>>, Persistent<Value<'static>>>>>,
 }
 
 thread_local! {
-  /// This thread's runtime, tagged with the `JS_ENV_GENERATION` it was created in.
-  static JS_ENV: RefCell<Option<(usize, JsEnv)>> = RefCell::new(None);
+  static JS_ENV: RefCell<Option<JsEnv>> = RefCell::new(None);
   static DELIVERING_CONSOLE_LOGS: Cell<bool> = const { Cell::new(false) };
 }
 
-/// Bumped to discard every thread's runtime, which is then recreated on next use.
-static JS_ENV_GENERATION: AtomicUsize = AtomicUsize::new(0);
-/// Files ever evaluated into a runtime's module cache. Never cleared: another `Parcel` in this
-/// process may still have assets built with an old version, and needs to see the change too.
-static LOADED_MODULES: LazyLock<Mutex<HashSet<PathId>>> = LazyLock::new(Default::default);
-
-pub(crate) fn track_module(path: PathId) {
-  LOADED_MODULES.lock().unwrap().insert(path);
-}
-
-/// If any of `paths` was loaded as a module (a plugin, macro, config, or one of their
-/// dependencies), the module cache is stale. Since re-evaluating just the right modules isn't
-/// tractable, every thread's runtime is discarded instead, and this returns true so the caller
-/// can rebuild from scratch.
-pub fn invalidate_modules<'a>(paths: impl IntoIterator<Item = &'a PathId>) -> bool {
-  let loaded = LOADED_MODULES.lock().unwrap();
-  if !paths.into_iter().any(|path| loaded.contains(path)) {
-    return false;
-  }
-  JS_ENV_GENERATION.fetch_add(1, Ordering::Relaxed);
-  true
-}
-
+/// Runs `f` in this thread's JS runtime for `fs`.
+///
+/// A runtime caches modules and whatever state they derive from what they read, so it is tied to
+/// the file system it reads through: callers pass the same `fs` for as long as that state is valid
+/// (e.g. `ParcelOptions::plugin_fs` for a `Parcel`'s lifetime), and a different one gets a fresh
+/// runtime.
 pub fn with_js_env<F, R>(
   fs: Arc<dyn FileSystem>,
   env_vars: &HashMap<String, String>,
@@ -86,32 +67,25 @@ where
   F: FnOnce(&Ctx) -> rquickjs::Result<R>,
 {
   JS_ENV.with(|cell| {
-    let mut context = cell.borrow_mut();
+    let mut env = cell.borrow_mut();
 
-    let generation = JS_ENV_GENERATION.load(Ordering::Relaxed);
-    if !matches!(&*context, Some((g, _)) if *g == generation) {
+    // The runtime holds `fs`, so its address can't be reused by another file system.
+    if !env
+      .as_ref()
+      .is_some_and(|env| std::ptr::addr_eq(Arc::as_ptr(&env.fs), Arc::as_ptr(&fs)))
+    {
       // Drop the stale runtime before creating its replacement.
-      *context = None;
-      let ctx = create_runtime(fs.clone(), env_vars, cwd, Environment::Node)
+      *env = None;
+      let new_env = create_runtime(fs, env_vars, cwd, Environment::Node)
         .map_err(|e| DiagnosticList::from(Diagnostic::from_message(e.to_string())))?;
-      *context = Some((generation, ctx));
+      *env = Some(new_env);
     }
 
-    let (_, env) = context.as_ref().unwrap();
-    // Imported fs and newly loaded modules must use this request's tracker,
-    // even when the thread reuses its JavaScript runtime.
-    let (resolver, loader) = create_esm_loader(PathId::root(), fs.clone(), Environment::Node);
-    env.context.runtime().set_loader(resolver, loader);
-    env.with(|ctx| {
-      ctx.store_userdata(CjsLoader::new(PathId::root(), fs.clone()))?;
-      ctx.store_userdata(FileSystemData(fs))?;
-      f(ctx)
-    })
+    env.as_ref().unwrap().with(f)
   })
 }
 
 pub(crate) fn with_plugin_env<F, R>(
-  fs: Arc<dyn FileSystem>,
   options: &parcel_core::ParcelOptions,
   f: F,
 ) -> Result<R, DiagnosticList>
@@ -119,7 +93,7 @@ where
   F: FnOnce(&Ctx) -> rquickjs::Result<R>,
 {
   let logs = Rc::new(RefCell::new(Vec::new()));
-  let result = with_js_env(fs, &options.env, options.cwd, |ctx| {
+  let result = with_js_env(options.plugin_fs(), &options.env, options.cwd, |ctx| {
     ctx.store_userdata(console::ConsoleLogs(logs.clone()))?;
     let result = f(ctx);
     ctx.remove_userdata::<console::ConsoleLogs>()?;
@@ -201,6 +175,7 @@ pub fn create_runtime(
   let rejected_promises = Rc::new(RefCell::new(HashMap::new()));
   let env = JsEnv {
     context: ctx,
+    fs: fs.clone(),
     rejected_promises: rejected_promises.clone(),
   };
 
