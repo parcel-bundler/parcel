@@ -1,0 +1,11 @@
+{
+  "description": "should process inline non-js scripts",
+  "input": "index.html",
+  "options": {
+    "minify": true
+  },
+  "bundles": [
+    {"type": "js", "assets": ["index.html"]},
+    {"name": "index.html", "assets": ["index.html"], "contains": ["alert(\"Hello, World!\")"]}
+  ]
+}

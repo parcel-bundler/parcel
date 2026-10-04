@@ -21,10 +21,6 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.16.3",
-    "@parcel/source-map": "^2.1.1",
-    "@parcel/utils": "2.16.3",
-    "coffeescript": "^2.7.0",
-    "nullthrows": "^1.1.1",
-    "semver": "^7.7.1"
+    "coffeescript": "^2.7.0"
   }
 }
