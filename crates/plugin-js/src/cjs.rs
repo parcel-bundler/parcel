@@ -50,7 +50,6 @@ impl CjsLoader {
   pub fn new(project_root: PathId, fs: Arc<dyn FileSystem>) -> Self {
     let mut resolver = parcel_resolver::Resolver::node(project_root);
     resolver.flags |= parcel_resolver::Flags::TYPESCRIPT;
-    resolver.entries |= parcel_resolver::Fields::BROWSER;
     resolver.conditions |= ExportsCondition::SOURCE;
     CjsLoader { resolver, fs }
   }
@@ -124,6 +123,7 @@ impl CjsLoader {
       "events" => "events",
       "fs" => return Ok("builtin:fs".into()),
       "fs/promises" => return Ok("builtin:fs/promises".into()),
+      "module" => return Ok("builtin:module".into()),
       "os" => "os-browserify",
       "path" => return Ok("builtin:path".into()),
       "process" => return Ok("builtin:process".into()),
@@ -179,6 +179,9 @@ impl CjsLoader {
         }
         "fs/promises" => {
           return FsPromises {}.into_js(ctx);
+        }
+        "module" => {
+          return module_module(ctx);
         }
         "vm" => {
           // Cached so every import shares one registry of contexts.
@@ -348,11 +351,119 @@ pub fn require(ctx: Ctx<'_>, specifier: String) -> rquickjs::Result<Value<'_>> {
   cjs.load(&ctx, &resolved)
 }
 
+/// `require.resolve(specifier, {paths})`. When `paths` is given, each entry is a
+/// directory to start the lookup from, tried in order, as in Node.
 #[function]
-pub fn require_resolve(ctx: Ctx<'_>, specifier: String) -> rquickjs::Result<String> {
+pub fn require_resolve<'js>(
+  ctx: Ctx<'js>,
+  specifier: String,
+  options: rquickjs::function::Opt<Object<'js>>,
+) -> rquickjs::Result<String> {
   let cjs = ctx.userdata::<CjsLoader>().unwrap();
-  let from = ctx.script_or_module_name(0).unwrap().to_string()?;
-  cjs.resolve(&ctx, &from, &specifier)
+  let paths: Option<Vec<String>> = match options.0 {
+    Some(options) => options.get("paths")?,
+    None => None,
+  };
+  let Some(paths) = paths else {
+    let from = ctx.script_or_module_name(0).unwrap().to_string()?;
+    return cjs.resolve(&ctx, &from, &specifier);
+  };
+
+  for dir in &paths {
+    // The resolver looks up from the parent of `base`, so resolve from a file inside `dir`.
+    let base = Path::new(dir).join("index.js");
+    if let Ok(resolved) = cjs.resolve(&ctx, base.to_str().unwrap(), &specifier) {
+      return Ok(resolved);
+    }
+    // Clear the exception from the failed attempt before trying the next path.
+    ctx.catch();
+  }
+
+  Err(rquickjs::Exception::throw_message(
+    &ctx,
+    &format!("Cannot find module '{}'", specifier),
+  ))
+}
+
+/// Builtins that can be required, as reported by `module.builtinModules`.
+const BUILTIN_MODULES: &[&str] = &[
+  "assert",
+  "buffer",
+  "console",
+  "constants",
+  "crypto",
+  "domain",
+  "events",
+  "fs",
+  "fs/promises",
+  "module",
+  "os",
+  "path",
+  "process",
+  "punycode",
+  "querystring",
+  "stream",
+  "string_decoder",
+  "sys",
+  "tty",
+  "url",
+  "util",
+  "vm",
+  "zlib",
+];
+
+const MODULE_SOURCE: &str = r#"(function (requireFrom, resolveFrom, builtinModules) {
+  function toPath(filename) {
+    if (typeof filename !== 'string' || filename.startsWith('file:')) {
+      return require('url').fileURLToPath(filename);
+    }
+    return filename;
+  }
+
+  function createRequire(filename) {
+    let from = toPath(filename);
+    // A trailing slash means a directory, so resolve from a file inside it.
+    if (from.endsWith('/')) {
+      from += 'index.js';
+    }
+    function req(id) {
+      return requireFrom(from, id);
+    }
+    req.resolve = function (id, options) {
+      return options && options.paths
+        ? require.resolve(id, options)
+        : resolveFrom(from, id);
+    };
+    req.cache = require.cache;
+    return req;
+  }
+
+  function isBuiltin(name) {
+    return builtinModules.includes(name.replace(/^node:/, ''));
+  }
+
+  return {createRequire, builtinModules, isBuiltin};
+})"#;
+
+/// Node's `module` builtin.
+fn module_module<'js>(ctx: &Ctx<'js>) -> rquickjs::Result<Value<'js>> {
+  let factory: Function = ctx.eval(MODULE_SOURCE)?;
+  let require_from = Function::new(
+    ctx.clone(),
+    |ctx: Ctx<'js>, from: String, specifier: String| -> rquickjs::Result<Value<'js>> {
+      let cjs = ctx.userdata::<CjsLoader>().unwrap();
+      let resolved = cjs.resolve(&ctx, &from, &specifier)?;
+      cjs.load(&ctx, &resolved)
+    },
+  )?;
+  let resolve_from = Function::new(
+    ctx.clone(),
+    |ctx: Ctx<'js>, from: String, specifier: String| -> rquickjs::Result<String> {
+      let cjs = ctx.userdata::<CjsLoader>().unwrap();
+      cjs.resolve(&ctx, &from, &specifier)
+    },
+  )?;
+  factory.call((require_from, resolve_from, BUILTIN_MODULES.to_vec()))
 }
 
 #[cfg(test)]
