@@ -1,8 +1,5 @@
-use parcel_core::{
-  Asset, AssetIndex, AssetType, BundleGraph, DiagnosticList, LogLevel, ParcelConfig, ParcelOptions,
-  Reporters,
-};
-use parcel_js::hmr::{HmrUpdate, get_hmr_update};
+use parcel_core::{AssetType, DiagnosticList, LogLevel, Reporters};
+use parcel_js::hmr::HmrUpdate;
 use std::{
   borrow::Cow,
   fs::File,
@@ -149,20 +146,8 @@ fn is_websocket_upgrade(request: &tiny_http::Request) -> bool {
 }
 
 impl DevServer {
-  pub fn emit_hmr_reload(&self) {
-    let serialized = serde_json::to_string(&HmrUpdate::Reload).unwrap();
-    self.broadcast(serialized);
-  }
-
-  pub fn emit_hmr_update(
-    &self,
-    changed_assets: Vec<(AssetIndex, &Asset)>,
-    bundle_graph: &BundleGraph,
-    config: &ParcelConfig,
-    options: &ParcelOptions,
-  ) {
-    let update = get_hmr_update(changed_assets, bundle_graph, config, options);
-    let serialized = serde_json::to_string(&update).unwrap();
+  pub fn emit_hmr(&self, update: &HmrUpdate) {
+    let serialized = serde_json::to_string(update).unwrap();
     self.broadcast(serialized);
   }
 

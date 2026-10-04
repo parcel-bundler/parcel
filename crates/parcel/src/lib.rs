@@ -1,6 +1,10 @@
 use std::sync::Arc;
 
-use parcel_core::{BuildOptions, BundleFlags, BundleGraph, DiagnosticList, PathId, PluginFactory};
+use parcel_core::{
+  BuildOptions, BuildResult, BundleFlags, BundleGraph, DiagnosticList, InvalidateResult, Parcel,
+  ParcelConfig, ParcelOptions, PathId, PluginFactory,
+};
+use parcel_js::hmr::{HmrUpdate, get_hmr_update};
 
 use crate::{plugin_factory::DefaultPluginFactory, run::run_node};
 
@@ -49,15 +53,7 @@ pub fn watch(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {
-    let (changed_paths, created_paths, deleted_paths) = split_events(&events);
-
-    let result = match parcel.invalidate(&changed_paths, &created_paths, &deleted_paths) {
-      Ok(result) => result,
-      Err(_) => {
-        continue;
-      }
-    };
-    if !result.needs_rebuild() {
+    if invalidate_events(&mut parcel, &events).is_none() {
       continue;
     }
 
@@ -85,35 +81,17 @@ pub fn serve(
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {
-    let (changed_paths, created_paths, deleted_paths) = split_events(&events);
-
-    let result = match parcel.invalidate(&changed_paths, &created_paths, &deleted_paths) {
-      Ok(result) => result,
-      Err(_) => {
-        continue;
-      }
-    };
-    if !result.needs_rebuild() {
+    let Some(result) = invalidate_events(&mut parcel, &events) else {
       continue;
-    }
+    };
     let config_changed = result.config_changed;
 
     let config = parcel.config.clone();
     let options = parcel.options.clone();
     match parcel.build_with_changes() {
       Ok(result) => {
-        // On a config change the Parcel was rebuilt from scratch, so HMR is skipped in favour of
-        // the full rebuild's output.
-        if hmr && !config_changed {
-          if result.output_paths_changed {
-            server.emit_hmr_reload();
-          } else {
-            let graph = &result.bundle_graph;
-            let changed_assets = result.changed_assets();
-            if !changed_assets.is_empty() {
-              server.emit_hmr_update(changed_assets, graph, &*config, &*options);
-            }
-          }
+        if hmr && let Some(update) = hmr_update(config_changed, &result, &config, &options) {
+          server.emit_hmr(&update);
         }
       }
       Err(e) => {
@@ -142,15 +120,7 @@ pub fn run(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnosti
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {
-    let (changed_paths, created_paths, deleted_paths) = split_events(&events);
-
-    let result = match parcel.invalidate(&changed_paths, &created_paths, &deleted_paths) {
-      Ok(result) => result,
-      Err(_) => {
-        continue;
-      }
-    };
-    if !result.needs_rebuild() {
+    if invalidate_events(&mut parcel, &events).is_none() {
       continue;
     }
 
@@ -158,6 +128,59 @@ pub fn run(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnosti
   }
 
   Ok(())
+}
+
+/// The HMR message to send to the browser after a successful rebuild, if any.
+pub fn hmr_update<'a>(
+  config_changed: bool,
+  result: &'a BuildResult<'a>,
+  config: &'a ParcelConfig,
+  options: &'a ParcelOptions,
+) -> Option<HmrUpdate<'a>> {
+  // On a config change the Parcel was rebuilt from scratch, so there is no incremental update.
+  if config_changed || result.output_paths_changed {
+    return Some(HmrUpdate::Reload);
+  }
+  let changed_assets = result.changed_assets();
+  if changed_assets.is_empty() {
+    return None;
+  }
+  Some(get_hmr_update(
+    changed_assets,
+    &result.bundle_graph,
+    config,
+    options,
+  ))
+}
+
+/// Like [`Parcel::invalidate`], but also rebuilds from scratch when a module loaded by a JS plugin
+/// (or macro, config, etc.) changes, since the JS runtime caches it.
+pub fn invalidate(
+  parcel: &mut Parcel,
+  changed: &[PathId],
+  created: &[PathId],
+  deleted: &[PathId],
+) -> Result<InvalidateResult, DiagnosticList> {
+  if parcel_plugin_js::invalidate_modules(changed.iter().chain(deleted)) {
+    parcel.reset()?;
+    return Ok(InvalidateResult {
+      config_changed: true,
+      ..Default::default()
+    });
+  }
+
+  parcel.invalidate(changed, created, deleted)
+}
+
+/// Invalidates the files changed by watcher `events`, returning `None` if there is nothing to
+/// rebuild (or the config is now invalid).
+fn invalidate_events(
+  parcel: &mut Parcel,
+  events: &[parcel_watcher::Event],
+) -> Option<InvalidateResult> {
+  let (changed, created, deleted) = split_events(events);
+  let result = invalidate(parcel, &changed, &created, &deleted).ok()?;
+  result.needs_rebuild().then_some(result)
 }
 
 /// Splits watcher events into `(changed, created)` URL lists. Modified and deleted files are

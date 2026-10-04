@@ -249,18 +249,7 @@ impl Parcel {
     deleted: &[PathId],
   ) -> Result<InvalidateResult, DiagnosticList> {
     if self.is_config_change(changed, created, deleted) {
-      // Recreate first; on failure (e.g. an invalid config edit) leave `self` untouched so the
-      // last good build remains usable.
-      let mut parcel = Parcel::new(
-        &self.entries,
-        self.build_options.clone(),
-        self.make_factory.clone(),
-      )?;
-      // Keep the previous bundle metadata so the full rebuild still deletes output files whose
-      // bundles no longer exist.
-      parcel.prev_bundles = std::mem::take(&mut self.prev_bundles);
-      parcel.prev_inline_bundles = std::mem::take(&mut self.prev_inline_bundles);
-      *self = parcel;
+      self.reset()?;
       return Ok(InvalidateResult {
         affected: HashSet::new(),
         config_changed: true,
@@ -282,6 +271,23 @@ impl Parcel {
       affected,
       config_changed: false,
     })
+  }
+
+  /// Recreates the `Parcel` from its original inputs so the next `build()` is a full build.
+  pub fn reset(&mut self) -> Result<(), DiagnosticList> {
+    // Recreate first; on failure (e.g. an invalid config edit) leave `self` untouched so the
+    // last good build remains usable.
+    let mut parcel = Parcel::new(
+      &self.entries,
+      self.build_options.clone(),
+      self.make_factory.clone(),
+    )?;
+    // Keep the previous bundle metadata so the full rebuild still deletes output files whose
+    // bundles no longer exist.
+    parcel.prev_bundles = std::mem::take(&mut self.prev_bundles);
+    parcel.prev_inline_bundles = std::mem::take(&mut self.prev_inline_bundles);
+    *self = parcel;
+    Ok(())
   }
 
   /// Returns true if any of the changed/created files was read while loading configuration.

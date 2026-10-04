@@ -103,6 +103,44 @@ fn hmr_reload_serializes_for_the_runtime() {
 }
 
 #[test]
+fn hmr_reloads_when_config_changes() {
+  let (mut parcel, input_fs) = setup(&[
+    (
+      "/project/.parcelrc",
+      r#"{"extends": "@parcel/config-default"}"#,
+    ),
+    (
+      "/project/index.js",
+      "output('initial'); if (module.hot) module.hot.accept();",
+    ),
+  ]);
+
+  // The asset graph is rebuilt from scratch, so even a self-accepting module can't be updated.
+  write_file(
+    &input_fs,
+    "/project/.parcelrc",
+    r#"{"extends": "@parcel/config-default", "transformers": {}}"#,
+  );
+  let invalidate_result = parcel::invalidate(
+    &mut parcel,
+    &[PathId::new(Path::new("/project/.parcelrc"))],
+    &[],
+    &[],
+  )
+  .expect("invalidate failed");
+  assert!(invalidate_result.config_changed);
+
+  let config = parcel.config.clone();
+  let options = parcel.options.clone();
+  let build_result = parcel.build_with_changes().expect("rebuild failed");
+  let update = parcel::hmr_update(true, &build_result, &config, &options);
+  assert_eq!(
+    serde_json::to_value(update).unwrap(),
+    serde_json::json!({"type": "reload"})
+  );
+}
+
+#[test]
 fn css_bundle_name_is_stable_when_its_assets_change() {
   let (mut parcel, input_fs) = setup(&[
     (

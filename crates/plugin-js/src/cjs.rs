@@ -239,6 +239,7 @@ impl CjsLoader {
     // println!("require {}", resolved);
 
     let pathid = PathId::new(Path::new(resolved));
+    crate::track_module(pathid);
     match self.resolver.resolve_module_type(pathid, &*self.fs) {
       Ok(ModuleType::Module) => {
         let promise: rquickjs::Promise<'_> = Module::import(&ctx, resolved)?;

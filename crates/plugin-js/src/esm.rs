@@ -140,6 +140,7 @@ impl Loader for ModuleLoader {
       }
     }
 
+    crate::track_module(PathId::new(Path::new(name)));
     let module_type = if self.environment == Environment::Browser {
       ModuleType::Module
     } else {

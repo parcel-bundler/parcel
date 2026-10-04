@@ -403,7 +403,7 @@ impl IncrementalTest {
       }
     }
 
-    let result = self.parcel.invalidate(&changed, &created, &deleted)?;
+    let result = parcel::invalidate(&mut self.parcel, &changed, &created, &deleted)?;
     if !result.needs_rebuild() {
       return Ok(());
     }
@@ -1409,6 +1409,118 @@ fn parcelrc_change_produces_fresh_state() {
     ],
     &[],
   );
+}
+
+// JS plugin and macro modules are cached by each worker thread's JS runtime, so editing one (or a
+// module it imports) must re-evaluate it rather than reuse the cached version. There are more
+// modules than transform workers, so some worker transforms several of them and only the first
+// reads the plugin file — the rest would keep the stale module if it weren't reloaded. The file
+// names are unique across tests because loaded modules are tracked process-wide.
+
+/// More modules than there are transform workers, imported by `/project/index.js`.
+fn many_modules(source: &str) -> Vec<(String, String)> {
+  let count = std::thread::available_parallelism().unwrap().get() + 1;
+  let mut files: Vec<_> = (0..count)
+    .map(|i| (format!("/project/src/m{i}.js"), source.to_string()))
+    .collect();
+  let index = (0..count)
+    .map(|i| format!("import './src/m{i}.js';\n"))
+    .collect();
+  files.push(("/project/index.js".into(), index));
+  files
+}
+
+#[test]
+fn js_plugin_change_reloads_plugin() {
+  let plugin = |prefix: &str| {
+    format!(
+      r#"const suffix = require('./js-plugin-change-dep.cjs');
+module.exports = {{[Symbol.for('parcel-plugin-config')]: {{
+  transform({{asset}}) {{
+    asset.setCode(asset.getCode() + "\noutput('{prefix}" + suffix + "');");
+    return [asset];
+  }}
+}}}};"#
+    )
+  };
+  let modules = many_modules("");
+  let count = modules.len() - 1;
+  let mut files: Vec<(&str, &str)> = modules
+    .iter()
+    .map(|(path, source)| (path.as_str(), source.as_str()))
+    .collect();
+  let v1 = plugin("plugin v1");
+  files.extend([
+    (
+      "/project/.parcelrc",
+      r#"{"extends": "@parcel/config-default", "transformers": {"src/*.js": ["./js-plugin-change.cjs", "..."]}}"#,
+    ),
+    ("/project/js-plugin-change.cjs", &v1),
+    (
+      "/project/js-plugin-change-dep.cjs",
+      "module.exports = ' dep v1';",
+    ),
+  ]);
+  let mut t = IncrementalTest::new(&files);
+  let out = t.find_output_ext("js");
+  assert_eq!(t.output(&out).matches("plugin v1 dep v1").count(), count);
+
+  t.change(
+    &[("/project/js-plugin-change.cjs", &plugin("plugin v2"))],
+    &[],
+  );
+  assert_eq!(t.output(&out).matches("plugin v2 dep v1").count(), count);
+
+  // A module the plugin requires is cached too.
+  t.change(
+    &[(
+      "/project/js-plugin-change-dep.cjs",
+      "module.exports = ' dep v2';",
+    )],
+    &[],
+  );
+  assert_eq!(t.output(&out).matches("plugin v2 dep v2").count(), count);
+}
+
+#[test]
+fn macro_change_reloads_macro() {
+  let modules = many_modules(
+    "import {value} from '../macro-change.mjs' with {type: 'macro'};\noutput(value());",
+  );
+  let count = modules.len() - 1;
+  let mut files: Vec<(&str, &str)> = modules
+    .iter()
+    .map(|(path, source)| (path.as_str(), source.as_str()))
+    .collect();
+  files.extend([
+    (
+      "/project/macro-change.mjs",
+      "import {dep} from './macro-change-dep.mjs';\nexport function value() { return 'macro v1' + dep; }",
+    ),
+    ("/project/macro-change-dep.mjs", "export const dep = ' dep v1';"),
+  ]);
+  let mut t = IncrementalTest::new(&files);
+  let out = t.find_output_ext("js");
+  assert_eq!(t.output(&out).matches("macro v1 dep v1").count(), count);
+
+  t.change(
+    &[(
+      "/project/macro-change.mjs",
+      "import {dep} from './macro-change-dep.mjs';\nexport function value() { return 'macro v2' + dep; }",
+    )],
+    &[],
+  );
+  assert_eq!(t.output(&out).matches("macro v2 dep v1").count(), count);
+
+  // A module the macro imports is cached too.
+  t.change(
+    &[(
+      "/project/macro-change-dep.mjs",
+      "export const dep = ' dep v2';",
+    )],
+    &[],
+  );
+  assert_eq!(t.output(&out).matches("macro v2 dep v2").count(), count);
 }
 
 // ---------------------------------------------------------------------------

@@ -1,10 +1,13 @@
 use std::{
   borrow::Cow,
   cell::{Cell, RefCell},
-  collections::HashMap,
+  collections::{HashMap, HashSet},
   path::Path,
   rc::Rc,
-  sync::Arc,
+  sync::{
+    Arc, LazyLock, Mutex,
+    atomic::{AtomicUsize, Ordering},
+  },
 };
 
 use parcel_core::{
@@ -45,8 +48,32 @@ pub struct JsEnv {
 }
 
 thread_local! {
-  static JS_ENV: RefCell<Option<JsEnv>> = RefCell::new(None);
+  /// This thread's runtime, tagged with the `JS_ENV_GENERATION` it was created in.
+  static JS_ENV: RefCell<Option<(usize, JsEnv)>> = RefCell::new(None);
   static DELIVERING_CONSOLE_LOGS: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Bumped to discard every thread's runtime, which is then recreated on next use.
+static JS_ENV_GENERATION: AtomicUsize = AtomicUsize::new(0);
+/// Files ever evaluated into a runtime's module cache. Never cleared: another `Parcel` in this
+/// process may still have assets built with an old version, and needs to see the change too.
+static LOADED_MODULES: LazyLock<Mutex<HashSet<PathId>>> = LazyLock::new(Default::default);
+
+pub(crate) fn track_module(path: PathId) {
+  LOADED_MODULES.lock().unwrap().insert(path);
+}
+
+/// If any of `paths` was loaded as a module (a plugin, macro, config, or one of their
+/// dependencies), the module cache is stale. Since re-evaluating just the right modules isn't
+/// tractable, every thread's runtime is discarded instead, and this returns true so the caller
+/// can rebuild from scratch.
+pub fn invalidate_modules<'a>(paths: impl IntoIterator<Item = &'a PathId>) -> bool {
+  let loaded = LOADED_MODULES.lock().unwrap();
+  if !paths.into_iter().any(|path| loaded.contains(path)) {
+    return false;
+  }
+  JS_ENV_GENERATION.fetch_add(1, Ordering::Relaxed);
+  true
 }
 
 pub fn with_js_env<F, R>(
@@ -61,13 +88,16 @@ where
   JS_ENV.with(|cell| {
     let mut context = cell.borrow_mut();
 
-    if context.is_none() {
+    let generation = JS_ENV_GENERATION.load(Ordering::Relaxed);
+    if !matches!(&*context, Some((g, _)) if *g == generation) {
+      // Drop the stale runtime before creating its replacement.
+      *context = None;
       let ctx = create_runtime(fs.clone(), env_vars, cwd, Environment::Node)
         .map_err(|e| DiagnosticList::from(Diagnostic::from_message(e.to_string())))?;
-      *context = Some(ctx);
+      *context = Some((generation, ctx));
     }
 
-    let env = context.as_ref().unwrap();
+    let (_, env) = context.as_ref().unwrap();
     // Imported fs and newly loaded modules must use this request's tracker,
     // even when the thread reuses its JavaScript runtime.
     let (resolver, loader) = create_esm_loader(PathId::root(), fs.clone(), Environment::Node);
