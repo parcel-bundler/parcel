@@ -214,3 +214,12 @@ impl Content for StyleAttrContent {
     parcel_core::content_type!("StyleAttrContent")
   }
 }
+
+/// Converts a stylesheet filename (a `project://` stable id) to the project-relative
+/// path used for sources in generated maps.
+pub(crate) fn map_source(source: &str) -> &str {
+  match source.strip_prefix("project:///") {
+    Some(path) => path.split('?').next().unwrap_or(path),
+    None => source.strip_prefix("file://").unwrap_or(source),
+  }
+}

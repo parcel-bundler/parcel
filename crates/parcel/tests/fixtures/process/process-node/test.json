@@ -1,8 +1,6 @@
 {
   "description": "should not touch process.browser for target node",
   "input": "index.js",
-  "bundles": [
-    {"assets": ["index.js"], "contains": ["process.browser"]}
-  ],
-  "output": true
+  "bundles": [{"assets": ["index.js"], "contains": ["process.browser"]}],
+  "output": false
 }

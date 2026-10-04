@@ -19,7 +19,7 @@ url = "*"
 percent-encoding = "2.2.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 rustc-hash = "2.1.3"
-parcel_sourcemap = "*"
+parcel_sourcemap = { version = "*", features = ["json"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 hstr = { version = "4.0.1", features = ["serde"] }
 either = "1.15.0"

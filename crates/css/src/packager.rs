@@ -188,6 +188,19 @@ impl CssContent {
       .flat_map(|s| s.stylesheet.source_map_urls.clone())
       .collect();
 
+    // Rule locations index into the assembled sheet's sources, so the map needs
+    // them in the same order. Sources reached through input maps are added as
+    // the printer encounters them.
+    if bundle.target.source_map.is_some() {
+      source_map.add_sources(
+        stylesheet
+          .sources
+          .iter()
+          .map(|s| crate::map_source(s))
+          .collect(),
+      );
+    }
+
     // Each sheet was already minified at transform time with real targets.
     // Minifying the assembled sheet again would merge same-name @layer
     // blocks across intervening rules — including into an earlier @layer
@@ -241,7 +254,7 @@ impl CssContent {
 
     if bundle.target.source_map.is_some() {
       for source_index in 0..source_map.get_sources().len() {
-        if matches!(source_map.get_source_content(source_index as u32), Ok(s) if s.len() == 0) {
+        if !matches!(source_map.get_source_content(source_index as u32), Ok(s) if !s.is_empty()) {
           let path = source_map.get_source(source_index as u32).unwrap();
           if let Ok(code) = options
             .input_fs

@@ -31,6 +31,36 @@ struct JsContent {
   /// See `parcel_js_swc_core::async_module::wrap_async_module`.
   esm_prologue_len: usize,
   react_refresh_wrapped: bool,
+  /// The map from an earlier transformer, composed into this asset's generated map when packaging.
+  input_source_map: Option<InputSourceMap>,
+}
+
+impl JsContent {
+  /// Generates code for `ast` (this asset's AST, possibly modified for packaging),
+  /// with its source map composed through the asset's input map.
+  fn to_code(
+    &self,
+    ast: &Ast,
+    source_maps: bool,
+    minify: bool,
+  ) -> Result<(Vec<u8>, Option<String>), DiagnosticList> {
+    let (code, map) = ast.to_code(source_maps, minify)?;
+    let (Some(map), Some(input)) = (&map, &self.input_source_map) else {
+      return Ok((code, map));
+    };
+    // The parser registers the asset's own file first; macros may add more.
+    let source = self
+      .ast
+      .source_map
+      .files()
+      .first()
+      .map(|f| f.name.to_string());
+    let map = match source {
+      Some(source) => compose_source_map(map, &source, input)?,
+      None => map.clone(),
+    };
+    Ok((code, Some(map)))
+  }
 }
 
 impl std::fmt::Debug for JsContent {

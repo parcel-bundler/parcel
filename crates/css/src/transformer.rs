@@ -100,6 +100,15 @@ impl Transformer for CssTransformer {
   ) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let code = std::str::from_utf8(&code)?;
+    let input_map = if asset.target.source_map.is_some() {
+      input_source_map(
+        &*asset.content,
+        &asset.loc.url.to_file_path()?.to_path_buf(),
+        &options.project_root.to_path_buf(),
+      )
+    } else {
+      None
+    };
     let mut stylesheet = StyleSheet::parse(
       code,
       ParserOptions {
@@ -109,6 +118,11 @@ impl Transformer for CssTransformer {
       },
     )
     .map_err(|err| convert_error(Some(asset.loc.url.clone()), err))?;
+
+    // The packager's printer remaps locations through each sheet's input map.
+    if let Some(mut input_map) = input_map {
+      stylesheet.source_map_urls = vec![input_map.to_data_url(None).ok()];
+    }
 
     stylesheet
       .minify(MinifyOptions {
@@ -149,8 +163,21 @@ impl Transformer for CssTransformer {
 
     if self.css_modules.is_some() && asset.loc.start.line == 0 {
       // TODO: transform AST instead of printing and re-parsing.
+      // Map the printed code back to the source so the re-parsed sheet's locations still resolve.
+      let mut printed_map = asset.target.source_map.is_some().then(|| {
+        let mut map = parcel_sourcemap::SourceMap::new("/");
+        map.add_sources(
+          stylesheet
+            .sources
+            .iter()
+            .map(|s| crate::map_source(s))
+            .collect(),
+        );
+        map
+      });
       let res = stylesheet
         .to_css(PrinterOptions {
+          source_map: printed_map.as_mut(),
           pseudo_classes: self.pseudo_classes.as_ref().map(|p| {
             lightningcss::printer::PseudoClasses {
               active: p.active.as_ref().map(|s| s.as_str()),
@@ -241,7 +268,7 @@ impl Transformer for CssTransformer {
         }
       }
 
-      let stylesheet = StyleSheet::parse(
+      let mut stylesheet = StyleSheet::parse(
         &res.code,
         ParserOptions {
           filename: asset.loc.url.stable_id(&options.project_root),
@@ -249,6 +276,9 @@ impl Transformer for CssTransformer {
         },
       )
       .map_err(|err| convert_error(Some(asset.loc.url.clone()), err))?;
+      if let Some(mut printed_map) = printed_map {
+        stylesheet.source_map_urls = vec![printed_map.to_data_url(None).ok()];
+      }
 
       asset.content = Arc::new(CssContent {
         source_size: code.len(),

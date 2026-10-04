@@ -41,6 +41,15 @@ impl Transformer for JsTransformer {
     options: &ParcelOptions,
     fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
   ) -> Result<Asset, DiagnosticList> {
+    let input_source_map = if asset.target.source_map.is_some() {
+      input_source_map(
+        &*asset.content,
+        &asset.loc.url.to_file_path()?.to_path_buf(),
+        &options.project_root.to_path_buf(),
+      )
+    } else {
+      None
+    };
     let config = config(&mut asset, options, fs, self)?;
     let source_size = config.code.len();
     let mut resolver = parcel_resolver::Resolver::parcel(options.project_root);
@@ -623,6 +632,7 @@ impl Transformer for JsTransformer {
       needs_dirname: res.needs_dirname,
       esm_prologue_len: res.esm_prologue_len,
       react_refresh_wrapped: res.react_refresh_wrapped,
+      input_source_map,
     });
     Ok(asset)
   }

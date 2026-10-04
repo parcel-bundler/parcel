@@ -19,6 +19,7 @@ mod path;
 mod reporter;
 mod request;
 mod resolver;
+mod source_map;
 mod target;
 mod transformer;
 
@@ -48,9 +49,11 @@ pub use optimizer::Optimizer;
 pub use options::*;
 pub use packaging::{InlineBundleCache, get_bundle_content};
 use packaging::{Packaged, PrevBundle};
+pub use parcel_sourcemap::SourceMap as InputSourceMap;
 pub use path::{PathId, SubPath};
 pub use reporter::*;
 pub use resolver::Resolver;
+pub use source_map::{compose_source_map, input_source_map};
 pub use target::*;
 pub use transformer::Transformer;
 

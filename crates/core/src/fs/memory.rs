@@ -298,7 +298,10 @@ impl FileSystem for MemoryFileSystem {
 
   fn stat(&self, path: PathId) -> Option<FileStat> {
     path.with_path(|path| {
-      let name = path.file_name().unwrap();
+      // Only the root has no file name.
+      let Some(name) = path.file_name() else {
+        return Some(FileStat::new_unavailable(FileKind::IS_DIR));
+      };
       let node = path.parent().map_or(Ok(0), |p| self.dir(p)).ok()?;
       let found = self.entry(node, name).ok()?;
       let entries = self.entries.lock().unwrap();
