@@ -2110,6 +2110,96 @@ fn delete_glob_matched_entry() {
 }
 
 // ---------------------------------------------------------------------------
+// Glob resolver
+// ---------------------------------------------------------------------------
+
+const GLOB_PARCELRC: &str =
+  r#"{"extends": "@parcel/config-default", "resolvers": ["@parcel/resolver-glob", "..."]}"#;
+
+#[test]
+fn js_glob_import_tracks_matching_files() {
+  // A glob import is regenerated when a matching file is created or deleted, including in a
+  // directory that did not exist before. Edits to matched files update as usual.
+  let mut t = IncrementalTest::new(&[
+    ("/project/.parcelrc", GLOB_PARCELRC),
+    (
+      "/project/index.js",
+      "import modules from './dir/**/*.js';\noutput(Object.keys(modules).join(','));",
+    ),
+    ("/project/dir/a.js", "module.exports = 'glob a';"),
+  ]);
+  assert!(t.output("/project/dist/index.js").contains("glob a"));
+
+  t.change(&[("/project/dir/b.js", "module.exports = 'glob b';")], &[]);
+  assert!(t.output("/project/dist/index.js").contains("glob b"));
+
+  t.change(
+    &[("/project/dir/nested/c.js", "module.exports = 'glob c';")],
+    &[],
+  );
+  assert!(t.output("/project/dist/index.js").contains("glob c"));
+
+  t.change(
+    &[("/project/dir/a.js", "module.exports = 'glob a v2';")],
+    &[],
+  );
+  assert!(t.output("/project/dist/index.js").contains("glob a v2"));
+
+  // A created file that doesn't match the pattern must not appear.
+  t.change(&[("/project/dir/d.txt", "glob d")], &[]);
+  assert!(!t.output("/project/dist/index.js").contains("glob d"));
+
+  t.change(&[], &["/project/dir/a.js"]);
+  assert!(!t.output("/project/dist/index.js").contains("glob a"));
+
+  t.change(&[], &["/project/dir/nested/c.js"]);
+  assert!(!t.output("/project/dist/index.js").contains("glob c"));
+}
+
+#[test]
+fn css_glob_import_tracks_matching_files() {
+  let mut t = IncrementalTest::new(&[
+    ("/project/.parcelrc", GLOB_PARCELRC),
+    (
+      "/project/index.js",
+      "import './index.css';\noutput('index');",
+    ),
+    (
+      "/project/index.css",
+      "@import './dir/*.css';\n.index { color: red; }",
+    ),
+    ("/project/dir/a.css", ".glob-a { color: #ff0001; }"),
+  ]);
+  let css = t.find_output_ext("css");
+  assert!(t.output(&css).contains(".glob-a"));
+
+  t.change(
+    &[("/project/dir/b.css", ".glob-b { color: #00ff02; }")],
+    &[],
+  );
+  let css = t.find_output_ext("css");
+  assert!(t.output(&css).contains(".glob-a"));
+  assert!(t.output(&css).contains(".glob-b"));
+
+  t.change(&[], &["/project/dir/a.css"]);
+  let css = t.find_output_ext("css");
+  assert!(!t.output(&css).contains(".glob-a"));
+  assert!(t.output(&css).contains(".glob-b"));
+
+  // Deleting the last match leaves an empty glob, which must still build.
+  t.change(&[], &["/project/dir/b.css"]);
+  let css = t.find_output_ext("css");
+  assert!(!t.output(&css).contains(".glob-b"));
+
+  t.change(
+    &[("/project/dir/c.css", ".glob-c { color: #0000f3; }")],
+    &[],
+  );
+  let css = t.find_output_ext("css");
+  assert!(t.output(&css).contains(".glob-c"));
+}
+
+// ---------------------------------------------------------------------------
 // Multiple pipelines over one file
 // ---------------------------------------------------------------------------
 

@@ -1,12 +1,11 @@
 use std::{
   io::{ErrorKind, Result},
-  path::Path,
   sync::Mutex,
 };
 
 use crate::{PathId, path::SubPath};
 
-use super::{DirEntry, FileKind, FileStat, FileSystem, is_glob};
+use super::{DirEntry, FileKind, FileStat, FileSystem, is_glob, normalize_path};
 
 /// A `FileSystem` decorator that records every path it touches into an [`InvalidationMap`],
 /// delegating all operations to an inner file system. Used during `Parcel::new` to discover which
@@ -139,13 +138,11 @@ impl FileSystem for TrackingFileSystem {
   fn glob(&self, pattern: &str, cwd: PathId) -> Vec<PathId> {
     // Record a create-glob invalidation so that a new file matching the pattern triggers a
     // rebuild (e.g. a new entry appearing for a glob entry). The pattern is absolutized so it
-    // matches the absolute paths checked during invalidation.
+    // matches the absolute paths checked during invalidation, and normalized so that `.` and `..`
+    // segments (e.g. `./dir/*.js`) don't prevent matches.
     if is_glob(pattern) {
-      let absolute = if Path::new(pattern).is_absolute() {
-        pattern.to_string()
-      } else {
-        cwd.with_path(|c| c.join(pattern).to_string_lossy().into_owned())
-      };
+      let absolute = cwd.with_path(|c| normalize_path(&c.join(pattern)));
+      let absolute = absolute.to_string_lossy().into_owned();
       self
         .invalidations
         .lock()
@@ -154,8 +151,12 @@ impl FileSystem for TrackingFileSystem {
         .push(crate::FileCreateInvalidation::Glob(absolute));
     }
     // Run the actual matching against the inner file system so the directory walk isn't recorded
-    // as individual file-change invalidations.
-    self.inner.glob(pattern, cwd)
+    // as individual file-change invalidations. Deleting a match changes the result, though.
+    let matches = self.inner.glob(pattern, cwd);
+    for path in &matches {
+      self.record_exists(*path);
+    }
+    matches
   }
 
   fn find_ancestor(

@@ -328,8 +328,13 @@ impl AssetGraphBuilder {
                   // result arrives.
                   // TODO: evaluate if we can avoid having multiple in-flight requests for the same asset in the first place.
                   let node = &mut self.asset_nodes[node_index.index()];
-                  if node.replace_request(req.clone()) && node.needs_transform() {
-                    queue.transform(node_index, req.clone());
+                  if node.replace_request(req.clone()) {
+                    // An error from transforming the old request is stale, e.g. a glob asset
+                    // whose old content still imported a now-deleted file.
+                    errors.retain(|(index, _)| *index != node_index);
+                    if node.needs_transform() {
+                      queue.transform(node_index, req.clone());
+                    }
                   }
 
                   // Side-effectful and lazy/parallel deps must be transformed: matching the
