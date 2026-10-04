@@ -1,0 +1,8 @@
+{
+  "description": "should error when an HTML script imports a glob",
+  "input": "index.html",
+  "diagnostics": [
+    {"message": "Failed to resolve 'foo/*.js'", "origin": "@parcel/core"},
+    {"message": "Glob imports are not supported in URL dependencies.", "origin": "@parcel/resolver-glob", "codeFrames": [{"codeHighlights": [{"start": {"line": 1, "column": 1}, "end": {"line": 1, "column": 1}}]}]}
+  ]
+}

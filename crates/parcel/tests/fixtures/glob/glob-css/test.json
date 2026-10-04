@@ -1,0 +1,9 @@
+{
+  "description": "should support importing a glob of CSS files",
+  "input": "index.js",
+  "output": 2,
+  "bundles": [
+    {"type": "js", "assets": ["index.js"]},
+    {"type": "css", "assets": ["glob-0a9b9f373df60cbb.css", "index.css", "local.css", "other.css"], "contains": [".local", ".other", ".index"]}
+  ]
+}

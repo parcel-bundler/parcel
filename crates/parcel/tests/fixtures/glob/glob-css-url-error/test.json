@@ -1,0 +1,8 @@
+{
+  "description": "should error when a URL dependency imports a glob",
+  "input": "index.css",
+  "diagnostics": [
+    {"message": "Failed to resolve 'images/*.jpg'", "origin": "@parcel/core"},
+    {"message": "Glob imports are not supported in URL dependencies.", "origin": "@parcel/resolver-glob", "codeFrames": [{"codeHighlights": [{"start": {"line": 2}, "end": {"line": 2}}]}]}
+  ]
+}

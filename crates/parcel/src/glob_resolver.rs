@@ -2,8 +2,9 @@ use std::{borrow::Cow, collections::BTreeMap, fmt::Write, sync::Arc};
 
 use glob_match::glob_match_with_captures;
 use parcel_core::{
-  AssetRequest, AssetType, BufferContent, Dependency, DependencyResolution, DiagnosticList,
-  FileSystem, OutputFormat, ParcelOptions, Resolver, SourceLocation, SourceUrl, is_glob,
+  AssetRequest, AssetType, BufferContent, CodeFrame, Dependency, DependencyResolution, Diagnostic,
+  DiagnosticList, DiagnosticSeverity, FileSystem, ImportType, OutputFormat, ParcelOptions, PathId,
+  Resolver, SourceLocation, SourceUrl, SpecifierType, is_glob,
 };
 use xxhash_rust::xxh3::xxh3_64;
 
@@ -21,6 +22,25 @@ impl Resolver for GlobResolver {
     let (glob, query) = specifier.split_once('?').unwrap_or((specifier, ""));
     if !is_glob(glob) {
       return Ok(DependencyResolution::None);
+    }
+
+    // CSS `@import` rules (and JS imports with `type: 'css'`) expand to a stylesheet of `@import`
+    // rules. Other URL dependencies, e.g. `url()` in CSS or `<script src>` in HTML, reference a
+    // single file and can't be expanded.
+    let is_css = dep.import_type == ImportType::StyleSheet;
+    if !is_css && dep.specifier_type == SpecifierType::Url {
+      return Err(DiagnosticList(vec![Diagnostic {
+        message: "Glob imports are not supported in URL dependencies.".into(),
+        origin: Some("@parcel/resolver-glob".into()),
+        code_frames: dep
+          .loc
+          .iter()
+          .map(|loc| CodeFrame::from_loc(loc, None))
+          .collect(),
+        hints: vec![],
+        severity: DiagnosticSeverity::Error,
+        documentation_url: None,
+      }]));
     }
 
     let mut is_async = false;
@@ -43,6 +63,25 @@ impl Resolver for GlobResolver {
       .into_iter()
       .map(|path| path.relative(&dir))
       .collect();
+
+    if is_css {
+      let mut specifiers: Vec<String> = files
+        .iter()
+        .map(|file| {
+          let rel = to_rel(file.to_str().unwrap());
+          match pipeline {
+            Some(pipeline) => format!("{}:{}", pipeline, rel),
+            None => rel.into_owned(),
+          }
+        })
+        .collect();
+      specifiers.sort_unstable();
+      let mut code = String::new();
+      for specifier in specifiers {
+        writeln!(code, "@import \"{}\";", escape_css_string(&specifier)).ok();
+      }
+      return Ok(deferred_asset(dep, dir, specifier, AssetType::Css, code));
+    }
 
     // Build the nested object tree from all wildcard captures.
     let mut root = GlobEntry::new_dir();
@@ -92,19 +131,45 @@ impl Resolver for GlobResolver {
     code.push_str(&value);
     code.push_str(";\n");
 
-    let hash = format!("glob-{:016x}.js", xxh3_64(specifier.as_bytes()));
-    Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
-      loc: SourceLocation {
-        url: SourceUrl::from_path(&dir.child(&hash)),
-        ..Default::default()
-      },
-      ty: AssetType::Js,
-      pipeline: None,
-      target: dep.target.clone(),
-      content: Arc::new(BufferContent::new_string(code)),
-      side_effects: true,
-      unique_key: None,
-    })))
+    Ok(deferred_asset(dep, dir, specifier, AssetType::Js, code))
+  }
+}
+
+fn deferred_asset(
+  dep: &Dependency,
+  dir: PathId,
+  specifier: &str,
+  ty: AssetType,
+  code: String,
+) -> DependencyResolution {
+  let name = format!(
+    "glob-{:016x}.{}",
+    xxh3_64(specifier.as_bytes()),
+    ty.extension()
+  );
+  DependencyResolution::Deferred(Arc::new(AssetRequest {
+    loc: SourceLocation {
+      url: SourceUrl::from_path(&dir.child(&name)),
+      ..Default::default()
+    },
+    ty,
+    pipeline: None,
+    target: dep.target.clone(),
+    content: Arc::new(BufferContent::new_string(code)),
+    side_effects: true,
+    unique_key: None,
+  }))
+}
+
+fn escape_css_string(s: &str) -> Cow<'_, str> {
+  if s.contains(['"', '\\', '\n']) {
+    Cow::Owned(
+      s.replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "\\a "),
+    )
+  } else {
+    Cow::Borrowed(s)
   }
 }
 
