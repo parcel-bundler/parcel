@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path};
+use std::collections::HashMap;
 
 use parcel_core::PathId;
 use rquickjs::{
@@ -14,6 +14,10 @@ use rquickjs::{
 pub struct Process<'js> {
   #[qjs(get)]
   env: Object<'js>,
+  #[qjs(get)]
+  stdout: Object<'js>,
+  #[qjs(get)]
+  stderr: Object<'js>,
   cwd: String,
 }
 
@@ -23,15 +27,25 @@ impl<'js> Process<'js> {
     env: &HashMap<String, String>,
     cwd: PathId,
   ) -> rquickjs::Result<Process<'js>> {
-    let obj = Object::new(ctx)?;
+    let obj = Object::new(ctx.clone())?;
     for (k, v) in env {
       obj.set(k, v)?;
     }
     Ok(Process {
       env: obj,
+      stdout: std_stream(&ctx, 1, "log")?,
+      stderr: std_stream(&ctx, 2, "error")?,
       cwd: cwd.with_path(|cwd| cwd.to_string_lossy().to_string()),
     })
   }
+}
+
+/// A non-TTY stream whose writes are forwarded to the console, so they are
+/// reported through Parcel's logger rather than written to the terminal directly.
+fn std_stream<'js>(ctx: &Ctx<'js>, fd: u8, method: &str) -> rquickjs::Result<Object<'js>> {
+  ctx.eval(format!(
+    "({{ fd: {fd}, isTTY: false, write(chunk) {{ console.{method}(String(chunk).replace(/\\n$/, '')); return true; }} }})"
+  ))
 }
 
 #[methods(rename_all = "camelCase")]
@@ -46,11 +60,6 @@ impl<'js> Process<'js> {
   #[qjs(get)]
   fn version() -> &'static str {
     "v24.0.0"
-  }
-
-  #[qjs(get)]
-  fn browser() -> bool {
-    true
   }
 
   #[qjs(get)]
@@ -90,7 +99,6 @@ impl<'a> ModuleDef for Process<'a> {
     decl.declare("env")?;
     decl.declare("versions")?;
     decl.declare("version")?;
-    decl.declare("browser")?;
     decl.declare("platform")?;
     decl.declare("title")?;
     decl.declare("argv")?;
