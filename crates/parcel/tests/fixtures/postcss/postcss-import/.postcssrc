@@ -1,0 +1,12 @@
+{
+    "plugins": {
+        "postcss-import": {},
+        "postcss-custom-properties": {
+            "importFrom": [{
+                "customProperties": {
+                    "--varColor": "green"
+                }
+            }]
+        }
+    }
+}

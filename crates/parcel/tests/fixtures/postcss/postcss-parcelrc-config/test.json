@@ -1,0 +1,7 @@
+{
+  "description": "should prefer config from .parcelrc over a .postcssrc file",
+  "input": "index.css",
+  "bundles": [
+    {"name": "index.css", "assets": ["index.css"], "contains": ["background: green"]}
+  ]
+}

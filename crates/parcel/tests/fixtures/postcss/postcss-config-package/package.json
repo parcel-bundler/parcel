@@ -1,0 +1,8 @@
+{
+    "name": "postcss-config-package",
+    "postcss": {
+        "plugins": {
+            "postcss-custom-properties": {}
+        }
+    }
+}

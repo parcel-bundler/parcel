@@ -1,0 +1,7 @@
+{
+  "description": "should support postcss.config.js config file with PostCSS 8 plugin",
+  "input": "style.css",
+  "bundles": [
+    {"name": "style.css", "assets": ["style.css"], "contains": ["color: red"]}
+  ]
+}

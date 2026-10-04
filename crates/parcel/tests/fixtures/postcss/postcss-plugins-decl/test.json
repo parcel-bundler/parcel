@@ -1,0 +1,7 @@
+{
+  "description": "should support transforming declarations with missing source",
+  "input": "index.css",
+  "bundles": [
+    {"name": "index.css", "assets": ["index.css"], "contains": ["url(\"data:image/gif;base64,quotes\")"]}
+  ]
+}

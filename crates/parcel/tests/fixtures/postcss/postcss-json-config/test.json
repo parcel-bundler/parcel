@@ -1,0 +1,7 @@
+{
+  "description": "should load plugins from a JSON .postcssrc",
+  "input": "index.css",
+  "bundles": [
+    {"name": "index.css", "assets": ["index.css"], "contains": ["background: green"]}
+  ]
+}

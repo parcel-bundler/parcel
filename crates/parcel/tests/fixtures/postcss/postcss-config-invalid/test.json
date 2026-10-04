@@ -1,0 +1,16 @@
+{
+  "description": "should throw an error with code frame when .postcssrc is invalid",
+  "input": "index.css",
+  "diagnostics": [
+    {
+      "message": "JSON5: invalid character '\\\"' at 5:5",
+      "codeFrames": [
+        {
+          "codeHighlights": [
+            {"start": {"line": 5, "column": 5}, "end": {"line": 5, "column": 5}}
+          ]
+        }
+      ]
+    }
+  ]
+}

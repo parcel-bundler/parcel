@@ -1,0 +1,12 @@
+{
+  "description": "should support using postcss for importing",
+  "input": "style.css",
+  "bundles": [
+    {
+      "name": "style.css",
+      "assets": ["style.css"],
+      "contains": ["--varColor: red", "background-color: green"],
+      "notContains": ["@import"]
+    }
+  ]
+}

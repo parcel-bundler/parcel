@@ -1,0 +1,7 @@
+{
+  "plugins": {
+    "postcss-import": {},
+    "postcss-url": {}
+    "postcss-custom-properties": {}
+  }
+}
