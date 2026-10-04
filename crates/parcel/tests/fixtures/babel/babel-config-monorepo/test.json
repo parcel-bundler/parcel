@@ -1,0 +1,12 @@
+{
+  "description": "should support merging .babelrc and babel.config.json in a monorepo",
+  "input": "packages/pkg-a/src/index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": ["index.js"],
+      "notContains": ["REPLACE_ME", "ANOTHER_THING_TO_REPLACE", "string from a plugin from a different sub-package"]
+    }
+  ],
+  "output": "string from a plugin in babel.config.jsonstring from a plugin in .babelrcSOMETHING ELSE"
+}

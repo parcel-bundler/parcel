@@ -1,0 +1,8 @@
+{
+  "description": "should compile with a custom babel plugin and modern syntax",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js", "esmodule-helpers.js"], "notContains": ["REPLACE_ME"]}
+  ],
+  "output": "hello"
+}

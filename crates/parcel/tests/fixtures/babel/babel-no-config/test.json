@@ -1,0 +1,7 @@
+{
+  "description": "should not run babel without a babel config",
+  "input": "index.jsx",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.jsx", "esmodule-helpers.js"], "contains": ["REPLACE_ME"]}
+  ]
+}

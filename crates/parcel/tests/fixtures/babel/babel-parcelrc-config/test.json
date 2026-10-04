@@ -1,0 +1,8 @@
+{
+  "description": "should use babel config from .parcelrc instead of babel config files",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js"], "contains": ["hello there"], "notContains": ["REPLACE_ME"]}
+  ],
+  "output": "hello there"
+}

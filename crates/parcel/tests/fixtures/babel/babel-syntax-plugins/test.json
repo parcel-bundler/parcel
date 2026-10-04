@@ -1,0 +1,17 @@
+[
+  {
+    "description": "should parse JSX with a syntax plugin from the babel config",
+    "input": "jsx.jsx",
+    "bundles": [
+      {"name": "jsx.js", "assets": ["jsx.jsx", "esmodule-helpers.js"], "contains": ["hello", "React.createElement"], "notContains": ["REPLACE_ME"]}
+    ]
+  },
+  {
+    "description": "should parse TypeScript with a syntax plugin from the babel config",
+    "input": "ts.ts",
+    "bundles": [
+      {"name": "ts.js", "assets": ["ts.ts", "esmodule-helpers.js"], "notContains": ["REPLACE_ME", "interface"]}
+    ],
+    "output": "hello"
+  }
+]

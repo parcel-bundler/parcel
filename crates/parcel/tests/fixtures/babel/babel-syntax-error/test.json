@@ -1,0 +1,16 @@
+{
+  "description": "should report babel syntax errors with a code frame",
+  "input": "index.js",
+  "diagnostics": [
+    {
+      "message": "Support for the experimental syntax 'jsx' isn't currently enabled",
+      "codeFrames": [
+        {
+          "codeHighlights": [
+            {"start": {"line": 2, "column": 10}, "end": {"line": 2, "column": 10}}
+          ]
+        }
+      ]
+    }
+  ]
+}

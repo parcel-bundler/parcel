@@ -1,103 +1,81 @@
-// @flow strict-local
+// @flow
 
-import {babelErrorEnhancer} from './babelErrorUtils';
 import {Transformer} from '@parcel/plugin';
-import {relativeUrl} from '@parcel/utils';
-import SourceMap from '@parcel/source-map';
-import semver from 'semver';
-import babel7 from './babel7';
-import {load} from './config';
+import * as babel from '@babel/core';
 
 export default (new Transformer({
-  loadConfig({config, options, logger}) {
-    return load(config, options, logger);
-  },
-
-  canReuseAST({ast}) {
-    return ast.type === 'babel' && semver.satisfies(ast.version, '^7.0.0');
-  },
-
-  async transform({asset, config, logger, options, tracer}) {
-    try {
-      if (config?.config) {
-        if (
-          asset.meta.babelPlugins != null &&
-          Array.isArray(asset.meta.babelPlugins)
-        ) {
-          await babel7({
-            asset,
-            options,
-            logger,
-            babelOptions: config,
-            additionalPlugins: asset.meta.babelPlugins,
-            tracer,
-          });
-        } else {
-          await babel7({
-            asset,
-            options,
-            logger,
-            babelOptions: config,
-            tracer,
-          });
-        }
-      }
-
-      return [asset];
-    } catch (e) {
-      throw await babelErrorEnhancer(e, asset);
-    }
-  },
-
-  async generate({asset, ast, options}) {
-    let originalSourceMap = await asset.getMap();
-    let sourceFileName: string = relativeUrl(
-      options.projectRoot,
-      asset.filePath,
-    );
-
-    const babelCorePath = await options.packageManager.resolve(
-      '@babel/core',
-      asset.filePath,
-      {
-        range: '^7.12.0',
-        saveDev: true,
-        shouldAutoInstall: options.shouldAutoInstall,
+  async transform({asset, config, options}) {
+    let babelOptions = {
+      filename: asset.filePath,
+      cwd: options.projectRoot,
+      sourceMaps: !!asset.target.sourceMap,
+      inputSourceMap: asset.getMap() ?? undefined,
+      // Parcel handles modules itself, so presets should leave them alone.
+      caller: {
+        name: 'parcel',
+        supportsStaticESM: true,
+        supportsDynamicImport: true,
+        supportsTopLevelAwait: true,
+        supportsExportNamespaceFrom: true,
       },
-    );
-
-    const {default: generate} = await options.packageManager.require(
-      '@babel/generator',
-      babelCorePath.resolved,
-    );
-
-    let {code, rawMappings} = generate(ast.program, {
-      sourceFileName,
-      sourceMaps: !!asset.env.sourceMap,
-      comments: true,
-      importAttributesKeyword: 'with',
-    });
-
-    let map = new SourceMap(options.projectRoot);
-    if (rawMappings) {
-      map.addIndexedMappings(rawMappings);
-    }
-
-    if (originalSourceMap) {
-      // The babel AST already contains the correct mappings, but not the source contents.
-      // We need to copy over the source contents from the original map.
-      let sourcesContent = originalSourceMap.getSourcesContentMap();
-      for (let filePath in sourcesContent) {
-        let content = sourcesContent[filePath];
-        if (content != null) {
-          map.setSourceContent(filePath, content);
-        }
-      }
-    }
-
-    return {
-      content: code,
-      map,
     };
+
+    if (config != null) {
+      // Config from .parcelrc is used exactly as given.
+      babelOptions = {
+        ...config,
+        ...babelOptions,
+        babelrc: false,
+        configFile: false,
+      };
+    } else {
+      if (!asset.isSource) {
+        return [asset];
+      }
+
+      // Let Babel find babel.config.* and .babelrc files itself.
+      let partialConfig = await babel.loadPartialConfigAsync(babelOptions);
+      if (partialConfig == null || !partialConfig.hasFilesystemConfig()) {
+        return [asset];
+      }
+      babelOptions = partialConfig.options;
+    }
+
+    let code = await asset.getCode();
+    let result;
+    try {
+      result = await babel.transformAsync(code, babelOptions);
+    } catch (err) {
+      throw toDiagnosticError(err, asset.filePath);
+    }
+
+    // Babel returns null for files matched by an "ignore" option.
+    if (result == null) {
+      return [asset];
+    }
+
+    asset.setCode(result.code, result.map ?? null);
+    return [asset];
   },
 }): Transformer);
+
+// Reshape Babel errors so they are reported with a code frame at the error location.
+function toDiagnosticError(err, filePath) {
+  if (err?.loc == null) {
+    return err;
+  }
+
+  let message = String(err.message);
+  if (message.startsWith(filePath + ': ')) {
+    message = message.slice(filePath.length + 2);
+  }
+
+  let error = new Error(message.split('\n')[0].trim());
+  // $FlowFixMe
+  Object.assign(error, {
+    filename: filePath,
+    line: err.loc.line,
+    column: err.loc.column + 1,
+  });
+  return error;
+}

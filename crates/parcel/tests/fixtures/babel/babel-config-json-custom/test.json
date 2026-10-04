@@ -1,0 +1,8 @@
+{
+  "description": "should support compiling with babel using babel.config.json config",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js"], "contains": ["hello there"], "notContains": ["REPLACE_ME"]}
+  ],
+  "output": "hello there"
+}

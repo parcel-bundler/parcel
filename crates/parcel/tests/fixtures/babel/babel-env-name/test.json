@@ -1,0 +1,20 @@
+[
+  {
+    "description": "should prefer BABEL_ENV to NODE_ENV",
+    "input": "index.js",
+    "options": {"env": {"BABEL_ENV": "production", "NODE_ENV": "development"}},
+    "bundles": [{"name": "index.js", "assets": ["index.js"], "notContains": ["class Foo"]}]
+  },
+  {
+    "description": "should use NODE_ENV when BABEL_ENV is not set",
+    "input": "index.js",
+    "options": {"env": {"NODE_ENV": "production"}},
+    "bundles": [{"name": "index.js", "assets": ["index.js"], "notContains": ["class Foo"]}]
+  },
+  {
+    "description": "should not apply env config for other environments",
+    "input": "index.js",
+    "options": {"env": {"BABEL_ENV": "development", "NODE_ENV": "production"}},
+    "bundles": [{"name": "index.js", "assets": ["index.js"], "contains": ["class Foo"]}]
+  }
+]

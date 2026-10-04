@@ -1,0 +1,7 @@
+{
+  "description": "should support compiling with babel using babel.config.js config with a require in it",
+  "input": "src/index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js"], "notContains": ["REPLACE_ME"]}
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "plugins": [
+    "@babel/plugin-syntax-jsx",
+    ["babel-plugin-dummy", {"text": "hello"}]
+  ],
+  "overrides": [
+    {
+      "test": "./ts.ts",
+      "plugins": ["@babel/plugin-syntax-typescript"]
+    }
+  ]
+}
