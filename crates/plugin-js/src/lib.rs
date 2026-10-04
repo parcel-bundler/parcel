@@ -36,6 +36,7 @@ mod structured_clone;
 mod transpile;
 mod url;
 mod url_search_params;
+mod vm;
 mod zlib;
 
 pub struct JsEnv {
@@ -265,7 +266,10 @@ fn error_to_diagnostic<'js>(e: Value<'js>) -> Diagnostic {
 
   let location = object
     .and_then(object_location)
-    .or_else(|| stack.as_deref().and_then(stack_location));
+    .or_else(|| stack.as_deref().and_then(stack_location))
+    // Code evaluated from a string (e.g. by `vm`) is named like `eval_script`
+    // or `evalmachine.<anonymous>`, which isn't a file to point at.
+    .filter(|(file, _, _)| Path::new(file).is_absolute());
 
   Diagnostic {
     origin: None,
@@ -414,6 +418,29 @@ mod tests {
 
       assert_eq!(diagnostic.message, "42");
       assert_location(&diagnostic, "/tmp/source.less", 3, 7);
+    });
+  }
+
+  #[test]
+  fn ignores_locations_that_are_not_files() {
+    let runtime = Runtime::new().unwrap();
+    let context = Context::full(&runtime).unwrap();
+
+    context.with(|ctx| {
+      let error = ctx
+        .eval::<Value, _>(
+          r#"({
+            message: "failed",
+            stack: "    at <anonymous> (eval_script:43:24)"
+          })"#,
+        )
+        .unwrap();
+      let diagnostic = error_to_diagnostic(error);
+
+      assert_eq!(diagnostic.message, "failed");
+      assert!(diagnostic.code_frames.is_empty());
+      // Reporting used to panic resolving the relative path.
+      diagnostic.report(&mut Vec::new()).unwrap();
     });
   }
 

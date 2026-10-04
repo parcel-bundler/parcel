@@ -135,10 +135,15 @@ fn option<'js, T: FromJs<'js>>(options: &Object<'js>, name: &str) -> rquickjs::R
 }
 
 fn bytes_from_js<'js>(ctx: &Ctx<'js>, input: Object<'js>) -> rquickjs::Result<Vec<u8>> {
+  // SAFETY: copied immediately, before any JS runs.
   input
     .as_typed_array::<u8>()
-    .and_then(|value| value.as_bytes())
-    .or_else(|| input.as_array_buffer().and_then(|value| value.as_bytes()))
+    .and_then(|value| unsafe { value.as_bytes() })
+    .or_else(|| {
+      input
+        .as_array_buffer()
+        .and_then(|value| unsafe { value.as_bytes() })
+    })
     .map(ToOwned::to_owned)
     .ok_or_else(|| {
       rquickjs::Exception::throw_type(

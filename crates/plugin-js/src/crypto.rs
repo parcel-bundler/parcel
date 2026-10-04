@@ -441,8 +441,12 @@ fn fill_object<'js>(
     .ok_or_else(|| rquickjs::Exception::throw_type(ctx, "ArrayBuffer is detached"))?;
   // SAFETY: QuickJS owns this non-detached ArrayBuffer on the current single JS thread. The range
   // is checked against both the view and its underlying allocation above.
-  let bytes =
-    unsafe { slice::from_raw_parts_mut(raw.ptr.as_ptr().add(view_offset + offset), size as usize) };
+  let bytes = unsafe {
+    slice::from_raw_parts_mut(
+      raw.cast::<u8>().as_ptr().add(view_offset + offset),
+      size as usize,
+    )
+  };
   getrandom::fill(bytes)
     .map_err(|error| rquickjs::Exception::throw_message(ctx, &error.to_string()))
 }
@@ -576,8 +580,8 @@ fn with_value_bytes<'js, T>(
     ));
   };
   let (buffer, offset, len) = byte_view(ctx, object)?;
-  let bytes = buffer
-    .as_bytes()
+  // SAFETY: callbacks only hash or copy the bytes; no JS runs while they are borrowed.
+  let bytes = unsafe { buffer.as_bytes() }
     .ok_or_else(|| rquickjs::Exception::throw_type(ctx, "ArrayBuffer is detached"))?;
   Ok(callback(&bytes[offset..offset + len]))
 }

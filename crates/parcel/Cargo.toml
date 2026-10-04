@@ -54,8 +54,8 @@ lightningcss = { version = "1.0.0-alpha.72", default-features = false, features 
   "visitor",
   "sourcemap",
 ] }
-rquickjs = { version = "0.11.0", features = ["full"] }
-rquickjs-serde = "0.4.0"
+rquickjs = { version = "0.14.0", features = ["full"] }
+rquickjs-serde = "0.8.0"
 testing_macros = "1.0.2"
 pretty_assertions = "1.4.1"
 criterion = { version = "*", features = ["html_reports"] }

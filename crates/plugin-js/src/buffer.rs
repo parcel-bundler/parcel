@@ -2,9 +2,8 @@ use data_encoding::{BASE64, BASE64URL};
 use rquickjs::{Ctx, Function, Object, TypedArray};
 
 fn bytes<'a, 'js>(ctx: &Ctx<'js>, value: &'a TypedArray<'js, u8>) -> rquickjs::Result<&'a [u8]> {
-  // The slice is owned by QuickJS and remains valid for the lifetime of this call/context.
-  value
-    .as_bytes()
+  // SAFETY: callers only read the slice in Rust; no JS runs while it is borrowed.
+  unsafe { value.as_bytes() }
     .ok_or_else(|| rquickjs::Exception::throw_type(ctx, "Expected an attached Uint8Array"))
 }
 

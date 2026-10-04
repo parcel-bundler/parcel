@@ -37,6 +37,7 @@ const HOST_BUILTINS = new Set([
   'fs/promises',
   'path',
   'process',
+  'vm',
   'zlib-native'
 ]);
 const EXTERNAL_BUILTINS = new Set([

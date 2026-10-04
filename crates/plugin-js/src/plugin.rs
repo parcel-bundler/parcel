@@ -144,8 +144,8 @@ impl Optimizer for JsPlugin {
           rquickjs::Error::new_from_js_message("optimizer result", "object", "Expected an object")
         })?;
         let contents: TypedArray<u8> = result.get("contents")?;
-        let contents = contents
-          .as_bytes()
+        // SAFETY: copied immediately, before any JS runs.
+        let contents = unsafe { contents.as_bytes() }
           .ok_or_else(|| {
             rquickjs::Error::new_from_js_message("contents", "Uint8Array", "Invalid Uint8Array")
           })?
@@ -155,8 +155,8 @@ impl Optimizer for JsPlugin {
           Ok(Arc::new(BufferContent::new(contents)) as Arc<dyn Content>)
         } else {
           let map = TypedArray::<u8>::from_js(ctx, map)?;
-          let map = map
-            .as_bytes()
+          // SAFETY: copied immediately, before any JS runs.
+          let map = unsafe { map.as_bytes() }
             .ok_or_else(|| {
               rquickjs::Error::new_from_js_message("map", "Uint8Array", "Invalid Uint8Array")
             })?
@@ -1147,8 +1147,8 @@ impl JsAsset {
     buf: TypedArray<'js, u8>,
     map: rquickjs::function::Opt<rquickjs::Value<'js>>,
   ) -> rquickjs::Result<()> {
-    let bytes = buf
-      .as_bytes()
+    // SAFETY: copied immediately, before any JS runs.
+    let bytes = unsafe { buf.as_bytes() }
       .ok_or_else(|| {
         rquickjs::Error::new_from_js_message(
           "buffer",

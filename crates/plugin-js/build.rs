@@ -4,7 +4,11 @@ use std::{
   process::Command,
 };
 
+#[path = "build_vm.rs"]
+mod vm;
+
 fn main() {
+  vm::build();
   let status = Command::new("node")
     .arg("buildBuiltins.cjs")
     .status()
@@ -12,6 +16,17 @@ fn main() {
   assert!(status.success(), "buildBuiltins.cjs exited with {status}");
 
   embed_builtins();
+
+  // cc emits explicit rerun directives, so also track the JS build inputs.
+  // Do not track `builtins`: that ignored directory is rewritten by the build.
+  for path in [
+    "build_vm.rs",
+    "buildBuiltins.cjs",
+    "builtin-src",
+    "../../yarn.lock",
+  ] {
+    println!("cargo:rerun-if-changed={path}");
+  }
 }
 
 /// Deflate the builtins into OUT_DIR and generate a lookup table for

@@ -6,9 +6,8 @@ edition = "2024"
 
 [dependencies]
 parcel-core = { path = "../core" }
-rquickjs = { version = "0.11.0", features = ["full", "rust-alloc"] }
-rquickjs-extra-console = "0.2.1"
-rquickjs-sys = "0.11.0"
+rquickjs = { version = "0.14.0", features = ["full", "rust-alloc"] }
+rquickjs-sys = "0.14.0"
 serde_json = { version = "1.0.91", features = ["preserve_order"] }
 serde = { version = "1.0.228", features = ["derive", "rc"] }
 parcel-resolver = { path = "../parcel-resolver" }
@@ -38,6 +37,8 @@ swc_core = { version = "77", features = [
 ] }
 
 [build-dependencies]
+cc = "1"
+serde_json = "1"
 flate2 = { version = "1.1.9", default-features = false, features = [
   "rust_backend",
 ] }

@@ -54,7 +54,13 @@ impl ModuleResolver {
 }
 
 impl Resolver for ModuleResolver {
-  fn resolve<'js>(&mut self, _ctx: &Ctx<'js>, base: &str, name: &str) -> rquickjs::Result<String> {
+  fn resolve<'js>(
+    &mut self,
+    _ctx: &Ctx<'js>,
+    base: &str,
+    name: &str,
+    _attributes: Option<rquickjs::loader::ImportAttributes<'js>>,
+  ) -> rquickjs::Result<String> {
     let res = self.resolver.resolve(
       name,
       parcel_resolver::PathId::new(Path::new(base)),
@@ -113,6 +119,7 @@ impl Loader for ModuleLoader {
     &mut self,
     ctx: &Ctx<'js>,
     name: &str,
+    _attributes: Option<rquickjs::loader::ImportAttributes<'js>>,
   ) -> rquickjs::Result<Module<'js, rquickjs::module::Declared>> {
     // println!("LOADING {:?}", name);
 

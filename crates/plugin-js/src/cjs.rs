@@ -9,7 +9,7 @@ use crate::{
   fs::{Fs, FsPromises},
   path,
   transpile::ModuleKind,
-  url, zlib,
+  url, vm, zlib,
 };
 
 // (path, uncompressed length, deflated bytes), sorted by path; see build.rs.
@@ -135,6 +135,7 @@ impl CjsLoader {
       "tty" => "tty-browserify",
       "url" => return Ok("builtin:url".into()),
       "util" => "util",
+      "vm" => return Ok("builtin:vm".into()),
       "zlib" => "native-zlib",
       _ => {
         if error {
@@ -178,6 +179,14 @@ impl CjsLoader {
         }
         "fs/promises" => {
           return FsPromises {}.into_js(ctx);
+        }
+        "vm" => {
+          // Cached so every import shares one registry of contexts.
+          let exports = vm::vm_module(ctx)?;
+          let module = Object::new(ctx.clone())?;
+          module.set("exports", exports.clone())?;
+          cache.set(resolved, module)?;
+          return Ok(exports);
         }
         "process" => {
           return globals.get("process");
