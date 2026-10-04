@@ -15,18 +15,67 @@ pub struct FileSystemData(#[qjs(skip_trace)] pub Arc<dyn FileSystem>);
 #[rquickjs::class]
 pub struct Fs {}
 
+const FS_EXPORTS: &[&str] = &[
+  "Stats",
+  "promises",
+  "existsSync",
+  "readFileSync",
+  "readFile",
+  "statSync",
+  "lstatSync",
+  "stat",
+  "lstat",
+  "realpath",
+  "realpathSync",
+  "readlink",
+  "readlinkSync",
+  "readdirSync",
+  "readdir",
+  "globSync",
+  "glob",
+];
+
+const FS_PROMISES_EXPORTS: &[&str] = &[
+  "Stats", "readFile", "stat", "lstat", "realpath", "readlink", "readdir", "glob",
+];
+
+fn declare_exports(
+  decl: &rquickjs::module::Declarations<'_>,
+  names: &[&str],
+) -> rquickjs::Result<()> {
+  decl.declare("default")?;
+  for name in names {
+    decl.declare(*name)?;
+  }
+  Ok(())
+}
+
+/// Exports the module object as the default export, and its members as named exports.
+fn export_members<'js>(
+  ctx: &Ctx<'js>,
+  exports: &rquickjs::module::Exports<'js>,
+  module: impl IntoJs<'js>,
+  names: &[&str],
+) -> rquickjs::Result<()> {
+  let module = module.into_js(ctx)?;
+  let object = module.as_object().unwrap();
+  for name in names {
+    exports.export(*name, object.get::<_, Value>(*name)?)?;
+  }
+  exports.export("default", module)?;
+  Ok(())
+}
+
 impl ModuleDef for Fs {
   fn declare<'js>(decl: &rquickjs::module::Declarations<'js>) -> rquickjs::Result<()> {
-    decl.declare("default")?;
-    Ok(())
+    declare_exports(decl, FS_EXPORTS)
   }
 
   fn evaluate<'js>(
-    _ctx: &rquickjs::Ctx<'js>,
+    ctx: &rquickjs::Ctx<'js>,
     exports: &rquickjs::module::Exports<'js>,
   ) -> rquickjs::Result<()> {
-    exports.export("default", Fs {})?;
-    Ok(())
+    export_members(ctx, exports, Fs {}, FS_EXPORTS)
   }
 }
 
@@ -275,6 +324,12 @@ impl Fs {
     )
   }
 
+  pub fn exists_sync<'js>(ctx: Ctx<'js>, path: String) -> bool {
+    let fs = ctx.userdata::<FileSystemData>().unwrap().0.clone();
+    fs.stat(parcel_core::PathId::new(Path::new(&path)))
+      .is_some()
+  }
+
   pub fn stat_sync<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<Value<'js>> {
     handle_sync(&ctx, Fs::stat_internal(ctx.clone(), path)?)
   }
@@ -492,16 +547,14 @@ impl FsPromises {
 
 impl ModuleDef for FsPromises {
   fn declare<'js>(decl: &rquickjs::module::Declarations<'js>) -> rquickjs::Result<()> {
-    decl.declare("default")?;
-    Ok(())
+    declare_exports(decl, FS_PROMISES_EXPORTS)
   }
 
   fn evaluate<'js>(
-    _ctx: &rquickjs::Ctx<'js>,
+    ctx: &rquickjs::Ctx<'js>,
     exports: &rquickjs::module::Exports<'js>,
   ) -> rquickjs::Result<()> {
-    exports.export("default", FsPromises {})?;
-    Ok(())
+    export_members(ctx, exports, FsPromises {}, FS_PROMISES_EXPORTS)
   }
 }
 
