@@ -1,0 +1,7 @@
+{
+  "description": "should load plugins from a JSON .posthtmlrc",
+  "input": "index.html",
+  "bundles": [
+    {"name": "index.html", "assets": ["index.html"], "contains": ["<span id=\"test\">Test</span>"]}
+  ]
+}

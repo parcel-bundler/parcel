@@ -1,0 +1,7 @@
+{
+  "description": "should prefer config from .parcelrc over a .posthtmlrc file",
+  "input": "index.html",
+  "bundles": [
+    {"name": "index.html", "assets": ["index.html"], "contains": ["<span id=\"test\">Test</span>"]}
+  ]
+}

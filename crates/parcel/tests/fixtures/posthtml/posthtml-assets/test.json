@@ -1,0 +1,8 @@
+{
+  "description": "should find assets inside posthtml",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"], "contains": ["<h1>Other page</h1>"]},
+    {"type": "js", "assets": ["index.js"]}
+  ]
+}

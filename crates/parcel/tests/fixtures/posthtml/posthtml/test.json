@@ -1,0 +1,7 @@
+{
+  "description": "should support transforming HTML with posthtml",
+  "input": "index.html",
+  "bundles": [
+    {"name": "index.html", "assets": ["index.html"], "contains": ["<h1>Other page</h1>"]}
+  ]
+}
