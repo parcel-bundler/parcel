@@ -271,7 +271,6 @@ if (awaitedBundles.length) {
 
 var HMR_SERVER_PORT = null;
 var HMR_SECURE = false;
-var HMR_ENV_HASH = 'TODO';
 var HMR_USE_SSE = false;
 parcelRequire.HMR_BUNDLE_ID = 'TODO';
 var OVERLAY_ID = '__parcel__error__overlay__';
@@ -304,7 +303,8 @@ var checkedAssets /*: {|[string]: boolean|} */,
   disposedAssets /*: {|[string]: boolean|} */,
   assetsToDispose /*: Array<[ParcelRequire, string]> */,
   assetsToAccept /*: Array<[ParcelRequire, string]> */,
-  bundleNotFound = false;
+  // Set by `fullReload` when the process started by `parcel run` must be restarted.
+  restartRequested = false;
 
 function getHostname() {
   return (
@@ -320,17 +320,6 @@ function getPort() {
     HMR_PORT ||
     (typeof location !== 'undefined' ? location.port : HMR_SERVER_PORT)
   );
-}
-
-// eslint-disable-next-line no-redeclare
-let WebSocket = globalThis.WebSocket;
-if (HMR_ENABLED && !WebSocket && typeof parcelRequire.root === 'function') {
-  try {
-    // eslint-disable-next-line no-global-assign
-    WebSocket = parcelRequire.root('ws');
-  } catch {
-    // ignore.
-  }
 }
 
 var hostname = getHostname();
@@ -364,44 +353,38 @@ if (HMR_ENABLED && (!parent || !parent.isParcelRequire)) {
       : browser;
 
   var ws;
-  if (HMR_USE_SSE) {
+  // `parcel run` tells the process it starts where to connect. Only the first runtime to start
+  // connects, and child processes it starts in turn don't inherit the URL.
+  var runnerUrl = globalThis.process?.env?.PARCEL_HMR_URL;
+  if (runnerUrl) {
+    delete globalThis.process.env.PARCEL_HMR_URL;
+  }
+  if (runnerUrl && typeof WebSocket !== 'undefined') {
+    // After each update, `parcel run` waits for a reply saying whether it was applied or the
+    // process needs to be restarted, and only then updates browsers, so that pages they reload are
+    // rendered by the new code.
+    ws = new WebSocket(runnerUrl);
+    ws.onopen = function () {
+      // The entry has run by the time the connection opens.
+      ws.send(JSON.stringify({type: 'ready'}));
+    };
+  } else if (HMR_USE_SSE) {
     ws = new EventSource('/__parcel_hmr');
-  } else {
+  } else if (
+    typeof WebSocket !== 'undefined' &&
+    (typeof window !== 'undefined' || !globalThis.process?.versions?.node)
+  ) {
     try {
-      // If we're running in the dev server's node runner, listen for messages on the parent port.
-      let {workerData, parentPort} = (parcelRequire.root(
-        'node:worker_threads',
-      ) /*: any*/);
-      if (workerData?.__parcel) {
-        parentPort.on('message', async message => {
-          try {
-            await handleMessage(message);
-            parentPort.postMessage('updated');
-          } catch {
-            parentPort.postMessage('restart');
-          }
-        });
-
-        // After the bundle has finished running, notify the dev server that the HMR update is complete.
-        queueMicrotask(() => parentPort.postMessage('ready'));
-      }
-    } catch {
-      if (typeof WebSocket !== 'undefined') {
-        try {
-          ws = new WebSocket(
-            protocol + '://' + hostname + (port ? ':' + port : '') + '/',
-          );
-        } catch (err) {
-          // Ignore cloudflare workers error.
-          if (
-            err.message &&
-            !err.message.includes(
-              'Disallowed operation called within global scope',
-            )
-          ) {
-            console.error(err.message);
-          }
-        }
+      ws = new WebSocket(
+        protocol + '://' + hostname + (port ? ':' + port : '') + '/',
+      );
+    } catch (err) {
+      // Ignore cloudflare workers error.
+      if (
+        err.message &&
+        !err.message.includes('Disallowed operation called within global scope')
+      ) {
+        console.error(err.message);
       }
     }
   }
@@ -410,10 +393,22 @@ if (HMR_ENABLED && (!parent || !parent.isParcelRequire)) {
     // $FlowFixMe
     ws.onmessage = async function (event /*: {data: string, ...} */) {
       var data /*: HMRMessage */ = JSON.parse(event.data);
-      await handleMessage(data);
+      if (!runnerUrl) {
+        await handleMessage(data);
+        return;
+      }
+
+      restartRequested = false;
+      try {
+        await handleMessage(data);
+      } catch (err) {
+        console.error(err);
+        restartRequested = true;
+      }
+      ws.send(JSON.stringify({type: restartRequested ? 'restart' : 'updated'}));
     };
 
-    if (ws instanceof WebSocket) {
+    if (typeof WebSocket !== 'undefined' && ws instanceof WebSocket) {
       ws.onerror = function (e) {
         if (e.message) {
           console.error(e.message);
@@ -434,7 +429,6 @@ async function handleMessage(data /*: HMRMessage */) {
   disposedAssets = ({} /*: {|[string]: boolean|} */);
   assetsToAccept = [];
   assetsToDispose = [];
-  bundleNotFound = false;
 
   if (data.type === 'reload') {
     fullReload();
@@ -455,15 +449,12 @@ async function handleMessage(data /*: HMRMessage */) {
       );
     });
 
-    // Dispatch a custom event in case a bundle was not found. This might mean
-    // an asset on the server changed and we should reload the page. This event
-    // gives the client an opportunity to refresh without losing state
-    // (e.g. via React Server Components). If e.preventDefault() is not called,
-    // we will trigger a full page reload.
+    // Code that only runs on the server changed, so the page should be reloaded. This event
+    // gives the client an opportunity to refresh without losing state (e.g. via React Server
+    // Components). If e.preventDefault() is not called, we will trigger a full page reload.
     if (
       handled &&
-      bundleNotFound &&
-      assets.some(a => a.envHash !== HMR_ENV_HASH) &&
+      data.serverChanged &&
       typeof window !== 'undefined' &&
       typeof CustomEvent !== 'undefined'
     ) {
@@ -594,19 +585,13 @@ function fullReload() {
     extCtx.runtime.reload
   ) {
     extCtx.runtime.reload();
+  } else if (runnerUrl) {
+    // `parcel run` restarts the process once the update is handled.
+    restartRequested = true;
   } else {
-    try {
-      let {workerData, parentPort} = (parcelRequire.root(
-        'node:worker_threads',
-      ) /*: any*/);
-      if (workerData?.__parcel) {
-        parentPort.postMessage('restart');
-      }
-    } catch (err) {
-      console.error(
-        '[parcel] ⚠️ An HMR update was not accepted. Please restart the process.',
-      );
-    }
+    console.error(
+      '[parcel] ⚠️ An HMR update was not accepted. Please restart the process.',
+    );
   }
 }
 
@@ -891,7 +876,6 @@ function hmrAcceptCheckOne(
     // If we reached the root bundle without finding where the asset should go,
     // there's nothing to do. Mark as "accepted" so we don't reload the page.
     if (!bundle.parent) {
-      bundleNotFound = true;
       return true;
     }
 

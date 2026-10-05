@@ -1,13 +1,194 @@
-use std::process::Command;
+use std::{
+  hash::BuildHasher,
+  net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+  process::{Child, Command},
+  sync::mpsc::{Receiver, RecvTimeoutError},
+  time::{Duration, Instant},
+};
 
-use parcel_core::PathId;
+use fixedbitset::FixedBitSet;
+use parcel_core::{AssetType, BundleFlags, BundleGraph, PathId};
+use parcel_js::hmr::HmrUpdate;
 
-pub fn run_node(entry: PathId) {
-  std::thread::spawn(move || {
-    let command = Command::new("node")
-      .arg("--watch")
-      .arg(&*entry.to_path_buf().to_string_lossy())
-      .spawn()
-      .expect("node failed to start");
-  });
+use crate::server::{HmrServer, RunnerEvent, RunnerMessage};
+
+/// How long a process is given to exit after SIGTERM before it is killed.
+#[cfg(unix)]
+const STOP_TIMEOUT: Duration = Duration::from_secs(2);
+/// How long to wait for a started process to run its entry before updating browsers anyway.
+const START_TIMEOUT: Duration = Duration::from_secs(5);
+/// How long a process is given to apply an update before it is restarted.
+const UPDATE_TIMEOUT: Duration = Duration::from_secs(10);
+/// How often to check whether the process exited while waiting for it.
+const POLL_INTERVAL: Duration = Duration::from_millis(50);
+
+/// Runs the Node entry of a build. With HMR, updates are applied to the running process, which is
+/// restarted when it doesn't accept them. Otherwise it is restarted whenever code it runs changes.
+pub struct NodeRunner {
+  child: Option<Child>,
+  hmr: Option<RunnerHmr>,
+}
+
+/// Where the process connects to, and the token identifying the current one.
+struct RunnerHmr {
+  server: HmrServer,
+  events: Receiver<RunnerEvent>,
+  address: SocketAddr,
+  token: String,
+}
+
+impl NodeRunner {
+  pub fn new(hmr: Option<(HmrServer, SocketAddr, Receiver<RunnerEvent>)>) -> Self {
+    NodeRunner {
+      child: None,
+      hmr: hmr.map(|(server, address, events)| {
+        // The process connects locally even when the server listens on all interfaces.
+        let ip = match address.ip() {
+          IpAddr::V4(ip) if ip.is_unspecified() => IpAddr::V4(Ipv4Addr::LOCALHOST),
+          IpAddr::V6(ip) if ip.is_unspecified() => IpAddr::V6(Ipv6Addr::LOCALHOST),
+          ip => ip,
+        };
+        RunnerHmr {
+          server,
+          events,
+          address: SocketAddr::new(ip, address.port()),
+          token: String::new(),
+        }
+      }),
+    }
+  }
+
+  /// Starts `entry`, stopping the running process first. With HMR, waits until the new process
+  /// has run its entry, so that pages reloaded afterwards reach it.
+  pub fn restart(&mut self, entry: PathId) {
+    self.stop();
+    let mut command = Command::new("node");
+    command
+      .arg("--enable-source-maps")
+      .arg(&*entry.to_path_buf().to_string_lossy());
+    if let Some(hmr) = &mut self.hmr {
+      hmr.token = format!(
+        "{:016x}",
+        std::collections::hash_map::RandomState::new().hash_one(std::time::SystemTime::now())
+      );
+      // The runtime connects to this instead of the HMR server browsers use, and its token tells
+      // the server which process is on the other end.
+      command.env(
+        "PARCEL_HMR_URL",
+        format!("ws://{}/?token={}", hmr.address, hmr.token),
+      );
+    }
+    match command.spawn() {
+      Ok(child) => self.child = Some(child),
+      Err(err) => {
+        eprintln!("Could not start node: {err}");
+        return;
+      }
+    }
+
+    self.wait_for(&[RunnerMessage::Ready], START_TIMEOUT);
+  }
+
+  /// Applies `update` to the running process, and restarts it with `entry` if the process doesn't
+  /// accept it. Returns once the process is running the new code.
+  pub fn update(&mut self, entry: PathId, update: &HmrUpdate) {
+    let sent = matches!(update, HmrUpdate::Update { .. })
+      && self
+        .hmr
+        .as_ref()
+        .is_some_and(|hmr| hmr.server.send_to_runner(&hmr.token, update));
+    let applied = sent
+      && self.wait_for(
+        &[
+          RunnerMessage::Updated,
+          RunnerMessage::Restart,
+          RunnerMessage::Disconnected,
+        ],
+        UPDATE_TIMEOUT,
+      ) == Some(RunnerMessage::Updated);
+    if !applied {
+      self.restart(entry);
+    }
+  }
+
+  /// Waits for one of `messages` from the current process. Returns `None` on timeout, or if the
+  /// process exits first.
+  fn wait_for(&mut self, messages: &[RunnerMessage], timeout: Duration) -> Option<RunnerMessage> {
+    let hmr = self.hmr.as_ref()?;
+    let deadline = Instant::now() + timeout;
+    loop {
+      let remaining = deadline.saturating_duration_since(Instant::now());
+      if remaining.is_zero() {
+        return None;
+      }
+      match hmr.events.recv_timeout(remaining.min(POLL_INTERVAL)) {
+        Ok(event) if event.token == hmr.token && messages.contains(&event.message) => {
+          return Some(event.message);
+        }
+        Ok(_) => {}
+        Err(RecvTimeoutError::Timeout) => {
+          let exited = self
+            .child
+            .as_mut()
+            .is_none_or(|child| !matches!(child.try_wait(), Ok(None)));
+          if exited {
+            return None;
+          }
+        }
+        Err(RecvTimeoutError::Disconnected) => return None,
+      }
+    }
+  }
+
+  pub fn stop(&mut self) {
+    let Some(mut child) = self.child.take() else {
+      return;
+    };
+    if let Ok(Some(_)) = child.try_wait() {
+      return;
+    }
+
+    // Let the process shut down cleanly (e.g. close its server so the port is free for the next
+    // one), but don't wait forever on one that ignores SIGTERM.
+    #[cfg(unix)]
+    {
+      unsafe { libc::kill(child.id() as libc::pid_t, libc::SIGTERM) };
+      let start = Instant::now();
+      while start.elapsed() < STOP_TIMEOUT {
+        if let Ok(Some(_)) = child.try_wait() {
+          return;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+      }
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+  }
+}
+
+impl Drop for NodeRunner {
+  fn drop(&mut self) {
+    self.stop();
+  }
+}
+
+/// The index of the bundle `parcel run` executes.
+pub fn node_entry(bundle_graph: &BundleGraph) -> Option<usize> {
+  bundle_graph.bundles.iter().position(|b| {
+    b.flags.contains(BundleFlags::ENTRY) && b.ty == AssetType::Js && b.target.environment.is_node()
+  })
+}
+
+/// The assets the process running `entry` may load: those in the entry and the JS bundles in its
+/// execution context, including client code it renders on the server.
+pub fn entry_context_assets(bundle_graph: &BundleGraph, entry: usize) -> FixedBitSet {
+  let mut assets = FixedBitSet::with_capacity(bundle_graph.asset_graph.assets.len());
+  let closure = bundle_graph.context_closure(&bundle_graph.bundles[entry]);
+  for &index in std::iter::once(&entry).chain(closure) {
+    let bundle = &bundle_graph.bundles[index];
+    if bundle.ty == AssetType::Js {
+      assets.extend(bundle.assets.iter().map(|asset| asset.index()));
+    }
+  }
+  assets
 }

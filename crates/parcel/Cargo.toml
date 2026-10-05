@@ -47,6 +47,9 @@ percent-encoding = "2.2.0"
 either = "1.17.0"
 anstyle = "*"
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 parcel_sourcemap = { version = "*", features = ["json"] }
 lightningcss = { version = "1.0.0-alpha.72", default-features = false, features = [

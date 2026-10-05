@@ -23,6 +23,10 @@ fn write_file(fs: &MemoryFileSystem, path: &str, contents: &str) {
 }
 
 fn setup(files: &[(&str, &str)]) -> (Parcel, Arc<MemoryFileSystem>) {
+  setup_entries(files, &["/project/index.js"])
+}
+
+fn setup_entries(files: &[(&str, &str)], entries: &[&str]) -> (Parcel, Arc<MemoryFileSystem>) {
   let input_fs = Arc::new(MemoryFileSystem::new());
   let output_fs = Arc::new(MemoryFileSystem::new());
   for (path, contents) in files {
@@ -49,7 +53,7 @@ fn setup(files: &[(&str, &str)]) -> (Parcel, Arc<MemoryFileSystem>) {
     reporters: Vec::new(),
   };
 
-  let entries = vec!["/project/index.js".to_string()];
+  let entries = entries.iter().map(|entry| entry.to_string()).collect();
   let mut parcel = make_parcel(&entries, options).expect("Parcel::new failed");
   parcel.build().expect("initial build failed");
   (parcel, input_fs)
@@ -129,10 +133,106 @@ fn hmr_reloads_when_config_changes() {
   let config = parcel.config.clone();
   let options = parcel.options.clone();
   let build_result = parcel.build_with_changes().expect("rebuild failed");
-  let update = parcel::hmr_update(true, &build_result, &config, &options);
+  let update = parcel::hmr_updates(true, &build_result, &config, &options, None).browser;
   assert_eq!(
     serde_json::to_value(update).unwrap(),
     serde_json::json!({"type": "reload"})
+  );
+}
+
+/// Rebuilds after changing `path`, and returns the updates for the process running the Node entry
+/// and for browsers.
+fn split_hmr_updates_after_change(
+  parcel: &mut Parcel,
+  input_fs: &MemoryFileSystem,
+  path: &str,
+  contents: &str,
+) -> (serde_json::Value, serde_json::Value) {
+  write_file(input_fs, path, contents);
+  parcel
+    .invalidate(&[PathId::new(Path::new(path))], &[], &[])
+    .expect("invalidate failed");
+  let config = parcel.config.clone();
+  let options = parcel.options.clone();
+  let result = parcel
+    .build_with_changes()
+    .expect("incremental build failed");
+  let entry = result
+    .bundle_graph
+    .bundles
+    .iter()
+    .position(|bundle| bundle.target.environment == Environment::Node);
+  assert!(entry.is_some());
+  let updates = parcel::hmr_updates(false, &result, &config, &options, entry);
+  (
+    serde_json::to_value(updates.server).unwrap(),
+    serde_json::to_value(updates.browser).unwrap(),
+  )
+}
+
+fn server_and_browser_project() -> (Parcel, Arc<MemoryFileSystem>) {
+  setup_entries(
+    &[
+      ("/project/package.json", r#"{"engines": {"node": ">=22"}}"#),
+      (
+        "/project/server.js",
+        "output(require('./message.js').message);",
+      ),
+      ("/project/message.js", "exports.message = 'server';"),
+      (
+        "/project/index.html",
+        r#"<script type="module" src="client.js"></script>"#,
+      ),
+      ("/project/client.js", "output('client');"),
+    ],
+    &["/project/server.js", "/project/index.html"],
+  )
+}
+
+fn update_asset_outputs(update: &serde_json::Value) -> Vec<String> {
+  update["assets"]
+    .as_array()
+    .unwrap()
+    .iter()
+    .map(|asset| asset["output"].as_str().unwrap().to_string())
+    .collect()
+}
+
+#[test]
+fn hmr_updates_send_browser_changes_only_to_browsers() {
+  let (mut parcel, input_fs) = server_and_browser_project();
+  let (server, browser) = split_hmr_updates_after_change(
+    &mut parcel,
+    &input_fs,
+    "/project/client.js",
+    "output('v2');",
+  );
+
+  assert_eq!(server, serde_json::Value::Null);
+  assert_eq!(browser["type"], "update");
+  assert_eq!(browser.get("serverChanged"), None);
+  let outputs = update_asset_outputs(&browser);
+  assert_eq!(outputs.len(), 1);
+  assert!(outputs[0].contains("output('v2')"));
+}
+
+#[test]
+fn hmr_updates_tell_browsers_when_server_code_changes() {
+  let (mut parcel, input_fs) = server_and_browser_project();
+  let (server, browser) = split_hmr_updates_after_change(
+    &mut parcel,
+    &input_fs,
+    "/project/message.js",
+    "exports.message = 'v2';",
+  );
+
+  assert_eq!(server["type"], "update");
+  let outputs = update_asset_outputs(&server);
+  assert_eq!(outputs.len(), 1);
+  assert!(outputs[0].contains("'v2'"));
+  assert_eq!(
+    browser,
+    serde_json::json!({"type": "update", "assets": [], "serverChanged": true})
   );
 }
 
@@ -491,6 +591,14 @@ impl HmrRuntimeTest {
         );
       });
     }
+  }
+
+  fn eval(&self, code: &str) {
+    self
+      .js_env
+      .context
+      .with(|ctx| ctx.eval::<(), _>(code))
+      .unwrap();
   }
 
   fn overlay_html(&self) -> Option<String> {
@@ -1086,4 +1194,54 @@ module.hot.accept(getParents => {
 
   assert!(hmr.reloaded());
   assert_eq!(hmr.outputs(), Vec::<serde_json::Value>::new());
+}
+
+/// Stubs the `window` events the runtime dispatches, recording them in `__events__`.
+const WINDOW_EVENTS: &str = "
+  globalThis.__events__ = [];
+  globalThis.CustomEvent = class {
+    constructor(type) { this.type = type; this.defaultPrevented = false; }
+    preventDefault() { this.defaultPrevented = true; }
+  };
+  globalThis.window = {
+    dispatchEvent(event) {
+      __events__.push(event.type);
+      if (event.type === 'parcelhmrreload' && globalThis.__prevent_reload__) {
+        event.preventDefault();
+      }
+      return !event.defaultPrevented;
+    },
+  };
+";
+
+#[test]
+fn hmr_runtime_reloads_when_server_code_changes() {
+  let hmr = HmrRuntimeTest::new(&[(
+    "/project/index.js",
+    "output('initial'); if (module.hot) module.hot.accept();",
+  )]);
+  hmr.eval(WINDOW_EVENTS);
+  hmr.handle_message(serde_json::json!({"type": "update", "assets": [], "serverChanged": true}));
+  assert!(hmr.reloaded());
+}
+
+#[test]
+fn hmr_runtime_lets_the_page_refresh_itself_when_server_code_changes() {
+  let hmr = HmrRuntimeTest::new(&[(
+    "/project/index.js",
+    "output('initial'); if (module.hot) module.hot.accept();",
+  )]);
+  hmr.eval(WINDOW_EVENTS);
+  hmr.eval("globalThis.__prevent_reload__ = true;");
+  hmr.handle_message(serde_json::json!({"type": "update", "assets": [], "serverChanged": true}));
+  assert!(!hmr.reloaded());
+  let events: Vec<String> = hmr
+    .js_env
+    .context
+    .with(|ctx| {
+      let events: Value = ctx.eval("globalThis.__events__")?;
+      Ok::<_, rquickjs::Error>(rquickjs_serde::from_value(events).unwrap())
+    })
+    .unwrap();
+  assert_eq!(events, ["parcelhmrreload", "parcelhmraccept"]);
 }

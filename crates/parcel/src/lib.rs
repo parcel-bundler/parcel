@@ -1,12 +1,16 @@
 use std::sync::Arc;
 
+use fixedbitset::FixedBitSet;
 use parcel_core::{
-  BuildOptions, BuildResult, BundleFlags, BundleGraph, DiagnosticList, InvalidateResult, Parcel,
+  BuildOptions, BuildResult, BundleGraph, DiagnosticList, HmrOptions, InvalidateResult, Parcel,
   ParcelConfig, ParcelOptions, PathId, PluginFactory,
 };
 use parcel_js::hmr::{HmrUpdate, get_hmr_update};
 
-use crate::{plugin_factory::DefaultPluginFactory, run::run_node};
+use crate::{
+  plugin_factory::DefaultPluginFactory,
+  run::{NodeRunner, entry_context_assets, node_entry},
+};
 
 pub use server::ServerOptions;
 
@@ -77,7 +81,7 @@ pub fn serve(
     &graph.asset_graph.entries[0].target.dist_dir.to_path_buf(),
     server_options,
     parcel.options.reporters.clone(),
-  );
+  )?;
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {
@@ -90,7 +94,10 @@ pub fn serve(
     let options = parcel.options.clone();
     match parcel.build_with_changes() {
       Ok(result) => {
-        if hmr && let Some(update) = hmr_update(config_changed, &result, &config, &options) {
+        if hmr
+          && let Some(update) =
+            hmr_updates(config_changed, &result, &config, &options, None).browser
+        {
           server.emit_hmr(&update);
         }
       }
@@ -105,52 +112,166 @@ pub fn serve(
   Ok(())
 }
 
-pub fn run(entries: &Vec<String>, options: BuildOptions) -> Result<(), DiagnosticList> {
+pub fn run(
+  entries: &Vec<String>,
+  mut options: BuildOptions,
+  server_options: ServerOptions,
+) -> Result<(), DiagnosticList> {
+  // The HMR server is started before building because its port is compiled into the bundles.
+  let hmr = if server_options.hmr {
+    let (server, address, events) = server::serve_hmr(&server_options)?;
+    options.hmr = Some(HmrOptions {
+      host: server_options.host.clone(),
+      port: address.port(),
+    });
+    Some((server, address, events))
+  } else {
+    None
+  };
+  let hmr_server = hmr.as_ref().map(|(server, _, _)| server.clone());
+
   let mut parcel = make_parcel(entries, options)?;
   let project_root = parcel.project_root();
+  let mut runner = NodeRunner::new(hmr);
 
   let graph = parcel.build()?;
-  let entry = graph
-    .bundles
-    .iter()
-    .find(|b| b.flags.contains(BundleFlags::ENTRY) && b.target.environment.is_node());
-  if let Some(entry) = entry {
-    run_node(entry.dist_path());
+  if let Some(entry) = node_entry(&graph) {
+    runner.restart(graph.bundles[entry].dist_path());
   }
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {
-    if invalidate_events(&mut parcel, &events).is_none() {
+    let Some(result) = invalidate_events(&mut parcel, &events) else {
       continue;
-    }
+    };
+    let config_changed = result.config_changed;
 
-    let _ = parcel.build();
+    let config = parcel.config.clone();
+    let options = parcel.options.clone();
+    match parcel.build_with_changes() {
+      Ok(result) => {
+        let entry = node_entry(&result.bundle_graph);
+        let updates = if hmr_server.is_some() {
+          hmr_updates(config_changed, &result, &config, &options, entry)
+        } else {
+          // Without HMR, the process is restarted whenever code it runs changes.
+          let changed = |entry| {
+            config_changed || result.output_paths_changed || {
+              let assets = entry_context_assets(&result.bundle_graph, entry);
+              result
+                .changed_assets
+                .iter()
+                .any(|asset| assets.contains(asset.index()))
+            }
+          };
+          HmrUpdates {
+            server: entry
+              .filter(|&entry| changed(entry))
+              .map(|_| HmrUpdate::Reload),
+            browser: None,
+          }
+        };
+
+        // Update the process before browsers, so that pages reloaded in response reach the new
+        // code.
+        match (entry, &updates.server) {
+          (Some(entry), Some(update)) => {
+            runner.update(result.bundle_graph.bundles[entry].dist_path(), update)
+          }
+          (Some(_), None) => {}
+          (None, _) => runner.stop(),
+        }
+
+        if let Some(server) = &hmr_server
+          && let Some(update) = &updates.browser
+        {
+          server.emit_hmr(update);
+        }
+      }
+      Err(e) => {
+        if let Some(server) = &hmr_server {
+          server.emit_hmr_error(&e);
+        }
+      }
+    }
   }
 
   Ok(())
 }
 
-/// The HMR message to send to the browser after a successful rebuild, if any.
-pub fn hmr_update<'a>(
+/// The HMR messages to send after a successful rebuild.
+pub struct HmrUpdates<'a> {
+  /// For the process running the server entry, if code it runs changed.
+  pub server: Option<HmrUpdate<'a>>,
+  /// For browsers.
+  pub browser: Option<HmrUpdate<'a>>,
+}
+
+/// Splits the changes of a rebuild into updates for the process running `server_entry` (see
+/// `parcel run`) and for browsers. Code both run, such as client components rendered on the
+/// server, is in both. Browsers are told when code only the server runs changed, so that they can
+/// refresh what it rendered.
+pub fn hmr_updates<'a>(
   config_changed: bool,
   result: &'a BuildResult<'a>,
   config: &'a ParcelConfig,
   options: &'a ParcelOptions,
-) -> Option<HmrUpdate<'a>> {
+  server_entry: Option<usize>,
+) -> HmrUpdates<'a> {
   // On a config change the Parcel was rebuilt from scratch, so there is no incremental update.
   if config_changed || result.output_paths_changed {
-    return Some(HmrUpdate::Reload);
+    return HmrUpdates {
+      server: server_entry.map(|_| HmrUpdate::Reload),
+      browser: Some(HmrUpdate::Reload),
+    };
   }
-  let changed_assets = result.changed_assets();
-  if changed_assets.is_empty() {
-    return None;
+
+  let graph = &result.bundle_graph;
+  let server_assets = server_entry.map(|entry| entry_context_assets(graph, entry));
+  let mut browser_assets = FixedBitSet::with_capacity(graph.asset_graph.assets.len());
+  for bundle in &graph.bundles {
+    if bundle.target.environment.is_browser() {
+      browser_assets.extend(bundle.assets.iter().map(|asset| asset.index()));
+    }
   }
-  Some(get_hmr_update(
-    changed_assets,
-    &result.bundle_graph,
-    config,
-    options,
-  ))
+
+  let mut server = Vec::new();
+  let mut browser = Vec::new();
+  let mut server_changed = false;
+  for (index, asset) in result.changed_assets() {
+    let in_browser = browser_assets.contains(index.index());
+    if server_assets
+      .as_ref()
+      .is_some_and(|assets| assets.contains(index.index()))
+    {
+      server.push((index, asset));
+      server_changed |= !in_browser;
+    }
+    if in_browser {
+      browser.push((index, asset));
+    }
+  }
+
+  let browser = if browser.is_empty() {
+    server_changed.then_some(HmrUpdate::Update {
+      assets: Vec::new(),
+      server_changed: true,
+    })
+  } else {
+    let mut update = get_hmr_update(browser, graph, config, options);
+    if let HmrUpdate::Update {
+      server_changed: changed,
+      ..
+    } = &mut update
+    {
+      *changed = server_changed;
+    }
+    Some(update)
+  };
+  HmrUpdates {
+    server: (!server.is_empty()).then(|| get_hmr_update(server, graph, config, options)),
+    browser,
+  }
 }
 
 /// Invalidates the files changed by watcher `events`, returning `None` if there is nothing to

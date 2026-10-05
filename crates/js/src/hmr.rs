@@ -12,8 +12,13 @@ use crate::packager::{BundleShim, Resolution, SyntheticAsset, asset_dependencies
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum HmrUpdate<'a> {
   Reload,
+  #[serde(rename_all = "camelCase")]
   Update {
     assets: Vec<HmrAsset<'a>>,
+    /// Set for browsers when code that only runs on the server changed, so pages rendered by it
+    /// should be refreshed. See `parcelhmrreload` in the runtime.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    server_changed: bool,
   },
   Error {
     diagnostics: parcel_core::RenderedDiagnostics,
@@ -34,7 +39,6 @@ pub struct HmrAsset<'a> {
   #[serde(rename = "type")]
   ty: AssetType,
   output: String,
-  env_hash: String,
   output_format: OutputFormat,
   deps_by_bundle: HashMap<String, IndexMap<String, Resolution<'a>>>,
 }
@@ -109,8 +113,6 @@ pub fn get_hmr_update<'a>(
       id: Id::Asset(asset.id(&bundle_graph.project_root)),
       ty: asset.ty.clone(),
       output,
-      // TODO: needed to filter out assets that come from a different target, preventing page reload.
-      env_hash: "TODO".into(),
       output_format: asset.target.output_format.clone(),
       deps_by_bundle,
     });
@@ -172,11 +174,13 @@ pub fn get_hmr_update<'a>(
         .map(|bundle| bundle_graph.bundles[bundle as usize].ty.clone())
         .unwrap_or(AssetType::Js),
       output,
-      env_hash: "TODO".into(),
       output_format: OutputFormat::Esmodule,
       deps_by_bundle,
     });
   }
 
-  HmrUpdate::Update { assets }
+  HmrUpdate::Update {
+    assets,
+    server_changed: false,
+  }
 }

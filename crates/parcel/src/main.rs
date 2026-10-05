@@ -87,6 +87,14 @@ fn help(command: Option<Command>) -> String {
       "  --no-hmr              Disable hot module replacement\n",
     ));
   }
+  if command.is_none() || command == Some(Command::Run) {
+    help.push_str(concat!(
+      "\nHMR options (run):\n",
+      "  --hmr-port <port>     Set the HMR server port (default: a free port)\n",
+      "  --host <host>         Set the HMR server host (default: 0.0.0.0)\n",
+      "  --no-hmr              Disable hot module replacement\n",
+    ));
+  }
   help
 }
 
@@ -153,6 +161,7 @@ fn parse_args(
 
   let mut entries = Vec::new();
   let mut port_provided = false;
+  let mut hmr_port = None;
   while let Some(arg) = args.next() {
     if arg.starts_with('-') {
       match arg.as_str() {
@@ -183,6 +192,10 @@ fn parse_args(
           let port = argument_value(&arg, &mut args)?;
           server_options.port = parse_port(&port, &arg)?;
           port_provided = true;
+        }
+        "--hmr-port" => {
+          let port = argument_value(&arg, &mut args)?;
+          hmr_port = Some(parse_port(&port, &arg)?);
         }
         "--host" => {
           server_options.host = Cow::Owned(argument_value(&arg, &mut args)?);
@@ -225,6 +238,20 @@ fn parse_args(
 
   if entries.is_empty() {
     entries.push(".".into());
+  }
+
+  if hmr_port.is_some() && command != Command::Run {
+    return Err("--hmr-port is only supported by run".into());
+  }
+  if command == Command::Run {
+    if port_provided {
+      return Err(
+        "--port is not supported by run. Use --hmr-port to set the HMR server port".into(),
+      );
+    }
+    // The HMR server shares nothing with the process being run, whose own port is typically set
+    // by PORT, so it binds a free port unless told otherwise.
+    server_options.port = hmr_port.unwrap_or(0);
   }
 
   if command == Command::Serve {
@@ -298,7 +325,7 @@ pub fn main() -> ExitCode {
     Command::Build => parcel::build(&entries, options).map(|_| ()),
     Command::Watch => parcel::watch(&entries, options),
     Command::Serve => parcel::serve(&entries, options, server_options),
-    Command::Run => parcel::run(&entries, options),
+    Command::Run => parcel::run(&entries, options, server_options),
     Command::Targets => {
       let entries = parcel_core::resolve_entries(&entries, &options).unwrap();
       println!("{:#?}", entries);
