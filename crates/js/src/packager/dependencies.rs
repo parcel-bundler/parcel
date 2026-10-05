@@ -176,8 +176,8 @@ pub(super) fn manifest_entries(
   }
   let mut entries: Vec<(String, String)> = bundle_graph
     .context_closure(bundle)
-    .into_iter()
-    .map(|index| &bundle_graph.bundles[index])
+    .iter()
+    .map(|&index| &bundle_graph.bundles[index])
     .filter(|target| target.has_final_path())
     .map(|target| (target.stable_key(), target.name()))
     .filter(|(stable_key, name)| stable_key != name)

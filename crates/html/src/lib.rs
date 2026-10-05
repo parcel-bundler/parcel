@@ -493,7 +493,7 @@ fn hosted_roots<'a>(bundle_graph: &'a BundleGraph, bundle: &'a Bundle) -> Vec<&'
 fn manifest_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
   hosted_roots(bundle_graph, bundle)
     .into_iter()
-    .flat_map(|root| bundle_graph.context_closure(root))
+    .flat_map(|root| bundle_graph.context_closure(root).iter().copied())
     .collect()
 }
 

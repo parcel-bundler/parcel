@@ -267,21 +267,27 @@ pub(crate) fn package_bundles(
 ) -> Result<Packaged, DiagnosticList> {
   let bundles = &bundle_graph.bundles;
 
-  // Declared dependencies of every bundle, including inline bundles.
-  let declared = bundles
-    .par_iter()
-    .map(|bundle| packaging_plan(config, bundle_graph, bundle).map(|(_, _, declared)| declared))
-    .collect::<Result<Vec<_>, _>>()?;
-
-  // Inline bundles are packaged inside the bundles that embed them, so their dependencies are
-  // their embedders' dependencies. Only pending, written bundles constrain the order.
+  // Only content hashed (pending) bundles constrain the order, since only their names wait on
+  // packaging.
   let pending: Vec<bool> = bundles
     .iter()
     .map(|bundle| is_content_hashed(bundle, options))
     .collect();
+
+  // Declared dependencies of every bundle, including inline bundles, which are packaged inside the
+  // bundles that embed them, so their dependencies are their embedders' dependencies. Without
+  // content hashing (e.g. in development) nothing waits, so there's no need to ask.
+  let declared = if pending.contains(&true) {
+    bundles
+      .par_iter()
+      .map(|bundle| packaging_plan(config, bundle_graph, bundle).map(|(_, _, declared)| declared))
+      .collect::<Result<Vec<_>, _>>()?
+  } else {
+    vec![Vec::new(); bundles.len()]
+  };
   let dependencies: Vec<Vec<usize>> = (0..bundles.len())
     .map(|index| {
-      if bundles[index].bundle_behavior == BundleBehavior::Inline {
+      if bundles[index].bundle_behavior == BundleBehavior::Inline || declared[index].is_empty() {
         return Vec::new();
       }
       let mut dependencies = Vec::new();

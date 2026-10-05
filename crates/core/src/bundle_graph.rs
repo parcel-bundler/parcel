@@ -57,6 +57,13 @@ pub struct BundleGraph<'a> {
   /// Assets that evaluate asynchronously (see `is_async_asset`), computed on first use. `None`
   /// when no asset contains top-level await, which is almost always.
   async_assets: OnceLock<Option<FixedBitSet>>,
+  /// The bundles each asset's dependencies resolve to, in dependency order (see
+  /// `bundle_dependency_targets`), computed on first use. Indexed by asset index.
+  asset_bundle_targets: OnceLock<Vec<Box<[u32]>>>,
+  /// Bundle indices by bundle id, computed on first use.
+  bundle_indices: OnceLock<HashMap<u64, u32>>,
+  /// Each bundle's `context_closure`, computed on first use. Indexed by bundle index.
+  context_closures: OnceLock<Vec<OnceLock<Box<[usize]>>>>,
 }
 
 impl<'a> BundleGraph<'a> {
@@ -74,6 +81,9 @@ impl<'a> BundleGraph<'a> {
       referrers: OnceLock::new(),
       first_bundles: OnceLock::new(),
       async_assets: OnceLock::new(),
+      asset_bundle_targets: OnceLock::new(),
+      bundle_indices: OnceLock::new(),
+      context_closures: OnceLock::new(),
     }
   }
 
@@ -157,24 +167,53 @@ impl<'a> BundleGraph<'a> {
     &'b self,
     bundle: &'b Bundle,
   ) -> impl Iterator<Item = usize> + 'b {
-    bundle.assets.iter().flat_map(move |&asset_index| {
-      let dependency_count = self.asset_graph.asset(asset_index).dependencies.len();
-      (0..dependency_count).filter_map(move |dependency_index| {
-        match self.dependency_resolution(asset_index, dependency_index) {
-          BundleGraphDependencyResolution::Bundle { bundle_index, .. } => {
-            Some(bundle_index as usize)
-          }
-          _ => None,
+    // Only the bundler's resolutions point at bundles, so index them once rather than looking up
+    // every dependency of every asset.
+    let targets = self.asset_bundle_targets.get_or_init(|| {
+      let mut targets: Vec<Vec<(usize, u32)>> = vec![Vec::new(); self.asset_graph.assets.len()];
+      for (id, resolution) in &self.dependency_resolutions {
+        if let BundleGraphDependencyResolution::Bundle { bundle_index, .. } = resolution {
+          targets[id.asset.index()].push((id.dependency, *bundle_index));
         }
-      })
-    })
+      }
+      targets
+        .into_iter()
+        .map(|mut asset_targets| {
+          asset_targets.sort_unstable();
+          asset_targets
+            .into_iter()
+            .map(|(_, bundle)| bundle)
+            .collect()
+        })
+        .collect()
+    });
+    bundle
+      .assets
+      .iter()
+      .flat_map(move |asset_index| targets[asset_index.index()].iter())
+      .map(|&bundle_index| bundle_index as usize)
   }
 
   /// Bundles that code in `root`'s execution context may load or resolve by stable key (see
   /// `Bundle::is_context_root`): everything reachable through bundle references and Parcel's
   /// loader, without entering other contexts. Workers, URL imports and other roots are included,
   /// but not their contents. The runtime resolves these through a manifest.
-  pub fn context_closure(&self, root: &Bundle) -> Vec<usize> {
+  pub fn context_closure(&self, root: &Bundle) -> &[usize] {
+    let indices = self.bundle_indices.get_or_init(|| {
+      self
+        .bundles
+        .iter()
+        .enumerate()
+        .map(|(index, bundle)| (bundle.id, index as u32))
+        .collect()
+    });
+    let closures = self
+      .context_closures
+      .get_or_init(|| (0..self.bundles.len()).map(|_| OnceLock::new()).collect());
+    closures[indices[&root.id] as usize].get_or_init(|| self.compute_context_closure(root).into())
+  }
+
+  fn compute_context_closure(&self, root: &Bundle) -> Vec<usize> {
     let mut closure = Vec::new();
     let mut visited = vec![false; self.bundles.len()];
     let mut stack: Vec<usize> = self
