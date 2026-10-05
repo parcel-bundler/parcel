@@ -47,7 +47,6 @@ impl Internalization {
     roots: &BundleRoots,
     reachability: &Reachability,
     availability: &AvailabilityGraph,
-    manual_roots: &FixedBitSet,
   ) -> Self {
     // A JS module's presence alone does not prove its CSS/parallel resources
     // loaded. Compute this once because the synchronous topology is immutable.
@@ -79,7 +78,7 @@ impl Internalization {
       .collect();
     for (root, asset) in roots.iter_all() {
       if roots.root_bundle_behavior(root) == BundleBehavior::None
-        && !manual_roots.contains(asset.index())
+        && roots.manual_shared_bundle(asset).is_none()
         && availability
           .synchronous_classes(root)
           .is_disjoint(resource_classes.bits())

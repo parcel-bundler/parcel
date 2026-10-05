@@ -404,6 +404,7 @@ struct Model<'a> {
 pub(super) fn optimize(
   config: &DefaultBundler,
   graph: &AssetGraph,
+  bundle_roots: &BundleRoots,
   bundles: &mut Vec<Bundle>,
   root_bundles: &HashMap<AssetIndex, RootBundle>,
   resolutions: &mut HashMap<DependencyId, BundleGraphDependencyResolution>,
@@ -450,11 +451,11 @@ pub(super) fn optimize(
   for (index, bundle) in bundles.iter().enumerate() {
     let can_host = bundle.ty == AssetType::Js
       && bundle.bundle_behavior == BundleBehavior::None
-      && !bundle.assets.iter().chain(&bundle.entry_assets).any(|&a| {
-        config
-          .manual_shared_bundle(graph.asset(a), options)
-          .is_some()
-      });
+      && !bundle
+        .assets
+        .iter()
+        .chain(&bundle.entry_assets)
+        .any(|&a| bundle_roots.manual_shared_bundle(a).is_some());
     hosts.set(index, can_host);
     if !can_host
       || bundle.main_entry_asset.is_some()

@@ -55,7 +55,7 @@ pub(super) fn plan(
   bundle_roots: &BundleRoots,
   needed_roots: &Reachability,
   options: &ParcelOptions,
-  plannable: impl Fn(&Asset) -> bool,
+  plannable: impl Fn(AssetIndex) -> bool,
 ) -> StylePlan {
   let mut analysis = OrderAnalysis::new(asset_graph, |asset| {
     let asset = asset_graph.asset(asset);
@@ -94,7 +94,7 @@ pub(super) fn plan(
       // bundle per entry). Planned classmates join them via slot binding.
       if group_of.contains_key(&asset_index)
         || bundle_roots.is_bundle_root(asset_index)
-        || !plannable(asset)
+        || !plannable(asset_index)
       {
         continue;
       }

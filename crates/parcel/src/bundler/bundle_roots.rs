@@ -3,7 +3,8 @@ use indexmap::IndexMap;
 
 use super::bit_matrix::{AsBitRow, BitRow};
 use parcel_core::{
-  AssetGraph, AssetIndex, BundleBehavior, DependencyFlags, Environment, Priority, SpecifierType,
+  Asset, AssetGraph, AssetIndex, BundleBehavior, DependencyFlags, Environment, Priority,
+  SpecifierType,
 };
 
 pub struct BundleRoots {
@@ -25,10 +26,17 @@ pub struct BundleRoots {
   mandatory_roots: FixedBitSet,
   // Effective behavior per root, combining asset metadata with incoming dependency overrides.
   bundle_behaviors: Vec<BundleBehavior>,
+  // Asset index -> index of the first `manualSharedBundles` rule matching it, or u8::MAX.
+  manual_bundles: Vec<u8>,
 }
 
 impl BundleRoots {
-  pub fn from_asset_graph(asset_graph: &AssetGraph) -> BundleRoots {
+  /// `manual_shared_bundle` returns the `manualSharedBundles` rule an asset matches, if any. It's
+  /// asked once per live asset; look the answer up with `BundleRoots::manual_shared_bundle`.
+  pub fn from_asset_graph(
+    asset_graph: &AssetGraph,
+    manual_shared_bundle: impl Fn(&Asset) -> Option<u8>,
+  ) -> BundleRoots {
     let mut bundle_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
     let mut entry_assets = FixedBitSet::with_capacity(asset_graph.assets.len());
     let mut mandatory_assets = FixedBitSet::with_capacity(asset_graph.assets.len());
@@ -55,8 +63,14 @@ impl BundleRoots {
       .map(|asset| asset.bundle_behavior)
       .collect::<Vec<_>>();
 
+    let mut manual_bundles = vec![u8::MAX; asset_graph.assets.len()];
+
     // Use dfs so we only process live assets, not deleted assets from a previous build.
     for (asset_index, asset, _) in asset_graph.dfs() {
+      if let Some(rule) = manual_shared_bundle(asset) {
+        manual_bundles[asset_index.index()] = rule;
+      }
+
       if asset_bundle_behaviors[asset_index.index()] != BundleBehavior::None {
         bundle_roots.insert(asset_index.index());
         mandatory_assets.insert(asset_index.index());
@@ -170,7 +184,17 @@ impl BundleRoots {
       entry_roots,
       mandatory_roots,
       bundle_behaviors,
+      manual_bundles,
     }
+  }
+
+  // The `manualSharedBundles` rule `asset` matches, if any.
+  pub fn manual_shared_bundle(&self, asset: AssetIndex) -> Option<usize> {
+    self
+      .manual_bundles
+      .get(asset.index())
+      .filter(|&&rule| rule != u8::MAX)
+      .map(|&rule| rule as usize)
   }
 
   // Number of stable dense root IDs, including roots removed by internalization.

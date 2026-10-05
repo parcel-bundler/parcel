@@ -272,11 +272,14 @@ fn availability_filters_requirements_and_preserves_bundle_roots() {
   let shared = g.asset(&[0, 1, 2]);
   g.groups = vec![(0, vec![edge(1, Lazy)]), (1, vec![edge(2, Lazy)])];
   let (reachability, graph) = g.compressed();
-  let roots = BundleRoots::from_asset_graph(&asset_graph(
-    g.memberships.len(),
-    &[0],
-    &[(0, 1, Priority::Lazy), (0, 2, Priority::Lazy)],
-  ));
+  let roots = BundleRoots::from_asset_graph(
+    &asset_graph(
+      g.memberships.len(),
+      &[0],
+      &[(0, 1, Priority::Lazy), (0, 2, Priority::Lazy)],
+    ),
+    |_| None,
+  );
   let needed = graph.needed_roots(reachability, &roots, &graph.solve());
   assert_eq!(
     needed.reachable_roots(AssetIndex::from_index(shared)),
@@ -379,7 +382,7 @@ fn availability_state_reuses_rows_with_stable_root_ids() {
     .collect();
 
   let roots_graph = asset_graph(3, &[0], &[(0, 1, Priority::Lazy), (0, 2, Priority::Lazy)]);
-  let mut roots = BundleRoots::from_asset_graph(&roots_graph);
+  let mut roots = BundleRoots::from_asset_graph(&roots_graph, |_| None);
   state.solve(&graph, &roots);
   roots.deactivate(1);
   let available = state.solve(&graph, &roots);
@@ -399,7 +402,7 @@ fn availability_state_reuses_rows_with_stable_root_ids() {
 #[test]
 fn deactivating_a_root_does_not_renumber_surviving_roots() {
   let graph = asset_graph(3, &[0], &[(0, 1, Priority::Lazy), (0, 2, Priority::Lazy)]);
-  let mut roots = BundleRoots::from_asset_graph(&graph);
+  let mut roots = BundleRoots::from_asset_graph(&graph, |_| None);
   assert_eq!(roots.root_index(AssetIndex(2)), Some(2));
   roots.deactivate(1);
   assert_eq!(
@@ -437,7 +440,7 @@ fn concurrent_asset_graph(
 #[test]
 fn concurrent_roots_follow_independent_roots_and_deduplicate_members() {
   let graph = concurrent_asset_graph(4, &[0], &[(0, 1, 1), (0, 2, 1), (0, 1, 1), (0, 3, 0)]);
-  let roots = BundleRoots::from_asset_graph(&graph);
+  let roots = BundleRoots::from_asset_graph(&graph, |_| None);
   assert_eq!(roots.len(), 3);
   assert_eq!(roots.members(0), &[AssetIndex(0)]);
   assert_eq!(roots.members(1), &[AssetIndex(3)]);
@@ -479,7 +482,7 @@ fn concurrent_roots_keep_targets_from_multiple_sites_independent() {
       (0, 6, 2),
     ],
   );
-  let roots = BundleRoots::from_asset_graph(&graph);
+  let roots = BundleRoots::from_asset_graph(&graph, |_| None);
   assert_eq!(roots.len(), 7);
   for asset in [0, 1, 2, 3, 4, 7].map(AssetIndex) {
     assert_eq!(roots.members(roots.root_index(asset).unwrap()), &[asset]);
@@ -506,7 +509,7 @@ fn independent_references_do_not_discard_concurrent_peers() {
       );
       graph.assets.to_mut()[0].dependencies[3].priority = Priority::Sync;
       graph.assets.to_mut()[4].dependencies[0].priority = priority;
-      let roots = BundleRoots::from_asset_graph(&graph);
+      let roots = BundleRoots::from_asset_graph(&graph, |_| None);
       assert_eq!(roots.len(), 3);
       assert_eq!(roots.members(1), &[AssetIndex::from_index(independent)]);
       assert_eq!(
@@ -534,7 +537,7 @@ fn concurrent_roots_preserve_environment_and_behavior_boundaries() {
       Environment::WebWorker;
   }
   graph.assets.to_mut()[0].dependencies[6].bundle_behavior = BundleBehavior::Isolated;
-  let roots = BundleRoots::from_asset_graph(&graph);
+  let roots = BundleRoots::from_asset_graph(&graph, |_| None);
   assert_eq!(roots.len(), 4);
   assert_eq!(roots.members(0), &[AssetIndex(0)]);
   assert_eq!(roots.members(1), &[AssetIndex(7)]);
@@ -619,7 +622,7 @@ fn asset_graph(
 }
 
 fn analyze(graph: &AssetGraph) -> (BundleRoots, Reachability, BitMatrix) {
-  let roots = BundleRoots::from_asset_graph(graph);
+  let roots = BundleRoots::from_asset_graph(graph, |_| None);
   let reachability = Reachability::from_bundle_roots(graph, &roots);
   let available = AvailabilityGraph::from_asset_graph(graph, &roots, &reachability).solve();
   (roots, reachability, available)
@@ -1275,7 +1278,7 @@ fn synchronous_reachability_matches_independent_walks_through_root_cycles() {
       edges.push((source, target, priority));
     }
     let graph = asset_graph(30, &[0, 1], &edges);
-    let roots = BundleRoots::from_asset_graph(&graph);
+    let roots = BundleRoots::from_asset_graph(&graph, |_| None);
     let reachability = Reachability::from_bundle_roots(&graph, &roots);
     for (root_index, root) in roots.iter_active() {
       let mut visited = [false; 30];
@@ -1309,7 +1312,7 @@ fn synchronous_reachability_handles_deep_graphs_and_already_visited_roots() {
   let mut edges: Vec<_> = (0..count - 1).map(|a| (a, a + 1, Priority::Sync)).collect();
   edges.extend((500..count).step_by(500).map(|a| (0, a, Priority::Lazy)));
   let graph = asset_graph(count, &[0], &edges);
-  let roots = BundleRoots::from_asset_graph(&graph);
+  let roots = BundleRoots::from_asset_graph(&graph, |_| None);
   let reachability = Reachability::from_bundle_roots(&graph, &roots);
   assert_eq!(roots.len(), 40);
   assert_eq!(
@@ -1441,10 +1444,10 @@ fn css_order_diagnostics_distinguish_locations_only_when_needed() {
       ..Default::default()
     });
     reporters.attach(Arc::downgrade(&options));
-    let roots = BundleRoots::from_asset_graph(&graph);
+    let roots = BundleRoots::from_asset_graph(&graph, |_| None);
     let reachability = Reachability::from_bundle_roots(&graph, &roots);
     style_order::plan(&graph, &roots, &reachability, &options, |a| {
-      a.ty == AssetType::Css
+      graph.asset(a).ty == AssetType::Css
     });
     let diagnostics = warnings.0.lock().unwrap();
     assert_eq!(diagnostics.len(), 1);

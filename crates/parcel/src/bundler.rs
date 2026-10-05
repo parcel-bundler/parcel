@@ -5,7 +5,7 @@ use glob_match::glob_match;
 use parcel_core::{
   Asset, AssetGraph, AssetIndex, AssetType, BuildMode, Bundle, BundleBehavior, BundleFlags,
   BundleGraph, BundleGraphDependencyResolution, Bundler, ContentType, DependencyFlags,
-  DependencyId, DiagnosticList, Environment, EnvironmentFlags, ParcelOptions, Priority,
+  DependencyId, Diagnostic, DiagnosticList, Environment, EnvironmentFlags, ParcelOptions, Priority,
   SpecifierType,
 };
 
@@ -93,7 +93,7 @@ impl DefaultBundler {
     Ok(())
   }
 
-  fn manual_shared_bundle(&self, asset: &Asset, options: &ParcelOptions) -> Option<usize> {
+  fn manual_shared_bundle(&self, asset: &Asset, options: &ParcelOptions) -> Option<u8> {
     if self.manual_shared_bundles.is_empty() {
       return None;
     }
@@ -108,13 +108,17 @@ impl DefaultBundler {
     };
     let path = path.to_string_lossy();
 
-    self.manual_shared_bundles.iter().position(|b| {
-      if b.types.is_empty() || b.types.contains(&asset.ty) {
-        return b.assets.iter().any(|a| glob_match(a, &path));
-      }
+    self
+      .manual_shared_bundles
+      .iter()
+      .position(|b| {
+        if b.types.is_empty() || b.types.contains(&asset.ty) {
+          return b.assets.iter().any(|a| glob_match(a, &path));
+        }
 
-      false
-    })
+        false
+      })
+      .map(|i| i as u8)
   }
 }
 
@@ -182,23 +186,18 @@ impl Bundler for DefaultBundler {
       return LibraryBundler {}.bundle(asset_graph, options);
     }
 
+    if self.manual_shared_bundles.len() >= u8::MAX as usize {
+      return Err(Diagnostic::from_message("Too many manual shared bundles".into()).into());
+    }
+
     let mut bundles = Vec::<Bundle>::new();
     let mut dependency_resolutions = HashMap::new();
 
     // Step 1: Traverse the asset graph and find bundle roots.
     // A bundle root is created for entries, and lazy, parallel, isolated, or inline dependencies.
-    let mut bundle_roots = BundleRoots::from_asset_graph(&asset_graph);
-
-    // Explicit manual bundles keep their loading boundaries and grouping policy.
-    let mut manual_roots = FixedBitSet::with_capacity(asset_graph.assets.len());
-    for (_, root) in bundle_roots.iter_members() {
-      if self
-        .manual_shared_bundle(asset_graph.asset(root), options)
-        .is_some()
-      {
-        manual_roots.insert(root.index());
-      }
-    }
+    let mut bundle_roots = BundleRoots::from_asset_graph(&asset_graph, |asset| {
+      self.manual_shared_bundle(asset, options)
+    });
 
     // The synchronous graph and original root universe remain fixed while
     // internalization only deactivates loading contexts. Keep the initial class
@@ -208,13 +207,8 @@ impl Bundler for DefaultBundler {
     let availability =
       AvailabilityGraph::from_asset_graph(&asset_graph, &bundle_roots, &reachability);
     let mut availability_state = AvailabilityState::new(&availability);
-    let mut internalization = Internalization::new(
-      &asset_graph,
-      &bundle_roots,
-      &reachability,
-      &availability,
-      &manual_roots,
-    );
+    let mut internalization =
+      Internalization::new(&asset_graph, &bundle_roots, &reachability, &availability);
     let needed_roots = loop {
       let available = availability_state.solve(&availability, &bundle_roots);
       if !internalization.run(
@@ -260,7 +254,7 @@ impl Bundler for DefaultBundler {
     // Create bundles for each bundle root first.
     for (root_index, bundle_root_asset_index) in bundle_roots.iter_active() {
       let asset = &asset_graph.asset(bundle_root_asset_index);
-      let key = if let Some(index) = self.manual_shared_bundle(asset, options) {
+      let key = if let Some(index) = bundle_roots.manual_shared_bundle(bundle_root_asset_index) {
         BundleKey::Manual {
           index,
           packager: asset.content.ty(),
@@ -381,7 +375,10 @@ impl Bundler for DefaultBundler {
       &bundle_roots,
       &needed_roots,
       options,
-      |asset| asset.ty == AssetType::Css && self.manual_shared_bundle(asset, options).is_none(),
+      |asset| {
+        asset_graph.asset(asset).ty == AssetType::Css
+          && bundle_roots.manual_shared_bundle(asset).is_none()
+      },
     );
     let mut slot_bundles: Vec<Option<usize>> = vec![None; style_plan.segments.len()];
     // A segment that immediately precedes a stylesheet root in every
@@ -458,7 +455,7 @@ impl Bundler for DefaultBundler {
         continue;
       }
 
-      let key = if let Some(index) = self.manual_shared_bundle(asset, options) {
+      let key = if let Some(index) = bundle_roots.manual_shared_bundle(asset_index) {
         BundleKey::Manual {
           index,
           packager: asset.content.ty(),
@@ -598,6 +595,7 @@ impl Bundler for DefaultBundler {
       optimizer::optimize(
         self,
         &asset_graph,
+        &bundle_roots,
         &mut bundles,
         &root_bundles,
         &mut dependency_resolutions,
