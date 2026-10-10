@@ -3119,6 +3119,7 @@ name = "parcel-js"
 version = "0.1.0"
 dependencies = [
  "bytecount",
+ "data-encoding",
  "fixedbitset",
  "glob-match",
  "indexmap 2.14.0",

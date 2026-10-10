@@ -2,11 +2,14 @@ use std::{collections::HashMap, fmt::Write};
 
 use indexmap::{IndexMap, IndexSet};
 use parcel_core::{
-  Asset, AssetIndex, AssetType, BundleGraph, OutputFormat, ParcelConfig, ParcelOptions,
+  Asset, AssetIndex, AssetType, BundleGraph, OutputFormat, ParcelConfig, ParcelOptions, PathId,
   get_bundle_content,
 };
 
-use crate::packager::{BundleShim, Resolution, SyntheticAsset, asset_dependencies};
+use crate::{
+  JsContent,
+  packager::{BundleShim, Resolution, SyntheticAsset, asset_dependencies},
+};
 
 #[derive(serde::Serialize, Debug)]
 #[serde(tag = "type", rename_all = "lowercase")]
@@ -102,11 +105,7 @@ pub fn get_hmr_update<'a>(
 
     let mut output = String::new();
     if asset.ty == AssetType::Js {
-      output = format!(
-        "parcelHotUpdate['{}'] = function (module, exports, require) {{{}}}",
-        asset.id(&bundle_graph.project_root),
-        asset.content.read_string().unwrap()
-      );
+      output = hot_update_code(asset, &bundle_graph.project_root);
     }
 
     assets.push(HmrAsset {
@@ -183,4 +182,34 @@ pub fn get_hmr_update<'a>(
     assets,
     server_changed: false,
   }
+}
+
+/// Wraps `asset`'s code so that evaluating it registers the new module factory. The runtime evals
+/// the update, so its source map is inlined, and the `sourceURL` names the evaluated script in
+/// stack traces and devtools.
+fn hot_update_code(asset: &Asset, project_root: &PathId) -> String {
+  let id = asset.id(project_root);
+  let (code, map) = match asset.content.downcast_ref::<JsContent>() {
+    Some(content) => content
+      .to_code(&content.ast, asset.target.source_map.is_some(), false)
+      .unwrap(),
+    None => (asset.content.read().unwrap(), None),
+  };
+
+  // The code starts on its own line so that the map only needs a line offset, and ends on one so
+  // that a trailing line comment can't swallow the closing brace.
+  let mut output = format!("parcelHotUpdate['{id}'] = function (module, exports, require) {{\n");
+  output.push_str(std::str::from_utf8(&code).unwrap());
+  output.push_str("\n}");
+  if let Some(map) = map {
+    let map =
+      format!(r#"{{"version":3,"sections":[{{"offset":{{"line":1,"column":0}},"map":{map}}}]}}"#);
+    write!(
+      &mut output,
+      "\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,{}\n//# sourceURL=/__parcel_hmr/{id}",
+      data_encoding::BASE64.encode(map.as_bytes())
+    )
+    .unwrap();
+  }
+  output
 }

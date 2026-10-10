@@ -406,12 +406,14 @@ var protocol =
 var parent = parcelRequire.parent;
 // Safari doesn't support sourceURL in error stacks.
 // eval may also be disabled via CSP, so do a quick check.
-var supportsSourceURL = true; // TODO
-// try {
-//   (0, eval)('throw new Error("test"); //# sourceURL=test.js');
-// } catch (err) {
-//   supportsSourceURL = err.stack.includes('test.js');
-// }
+var supportsSourceURL = true;
+if (HMR_ENABLED) {
+  try {
+    (0, eval)('throw new Error("test"); //# sourceURL=test.js');
+  } catch (err) {
+    supportsSourceURL = String(err.stack).includes('test.js');
+  }
+}
 
 if (HMR_ENABLED && (!parent || !parent.isParcelRequire)) {
   // Web extension context
@@ -747,35 +749,58 @@ function reloadCSS() {
   }, 50);
 }
 
+// Loads an update as a script from a blob URL, so that stack traces have line numbers and devtools
+// apply its source map. Returns null if there's no way to load a script, in which case it is
+// evaluated instead.
 function hmrDownload(asset) {
-  if (asset.type === 'js') {
-    if (typeof document !== 'undefined') {
-      let script = document.createElement('script');
-      script.src = asset.url + '?t=' + Date.now();
-      if (asset.outputFormat === 'esmodule') {
-        script.type = 'module';
-      }
-      return new Promise((resolve, reject) => {
-        script.onload = () => resolve(script);
-        script.onerror = reject;
-        document.head?.appendChild(script);
-      });
-    } else if (typeof importScripts === 'function') {
-      // Worker scripts
-      if (asset.outputFormat === 'esmodule') {
-        return __parcel__import__(asset.url + '?t=' + Date.now());
-      } else {
-        return new Promise((resolve, reject) => {
-          try {
-            __parcel__importScripts__(asset.url + '?t=' + Date.now());
-            resolve();
-          } catch (err) {
-            reject(err);
-          }
-        });
-      }
-    }
+  if (asset.type !== 'js') {
+    return null;
   }
+
+  if (typeof document !== 'undefined' && document.head) {
+    let url = URL.createObjectURL(
+      new Blob([asset.output], {type: 'text/javascript'}),
+    );
+    let script = document.createElement('script');
+    script.src = url;
+    return new Promise((resolve, reject) => {
+      script.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(script);
+      };
+      script.onerror = err => {
+        URL.revokeObjectURL(url);
+        reject(err);
+      };
+      document.head.appendChild(script);
+    });
+  } else if (typeof importScripts === 'function') {
+    // Worker scripts
+    let url = URL.createObjectURL(
+      new Blob([asset.output], {type: 'text/javascript'}),
+    );
+    // Module workers don't support importScripts.
+    let load =
+      asset.outputFormat === 'esmodule'
+        ? import(url)
+        : new Promise(resolve => {
+            importScripts(url);
+            resolve();
+          });
+    // There's no script to remove afterward.
+    return load.then(
+      () => {
+        URL.revokeObjectURL(url);
+        return null;
+      },
+      err => {
+        URL.revokeObjectURL(url);
+        throw err;
+      },
+    );
+  }
+
+  return null;
 }
 
 async function hmrApplyUpdates(assets) {
@@ -784,9 +809,9 @@ async function hmrApplyUpdates(assets) {
   let scriptsToRemove;
   try {
     // If sourceURL comments aren't supported in eval, we need to load
-    // the update from the dev server over HTTP so that stack traces
-    // are correct in errors/logs. This is much slower than eval, so
-    // we only do it if needed (currently just Safari).
+    // the update as a script so that stack traces are correct in
+    // errors/logs. This is slower than eval, so we only do it if
+    // needed (currently just Safari).
     // https://bugs.webkit.org/show_bug.cgi?id=137297
     // This path is also taken if a CSP disallows eval.
     if (!supportsSourceURL) {
@@ -798,7 +823,7 @@ async function hmrApplyUpdates(assets) {
             extCtx.runtime &&
             extCtx.runtime.getManifest().manifest_version == 3 &&
             typeof ServiceWorkerGlobalScope != 'undefined' &&
-            global instanceof ServiceWorkerGlobalScope
+            globalThis instanceof ServiceWorkerGlobalScope
           ) {
             extCtx.runtime.reload();
             return;
@@ -852,7 +877,8 @@ function hmrApply(bundle /*: ParcelRequire */, asset /*:  HMRAsset */) {
         }
       }
 
-      if (supportsSourceURL) {
+      // Updates that weren't loaded as scripts are evaluated, once for all bundles.
+      if (!globalThis.parcelHotUpdate[asset.id]) {
         // Global eval. We would use `new Function` here but browser
         // support for source maps is better with eval.
         (0, eval)(asset.output);

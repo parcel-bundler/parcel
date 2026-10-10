@@ -803,7 +803,18 @@ fn write_runtime_globals(
       true,
     )?;
     if let Some(hmr) = &options.hmr {
-      printer.write_var("HMR_HOST", &serde_json::to_string(&hmr.host)?, true)?;
+      // A wildcard address such as 0.0.0.0 is where the server listens, not an address clients can
+      // connect to (Safari refuses to), so the runtime uses the page's host instead.
+      let is_wildcard = hmr
+        .host
+        .parse::<std::net::IpAddr>()
+        .is_ok_and(|ip| ip.is_unspecified());
+      let host = if is_wildcard {
+        "null".into()
+      } else {
+        serde_json::to_string(&hmr.host)?
+      };
+      printer.write_var("HMR_HOST", &host, true)?;
       printer.write_var("HMR_PORT", &serde_json::to_string(&hmr.port)?, true)?;
     } else {
       printer.write_var("HMR_HOST", "null", true)?;

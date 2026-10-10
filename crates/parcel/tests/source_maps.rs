@@ -5,9 +5,10 @@ use std::{
 };
 
 use parcel_core::{
-  AssetType, BuildMode, BuildOptions, FileSystem, LogLevel, MemoryFileSystem, OverlayFileSystem,
-  PathId,
+  AssetType, BuildMode, BuildOptions, FileSystem, HmrOptions, LogLevel, MemoryFileSystem,
+  OverlayFileSystem, PathId,
 };
+use parcel_js::hmr::get_hmr_update;
 use parcel_sourcemap::SourceMap;
 
 const INDEX_JS: &str = r#"import { getMessage } from "./dep.mjs";
@@ -217,6 +218,76 @@ fn assert_babel_source_map(mode: BuildMode, minify: Option<bool>) {
     "babel-source-map-token",
     "index.js",
     BABEL_INDEX,
+  );
+}
+
+const HMR_INDEX_JS: &str = r#"import { getMessage } from "./dep.mjs";
+
+globalThis.output = "hmr-source-map-token" + ":" + getMessage();
+"#;
+
+#[test]
+fn hmr_update_source_map_points_to_original_code() {
+  let (fs, project_root) = fixture_fs();
+  let fs = Arc::new(fs);
+  let mut parcel = parcel::make_parcel(
+    &vec!["index.html".into()],
+    BuildOptions {
+      mode: BuildMode::Development,
+      optimize: None,
+      content_hash: None,
+      source_map: Some(Default::default()),
+      env: HashMap::from([("NODE_ENV".into(), "test".into())]),
+      log_level: LogLevel::Verbose,
+      input_fs: fs.clone(),
+      output_fs: Arc::new(MemoryFileSystem::new()),
+      config: None,
+      cwd: PathId::new(&project_root),
+      dist_dir: None,
+      public_url: Default::default(),
+      hmr: Some(HmrOptions {
+        host: "0.0.0.0".into(),
+        port: 1234,
+      }),
+      reporters: Vec::new(),
+    },
+  )
+  .unwrap();
+  parcel.build().unwrap();
+
+  let index = project_root.join("index.mjs");
+  write_fixture(&fs, &index, HMR_INDEX_JS);
+  parcel.invalidate(&[PathId::new(&index)], &[], &[]).unwrap();
+  let config = parcel.config.clone();
+  let options = parcel.options.clone();
+  let result = parcel.build_with_changes().unwrap();
+  let update = get_hmr_update(
+    result.changed_assets(),
+    &result.bundle_graph,
+    &config,
+    &options,
+  );
+  let update = serde_json::to_value(update).unwrap();
+  let output = update["assets"]
+    .as_array()
+    .unwrap()
+    .iter()
+    .map(|asset| asset["output"].as_str().unwrap())
+    .find(|output| output.contains("hmr-source-map-token"))
+    .unwrap();
+
+  let (code, comments) = output
+    .split_once("\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,")
+    .expect("update has an inline source map");
+  let (map, source_url) = comments.split_once("\n//# sourceURL=").unwrap();
+  assert!(source_url.starts_with("/__parcel_hmr/"));
+  let map = String::from_utf8(data_encoding::BASE64.decode(map.as_bytes()).unwrap()).unwrap();
+
+  assert_generated_token_maps_to_original(
+    &[(code.to_string(), map)],
+    "hmr-source-map-token",
+    "index.mjs",
+    HMR_INDEX_JS,
   );
 }
 
