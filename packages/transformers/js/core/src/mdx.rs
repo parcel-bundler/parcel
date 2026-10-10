@@ -19,18 +19,18 @@ use mdxjs::{
 use parcel_macros::{Evaluator, JsValue};
 use rustc_hash::FxHashSet;
 use swc_core::{
-  common::{DUMMY_SP, SourceMap, comments::Comments, sync::Lrc},
+  common::{DUMMY_SP, GLOBALS, Globals, Mark, SourceMap, comments::Comments, sync::Lrc},
   ecma::{
     ast::{
       ArrayLit, BindingIdent, CallExpr, Callee, Decl, ExportDecl, ExportDefaultExpr,
       ExportSpecifier, Expr, ExprOrSpread, Ident, JSXAttrName, JSXAttrOrSpread, JSXAttrValue,
-      JSXElement, JSXElementName, JSXExpr, JSXExprContainer, JSXOpeningElement, Lit, Module,
-      ModuleDecl, ModuleItem, ObjectLit, Pat, PropOrSpread, Stmt, VarDecl, VarDeclKind,
-      VarDeclarator,
+      JSXElementName, JSXExpr, JSXExprContainer, JSXOpeningElement, Lit, Module, ModuleDecl,
+      ModuleItem, Pat, Stmt, VarDecl, VarDeclKind, VarDeclarator,
     },
     atoms::Atom as JsWord,
     codegen::to_code,
     parser::{EsSyntax, Parser, StringInput, Syntax, TsSyntax, lexer::Lexer},
+    transforms::base::{hygiene::hygiene, resolver},
     utils::for_each_binding_ident,
     visit::{VisitMut, VisitMutWith},
   },
@@ -385,14 +385,22 @@ fn parse_code_block(code: &Code, assets: &mut Vec<MdxAsset>) -> Option<Node> {
         {
           if matches!(lang.as_str(), "js" | "jsx" | "ts" | "tsx") {
             if let AttributeContent::Property(attr) = &mut element.attributes[attr_idx] {
+              let (block_code, is_component) = transform_js_code_block(&code.value, lang);
+              // A component is rendered here, so the example module only exports the component.
+              // That lets React Refresh update it in place.
+              let import = format!("__parcelMdxImport{}", assets.len());
               attr.value = Some(AttributeValue::Expression(AttributeValueExpression {
-                value: format!("__parcelMdxImport{}", assets.len()),
+                value: if is_component {
+                  format!("<{} />", import)
+                } else {
+                  import
+                },
                 stops: vec![],
               }));
 
               assets.push(MdxAsset {
                 lang: lang.clone(),
-                code: transform_js_code_block(&code.value, lang),
+                code: block_code,
                 position: code.position.clone(),
               });
             }
@@ -419,7 +427,10 @@ fn parse_code_block(code: &Code, assets: &mut Vec<MdxAsset>) -> Option<Node> {
   None
 }
 
-fn transform_js_code_block(code: &str, lang: &str) -> String {
+/// Exports the code block's last declaration or expression if it has no default export. Returns the
+/// code, and whether its default export is now a component, which the page renders, rather than a
+/// value it renders as is.
+fn transform_js_code_block(code: &str, lang: &str) -> (String, bool) {
   let code = code.to_owned();
   let source_map = Lrc::new(SourceMap::default());
   let source_file =
@@ -443,62 +454,88 @@ fn transform_js_code_block(code: &str, lang: &str) -> String {
   );
 
   let mut parser = Parser::new_from(lexer);
-  match parser.parse_module() {
-    Err(_) => code,
-    Ok(mut module) => {
-      // Export the last declaration or expression if there are no explicit exports.
-      if !has_default_export(&module) {
-        let mut export_name = None;
-        for item in module.body.iter_mut().rev() {
-          match item {
-            ModuleItem::Stmt(Stmt::Decl(decl)) => {
-              match decl {
-                Decl::Class(c) => {
-                  export_name = Some(c.ident.clone());
-                }
-                Decl::Fn(f) => {
-                  export_name = Some(f.ident.clone());
-                }
-                _ => continue,
-              }
-              break;
-            }
-            ModuleItem::Stmt(Stmt::Expr(expr)) => {
-              *item = ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
-                expr: expr.expr.clone(),
-                span: expr.span,
-              }));
-              break;
-            }
-            _ => {}
-          }
-        }
+  let mut module = match parser.parse_module() {
+    Err(_) => return (code, false),
+    Ok(module) => module,
+  };
 
-        if let Some(export_name) = export_name {
-          module
-            .body
-            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(
-              ExportDefaultExpr {
-                expr: Box::new(Expr::JSXElement(Box::new(JSXElement {
-                  opening: JSXOpeningElement {
-                    name: JSXElementName::Ident(export_name),
-                    attrs: vec![],
-                    self_closing: true,
-                    type_args: None,
-                    span: DUMMY_SP,
-                  },
-                  children: vec![],
-                  closing: None,
-                  span: DUMMY_SP,
-                }))),
-                span: DUMMY_SP,
-              },
-            )));
+  // The added export refers to identifiers with their syntax contexts, and `hygiene` renames the
+  // wrapper component if its name is taken.
+  let globals = Globals::new();
+  GLOBALS.set(&globals, || {
+    let unresolved_mark = Mark::new();
+    let top_level_mark = Mark::new();
+    module.visit_mut_with(&mut resolver(
+      unresolved_mark,
+      top_level_mark,
+      lang == "ts" || lang == "tsx",
+    ));
+
+    // Export the last declaration or expression if there are no explicit exports.
+    let mut is_component = false;
+    if !has_default_export(&module) {
+      // React Refresh requires component names to start with a capital letter.
+      let wrapper_name = Ident::new_private("Example".into(), DUMMY_SP);
+      let mut export_name = None;
+      for item in module.body.iter_mut().rev() {
+        match item {
+          ModuleItem::Stmt(Stmt::Decl(decl)) => {
+            match decl {
+              Decl::Class(c) => {
+                export_name = Some(c.ident.clone());
+              }
+              Decl::Fn(f) => {
+                export_name = Some(f.ident.clone());
+              }
+              _ => continue,
+            }
+            break;
+          }
+          ModuleItem::Stmt(Stmt::Expr(expr)) => {
+            let value = expr.expr.clone();
+            *item = if is_jsx(&value) {
+              // Wrapped in a component so that React Refresh can update it.
+              is_component = true;
+              quote!(
+                "export default function $name() { return $value; }" as ModuleItem,
+                name = wrapper_name,
+                value: Expr = *value,
+              )
+            } else {
+              ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
+                expr: value,
+                span: expr.span,
+              }))
+            };
+            break;
+          }
+          _ => {}
         }
       }
 
-      to_code(&module)
+      if let Some(export_name) = export_name {
+        is_component = true;
+        module
+          .body
+          .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(
+            ExportDefaultExpr {
+              expr: Box::new(Expr::Ident(export_name)),
+              span: DUMMY_SP,
+            },
+          )));
+      }
     }
+
+    module.visit_mut_with(&mut hygiene());
+    (to_code(&module), is_component)
+  })
+}
+
+fn is_jsx(expr: &Expr) -> bool {
+  match expr {
+    Expr::JSXElement(_) | Expr::JSXFragment(_) => true,
+    Expr::Paren(paren) => is_jsx(&paren.expr),
+    _ => false,
   }
 }
 
@@ -565,5 +602,60 @@ mod tests {
 
     assert_eq!(result.assets.len(), 1);
     assert!(to_code(&result.module).contains(r#"from "@parcel/parcel3/src/mdx-components""#));
+  }
+
+  /// Compiles a page with one rendered code block, returning the block's code and the page's.
+  fn render_code_block(block: &str) -> (String, String) {
+    let result = mdx(&Config {
+      filename: "index.mdx".into(),
+      code: format!("```jsx render\n{}\n```", block).into_bytes(),
+      ..Default::default()
+    })
+    .unwrap();
+    assert_eq!(result.assets.len(), 1);
+    (result.assets[0].code.clone(), to_code(&result.module))
+  }
+
+  #[test]
+  fn code_block_exports_its_last_declaration_as_a_component() {
+    let (block, page) = render_code_block("function Example() { return <div />; }");
+    assert!(block.contains("export default Example;"), "{block}");
+    // The page renders it.
+    assert!(page.contains("render={<__parcelMdxImport0/>}"), "{page}");
+  }
+
+  #[test]
+  fn code_block_wraps_its_last_jsx_expression_in_a_component() {
+    let (block, page) = render_code_block("<div>hi</div>");
+    assert!(
+      block.contains("export default function Example() {\n    return <div>hi</div>;"),
+      "{block}"
+    );
+    assert!(page.contains("render={<__parcelMdxImport0/>}"), "{page}");
+  }
+
+  #[test]
+  fn code_block_component_wrapper_does_not_conflict_with_its_declarations() {
+    let (block, _) =
+      render_code_block("function Example({children}) { return children; }\n<Example>hi</Example>");
+    assert!(block.contains("function Example({ children })"), "{block}");
+    assert!(
+      block.contains("export default function Example1() {\n    return <Example>hi</Example>;"),
+      "{block}"
+    );
+  }
+
+  #[test]
+  fn code_block_exports_other_last_expressions_as_values() {
+    let (block, page) = render_code_block("'hello'");
+    assert!(block.contains("export default 'hello';"), "{block}");
+    assert!(page.contains("render={__parcelMdxImport0}"), "{page}");
+  }
+
+  #[test]
+  fn code_block_keeps_an_explicit_default_export() {
+    let (block, page) = render_code_block("export default <div />;");
+    assert!(block.contains("export default <div/>;"), "{block}");
+    assert!(page.contains("render={__parcelMdxImport0}"), "{page}");
   }
 }
