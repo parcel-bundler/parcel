@@ -561,6 +561,19 @@ fn async_boundary_diagnostic(
 }
 
 impl RscModule {
+  /// The asset this module requires by id, if any.
+  pub(super) fn required_asset(&self) -> Option<AssetIndex> {
+    match self {
+      RscModule::Resources { plan, .. } => Some(plan.original_asset),
+      RscModule::ServerReference {
+        original,
+        is_client: false,
+        ..
+      } => Some(*original),
+      _ => None,
+    }
+  }
+
   /// For a module that requires an async module synchronously, how the async module evaluator runs
   /// it (see `tla-runtime.js`).
   pub(super) fn async_registration(

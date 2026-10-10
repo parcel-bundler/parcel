@@ -166,6 +166,14 @@ impl SyntheticAsset {
           Resolution::Asset(BundleShim::Async(*asset).id(*bundle, bundle_graph)),
         );
       }
+      // The HMR runtime finds a module's importers through these, so it can bubble updates to the
+      // modules that imported the original through this one.
+      SyntheticAsset::Rsc(module) => {
+        if let Some(original) = module.required_asset() {
+          let asset = &bundle_graph.asset_graph.asset(original);
+          dependencies.insert("original".into(), Resolution::Asset(asset.id(project_root)));
+        }
+      }
       _ => {}
     }
 
