@@ -758,9 +758,11 @@ impl<'a> ResolveRequest<'a> {
   }
 
   fn resolve_node_module(&self, module: &str, subpath: &str) -> Result<Resolution, ResolverError> {
-    let package_dir = self
-      .resolver
-      .resolve_package_dir(module, *self.from, self.fs)?;
+    let package_dir = self.resolver.resolve_package_dir(
+      module,
+      self.from.parent().unwrap_or(*self.from),
+      self.fs,
+    )?;
     self.resolve_package(package_dir, module, subpath)
   }
 

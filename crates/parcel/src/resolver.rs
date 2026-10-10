@@ -78,9 +78,19 @@ impl Resolver for DefaultResolver {
       Cow::Borrowed(&dep.target.include_node_modules)
     };
 
+    // The resolver treats `from` as a file and searches from its parent directory, so resolve
+    // relative to a placeholder file inside directory URLs.
+    let from = match resolve_from {
+      SourceUrl::Path {
+        path,
+        is_directory: true,
+        ..
+      } => path.child("index"),
+      _ => resolve_from.to_file_path()?,
+    };
     let mut res = resolver.resolve_with_options(
       specifier,
-      resolve_from.to_file_path()?,
+      from,
       match dep.specifier_type {
         SpecifierType::Esm => parcel_resolver::SpecifierType::Esm,
         SpecifierType::Commonjs => parcel_resolver::SpecifierType::Cjs,
