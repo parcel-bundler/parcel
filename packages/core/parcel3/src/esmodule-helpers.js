@@ -3,7 +3,7 @@ exports.interopDefault = function (a) {
 };
 
 exports.defineInteropFlag = function (a) {
-  Object.defineProperty(a, '__esModule', {value: true});
+  Object.defineProperty(a, '__esModule', {value: true, configurable: true});
 };
 
 exports.exportAll = function (source, dest) {
@@ -18,6 +18,7 @@ exports.exportAll = function (source, dest) {
 
     Object.defineProperty(dest, key, {
       enumerable: true,
+      configurable: true,
       get: function () {
         return source[key];
       },
@@ -30,6 +31,7 @@ exports.exportAll = function (source, dest) {
 exports.export = function (dest, destName, get) {
   Object.defineProperty(dest, destName, {
     enumerable: true,
+    configurable: true,
     get: get,
   });
 };

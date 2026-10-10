@@ -80,6 +80,16 @@ function parcelRequire(name, jumped) {
       localRequire,
       globalThis,
     );
+
+    // A module that replaced its exports object (e.g. `module.exports = ...`) can't be updated in
+    // place, so importers that kept the previous one get its previous properties back.
+    var previous = module._previousExports;
+    if (previous) {
+      module._previousExports = undefined;
+      if (module.exports !== previous.exports) {
+        Object.defineProperties(previous.exports, previous.descriptors);
+      }
+    }
   }
 
   return cache[name].exports;
@@ -157,6 +167,9 @@ parcelRequire.distDir = distDir;
 parcelRequire.publicUrl = publicUrl;
 parcelRequire.i = importMap;
 parcelRequire.hotData = {};
+// The exports objects of disposed modules, by id, which they are re-run into. Shared by all bundles,
+// like `cache`, since a module may be disposed through a different bundle than the one defining it.
+parcelRequire.hotExports = previousRequire.hotExports || {};
 
 Object.defineProperty(parcelRequire, 'root', {
   get: function () {
@@ -285,12 +298,49 @@ function Module(moduleName) {
     return;
   }
 
+  // Re-run a disposed module into its previous exports object, so importers that kept it (including
+  // dynamic imports, which resolve to it once) see the new exports when they next read them.
+  var exports = parcelRequire.hotExports[moduleName];
+  if (exports) {
+    parcelRequire.hotExports[moduleName] = undefined;
+    var descriptors = clearExports(exports);
+    if (descriptors) {
+      this.exports = exports;
+      this._previousExports = {exports: exports, descriptors: descriptors};
+    }
+  }
+  // Only this object is reused. One the module replaces it with may be shared with other code.
+  this._ownExports = this.exports;
+
+  var module = this;
   this.hot = {
     data: parcelRequire.hotData[moduleName],
     _acceptCallbacks: [],
+    // Callbacks for accepted updates to dependencies, by dependency id.
+    _acceptedDependencies: {},
     _disposeCallbacks: [],
-    accept: function (fn) {
-      this._acceptCallbacks.push(fn || function () {});
+    // `accept(callback)` accepts updates to this module, which is re-run, and then the callback is
+    // called. `accept(dependencies, callback)` accepts updates to the given dependencies (with the
+    // same specifiers as their imports), which are re-run, and then the callback is called with
+    // their ids. This module isn't re-run.
+    accept: function (dependencies, fn) {
+      if (typeof dependencies === 'string' || Array.isArray(dependencies)) {
+        var callback = fn || function () {};
+        [].concat(dependencies).forEach(function (dependency) {
+          var id = module.require.resolve
+            ? module.require.resolve(dependency)
+            : dependency;
+          if (typeof id === 'string') {
+            var callbacks = this._acceptedDependencies[id];
+            if (!callbacks) {
+              callbacks = this._acceptedDependencies[id] = [];
+            }
+            callbacks.push(callback);
+          }
+        }, this);
+      } else {
+        this._acceptCallbacks.push(dependencies || function () {});
+      }
     },
     dispose: function (fn) {
       this._disposeCallbacks.push(fn);
@@ -299,10 +349,30 @@ function Module(moduleName) {
   parcelRequire.hotData[moduleName] = undefined;
 }
 
+// Removes all properties from a disposed module's exports object, returning their descriptors.
+// Returns null if one can't be removed, in which case the module gets a new object instead.
+function clearExports(exports) {
+  if (!Object.isExtensible(exports)) {
+    return null;
+  }
+  var descriptors = Object.getOwnPropertyDescriptors(exports);
+  for (var key in descriptors) {
+    if (!descriptors[key].configurable) {
+      return null;
+    }
+  }
+  for (var key2 in descriptors) {
+    delete exports[key2];
+  }
+  return descriptors;
+}
+
 var checkedAssets /*: {|[string]: boolean|} */,
   disposedAssets /*: {|[string]: boolean|} */,
   assetsToDispose /*: Array<[ParcelRequire, string]> */,
   assetsToAccept /*: Array<[ParcelRequire, string]> */,
+  // Accepted dependency updates: the accepting module's bundle, its id, and the dependency's id.
+  dependenciesToAccept /*: Array<[ParcelRequire, string, string]> */,
   // Set by `fullReload` when the process started by `parcel run` must be restarted.
   restartRequested = false;
 
@@ -428,6 +498,7 @@ async function handleMessage(data /*: HMRMessage */) {
   checkedAssets = ({} /*: {|[string]: boolean|} */);
   disposedAssets = ({} /*: {|[string]: boolean|} */);
   assetsToAccept = [];
+  dependenciesToAccept = [];
   assetsToDispose = [];
 
   if (data.type === 'reload') {
@@ -485,6 +556,8 @@ async function handleMessage(data /*: HMRMessage */) {
           processedAssets[id] = true;
         }
       }
+
+      hmrAcceptDependencies();
     } else fullReload();
   }
 
@@ -839,27 +912,72 @@ function hmrAcceptCheck(
   }
 
   // Traverse parents breadth first. All possible ancestries must accept the HMR update, or we'll reload.
-  let parents = getParents(parcelRequire.root, id);
+  // Each entry is a parent's bundle and id, and the bundle and id of the child it was reached from.
+  let parents = getParents(parcelRequire.root, id).map(p => [
+    p[0],
+    p[1],
+    bundle,
+    id,
+  ]);
   let accepted = false;
   while (parents.length > 0) {
-    let v = parents.shift();
-    let a = hmrAcceptCheckOne(v[0], v[1], null);
+    let [parentBundle, parentId, childBundle, childId] = parents.shift();
+    let a =
+      hmrAcceptsDependency(parentBundle, parentId, childBundle, childId) ||
+      hmrAcceptCheckOne(parentBundle, parentId, null);
     if (a) {
       // If this parent accepts, stop traversing upward, but still consider siblings.
       accepted = true;
     } else if (a !== null) {
       // Otherwise, queue the parents in the next level upward.
-      let p = getParents(parcelRequire.root, v[1]);
+      let p = getParents(parcelRequire.root, parentId);
       if (p.length === 0) {
         // If there are no parents, then we've reached an entry without accepting. Reload.
         accepted = false;
         break;
       }
-      parents.push(...p);
+      parents.push(...p.map(q => [q[0], q[1], parentBundle, parentId]));
     }
   }
 
   return accepted;
+}
+
+// Whether the parent accepts updates to the child. If so, the child is re-run, but the parent isn't.
+function hmrAcceptsDependency(
+  parentBundle /*: ParcelRequire */,
+  parentId /*: string */,
+  childBundle /*: ParcelRequire */,
+  childId /*: string */,
+) {
+  var cached = parentBundle.cache[parentId];
+  if (cached && cached.hot && cached.hot._acceptedDependencies[childId]) {
+    assetsToAccept.push([childBundle, childId]);
+    dependenciesToAccept.push([parentBundle, parentId, childId]);
+    return true;
+  }
+
+  return false;
+}
+
+// Calls each callback for accepted dependency updates once, with the ids of the updated dependencies.
+function hmrAcceptDependencies() {
+  let calls = new Map();
+  for (let [bundle, parentId, childId] of dependenciesToAccept) {
+    let cached = bundle.cache[parentId];
+    let callbacks = cached && cached.hot._acceptedDependencies[childId];
+    for (let callback of callbacks || []) {
+      let ids = calls.get(callback);
+      if (!ids) {
+        calls.set(callback, (ids = []));
+      }
+      if (!ids.includes(childId)) {
+        ids.push(childId);
+      }
+    }
+  }
+  dependenciesToAccept = [];
+  calls.forEach((ids, callback) => callback(ids));
 }
 
 function hmrAcceptCheckOne(
@@ -930,6 +1048,9 @@ function hmrDispose(bundle /*: ParcelRequire */, id /*: string */) {
     });
   }
 
+  if (cached && cached.exports === cached._ownExports) {
+    bundle.hotExports[id] = cached.exports;
+  }
   delete bundle.cache[id];
 }
 

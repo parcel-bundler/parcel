@@ -1245,3 +1245,259 @@ fn hmr_runtime_lets_the_page_refresh_itself_when_server_code_changes() {
     .unwrap();
   assert_eq!(events, ["parcelhmrreload", "parcelhmraccept"]);
 }
+
+#[test]
+fn hmr_runtime_reruns_modules_into_their_exports_object() {
+  let mut hmr = HmrRuntimeTest::new(&[
+    (
+      "/project/index.js",
+      "let local = require('./local.js');
+globalThis.read = () => output([local.value, local.removed]);",
+    ),
+    (
+      "/project/local.js",
+      "exports.value = 1; exports.removed = true; if (module.hot) module.hot.accept();",
+    ),
+  ]);
+
+  hmr.update(&[(
+    "/project/local.js",
+    "exports.value = 2; if (module.hot) module.hot.accept();",
+  )]);
+  hmr.eval("globalThis.read()");
+
+  assert!(!hmr.reloaded());
+  // `index.js` didn't re-run, but reads the new exports through the object it kept.
+  assert_eq!(hmr.outputs(), vec![serde_json::json!([2, null])]);
+}
+
+#[test]
+fn hmr_runtime_keeps_previous_exports_when_a_module_replaces_them() {
+  let mut hmr = HmrRuntimeTest::new(&[
+    (
+      "/project/index.js",
+      "let local = require('./local.js');
+globalThis.read = () => output(local.value);",
+    ),
+    (
+      "/project/local.js",
+      "exports.value = 1; if (module.hot) module.hot.accept();",
+    ),
+  ]);
+
+  hmr.update(&[(
+    "/project/local.js",
+    "module.exports = {value: 2}; if (module.hot) module.hot.accept();",
+  )]);
+  hmr.eval("globalThis.read()");
+
+  assert!(!hmr.reloaded());
+  assert_eq!(hmr.outputs(), vec![serde_json::json!(1)]);
+}
+
+#[test]
+fn hmr_runtime_uses_a_new_exports_object_when_the_previous_one_cannot_be_cleared() {
+  let mut hmr = HmrRuntimeTest::new(&[
+    (
+      "/project/index.js",
+      "let local = require('./local.js');
+globalThis.read = () => output(local.value);",
+    ),
+    (
+      "/project/local.js",
+      "Object.defineProperty(exports, 'value', {value: 1, enumerable: true});
+if (module.hot) module.hot.accept();",
+    ),
+  ]);
+
+  hmr.update(&[(
+    "/project/local.js",
+    "Object.defineProperty(exports, 'value', {value: 2, enumerable: true});
+output(['local', exports.value]);
+if (module.hot) module.hot.accept();",
+  )]);
+  hmr.eval("globalThis.read()");
+
+  assert!(!hmr.reloaded());
+  assert_eq!(
+    hmr.outputs(),
+    vec![serde_json::json!(["local", 2]), serde_json::json!(1)]
+  );
+}
+
+/// Parcel's ESM helpers, which modules with named imports or exports require.
+const ESM_HELPERS: [(&str, &str); 2] = [
+  (
+    "/project/node_modules/@parcel/parcel3/package.json",
+    r#"{"name": "@parcel/parcel3"}"#,
+  ),
+  (
+    "/project/node_modules/@parcel/parcel3/src/esmodule-helpers.js",
+    include_str!("../../../packages/core/parcel3/src/esmodule-helpers.js"),
+  ),
+];
+
+#[test]
+fn hmr_runtime_supports_accepting_dependency_updates() {
+  let mut hmr = HmrRuntimeTest::new(&[
+    ESM_HELPERS[0],
+    ESM_HELPERS[1],
+    (
+      "/project/index.js",
+      "import {value} from './local.js';
+output('index');
+globalThis.read = () => output(['read', value]);
+if (module.hot) module.hot.accept('./local.js', ids => output(['accepted', ids.length]));",
+    ),
+    (
+      "/project/local.js",
+      "export const value = 1; output('local');",
+    ),
+  ]);
+
+  hmr.update(&[(
+    "/project/local.js",
+    "export const value = 2; output('local');",
+  )]);
+  hmr.eval("globalThis.read()");
+
+  assert!(!hmr.reloaded());
+  // `local.js` re-runs, but `index.js` doesn't. It reads the new value through its import.
+  assert_eq!(
+    hmr.outputs(),
+    vec![
+      serde_json::json!("local"),
+      serde_json::json!("index"),
+      serde_json::json!("local"),
+      serde_json::json!(["accepted", 1]),
+      serde_json::json!(["read", 2]),
+    ]
+  );
+}
+
+#[test]
+fn hmr_runtime_bubbles_updates_to_parents_accepting_dependencies() {
+  let mut hmr = HmrRuntimeTest::new(&[
+    ESM_HELPERS[0],
+    ESM_HELPERS[1],
+    (
+      "/project/index.js",
+      "import {value} from './middle.js';
+globalThis.read = () => output(['read', value]);
+if (module.hot) module.hot.accept(['./middle.js'], () => output('accepted'));",
+    ),
+    (
+      "/project/middle.js",
+      "import {value as leaf} from './leaf.js'; export const value = leaf; output('middle');",
+    ),
+    ("/project/leaf.js", "export const value = 1;"),
+  ]);
+
+  hmr.update(&[("/project/leaf.js", "export const value = 2;")]);
+  hmr.eval("globalThis.read()");
+
+  assert!(!hmr.reloaded());
+  // `middle.js` copied the value from `leaf.js` when it ran, so it re-runs too.
+  assert_eq!(
+    hmr.outputs(),
+    vec![
+      serde_json::json!("middle"),
+      serde_json::json!("middle"),
+      serde_json::json!("accepted"),
+      serde_json::json!(["read", 2]),
+    ]
+  );
+}
+
+#[test]
+fn hmr_runtime_reloads_if_only_one_importer_accepts_a_dependency() {
+  let mut hmr = HmrRuntimeTest::new(&[
+    ESM_HELPERS[0],
+    ESM_HELPERS[1],
+    ("/project/index.js", "import './a.js'; import './b.js';"),
+    (
+      "/project/a.js",
+      "import './shared.js'; if (module.hot) module.hot.accept('./shared.js', () => output('accepted'));",
+    ),
+    ("/project/b.js", "import './shared.js';"),
+    ("/project/shared.js", "export const value = 1;"),
+  ]);
+
+  hmr.update(&[("/project/shared.js", "export const value = 2;")]);
+
+  assert!(hmr.reloaded());
+}
+
+#[test]
+fn hmr_runtime_calls_dependency_accept_callbacks_once() {
+  let mut hmr = HmrRuntimeTest::new(&[
+    ESM_HELPERS[0],
+    ESM_HELPERS[1],
+    (
+      "/project/index.js",
+      "import './a.js'; import './b.js';
+if (module.hot) module.hot.accept(['./a.js', './b.js'], ids => output(ids.length));",
+    ),
+    ("/project/a.js", "export const value = 1;"),
+    ("/project/b.js", "export const value = 1;"),
+  ]);
+
+  hmr.update(&[
+    ("/project/a.js", "export const value = 2;"),
+    ("/project/b.js", "export const value = 2;"),
+  ]);
+
+  assert!(!hmr.reloaded());
+  assert_eq!(hmr.outputs(), vec![serde_json::json!(2)]);
+}
+
+#[test]
+fn hmr_runtime_does_not_reuse_exports_a_module_replaced() {
+  let mut hmr = HmrRuntimeTest::new(&[
+    (
+      "/project/index.js",
+      "globalThis.shared = {value: 1};
+let local = require('./local.js');
+globalThis.read = () => output([local.value, globalThis.shared.value]);",
+    ),
+    (
+      "/project/local.js",
+      "module.exports = globalThis.shared; if (module.hot) module.hot.accept();",
+    ),
+  ]);
+
+  hmr.update(&[(
+    "/project/local.js",
+    "module.exports = globalThis.shared; output('local'); if (module.hot) module.hot.accept();",
+  )]);
+  hmr.eval("globalThis.read()");
+
+  assert!(!hmr.reloaded());
+  // The object `local.js` exported belongs to other code, so it must not be cleared.
+  assert_eq!(
+    hmr.outputs(),
+    vec![serde_json::json!("local"), serde_json::json!([1, 1])]
+  );
+}
+
+#[test]
+fn editing_a_file_does_not_invalidate_inline_assets_emitted_from_it() {
+  let (mut parcel, input_fs) = setup_entries(
+    &[(
+      "/project/index.html",
+      "<p>v1</p><script type=\"module\">console.log('a');</script>",
+    )],
+    &["/project/index.html"],
+  );
+  write_file(
+    &input_fs,
+    "/project/index.html",
+    "<p>v2</p><script type=\"module\">console.log('a');</script>",
+  );
+  let result = parcel
+    .invalidate(&[PathId::new(Path::new("/project/index.html"))], &[], &[])
+    .expect("invalidate failed");
+
+  // Only the HTML file. Its re-transform provides the inline script's content.
+  assert_eq!(result.affected.len(), 1);
+}
