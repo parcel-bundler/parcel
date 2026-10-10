@@ -2,8 +2,9 @@ use std::{borrow::Cow, sync::Arc};
 
 use crate::{
   Asset, AssetFlags, AssetNodeIndex, AssetRequest, AssetSymbols, AssetType, DependencyFlags,
-  DependencyResolution, Diagnostic, DiagnosticList, FileSystem, Invalidations, ParcelOptions,
-  PathId, Pipeline, SourceUrl, Target, TrackingFileSystem, config::ParcelConfig, resolver::resolve,
+  DependencyResolution, Diagnostic, DiagnosticList, FileContent, FileSystem, Invalidations,
+  ParcelOptions, PathId, Pipeline, SourceUrl, Target, TrackingFileSystem, config::ParcelConfig,
+  resolver::resolve,
 };
 
 pub trait Transformer: Send + Sync {
@@ -45,12 +46,16 @@ impl TransformRequest {
     // Add the source file itself as an invalidation so changes to it trigger re-transformation.
     // Also register its creation: if the file is deleted (failing this transform) and later
     // restored, the restore arrives as a create event and must re-run the transform.
+    // Content that isn't read from the file, e.g. an inline script or an MDX code block, comes
+    // from the asset that emitted it, whose re-transform provides any new content.
     match self.req.loc.url.to_file_path() {
       Ok(path) => {
-        invalidations.invalidate_on_file_change.push(path);
-        invalidations
-          .invalidate_on_file_create
-          .push(crate::FileCreateInvalidation::Path(path));
+        if self.req.content.downcast_ref::<FileContent>().is_some() {
+          invalidations.invalidate_on_file_change.push(path);
+          invalidations
+            .invalidate_on_file_create
+            .push(crate::FileCreateInvalidation::Path(path));
+        }
       }
       Err(diagnostic) => {
         return TransformResult {
