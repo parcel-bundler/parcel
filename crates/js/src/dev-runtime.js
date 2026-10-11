@@ -1,5 +1,5 @@
 /* eslint-env browser */
-/* global parcelRequireName, modules, mainEntry, entries, awaitedBundles, externals, manifest, distDir, publicUrl, HMR_ENABLED, HMR_HOST, HMR_PORT */
+/* global parcelRequireName, modules, mainEntry, entries, awaitedBundles, externals, manifest, distDir, publicUrl, HMR_ENABLED, HMR_HOST, HMR_PORT, $parcel$importMeta, $parcel$path, $parcel$bundleDir */
 /* eslint-disable no-unused-vars */
 
 // Save the require from previous bundle to this closure if any
@@ -165,6 +165,17 @@ parcelRequire.cache = cache;
 parcelRequire.parent = previousRequire;
 parcelRequire.distDir = distDir;
 parcelRequire.publicUrl = publicUrl;
+if (HMR_ENABLED) {
+  // Hot updates are evaluated outside of the bundle, so they reach the bundle's `import.meta` and
+  // Node path helpers through `module.bundle`.
+  if (typeof $parcel$importMeta !== 'undefined') {
+    parcelRequire.importMeta = $parcel$importMeta;
+  }
+  if (typeof $parcel$path !== 'undefined') {
+    parcelRequire.nodePath = $parcel$path;
+    parcelRequire.bundleDir = $parcel$bundleDir;
+  }
+}
 parcelRequire.i = importMap;
 parcelRequire.hotData = {};
 // The exports objects of disposed modules, by id, which they are re-run into. Shared by all bundles,

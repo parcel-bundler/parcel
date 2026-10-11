@@ -6,9 +6,21 @@ use parcel_core::{
   get_bundle_content,
 };
 
+use parcel_js_swc_core::Ast;
+use swc_core::{
+  common::{DUMMY_SP, SyntaxContext},
+  ecma::{
+    ast::{Expr, Ident, MetaPropExpr, MetaPropKind},
+    visit::{VisitMut, VisitMutWith},
+  },
+  quote_expr,
+};
+
 use crate::{
   JsContent,
-  packager::{BundleShim, Resolution, SyntheticAsset, asset_dependencies},
+  packager::{
+    BundleShim, Resolution, SyntheticAsset, asset_dependencies, insert_hot_update_node_replacements,
+  },
 };
 
 #[derive(serde::Serialize, Debug)]
@@ -190,9 +202,14 @@ pub fn get_hmr_update<'a>(
 fn hot_update_code(asset: &Asset, project_root: &PathId) -> String {
   let id = asset.id(project_root);
   let (code, map) = match asset.content.downcast_ref::<JsContent>() {
-    Some(content) => content
-      .to_code(&content.ast, asset.target.source_map.is_some(), false)
-      .unwrap(),
+    Some(content) => {
+      let mut ast = content.ast.clone();
+      insert_hot_update_node_replacements(&mut ast, content, asset);
+      replace_import_meta(&mut ast);
+      content
+        .to_code(&ast, asset.target.source_map.is_some(), false)
+        .unwrap()
+    }
     None => (asset.content.read().unwrap(), None),
   };
 
@@ -212,4 +229,34 @@ fn hot_update_code(asset: &Asset, project_root: &PathId) -> String {
     .unwrap();
   }
   output
+}
+
+/// Replaces `import.meta`, which ESM bundles leave in modules (e.g. `new URL(url, import.meta.url)`),
+/// with the `import.meta` of the bundle running the module, since updates aren't evaluated as ES
+/// modules.
+fn replace_import_meta(ast: &mut Ast) {
+  struct ImportMetaReplacer(SyntaxContext);
+
+  impl VisitMut for ImportMetaReplacer {
+    fn visit_mut_expr(&mut self, expr: &mut Expr) {
+      if let Expr::MetaProp(MetaPropExpr {
+        kind: MetaPropKind::ImportMeta,
+        ..
+      }) = expr
+      {
+        *expr = *quote_expr!(
+          "$module.bundle.importMeta",
+          module: Ident = Ident::new("module".into(), DUMMY_SP, self.0)
+        );
+      } else {
+        expr.visit_mut_children_with(self);
+      }
+    }
+  }
+
+  let globals = ast.globals.clone();
+  swc_core::common::GLOBALS.set(&globals, || {
+    let ctxt = SyntaxContext::empty().apply_mark(ast.unresolved_mark);
+    ast.program.visit_mut_with(&mut ImportMetaReplacer(ctxt));
+  });
 }

@@ -5,8 +5,10 @@ use parcel_core::*;
 use parcel_js_swc_core::{Ast, async_module::wrap_async_module, tree_shake::tree_shake};
 use swc_core::{
   common::{DUMMY_SP, SyntaxContext},
-  ecma::ast::{Ident, ImportDecl, ImportSpecifier, ImportStarAsSpecifier, ModuleDecl, ModuleItem},
-  quote,
+  ecma::ast::{
+    Expr, Ident, ImportDecl, ImportSpecifier, ImportStarAsSpecifier, ModuleDecl, ModuleItem,
+  },
+  quote, quote_expr,
 };
 
 mod dependencies;
@@ -37,6 +39,7 @@ const RUNTIME_DIST_DIR: &str = "d";
 const RUNTIME_PUBLIC_URL: &str = "u";
 const NODE_PATH: &str = "$parcel$path";
 const BUNDLE_DIR: &str = "$parcel$bundleDir";
+const IMPORT_META: &str = "$parcel$importMeta";
 const RUNTIME_NODE_PATH: &str = "v";
 const RUNTIME_BUNDLE_DIR: &str = "w";
 
@@ -151,7 +154,7 @@ impl JsContent {
       }
     }
 
-    write_node_replacement_helpers(&mut printer, bundle_graph, bundle)?;
+    write_node_replacement_helpers(&mut printer, bundle_graph, bundle, options)?;
     let externals = write_external_imports(&mut printer, bundle_graph, bundle)?;
     let sync_bundles =
       write_sync_bundle_imports(&mut printer, bundle_graph, bundle, &synthetic_assets)?;
@@ -451,21 +454,27 @@ fn write_node_replacement_helpers(
   printer: &mut Printer,
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
+  options: &ParcelOptions,
 ) -> Result<(), DiagnosticList> {
-  if !bundle.assets.iter().any(|asset_index| {
-    bundle_graph
-      .asset_graph
-      .asset(*asset_index)
-      .flags
-      .contains(AssetFlags::HAS_NODE_REPLACEMENTS)
-  }) {
-    return Ok(());
-  }
-
   let should_optimize = bundle
     .target
     .flags
     .contains(EnvironmentFlags::SHOULD_OPTIMIZE);
+  // Hot updates may add modules that need the helpers (see `insert_hot_update_node_replacements`).
+  let hot_updates_need_helpers =
+    options.hmr.is_some() && !should_optimize && bundle.target.environment.is_node();
+  if !hot_updates_need_helpers
+    && !bundle.assets.iter().any(|asset_index| {
+      bundle_graph
+        .asset_graph
+        .asset(*asset_index)
+        .flags
+        .contains(AssetFlags::HAS_NODE_REPLACEMENTS)
+    })
+  {
+    return Ok(());
+  }
+
   let path = runtime_name(should_optimize, NODE_PATH, RUNTIME_NODE_PATH);
   let bundle_dir = runtime_name(should_optimize, BUNDLE_DIR, RUNTIME_BUNDLE_DIR);
   if bundle.target.output_format == OutputFormat::Esmodule {
@@ -486,13 +495,11 @@ pub(super) fn insert_node_replacements(
   bundle: &Bundle,
   should_optimize: bool,
 ) {
-  if !content.needs_filename && !content.needs_dirname {
-    return;
-  }
-
-  let globals = ast.globals.clone();
-  swc_core::common::GLOBALS.set(&globals, || {
-    let ctxt = SyntaxContext::empty().apply_mark(ast.unresolved_mark);
+  let bundle_dir = bundle
+    .dist_path()
+    .parent()
+    .unwrap_or(bundle.target.dist_dir);
+  insert_node_replacement_decls(ast, content, asset, bundle_dir, |ctxt, value| {
     let path = Ident::new(
       runtime_name(should_optimize, NODE_PATH, RUNTIME_NODE_PATH).into(),
       DUMMY_SP,
@@ -503,28 +510,68 @@ pub(super) fn insert_node_replacements(
       DUMMY_SP,
       ctxt,
     );
-    let (filename, dirname) = node_replacement_paths(asset, bundle);
+    quote_expr!(
+      "$path.resolve($bundle_dir, $value)",
+      path: Ident = path,
+      bundle_dir: Ident = bundle_dir,
+      value: Expr = value.into()
+    )
+  });
+}
+
+/// Like `insert_node_replacements`, for a module in a hot update. Updates are evaluated outside of
+/// the bundles they apply to, so the bundle's helpers are reached through `module.bundle` (see the
+/// dev runtime), and the paths are relative to the dist root because the
+/// module may be in bundles in different directories.
+pub(crate) fn insert_hot_update_node_replacements(
+  ast: &mut Ast,
+  content: &JsContent,
+  asset: &Asset,
+) {
+  insert_node_replacement_decls(ast, content, asset, asset.target.dist_dir, |ctxt, value| {
+    let module = Ident::new("module".into(), DUMMY_SP, ctxt);
+    quote_expr!(
+      "$module.bundle.nodePath.resolve($module.bundle.bundleDir, $module.bundle.distDir, $value)",
+      module: Ident = module,
+      value: Expr = value.into()
+    )
+  });
+}
+
+/// Declares the `__filename` and `__dirname` that a Node module uses, with values that `resolve`
+/// creates from their paths relative to `from`.
+fn insert_node_replacement_decls(
+  ast: &mut Ast,
+  content: &JsContent,
+  asset: &Asset,
+  from: PathId,
+  resolve: impl Fn(SyntaxContext, String) -> Box<Expr>,
+) {
+  if !content.needs_filename && !content.needs_dirname {
+    return;
+  }
+
+  let globals = ast.globals.clone();
+  swc_core::common::GLOBALS.set(&globals, || {
+    let ctxt = SyntaxContext::empty().apply_mark(ast.unresolved_mark);
+    let (filename, dirname) = node_replacement_paths(asset, from);
     let mut items = Vec::with_capacity(2);
 
     if content.needs_filename {
       let name = Ident::new("__filename".into(), DUMMY_SP, ctxt);
       items.push(quote!(
-        "var $name = $path.resolve($bundle_dir, $value)" as ModuleItem,
+        "var $name = $value" as ModuleItem,
         name: Ident = name,
-        path: Ident = path.clone(),
-        bundle_dir: Ident = bundle_dir.clone(),
-        value: Expr = filename.into()
+        value: Expr = *resolve(ctxt, filename)
       ));
     }
 
     if content.needs_dirname {
       let name = Ident::new("__dirname".into(), DUMMY_SP, ctxt);
       items.push(quote!(
-        "var $name = $path.resolve($bundle_dir, $value)" as ModuleItem,
+        "var $name = $value" as ModuleItem,
         name: Ident = name,
-        path: Ident = path,
-        bundle_dir: Ident = bundle_dir,
-        value: Expr = dirname.into()
+        value: Expr = *resolve(ctxt, dirname)
       ));
     }
 
@@ -593,12 +640,9 @@ pub(super) fn insert_node_replacement_helpers(
   });
 }
 
-fn node_replacement_paths(asset: &Asset, bundle: &Bundle) -> (String, String) {
-  let bundle_dir = bundle
-    .dist_path()
-    .parent()
-    .unwrap_or(bundle.target.dist_dir);
-  let from = SourceUrl::from_directory_path(&bundle_dir);
+/// The paths of `asset`'s file and directory relative to the directory `from`.
+fn node_replacement_paths(asset: &Asset, from: PathId) -> (String, String) {
+  let from = SourceUrl::from_directory_path(&from);
 
   if let Ok(filename) = asset.loc.url.to_file_path() {
     let dirname = filename.parent().unwrap_or(filename);
@@ -802,6 +846,11 @@ fn write_runtime_globals(
       },
       true,
     )?;
+    // Hot updates are evaluated outside of the bundle, so the runtime exposes its `import.meta` to
+    // them (see `replace_import_meta`).
+    if options.hmr.is_some() && bundle.target.output_format == OutputFormat::Esmodule {
+      printer.write_var(IMPORT_META, "import.meta", true)?;
+    }
     if let Some(hmr) = &options.hmr {
       // A wildcard address such as 0.0.0.0 is where the server listens, not an address clients can
       // connect to (Safari refuses to), so the runtime uses the page's host instead.

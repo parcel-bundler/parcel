@@ -417,6 +417,74 @@ fn hmr_update_reloads_for_esm_sync_bundle_imports() {
   assert_eq!(sync_bundle["output"], "");
 }
 
+#[test]
+fn hmr_update_defines_node_globals_through_the_bundle() {
+  let (mut parcel, input_fs) = setup(&[
+    (
+      "/project/package.json",
+      r#"{"targets": {"default": {"context": "node"}}}"#,
+    ),
+    ("/project/index.js", "output(__dirname, __filename);"),
+  ]);
+
+  // The bundle's path helpers aren't in scope of an evaluated update, so it reaches them through
+  // `module.bundle`, with paths relative to the dist root.
+  let (update, _, _) = hmr_update_after_change(
+    &mut parcel,
+    &input_fs,
+    "/project/index.js",
+    "output('updated', __dirname, __filename);",
+  );
+  let outputs = update_asset_outputs(&update);
+  assert_eq!(outputs.len(), 1);
+  let resolve = "module.bundle.nodePath.resolve(module.bundle.bundleDir, module.bundle.distDir, ";
+  assert!(
+    outputs[0].contains(&format!(r#"var __filename = {resolve}"../index.js")"#)),
+    "{}",
+    outputs[0]
+  );
+  assert!(
+    outputs[0].contains(&format!(r#"var __dirname = {resolve}"../")"#)),
+    "{}",
+    outputs[0]
+  );
+}
+
+#[test]
+fn hmr_runtime_updates_modules_using_import_meta_in_esm_bundles() {
+  let mut hmr = HmrRuntimeTest::new(&[
+    (
+      "/project/package.json",
+      r#"{"targets": {"default": {"outputFormat": "esmodule"}}}"#,
+    ),
+    (
+      "/project/index.js",
+      "output(new URL('./data.txt', import.meta.url).href);
+if (module.hot) module.hot.accept();",
+    ),
+    ("/project/data.txt", "data"),
+  ]);
+  let initial = hmr.outputs();
+  assert_eq!(initial.len(), 1);
+
+  // The bundle leaves `import.meta.url` in the module, which isn't valid in an evaluated update.
+  hmr.update(&[(
+    "/project/index.js",
+    "output(new URL('./data.txt', import.meta.url).href, 'updated');
+if (module.hot) module.hot.accept();",
+  )]);
+
+  assert!(!hmr.reloaded());
+  assert_eq!(
+    hmr.outputs(),
+    vec![
+      initial[0].clone(),
+      initial[0].clone(),
+      serde_json::json!("updated")
+    ]
+  );
+}
+
 struct HmrRuntimeTest {
   parcel: Parcel,
   input_fs: Arc<MemoryFileSystem>,
