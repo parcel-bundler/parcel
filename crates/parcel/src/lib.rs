@@ -16,6 +16,7 @@ pub use open_browser::is_browser_name;
 pub use server::{HttpsOptions, ServerOptions};
 
 mod bundler;
+mod cert;
 mod data_url;
 mod glob_resolver;
 mod http;
@@ -83,6 +84,7 @@ pub fn serve(
 
   let reporters = parcel.options.reporters.clone();
   let hmr = server_options.hmr;
+  let ca_notice = new_ca_notice(&server_options);
   let scheme = if server_options.https.is_some() {
     "https"
   } else {
@@ -100,6 +102,9 @@ pub fn serve(
       address.port()
     ),
   );
+  if let Some(notice) = ca_notice {
+    reporters.log(LogLevel::Info, &notice);
+  }
   server.set_source_roots(
     &project_root.to_path_buf(),
     parcel
@@ -191,6 +196,7 @@ pub fn run(
   server_options: ServerOptions,
 ) -> Result<(), DiagnosticList> {
   // The HMR server is started before building because its port is compiled into the bundles.
+  let ca_notice = new_ca_notice(&server_options).filter(|_| server_options.hmr);
   let hmr = if server_options.hmr {
     let (server, address, events) = server::serve(&server_options, None)?;
     options.hmr = Some(HmrOptions {
@@ -204,6 +210,9 @@ pub fn run(
   let hmr_server = hmr.as_ref().map(|(server, _, _)| server.clone());
 
   let mut parcel = make_parcel(entries, options)?;
+  if let Some(notice) = ca_notice {
+    parcel.options.log(LogLevel::Info, notice);
+  }
   let project_root = parcel.project_root();
   let mut runner = NodeRunner::new(hmr);
   if let Some(server) = &hmr_server {
@@ -301,6 +310,30 @@ pub fn run(
 }
 
 /// Lets `server` serve the source maps of `graph`'s bundles and of the project's source files.
+/// A message to log when `--https` will create the local certificate authority.
+fn new_ca_notice(server_options: &ServerOptions) -> Option<String> {
+  if server_options.https != Some(server::HttpsOptions::Generate) {
+    return None;
+  }
+  let dir = cert::ca_dir()?;
+  let cert = dir.join(cert::CA_CERT_FILE);
+  if cert.exists() {
+    return None;
+  }
+  let mut notice = format!(
+    "Created a local certificate authority in {}. Browsers warn about the certificates it signs until it is trusted",
+    dir.display()
+  );
+  if cfg!(target_os = "macos") {
+    notice.push_str(&format!(
+      ", e.g. with: security add-trusted-cert -r trustRoot -k ~/Library/Keychains/login.keychain-db \"{}\"",
+      cert.display()
+    ));
+  }
+  notice.push('.');
+  Some(notice)
+}
+
 fn set_source_roots(server: &server::HmrServer, project_root: &PathId, graph: &BundleGraph) {
   server.set_source_roots(
     &project_root.to_path_buf(),

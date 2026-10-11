@@ -85,8 +85,9 @@ fn help(command: Option<Command>) -> String {
       "  -p, --port <port>     Set the port (default: PORT environment variable or 1234)\n",
       "  --host <host>         Set the host (default: 0.0.0.0)\n",
       "  --no-hmr              Disable hot module replacement\n",
-      "  --https               Serve over HTTPS as well as HTTP (requires --cert and --key)\n",
-      "  --cert <file>         The PEM certificate to serve HTTPS with\n",
+      "  --https               Serve over HTTPS as well as HTTP, with a certificate signed by a\n",
+      "                        local certificate authority (see PARCEL_CAROOT)\n",
+      "  --cert <file>         Serve HTTPS with this PEM certificate instead\n",
       "  --key <file>          The PEM private key of the certificate\n",
       "  --open [browser]      Open the page in the default browser, or a browser like chrome\n",
       "                        (--open=<app> for other apps)\n",
@@ -280,13 +281,11 @@ fn parse_args(
     return Err("--https, --cert, and --key are only supported by serve and run".into());
   }
   server_options.https = match (cert, key) {
-    (Some(cert), Some(key)) => Some(HttpsOptions {
+    (Some(cert), Some(key)) => Some(HttpsOptions::Files {
       cert: cert.to_path_buf(),
       key: key.to_path_buf(),
     }),
-    (None, None) if https => {
-      return Err("--https requires --cert and --key".into());
-    }
+    (None, None) if https => Some(HttpsOptions::Generate),
     (None, None) => None,
     _ => return Err("--cert and --key must be used together".into()),
   };
@@ -483,9 +482,13 @@ mod tests {
   #[test]
   fn parses_https() {
     let (_, options) = serve(&["--https", "--cert", "certs/cert.pem", "--key", "/key.pem"]);
-    let https = options.https.unwrap();
-    assert_eq!(https.cert, Path::new("/project/certs/cert.pem"));
-    assert_eq!(https.key, Path::new("/key.pem"));
+    assert_eq!(
+      options.https,
+      Some(HttpsOptions::Files {
+        cert: "/project/certs/cert.pem".into(),
+        key: "/key.pem".into()
+      })
+    );
     // Like Parcel 2, a certificate implies --https.
     assert!(
       serve(&["--cert", "cert.pem", "--key", "key.pem"])
@@ -493,6 +496,7 @@ mod tests {
         .https
         .is_some()
     );
+    assert_eq!(serve(&["--https"]).1.https, Some(HttpsOptions::Generate));
     assert!(serve(&[]).1.https.is_none());
 
     let error = |args: &[&str]| {
@@ -502,10 +506,6 @@ mod tests {
         Ok(_) => panic!("expected an error"),
       }
     };
-    assert_eq!(
-      error(&["serve", "--https"]),
-      "--https requires --cert and --key"
-    );
     assert_eq!(
       error(&["serve", "--cert", "cert.pem"]),
       "--cert and --key must be used together"

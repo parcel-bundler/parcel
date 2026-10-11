@@ -31,11 +31,12 @@ pub struct ServerOptions {
   pub https: Option<HttpsOptions>,
 }
 
-/// The PEM files of the certificate and private key to serve HTTPS with.
-#[derive(Clone)]
-pub struct HttpsOptions {
-  pub cert: PathBuf,
-  pub key: PathBuf,
+#[derive(Clone, Debug, PartialEq)]
+pub enum HttpsOptions {
+  /// Certificates signed by the local CA (see `cert`).
+  Generate,
+  /// The PEM files of the certificate and private key to serve.
+  Files { cert: PathBuf, key: PathBuf },
 }
 
 impl Default for ServerOptions {
@@ -113,9 +114,20 @@ pub fn serve(
   let tls = options
     .https
     .as_ref()
-    .map(|https| crate::http::tls_config(&https.cert, &https.key))
+    .map(|https| match https {
+      HttpsOptions::Generate => {
+        let dir = crate::cert::ca_dir().ok_or(
+          "Could not find a directory for the local certificate authority. Set PARCEL_CAROOT",
+        )?;
+        let (ca, _) = crate::cert::LocalCa::load_or_create(&dir)?;
+        let provider = crate::http::crypto_provider();
+        let resolver = crate::cert::CertResolver::new(ca, provider.clone(), &options.host)?;
+        crate::http::resolver_tls_config(provider, Arc::new(resolver))
+      }
+      HttpsOptions::Files { cert, key } => crate::http::tls_config(cert, key),
+    })
     .transpose()
-    .map_err(|err| Diagnostic::from_message(err))?;
+    .map_err(Diagnostic::from_message)?;
   let server = Server::bind((&*options.host, options.port), tls).map_err(|err| error(&err))?;
   let address = server.local_addr().map_err(|err| error(&err))?;
 
@@ -978,12 +990,12 @@ mod tests {
       .unwrap();
 
     std::fs::create_dir_all(dir).unwrap();
-    let options = HttpsOptions {
+    std::fs::write(dir.join("cert.pem"), cert.pem()).unwrap();
+    std::fs::write(dir.join("key.pem"), key.serialize_pem()).unwrap();
+    let options = HttpsOptions::Files {
       cert: dir.join("cert.pem"),
       key: dir.join("key.pem"),
     };
-    std::fs::write(&options.cert, cert.pem()).unwrap();
-    std::fs::write(&options.key, key.serialize_pem()).unwrap();
     (options, ca_cert.der().clone())
   }
 
@@ -1084,7 +1096,7 @@ mod tests {
         &ServerOptions {
           host: "127.0.0.1".into(),
           port: 0,
-          https: Some(HttpsOptions {
+          https: Some(HttpsOptions::Files {
             cert: root.join(cert),
             key: root.join(key),
           }),

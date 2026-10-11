@@ -13,8 +13,10 @@ use std::{
 };
 
 use rustls::{
-  ServerConfig, ServerConnection, StreamOwned,
+  ConfigBuilder, ServerConfig, ServerConnection, StreamOwned,
+  crypto::CryptoProvider,
   pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject},
+  server::{ResolvesServerCert, WantsServerCert},
 };
 
 /// A connection to a client, over TLS or not.
@@ -303,6 +305,10 @@ fn reason(status: u16) -> &'static str {
   }
 }
 
+pub fn crypto_provider() -> Arc<CryptoProvider> {
+  Arc::new(rustls::crypto::ring::default_provider())
+}
+
 /// A TLS config serving the certificate chain and private key in the PEM files `cert` and `key`.
 pub fn tls_config(cert: &Path, key: &Path) -> Result<Arc<ServerConfig>, String> {
   let certs = CertificateDer::pem_file_iter(cert)
@@ -313,13 +319,34 @@ pub fn tls_config(cert: &Path, key: &Path) -> Result<Arc<ServerConfig>, String> 
   }
   let key = PrivateKeyDer::from_pem_file(key)
     .map_err(|err| format!("Could not read private key {}: {err}", key.display()))?;
-  let mut config =
-    ServerConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
+  let config = config_builder(crypto_provider())?
+    .with_single_cert(certs, key)
+    .map_err(|err| format!("Invalid certificate or private key: {err}"))?;
+  Ok(finish(config))
+}
+
+/// A TLS config serving the certificates `resolver` picks for each client.
+pub fn resolver_tls_config(
+  provider: Arc<CryptoProvider>,
+  resolver: Arc<dyn ResolvesServerCert>,
+) -> Result<Arc<ServerConfig>, String> {
+  Ok(finish(
+    config_builder(provider)?.with_cert_resolver(resolver),
+  ))
+}
+
+fn config_builder(
+  provider: Arc<CryptoProvider>,
+) -> Result<ConfigBuilder<ServerConfig, WantsServerCert>, String> {
+  Ok(
+    ServerConfig::builder_with_provider(provider)
       .with_safe_default_protocol_versions()
       .map_err(|err| err.to_string())?
-      .with_no_client_auth()
-      .with_single_cert(certs, key)
-      .map_err(|err| format!("Invalid certificate or private key: {err}"))?;
+      .with_no_client_auth(),
+  )
+}
+
+fn finish(mut config: ServerConfig) -> Arc<ServerConfig> {
   config.alpn_protocols = vec![b"http/1.1".to_vec()];
-  Ok(Arc::new(config))
+  Arc::new(config)
 }
