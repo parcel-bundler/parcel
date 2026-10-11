@@ -173,6 +173,11 @@ pub struct AssetGraphBuilder {
 }
 
 impl AssetGraphBuilder {
+  /// The entries, resolved with their targets.
+  pub fn entries(&self) -> &[Entry] {
+    &self.entries
+  }
+
   pub fn new(entries: Vec<Entry>, config: Arc<ParcelConfig>, options: Arc<ParcelOptions>) -> Self {
     AssetGraphBuilder {
       asset_nodes: Vec::new(),

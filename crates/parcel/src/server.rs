@@ -1,4 +1,4 @@
-use parcel_core::{AssetType, Diagnostic, DiagnosticList};
+use parcel_core::{AssetType, Diagnostic, DiagnosticList, RenderedDiagnostics};
 
 use crate::launch_editor::launch_editor;
 use parcel_js::hmr::HmrUpdate;
@@ -9,7 +9,7 @@ use std::{
   net::SocketAddr,
   path::{Path, PathBuf},
   sync::{
-    Arc, Mutex,
+    Arc, Condvar, Mutex,
     mpsc::{self, Receiver, Sender},
   },
   thread,
@@ -42,6 +42,18 @@ pub struct HmrServer {
   /// Messages to send to processes started by `parcel run`, by token.
   runners: Arc<Mutex<HashMap<String, Sender<String>>>>,
   source_roots: Arc<Mutex<SourceRoots>>,
+  build: Arc<(Mutex<BuildState>, Condvar)>,
+}
+
+/// The state of the build whose output `parcel serve` serves.
+#[derive(Default)]
+struct BuildState {
+  /// Whether a build is in progress. Requests for its output wait for it to finish.
+  pending: bool,
+  /// The page shown instead of the output when the build failed.
+  error_page: Option<String>,
+  /// Whether the error page reloads on the next HMR message.
+  hmr: bool,
 }
 
 /// Serves the source maps of server code. React's RSC client requests them (from
@@ -90,6 +102,7 @@ pub fn serve(
   let hmr = HmrServer::default();
   let hmr_clone = hmr.clone();
   let accept_websockets = options.hmr;
+  hmr.build.0.lock().unwrap().hmr = options.hmr;
   let (events, receiver) = mpsc::channel();
   thread::spawn(move || {
     for request in server.incoming_requests() {
@@ -117,7 +130,17 @@ pub fn serve(
       }
 
       match &dist_dir {
-        Some(dist_dir) => serve_file(request, &url, dist_dir),
+        Some(dist_dir) => match hmr_clone.wait_for_build() {
+          Some(error_page) => {
+            let response = Response::from_string(error_page)
+              .with_status_code(500)
+              .with_header(
+                Header::from_bytes(b"Content-Type", b"text/html; charset=utf-8").unwrap(),
+              );
+            let _ = request.respond(response);
+          }
+          None => serve_file(request, &url, dist_dir),
+        },
         None => {
           let response = Response::from_string("404 not found").with_status_code(404);
           let _ = request.respond(response);
@@ -211,6 +234,94 @@ fn is_websocket_upgrade(request: &tiny_http::Request) -> bool {
     .any(|h| h.field.equiv("Upgrade") && h.value.as_str().eq_ignore_ascii_case("websocket"))
 }
 
+/// A page showing build errors, like the overlay the HMR runtime shows over pages. With HMR, it
+/// reloads on the next update.
+fn error_page(diagnostics: &RenderedDiagnostics, hmr: bool) -> String {
+  use std::fmt::Write;
+
+  // The diagnostics are HTML, but the editor links need their plain locations.
+  let unescape = |html: &str| {
+    html
+      .replace("&lt;", "<")
+      .replace("&gt;", ">")
+      .replace("&quot;", "\"")
+      .replace("&#39;", "'")
+      .replace("&amp;", "&")
+  };
+  let mut body = String::new();
+  for diagnostic in &diagnostics.html {
+    write!(body, "<h2 class=\"message\">{}</h2>", diagnostic.message).unwrap();
+    body.push_str("<div class=\"stack\">");
+    if diagnostic.frames.is_empty() {
+      body.push_str(diagnostic.stack.as_deref().unwrap_or_default());
+    }
+    for frame in &diagnostic.frames {
+      let file: String =
+        url::form_urlencoded::byte_serialize(unescape(&frame.location).as_bytes()).collect();
+      write!(
+        body,
+        "<a href=\"{LAUNCH_EDITOR_ENDPOINT}?file={file}\" onclick=\"fetch(this.href); return false\">{}</a>\n{}\n",
+        frame.location, frame.code
+      )
+      .unwrap();
+    }
+    body.push_str("</div><ul class=\"hints\">");
+    for hint in &diagnostic.hints {
+      write!(body, "<li>{hint}</li>").unwrap();
+    }
+    body.push_str("</ul>");
+    if let Some(documentation) = &diagnostic.documentation {
+      write!(
+        body,
+        "<div class=\"documentation\">📝 <a href=\"{documentation}\" target=\"_blank\">Learn more</a></div>"
+      )
+      .unwrap();
+    }
+  }
+
+  let script = if hmr {
+    // HMR messages are only sent after a later build, which this page then shows.
+    "<script>
+      var ws = new WebSocket((location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/');
+      ws.onmessage = function () {
+        location.reload();
+      };
+    </script>"
+  } else {
+    ""
+  };
+
+  format!(
+    r#"<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🚨 Build Error</title>
+    <style>
+      html {{ color-scheme: dark light; background-color: #282c33; }}
+      body {{ margin: 0; font-family: sans-serif; }}
+      h1 {{ font-size: 2rem; background-color: #fe0140; color: #ffffff; margin: 0 0 20px 0; padding: 10px; }}
+      .message {{ font-size: 1.2rem; color: salmon; margin: 10px; font-family: Menlo, Consolas, monospace; white-space: pre; }}
+      .stack {{ padding: 20px 10px; color: #c5ccdb; font-family: Menlo, Consolas, monospace; font-size: 0.8rem; white-space: pre; }}
+      .stack a {{ color: #888; }}
+      .hints {{ margin: 5px 0 20px 0; list-style: none; padding: 0; }}
+      .hints li {{ color: #5e8af7; font-size: 0.8rem; padding: 0 0 0 5px; font-family: Menlo, Consolas, monospace; }}
+      .hints li:before {{ content: '💡 '; }}
+      .documentation {{ padding: 0 5px; font-family: Menlo, Consolas, monospace; font-size: 0.8rem; }}
+      .documentation a {{ color: violet; }}
+    </style>
+  </head>
+  <body>
+    <h1>🚨 Parcel encountered errors</h1>
+    {body}
+    {script}
+  </body>
+</html>
+"#
+  )
+}
+
 enum EditorError {
   NotFound,
   Launch(String),
@@ -274,6 +385,39 @@ impl HmrServer {
       project_root: project_root.canonicalize().ok(),
       dist_dirs,
     };
+  }
+
+  /// Holds requests for the build's output until it finishes (see `wait_for_build`).
+  pub fn build_started(&self) {
+    self.build.0.lock().unwrap().pending = true;
+  }
+
+  pub fn build_succeeded(&self) {
+    self.finish_build(None);
+  }
+
+  /// Shows `diagnostics` instead of the build's output until a later build succeeds.
+  pub fn build_failed(&self, diagnostics: &DiagnosticList) {
+    let hmr = self.build.0.lock().unwrap().hmr;
+    self.finish_build(Some(error_page(&diagnostics.render_for_browser(), hmr)));
+  }
+
+  fn finish_build(&self, error_page: Option<String>) {
+    let (state, finished) = &*self.build;
+    let mut state = state.lock().unwrap();
+    state.pending = false;
+    state.error_page = error_page;
+    finished.notify_all();
+  }
+
+  /// Waits for a build in progress, so that pages reflect the latest changes, and returns the error
+  /// page if the build failed.
+  fn wait_for_build(&self) -> Option<String> {
+    let (state, finished) = &*self.build;
+    let state = finished
+      .wait_while(state.lock().unwrap(), |state| state.pending)
+      .unwrap();
+    state.error_page.clone()
   }
 
   /// Responds to a request for one of the server's endpoints, or returns `None` for other URLs.
@@ -681,6 +825,63 @@ mod tests {
     not_found(Url::from_file_path(&source).unwrap().as_str());
     let (status, _) = http_get(address, "/other");
     assert_eq!(status, "HTTP/1.1 404 Not Found");
+
+    std::fs::remove_dir_all(&root).unwrap();
+  }
+
+  #[test]
+  fn shows_build_errors_instead_of_the_output() {
+    let root = std::env::temp_dir().join(format!("parcel-build-errors-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join("index.html"), "output").unwrap();
+    let (server, address, _events) = super::serve(
+      &ServerOptions {
+        host: "127.0.0.1".into(),
+        port: 0,
+        hmr: true,
+      },
+      Some(root.clone()),
+    )
+    .unwrap();
+
+    server.build_failed(&DiagnosticList(vec![Diagnostic {
+      message: "Unexpected <token>".into(),
+      code_frames: vec![parcel_core::CodeFrame {
+        code: Some("let x = ;\n".into()),
+        url: Some(parcel_core::SourceUrl::from_path(
+          &parcel_core::PathId::new(&std::env::current_dir().unwrap().join("src/a&b.js")),
+        )),
+        language: Some(AssetType::Js),
+        code_highlights: vec![parcel_core::CodeHighlight {
+          start: parcel_core::Location { line: 1, column: 9 },
+          end: parcel_core::Location { line: 1, column: 9 },
+          message: None,
+        }],
+      }],
+      ..Diagnostic::from_message(String::new())
+    }]));
+    let (status, body) = http_get(address, "/");
+    assert_eq!(status, "HTTP/1.1 500 Internal Server Error");
+    assert!(body.contains("Unexpected &lt;token&gt;"), "{body}");
+    assert!(
+      body.contains(&format!(
+        "{LAUNCH_EDITOR_ENDPOINT}?file=src%2Fa%26b.js%3A1%3A9"
+      )),
+      "{body}"
+    );
+    assert!(body.contains("new WebSocket"), "{body}");
+
+    // Requests during a build wait for it.
+    server.build_started();
+    let (sender, receiver) = mpsc::channel();
+    thread::spawn(move || sender.send(http_get(address, "/")).unwrap());
+    assert!(receiver.recv_timeout(Duration::from_millis(200)).is_err());
+    server.build_succeeded();
+    assert_eq!(
+      receiver.recv_timeout(TIMEOUT).unwrap(),
+      ("HTTP/1.1 200 OK".into(), "output".into())
+    );
 
     std::fs::remove_dir_all(&root).unwrap();
   }

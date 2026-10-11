@@ -237,6 +237,11 @@ impl Parcel {
     self.options.project_root
   }
 
+  /// The entries, resolved with their targets.
+  pub fn entries(&self) -> &[Entry] {
+    self.asset_graph_builder.entries()
+  }
+
   /// Marks files as changed ahead of the next `build()`.
   ///
   /// `changed` are files that were modified or deleted; `created` are newly created files. If any

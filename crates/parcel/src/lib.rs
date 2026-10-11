@@ -77,17 +77,37 @@ pub fn serve(
   let project_root = parcel.project_root();
 
   let reporters = parcel.options.reporters.clone();
-  let graph = parcel.build()?;
   let hmr = server_options.hmr;
+  // The server starts before the first build so that it can show the build's errors.
   let (server, address, _) = server::serve(
     &server_options,
-    Some(graph.asset_graph.entries[0].target.dist_dir.to_path_buf()),
+    Some(parcel.entries()[0].target.dist_dir.to_path_buf()),
   )?;
   reporters.log(
     LogLevel::Info,
     &format!("Server listening on http://localhost:{}", address.port()),
   );
-  set_source_roots(&server, &project_root, &graph);
+  server.set_source_roots(
+    &project_root.to_path_buf(),
+    parcel
+      .entries()
+      .iter()
+      .map(|entry| entry.target.dist_dir.to_path_buf()),
+  );
+
+  // Build errors are reported by the reporters, and shown in the browser until a build succeeds.
+  server.build_started();
+  let mut failed = match parcel.build() {
+    Ok(graph) => {
+      set_source_roots(&server, &project_root, &graph);
+      server.build_succeeded();
+      false
+    }
+    Err(e) => {
+      server.build_failed(&e);
+      true
+    }
+  };
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {
@@ -98,20 +118,27 @@ pub fn serve(
 
     let config = parcel.config.clone();
     let options = parcel.options.clone();
+    server.build_started();
     match parcel.build_with_changes() {
       Ok(result) => {
         set_source_roots(&server, &project_root, &result.bundle_graph);
-        if hmr
-          && let Some(update) =
-            hmr_updates(config_changed, &result, &config, &options, None).browser
-        {
-          server.emit_hmr(&update);
+        server.build_succeeded();
+        if hmr {
+          match hmr_updates(config_changed, &result, &config, &options, None).browser {
+            Some(update) => server.emit_hmr(&update),
+            // Pages showing the previous build's errors reload.
+            None if failed => server.emit_hmr(&HmrUpdate::Reload),
+            None => {}
+          }
         }
+        failed = false;
       }
       Err(e) => {
+        server.build_failed(&e);
         if hmr {
           server.emit_hmr_error(&e);
         }
+        failed = true;
       }
     }
   }
@@ -140,14 +167,29 @@ pub fn run(
   let mut parcel = make_parcel(entries, options)?;
   let project_root = parcel.project_root();
   let mut runner = NodeRunner::new(hmr);
-
-  let graph = parcel.build()?;
   if let Some(server) = &hmr_server {
-    set_source_roots(server, &project_root, &graph);
+    server.set_source_roots(
+      &project_root.to_path_buf(),
+      parcel
+        .entries()
+        .iter()
+        .map(|entry| entry.target.dist_dir.to_path_buf()),
+    );
   }
-  if let Some(entry) = node_entry(&graph) {
-    runner.restart(graph.bundles[entry].dist_path());
-  }
+
+  // Build errors are reported by the reporters. The process starts once a build succeeds.
+  let mut started = match parcel.build() {
+    Ok(graph) => {
+      if let Some(server) = &hmr_server {
+        set_source_roots(server, &project_root, &graph);
+      }
+      if let Some(entry) = node_entry(&graph) {
+        runner.restart(graph.bundles[entry].dist_path());
+      }
+      true
+    }
+    Err(_) => false,
+  };
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {
@@ -164,6 +206,13 @@ pub fn run(
           set_source_roots(server, &project_root, &result.bundle_graph);
         }
         let entry = node_entry(&result.bundle_graph);
+        if !started {
+          if let Some(entry) = entry {
+            runner.restart(result.bundle_graph.bundles[entry].dist_path());
+          }
+          started = true;
+          continue;
+        }
         let updates = if hmr_server.is_some() {
           hmr_updates(config_changed, &result, &config, &options, entry)
         } else {
