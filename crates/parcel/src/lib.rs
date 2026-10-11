@@ -13,11 +13,12 @@ use crate::{
 };
 
 pub use open_browser::is_browser_name;
-pub use server::ServerOptions;
+pub use server::{HttpsOptions, ServerOptions};
 
 mod bundler;
 mod data_url;
 mod glob_resolver;
+mod http;
 mod inline;
 mod json;
 mod json_urls;
@@ -82,6 +83,11 @@ pub fn serve(
 
   let reporters = parcel.options.reporters.clone();
   let hmr = server_options.hmr;
+  let scheme = if server_options.https.is_some() {
+    "https"
+  } else {
+    "http"
+  };
   // The server starts before the first build so that it can show the build's errors.
   let (server, address, _) = server::serve(
     &server_options,
@@ -89,7 +95,10 @@ pub fn serve(
   )?;
   reporters.log(
     LogLevel::Info,
-    &format!("Server listening on http://localhost:{}", address.port()),
+    &format!(
+      "Server listening on {scheme}://localhost:{}",
+      address.port()
+    ),
   );
   server.set_source_roots(
     &project_root.to_path_buf(),
@@ -127,8 +136,8 @@ pub fn serve(
       host => host,
     };
     let url = match host.parse::<std::net::IpAddr>() {
-      Ok(std::net::IpAddr::V6(ip)) => format!("http://[{ip}]:{}/", address.port()),
-      _ => format!("http://{host}:{}/", address.port()),
+      Ok(std::net::IpAddr::V6(ip)) => format!("{scheme}://[{ip}]:{}/", address.port()),
+      _ => format!("{scheme}://{host}:{}/", address.port()),
     };
     let browser = server_options.browser.clone();
     let reporters = reporters.clone();

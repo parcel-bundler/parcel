@@ -1,5 +1,5 @@
 use anstyle::{AnsiColor, Color, Style};
-use parcel::ServerOptions;
+use parcel::{HttpsOptions, ServerOptions};
 use parcel_core::{
   BuildOptions, BuildSuccess, HmrOptions, LogEvent, LogLevel, LogMessage, OsFileSystem, PathId,
   Reporter, ReporterEvent,
@@ -85,6 +85,9 @@ fn help(command: Option<Command>) -> String {
       "  -p, --port <port>     Set the port (default: PORT environment variable or 1234)\n",
       "  --host <host>         Set the host (default: 0.0.0.0)\n",
       "  --no-hmr              Disable hot module replacement\n",
+      "  --https               Serve over HTTPS as well as HTTP (requires --cert and --key)\n",
+      "  --cert <file>         The PEM certificate to serve HTTPS with\n",
+      "  --key <file>          The PEM private key of the certificate\n",
       "  --open [browser]      Open the page in the default browser, or a browser like chrome\n",
       "                        (--open=<app> for other apps)\n",
     ));
@@ -95,6 +98,7 @@ fn help(command: Option<Command>) -> String {
       "  --hmr-port <port>     Set the HMR server port (default: a free port)\n",
       "  --host <host>         Set the HMR server host (default: 0.0.0.0)\n",
       "  --no-hmr              Disable hot module replacement\n",
+      "  --https, --cert, --key  Serve the HMR server over HTTPS too, as for serve\n",
     ));
   }
   help
@@ -165,6 +169,9 @@ fn parse_args(
   let mut entries = Vec::new();
   let mut port_provided = false;
   let mut hmr_port = None;
+  let mut https = false;
+  let mut cert = None;
+  let mut key = None;
   while let Some(arg) = args.next() {
     if arg.starts_with('-') {
       match arg.as_str() {
@@ -205,6 +212,15 @@ fn parse_args(
         }
         "--no-hmr" => {
           server_options.hmr = false;
+        }
+        "--https" => {
+          https = true;
+        }
+        "--cert" => {
+          cert = Some(cwd.join(Path::new(&argument_value(&arg, &mut args)?)));
+        }
+        "--key" => {
+          key = Some(cwd.join(Path::new(&argument_value(&arg, &mut args)?)));
         }
         // The browser follows an `=`, or is the next argument if it's a known browser name rather
         // than an entry.
@@ -259,6 +275,21 @@ fn parse_args(
   if server_options.open && command != Command::Serve {
     return Err("--open is only supported by serve".into());
   }
+  if (https || cert.is_some() || key.is_some()) && !matches!(command, Command::Serve | Command::Run)
+  {
+    return Err("--https, --cert, and --key are only supported by serve and run".into());
+  }
+  server_options.https = match (cert, key) {
+    (Some(cert), Some(key)) => Some(HttpsOptions {
+      cert: cert.to_path_buf(),
+      key: key.to_path_buf(),
+    }),
+    (None, None) if https => {
+      return Err("--https requires --cert and --key".into());
+    }
+    (None, None) => None,
+    _ => return Err("--cert and --key must be used together".into()),
+  };
   if command == Command::Run {
     if port_provided {
       return Err(
@@ -447,5 +478,41 @@ mod tests {
     );
 
     assert!(!serve(&[]).1.open);
+  }
+
+  #[test]
+  fn parses_https() {
+    let (_, options) = serve(&["--https", "--cert", "certs/cert.pem", "--key", "/key.pem"]);
+    let https = options.https.unwrap();
+    assert_eq!(https.cert, Path::new("/project/certs/cert.pem"));
+    assert_eq!(https.key, Path::new("/key.pem"));
+    // Like Parcel 2, a certificate implies --https.
+    assert!(
+      serve(&["--cert", "cert.pem", "--key", "key.pem"])
+        .1
+        .https
+        .is_some()
+    );
+    assert!(serve(&[]).1.https.is_none());
+
+    let error = |args: &[&str]| {
+      let args = args.iter().map(|arg| arg.to_string());
+      match parse_args(args, HashMap::new(), PathId::new(Path::new("/project"))) {
+        Err(error) => error,
+        Ok(_) => panic!("expected an error"),
+      }
+    };
+    assert_eq!(
+      error(&["serve", "--https"]),
+      "--https requires --cert and --key"
+    );
+    assert_eq!(
+      error(&["serve", "--cert", "cert.pem"]),
+      "--cert and --key must be used together"
+    );
+    assert_eq!(
+      error(&["build", "--https"]),
+      "--https, --cert, and --key are only supported by serve and run"
+    );
   }
 }

@@ -1,6 +1,9 @@
 use parcel_core::{AssetType, Diagnostic, DiagnosticList, RenderedDiagnostics};
 
-use crate::launch_editor::launch_editor;
+use crate::{
+  http::{Reply, Request, Response, Server, Stream},
+  launch_editor::launch_editor,
+};
 use parcel_js::hmr::HmrUpdate;
 use std::{
   borrow::Cow,
@@ -12,9 +15,7 @@ use std::{
     Arc, Condvar, Mutex,
     mpsc::{self, Receiver, Sender},
   },
-  thread,
 };
-use tiny_http::{Header, ReadWrite, Request, Response, Server};
 use tungstenite::{Message, WebSocket};
 use url::Url;
 
@@ -26,6 +27,15 @@ pub struct ServerOptions {
   pub open: bool,
   /// The browser to open it in, otherwise the default one.
   pub browser: Option<String>,
+  /// Serves HTTPS as well as HTTP when set.
+  pub https: Option<HttpsOptions>,
+}
+
+/// The PEM files of the certificate and private key to serve HTTPS with.
+#[derive(Clone)]
+pub struct HttpsOptions {
+  pub cert: PathBuf,
+  pub key: PathBuf,
 }
 
 impl Default for ServerOptions {
@@ -36,6 +46,7 @@ impl Default for ServerOptions {
       hmr: true,
       open: false,
       browser: None,
+      https: None,
     }
   }
 }
@@ -44,7 +55,7 @@ impl Default for ServerOptions {
 /// `parcel run`.
 #[derive(Clone, Default)]
 pub struct HmrServer {
-  sockets: Arc<Mutex<Vec<WebSocket<Box<dyn ReadWrite + Send>>>>>,
+  sockets: Arc<Mutex<Vec<WebSocket<Box<dyn Stream>>>>>,
   /// Messages to send to processes started by `parcel run`, by token.
   runners: Arc<Mutex<HashMap<String, Sender<String>>>>,
   source_roots: Arc<Mutex<SourceRoots>>,
@@ -99,84 +110,63 @@ pub fn serve(
       options.host, options.port
     ))
   };
-  let server = Server::http((&*options.host, options.port)).map_err(|err| error(&err))?;
-  let address = server
-    .server_addr()
-    .to_ip()
-    .ok_or_else(|| error(&"not an IP address"))?;
+  let tls = options
+    .https
+    .as_ref()
+    .map(|https| crate::http::tls_config(&https.cert, &https.key))
+    .transpose()
+    .map_err(|err| Diagnostic::from_message(err))?;
+  let server = Server::bind((&*options.host, options.port), tls).map_err(|err| error(&err))?;
+  let address = server.local_addr().map_err(|err| error(&err))?;
 
   let hmr = HmrServer::default();
   let hmr_clone = hmr.clone();
   let accept_websockets = options.hmr;
   hmr.build.0.lock().unwrap().hmr = options.hmr;
   let (events, receiver) = mpsc::channel();
-  thread::spawn(move || {
-    for request in server.incoming_requests() {
-      if accept_websockets && is_websocket_upgrade(&request) {
-        hmr_clone.accept(request, &events);
-        continue;
-      }
-
-      let base_url = Url::parse("http://localhost").unwrap();
-      let url = match base_url.join(request.url()) {
-        Ok(url) => url,
-        Err(_) => {
-          let response = Response::from_string("400 bad request").with_status_code(400);
-          let _ = request.respond(response);
-          continue;
-        }
-      };
-      if let Some(response) = hmr_clone.respond_to_endpoint(&url) {
-        let response = Response::from_data(response.body)
-          .with_status_code(response.status)
-          .with_header(Header::from_bytes(b"Content-Type", response.content_type).unwrap())
-          .with_header(Header::from_bytes(b"Access-Control-Allow-Origin", b"*").unwrap());
-        let _ = request.respond(response);
-        continue;
-      }
-
-      match &dist_dir {
-        Some(dist_dir) => match hmr_clone.wait_for_build() {
-          Some(error_page) => {
-            let response = Response::from_string(error_page)
-              .with_status_code(500)
-              .with_header(
-                Header::from_bytes(b"Content-Type", b"text/html; charset=utf-8").unwrap(),
-              );
-            let _ = request.respond(response);
-          }
-          None => serve_file(request, &url, dist_dir),
-        },
-        None => {
-          let response = Response::from_string("404 not found").with_status_code(404);
-          let _ = request.respond(response);
-        }
-      }
+  server.run(move |request| {
+    if accept_websockets && is_websocket_upgrade(&request) {
+      return hmr_clone.accept(&request, &events);
     }
+
+    let base_url = Url::parse("http://localhost").unwrap();
+    let Ok(url) = base_url.join(&request.url) else {
+      return Reply::Respond(Response::new(400, "400 bad request"));
+    };
+    if let Some(response) = hmr_clone.respond_to_endpoint(&url) {
+      return Reply::Respond(
+        Response::new(response.status, response.body)
+          .with_header("Content-Type", response.content_type)
+          .with_header("Access-Control-Allow-Origin", "*"),
+      );
+    }
+
+    Reply::Respond(match &dist_dir {
+      Some(dist_dir) => match hmr_clone.wait_for_build() {
+        Some(error_page) => {
+          Response::new(500, error_page).with_header("Content-Type", "text/html; charset=utf-8")
+        }
+        None => serve_file(&url, dist_dir),
+      },
+      None => Response::new(404, "404 not found"),
+    })
   });
 
   Ok((hmr, address, receiver))
 }
 
-/// Responds to `request` with the file at `url` in `dir`.
-fn serve_file(request: Request, url: &Url, dir: &Path) {
+/// The file at `url` in `dir`.
+fn serve_file(url: &Url, dir: &Path) -> Response {
   let mut full_path = dir.to_path_buf();
   for segment in url.path_segments().unwrap() {
-    let decoded = match percent_encoding::percent_decode(segment.as_bytes()).decode_utf8() {
-      Ok(d) => d,
-      Err(_) => {
-        let response = Response::from_string("400 bad request").with_status_code(400);
-        let _ = request.respond(response);
-        return;
-      }
+    let Ok(decoded) = percent_encoding::percent_decode(segment.as_bytes()).decode_utf8() else {
+      return Response::new(400, "400 bad request");
     };
     if decoded.is_empty() {
       continue;
     }
     if decoded == ".." || decoded == "." || decoded.contains('/') || decoded.contains('\\') {
-      let response = Response::from_string("400 bad request").with_status_code(400);
-      let _ = request.respond(response);
-      return;
+      return Response::new(400, "400 bad request");
     }
     full_path.push(decoded.as_ref());
   }
@@ -191,18 +181,14 @@ fn serve_file(request: Request, url: &Url, dir: &Path) {
     None
   };
   let Some(file) = file else {
-    let response = Response::from_string("404 not found").with_status_code(404);
-    let _ = request.respond(response);
-    return;
+    return Response::new(404, "404 not found");
   };
   let ty = full_path
     .extension()
     .and_then(|e| e.to_str())
     .map(|e| AssetType::from_extension(e).mime())
     .unwrap_or("application/octet-stream");
-  let response = Response::from_file(file)
-    .with_header(Header::from_bytes(b"Content-Type", ty.as_bytes()).unwrap());
-  let _ = request.respond(response);
+  Response::file(file).with_header("Content-Type", ty)
 }
 
 /// A message from the process started by `parcel run`.
@@ -233,11 +219,10 @@ enum RunnerReply {
   Restart,
 }
 
-fn is_websocket_upgrade(request: &tiny_http::Request) -> bool {
+fn is_websocket_upgrade(request: &Request) -> bool {
   request
-    .headers()
-    .iter()
-    .any(|h| h.field.equiv("Upgrade") && h.value.as_str().eq_ignore_ascii_case("websocket"))
+    .header("Upgrade")
+    .is_some_and(|value| value.eq_ignore_ascii_case("websocket"))
 }
 
 /// A page showing build errors, like the overlay the HMR runtime shows over pages. With HMR, it
@@ -534,12 +519,12 @@ impl HmrServer {
     launch_editor(&path, line, column).map_err(EditorError::Launch)
   }
 
-  /// Takes over `request`, a WebSocket upgrade, as an HMR client connection: a browser, or the
-  /// process started by `parcel run` if it has a token.
-  fn accept(&self, request: Request, events: &Sender<RunnerEvent>) {
+  /// Takes over the connection of `request`, a WebSocket upgrade, as an HMR client connection: a
+  /// browser, or the process started by `parcel run` if it has a token.
+  fn accept(&self, request: &Request, events: &Sender<RunnerEvent>) -> Reply {
     let token = Url::parse("http://localhost")
       .unwrap()
-      .join(request.url())
+      .join(&request.url)
       .ok()
       .and_then(|url| {
         url
@@ -547,38 +532,34 @@ impl HmrServer {
           .find(|(key, _)| key == "token")
           .map(|(_, token)| token.into_owned())
       });
-    let ws_key = request
-      .headers()
-      .iter()
-      .find(|h| h.field.equiv("Sec-WebSocket-Key"))
-      .map(|h| h.value.as_str());
-    let mut response = Response::empty(101);
-    response.add_header(Header::from_bytes(b"Upgrade", b"websocket").unwrap());
-    response.add_header(Header::from_bytes(b"Connection", b"Upgrade").unwrap());
-    if let Some(key) = ws_key {
+    let mut response = Response::new(101, "")
+      .with_header("Upgrade", "websocket")
+      .with_header("Connection", "Upgrade");
+    if let Some(key) = request.header("Sec-WebSocket-Key") {
       let accept_key = tungstenite::handshake::derive_accept_key(key.as_bytes());
-      response
-        .add_header(Header::from_bytes(b"Sec-WebSocket-Accept", accept_key.as_bytes()).unwrap());
+      response = response.with_header("Sec-WebSocket-Accept", accept_key);
     }
 
-    let stream = request.upgrade("websocket", response);
     let hmr = self.clone();
     let events = events.clone();
-    thread::spawn(move || {
-      let websocket =
-        tungstenite::WebSocket::from_raw_socket(stream, tungstenite::protocol::Role::Server, None);
-      match token {
-        Some(token) => hmr.serve_runner(websocket, token, events),
-        None => hmr.sockets.lock().unwrap().push(websocket),
-      }
-    });
+    Reply::Upgrade(
+      response,
+      Box::new(move |stream, rest| {
+        let websocket =
+          WebSocket::from_partially_read(stream, rest, tungstenite::protocol::Role::Server, None);
+        match token {
+          Some(token) => hmr.serve_runner(websocket, token, events),
+          None => hmr.sockets.lock().unwrap().push(websocket),
+        }
+      }),
+    )
   }
 
   /// Exchanges messages with a process started by `parcel run`, which sends a message once it has
   /// run its entry, and replies to each update.
   fn serve_runner(
     &self,
-    mut websocket: WebSocket<Box<dyn ReadWrite + Send>>,
+    mut websocket: WebSocket<Box<dyn Stream>>,
     token: String,
     events: Sender<RunnerEvent>,
   ) {
@@ -656,9 +637,11 @@ impl HmrServer {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use rustls::pki_types::CertificateDer;
   use std::{
     io::{Read, Write},
     net::TcpStream,
+    thread,
     time::{Duration, Instant},
   };
 
@@ -960,5 +943,167 @@ mod tests {
       websocket.read().unwrap(),
       Message::Text(r#"{"type":"reload"}"#.into())
     );
+  }
+
+  #[test]
+  fn keeps_connections_alive() {
+    let (_server, address, _events) = serve();
+    let mut stream = TcpStream::connect(address).unwrap();
+    let mut response = Vec::new();
+    for _ in 0..2 {
+      write!(stream, "GET /other HTTP/1.1\r\nHost: {address}\r\n\r\n").unwrap();
+      let mut chunk = [0; 1024];
+      let read = stream.read(&mut chunk).unwrap();
+      response.extend_from_slice(&chunk[..read]);
+    }
+    let response = String::from_utf8(response).unwrap();
+    assert_eq!(
+      response.matches("HTTP/1.1 404 Not Found\r\n").count(),
+      2,
+      "{response}"
+    );
+  }
+
+  /// A certificate for localhost signed by a new CA, written to `dir`, and the CA's certificate.
+  fn certificate(dir: &Path) -> (HttpsOptions, CertificateDer<'static>) {
+    let ca_key = rcgen::KeyPair::generate().unwrap();
+    let mut ca_params = rcgen::CertificateParams::new(Vec::<String>::new()).unwrap();
+    ca_params.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+    let ca_cert = ca_params.self_signed(&ca_key).unwrap();
+    let issuer = rcgen::Issuer::new(ca_params, ca_key);
+    let key = rcgen::KeyPair::generate().unwrap();
+    let cert = rcgen::CertificateParams::new(vec!["localhost".to_string()])
+      .unwrap()
+      .signed_by(&key, &issuer)
+      .unwrap();
+
+    std::fs::create_dir_all(dir).unwrap();
+    let options = HttpsOptions {
+      cert: dir.join("cert.pem"),
+      key: dir.join("key.pem"),
+    };
+    std::fs::write(&options.cert, cert.pem()).unwrap();
+    std::fs::write(&options.key, key.serialize_pem()).unwrap();
+    (options, ca_cert.der().clone())
+  }
+
+  /// A TLS connection to localhost at `address`, trusting `ca`.
+  fn tls_connect(
+    address: SocketAddr,
+    ca: &CertificateDer<'static>,
+  ) -> rustls::StreamOwned<rustls::ClientConnection, TcpStream> {
+    let mut roots = rustls::RootCertStore::empty();
+    roots.add(ca.clone()).unwrap();
+    let config = rustls::ClientConfig::builder_with_provider(Arc::new(
+      rustls::crypto::ring::default_provider(),
+    ))
+    .with_safe_default_protocol_versions()
+    .unwrap()
+    .with_root_certificates(roots)
+    .with_no_client_auth();
+    let connection =
+      rustls::ClientConnection::new(Arc::new(config), "localhost".try_into().unwrap()).unwrap();
+    rustls::StreamOwned::new(connection, TcpStream::connect(address).unwrap())
+  }
+
+  #[test]
+  fn serves_https_and_http_on_the_same_port() {
+    let root = std::env::temp_dir().join(format!("parcel-https-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let (https, ca) = certificate(&root.join("certs"));
+    std::fs::create_dir_all(root.join("dist")).unwrap();
+    std::fs::write(root.join("dist/index.html"), "output").unwrap();
+    let (server, address, events) = super::serve(
+      &ServerOptions {
+        host: "127.0.0.1".into(),
+        port: 0,
+        hmr: true,
+        https: Some(https),
+        ..Default::default()
+      },
+      Some(root.join("dist")),
+    )
+    .unwrap();
+    server.build_succeeded();
+
+    let mut stream = tls_connect(address, &ca);
+    write!(
+      stream,
+      "GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
+    )
+    .unwrap();
+    let mut response = String::new();
+    // The server closes without a TLS close_notify, which rustls reports as an error.
+    let _ = stream.read_to_string(&mut response);
+    assert!(response.starts_with("HTTP/1.1 200 OK\r\n"), "{response}");
+    assert!(response.ends_with("\r\n\r\noutput"), "{response}");
+
+    assert_eq!(
+      http_get(address, "/"),
+      ("HTTP/1.1 200 OK".into(), "output".into())
+    );
+
+    // Browsers connect over TLS.
+    let (mut browser, _) = tungstenite::client(
+      format!("wss://localhost:{}/", address.port()),
+      tls_connect(address, &ca),
+    )
+    .unwrap();
+    let start = Instant::now();
+    while server.sockets.lock().unwrap().is_empty() {
+      assert!(start.elapsed() < TIMEOUT);
+      thread::sleep(Duration::from_millis(10));
+    }
+    server.emit_hmr(&HmrUpdate::Reload);
+    assert_eq!(
+      browser.read().unwrap(),
+      Message::Text(r#"{"type":"reload"}"#.into())
+    );
+
+    // The process started by `parcel run` connects without TLS.
+    let (mut runner, _) = tungstenite::connect(format!("ws://{address}/?token=abc")).unwrap();
+    runner
+      .send(Message::Text(r#"{"type":"ready"}"#.into()))
+      .unwrap();
+    assert_eq!(
+      events.recv_timeout(TIMEOUT).unwrap().message,
+      RunnerMessage::Ready
+    );
+
+    std::fs::remove_dir_all(&root).unwrap();
+  }
+
+  #[test]
+  fn reports_invalid_certificates() {
+    let root = std::env::temp_dir().join(format!("parcel-bad-cert-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join("empty.pem"), "").unwrap();
+    let serve = |cert: &str, key: &str| {
+      super::serve(
+        &ServerOptions {
+          host: "127.0.0.1".into(),
+          port: 0,
+          https: Some(HttpsOptions {
+            cert: root.join(cert),
+            key: root.join(key),
+          }),
+          ..Default::default()
+        },
+        None,
+      )
+      .err()
+      .unwrap()
+      .0[0]
+        .message
+        .clone()
+    };
+    assert!(
+      serve("missing.pem", "key.pem").starts_with("Could not read certificate"),
+      "{}",
+      serve("missing.pem", "key.pem")
+    );
+    assert!(serve("empty.pem", "key.pem").starts_with("No certificates found"));
+    std::fs::remove_dir_all(&root).unwrap();
   }
 }
