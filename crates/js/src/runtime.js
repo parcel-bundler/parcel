@@ -1,5 +1,5 @@
 /* eslint-env browser */
-/* global parcelRequireName, modules, mainEntry, entries, awaitedBundles, externals, manifest, distDir, publicUrl */
+/* global parcelRequireName, modules, mainEntry, entries, awaitedBundles, externals, manifest, distDir, publicUrl, bundleUrl */
 /* eslint-disable no-unused-vars */
 
 // Save the require from previous bundle to this closure if any
@@ -107,7 +107,10 @@ function parcelLoadJS(bundleId) {
 }
 
 function parcelResolve(bundleId) {
-  return publicUrl + (importMap[bundleId] || bundleId);
+  var name = importMap[bundleId] || bundleId;
+  // In Node, bundles are referenced by their file URLs. Bundle ids are dist-root-relative, and
+  // `distDir` is the path from this bundle's directory back to that root.
+  return bundleUrl ? new URL(distDir + name, bundleUrl).href : publicUrl + name;
 }
 
 function parcelLoadCSS(bundleId, media) {

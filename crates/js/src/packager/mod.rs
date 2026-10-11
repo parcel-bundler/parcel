@@ -37,6 +37,7 @@ const RUNTIME_AWAITED_BUNDLES: &str = "b";
 const RUNTIME_REQUIRE: &str = "r";
 const RUNTIME_DIST_DIR: &str = "d";
 const RUNTIME_PUBLIC_URL: &str = "u";
+const RUNTIME_BUNDLE_URL: &str = "l";
 const NODE_PATH: &str = "$parcel$path";
 const BUNDLE_DIR: &str = "$parcel$bundleDir";
 const IMPORT_META: &str = "$parcel$importMeta";
@@ -194,6 +195,15 @@ impl JsContent {
       )?;
     }
 
+    let has_url_references = synthetic_assets.iter().any(|synthetic_asset| {
+      matches!(
+        synthetic_asset,
+        SyntheticAsset::Bundle {
+          kind: BundleShim::Url,
+          ..
+        }
+      )
+    });
     for synthetic_asset in synthetic_assets {
       if bundle.target.output_format == OutputFormat::Esmodule
         && matches!(
@@ -234,6 +244,7 @@ impl JsContent {
       rsc_server_entry,
       &externals,
       &sync_bundles,
+      has_url_references,
       &options.project_root,
       should_optimize,
       options,
@@ -712,6 +723,7 @@ fn write_runtime_globals(
   rsc_server_entry: Option<String>,
   externals: &IndexSet<String>,
   sync_bundles: &IndexSet<u32>,
+  has_url_references: bool,
   project_root: &PathId,
   should_optimize: bool,
   options: &ParcelOptions,
@@ -784,6 +796,26 @@ fn write_runtime_globals(
   printer.write_var(
     runtime_name(should_optimize, "publicUrl", RUNTIME_PUBLIC_URL),
     &serde_json::to_string(&public_url)?,
+    true,
+  )?;
+
+  // In Node, URLs to other bundles (e.g. `new URL('./file.txt', import.meta.url)`) refer to their
+  // files rather than public URLs, so the runtime resolves them against this bundle's file URL.
+  // Hot updates may add references to bundles that had none.
+  let may_reference_urls = has_url_references || (options.hmr.is_some() && !should_optimize);
+  let bundle_url = match bundle.target.environment {
+    Environment::Node | Environment::ElectronMain if may_reference_urls => {
+      if bundle.target.output_format == OutputFormat::Esmodule {
+        "import.meta.url"
+      } else {
+        "module.require('url').pathToFileURL(__filename).href"
+      }
+    }
+    _ => "null",
+  };
+  printer.write_var(
+    runtime_name(should_optimize, "bundleUrl", RUNTIME_BUNDLE_URL),
+    bundle_url,
     true,
   )?;
 

@@ -27,6 +27,7 @@ const RUNTIME_GLOBALS: &[(&str, &str)] = &[
   ("require", "r"),
   ("distDir", "d"),
   ("publicUrl", "u"),
+  ("bundleUrl", "l"),
   ("$parcel$path", "v"),
   ("$parcel$bundleDir", "w"),
 ];

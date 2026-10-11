@@ -1,0 +1,8 @@
+{
+  "description": "should resolve new URL with import.meta.url to the file in Node (CommonJS output)",
+  "input": "index.js",
+  "output": {
+    "protocol": "file:",
+    "path": "dist/test.txt"
+  }
+}

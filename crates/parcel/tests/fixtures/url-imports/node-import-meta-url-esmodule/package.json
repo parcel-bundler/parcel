@@ -1,0 +1,9 @@
+{
+  "type": "module",
+  "targets": {
+    "default": {
+      "context": "node",
+      "outputFormat": "esmodule"
+    }
+  }
+}
