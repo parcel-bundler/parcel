@@ -3,19 +3,31 @@
 
 use std::{
   ffi::{OsStr, OsString},
-  path::Path,
+  path::{Path, PathBuf},
   process::{Command, Stdio},
   thread,
 };
+
+use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 
 /// Opens `file` in the user's editor, at `line` and `column` if the editor supports them. The
 /// editor is the one set in `LAUNCH_EDITOR`, otherwise a known editor that is running, otherwise
 /// the one set in `VISUAL` or `EDITOR`.
 pub fn launch_editor(file: &Path, line: Option<u32>, column: Option<u32>) -> Result<(), String> {
   let launch_editor_var = std::env::var_os("LAUNCH_EDITOR");
+  let running = launch_editor_var.is_none().then(running_editor).flatten();
+  if let Some(RunningEditor {
+    app_url: Some((app, scheme)),
+    ..
+  }) = &running
+    && open_url_in_app(app, &editor_url(scheme, file, line, column)).is_ok()
+  {
+    return Ok(());
+  }
+
   let editor = launch_editor_var
     .clone()
-    .or_else(|| running_editor().map(OsString::from))
+    .or_else(|| running.map(|running| running.command.into()))
     .or_else(|| std::env::var_os("VISUAL"))
     .or_else(|| std::env::var_os("EDITOR"))
     .ok_or("No editor found. Set LAUNCH_EDITOR to the editor to open files in.")?;
@@ -49,6 +61,38 @@ pub fn launch_editor(file: &Path, line: Option<u32>, column: Option<u32>) -> Res
     }
   });
   Ok(())
+}
+
+/// A known editor that is running.
+struct RunningEditor {
+  /// The command that opens files in it.
+  command: String,
+  /// The app, and the URL scheme that opens files in it (see `MACOS_URL_SCHEMES`).
+  app_url: Option<(PathBuf, &'static str)>,
+}
+
+/// The URL that opens `file` at `line` and `column` in an editor with the URL scheme `scheme`, e.g.
+/// `vscode://file/path/to/file.js:3:5`.
+fn editor_url(scheme: &str, file: &Path, line: Option<u32>, column: Option<u32>) -> String {
+  const PATH: &AsciiSet = &CONTROLS
+    .add(b' ')
+    .add(b'"')
+    .add(b'#')
+    .add(b'%')
+    .add(b'<')
+    .add(b'>')
+    .add(b'?')
+    .add(b'`')
+    .add(b'{')
+    .add(b'}');
+  let mut url = format!(
+    "{scheme}://file{}",
+    utf8_percent_encode(&file.to_string_lossy(), PATH)
+  );
+  if let Some(line) = line {
+    url.push_str(&format!(":{line}:{}", column.unwrap_or(1)));
+  }
+  url
 }
 
 /// Editors that take over the terminal they are started in, i.e. the dev server's.
@@ -222,6 +266,40 @@ const MACOS_EDITORS: &[(&str, &str)] = &[
   ("/Applications/Zed.app/Contents/MacOS/zed", "zed"),
 ];
 
+/// The URL schemes of macOS editors, by their executables (see `MACOS_EDITORS`), that open files at
+/// a position like `vscode://file/path:line:column`. Opening a URL in the running app through
+/// LaunchServices brings it to the front, whereas some editors' CLIs don't (e.g. Zed's), or
+/// briefly start another instance (e.g. VS Code's).
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+const MACOS_URL_SCHEMES: &[(&str, &str)] = &[
+  (
+    "/Applications/Visual Studio Code.app/Contents/MacOS/Code",
+    "vscode",
+  ),
+  (
+    "/Applications/Visual Studio Code.app/Contents/MacOS/Electron",
+    "vscode",
+  ),
+  (
+    "/Applications/Visual Studio Code - Insiders.app/Contents/MacOS/Code - Insiders",
+    "vscode-insiders",
+  ),
+  (
+    "/Applications/Visual Studio Code - Insiders.app/Contents/MacOS/Electron",
+    "vscode-insiders",
+  ),
+  (
+    "/Applications/VSCodium.app/Contents/MacOS/Electron",
+    "vscodium",
+  ),
+  ("/Applications/Cursor.app/Contents/MacOS/Cursor", "cursor"),
+  (
+    "/Applications/Antigravity.app/Contents/MacOS/Electron",
+    "antigravity",
+  ),
+  ("/Applications/Zed.app/Contents/MacOS/zed", "zed"),
+];
+
 /// Running editors' process names on Linux, and the commands that open files in them.
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 const LINUX_EDITORS: &[(&str, &str)] = &[
@@ -287,26 +365,38 @@ const WINDOWS_EDITORS: &[&str] = &[
   "Antigravity.exe",
 ];
 
-/// The command that opens files in a known editor that is running, given the executable paths of
-/// the user's processes.
+/// A known editor that is running, given the executable paths of the user's processes.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
-fn editor_from_macos_processes(processes: &[String]) -> Option<String> {
+fn editor_from_macos_processes(processes: &[String]) -> Option<RunningEditor> {
   for &(executable, command) in MACOS_EDITORS {
-    if processes.iter().any(|process| process == executable) {
-      return Some(command.into());
-    }
     // The app may be installed elsewhere, e.g. in ~/Applications.
     let in_app = executable.trim_start_matches("/Applications");
-    if let Some(process) = processes.iter().find(|process| process.ends_with(in_app)) {
-      // Use the command if it's on PATH, and otherwise the executable wherever it's installed.
-      return Some(if command != executable {
-        command.into()
-      } else {
-        process.clone()
-      });
-    }
+    let Some(process) = processes
+      .iter()
+      .find(|process| *process == executable)
+      .or_else(|| processes.iter().find(|process| process.ends_with(in_app)))
+    else {
+      continue;
+    };
+    // Use the command if it's on PATH, and otherwise the executable wherever it's installed.
+    let command = if command != executable || process == executable {
+      command.into()
+    } else {
+      process.clone()
+    };
+    let app_url = MACOS_URL_SCHEMES
+      .iter()
+      .find(|(scheme_executable, _)| *scheme_executable == executable)
+      .and_then(|&(_, scheme)| Some((app_bundle(process)?, scheme)));
+    return Some(RunningEditor { command, app_url });
   }
   None
+}
+
+/// The `.app` bundle that contains `executable`.
+fn app_bundle(executable: &str) -> Option<PathBuf> {
+  let end = executable.find(".app/")? + ".app".len();
+  Some(PathBuf::from(&executable[..end]))
 }
 
 /// The command that opens files in a known editor that is running, given the names of the user's
@@ -332,23 +422,37 @@ fn editor_from_windows_processes(processes: &[String]) -> Option<String> {
 }
 
 #[cfg(target_os = "macos")]
-fn running_editor() -> Option<String> {
+fn running_editor() -> Option<RunningEditor> {
   editor_from_macos_processes(&macos::process_paths())
 }
 
 #[cfg(target_os = "linux")]
-fn running_editor() -> Option<String> {
-  editor_from_linux_processes(&linux::process_names())
+fn running_editor() -> Option<RunningEditor> {
+  editor_from_linux_processes(&linux::process_names()).map(|command| RunningEditor {
+    command,
+    app_url: None,
+  })
 }
 
 #[cfg(windows)]
-fn running_editor() -> Option<String> {
-  windows::editor_process()
+fn running_editor() -> Option<RunningEditor> {
+  windows::editor_process().map(|command| RunningEditor {
+    command,
+    app_url: None,
+  })
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
-fn running_editor() -> Option<String> {
+fn running_editor() -> Option<RunningEditor> {
   None
+}
+
+#[cfg(target_os = "macos")]
+use macos::open_url_in_app;
+
+#[cfg(not(target_os = "macos"))]
+fn open_url_in_app(_app: &Path, _url: &str) -> Result<(), ()> {
+  Err(())
 }
 
 /// The program to run for `editor`. On Windows, `Command` only finds `.exe` files on PATH, but
@@ -380,7 +484,102 @@ fn resolve_program(editor: &OsStr) -> OsString {
 
 #[cfg(target_os = "macos")]
 mod macos {
-  use std::{ffi::c_void, mem};
+  use std::{ffi::c_void, mem, os::unix::ffi::OsStrExt, path::Path};
+
+  type CFTypeRef = *const c_void;
+
+  #[repr(C)]
+  struct CFArrayCallBacks {
+    version: isize,
+    retain: *const c_void,
+    release: *const c_void,
+    copy_description: *const c_void,
+    equal: *const c_void,
+  }
+
+  #[repr(C)]
+  struct LSLaunchURLSpec {
+    app_url: CFTypeRef,
+    item_urls: CFTypeRef,
+    pass_thru_params: *const c_void,
+    launch_flags: u32,
+    async_ref_con: *mut c_void,
+  }
+
+  const K_CF_STRING_ENCODING_UTF8: u32 = 0x0800_0100;
+  /// Opens the items and brings the app to the front.
+  const K_LS_LAUNCH_DEFAULTS: u32 = 0x0000_0001;
+
+  #[link(name = "CoreFoundation", kind = "framework")]
+  unsafe extern "C" {
+    static kCFTypeArrayCallBacks: CFArrayCallBacks;
+    fn CFURLCreateWithBytes(
+      allocator: CFTypeRef,
+      bytes: *const u8,
+      length: isize,
+      encoding: u32,
+      base: CFTypeRef,
+    ) -> CFTypeRef;
+    fn CFURLCreateFromFileSystemRepresentation(
+      allocator: CFTypeRef,
+      buffer: *const u8,
+      length: isize,
+      is_directory: u8,
+    ) -> CFTypeRef;
+    fn CFArrayCreate(
+      allocator: CFTypeRef,
+      values: *const CFTypeRef,
+      count: isize,
+      callbacks: *const CFArrayCallBacks,
+    ) -> CFTypeRef;
+    fn CFRelease(cf: CFTypeRef);
+  }
+
+  #[link(name = "CoreServices", kind = "framework")]
+  unsafe extern "C" {
+    fn LSOpenFromURLSpec(spec: *const LSLaunchURLSpec, launched_url: *mut CFTypeRef) -> i32;
+  }
+
+  /// Opens `url` in the app at `app` with LaunchServices, like `open -a app url`.
+  pub fn open_url_in_app(app: &Path, url: &str) -> Result<(), ()> {
+    let app = app.as_os_str().as_bytes();
+    unsafe {
+      let app_url = CFURLCreateFromFileSystemRepresentation(
+        std::ptr::null(),
+        app.as_ptr(),
+        app.len() as isize,
+        1,
+      );
+      let url = CFURLCreateWithBytes(
+        std::ptr::null(),
+        url.as_ptr(),
+        url.len() as isize,
+        K_CF_STRING_ENCODING_UTF8,
+        std::ptr::null(),
+      );
+      let status = if app_url.is_null() || url.is_null() {
+        -1
+      } else {
+        let item_urls = CFArrayCreate(std::ptr::null(), &url, 1, &kCFTypeArrayCallBacks);
+        let spec = LSLaunchURLSpec {
+          app_url,
+          item_urls,
+          pass_thru_params: std::ptr::null(),
+          launch_flags: K_LS_LAUNCH_DEFAULTS,
+          async_ref_con: std::ptr::null_mut(),
+        };
+        let status = LSOpenFromURLSpec(&spec, std::ptr::null_mut());
+        CFRelease(item_urls);
+        status
+      };
+      for object in [app_url, url] {
+        if !object.is_null() {
+          CFRelease(object);
+        }
+      }
+      if status == 0 { Ok(()) } else { Err(()) }
+    }
+  }
 
   /// The executable paths of the current user's processes, like `ps x -o comm=`.
   pub fn process_paths() -> Vec<String> {
@@ -579,29 +778,75 @@ mod tests {
 
   #[test]
   fn finds_running_macos_editors() {
-    let processes = |paths: &[&str]| paths.iter().map(|p| p.to_string()).collect::<Vec<_>>();
+    let editor = |paths: &[&str]| {
+      let processes: Vec<_> = paths.iter().map(|p| p.to_string()).collect();
+      editor_from_macos_processes(&processes).map(|editor| {
+        (
+          editor.command,
+          editor
+            .app_url
+            .map(|(app, scheme)| (app.to_string_lossy().into_owned(), scheme)),
+        )
+      })
+    };
     assert_eq!(
-      editor_from_macos_processes(&processes(&[
+      editor(&[
         "/usr/libexec/logd",
         "/Applications/Visual Studio Code.app/Contents/MacOS/Code"
-      ])),
-      Some("code".into())
+      ]),
+      Some((
+        "code".into(),
+        Some(("/Applications/Visual Studio Code.app".into(), "vscode"))
+      ))
     );
     // Apps installed outside /Applications are found too.
     assert_eq!(
-      editor_from_macos_processes(&processes(&[
-        "/Users/me/Applications/Sublime Text.app/Contents/MacOS/sublime_text"
-      ])),
-      Some("/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl".into())
+      editor(&["/Users/me/Applications/Zed.app/Contents/MacOS/zed"]),
+      Some((
+        "zed".into(),
+        Some(("/Users/me/Applications/Zed.app".into(), "zed"))
+      ))
+    );
+    assert_eq!(
+      editor(&["/Users/me/Applications/Sublime Text.app/Contents/MacOS/sublime_text"]),
+      Some((
+        "/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl".into(),
+        None
+      ))
     );
     // Without a command, the executable is used wherever it's installed.
     assert_eq!(
-      editor_from_macos_processes(&processes(&[
-        "/Users/me/Applications/WebStorm.app/Contents/MacOS/webstorm"
-      ])),
-      Some("/Users/me/Applications/WebStorm.app/Contents/MacOS/webstorm".into())
+      editor(&["/Users/me/Applications/WebStorm.app/Contents/MacOS/webstorm"]),
+      Some((
+        "/Users/me/Applications/WebStorm.app/Contents/MacOS/webstorm".into(),
+        None
+      ))
     );
-    assert_eq!(editor_from_macos_processes(&processes(&["/bin/zsh"])), None);
+    assert_eq!(editor(&["/bin/zsh"]), None);
+  }
+
+  #[test]
+  fn builds_editor_urls() {
+    let file = Path::new("/Users/me/my project/a#b.js");
+    assert_eq!(
+      editor_url("vscode", file, Some(3), Some(5)),
+      "vscode://file/Users/me/my%20project/a%23b.js:3:5"
+    );
+    assert_eq!(
+      editor_url("zed", file, Some(3), None),
+      "zed://file/Users/me/my%20project/a%23b.js:3:1"
+    );
+    assert_eq!(
+      editor_url("zed", file, None, None),
+      "zed://file/Users/me/my%20project/a%23b.js"
+    );
+  }
+
+  #[cfg(target_os = "macos")]
+  #[test]
+  fn fails_to_open_urls_in_missing_apps() {
+    // Exercises the LaunchServices call without opening anything.
+    assert!(open_url_in_app(Path::new("/nonexistent/Missing.app"), "zed://file/a.js").is_err());
   }
 
   #[test]
