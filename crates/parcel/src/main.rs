@@ -85,6 +85,8 @@ fn help(command: Option<Command>) -> String {
       "  -p, --port <port>     Set the port (default: PORT environment variable or 1234)\n",
       "  --host <host>         Set the host (default: 0.0.0.0)\n",
       "  --no-hmr              Disable hot module replacement\n",
+      "  --open [browser]      Open the page in the default browser, or a browser like chrome\n",
+      "                        (--open=<app> for other apps)\n",
     ));
   }
   if command.is_none() || command == Some(Command::Run) {
@@ -109,10 +111,11 @@ enum CliAction {
 }
 
 fn parse_args(
-  mut args: impl Iterator<Item = String>,
+  args: impl Iterator<Item = String>,
   mut env: HashMap<String, String>,
   cwd: PathId,
 ) -> Result<CliAction, String> {
+  let mut args = args.peekable();
   let Some(command) = args.next() else {
     return Ok(CliAction::Help(None));
   };
@@ -203,6 +206,16 @@ fn parse_args(
         "--no-hmr" => {
           server_options.hmr = false;
         }
+        // The browser follows an `=`, or is the next argument if it's a known browser name rather
+        // than an entry.
+        "--open" => {
+          server_options.open = true;
+          server_options.browser = args.next_if(|next| parcel::is_browser_name(next));
+        }
+        arg if arg.starts_with("--open=") => {
+          server_options.open = true;
+          server_options.browser = Some(arg["--open=".len()..].to_owned());
+        }
         "--no-source-maps" => {
           options.source_map = None;
         }
@@ -242,6 +255,9 @@ fn parse_args(
 
   if hmr_port.is_some() && command != Command::Run {
     return Err("--hmr-port is only supported by run".into());
+  }
+  if server_options.open && command != Command::Serve {
+    return Err("--open is only supported by serve".into());
   }
   if command == Command::Run {
     if port_provided {
@@ -394,5 +410,42 @@ fn stdio(level: &LogLevel) -> either::Either<std::io::Stderr, std::io::Stdout> {
   match level {
     LogLevel::Error | LogLevel::Warn => either::Either::Left(std::io::stderr()),
     _ => either::Either::Right(std::io::stdout()),
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn serve(args: &[&str]) -> (Vec<String>, ServerOptions) {
+    let args = ["serve"].iter().chain(args).map(|arg| arg.to_string());
+    match parse_args(args, HashMap::new(), PathId::new(Path::new("/project"))) {
+      Ok(CliAction::Run {
+        entries,
+        server_options,
+        ..
+      }) => (entries, server_options),
+      _ => panic!("expected serve"),
+    }
+  }
+
+  #[test]
+  fn parses_open() {
+    let (entries, options) = serve(&["--open", "src/index.html"]);
+    assert!(options.open);
+    assert_eq!(options.browser, None);
+    assert_eq!(entries, ["src/index.html"]);
+
+    let (entries, options) = serve(&["--open", "chrome", "src/index.html"]);
+    assert_eq!(options.browser.as_deref(), Some("chrome"));
+    assert_eq!(entries, ["src/index.html"]);
+
+    let (_, options) = serve(&["--open=Firefox Developer Edition"]);
+    assert_eq!(
+      options.browser.as_deref(),
+      Some("Firefox Developer Edition")
+    );
+
+    assert!(!serve(&[]).1.open);
   }
 }

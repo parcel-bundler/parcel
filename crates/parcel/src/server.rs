@@ -22,6 +22,10 @@ pub struct ServerOptions {
   pub host: Cow<'static, str>,
   pub port: u16,
   pub hmr: bool,
+  /// Whether to open the page in a browser once the server starts.
+  pub open: bool,
+  /// The browser to open it in, otherwise the default one.
+  pub browser: Option<String>,
 }
 
 impl Default for ServerOptions {
@@ -30,6 +34,8 @@ impl Default for ServerOptions {
       host: Cow::Borrowed("0.0.0.0"),
       port: 1234,
       hmr: true,
+      open: false,
+      browser: None,
     }
   }
 }
@@ -664,6 +670,7 @@ mod tests {
         host: "127.0.0.1".into(),
         port: 0,
         hmr: true,
+        ..Default::default()
       },
       None,
     )
@@ -840,6 +847,7 @@ mod tests {
         host: "127.0.0.1".into(),
         port: 0,
         hmr: true,
+        ..Default::default()
       },
       Some(root.clone()),
     )

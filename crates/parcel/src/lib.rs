@@ -12,6 +12,7 @@ use crate::{
   run::{NodeRunner, entry_context_assets, node_entry},
 };
 
+pub use open_browser::is_browser_name;
 pub use server::ServerOptions;
 
 mod bundler;
@@ -23,7 +24,10 @@ mod json_urls;
 mod jsonld;
 mod launch_editor;
 mod library_bundler;
+#[cfg(target_os = "macos")]
+mod macos;
 mod namer;
+mod open_browser;
 mod plugin_factory;
 mod raw;
 mod resolver;
@@ -108,6 +112,32 @@ pub fn serve(
       true
     }
   };
+
+  if server_options.open {
+    // Opened in the background, since macOS may ask the user whether to allow controlling the
+    // browser.
+    let host = match &*server_options.host {
+      host
+        if host
+          .parse::<std::net::IpAddr>()
+          .is_ok_and(|ip| ip.is_unspecified()) =>
+      {
+        "localhost"
+      }
+      host => host,
+    };
+    let url = match host.parse::<std::net::IpAddr>() {
+      Ok(std::net::IpAddr::V6(ip)) => format!("http://[{ip}]:{}/", address.port()),
+      _ => format!("http://{host}:{}/", address.port()),
+    };
+    let browser = server_options.browser.clone();
+    let reporters = reporters.clone();
+    std::thread::spawn(move || {
+      if let Err(message) = open_browser::open_browser(&url, browser.as_deref()) {
+        reporters.log(LogLevel::Warn, &message);
+      }
+    });
+  }
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {

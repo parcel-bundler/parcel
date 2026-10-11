@@ -448,7 +448,7 @@ fn running_editor() -> Option<RunningEditor> {
 }
 
 #[cfg(target_os = "macos")]
-use macos::open_url_in_app;
+use crate::macos::open_url_in_app;
 
 #[cfg(not(target_os = "macos"))]
 fn open_url_in_app(_app: &Path, _url: &str) -> Result<(), ()> {
@@ -484,102 +484,7 @@ fn resolve_program(editor: &OsStr) -> OsString {
 
 #[cfg(target_os = "macos")]
 mod macos {
-  use std::{ffi::c_void, mem, os::unix::ffi::OsStrExt, path::Path};
-
-  type CFTypeRef = *const c_void;
-
-  #[repr(C)]
-  struct CFArrayCallBacks {
-    version: isize,
-    retain: *const c_void,
-    release: *const c_void,
-    copy_description: *const c_void,
-    equal: *const c_void,
-  }
-
-  #[repr(C)]
-  struct LSLaunchURLSpec {
-    app_url: CFTypeRef,
-    item_urls: CFTypeRef,
-    pass_thru_params: *const c_void,
-    launch_flags: u32,
-    async_ref_con: *mut c_void,
-  }
-
-  const K_CF_STRING_ENCODING_UTF8: u32 = 0x0800_0100;
-  /// Opens the items and brings the app to the front.
-  const K_LS_LAUNCH_DEFAULTS: u32 = 0x0000_0001;
-
-  #[link(name = "CoreFoundation", kind = "framework")]
-  unsafe extern "C" {
-    static kCFTypeArrayCallBacks: CFArrayCallBacks;
-    fn CFURLCreateWithBytes(
-      allocator: CFTypeRef,
-      bytes: *const u8,
-      length: isize,
-      encoding: u32,
-      base: CFTypeRef,
-    ) -> CFTypeRef;
-    fn CFURLCreateFromFileSystemRepresentation(
-      allocator: CFTypeRef,
-      buffer: *const u8,
-      length: isize,
-      is_directory: u8,
-    ) -> CFTypeRef;
-    fn CFArrayCreate(
-      allocator: CFTypeRef,
-      values: *const CFTypeRef,
-      count: isize,
-      callbacks: *const CFArrayCallBacks,
-    ) -> CFTypeRef;
-    fn CFRelease(cf: CFTypeRef);
-  }
-
-  #[link(name = "CoreServices", kind = "framework")]
-  unsafe extern "C" {
-    fn LSOpenFromURLSpec(spec: *const LSLaunchURLSpec, launched_url: *mut CFTypeRef) -> i32;
-  }
-
-  /// Opens `url` in the app at `app` with LaunchServices, like `open -a app url`.
-  pub fn open_url_in_app(app: &Path, url: &str) -> Result<(), ()> {
-    let app = app.as_os_str().as_bytes();
-    unsafe {
-      let app_url = CFURLCreateFromFileSystemRepresentation(
-        std::ptr::null(),
-        app.as_ptr(),
-        app.len() as isize,
-        1,
-      );
-      let url = CFURLCreateWithBytes(
-        std::ptr::null(),
-        url.as_ptr(),
-        url.len() as isize,
-        K_CF_STRING_ENCODING_UTF8,
-        std::ptr::null(),
-      );
-      let status = if app_url.is_null() || url.is_null() {
-        -1
-      } else {
-        let item_urls = CFArrayCreate(std::ptr::null(), &url, 1, &kCFTypeArrayCallBacks);
-        let spec = LSLaunchURLSpec {
-          app_url,
-          item_urls,
-          pass_thru_params: std::ptr::null(),
-          launch_flags: K_LS_LAUNCH_DEFAULTS,
-          async_ref_con: std::ptr::null_mut(),
-        };
-        let status = LSOpenFromURLSpec(&spec, std::ptr::null_mut());
-        CFRelease(item_urls);
-        status
-      };
-      for object in [app_url, url] {
-        if !object.is_null() {
-          CFRelease(object);
-        }
-      }
-      if status == 0 { Ok(()) } else { Err(()) }
-    }
-  }
+  use std::{ffi::c_void, mem};
 
   /// The executable paths of the current user's processes, like `ps x -o comm=`.
   pub fn process_paths() -> Vec<String> {
@@ -840,13 +745,6 @@ mod tests {
       editor_url("zed", file, None, None),
       "zed://file/Users/me/my%20project/a%23b.js"
     );
-  }
-
-  #[cfg(target_os = "macos")]
-  #[test]
-  fn fails_to_open_urls_in_missing_apps() {
-    // Exercises the LaunchServices call without opening anything.
-    assert!(open_url_in_app(Path::new("/nonexistent/Missing.app"), "zed://file/a.js").is_err());
   }
 
   #[test]
