@@ -95,6 +95,7 @@ impl Printer {
     {
       let map = serde_json::to_vec(&SourceMapIndex {
         version: 3,
+        sources: [],
         sections,
       })?;
       Ok(Arc::new(ContentWithSourceMap::new_string(self.output, map)))
@@ -142,19 +143,24 @@ fn update_position(s: &str, line: &mut u32, column: &mut u32) {
 }
 
 #[derive(Serialize)]
-struct SourceMapIndex {
-  version: u8,
-  sections: Vec<SourceMapSection>,
+pub(crate) struct SourceMapIndex {
+  pub(crate) version: u8,
+  /// Not part of an index map, but Node ignores index maps without it (it resolves the top-level
+  /// `sources` when loading a map), and then applies the sections. Node doesn't resolve the
+  /// sections' `sources` though, so its stack traces show them relative to the project root.
+  /// See https://github.com/nodejs/node/issues/66657
+  pub(crate) sources: [String; 0],
+  pub(crate) sections: Vec<SourceMapSection>,
 }
 
 #[derive(Serialize)]
-struct SourceMapSection {
+pub(crate) struct SourceMapSection {
   offset: SourceMapSectionOffset,
   map: Box<RawValue>,
 }
 
 impl SourceMapSection {
-  fn new(line: u32, column: u32, map: String) -> Result<Self, DiagnosticList> {
+  pub(crate) fn new(line: u32, column: u32, map: String) -> Result<Self, DiagnosticList> {
     Ok(SourceMapSection {
       offset: SourceMapSectionOffset { line, column },
       map: RawValue::from_string(map)?,

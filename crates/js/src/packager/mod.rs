@@ -85,7 +85,12 @@ impl JsContent {
           bundle.target.output_format,
           should_optimize,
         );
-        let (code, map) = content.to_code(&ast, bundle.target.source_map.is_some(), false)?;
+        let (code, map) = content.to_code(
+          &ast,
+          bundle.target.source_map.is_some(),
+          bundle_source_root(bundle, &options.project_root).as_deref(),
+          false,
+        )?;
         if let Some(map) = map {
           return Ok(Arc::new(ContentWithSourceMap::new(code, map.into_bytes())));
         }
@@ -438,7 +443,12 @@ fn write_asset_module<'a>(
       );
       ast.finalize();
     }
-    let (code, map) = content.to_code(&ast, should_build_source_map, should_optimize)?;
+    let (code, map) = content.to_code(
+      &ast,
+      should_build_source_map,
+      bundle_source_root(bundle, &options.project_root).as_deref(),
+      should_optimize,
+    )?;
 
     printer.write_module_header(asset.id(&options.project_root))?;
     printer.add_source_map(map)?;

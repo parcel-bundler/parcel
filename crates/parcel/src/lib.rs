@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use fixedbitset::FixedBitSet;
 use parcel_core::{
-  BuildOptions, BuildResult, BundleGraph, DiagnosticList, HmrOptions, InvalidateResult, Parcel,
-  ParcelConfig, ParcelOptions, PathId, PluginFactory,
+  BuildOptions, BuildResult, BundleGraph, DiagnosticList, HmrOptions, InvalidateResult, LogLevel,
+  Parcel, ParcelConfig, ParcelOptions, PathId, PluginFactory,
 };
 use parcel_js::hmr::{HmrUpdate, get_hmr_update};
 
@@ -75,13 +75,18 @@ pub fn serve(
   let mut parcel = make_parcel(entries, options)?;
   let project_root = parcel.project_root();
 
+  let reporters = parcel.options.reporters.clone();
   let graph = parcel.build()?;
   let hmr = server_options.hmr;
-  let server = server::serve_dir(
-    &graph.asset_graph.entries[0].target.dist_dir.to_path_buf(),
-    server_options,
-    parcel.options.reporters.clone(),
+  let (server, address, _) = server::serve(
+    &server_options,
+    Some(graph.asset_graph.entries[0].target.dist_dir.to_path_buf()),
   )?;
+  reporters.log(
+    LogLevel::Info,
+    &format!("Server listening on http://localhost:{}", address.port()),
+  );
+  set_source_roots(&server, &project_root, &graph);
 
   let watcher = parcel_watcher::watch(&project_root.to_path_buf());
   while let Ok(events) = watcher.recv() {
@@ -94,6 +99,7 @@ pub fn serve(
     let options = parcel.options.clone();
     match parcel.build_with_changes() {
       Ok(result) => {
+        set_source_roots(&server, &project_root, &result.bundle_graph);
         if hmr
           && let Some(update) =
             hmr_updates(config_changed, &result, &config, &options, None).browser
@@ -119,7 +125,7 @@ pub fn run(
 ) -> Result<(), DiagnosticList> {
   // The HMR server is started before building because its port is compiled into the bundles.
   let hmr = if server_options.hmr {
-    let (server, address, events) = server::serve_hmr(&server_options)?;
+    let (server, address, events) = server::serve(&server_options, None)?;
     options.hmr = Some(HmrOptions {
       host: server_options.host.clone(),
       port: address.port(),
@@ -135,6 +141,9 @@ pub fn run(
   let mut runner = NodeRunner::new(hmr);
 
   let graph = parcel.build()?;
+  if let Some(server) = &hmr_server {
+    set_source_roots(server, &project_root, &graph);
+  }
   if let Some(entry) = node_entry(&graph) {
     runner.restart(graph.bundles[entry].dist_path());
   }
@@ -150,6 +159,9 @@ pub fn run(
     let options = parcel.options.clone();
     match parcel.build_with_changes() {
       Ok(result) => {
+        if let Some(server) = &hmr_server {
+          set_source_roots(server, &project_root, &result.bundle_graph);
+        }
         let entry = node_entry(&result.bundle_graph);
         let updates = if hmr_server.is_some() {
           hmr_updates(config_changed, &result, &config, &options, entry)
@@ -197,6 +209,17 @@ pub fn run(
   }
 
   Ok(())
+}
+
+/// Lets `server` serve the source maps of `graph`'s bundles and of the project's source files.
+fn set_source_roots(server: &server::HmrServer, project_root: &PathId, graph: &BundleGraph) {
+  server.set_source_roots(
+    &project_root.to_path_buf(),
+    graph
+      .bundles
+      .iter()
+      .map(|bundle| bundle.target.dist_dir.to_path_buf()),
+  );
 }
 
 /// The HMR messages to send after a successful rebuild.

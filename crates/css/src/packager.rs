@@ -264,8 +264,9 @@ impl CssContent {
           }
         }
       }
+      let source_root = bundle_source_root(bundle, &options.project_root);
       let map = source_map
-        .to_json(None)
+        .to_json(source_root.as_deref())
         .map_err(|e| Diagnostic::from_message(e.to_string()))?;
       Ok(Arc::new(ContentWithSourceMap::new_string(
         res.code,

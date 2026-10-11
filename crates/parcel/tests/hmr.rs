@@ -418,6 +418,22 @@ fn hmr_update_reloads_for_esm_sync_bundle_imports() {
 }
 
 #[test]
+fn hmr_runtime_exposes_the_dev_server_origin() {
+  // React's RSC client requests source maps of server code from `parcelRequire.meta.devServer`.
+  let hmr = HmrRuntimeTest::new(&[(
+    "/project/index.js",
+    "output(import.meta.devServer, parcelRequire.meta.devServer);",
+  )]);
+  assert_eq!(
+    hmr.outputs(),
+    vec![
+      serde_json::json!("http://localhost:1234"),
+      serde_json::json!("http://localhost:1234")
+    ]
+  );
+}
+
+#[test]
 fn hmr_update_defines_node_globals_through_the_bundle() {
   let (mut parcel, input_fs) = setup(&[
     (

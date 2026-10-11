@@ -2,7 +2,7 @@ use std::path::{Component, Path, PathBuf};
 
 use parcel_sourcemap::{OriginalLocation, SourceMap};
 
-use crate::{Content, ContentWithSourceMap, Diagnostic};
+use crate::{Bundle, Content, ContentWithSourceMap, Diagnostic, PathId};
 
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -14,6 +14,22 @@ struct RawSourceMap {
   #[serde(default)]
   names: Vec<String>,
   source_root: Option<String>,
+}
+
+/// The `sourceRoot` of `bundle`'s source map. The `sources` of the maps Parcel generates are
+/// relative to the project root, so this is the path to it from the bundle's directory, e.g. `../`.
+pub fn bundle_source_root(bundle: &Bundle, project_root: &PathId) -> Option<String> {
+  let relative = project_root.relative(&bundle.dist_path().parent()?);
+  if relative.as_os_str().is_empty() {
+    return None;
+  }
+  let mut source_root = relative
+    .components()
+    .map(|component| component.as_os_str().to_string_lossy())
+    .collect::<Vec<_>>()
+    .join("/");
+  source_root.push('/');
+  Some(source_root)
 }
 
 /// The source map an earlier transformer attached to an asset's content, with
@@ -90,11 +106,12 @@ fn join(base: &Path, path: &Path) -> PathBuf {
 
 /// Remaps the mappings in `map_json` that point into `source` through `input`,
 /// leaving mappings into other sources untouched. Mappings with no counterpart
-/// in the input map are dropped.
+/// in the input map are dropped. The result has `source_root` as its `sourceRoot`, like `map_json`.
 pub fn compose_source_map(
   map_json: &str,
   source: &str,
   input: &SourceMap,
+  source_root: Option<&str>,
 ) -> Result<String, Diagnostic> {
   // Lookups need mutable access to the input map.
   let input = &mut input.clone();
@@ -129,7 +146,7 @@ pub fn compose_source_map(
     );
   }
 
-  out.to_json(None).map_err(to_diagnostic)
+  out.to_json(source_root).map_err(to_diagnostic)
 }
 
 /// Translates a location in `from` into `to`, adding its source, contents, and name.

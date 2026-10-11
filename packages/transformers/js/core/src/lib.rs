@@ -331,9 +331,12 @@ impl Ast {
     });
   }
 
+  /// Generates code, and a source map if `source_maps` is set, whose `sources` are relative to
+  /// `source_root` if given.
   pub fn to_code(
     &self,
     source_maps: bool,
+    source_root: Option<&str>,
     minify: bool,
   ) -> Result<(Vec<u8>, Option<String>), std::io::Error> {
     swc_core::common::GLOBALS.set(&*self.globals, || {
@@ -345,13 +348,13 @@ impl Ast {
         source_maps,
         minify,
       )?;
-      let map = if source_maps
-        && self
+      let map = if source_maps && {
+        let mut map = self
           .source_map
-          .build_source_map(&src_map_buf, None, SourceMapConfig)
-          .to_writer(&mut map_buf)
-          .is_ok()
-      {
+          .build_source_map(&src_map_buf, None, SourceMapConfig);
+        map.set_source_root(source_root.map(str::to_owned));
+        map.to_writer(&mut map_buf).is_ok()
+      } {
         Some(String::from_utf8(map_buf).unwrap())
       } else {
         None
@@ -367,7 +370,7 @@ pub fn transform(
 ) -> Result<TransformResult, std::io::Error> {
   let source_maps = config.source_maps;
   let mut res = transform_to_ast(config, call_macro)?;
-  let (code, map) = res.ast.to_code(source_maps, false)?;
+  let (code, map) = res.ast.to_code(source_maps, None, false)?;
 
   Ok(TransformResult {
     code,

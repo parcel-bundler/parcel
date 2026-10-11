@@ -37,14 +37,16 @@ struct JsContent {
 
 impl JsContent {
   /// Generates code for `ast` (this asset's AST, possibly modified for packaging),
-  /// with its source map composed through the asset's input map.
+  /// with its source map composed through the asset's input map. The map's `sources` are relative
+  /// to the project root, which `source_root` is the path to (see `bundle_source_root`).
   fn to_code(
     &self,
     ast: &Ast,
     source_maps: bool,
+    source_root: Option<&str>,
     minify: bool,
   ) -> Result<(Vec<u8>, Option<String>), DiagnosticList> {
-    let (code, map) = ast.to_code(source_maps, minify)?;
+    let (code, map) = ast.to_code(source_maps, source_root, minify)?;
     let (Some(map), Some(input)) = (&map, &self.input_source_map) else {
       return Ok((code, map));
     };
@@ -56,7 +58,7 @@ impl JsContent {
       .first()
       .map(|f| f.name.to_string());
     let map = match source {
-      Some(source) => compose_source_map(map, &source, input)?,
+      Some(source) => compose_source_map(map, &source, input, source_root)?,
       None => map.clone(),
     };
     Ok((code, Some(map)))
@@ -75,7 +77,7 @@ impl Content for JsContent {
   }
 
   fn read(&self) -> Result<Vec<u8>, Diagnostic> {
-    let (code, _) = self.ast.to_code(false, false)?;
+    let (code, _) = self.ast.to_code(false, None, false)?;
     Ok(code)
   }
 

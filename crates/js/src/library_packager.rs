@@ -122,7 +122,12 @@ impl JsContent {
         "require".into(),
       );
       ast.finalize();
-      content.to_code(&ast, bundle.target.source_map.is_some(), false)?
+      content.to_code(
+        &ast,
+        bundle.target.source_map.is_some(),
+        bundle_source_root(bundle, &options.project_root).as_deref(),
+        false,
+      )?
     } else {
       (asset.content.read()?, None)
     };

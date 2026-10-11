@@ -1,18 +1,16 @@
-use parcel_core::{AssetType, Diagnostic, DiagnosticList, LogLevel, Reporters};
+use parcel_core::{AssetType, Diagnostic, DiagnosticList};
 use parcel_js::hmr::HmrUpdate;
 use std::{
   borrow::Cow,
   collections::HashMap,
   fs::File,
-  io::ErrorKind,
-  net::{SocketAddr, TcpListener},
-  path::Path,
+  net::SocketAddr,
+  path::{Path, PathBuf},
   sync::{
     Arc, Mutex,
     mpsc::{self, Receiver, Sender},
   },
   thread,
-  time::Duration,
 };
 use tiny_http::{Header, ReadWrite, Request, Response, Server};
 use tungstenite::{Message, WebSocket};
@@ -41,43 +39,58 @@ pub struct HmrServer {
   sockets: Arc<Mutex<Vec<WebSocket<Box<dyn ReadWrite + Send>>>>>,
   /// Messages to send to processes started by `parcel run`, by token.
   runners: Arc<Mutex<HashMap<String, Sender<String>>>>,
+  source_roots: Arc<Mutex<SourceRoots>>,
 }
 
-fn listen(options: &ServerOptions) -> Result<Server, DiagnosticList> {
-  Server::http((&*options.host, options.port)).map_err(|err| {
+/// Serves the source maps of server code. React's RSC client requests them (from
+/// `import.meta.devServer`) for the files in server stack traces it shows in the browser.
+const SOURCE_MAP_ENDPOINT: &str = "/__parcel_source_map";
+
+/// The files the source map endpoint may read.
+#[derive(Default)]
+struct SourceRoots {
+  project_root: Option<PathBuf>,
+  dist_dirs: Vec<PathBuf>,
+}
+
+/// A response to a request for one of the server's endpoints.
+struct EndpointResponse {
+  status: u16,
+  content_type: &'static str,
+  body: Vec<u8>,
+}
+
+/// Serves HMR over WebSockets unless disabled, the server's endpoints, and the files in `dist_dir`
+/// if given (`parcel serve`). Otherwise pages are served by something else, i.e. the process
+/// started by `parcel run`. That process connects with the token it was started with (see
+/// `NodeRunner`), and its messages are sent to the returned receiver. Returns the bound address,
+/// whose port may differ from `options.port` when it is 0.
+pub fn serve(
+  options: &ServerOptions,
+  dist_dir: Option<PathBuf>,
+) -> Result<(HmrServer, SocketAddr, Receiver<RunnerEvent>), DiagnosticList> {
+  let error = |err: &dyn std::fmt::Display| {
     Diagnostic::from_message(format!(
       "Could not start server on {}:{}: {err}",
       options.host, options.port
     ))
-    .into()
-  })
-}
-
-/// Serves `path` over HTTP, and HMR over WebSockets on the same port unless disabled.
-pub fn serve_dir(
-  path: &Path,
-  options: ServerOptions,
-  reporters: Arc<Reporters>,
-) -> Result<HmrServer, DiagnosticList> {
-  let path = path.to_owned();
-  let server = listen(&options)?;
-  reporters.log(
-    LogLevel::Info,
-    &format!("Server listening on http://localhost:{}", options.port),
-  );
+  };
+  let server = Server::http((&*options.host, options.port)).map_err(|err| error(&err))?;
+  let address = server
+    .server_addr()
+    .to_ip()
+    .ok_or_else(|| error(&"not an IP address"))?;
 
   let hmr = HmrServer::default();
   let hmr_clone = hmr.clone();
-  std::thread::spawn(move || {
+  let accept_websockets = options.hmr;
+  let (events, receiver) = mpsc::channel();
+  thread::spawn(move || {
     for request in server.incoming_requests() {
-      let request = if options.hmr {
-        match hmr_clone.accept(request) {
-          Some(request) => request,
-          None => continue,
-        }
-      } else {
-        request
-      };
+      if accept_websockets && is_websocket_upgrade(&request) {
+        hmr_clone.accept(request, &events);
+        continue;
+      }
 
       let base_url = Url::parse("http://localhost").unwrap();
       let url = match base_url.join(request.url()) {
@@ -88,123 +101,74 @@ pub fn serve_dir(
           continue;
         }
       };
-      let mut full_path = path.clone();
-      let mut bad_request = false;
-      for segment in url.path_segments().unwrap() {
-        let decoded = match percent_encoding::percent_decode(segment.as_bytes()).decode_utf8() {
-          Ok(d) => d,
-          Err(_) => {
-            bad_request = true;
-            break;
-          }
-        };
-        if decoded.is_empty() {
-          continue;
-        }
-        if decoded == ".." || decoded == "." || decoded.contains('/') || decoded.contains('\\') {
-          bad_request = true;
-          break;
-        }
-        full_path.push(decoded.as_ref());
-      }
-      if bad_request {
-        let response = Response::from_string("400 bad request").with_status_code(400);
+      if let Some(response) = hmr_clone.respond_to_endpoint(&url) {
+        let response = Response::from_data(response.body)
+          .with_status_code(response.status)
+          .with_header(Header::from_bytes(b"Content-Type", response.content_type).unwrap())
+          .with_header(Header::from_bytes(b"Access-Control-Allow-Origin", b"*").unwrap());
         let _ = request.respond(response);
         continue;
       }
 
-      if full_path.is_dir() {
-        full_path.push("index.html");
-      }
-
-      if full_path.is_file() && full_path.starts_with(&path) {
-        let file = match File::open(&full_path) {
-          Ok(file) => file,
-          Err(_) => {
-            let response = Response::from_string("404 not found").with_status_code(404);
-            let _ = request.respond(response);
-            continue;
-          }
-        };
-        let ty = full_path
-          .extension()
-          .and_then(|e| e.to_str())
-          .map(|e| AssetType::from_extension(e).mime())
-          .unwrap_or("application/octet-stream");
-        let response = Response::from_file(file)
-          .with_header(Header::from_bytes(b"Content-Type", ty.as_bytes()).unwrap());
-
-        let _ = request.respond(response);
-      } else {
-        let response = Response::from_string("404 not found").with_status_code(404);
-        let _ = request.respond(response);
-      }
-    }
-  });
-
-  Ok(hmr)
-}
-
-/// Serves HMR over WebSockets for builds whose pages are served by something else, i.e. the
-/// process started by `parcel run`. That process connects with the token it was started with (see
-/// `NodeRunner`), and its messages are sent to the returned receiver. Returns the bound address,
-/// whose port may differ from `options.port` when it is 0.
-pub fn serve_hmr(
-  options: &ServerOptions,
-) -> Result<(HmrServer, SocketAddr, Receiver<RunnerEvent>), DiagnosticList> {
-  let error = |err: std::io::Error| {
-    Diagnostic::from_message(format!(
-      "Could not start HMR server on {}:{}: {err}",
-      options.host, options.port
-    ))
-  };
-  let listener = TcpListener::bind((&*options.host, options.port)).map_err(error)?;
-  let address = listener.local_addr().map_err(error)?;
-
-  let hmr = HmrServer::default();
-  let hmr_clone = hmr.clone();
-  let (events, receiver) = mpsc::channel();
-  std::thread::spawn(move || {
-    for stream in listener.incoming().flatten() {
-      let hmr = hmr_clone.clone();
-      let events = events.clone();
-      thread::spawn(move || {
-        // Socket options are shared by clones, so this sets the WebSocket's read timeout later.
-        let Ok(socket) = stream.try_clone() else {
-          return;
-        };
-        let mut token = None;
-        let stream: Box<dyn ReadWrite + Send> = Box::new(stream);
-        let accepted = tungstenite::accept_hdr(
-          stream,
-          |request: &tungstenite::handshake::server::Request, response| {
-            token = request.uri().query().and_then(|query| {
-              url::form_urlencoded::parse(query.as_bytes())
-                .find(|(key, _)| key == "token")
-                .map(|(_, token)| token.into_owned())
-            });
-            Ok(response)
-          },
-        );
-        let Ok(websocket) = accepted else {
-          return;
-        };
-        match token {
-          Some(token) if socket.set_read_timeout(Some(RUNNER_POLL_INTERVAL)).is_ok() => {
-            hmr.serve_runner(websocket, token, events)
-          }
-          _ => hmr.sockets.lock().unwrap().push(websocket),
+      match &dist_dir {
+        Some(dist_dir) => serve_file(request, &url, dist_dir),
+        None => {
+          let response = Response::from_string("404 not found").with_status_code(404);
+          let _ = request.respond(response);
         }
-      });
+      }
     }
   });
 
   Ok((hmr, address, receiver))
 }
 
-/// How long a read from the process started by `parcel run` blocks before checking for messages
-/// to send it.
-const RUNNER_POLL_INTERVAL: Duration = Duration::from_millis(20);
+/// Responds to `request` with the file at `url` in `dir`.
+fn serve_file(request: Request, url: &Url, dir: &Path) {
+  let mut full_path = dir.to_path_buf();
+  for segment in url.path_segments().unwrap() {
+    let decoded = match percent_encoding::percent_decode(segment.as_bytes()).decode_utf8() {
+      Ok(d) => d,
+      Err(_) => {
+        let response = Response::from_string("400 bad request").with_status_code(400);
+        let _ = request.respond(response);
+        return;
+      }
+    };
+    if decoded.is_empty() {
+      continue;
+    }
+    if decoded == ".." || decoded == "." || decoded.contains('/') || decoded.contains('\\') {
+      let response = Response::from_string("400 bad request").with_status_code(400);
+      let _ = request.respond(response);
+      return;
+    }
+    full_path.push(decoded.as_ref());
+  }
+
+  if full_path.is_dir() {
+    full_path.push("index.html");
+  }
+
+  let file = if full_path.is_file() && full_path.starts_with(dir) {
+    File::open(&full_path).ok()
+  } else {
+    None
+  };
+  let Some(file) = file else {
+    let response = Response::from_string("404 not found").with_status_code(404);
+    let _ = request.respond(response);
+    return;
+  };
+  let ty = full_path
+    .extension()
+    .and_then(|e| e.to_str())
+    .map(|e| AssetType::from_extension(e).mime())
+    .unwrap_or("application/octet-stream");
+  let response = Response::from_file(file)
+    .with_header(Header::from_bytes(b"Content-Type", ty.as_bytes()).unwrap());
+  let _ = request.respond(response);
+}
 
 /// A message from the process started by `parcel run`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -241,14 +205,117 @@ fn is_websocket_upgrade(request: &tiny_http::Request) -> bool {
     .any(|h| h.field.equiv("Upgrade") && h.value.as_str().eq_ignore_ascii_case("websocket"))
 }
 
+/// A source map of `contents` to itself, for a source file shown by devtools.
+fn identity_source_map(source: &Path, contents: &str) -> Vec<u8> {
+  let mut mappings = String::from("AAAA");
+  for _ in 1..contents.split('\n').count() {
+    mappings.push_str(";AACA");
+  }
+  let source = source
+    .components()
+    .map(|component| component.as_os_str().to_string_lossy())
+    .collect::<Vec<_>>()
+    .join("/");
+  serde_json::to_vec(&serde_json::json!({
+    "version": 3,
+    "sources": [source],
+    "sourcesContent": [contents],
+    "names": [],
+    "mappings": mappings,
+  }))
+  .unwrap()
+}
+
 impl HmrServer {
-  /// Takes over `request` as an HMR client connection if it is a WebSocket upgrade, or returns
-  /// it otherwise.
-  fn accept(&self, request: Request) -> Option<Request> {
-    if !is_websocket_upgrade(&request) {
-      return Some(request);
+  /// Sets the files the source map endpoint may read: those in `project_root`, of which the ones in
+  /// `dist_dirs` are bundles.
+  pub fn set_source_roots(
+    &self,
+    project_root: &Path,
+    dist_dirs: impl IntoIterator<Item = PathBuf>,
+  ) {
+    let mut dist_dirs: Vec<_> = dist_dirs
+      .into_iter()
+      .filter_map(|dir| dir.canonicalize().ok())
+      .collect();
+    dist_dirs.sort();
+    dist_dirs.dedup();
+    *self.source_roots.lock().unwrap() = SourceRoots {
+      project_root: project_root.canonicalize().ok(),
+      dist_dirs,
+    };
+  }
+
+  /// Responds to a request for one of the server's endpoints, or returns `None` for other URLs.
+  fn respond_to_endpoint(&self, url: &Url) -> Option<EndpointResponse> {
+    if url.path() != SOURCE_MAP_ENDPOINT {
+      return None;
     }
 
+    let map = url
+      .query_pairs()
+      .find(|(key, _)| key == "filename")
+      .and_then(|(_, filename)| self.source_map(&filename));
+    Some(match map {
+      Some(map) => EndpointResponse {
+        status: 200,
+        content_type: "application/json",
+        body: map,
+      },
+      None => EndpointResponse {
+        status: 404,
+        content_type: "text/plain",
+        body: b"404 not found".to_vec(),
+      },
+    })
+  }
+
+  /// The source map of the file a stack frame refers to. Node prints the sources of Parcel's maps
+  /// relative to the project root (see `SourceMapIndex`), and React's RSC client asks for the
+  /// absolute paths or `file:` URLs of bundles, which it reads from V8 without Node's mapping.
+  fn source_map(&self, filename: &str) -> Option<Vec<u8>> {
+    let roots = self.source_roots.lock().unwrap();
+    let project_root = roots.project_root.as_ref()?;
+    let (path, is_absolute) = if filename.starts_with("file:") {
+      (Url::parse(filename).ok()?.to_file_path().ok()?, true)
+    } else {
+      let path = Path::new(filename);
+      (
+        project_root.join(path),
+        !path.is_relative() || path.has_root(),
+      )
+    };
+    let path = path.canonicalize().ok()?;
+    if roots.dist_dirs.iter().any(|dir| path.starts_with(dir)) {
+      // A bundle, whose map is written next to it.
+      let mut map_path = path.into_os_string();
+      map_path.push(".map");
+      return std::fs::read(map_path).ok();
+    }
+
+    // Only bundles are referred to by absolute paths, so other files are only read from the
+    // project, mapped to themselves so that devtools show them.
+    if is_absolute {
+      return None;
+    }
+    let relative = path.strip_prefix(project_root).ok()?;
+    let contents = std::fs::read_to_string(&path).ok()?;
+    Some(identity_source_map(relative, &contents))
+  }
+
+  /// Takes over `request`, a WebSocket upgrade, as an HMR client connection: a browser, or the
+  /// process started by `parcel run` if it has a token.
+  fn accept(&self, request: Request, events: &Sender<RunnerEvent>) {
+    let token = Url::parse("http://localhost")
+      .unwrap()
+      .join(request.url())
+      .ok()
+      .and_then(|url| {
+        url
+          .query_pairs()
+          .find(|(key, _)| key == "token")
+          .map(|(_, token)| token.into_owned())
+      });
     let ws_key = request
       .headers()
       .iter()
@@ -264,17 +331,20 @@ impl HmrServer {
     }
 
     let stream = request.upgrade("websocket", response);
-    let sockets = Arc::clone(&self.sockets);
+    let hmr = self.clone();
+    let events = events.clone();
     thread::spawn(move || {
       let websocket =
         tungstenite::WebSocket::from_raw_socket(stream, tungstenite::protocol::Role::Server, None);
-      sockets.lock().unwrap().push(websocket);
+      match token {
+        Some(token) => hmr.serve_runner(websocket, token, events),
+        None => hmr.sockets.lock().unwrap().push(websocket),
+      }
     });
-    None
   }
 
-  /// Exchanges messages with a process started by `parcel run`. Its WebSocket is only used from
-  /// this thread, which alternates between sending queued messages and reading with a timeout.
+  /// Exchanges messages with a process started by `parcel run`, which sends a message once it has
+  /// run its entry, and replies to each update.
   fn serve_runner(
     &self,
     mut websocket: WebSocket<Box<dyn ReadWrite + Send>>,
@@ -282,7 +352,12 @@ impl HmrServer {
     events: Sender<RunnerEvent>,
   ) {
     let (sender, outgoing) = mpsc::channel();
-    self.runners.lock().unwrap().insert(token.clone(), sender);
+    {
+      // Only one process runs at a time. Dropping the others' senders ends their threads.
+      let mut runners = self.runners.lock().unwrap();
+      runners.clear();
+      runners.insert(token.clone(), sender);
+    }
     let send = |message| {
       let _ = events.send(RunnerEvent {
         token: token.clone(),
@@ -291,23 +366,23 @@ impl HmrServer {
     };
 
     loop {
-      if let Ok(message) = outgoing.try_recv()
-        && websocket.send(Message::Text(message.into())).is_err()
-      {
-        break;
+      let reply = match websocket.read() {
+        Ok(Message::Text(text)) => serde_json::from_str(&text),
+        Ok(Message::Close(_)) | Err(_) => break,
+        Ok(_) => continue,
+      };
+      match reply {
+        Ok(RunnerReply::Ready) => send(RunnerMessage::Ready),
+        Ok(RunnerReply::Updated) => send(RunnerMessage::Updated),
+        Ok(RunnerReply::Restart) => send(RunnerMessage::Restart),
+        Err(_) => continue,
       }
-      match websocket.read() {
-        Ok(Message::Text(text)) => match serde_json::from_str(&text) {
-          Ok(RunnerReply::Ready) => send(RunnerMessage::Ready),
-          Ok(RunnerReply::Updated) => send(RunnerMessage::Updated),
-          Ok(RunnerReply::Restart) => send(RunnerMessage::Restart),
-          Err(_) => {}
-        },
-        Ok(Message::Close(_)) => break,
-        Ok(_) => {}
-        Err(tungstenite::Error::Io(err))
-          if matches!(err.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => {}
-        Err(_) => break,
+
+      let Ok(message) = outgoing.recv() else {
+        break;
+      };
+      if websocket.send(Message::Text(message.into())).is_err() {
+        break;
       }
     }
     self.runners.lock().unwrap().remove(&token);
@@ -350,16 +425,23 @@ impl HmrServer {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use std::time::Instant;
+  use std::{
+    io::{Read, Write},
+    net::TcpStream,
+    time::{Duration, Instant},
+  };
 
   const TIMEOUT: Duration = Duration::from_secs(5);
 
   fn serve() -> (HmrServer, SocketAddr, Receiver<RunnerEvent>) {
-    serve_hmr(&ServerOptions {
-      host: "127.0.0.1".into(),
-      port: 0,
-      hmr: true,
-    })
+    super::serve(
+      &ServerOptions {
+        host: "127.0.0.1".into(),
+        port: 0,
+        hmr: true,
+      },
+      None,
+    )
     .unwrap()
   }
 
@@ -391,12 +473,135 @@ mod tests {
       RunnerMessage::Restart
     );
 
+    // A closed connection is noticed when the next update is sent.
     drop(websocket);
+    assert!(server.send_to_runner("abc", &HmrUpdate::Reload));
     assert_eq!(
       events.recv_timeout(TIMEOUT).unwrap().message,
       RunnerMessage::Disconnected
     );
     assert!(!server.send_to_runner("abc", &HmrUpdate::Reload));
+  }
+
+  #[test]
+  fn a_new_runner_replaces_the_previous_one() {
+    let (server, address, events) = serve();
+    let (mut first, _) = tungstenite::connect(format!("ws://{address}/?token=first")).unwrap();
+    first
+      .send(Message::Text(r#"{"type":"ready"}"#.into()))
+      .unwrap();
+    assert_eq!(events.recv_timeout(TIMEOUT).unwrap().token, "first");
+
+    let (mut second, _) = tungstenite::connect(format!("ws://{address}/?token=second")).unwrap();
+    second
+      .send(Message::Text(r#"{"type":"ready"}"#.into()))
+      .unwrap();
+    // The first runner's thread ends rather than waiting for updates forever.
+    let mut events: Vec<_> = (0..2)
+      .map(|_| {
+        let event = events.recv_timeout(TIMEOUT).unwrap();
+        (event.token, event.message)
+      })
+      .collect();
+    events.sort_by(|a, b| a.0.cmp(&b.0));
+    assert_eq!(
+      events,
+      vec![
+        ("first".into(), RunnerMessage::Disconnected),
+        ("second".into(), RunnerMessage::Ready)
+      ]
+    );
+    assert!(!server.send_to_runner("first", &HmrUpdate::Reload));
+    assert!(server.send_to_runner("second", &HmrUpdate::Reload));
+  }
+
+  fn http_get(address: SocketAddr, path: &str) -> (String, String) {
+    let mut stream = TcpStream::connect(address).unwrap();
+    write!(
+      stream,
+      "GET {path} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n"
+    )
+    .unwrap();
+    let mut response = String::new();
+    stream.read_to_string(&mut response).unwrap();
+    let (head, body) = response.split_once("\r\n\r\n").unwrap();
+    (head.lines().next().unwrap().to_owned(), body.to_owned())
+  }
+
+  fn source_map_path(filename: &str) -> String {
+    format!(
+      "{SOURCE_MAP_ENDPOINT}?{}",
+      url::form_urlencoded::Serializer::new(String::new())
+        .append_pair("filename", filename)
+        .append_pair("env", "Server")
+        .finish()
+    )
+  }
+
+  #[test]
+  fn serves_source_maps_over_http() {
+    let root =
+      std::env::temp_dir().join(format!("parcel-source-map-endpoint-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let project = root.join("project");
+    std::fs::create_dir_all(project.join("src")).unwrap();
+    std::fs::create_dir_all(project.join("dist")).unwrap();
+    std::fs::write(
+      project.join("src/page.js"),
+      "export function Page() {\n  return 1;\n}\n",
+    )
+    .unwrap();
+    std::fs::write(project.join("dist/index.js"), "code").unwrap();
+    std::fs::write(project.join("dist/index.js.map"), r#"{"version":3}"#).unwrap();
+    std::fs::write(root.join("outside.js"), "secret").unwrap();
+
+    let (server, address, _events) = serve();
+    server.set_source_roots(&project, [project.join("dist")]);
+
+    // Bundles are served their maps.
+    assert_eq!(
+      http_get(address, &source_map_path("dist/index.js")),
+      ("HTTP/1.1 200 OK".into(), r#"{"version":3}"#.into())
+    );
+
+    // Source files are mapped to themselves.
+    let (status, body) = http_get(address, &source_map_path("src/page.js"));
+    assert_eq!(status, "HTTP/1.1 200 OK");
+    let map: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(map["sources"], serde_json::json!(["src/page.js"]));
+    assert_eq!(
+      map["sourcesContent"],
+      serde_json::json!(["export function Page() {\n  return 1;\n}\n"])
+    );
+    assert_eq!(map["mappings"], "AAAA;AACA;AACA;AACA");
+
+    // React's RSC client refers to bundles by their absolute paths or URLs.
+    let bundle = project.join("dist/index.js");
+    for filename in [
+      bundle.to_str().unwrap().to_owned(),
+      Url::from_file_path(&bundle).unwrap().to_string(),
+    ] {
+      assert_eq!(
+        http_get(address, &source_map_path(&filename)),
+        ("HTTP/1.1 200 OK".into(), r#"{"version":3}"#.into())
+      );
+    }
+
+    // Nothing outside the project is readable, nor are other files by absolute paths or URLs.
+    let not_found = |filename: &str| {
+      let (status, _) = http_get(address, &source_map_path(filename));
+      assert_eq!(status, "HTTP/1.1 404 Not Found", "{filename}");
+    };
+    not_found("../outside.js");
+    not_found("src/../../outside.js");
+    not_found(root.join("outside.js").to_str().unwrap());
+    let source = project.join("src/page.js");
+    not_found(source.to_str().unwrap());
+    not_found(Url::from_file_path(&source).unwrap().as_str());
+    let (status, _) = http_get(address, "/other");
+    assert_eq!(status, "HTTP/1.1 404 Not Found");
+
+    std::fs::remove_dir_all(&root).unwrap();
   }
 
   #[test]

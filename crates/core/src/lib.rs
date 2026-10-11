@@ -53,7 +53,7 @@ pub use parcel_sourcemap::SourceMap as InputSourceMap;
 pub use path::{PathId, SubPath};
 pub use reporter::*;
 pub use resolver::Resolver;
-pub use source_map::{compose_source_map, input_source_map};
+pub use source_map::{bundle_source_root, compose_source_map, input_source_map};
 pub use target::*;
 pub use transformer::Transformer;
 

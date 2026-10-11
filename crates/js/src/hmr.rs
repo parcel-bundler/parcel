@@ -207,7 +207,14 @@ fn hot_update_code(asset: &Asset, project_root: &PathId) -> String {
       insert_hot_update_node_replacements(&mut ast, content, asset);
       replace_import_meta(&mut ast);
       content
-        .to_code(&ast, asset.target.source_map.is_some(), false)
+        .to_code(
+          &ast,
+          asset.target.source_map.is_some(),
+          // Resolved from the origin's root, where a bundle in the dist root resolves its
+          // `sources` to.
+          Some("/"),
+          false,
+        )
         .unwrap()
     }
     None => (asset.content.read().unwrap(), None),
@@ -219,16 +226,34 @@ fn hot_update_code(asset: &Asset, project_root: &PathId) -> String {
   output.push_str(std::str::from_utf8(&code).unwrap());
   output.push_str("\n}");
   if let Some(map) = map {
-    let map =
-      format!(r#"{{"version":3,"sections":[{{"offset":{{"line":1,"column":0}},"map":{map}}}]}}"#);
+    // Like a bundle's map (see `SourceMapIndex`).
+    let map = format!(
+      r#"{{"version":3,"sources":[],"sections":[{{"offset":{{"line":1,"column":0}},"map":{map}}}]}}"#
+    );
     write!(
       &mut output,
-      "\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,{}\n//# sourceURL=/__parcel_hmr/{id}",
-      data_encoding::BASE64.encode(map.as_bytes())
+      "\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,{}\n//# sourceURL={}",
+      data_encoding::BASE64.encode(map.as_bytes()),
+      hot_update_url(asset, project_root)
     )
     .unwrap();
   }
   output
+}
+
+/// The name of `asset`'s hot update in stack traces and devtools: the module's path from the
+/// project root, marked so that it isn't mistaken for the module itself.
+fn hot_update_url(asset: &Asset, project_root: &PathId) -> String {
+  let path = match asset.loc.url.to_file_path() {
+    Ok(path) => path.relative(project_root),
+    Err(_) => return format!("/{}?hot-update", asset.id(project_root)),
+  };
+  let path = path
+    .components()
+    .map(|component| component.as_os_str().to_string_lossy())
+    .collect::<Vec<_>>()
+    .join("/");
+  format!("/{path}?hot-update")
 }
 
 /// Replaces `import.meta`, which ESM bundles leave in modules (e.g. `new URL(url, import.meta.url)`),

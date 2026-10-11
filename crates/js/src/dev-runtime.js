@@ -165,6 +165,9 @@ parcelRequire.cache = cache;
 parcelRequire.parent = previousRequire;
 parcelRequire.distDir = distDir;
 parcelRequire.publicUrl = publicUrl;
+// The dev server's origin, for `import.meta.devServer`. React's RSC client requests source maps of
+// server code from it.
+parcelRequire.devServer = HMR_ENABLED ? getDevServer() : null;
 if (HMR_ENABLED) {
   // Hot updates are evaluated outside of the bundle, so they reach the bundle's `import.meta` and
   // Node path helpers through `module.bundle`.
@@ -406,15 +409,29 @@ function getPort() {
   );
 }
 
-var hostname = getHostname();
-var port = getPort();
-var protocol =
-  HMR_SECURE ||
-  (typeof location !== 'undefined' &&
-    location.protocol === 'https:' &&
-    !['localhost', '127.0.0.1', '0.0.0.0'].includes(hostname))
+function getDevServer() {
+  var hostname = getHostname();
+  var port = getPort();
+  return (
+    (getProtocol(hostname) === 'wss' ? 'https' : 'http') +
+    '://' +
+    hostname +
+    (port ? ':' + port : '')
+  );
+}
+
+function getProtocol(hostname) {
+  return HMR_SECURE ||
+    (typeof location !== 'undefined' &&
+      location.protocol === 'https:' &&
+      !['localhost', '127.0.0.1', '0.0.0.0'].includes(hostname))
     ? 'wss'
     : 'ws';
+}
+
+var hostname = getHostname();
+var port = getPort();
+var protocol = getProtocol(hostname);
 
 // eslint-disable-next-line no-redeclare
 var parent = parcelRequire.parent;

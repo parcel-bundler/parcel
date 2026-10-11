@@ -280,7 +280,10 @@ fn hmr_update_source_map_points_to_original_code() {
     .split_once("\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,")
     .expect("update has an inline source map");
   let (map, source_url) = comments.split_once("\n//# sourceURL=").unwrap();
-  assert!(source_url.starts_with("/__parcel_hmr/"));
+  assert!(
+    source_url.ends_with("/index.mjs?hot-update"),
+    "{source_url}"
+  );
   let map = String::from_utf8(data_encoding::BASE64.decode(map.as_bytes()).unwrap()).unwrap();
 
   assert_generated_token_maps_to_original(
@@ -463,9 +466,22 @@ fn find_mapping(source_map: &str, generated_line: u32, generated_column: u32) ->
   let mut mappings = Vec::new();
   let value: serde_json::Value = serde_json::from_str(source_map).unwrap();
 
+  // `sources` are relative to the project root, so maps point to it (see `bundle_source_root`).
+  let assert_source_root = |map: &serde_json::Value| {
+    assert!(
+      map["sourceRoot"]
+        .as_str()
+        .is_some_and(|root| root.ends_with('/')),
+      "missing sourceRoot: {map}"
+    );
+  };
+
   if value.get("sections").is_some() {
+    // Node only applies index maps with top-level `sources` (see `SourceMapIndex`).
+    assert_eq!(value["sources"], serde_json::json!([]));
     let index: SourceMapIndex = serde_json::from_value(value).unwrap();
     for section in index.sections {
+      assert_source_root(&section.map);
       let map = SourceMap::from_json("/", &section.map.to_string()).unwrap();
       collect_mappings(
         &mut mappings,
@@ -475,6 +491,7 @@ fn find_mapping(source_map: &str, generated_line: u32, generated_column: u32) ->
       );
     }
   } else {
+    assert_source_root(&value);
     let map = SourceMap::from_json("/", source_map).unwrap();
     collect_mappings(&mut mappings, &map, 0, 0);
   }
