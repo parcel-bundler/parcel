@@ -646,8 +646,8 @@ function createErrorOverlay(diagnostics) {
       ? diagnostic.frames.reduce((p, frame) => {
           return `${p}
 <a href="${
-            protocol === 'wss' ? 'https' : 'http'
-          }://${hostname}:${port}/__parcel_launch_editor?file=${encodeURIComponent(
+            parcelRequire.devServer
+          }/__parcel_launch_editor?file=${encodeURIComponent(
             frame.location,
           )}" style="text-decoration: underline; color: #888" onclick="fetch(this.href); return false">${
             frame.location

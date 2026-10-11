@@ -1,4 +1,6 @@
 use parcel_core::{AssetType, Diagnostic, DiagnosticList};
+
+use crate::launch_editor::launch_editor;
 use parcel_js::hmr::HmrUpdate;
 use std::{
   borrow::Cow,
@@ -45,6 +47,10 @@ pub struct HmrServer {
 /// Serves the source maps of server code. React's RSC client requests them (from
 /// `import.meta.devServer`) for the files in server stack traces it shows in the browser.
 const SOURCE_MAP_ENDPOINT: &str = "/__parcel_source_map";
+
+/// Opens a file in the user's editor, e.g. from the build error overlay. `file` is a path relative
+/// to the current directory, optionally followed by `:line:column`, like diagnostics' locations.
+const LAUNCH_EDITOR_ENDPOINT: &str = "/__parcel_launch_editor";
 
 /// The files the source map endpoint may read.
 #[derive(Default)]
@@ -205,6 +211,30 @@ fn is_websocket_upgrade(request: &tiny_http::Request) -> bool {
     .any(|h| h.field.equiv("Upgrade") && h.value.as_str().eq_ignore_ascii_case("websocket"))
 }
 
+enum EditorError {
+  NotFound,
+  Launch(String),
+}
+
+/// Splits `location` into a path and the line and column at its end, e.g. `src/a.js:3:5`.
+fn parse_location(location: &str) -> (&str, Option<u32>, Option<u32>) {
+  let number = |s: &str| {
+    (!s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()))
+      .then(|| s.parse().ok())
+      .flatten()
+  };
+  let Some((rest, last)) = location.rsplit_once(':') else {
+    return (location, None, None);
+  };
+  let Some(last) = number(last) else {
+    return (location, None, None);
+  };
+  match rest.rsplit_once(':') {
+    Some((file, line)) if let Some(line) = number(line) => (file, Some(line), Some(last)),
+    _ => (rest, Some(last), None),
+  }
+}
+
 /// A source map of `contents` to itself, for a source file shown by devtools.
 fn identity_source_map(source: &Path, contents: &str) -> Vec<u8> {
   let mut mappings = String::from("AAAA");
@@ -248,6 +278,32 @@ impl HmrServer {
 
   /// Responds to a request for one of the server's endpoints, or returns `None` for other URLs.
   fn respond_to_endpoint(&self, url: &Url) -> Option<EndpointResponse> {
+    if url.path() == LAUNCH_EDITOR_ENDPOINT {
+      let file = url
+        .query_pairs()
+        .find(|(key, _)| key == "file")
+        .map(|(_, file)| file.into_owned());
+      return Some(match file.map(|file| self.launch_editor(&file)) {
+        Some(Ok(())) => EndpointResponse {
+          status: 200,
+          content_type: "text/plain",
+          body: Vec::new(),
+        },
+        Some(Err(EditorError::Launch(message))) => {
+          eprintln!("{message}");
+          EndpointResponse {
+            status: 500,
+            content_type: "text/plain",
+            body: message.into_bytes(),
+          }
+        }
+        None | Some(Err(EditorError::NotFound)) => EndpointResponse {
+          status: 404,
+          content_type: "text/plain",
+          body: b"404 not found".to_vec(),
+        },
+      });
+    }
     if url.path() != SOURCE_MAP_ENDPOINT {
       return None;
     }
@@ -301,6 +357,31 @@ impl HmrServer {
     let relative = path.strip_prefix(project_root).ok()?;
     let contents = std::fs::read_to_string(&path).ok()?;
     Some(identity_source_map(relative, &contents))
+  }
+
+  /// Opens the project file at `location`, a path relative to the current directory optionally
+  /// followed by `:line:column`, in the user's editor.
+  fn launch_editor(&self, location: &str) -> Result<(), EditorError> {
+    let (file, line, column) = parse_location(location);
+    let file = Path::new(file);
+    if !file.is_relative() || file.has_root() {
+      return Err(EditorError::NotFound);
+    }
+    let path = std::env::current_dir()
+      .map_err(|_| EditorError::NotFound)?
+      .join(file);
+    let canonical = path.canonicalize().map_err(|_| EditorError::NotFound)?;
+    let roots = self.source_roots.lock().unwrap();
+    if !roots
+      .project_root
+      .as_ref()
+      .is_some_and(|root| canonical.starts_with(root))
+      || !canonical.is_file()
+    {
+      return Err(EditorError::NotFound);
+    }
+    drop(roots);
+    launch_editor(&path, line, column).map_err(EditorError::Launch)
   }
 
   /// Takes over `request`, a WebSocket upgrade, as an HMR client connection: a browser, or the
@@ -600,6 +681,57 @@ mod tests {
     not_found(Url::from_file_path(&source).unwrap().as_str());
     let (status, _) = http_get(address, "/other");
     assert_eq!(status, "HTTP/1.1 404 Not Found");
+
+    std::fs::remove_dir_all(&root).unwrap();
+  }
+
+  #[test]
+  fn parses_locations() {
+    assert_eq!(parse_location("src/a.js"), ("src/a.js", None, None));
+    assert_eq!(parse_location("src/a.js:3"), ("src/a.js", Some(3), None));
+    assert_eq!(
+      parse_location("src/a.js:3:5"),
+      ("src/a.js", Some(3), Some(5))
+    );
+    assert_eq!(
+      parse_location("src/a:b.js:3:5"),
+      ("src/a:b.js", Some(3), Some(5))
+    );
+    assert_eq!(parse_location("src/a.js:x"), ("src/a.js:x", None, None));
+  }
+
+  #[test]
+  fn only_opens_project_files_in_the_editor() {
+    let root = std::env::temp_dir().join(format!("parcel-launch-editor-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("project/src")).unwrap();
+    std::fs::write(root.join("outside.js"), "").unwrap();
+    let (server, address, _events) = serve();
+    server.set_source_roots(&root.join("project"), []);
+
+    let cwd = std::env::current_dir().unwrap();
+    let relative = |path: &Path| {
+      let mut relative = PathBuf::new();
+      for _ in cwd.components().skip(1) {
+        relative.push("..");
+      }
+      relative.join(path.strip_prefix("/").unwrap_or(path))
+    };
+    for file in [
+      relative(&root.join("outside.js"))
+        .to_string_lossy()
+        .into_owned(),
+      relative(&root.join("project/src/missing.js"))
+        .to_string_lossy()
+        .into_owned(),
+      root.join("outside.js").to_string_lossy().into_owned(),
+    ] {
+      let query = url::form_urlencoded::Serializer::new(String::new())
+        .append_pair("file", &format!("{file}:1:1"))
+        .finish();
+      let (status, _) = http_get(address, &format!("{LAUNCH_EDITOR_ENDPOINT}?{query}"));
+      assert_eq!(status, "HTTP/1.1 404 Not Found", "{file}");
+    }
 
     std::fs::remove_dir_all(&root).unwrap();
   }

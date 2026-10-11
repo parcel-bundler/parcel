@@ -21,6 +21,7 @@ mod inline;
 mod json;
 mod json_urls;
 mod jsonld;
+mod launch_editor;
 mod library_bundler;
 mod namer;
 mod plugin_factory;

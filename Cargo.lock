@@ -3000,6 +3000,7 @@ dependencies = [
  "tracing",
  "tungstenite",
  "url",
+ "windows-sys",
  "xxhash-rust",
 ]
 
