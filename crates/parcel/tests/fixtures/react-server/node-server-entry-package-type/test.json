@@ -1,0 +1,35 @@
+[
+  {
+    "description": "should inherit the output format of a Node entry for a server entry it imports",
+    "input": "index.jsx",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["index.jsx"],
+        "context": "node",
+        "outputFormat": "esmodule"
+      },
+      {
+        "assets": ["barrel.js"],
+        "context": "react-server",
+        "outputFormat": "esmodule"
+      },
+      {
+        "assets": ["StarPage.jsx", "dynamic.js"],
+        "context": "react-server",
+        "outputFormat": "esmodule"
+      },
+      {
+        "assets": ["server.css"]
+      },
+      {
+        "assets": []
+      }
+    ],
+    "output": {
+      "keys": ["dynamic", "value"],
+      "value": 42,
+      "dynamic": "cjs"
+    }
+  }
+]

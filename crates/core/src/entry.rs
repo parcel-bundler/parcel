@@ -108,8 +108,16 @@ pub fn resolve_entries(
             OutputFormat::try_from(format.as_str())?
           } else if !matches!(path.extension(), Some("mjs" | "cjs")) {
             match context {
-              Environment::ReactServer => OutputFormat::Commonjs,
               Environment::ReactClient => OutputFormat::Esmodule,
+              // Node loads `.js` files in `"type": "module"` packages as ES modules, and others as
+              // CommonJS.
+              Environment::Node | Environment::ElectronMain | Environment::ReactServer => {
+                if pkg.get("type").and_then(Value::as_str) == Some("module") {
+                  OutputFormat::Esmodule
+                } else {
+                  OutputFormat::Commonjs
+                }
+              }
               _ => output_format,
             }
           } else {
@@ -1351,6 +1359,71 @@ mod tests {
       },
     );
     assert!(result.is_err());
+  }
+
+  #[test]
+  fn test_node_file_entry_output_format_follows_package_type() {
+    let output_format = |pkg: &str, entry: &str| {
+      let fs = MemoryFileSystem::new();
+      fs.mkdir(Path::new("/root")).unwrap();
+      fs.write(
+        PathId::new(Path::new("/root/package.json")),
+        &pkg.as_bytes().to_vec(),
+      )
+      .unwrap();
+      fs.write(PathId::new(&Path::new("/root").join(entry)), &Vec::new())
+        .unwrap();
+      let fs = Arc::new(fs);
+      let (entries, _) = resolve_entries(
+        &vec![format!("/root/{entry}")],
+        &crate::BuildOptions {
+          input_fs: fs.clone(),
+          output_fs: fs,
+          env: HashMap::new(),
+          log_level: crate::LogLevel::Error,
+          mode: crate::BuildMode::Development,
+          optimize: None,
+          content_hash: None,
+          config: None,
+          cwd: PathId::new(Path::new("/root")),
+          source_map: None,
+          dist_dir: None,
+          public_url: Default::default(),
+          hmr: None,
+          reporters: Vec::new(),
+        },
+      )
+      .unwrap();
+      assert_eq!(entries.len(), 1);
+      entries[0].target.output_format
+    };
+
+    let node = r#"{"engines":{"node":">=22"}}"#;
+    let node_module = r#"{"type":"module","engines":{"node":">=22"}}"#;
+    assert_eq!(
+      output_format(node_module, "index.js"),
+      crate::OutputFormat::Esmodule
+    );
+    assert_eq!(
+      output_format(node_module, "index.cjs"),
+      crate::OutputFormat::Commonjs
+    );
+    assert_eq!(
+      output_format(node, "index.js"),
+      crate::OutputFormat::Commonjs
+    );
+    assert_eq!(
+      output_format(
+        r#"{"type":"module","targets":{"default":{"context":"react-server"}}}"#,
+        "index.js"
+      ),
+      crate::OutputFormat::Esmodule
+    );
+    // Browser scripts are loaded by pages, which decide how to load them.
+    assert_eq!(
+      output_format(r#"{"type":"module"}"#, "index.js"),
+      crate::OutputFormat::Global
+    );
   }
 
   #[test]

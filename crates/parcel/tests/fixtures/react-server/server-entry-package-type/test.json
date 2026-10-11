@@ -1,0 +1,30 @@
+[
+  {
+    "description": "should output ES modules for a React server entry in a \"type\": \"module\" package",
+    "input": "index.jsx",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "assets": ["barrel.js", "index.jsx"],
+        "context": "react-server",
+        "outputFormat": "esmodule"
+      },
+      {
+        "assets": ["StarPage.jsx", "dynamic.js"],
+        "context": "react-server",
+        "outputFormat": "esmodule"
+      },
+      {
+        "assets": ["server.css"]
+      },
+      {
+        "assets": []
+      }
+    ],
+    "output": {
+      "keys": ["dynamic", "value"],
+      "value": 42,
+      "dynamic": "cjs"
+    }
+  }
+]

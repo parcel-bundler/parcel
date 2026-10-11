@@ -1,0 +1,13 @@
+{
+  "name": "react-server-entry-package-type-test",
+  "private": true,
+  "dependencies": {
+    "react": "^19"
+  },
+  "targets": {
+    "default": {
+      "context": "react-server"
+    }
+  },
+  "type": "module"
+}

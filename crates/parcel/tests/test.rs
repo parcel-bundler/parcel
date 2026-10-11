@@ -238,6 +238,9 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
           && (b.ty.is_none() || b.ty.as_ref().unwrap() == &bundle.ty)
           && (b.environment.is_none()
             || b.environment.as_ref().unwrap() == &bundle.target.environment)
+          && b
+            .output_format
+            .is_none_or(|format| format == bundle.target.output_format)
           && (b.name.is_none()
             || Path::new(b.name.as_ref().unwrap())
               == bundle.dist_path().relative(&bundle.target.dist_dir))
@@ -699,6 +702,8 @@ struct TestBundle {
   assets: Vec<String>,
   #[serde(rename = "type")]
   ty: Option<AssetType>,
+  #[serde(rename = "outputFormat")]
+  output_format: Option<OutputFormat>,
   #[serde(default)]
   /// Substrings may use {{bundle:asset-name}} for generated public URLs.
   contains: Vec<String>,

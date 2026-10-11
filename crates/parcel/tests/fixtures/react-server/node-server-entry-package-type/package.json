@@ -1,0 +1,11 @@
+{
+  "name": "node-server-entry-package-type-test",
+  "private": true,
+  "dependencies": {
+    "react": "^19"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "type": "module"
+}

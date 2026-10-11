@@ -704,8 +704,10 @@ fn react_target(target: &Arc<Target>, environment: Environment) -> Arc<Target> {
     environment,
     rsc_server_target,
     source_type: SourceType::Module,
+    // Server code runs in the same environment as the code that imports it, and client code in
+    // browsers.
     output_format: match environment {
-      Environment::ReactServer => OutputFormat::Commonjs,
+      Environment::ReactServer => target.output_format,
       Environment::ReactClient => OutputFormat::Esmodule,
       _ => unreachable!(),
     },
