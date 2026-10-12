@@ -7,20 +7,38 @@ use std::{
 
 use parcel_core::{
   AssetIndex, AssetType, BuildOptions, BundleBehavior, BundleFlags, BundleGraph, CodeFrame,
-  CodeHighlight, DependencyResolution, Diagnostic, DiagnosticList, DiagnosticSeverity, Environment,
-  EnvironmentFlags, FileSystem, MemoryFileSystem, OsFileSystem, OutputFormat, OverlayFileSystem,
-  PathId, SymbolResolution,
+  CodeHighlight, Diagnostic, DiagnosticList, DiagnosticSeverity, Environment, EnvironmentFlags,
+  FileSystem, MemoryFileSystem, OsFileSystem, OutputFormat, OverlayFileSystem, PathId, SourceType,
+  SymbolResolution,
 };
 use parcel_plugin_js::{create_runtime, require_module};
 use pretty_assertions::assert_eq;
 use rquickjs::Function;
 
+/// How a script is evaluated, as the page or Node would.
+#[derive(Clone, Copy, PartialEq)]
+enum ScriptKind {
+  Module,
+  /// A classic script, whose top-level declarations are globals.
+  Classic,
+  Commonjs,
+}
+
+impl From<OutputFormat> for ScriptKind {
+  fn from(output_format: OutputFormat) -> Self {
+    match output_format {
+      OutputFormat::Commonjs => ScriptKind::Commonjs,
+      _ => ScriptKind::Module,
+    }
+  }
+}
+
 fn run(
-  paths: Vec<(PathBuf, OutputFormat)>,
+  paths: Vec<(PathBuf, ScriptKind)>,
   fs: Arc<dyn FileSystem>,
   cwd: &Path,
   environment: Environment,
-  entry: String,
+  entry: Option<String>,
   is_library: bool,
 ) -> (serde_json::Value, Vec<serde_json::Value>) {
   let mut env = HashMap::new();
@@ -48,15 +66,18 @@ fn run(
     )?;
 
     let mut imported = None;
-    for (path, output_format) in paths {
-      if output_format == OutputFormat::Esmodule || output_format == OutputFormat::Global {
-        imported = Some(
-          rquickjs::Module::import(&ctx, path.to_str().unwrap().to_owned())
-            .and_then(|p| p.finish::<rquickjs::Value>())?,
-        );
-      } else {
-        imported = Some(require_module(ctx, path.to_str().unwrap())?);
-      }
+    for (path, kind) in paths {
+      imported = Some(match kind {
+        ScriptKind::Module => rquickjs::Module::import(&ctx, path.to_str().unwrap().to_owned())
+          .and_then(|p| p.finish::<rquickjs::Value>())?,
+        ScriptKind::Classic => {
+          let mut options = rquickjs::context::EvalOptions::default();
+          options.strict = false;
+          options.filename = Some(path.to_str().unwrap().to_owned());
+          ctx.eval_with_options(fs.read(PathId::new(&path)).unwrap(), options)?
+        }
+        ScriptKind::Commonjs => require_module(ctx, path.to_str().unwrap())?,
+      });
     }
     // Settle what the scripts started, e.g. an async script waiting for its bundles to load.
     while ctx.execute_pending_job() {}
@@ -65,7 +86,7 @@ fn run(
       Ok(imported.unwrap())
     } else {
       let parcel_require: Option<Function> = ctx.globals().get("parcelRequire").ok();
-      if let Some(parcel_require) = parcel_require {
+      if let (Some(parcel_require), Some(entry)) = (parcel_require, entry) {
         parcel_require.call((entry,))
       } else {
         Ok(rquickjs::Value::new_undefined(ctx.clone()))
@@ -305,14 +326,16 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
         AssetType::Js => {
           if is_library {
             let (output, side_effects) = run(
-              vec![(path.to_path_buf(), bundle.target.output_format)],
+              vec![(path.to_path_buf(), bundle.target.output_format.into())],
               output_fs.clone(),
               &cwd,
               Environment::Node,
-              bundle_graph
-                .asset_graph
-                .asset(bundle.main_entry_asset.unwrap())
-                .id(&bundle_graph.project_root),
+              Some(
+                bundle_graph
+                  .asset_graph
+                  .asset(bundle.main_entry_asset.unwrap())
+                  .id(&bundle_graph.project_root),
+              ),
               true,
             );
             assert_eq!(side_effects, test.side_effects);
@@ -330,21 +353,18 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
                 );
               }
             }
-            scripts.push((path.to_path_buf(), bundle.target.output_format));
+            scripts.push((path.to_path_buf(), script_kind(bundle)));
             env = bundle.target.environment;
           }
         }
         AssetType::Html => {
           // Give the runtime the page's manifest data blocks, as a browser's DOM would.
           let html = output_fs.read_to_string(path).unwrap();
-          // The attribute is `data-parcel-manifest=""`, or bare once the HTML is minified.
-          let manifests: Vec<&str> = html
-            .split("data-parcel-manifest")
-            .skip(1)
-            .map(|block| {
-              let content = &block[block.find('>').unwrap() + 1..];
-              content.split("</script>").next().unwrap()
-            })
+          let page_scripts = page_scripts(&html);
+          let manifests: Vec<&str> = page_scripts
+            .iter()
+            .filter(|script| script.is_manifest)
+            .map(|script| script.code)
             .collect();
           if !manifests.is_empty() {
             let blocks = manifests
@@ -357,60 +377,64 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
             );
             let setup_path = path.with_extension("manifest.js");
             output_fs.write(setup_path, setup.as_bytes()).unwrap();
-            scripts.push((setup_path.to_path_buf(), OutputFormat::Global));
+            scripts.push((setup_path.to_path_buf(), ScriptKind::Classic));
           }
-
-          let deps = parcel_html::transform_html(parcel_html::TransformOptions {
-            code: output_fs.read(path).unwrap(),
-            url: bundle.dist_url(),
-            xml: false,
-            target: Default::default(),
-            hmr: false,
-          });
 
           // Async scripts may run as soon as they load, before the page's other scripts. Run them
           // first to check they don't depend on those.
           let first_script = scripts.len();
           let mut async_scripts = 0;
-          for dep in deps.dependencies {
-            match dep.resolution {
-              DependencyResolution::Deferred(_) => {}
-              _ => {
+          for (index, script) in page_scripts
+            .into_iter()
+            .filter(|script| !script.is_manifest)
+            .enumerate()
+          {
+            let is_async = script.is_module && script.is_async;
+            let script = match script.src {
+              Some(src) => {
                 // Pages reference bundles by absolute URLs unless the public URL is relative.
-                let resolved = match dep.specifier.strip_prefix('/') {
+                let resolved = match src.strip_prefix('/') {
                   Some(name) => bundle.target.dist_dir.join(Path::new(name)),
-                  None => path.parent().unwrap().join(Path::new(&*dep.specifier)),
+                  None => path.parent().unwrap().join(Path::new(src)),
                 };
-
-                if resolved
-                  .extension()
-                  .map_or(false, |e| e == "mjs" || e == "js")
+                let b = bundle_graph
+                  .bundles
+                  .iter()
+                  .find(|b| b.dist_path() == resolved)
+                  .unwrap();
+                let kind = script_kind(b);
+                // A classic script runs on load rather than from the module table.
+                if let Some(m) = b.main_entry_asset
+                  && kind != ScriptKind::Classic
                 {
-                  let b = bundle_graph
-                    .bundles
-                    .iter()
-                    .find(|b| b.dist_path() == resolved)
-                    .unwrap();
-                  if let Some(m) = b.main_entry_asset {
-                    main = Some(
-                      bundle_graph
-                        .asset_graph
-                        .asset(m)
-                        .id(&bundle_graph.project_root),
-                    );
-                  }
-
-                  let script = (resolved.to_path_buf(), b.target.output_format);
-                  if dep.bundle_behavior == BundleBehavior::Isolated
-                    && b.target.output_format == OutputFormat::Esmodule
-                  {
-                    scripts.insert(first_script + async_scripts, script);
-                    async_scripts += 1;
-                  } else {
-                    scripts.push(script);
-                  }
+                  main = Some(
+                    bundle_graph
+                      .asset_graph
+                      .asset(m)
+                      .id(&bundle_graph.project_root),
+                  );
                 }
+                (resolved.to_path_buf(), kind)
               }
+              None => {
+                let inline_path = path.with_extension(&format!("inline{index}.js"));
+                output_fs
+                  .write(inline_path, script.code.as_bytes())
+                  .unwrap();
+                let kind = if script.is_module {
+                  ScriptKind::Module
+                } else {
+                  ScriptKind::Classic
+                };
+                (inline_path.to_path_buf(), kind)
+              }
+            };
+
+            if is_async {
+              scripts.insert(first_script + async_scripts, script);
+              async_scripts += 1;
+            } else {
+              scripts.push(script);
             }
           }
         }
@@ -418,9 +442,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
       }
     }
 
-    if !scripts.is_empty()
-      && let Some(main) = main
-    {
+    if !scripts.is_empty() {
       let (output, side_effects) = run(scripts, output_fs.clone(), &cwd, env, main, false);
       assert_eq!(side_effects, test.side_effects);
       if let Some(expected_output) = &test.output {
@@ -512,6 +534,65 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
       }
     }
   }
+}
+
+fn script_kind(bundle: &parcel_core::Bundle) -> ScriptKind {
+  if bundle.target.source_type == SourceType::Script {
+    ScriptKind::Classic
+  } else {
+    bundle.target.output_format.into()
+  }
+}
+
+/// A `<script>` a page runs, in document order.
+struct PageScript<'a> {
+  src: Option<&'a str>,
+  is_module: bool,
+  is_async: bool,
+  /// A JSON data block holding the page's manifest, which the runtime reads rather than runs.
+  is_manifest: bool,
+  code: &'a str,
+}
+
+/// The JavaScript `<script>` tags in `html` that a browser supporting modules would run, except
+/// remote ones, and the page's manifest data blocks.
+fn page_scripts(html: &str) -> Vec<PageScript<'_>> {
+  let mut scripts = Vec::new();
+  let mut rest = html;
+  while let Some(start) = rest.find("<script") {
+    rest = &rest[start + "<script".len()..];
+    let tag_end = rest.find('>').unwrap();
+    let attributes: Vec<(&str, Option<&str>)> = rest[..tag_end]
+      .split_ascii_whitespace()
+      .map(|attribute| match attribute.split_once('=') {
+        Some((name, value)) => (name, Some(value.trim_matches(['"', '\''].as_ref()))),
+        None => (attribute, None),
+      })
+      .collect();
+    let body = &rest[tag_end + 1..];
+    let body_end = body.find("</script>").unwrap();
+    rest = &body[body_end..];
+
+    let attribute = |name| attributes.iter().find(|(n, _)| *n == name);
+    let ty = attribute("type").and_then(|(_, value)| *value);
+    let src = attribute("src").and_then(|(_, value)| *value);
+    // The attribute is `data-parcel-manifest=""`, or bare once the HTML is minified.
+    let is_manifest = attribute("data-parcel-manifest").is_some();
+    if !is_manifest && !matches!(ty, None | Some("module" | "text/javascript"))
+      || attribute("nomodule").is_some()
+      || src.is_some_and(|src| src.contains("//"))
+    {
+      continue;
+    }
+    scripts.push(PageScript {
+      src,
+      is_module: ty == Some("module"),
+      is_async: attribute("async").is_some(),
+      is_manifest,
+      code: &body[..body_end],
+    });
+  }
+  scripts
 }
 
 /// Resolve {{bundle:asset-name}} to the emitted public URL, so fixtures can
@@ -935,14 +1016,19 @@ fn assert_entry_outputs_run_independently(
       assert_eq!(entry.assets.is_empty(), expect_facades);
       // Each call creates a fresh runtime and loads just this one entry file.
       let (output, effects) = run(
-        vec![(entry.dist_path().to_path_buf(), entry.target.output_format)],
+        vec![(
+          entry.dist_path().to_path_buf(),
+          entry.target.output_format.into(),
+        )],
         output_fs.clone(),
         &fixture_dir,
         entry.target.environment,
-        graph
-          .asset_graph
-          .asset(entry.main_entry_asset.unwrap())
-          .id(&graph.project_root),
+        Some(
+          graph
+            .asset_graph
+            .asset(entry.main_entry_asset.unwrap())
+            .id(&graph.project_root),
+        ),
         false,
       );
       assert_eq!(output, serde_json::json!(["a", "b"]));

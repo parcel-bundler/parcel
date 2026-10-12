@@ -10,6 +10,7 @@ mod mdx;
 mod modules;
 mod node_replacer;
 mod react_lazy;
+pub mod script;
 #[cfg(test)]
 mod test_utils;
 pub mod tree_shake;

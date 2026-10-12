@@ -2,7 +2,12 @@ use std::{fmt::Write, sync::Arc};
 
 use indexmap::{IndexMap, IndexSet};
 use parcel_core::*;
-use parcel_js_swc_core::{Ast, async_module::wrap_async_module, tree_shake::tree_shake};
+use parcel_js_swc_core::{
+  Ast,
+  async_module::wrap_async_module,
+  script::{link_script, minify_script},
+  tree_shake::tree_shake,
+};
 use swc_core::{
   common::{DUMMY_SP, SyntaxContext},
   ecma::ast::{
@@ -67,51 +72,27 @@ impl JsContent {
     const RUNTIME: &str = include_str!(concat!(env!("OUT_DIR"), "/runtime.min.js"));
     const DEV_RUNTIME: &str = include_str!("../dev-runtime.js");
 
-    if bundle.target.source_type == SourceType::Script {
-      assert_eq!(bundle.assets.len(), 1);
-      let asset = &bundle_graph
-        .asset_graph
-        .asset(bundle.main_entry_asset.unwrap());
-      if let Some(content) = asset.content.downcast_ref::<JsContent>() {
-        let should_optimize = bundle
-          .target
-          .flags
-          .contains(EnvironmentFlags::SHOULD_OPTIMIZE);
-        let mut ast = content.ast.clone();
-        insert_node_replacements(&mut ast, content, asset, bundle, should_optimize);
-        insert_node_replacement_helpers(
-          &mut ast,
-          content,
-          bundle.target.output_format,
-          should_optimize,
-        );
-        let (code, map) = content.to_code(
-          &ast,
-          bundle.target.source_map.is_some(),
-          bundle_source_root(bundle, &options.project_root).as_deref(),
-          false,
-        )?;
-        if let Some(map) = map {
-          return Ok(Arc::new(ContentWithSourceMap::new(code, map.into_bytes())));
-        }
-
-        return Ok(Arc::new(BufferContent::new(code)));
-      }
-
-      return Ok(asset.content.clone());
-    }
-
     let should_build_source_map = bundle.target.source_map.is_some();
     let should_optimize = bundle
       .target
       .flags
       .contains(EnvironmentFlags::SHOULD_OPTIMIZE);
 
+    // A classic script's only asset runs unwrapped, so its top-level declarations are globals (see
+    // `package_script`). What its dependencies resolve to goes in the module table before it.
+    let script = if bundle.target.source_type == SourceType::Script {
+      assert_eq!(bundle.assets.len(), 1);
+      Some(bundle.assets[0])
+    } else {
+      None
+    };
+
     // Resolve dependencies before writing the bundle preamble. Some dependency
     // resolutions, such as synchronous bundles in ESM output, must be emitted
     // as top-level imports before the module table.
     let mut synthetic_assets = IndexSet::new();
     let mut asset_plans = Vec::with_capacity(bundle.assets.len());
+    let mut script_dependencies = IndexMap::new();
     for asset_index in &bundle.assets {
       let asset = &bundle_graph.asset_graph.asset(*asset_index);
       let dependencies = asset_dependencies(
@@ -123,8 +104,31 @@ impl JsContent {
         get_inline_bundle_content,
         &options.project_root,
       )?;
-      asset_plans.push((*asset_index, dependencies));
+      if script == Some(*asset_index) {
+        script_dependencies = dependencies;
+      } else {
+        asset_plans.push((*asset_index, dependencies));
+      }
     }
+
+    let script = match script {
+      Some(asset_index) => {
+        let asset = bundle_graph.asset_graph.asset(asset_index);
+        let Some(content) = asset.content.downcast_ref::<JsContent>() else {
+          return Ok(asset.content.clone());
+        };
+        let script = package_script(content, asset, bundle, script_dependencies, options)?;
+        // Without a module table, the script is the whole bundle.
+        if synthetic_assets.is_empty() {
+          return Ok(match script.1 {
+            Some(map) => Arc::new(ContentWithSourceMap::new(script.0, map.into_bytes())),
+            None => Arc::new(BufferContent::new(script.0)),
+          });
+        }
+        Some(script)
+      }
+      None => None,
+    };
 
     // Async modules are entered through the runtime's module evaluator, and async entries evaluated
     // by it (see `tla-runtime.js`).
@@ -160,7 +164,10 @@ impl JsContent {
       }
     }
 
-    write_node_replacement_helpers(&mut printer, bundle_graph, bundle, options)?;
+    // A script declares its own (see `package_script`).
+    if script.is_none() {
+      write_node_replacement_helpers(&mut printer, bundle_graph, bundle, options)?;
+    }
     let externals = write_external_imports(&mut printer, bundle_graph, bundle)?;
     let sync_bundles =
       write_sync_bundle_imports(&mut printer, bundle_graph, bundle, &synthetic_assets)?;
@@ -263,8 +270,48 @@ impl JsContent {
     if is_global {
       printer.write_str("\n})();")?;
     }
+    if let Some((code, map)) = script {
+      printer.newline()?;
+      printer.add_source_map(map)?;
+      printer.write_str(std::str::from_utf8(&code).unwrap())?;
+    }
     printer.into_content()
   }
+}
+
+/// Generates a classic script, linking its dependencies through the global require of the module
+/// table before it, and minified without renaming its top-level declarations, which are globals.
+fn package_script(
+  content: &JsContent,
+  asset: &Asset,
+  bundle: &Bundle,
+  dependencies: IndexMap<String, Resolution<'_>>,
+  options: &ParcelOptions,
+) -> Result<(Vec<u8>, Option<String>), DiagnosticList> {
+  let should_optimize = bundle
+    .target
+    .flags
+    .contains(EnvironmentFlags::SHOULD_OPTIMIZE);
+  let mut ast = content.ast.clone();
+  insert_node_replacements(&mut ast, content, asset, bundle, should_optimize);
+  insert_node_replacement_helpers(
+    &mut ast,
+    content,
+    bundle.target.output_format,
+    should_optimize,
+  );
+  if !dependencies.is_empty() {
+    link_script(&mut ast, dependencies, "parcelRequire".into());
+  }
+  if should_optimize {
+    minify_script(&mut ast);
+  }
+  content.to_code(
+    &ast,
+    bundle.target.source_map.is_some(),
+    bundle_source_root(bundle, &options.project_root).as_deref(),
+    should_optimize,
+  )
 }
 
 fn sync_bundle_binding(bundle: &Bundle) -> String {
@@ -837,7 +884,9 @@ fn write_runtime_globals(
   if let Some(entry) = rsc_server_entry {
     write!(printer, "'{}',", entry)?;
   }
-  for entry in &bundle.entry_assets {
+  // A classic script's entry runs after the module table rather than from it.
+  let is_script = bundle.target.source_type == SourceType::Script;
+  for entry in bundle.entry_assets.iter().filter(|_| !is_script) {
     write!(
       printer,
       "'{}',",
@@ -867,7 +916,7 @@ fn write_runtime_globals(
   if let Some(main) = bundle
     .main_entry_asset
     .as_ref()
-    .filter(|_| !bundle.entry_assets.is_empty())
+    .filter(|_| !bundle.entry_assets.is_empty() && !is_script)
   {
     printer.write_var(
       runtime_main_entry,

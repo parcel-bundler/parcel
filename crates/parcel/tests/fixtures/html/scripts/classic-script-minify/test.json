@@ -1,0 +1,21 @@
+{
+  "description": "should minify classic scripts in production without renaming or removing their top-level declarations, which are globals",
+  "input": "index.html",
+  "options": {"mode": "production"},
+  "bundles": [
+    {
+      "type": "html",
+      "assets": ["index.html"],
+      "notContains": ["inlineArgument", "inlineLocal"]
+    },
+    {
+      "type": "js",
+      "assets": ["index.js"],
+      "contains": ["exposedGlobal", "unusedGlobal"],
+      "notContains": ["someArgument", "someLocalVariable", "\n  "]
+    },
+    {"type": "js", "assets": ["index.html"]},
+    {"type": "js", "assets": ["index.html"]}
+  ],
+  "output": "value still a global!"
+}

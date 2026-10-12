@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+  <body>
+    <script>
+      var globalVar = 'global';
+      import('./async.js').then(function (m) {
+        output = m.default;
+      });
+    </script>
+    <script>
+      sideEffect(typeof globalVar);
+    </script>
+  </body>
+</html>

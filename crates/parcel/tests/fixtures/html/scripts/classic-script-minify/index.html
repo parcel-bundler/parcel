@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+  <body>
+    <script src="index.js"></script>
+    <script>
+      function inlineGlobal(inlineArgument) {
+        var inlineLocal = inlineArgument + '!';
+        return inlineLocal;
+      }
+    </script>
+    <script>
+      output = inlineGlobal(exposedGlobal('value'));
+    </script>
+  </body>
+</html>

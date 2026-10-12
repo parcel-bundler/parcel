@@ -9,7 +9,7 @@ use crate::{
   dependencies::{is_func_iri_attr, parse_xml_stylesheet, serialize_xml_stylesheet},
   srcset::{parse_srcset, serialize_srcset},
 };
-use html5ever::{ExpandedName, expanded_name, local_name, namespace_url, ns};
+use html5ever::{ExpandedName, expanded_name, local_name, namespace_url, ns, tendril::StrTendril};
 use serde::Deserialize;
 use typed_arena::Arena;
 
@@ -143,6 +143,37 @@ pub struct InlineBundle {
   pub module: bool,
 }
 
+/// Escapes JavaScript for an HTML `<script>` element, whose content is raw text that a `</script`
+/// ends, and in which `<!--` can start a comment-like state that hides a following `</script>`.
+/// Replacing `</script` with `</\script` and `<!--` with `<\!--` keeps string and template literals
+/// equal, since `\s` and `\!` are identity escapes there, while `<\/script` could change a regular
+/// expression such as `0</script/`.
+fn escape_inline_script(code: &StrTendril) -> StrTendril {
+  const CLOSE_TAG: &str = "</script";
+  let mut escaped = String::with_capacity(code.len() + 8);
+  let mut rest: &str = code;
+  while let Some(index) = rest.find('<') {
+    escaped.push_str(&rest[..index]);
+    rest = &rest[index..];
+    if rest.starts_with("<!--") {
+      escaped.push_str("<\\!--");
+      rest = &rest[4..];
+    } else if rest
+      .get(..CLOSE_TAG.len())
+      .is_some_and(|tag| tag.eq_ignore_ascii_case(CLOSE_TAG))
+    {
+      escaped.push_str("</\\");
+      escaped.push_str(&rest[2..CLOSE_TAG.len()]);
+      rest = &rest[CLOSE_TAG.len()..];
+    } else {
+      escaped.push('<');
+      rest = &rest[1..];
+    }
+  }
+  escaped.push_str(rest);
+  escaped.into()
+}
+
 pub fn insert_bundle_references<'arena>(
   arena: &'arena Arena<Node<'arena>>,
   dom: &'arena Node<'arena>,
@@ -211,7 +242,12 @@ pub fn insert_bundle_references<'arena>(
           if let Some(key) = node.get_attribute(data_parcel_key.clone()) {
             if let Some(bundle) = inline_bundles.get(&SerializableTendril(key)) {
               node.remove_attribute(data_parcel_key.clone());
-              node.set_text_content(arena, bundle.contents.0.clone());
+              let contents = if name.ns == ns!(html) {
+                escape_inline_script(&bundle.contents.0)
+              } else {
+                bundle.contents.0.clone()
+              };
+              node.set_text_content(arena, contents);
               if bundle.module {
                 node.set_attribute(expanded_name!("", "type"), "module");
               }
@@ -390,6 +426,15 @@ mod tests {
         nomodule: false,
       },
     ]
+  }
+
+  #[test]
+  fn inline_scripts_escape_closing_tags_and_comments() {
+    let code: StrTendril = r#"a='</script>';b='</SCRIPT >';c='<!-- x';d=1<2;e='<scripts>'"#.into();
+    assert_eq!(
+      &*escape_inline_script(&code),
+      r#"a='</\script>';b='</\SCRIPT >';c='<\!-- x';d=1<2;e='<scripts>'"#
+    );
   }
 
   #[test]

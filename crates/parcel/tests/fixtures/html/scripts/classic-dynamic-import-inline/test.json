@@ -1,0 +1,29 @@
+[
+  {
+    "description": "should load dynamic imports from inline classic scripts",
+    "input": "index.html",
+    "skipNodeModules": true,
+    "bundles": [
+      {"type": "html", "assets": ["index.html"]},
+      {"type": "js", "assets": ["index.html"]},
+      {"type": "js", "assets": ["index.html"]},
+      {"type": "js", "assets": ["async.js"]}
+    ],
+    "output": "async global",
+    "sideEffects": ["string"]
+  },
+  {
+    "description": "should load dynamic imports from inline classic scripts in production",
+    "input": "index.html",
+    "options": {"mode": "production"},
+    "skipNodeModules": true,
+    "bundles": [
+      {"type": "html", "assets": ["index.html"]},
+      {"type": "js", "assets": ["index.html"]},
+      {"type": "js", "assets": ["index.html"]},
+      {"type": "js", "assets": ["async.js"]}
+    ],
+    "output": "async global",
+    "sideEffects": ["string"]
+  }
+]

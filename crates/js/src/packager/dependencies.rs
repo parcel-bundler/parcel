@@ -30,11 +30,6 @@ pub(crate) fn bundle_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -
     return bundle_graph.bundle_dependency_targets(bundle).collect();
   }
 
-  if bundle.target.source_type == SourceType::Script {
-    // Classic scripts are emitted as is, without resolving dependencies.
-    return Vec::new();
-  }
-
   let mut dependencies = Vec::new();
 
   // A root's runtime maps the stable keys of everything its context loads to final names.

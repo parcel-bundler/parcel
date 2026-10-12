@@ -1,0 +1,29 @@
+[
+  {
+    "description": "should load dynamic imports from classic scripts, which stay unwrapped so top-level declarations remain globals",
+    "input": "index.html",
+    "skipNodeModules": true,
+    "bundles": [
+      {"type": "html", "assets": ["index.html"]},
+      {"type": "js", "assets": ["index.js"]},
+      {"type": "js", "assets": ["index.html"]},
+      {"type": "js", "assets": ["async.js"]}
+    ],
+    "output": "async global",
+    "sideEffects": ["string"]
+  },
+  {
+    "description": "should load dynamic imports from classic scripts in production",
+    "input": "index.html",
+    "options": {"mode": "production"},
+    "skipNodeModules": true,
+    "bundles": [
+      {"type": "html", "assets": ["index.html"]},
+      {"type": "js", "assets": ["index.js"]},
+      {"type": "js", "assets": ["index.html"]},
+      {"type": "js", "assets": ["async.js"]}
+    ],
+    "output": "async global",
+    "sideEffects": ["string"]
+  }
+]
