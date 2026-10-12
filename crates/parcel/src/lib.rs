@@ -93,16 +93,17 @@ pub fn serve(
     "http"
   };
   // The server starts before the first build so that it can show the build's errors.
-  let (server, address, _) = server::serve(
-    &server_options,
-    Some(parcel.entries()[0].target.dist_dir.to_path_buf()),
-  )
-  .inspect_err(|err| parcel.options.log_diagnostics(LogLevel::Error, &err.0))?;
+  let target = &parcel.entries()[0].target;
+  let output = server::Output::new(target.dist_dir.to_path_buf(), &target.public_url);
+  let base_path = output.base_path.clone();
+  let (server, address, _) = server::serve(&server_options, Some(output))
+    .inspect_err(|err| parcel.options.log_diagnostics(LogLevel::Error, &err.0))?;
   reporters.log(
     LogLevel::Info,
     &format!(
-      "Server listening on {scheme}://localhost:{}",
-      address.port()
+      "Server listening on {scheme}://localhost:{}{}",
+      address.port(),
+      if base_path == "/" { "" } else { &base_path }
     ),
   );
   server.set_reporters(reporters.clone());
@@ -142,8 +143,8 @@ pub fn serve(
       host => host,
     };
     let url = match host.parse::<std::net::IpAddr>() {
-      Ok(std::net::IpAddr::V6(ip)) => format!("{scheme}://[{ip}]:{}/", address.port()),
-      _ => format!("{scheme}://{host}:{}/", address.port()),
+      Ok(std::net::IpAddr::V6(ip)) => format!("{scheme}://[{ip}]:{}{base_path}", address.port()),
+      _ => format!("{scheme}://{host}:{}{base_path}", address.port()),
     };
     let browser = server_options.browser.clone();
     let reporters = reporters.clone();

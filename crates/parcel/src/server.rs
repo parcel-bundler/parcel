@@ -98,14 +98,38 @@ struct EndpointResponse {
   body: Vec<u8>,
 }
 
-/// Serves HMR over WebSockets unless disabled, the server's endpoints, and the files in `dist_dir`
-/// if given (`parcel serve`). Otherwise pages are served by something else, i.e. the process
+/// The build output served by `parcel serve`.
+pub struct Output {
+  pub dir: PathBuf,
+  /// The URL path it's served under, from the public URL, e.g. `/app/` for `/app` or
+  /// `https://cdn.example.com/app/`. Relative public URLs depend on the page, so they serve from `/`.
+  pub base_path: String,
+}
+
+impl Output {
+  pub fn new(dir: PathBuf, public_url: &str) -> Self {
+    let base_path = if public_url.starts_with('/') || Url::parse(public_url).is_ok() {
+      let url = Url::parse("http://localhost/")
+        .unwrap()
+        .join(public_url)
+        .unwrap();
+      let path = url.path().trim_end_matches('/');
+      format!("{path}/")
+    } else {
+      "/".to_owned()
+    };
+    Output { dir, base_path }
+  }
+}
+
+/// Serves HMR over WebSockets unless disabled, the server's endpoints, and `output` if given
+/// (`parcel serve`). Otherwise pages are served by something else, i.e. the process
 /// started by `parcel run`. That process connects with the token it was started with (see
 /// `NodeRunner`), and its messages are sent to the returned receiver. Returns the bound address,
 /// whose port may differ from `options.port` when it is 0.
 pub fn serve(
   options: &ServerOptions,
-  dist_dir: Option<PathBuf>,
+  output: Option<Output>,
 ) -> Result<(HmrServer, SocketAddr, Receiver<RunnerEvent>), DiagnosticList> {
   let error = |err: &dyn std::fmt::Display| {
     crate::cli_diagnostic(format!(
@@ -155,12 +179,12 @@ pub fn serve(
       );
     }
 
-    Reply::Respond(match &dist_dir {
-      Some(dist_dir) => match hmr_clone.wait_for_build() {
+    Reply::Respond(match &output {
+      Some(output) => match hmr_clone.wait_for_build() {
         Some(error_page) => {
           Response::new(500, error_page).with_header("Content-Type", "text/html; charset=utf-8")
         }
-        None => serve_file(&request, &url, dist_dir),
+        None => serve_file(&request, &url, output),
       },
       None => Response::new(404, "404 not found"),
     })
@@ -173,9 +197,25 @@ pub fn serve(
 /// directory serves its `index.html`. Navigations to other missing paths get the nearest `404.html`,
 /// or if there is none, the nearest `index.html`, so that single page apps' client-side routes load.
 /// Other requests, e.g. for scripts, get a 404 rather than a page.
-fn serve_file(request: &Request, url: &Url, dir: &Path) -> Response {
+fn serve_file(request: &Request, url: &Url, output: &Output) -> Response {
+  let dir = &output.dir;
+  let Some(path) = url
+    .path()
+    .strip_prefix(&output.base_path)
+    .or_else(|| (url.path() == output.base_path.trim_end_matches('/')).then_some(""))
+  else {
+    if !is_navigation(request) {
+      return Response::new(404, "404 not found");
+    }
+    if url.path() == "/" {
+      return Response::new(302, "").with_header("Location", output.base_path.clone());
+    }
+    return Response::new(404, not_found_page(url.path(), output, &html_pages(dir)))
+      .with_header("Content-Type", "text/html; charset=utf-8");
+  };
+
   let mut full_path = dir.to_path_buf();
-  for segment in url.path_segments().unwrap() {
+  for segment in path.split('/') {
     let Ok(decoded) = percent_encoding::percent_decode(segment.as_bytes()).decode_utf8() else {
       return Response::new(400, "400 bad request");
     };
@@ -190,12 +230,22 @@ fn serve_file(request: &Request, url: &Url, dir: &Path) -> Response {
 
   let mut html_path = full_path.clone().into_os_string();
   html_path.push(".html");
-  for path in [
-    full_path.clone(),
-    PathBuf::from(html_path),
-    full_path.join("index.html"),
-  ] {
+  for path in [full_path.clone(), PathBuf::from(html_path)] {
     if let Some(response) = file_response(&path, dir) {
+      return response;
+    }
+  }
+  let index = full_path.join("index.html");
+  if index.is_file() && index.starts_with(dir) {
+    // Like static hosts, so that the page's relative URLs resolve within the directory.
+    if !url.path().ends_with('/') {
+      let query = url
+        .query()
+        .map(|query| format!("?{query}"))
+        .unwrap_or_default();
+      return Response::new(302, "").with_header("Location", format!("{}/{query}", url.path()));
+    }
+    if let Some(response) = file_response(&index, dir) {
       return response;
     }
   }
@@ -213,7 +263,7 @@ fn serve_file(request: &Request, url: &Url, dir: &Path) -> Response {
         .with_header("Cache-Control", "no-cache")
         .with_header(
           "X-Parcel-Fallback",
-          format!("/{}", served.replace('\\', "/")),
+          format!("{}{}", output.base_path, served.replace('\\', "/")),
         ),
     )
   };
@@ -239,7 +289,7 @@ fn serve_file(request: &Request, url: &Url, dir: &Path) -> Response {
     return response;
   }
 
-  Response::new(404, not_found_page(url.path(), &pages))
+  Response::new(404, not_found_page(url.path(), output, &pages))
     .with_header("Content-Type", "text/html; charset=utf-8")
 }
 
@@ -298,7 +348,7 @@ fn html_pages(dir: &Path) -> Vec<String> {
 }
 
 /// The page shown for a missing page, linking to the ones that exist.
-fn not_found_page(path: &str, pages: &[String]) -> String {
+fn not_found_page(path: &str, output: &Output, pages: &[String]) -> String {
   use std::fmt::Write;
 
   let escape = |s: &str| {
@@ -310,21 +360,32 @@ fn not_found_page(path: &str, pages: &[String]) -> String {
   };
   let mut list = String::new();
   for page in pages {
-    let mut url = Url::parse("http://localhost/").unwrap();
-    url.path_segments_mut().unwrap().extend(page.split('/'));
+    let mut url = Url::parse("http://localhost").unwrap();
+    url.set_path(&output.base_path);
+    url
+      .path_segments_mut()
+      .unwrap()
+      .pop_if_empty()
+      .extend(page.split('/'));
     write!(
       list,
-      "<li><a href=\"{}\">/{}</a></li>",
+      "<li><a href=\"{}\">{}</a></li>",
       escape(url.path()),
-      escape(page)
+      escape(&percent_encoding::percent_decode_str(url.path()).decode_utf8_lossy())
     )
     .unwrap();
   }
-  let pages = if list.is_empty() {
+  let mut pages = if list.is_empty() {
     "<p>The build has no pages.</p>".to_owned()
   } else {
     format!("<p>The build has these pages:</p><ul>{list}</ul>")
   };
+  if output.base_path != "/" {
+    pages = format!(
+      "<p>The build is served under its public URL, <code>{}</code>.</p>{pages}",
+      escape(&output.base_path)
+    );
+  }
 
   format!(
     r#"<!DOCTYPE html>
@@ -1000,7 +1061,7 @@ mod tests {
         hmr: true,
         ..Default::default()
       },
-      Some(root.clone()),
+      Some(Output::new(root.clone(), "")),
     )
     .unwrap();
 
@@ -1071,7 +1132,30 @@ mod tests {
     )
   }
 
+  /// Where a GET request is redirected to, if it is.
+  fn redirect(address: SocketAddr, path: &str, headers: &str) -> Option<String> {
+    let mut stream = TcpStream::connect(address).unwrap();
+    write!(
+      stream,
+      "GET {path} HTTP/1.1\r\nHost: {address}\r\n{headers}Connection: close\r\n\r\n"
+    )
+    .unwrap();
+    let mut response = String::new();
+    stream.read_to_string(&mut response).unwrap();
+    if !response.starts_with("HTTP/1.1 302 Found\r\n") {
+      return None;
+    }
+    response
+      .lines()
+      .find_map(|line| line.strip_prefix("Location: "))
+      .map(str::to_owned)
+  }
+
   fn serve_dir(name: &str, files: &[(&str, &str)]) -> (PathBuf, SocketAddr) {
+    serve_dir_at(name, files, "")
+  }
+
+  fn serve_dir_at(name: &str, files: &[(&str, &str)], public_url: &str) -> (PathBuf, SocketAddr) {
     let root = std::env::temp_dir().join(format!("parcel-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     for (path, contents) in files {
@@ -1086,7 +1170,7 @@ mod tests {
         hmr: false,
         ..Default::default()
       },
-      Some(root.clone()),
+      Some(Output::new(root.clone(), public_url)),
     )
     .unwrap();
     server.build_succeeded();
@@ -1117,6 +1201,7 @@ mod tests {
 
     assert_eq!(get("/index.js", ""), ok("code", None));
     assert_eq!(get("/admin/", ""), ok("admin", None));
+    assert_eq!(redirect(address, "/admin", "").as_deref(), Some("/admin/"));
     // Pages may omit .html, whatever requests them.
     assert_eq!(get("/about", ""), ok("about", None));
     assert_eq!(get("/about?q=1", DOCUMENT), ok("about", None));
@@ -1229,6 +1314,69 @@ mod tests {
     ] {
       assert!(body.contains(link), "{body}");
     }
+    std::fs::remove_dir_all(&root).unwrap();
+  }
+
+  #[test]
+  fn serves_under_the_public_url_path() {
+    for (public_url, base_path) in [
+      ("", "/"),
+      ("/", "/"),
+      ("/app", "/app/"),
+      ("/app/", "/app/"),
+      ("/a b/c/", "/a%20b/c/"),
+      ("https://cdn.example.com/app/", "/app/"),
+      ("https://cdn.example.com", "/"),
+      ("./", "/"),
+      ("app/", "/"),
+    ] {
+      assert_eq!(
+        Output::new(PathBuf::new(), public_url).base_path,
+        base_path,
+        "{public_url}"
+      );
+    }
+
+    let (root, address) = serve_dir_at(
+      "public-url",
+      &[("index.html", "app"), ("index.js", "code")],
+      "https://cdn.example.com/app/",
+    );
+    let get = |path: &str, headers: &str| http_get_with(address, path, headers);
+    let ok = |body: &str, fallback: Option<&str>| {
+      (
+        "HTTP/1.1 200 OK".to_owned(),
+        fallback.map(str::to_owned),
+        body.to_owned(),
+      )
+    };
+    assert_eq!(get("/app/index.js", ""), ok("code", None));
+    assert_eq!(get("/app/", ""), ok("app", None));
+    assert_eq!(
+      get("/app/users/5", DOCUMENT),
+      ok("app", Some("/app/index.html"))
+    );
+
+    // Nothing is served outside the public URL.
+    assert_eq!(get("/index.js", "").0, "HTTP/1.1 404 Not Found");
+    assert_eq!(get("/application/x", "").0, "HTTP/1.1 404 Not Found");
+    let (status, fallback, body) = get("/users/5", DOCUMENT);
+    assert_eq!(
+      (status.as_str(), fallback),
+      ("HTTP/1.1 404 Not Found", None)
+    );
+    assert!(body.contains("<code>/app/</code>"), "{body}");
+    assert!(
+      body.contains(r#"<a href="/app/index.html">/app/index.html</a>"#),
+      "{body}"
+    );
+    // Except that the root redirects to it.
+    assert_eq!(redirect(address, "/", DOCUMENT).as_deref(), Some("/app/"));
+    assert_eq!(
+      redirect(address, "/app?q=1", "").as_deref(),
+      Some("/app/?q=1")
+    );
+
     std::fs::remove_dir_all(&root).unwrap();
   }
 
@@ -1380,7 +1528,7 @@ mod tests {
         https: Some(https),
         ..Default::default()
       },
-      Some(root.join("dist")),
+      Some(Output::new(root.join("dist"), "")),
     )
     .unwrap();
     server.build_succeeded();

@@ -525,19 +525,25 @@ fn manifest_json(
   Ok(Some(json.replace("</", "<\\/")))
 }
 
+/// The URL `from` references `target` by. Pages are also served at other URLs, e.g. client-side
+/// routes, and feed readers resolve against the feed's location, so both use absolute URLs, unless
+/// a page's public URL is relative. Other documents, e.g. SVG images, resolve against themselves.
+fn reference_url(target: &Bundle, from: &Bundle) -> String {
+  let page = matches!(from.ty, AssetType::Html | AssetType::Xhtml);
+  if from.ty.is_xml() || (page && !target.target.has_relative_public_url()) {
+    target.absolute_url()
+  } else {
+    target.relative_url(from).unwrap()
+  }
+}
+
 /// Construct a reference once for both document-wide and element-local insertion.
 fn bundle_reference(
   graph: &BundleGraph,
   target: &Bundle,
   from: &Bundle,
 ) -> Option<BundleReference> {
-  let url = || {
-    SerializableTendril(if from.ty.is_xml() {
-      target.absolute_url().into()
-    } else {
-      target.relative_url(from).unwrap().into()
-    })
-  };
+  let url = || SerializableTendril(reference_url(target, from).into());
   match target.ty {
     AssetType::Js => Some(BundleReference::Script {
       src: url(),
@@ -597,11 +603,7 @@ fn prepare_to_package(
             .read_string()?
             .into_owned()
         } else {
-          if bundle.ty.is_xml() {
-            referenced_bundle.absolute_url()
-          } else {
-            referenced_bundle.relative_url(&bundle).unwrap()
-          }
+          reference_url(referenced_bundle, bundle)
         };
 
         inline_bundles.insert(

@@ -305,6 +305,7 @@ fn reason(status: u16) -> &'static str {
   match status {
     101 => "Switching Protocols",
     200 => "OK",
+    302 => "Found",
     400 => "Bad Request",
     404 => "Not Found",
     431 => "Request Header Fields Too Large",

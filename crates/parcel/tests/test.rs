@@ -376,7 +376,11 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
             match dep.resolution {
               DependencyResolution::Deferred(_) => {}
               _ => {
-                let resolved = path.parent().unwrap().join(Path::new(&*dep.specifier));
+                // Pages reference bundles by absolute URLs unless the public URL is relative.
+                let resolved = match dep.specifier.strip_prefix('/') {
+                  Some(name) => bundle.target.dist_dir.join(Path::new(name)),
+                  None => path.parent().unwrap().join(Path::new(&*dep.specifier)),
+                };
 
                 if resolved
                   .extension()

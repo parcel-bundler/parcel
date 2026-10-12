@@ -75,6 +75,14 @@ impl Hash for Target {
 }
 
 impl Target {
+  /// Whether the public URL is relative to the page, e.g. `./`, rather than empty (the root), a
+  /// path, or an absolute URL.
+  pub fn has_relative_public_url(&self) -> bool {
+    !self.public_url.is_empty()
+      && !self.public_url.starts_with('/')
+      && url::Url::parse(&self.public_url).is_err()
+  }
+
   pub fn should_scope_hoist(&self) -> bool {
     self.flags.contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
   }
