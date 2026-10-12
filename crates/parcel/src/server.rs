@@ -972,14 +972,18 @@ mod tests {
   fn keeps_connections_alive() {
     let (_server, address, _events) = serve();
     let mut stream = TcpStream::connect(address).unwrap();
-    let mut response = Vec::new();
-    for _ in 0..2 {
+    stream.set_read_timeout(Some(TIMEOUT)).unwrap();
+    let mut response = String::new();
+    for i in 1..=2 {
       write!(stream, "GET /other HTTP/1.1\r\nHost: {address}\r\n\r\n").unwrap();
-      let mut chunk = [0; 1024];
-      let read = stream.read(&mut chunk).unwrap();
-      response.extend_from_slice(&chunk[..read]);
+      // Reads until this request's response, which ends with its body, is complete.
+      while response.matches("404 not found").count() < i {
+        let mut chunk = [0; 1024];
+        let read = stream.read(&mut chunk).unwrap();
+        assert!(read > 0, "{response}");
+        response.push_str(std::str::from_utf8(&chunk[..read]).unwrap());
+      }
     }
-    let response = String::from_utf8(response).unwrap();
     assert_eq!(
       response.matches("HTTP/1.1 404 Not Found\r\n").count(),
       2,

@@ -361,11 +361,13 @@ mod tests {
     roots
       .add(CertificateDer::from_pem_slice(ca_pem.as_bytes()).unwrap())
       .unwrap();
-    let config = rustls::ClientConfig::builder_with_provider(crate::http::crypto_provider())
-      .with_safe_default_protocol_versions()
-      .unwrap()
-      .with_root_certificates(roots)
-      .with_no_client_auth();
+    let config = rustls::ClientConfig::builder_with_provider(Arc::new(
+      rustls::crypto::ring::default_provider(),
+    ))
+    .with_safe_default_protocol_versions()
+    .unwrap()
+    .with_root_certificates(roots)
+    .with_no_client_auth();
     let connection = rustls::ClientConnection::new(
       Arc::new(config),
       ServerName::try_from(server_name.to_owned()).unwrap(),

@@ -34,7 +34,7 @@ parcel-tailwind = { path = "../tailwind" }
 parcel-sass = { path = "../sass" }
 httparse = "1.10.1"
 # ring rather than the default aws-lc-rs: much smaller, and builds with zig.
-rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }
 ring = "0.17"
 tungstenite = "0.28.0"

@@ -14,9 +14,10 @@ use std::{
 
 use rustls::{
   ConfigBuilder, ServerConfig, ServerConnection, StreamOwned,
-  crypto::CryptoProvider,
+  crypto::{CryptoProvider, GetRandomFailed, KeyProvider, SecureRandom, WebPkiSupportedAlgorithms},
   pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject},
   server::{ResolvesServerCert, WantsServerCert},
+  sign::SigningKey,
 };
 
 /// A connection to a client, over TLS or not.
@@ -279,15 +280,18 @@ fn write_response(
     out.push_str("Connection: close\r\n");
   }
   out.push_str("\r\n");
-  stream.write_all(out.as_bytes())?;
-
-  if !head {
-    match response.body {
-      Body::Bytes(bytes) => stream.write_all(&bytes)?,
-      Body::File(mut file) => {
-        io::copy(&mut file, stream)?;
-      }
+  // Small bodies are sent with the head in one write.
+  let mut out = out.into_bytes();
+  match response.body {
+    Body::Bytes(bytes) if !head => {
+      out.extend_from_slice(&bytes);
+      stream.write_all(&out)?;
     }
+    Body::File(mut file) if !head => {
+      stream.write_all(&out)?;
+      io::copy(&mut file, stream)?;
+    }
+    _ => stream.write_all(&out)?,
   }
   stream.flush()
 }
@@ -305,8 +309,46 @@ fn reason(status: u16) -> &'static str {
   }
 }
 
+/// The algorithms the server uses: ring's, but only those for TLS 1.3, which every current browser
+/// supports, and none for verifying certificates, which a server without client authentication
+/// never does. The linker drops the rest. Keys of any type load, e.g. mkcert's RSA keys.
 pub fn crypto_provider() -> Arc<CryptoProvider> {
-  Arc::new(rustls::crypto::ring::default_provider())
+  use rustls::crypto::ring::{cipher_suite, kx_group};
+  Arc::new(CryptoProvider {
+    cipher_suites: vec![
+      cipher_suite::TLS13_AES_128_GCM_SHA256,
+      cipher_suite::TLS13_AES_256_GCM_SHA384,
+      cipher_suite::TLS13_CHACHA20_POLY1305_SHA256,
+    ],
+    kx_groups: vec![kx_group::X25519, kx_group::SECP256R1],
+    signature_verification_algorithms: WebPkiSupportedAlgorithms {
+      all: &[],
+      mapping: &[],
+    },
+    secure_random: &Ring,
+    key_provider: &Ring,
+  })
+}
+
+#[derive(Debug)]
+struct Ring;
+
+impl SecureRandom for Ring {
+  fn fill(&self, buf: &mut [u8]) -> Result<(), GetRandomFailed> {
+    use ring::rand::SecureRandom;
+    ring::rand::SystemRandom::new()
+      .fill(buf)
+      .map_err(|_| GetRandomFailed)
+  }
+}
+
+impl KeyProvider for Ring {
+  fn load_private_key(
+    &self,
+    key: PrivateKeyDer<'static>,
+  ) -> Result<Arc<dyn SigningKey>, rustls::Error> {
+    rustls::crypto::ring::sign::any_supported_type(&key)
+  }
 }
 
 /// A TLS config serving the certificate chain and private key in the PEM files `cert` and `key`.
