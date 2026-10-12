@@ -84,6 +84,11 @@ impl Response {
     }
   }
 
+  pub fn with_status(mut self, status: u16) -> Self {
+    self.status = status;
+    self
+  }
+
   pub fn with_header(mut self, name: &'static str, value: impl Into<String>) -> Self {
     self.headers.push((name, value.into()));
     self

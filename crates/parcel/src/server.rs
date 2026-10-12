@@ -160,7 +160,7 @@ pub fn serve(
         Some(error_page) => {
           Response::new(500, error_page).with_header("Content-Type", "text/html; charset=utf-8")
         }
-        None => serve_file(&url, dist_dir),
+        None => serve_file(&request, &url, dist_dir),
       },
       None => Response::new(404, "404 not found"),
     })
@@ -169,8 +169,11 @@ pub fn serve(
   Ok((hmr, address, receiver))
 }
 
-/// The file at `url` in `dir`.
-fn serve_file(url: &Url, dir: &Path) -> Response {
+/// The file at `url` in `dir`. Like static hosts, pages may be requested without `.html`, and a
+/// directory serves its `index.html`. Navigations to other missing paths get the nearest `404.html`,
+/// or if there is none, the nearest `index.html`, so that single page apps' client-side routes load.
+/// Other requests, e.g. for scripts, get a 404 rather than a page.
+fn serve_file(request: &Request, url: &Url, dir: &Path) -> Response {
   let mut full_path = dir.to_path_buf();
   for segment in url.path_segments().unwrap() {
     let Ok(decoded) = percent_encoding::percent_decode(segment.as_bytes()).decode_utf8() else {
@@ -185,24 +188,166 @@ fn serve_file(url: &Url, dir: &Path) -> Response {
     full_path.push(decoded.as_ref());
   }
 
-  if full_path.is_dir() {
-    full_path.push("index.html");
+  let mut html_path = full_path.clone().into_os_string();
+  html_path.push(".html");
+  for path in [
+    full_path.clone(),
+    PathBuf::from(html_path),
+    full_path.join("index.html"),
+  ] {
+    if let Some(response) = file_response(&path, dir) {
+      return response;
+    }
   }
 
-  let file = if full_path.is_file() && full_path.starts_with(dir) {
-    File::open(&full_path).ok()
-  } else {
-    None
-  };
-  let Some(file) = file else {
+  if !is_navigation(request) {
     return Response::new(404, "404 not found");
+  }
+
+  let fallback = |path: &Path, status: u16| {
+    let response = file_response(path, dir)?;
+    let served = path.strip_prefix(dir).unwrap().to_string_lossy();
+    Some(
+      response
+        .with_status(status)
+        .with_header("Cache-Control", "no-cache")
+        .with_header(
+          "X-Parcel-Fallback",
+          format!("/{}", served.replace('\\', "/")),
+        ),
+    )
   };
-  let ty = full_path
+
+  // A 404 page means the site isn't a single page app.
+  let ancestors = || {
+    full_path
+      .ancestors()
+      .take_while(|path| path.starts_with(dir))
+  };
+  let page = |name: &str, status: u16| {
+    ancestors().find_map(|ancestor| fallback(&ancestor.join(name), status))
+  };
+  if let Some(response) = page("404.html", 404).or_else(|| page("index.html", 200)) {
+    return response;
+  }
+
+  // An app whose only page isn't named index.html.
+  let pages = html_pages(dir);
+  if let [page] = pages.as_slice()
+    && let Some(response) = fallback(&dir.join(page), 200)
+  {
+    return response;
+  }
+
+  Response::new(404, not_found_page(url.path(), &pages))
+    .with_header("Content-Type", "text/html; charset=utf-8")
+}
+
+/// The file at `path` if it is one within `dir`.
+fn file_response(path: &Path, dir: &Path) -> Option<Response> {
+  if !path.is_file() || !path.starts_with(dir) {
+    return None;
+  }
+  let file = File::open(path).ok()?;
+  let ty = path
     .extension()
     .and_then(|e| e.to_str())
     .map(|e| AssetType::from_extension(e).mime())
     .unwrap_or("application/octet-stream");
-  Response::file(file).with_header("Content-Type", ty)
+  Some(Response::file(file).with_header("Content-Type", ty))
+}
+
+/// Whether the browser is loading a page, rather than e.g. a script or `fetch()`. Browsers only
+/// send `Sec-Fetch-Dest` to secure origins, which plain HTTP on a LAN address isn't, so otherwise
+/// pages are those that accept HTML. `*/*` doesn't count, since `fetch()` sends it.
+fn is_navigation(request: &Request) -> bool {
+  if request.method != "GET" && request.method != "HEAD" {
+    return false;
+  }
+  match request.header("Sec-Fetch-Dest") {
+    Some(dest) => matches!(dest, "document" | "iframe" | "frame"),
+    None => request.header("Accept").is_some_and(|accept| {
+      accept.split(',').any(|ty| {
+        let ty = ty.split(';').next().unwrap().trim();
+        ty.eq_ignore_ascii_case("text/html") || ty.eq_ignore_ascii_case("application/xhtml+xml")
+      })
+    }),
+  }
+}
+
+/// The paths of the HTML files in `dir`, relative to it with `/` separators.
+fn html_pages(dir: &Path) -> Vec<String> {
+  fn visit(dir: &Path, prefix: &str, pages: &mut Vec<String>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+      return;
+    };
+    for entry in entries.flatten() {
+      let name = entry.file_name().to_string_lossy().into_owned();
+      let path = entry.path();
+      if path.is_dir() {
+        visit(&path, &format!("{prefix}{name}/"), pages);
+      } else if path.extension().is_some_and(|e| e == "html") {
+        pages.push(format!("{prefix}{name}"));
+      }
+    }
+  }
+  let mut pages = Vec::new();
+  visit(dir, "", &mut pages);
+  pages.sort();
+  pages
+}
+
+/// The page shown for a missing page, linking to the ones that exist.
+fn not_found_page(path: &str, pages: &[String]) -> String {
+  use std::fmt::Write;
+
+  let escape = |s: &str| {
+    s.replace('&', "&amp;")
+      .replace('<', "&lt;")
+      .replace('>', "&gt;")
+      .replace('"', "&quot;")
+      .replace('\'', "&#39;")
+  };
+  let mut list = String::new();
+  for page in pages {
+    let mut url = Url::parse("http://localhost/").unwrap();
+    url.path_segments_mut().unwrap().extend(page.split('/'));
+    write!(
+      list,
+      "<li><a href=\"{}\">/{}</a></li>",
+      escape(url.path()),
+      escape(page)
+    )
+    .unwrap();
+  }
+  let pages = if list.is_empty() {
+    "<p>The build has no pages.</p>".to_owned()
+  } else {
+    format!("<p>The build has these pages:</p><ul>{list}</ul>")
+  };
+
+  format!(
+    r#"<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>404 Not Found</title>
+    <style>
+      html {{ color-scheme: dark light; }}
+      body {{ margin: 20px; font-family: sans-serif; }}
+      code, li {{ font-family: Menlo, Consolas, monospace; }}
+    </style>
+  </head>
+  <body>
+    <h1>404 Not Found</h1>
+    <p>There is no page at <code>{}</code>.</p>
+    {pages}
+  </body>
+</html>
+"#,
+    escape(path)
+  )
 }
 
 /// A message from the process started by `parcel run`.
@@ -897,6 +1042,193 @@ mod tests {
       ("HTTP/1.1 200 OK".into(), "output".into())
     );
 
+    std::fs::remove_dir_all(&root).unwrap();
+  }
+
+  /// The status, `X-Parcel-Fallback` header, and body of a GET request with the given headers.
+  fn http_get_with(
+    address: SocketAddr,
+    path: &str,
+    headers: &str,
+  ) -> (String, Option<String>, String) {
+    let mut stream = TcpStream::connect(address).unwrap();
+    write!(
+      stream,
+      "GET {path} HTTP/1.1\r\nHost: {address}\r\n{headers}Connection: close\r\n\r\n"
+    )
+    .unwrap();
+    let mut response = String::new();
+    stream.read_to_string(&mut response).unwrap();
+    let (head, body) = response.split_once("\r\n\r\n").unwrap();
+    let fallback = head
+      .lines()
+      .find_map(|line| line.strip_prefix("X-Parcel-Fallback: "))
+      .map(str::to_owned);
+    (
+      head.lines().next().unwrap().to_owned(),
+      fallback,
+      body.to_owned(),
+    )
+  }
+
+  fn serve_dir(name: &str, files: &[(&str, &str)]) -> (PathBuf, SocketAddr) {
+    let root = std::env::temp_dir().join(format!("parcel-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    for (path, contents) in files {
+      let path = root.join(path);
+      std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+      std::fs::write(path, contents).unwrap();
+    }
+    let (server, address, _events) = super::serve(
+      &ServerOptions {
+        host: "127.0.0.1".into(),
+        port: 0,
+        hmr: false,
+        ..Default::default()
+      },
+      Some(root.clone()),
+    )
+    .unwrap();
+    server.build_succeeded();
+    (root, address)
+  }
+
+  const DOCUMENT: &str = "Sec-Fetch-Dest: document\r\nAccept: text/html,*/*;q=0.8\r\n";
+
+  #[test]
+  fn falls_back_to_the_nearest_index_for_pages() {
+    let (root, address) = serve_dir(
+      "spa-fallback",
+      &[
+        ("index.html", "app"),
+        ("index.js", "code"),
+        ("about.html", "about"),
+        ("admin/index.html", "admin"),
+      ],
+    );
+    let get = |path: &str, headers: &str| http_get_with(address, path, headers);
+    let ok = |body: &str, fallback: Option<&str>| {
+      (
+        "HTTP/1.1 200 OK".to_owned(),
+        fallback.map(str::to_owned),
+        body.to_owned(),
+      )
+    };
+
+    assert_eq!(get("/index.js", ""), ok("code", None));
+    assert_eq!(get("/admin/", ""), ok("admin", None));
+    // Pages may omit .html, whatever requests them.
+    assert_eq!(get("/about", ""), ok("about", None));
+    assert_eq!(get("/about?q=1", DOCUMENT), ok("about", None));
+
+    // Client-side routes, including those with dots, load the app.
+    assert_eq!(get("/users/5", DOCUMENT), ok("app", Some("/index.html")));
+    assert_eq!(
+      get("/u/john.doe?x=1", DOCUMENT),
+      ok("app", Some("/index.html"))
+    );
+    assert_eq!(
+      get("/admin/users/5", DOCUMENT),
+      ok("admin", Some("/admin/index.html"))
+    );
+    // Without Sec-Fetch-Dest, e.g. over plain HTTP on a LAN address, pages accept HTML.
+    assert_eq!(
+      get("/users/5", "Accept: text/html\r\n"),
+      ok("app", Some("/index.html"))
+    );
+    assert_eq!(
+      get("/users/5", "Sec-Fetch-Dest: iframe\r\n"),
+      ok("app", Some("/index.html"))
+    );
+
+    // Anything else that's missing is, e.g. scripts, images, and fetch().
+    for headers in [
+      "",
+      "Accept: */*\r\n",
+      "Sec-Fetch-Dest: script\r\nAccept: */*\r\n",
+      "Sec-Fetch-Dest: empty\r\nAccept: text/html\r\n",
+    ] {
+      assert_eq!(
+        get("/missing.js", headers),
+        (
+          "HTTP/1.1 404 Not Found".into(),
+          None,
+          "404 not found".into()
+        ),
+        "{headers}"
+      );
+      assert_eq!(
+        get("/users/5", headers).0,
+        "HTTP/1.1 404 Not Found",
+        "{headers}"
+      );
+    }
+
+    std::fs::remove_dir_all(&root).unwrap();
+  }
+
+  #[test]
+  fn serves_404_pages_instead_of_falling_back() {
+    let (root, address) = serve_dir(
+      "404-page",
+      &[
+        ("index.html", "home"),
+        ("404.html", "not found"),
+        ("docs/index.html", "docs"),
+        ("app/index.html", "app"),
+      ],
+    );
+    assert_eq!(
+      http_get_with(address, "/docs/missing", DOCUMENT),
+      (
+        "HTTP/1.1 404 Not Found".into(),
+        Some("/404.html".into()),
+        "not found".into()
+      )
+    );
+    std::fs::write(root.join("app/404.html"), "app not found").unwrap();
+    assert_eq!(
+      http_get_with(address, "/app/missing", DOCUMENT),
+      (
+        "HTTP/1.1 404 Not Found".into(),
+        Some("/app/404.html".into()),
+        "app not found".into()
+      )
+    );
+    std::fs::remove_dir_all(&root).unwrap();
+  }
+
+  #[test]
+  fn falls_back_to_the_only_page() {
+    let (root, address) = serve_dir("only-page", &[("popup.html", "popup")]);
+    for path in ["/", "/settings"] {
+      assert_eq!(
+        http_get_with(address, path, DOCUMENT),
+        (
+          "HTTP/1.1 200 OK".into(),
+          Some("/popup.html".into()),
+          "popup".into()
+        )
+      );
+    }
+
+    // With several pages it's ambiguous, so the 404 page lists them.
+    std::fs::write(root.join("options.html"), "options").unwrap();
+    std::fs::create_dir_all(root.join("a&b")).unwrap();
+    std::fs::write(root.join("a&b/x y.html"), "").unwrap();
+    let (status, fallback, body) = http_get_with(address, "/<missing>", DOCUMENT);
+    assert_eq!(
+      (status.as_str(), fallback),
+      ("HTTP/1.1 404 Not Found", None)
+    );
+    assert!(body.contains("<code>/%3Cmissing%3E</code>"), "{body}");
+    for link in [
+      r#"<a href="/a&amp;b/x%20y.html">/a&amp;b/x y.html</a>"#,
+      r#"<a href="/options.html">/options.html</a>"#,
+      r#"<a href="/popup.html">/popup.html</a>"#,
+    ] {
+      assert!(body.contains(link), "{body}");
+    }
     std::fs::remove_dir_all(&root).unwrap();
   }
 
