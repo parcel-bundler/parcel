@@ -9,7 +9,8 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fs::File,
-  net::SocketAddr,
+  io,
+  net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, TcpListener},
   path::{Path, PathBuf},
   sync::{
     Arc, Condvar, Mutex,
@@ -22,6 +23,9 @@ use url::Url;
 pub struct ServerOptions {
   pub host: Cow<'static, str>,
   pub port: u16,
+  /// Whether `port` must be used. Otherwise, when it is taken the following ports are tried in
+  /// order, so that the port only changes when something else is running.
+  pub strict_port: bool,
   pub hmr: bool,
   /// Whether to open the page in a browser once the server starts.
   pub open: bool,
@@ -44,6 +48,7 @@ impl Default for ServerOptions {
     ServerOptions {
       host: Cow::Borrowed("0.0.0.0"),
       port: 1234,
+      strict_port: false,
       hmr: true,
       open: false,
       browser: None,
@@ -122,21 +127,69 @@ impl Output {
   }
 }
 
+/// Binds the server's port, which is the next free one after `options.port` if that is taken and
+/// it isn't strict.
+pub fn listen(options: &ServerOptions) -> Result<TcpListener, DiagnosticList> {
+  let mut port = options.port;
+  loop {
+    match bind(&options.host, port) {
+      Err(err)
+        if err.kind() == io::ErrorKind::AddrInUse && !options.strict_port && port < u16::MAX =>
+      {
+        port += 1
+      }
+      result => {
+        return result.map_err(|err| {
+          DiagnosticList(vec![crate::cli_diagnostic(format!(
+            "Could not start server on {}:{port}: {err}",
+            options.host
+          ))])
+        });
+      }
+    }
+  }
+}
+
+fn bind(host: &str, port: u16) -> io::Result<TcpListener> {
+  // Binding all interfaces succeeds on some platforms (e.g. macOS) even if another server is
+  // listening on the loopback address, which would then receive requests to localhost instead.
+  let unspecified = host.parse::<IpAddr>().is_ok_and(|ip| ip.is_unspecified());
+  if unspecified && port != 0 {
+    for loopback in [
+      IpAddr::from(Ipv4Addr::LOCALHOST),
+      IpAddr::from(Ipv6Addr::LOCALHOST),
+    ] {
+      match TcpListener::bind((loopback, port)) {
+        Err(err) if err.kind() == io::ErrorKind::AddrInUse => return Err(err),
+        // E.g. IPv6 is unavailable.
+        _ => {}
+      }
+    }
+  }
+  TcpListener::bind((host, port))
+}
+
 /// Serves HMR over WebSockets unless disabled, the server's endpoints, and `output` if given
 /// (`parcel serve`). Otherwise pages are served by something else, i.e. the process
 /// started by `parcel run`. That process connects with the token it was started with (see
 /// `NodeRunner`), and its messages are sent to the returned receiver. Returns the bound address,
-/// whose port may differ from `options.port` when it is 0.
+/// whose port may differ from `options.port` (see `listen`).
 pub fn serve(
   options: &ServerOptions,
   output: Option<Output>,
 ) -> Result<(HmrServer, SocketAddr, Receiver<RunnerEvent>), DiagnosticList> {
-  let error = |err: &dyn std::fmt::Display| {
-    crate::cli_diagnostic(format!(
-      "Could not start server on {}:{}: {err}",
-      options.host, options.port
-    ))
-  };
+  serve_on(listen(options)?, options, output)
+}
+
+/// Like `serve`, on a port bound by `listen`.
+pub fn serve_on(
+  listener: TcpListener,
+  options: &ServerOptions,
+  output: Option<Output>,
+) -> Result<(HmrServer, SocketAddr, Receiver<RunnerEvent>), DiagnosticList> {
+  let address = listener
+    .local_addr()
+    .map_err(|err| crate::cli_diagnostic(format!("Could not start server: {err}")))?;
   let tls = options
     .https
     .as_ref()
@@ -154,8 +207,7 @@ pub fn serve(
     })
     .transpose()
     .map_err(crate::cli_diagnostic)?;
-  let server = Server::bind((&*options.host, options.port), tls).map_err(|err| error(&err))?;
-  let address = server.local_addr().map_err(|err| error(&err))?;
+  let server = Server::new(listener, tls);
 
   let hmr = HmrServer::default();
   let hmr_clone = hmr.clone();
@@ -875,6 +927,25 @@ mod tests {
   };
 
   const TIMEOUT: Duration = Duration::from_secs(5);
+
+  #[test]
+  fn listen_uses_the_next_free_port() {
+    // Another server on the loopback address takes the port even when binding all interfaces.
+    let taken = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = taken.local_addr().unwrap().port();
+    let options = |host: &'static str, strict_port| ServerOptions {
+      host: host.into(),
+      port,
+      strict_port,
+      ..Default::default()
+    };
+    for host in ["127.0.0.1", "0.0.0.0"] {
+      let listener =
+        listen(&options(host, false)).unwrap_or_else(|err| panic!("{}", err.0[0].message));
+      assert!(listener.local_addr().unwrap().port() > port);
+      assert!(listen(&options(host, true)).is_err());
+    }
+  }
 
   fn serve() -> (HmrServer, SocketAddr, Receiver<RunnerEvent>) {
     super::serve(

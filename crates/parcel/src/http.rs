@@ -109,6 +109,10 @@ pub struct Server {
 }
 
 impl Server {
+  pub fn new(listener: TcpListener, tls: Option<Arc<ServerConfig>>) -> Self {
+    Server { listener, tls }
+  }
+
   pub fn bind(address: impl ToSocketAddrs, tls: Option<Arc<ServerConfig>>) -> io::Result<Self> {
     Ok(Server {
       listener: TcpListener::bind(address)?,

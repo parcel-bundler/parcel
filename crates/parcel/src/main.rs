@@ -327,14 +327,18 @@ fn parse_args(
     // The HMR server shares nothing with the process being run, whose own port is typically set
     // by PORT, so it binds a free port unless told otherwise.
     server_options.port = hmr_port.unwrap_or(0);
+    server_options.strict_port = true;
   }
 
   if command == Command::Serve {
     if !port_provided {
       if let Some(port) = options.env.get("PORT") {
         server_options.port = parse_port(port, "PORT")?;
+        port_provided = true;
       }
     }
+    // Otherwise the next free port is used if the default is taken.
+    server_options.strict_port = port_provided;
     if server_options.hmr {
       options.hmr = Some(HmrOptions {
         host: server_options.host.clone(),
@@ -523,6 +527,27 @@ mod tests {
     );
 
     assert!(!serve(&[]).1.open);
+  }
+
+  #[test]
+  fn port_falls_back_unless_given() {
+    let options = serve(&[]).1;
+    assert_eq!(options.port, 1234);
+    assert!(!options.strict_port);
+
+    let options = serve(&["--port", "8080"]).1;
+    assert_eq!(options.port, 8080);
+    assert!(options.strict_port);
+
+    let args = ["serve"].iter().map(|arg| arg.to_string());
+    let env = HashMap::from([("PORT".to_owned(), "3000".to_owned())]);
+    match parse_args(args, env, PathId::new(Path::new("/project"))) {
+      Ok(CliAction::Run { server_options, .. }) => {
+        assert_eq!(server_options.port, 3000);
+        assert!(server_options.strict_port);
+      }
+      _ => panic!("expected serve"),
+    }
   }
 
   #[test]

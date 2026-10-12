@@ -77,10 +77,30 @@ pub fn watch(entries: &Vec<String>, options: BuildOptions) -> Result<(), Diagnos
 
 pub fn serve(
   entries: &Vec<String>,
-  options: BuildOptions,
+  mut options: BuildOptions,
   server_options: ServerOptions,
 ) -> Result<(), DiagnosticList> {
+  // The port is chosen before building because the HMR runtime connects to it.
+  let listener = server::listen(&server_options).inspect_err(|err| {
+    standalone_options(options.reporters.clone(), options.log_level.clone())
+      .log_diagnostics(LogLevel::Error, &err.0)
+  })?;
+  let port = listener
+    .local_addr()
+    .map_or(server_options.port, |address| address.port());
+  if let Some(hmr) = &mut options.hmr {
+    hmr.port = port;
+  }
   let mut parcel = make_parcel(entries, options)?;
+  if port != server_options.port {
+    parcel.options.log(
+      LogLevel::Info,
+      &format!(
+        "Port {} is in use, using {port} instead",
+        server_options.port
+      ),
+    );
+  }
   // Before the server starts, so that pages aren't loaded before the CA is trusted.
   offer_trust(&server_options, &parcel.options);
   let project_root = parcel.project_root();
@@ -96,7 +116,7 @@ pub fn serve(
   let target = &parcel.entries()[0].target;
   let output = server::Output::new(target.dist_dir.to_path_buf(), &target.public_url);
   let base_path = output.base_path.clone();
-  let (server, address, _) = server::serve(&server_options, Some(output))
+  let (server, address, _) = server::serve_on(listener, &server_options, Some(output))
     .inspect_err(|err| parcel.options.log_diagnostics(LogLevel::Error, &err.0))?;
   reporters.log(
     LogLevel::Info,
