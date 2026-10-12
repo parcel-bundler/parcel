@@ -20,6 +20,7 @@ enum Command {
   Watch,
   Run,
   Targets,
+  Trust,
   Help,
 }
 
@@ -31,6 +32,7 @@ impl Command {
       "watch" => Ok(Self::Watch),
       "run" => Ok(Self::Run),
       "targets" => Ok(Self::Targets),
+      "trust" => Ok(Self::Trust),
       "help" => Ok(Self::Help),
       _ => Err(format!("Unknown command {name}")),
     }
@@ -43,6 +45,7 @@ impl Command {
       Self::Watch => "watch",
       Self::Run => "run",
       Self::Targets => "targets",
+      Self::Trust => "trust",
       Self::Help => "help",
     }
   }
@@ -52,6 +55,17 @@ fn help(command: Option<Command>) -> String {
   if command == Some(Command::Help) {
     return "Usage: parcel help [command]\n\nShow help for all commands or a specific command.\n"
       .into();
+  }
+  if command == Some(Command::Trust) {
+    return concat!(
+      "Usage: parcel trust [--remove]\n\n",
+      "Add the local certificate authority that signs certificates for --https to the system's\n",
+      "trust stores, so that browsers trust them. Parcel offers to do this the first time\n",
+      "--https is used.\n\n",
+      "Options:\n",
+      "  --remove              Remove it from the trust stores, and delete it\n",
+    )
+    .into();
   }
   let mut help = match command {
     Some(command) => format!("Usage: parcel {} [entries...] [options]\n", command.name()),
@@ -63,6 +77,7 @@ fn help(command: Option<Command>) -> String {
       "  watch             Rebuild when files change\n",
       "  run               Build and run a Node.js entry\n",
       "  targets           Show resolved entries and targets\n",
+      "  trust             Trust the local certificate authority used by --https\n",
       "  help [command]    Show help for all commands or a specific command\n",
     )),
   };
@@ -107,6 +122,9 @@ fn help(command: Option<Command>) -> String {
 
 enum CliAction {
   Help(Option<Command>),
+  Trust {
+    remove: bool,
+  },
   Run {
     command: Command,
     entries: Vec<String>,
@@ -132,6 +150,17 @@ fn parse_args(
     return Ok(CliAction::Help(command));
   }
   let command = Command::parse(&command)?;
+  if command == Command::Trust {
+    let mut remove = false;
+    for arg in args {
+      match arg.as_str() {
+        "--remove" => remove = true,
+        "--help" | "-h" => return Ok(CliAction::Help(Some(command))),
+        arg => return Err(format!("Unknown argument {arg}")),
+      }
+    }
+    return Ok(CliAction::Trust { remove });
+  }
 
   let mode = match command {
     Command::Build => parcel_core::BuildMode::Production,
@@ -357,8 +386,14 @@ pub fn main() -> ExitCode {
     server_options,
   } = action
   else {
-    if let CliAction::Help(command) = action {
-      print!("{}", help(command));
+    match action {
+      CliAction::Help(command) => print!("{}", help(command)),
+      CliAction::Trust { remove } => {
+        if parcel::trust(remove, vec![Arc::new(CLIReporter {})], LogLevel::Verbose).is_err() {
+          return ExitCode::FAILURE;
+        }
+      }
+      CliAction::Run { .. } => unreachable!(),
     }
     return ExitCode::SUCCESS;
   };
@@ -372,6 +407,7 @@ pub fn main() -> ExitCode {
     Command::Watch => parcel::watch(&entries, options),
     Command::Serve => parcel::serve(&entries, options, server_options),
     Command::Run => parcel::run(&entries, options, server_options),
+    Command::Trust => unreachable!(),
     Command::Targets => {
       let entries = parcel_core::resolve_entries(&entries, &options).unwrap();
       println!("{:#?}", entries);
@@ -400,7 +436,17 @@ impl Reporter for CLIReporter {
         message: LogMessage::Text(log),
       }) => {
         let mut stdio = stdio(level);
-        writeln!(&mut stdio, "{}", log)?;
+        let (emoji, color) = match level {
+          LogLevel::Error => ("🚨 ", AnsiColor::Red),
+          LogLevel::Warn => ("⚠️  ", AnsiColor::BrightYellow),
+          LogLevel::Info => ("", AnsiColor::BrightCyan),
+          _ => {
+            writeln!(&mut stdio, "{}", log)?;
+            return Ok(());
+          }
+        };
+        let style = Style::new().fg_color(Some(Color::Ansi(color))).bold();
+        writeln!(&mut stdio, "{emoji}{style}{}{style:#}", log)?;
       }
       ReporterEvent::Log(LogEvent {
         level,

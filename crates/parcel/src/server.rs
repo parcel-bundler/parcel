@@ -1,4 +1,4 @@
-use parcel_core::{AssetType, Diagnostic, DiagnosticList, RenderedDiagnostics};
+use parcel_core::{AssetType, DiagnosticList, LogLevel, RenderedDiagnostics, Reporters};
 
 use crate::{
   http::{Reply, Request, Response, Server, Stream},
@@ -61,6 +61,8 @@ pub struct HmrServer {
   runners: Arc<Mutex<HashMap<String, Sender<String>>>>,
   source_roots: Arc<Mutex<SourceRoots>>,
   build: Arc<(Mutex<BuildState>, Condvar)>,
+  /// Where the server logs, once the build's reporters exist (see `set_reporters`).
+  reporters: Arc<std::sync::OnceLock<Arc<Reporters>>>,
 }
 
 /// The state of the build whose output `parcel serve` serves.
@@ -106,7 +108,7 @@ pub fn serve(
   dist_dir: Option<PathBuf>,
 ) -> Result<(HmrServer, SocketAddr, Receiver<RunnerEvent>), DiagnosticList> {
   let error = |err: &dyn std::fmt::Display| {
-    Diagnostic::from_message(format!(
+    crate::cli_diagnostic(format!(
       "Could not start server on {}:{}: {err}",
       options.host, options.port
     ))
@@ -127,7 +129,7 @@ pub fn serve(
       HttpsOptions::Files { cert, key } => crate::http::tls_config(cert, key),
     })
     .transpose()
-    .map_err(Diagnostic::from_message)?;
+    .map_err(crate::cli_diagnostic)?;
   let server = Server::bind((&*options.host, options.port), tls).map_err(|err| error(&err))?;
   let address = server.local_addr().map_err(|err| error(&err))?;
 
@@ -390,6 +392,12 @@ impl HmrServer {
     };
   }
 
+  /// Sets the reporters the server logs to. They're created with the build, which may be after the
+  /// server starts.
+  pub fn set_reporters(&self, reporters: Arc<Reporters>) {
+    let _ = self.reporters.set(reporters);
+  }
+
   /// Holds requests for the build's output until it finishes (see `wait_for_build`).
   pub fn build_started(&self) {
     self.build.0.lock().unwrap().pending = true;
@@ -437,7 +445,9 @@ impl HmrServer {
           body: Vec::new(),
         },
         Some(Err(EditorError::Launch(message))) => {
-          eprintln!("{message}");
+          if let Some(reporters) = self.reporters.get() {
+            reporters.log(LogLevel::Warn, &message);
+          }
           EndpointResponse {
             status: 500,
             content_type: "text/plain",
@@ -649,6 +659,7 @@ impl HmrServer {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use parcel_core::Diagnostic;
   use rustls::pki_types::CertificateDer;
   use std::{
     io::{Read, Write},

@@ -36,6 +36,7 @@ mod resolver;
 mod run;
 mod server;
 mod toml;
+mod trust;
 mod webmanifest;
 mod yaml;
 
@@ -80,11 +81,12 @@ pub fn serve(
   server_options: ServerOptions,
 ) -> Result<(), DiagnosticList> {
   let mut parcel = make_parcel(entries, options)?;
+  // Before the server starts, so that pages aren't loaded before the CA is trusted.
+  offer_trust(&server_options, &parcel.options);
   let project_root = parcel.project_root();
 
   let reporters = parcel.options.reporters.clone();
   let hmr = server_options.hmr;
-  let ca_notice = new_ca_notice(&server_options);
   let scheme = if server_options.https.is_some() {
     "https"
   } else {
@@ -94,7 +96,8 @@ pub fn serve(
   let (server, address, _) = server::serve(
     &server_options,
     Some(parcel.entries()[0].target.dist_dir.to_path_buf()),
-  )?;
+  )
+  .inspect_err(|err| parcel.options.log_diagnostics(LogLevel::Error, &err.0))?;
   reporters.log(
     LogLevel::Info,
     &format!(
@@ -102,9 +105,7 @@ pub fn serve(
       address.port()
     ),
   );
-  if let Some(notice) = ca_notice {
-    reporters.log(LogLevel::Info, &notice);
-  }
+  server.set_reporters(reporters.clone());
   server.set_source_roots(
     &project_root.to_path_buf(),
     parcel
@@ -196,9 +197,12 @@ pub fn run(
   server_options: ServerOptions,
 ) -> Result<(), DiagnosticList> {
   // The HMR server is started before building because its port is compiled into the bundles.
-  let ca_notice = new_ca_notice(&server_options).filter(|_| server_options.hmr);
   let hmr = if server_options.hmr {
-    let (server, address, events) = server::serve(&server_options, None)?;
+    // The build's reporters don't exist yet, so errors are reported to the CLI's.
+    let (server, address, events) = server::serve(&server_options, None).inspect_err(|err| {
+      standalone_options(options.reporters.clone(), options.log_level.clone())
+        .log_diagnostics(LogLevel::Error, &err.0)
+    })?;
     options.hmr = Some(HmrOptions {
       host: server_options.host.clone(),
       port: address.port(),
@@ -210,12 +214,13 @@ pub fn run(
   let hmr_server = hmr.as_ref().map(|(server, _, _)| server.clone());
 
   let mut parcel = make_parcel(entries, options)?;
-  if let Some(notice) = ca_notice {
-    parcel.options.log(LogLevel::Info, notice);
+  if server_options.hmr {
+    offer_trust(&server_options, &parcel.options);
   }
   let project_root = parcel.project_root();
   let mut runner = NodeRunner::new(hmr);
   if let Some(server) = &hmr_server {
+    server.set_reporters(parcel.options.reporters.clone());
     server.set_source_roots(
       &project_root.to_path_buf(),
       parcel
@@ -309,31 +314,53 @@ pub fn run(
   Ok(())
 }
 
-/// Lets `server` serve the source maps of `graph`'s bundles and of the project's source files.
-/// A message to log when `--https` will create the local certificate authority.
-fn new_ca_notice(server_options: &ServerOptions) -> Option<String> {
-  if server_options.https != Some(server::HttpsOptions::Generate) {
-    return None;
-  }
-  let dir = cert::ca_dir()?;
-  let cert = dir.join(cert::CA_CERT_FILE);
-  if cert.exists() {
-    return None;
-  }
-  let mut notice = format!(
-    "Created a local certificate authority in {}. Browsers warn about the certificates it signs until it is trusted",
-    dir.display()
-  );
-  if cfg!(target_os = "macos") {
-    notice.push_str(&format!(
-      ", e.g. with: security add-trusted-cert -r trustRoot -k ~/Library/Keychains/login.keychain-db \"{}\"",
-      cert.display()
-    ));
-  }
-  notice.push('.');
-  Some(notice)
+/// Options for logging to `reporters` without a build. The returned options must be kept alive, as
+/// the reporters only hold a weak reference to them.
+fn standalone_options(
+  reporters: Vec<Arc<dyn parcel_core::Reporter>>,
+  log_level: LogLevel,
+) -> Arc<ParcelOptions> {
+  let reporters = parcel_core::Reporters::new(reporters, log_level.clone());
+  let options = Arc::new(ParcelOptions {
+    log_level,
+    reporters: reporters.clone(),
+    ..Default::default()
+  });
+  reporters.attach(Arc::downgrade(&options));
+  options
 }
 
+/// An error from the CLI itself rather than from the build or a plugin.
+pub(crate) fn cli_diagnostic(message: String) -> parcel_core::Diagnostic {
+  parcel_core::Diagnostic {
+    origin: Some("parcel".into()),
+    ..parcel_core::Diagnostic::from_message(message)
+  }
+}
+
+/// Offers to trust the local certificate authority before serving with certificates it signs (see
+/// `trust::offer`).
+fn offer_trust(server_options: &ServerOptions, options: &ParcelOptions) {
+  if server_options.https == Some(HttpsOptions::Generate) {
+    trust::offer(options);
+  }
+}
+
+/// `parcel trust`, logging to `reporters` (see `trust::trust_command`).
+pub fn trust(
+  remove: bool,
+  reporters: Vec<Arc<dyn parcel_core::Reporter>>,
+  log_level: LogLevel,
+) -> Result<(), DiagnosticList> {
+  let options = standalone_options(reporters, log_level);
+  trust::trust_command(remove, &options).map_err(|message| {
+    let diagnostic = cli_diagnostic(message);
+    options.log_diagnostic(LogLevel::Error, diagnostic.clone());
+    DiagnosticList(vec![diagnostic])
+  })
+}
+
+/// Lets `server` serve the source maps of `graph`'s bundles and of the project's source files.
 fn set_source_roots(server: &server::HmrServer, project_root: &PathId, graph: &BundleGraph) {
   server.set_source_roots(
     &project_root.to_path_buf(),

@@ -22,7 +22,7 @@ use rustls::{
   sign::CertifiedKey,
 };
 
-const CA_NAME: &str = "Parcel Development CA";
+pub const CA_NAME: &str = "Parcel Development CA";
 pub const CA_CERT_FILE: &str = "rootCA.pem";
 const CA_KEY_FILE: &str = "rootCA-key.pem";
 const DAY: Duration = Duration::from_secs(24 * 60 * 60);
@@ -89,7 +89,7 @@ impl LocalCa {
     }
   }
 
-  fn load(dir: &Path) -> std::io::Result<Self> {
+  pub fn load(dir: &Path) -> std::io::Result<Self> {
     let cert_pem = std::fs::read_to_string(dir.join(CA_CERT_FILE))?;
     let key = std::fs::read_to_string(dir.join(CA_KEY_FILE))?;
     let key = KeyPair::from_pem(&key)
@@ -117,7 +117,9 @@ impl LocalCa {
     // directory exists, so that concurrent processes agree on one CA.
     let parent = dir.parent().unwrap_or(dir);
     std::fs::create_dir_all(parent)?;
-    let temp = parent.join(format!(".parcel-ca-{}", std::process::id()));
+    static ATTEMPT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let attempt = ATTEMPT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let temp = parent.join(format!(".parcel-ca-{}-{attempt}", std::process::id()));
     let _ = std::fs::remove_dir_all(&temp);
     std::fs::create_dir(&temp)?;
     let result = (|| {
@@ -132,6 +134,26 @@ impl LocalCa {
       }
     }
     Ok(ca)
+  }
+
+  /// The CA's certificate in DER format.
+  pub fn cert_der(&self) -> Vec<u8> {
+    pem_der(&self.cert_pem).unwrap_or_default()
+  }
+
+  /// A hex SHA-256 fingerprint of the CA's certificate, identifying it among CAs created earlier.
+  #[cfg(all(unix, not(target_os = "macos")))]
+  pub fn fingerprint(&self) -> String {
+    let digest = ring::digest::digest(&ring::digest::SHA256, &self.cert_der());
+    digest.as_ref().iter().map(|b| format!("{b:02x}")).collect()
+  }
+
+  /// A certificate for `localhost` signed by the CA, in DER format, e.g. to check whether the system
+  /// trusts the CA.
+  pub fn localhost_der(&self) -> Option<Vec<u8>> {
+    let name = SanType::DnsName(rcgen::string::Ia5String::try_from("localhost").ok()?);
+    let (pem, _) = self.sign(&[name]).ok()?;
+    pem_der(&pem)
   }
 
   /// Signs a certificate for `names`, valid for a year, with a new key.

@@ -6,7 +6,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
-type CFTypeRef = *const c_void;
+pub(crate) type CFTypeRef = *const c_void;
 
 #[repr(C)]
 struct CFArrayCallBacks {
@@ -90,10 +90,10 @@ unsafe extern "C" {
 }
 
 /// A CoreFoundation object we own, released when dropped.
-struct Owned(CFTypeRef);
+pub(crate) struct Owned(pub(crate) CFTypeRef);
 
 impl Owned {
-  fn new(object: CFTypeRef) -> Option<Self> {
+  pub(crate) fn new(object: CFTypeRef) -> Option<Self> {
     (!object.is_null()).then(|| Owned(object))
   }
 }
@@ -135,7 +135,7 @@ fn path(url: CFTypeRef) -> Option<PathBuf> {
   Some(PathBuf::from(std::ffi::OsString::from_vec(buffer)))
 }
 
-fn string(string: &str) -> Option<Owned> {
+pub(crate) fn string(string: &str) -> Option<Owned> {
   Owned::new(unsafe {
     CFStringCreateWithBytes(
       std::ptr::null(),
@@ -147,7 +147,7 @@ fn string(string: &str) -> Option<Owned> {
   })
 }
 
-fn to_string(string: CFTypeRef) -> Option<String> {
+pub(crate) fn to_string(string: CFTypeRef) -> Option<String> {
   let mut buffer = vec![0u8; 1024];
   let ok = unsafe {
     CFStringGetCString(

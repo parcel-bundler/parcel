@@ -576,17 +576,6 @@ fn bundle_and_package<'a>(
       package_result
     })?;
 
-    let stats = &packaged.stats;
-    options.log(
-      LogLevel::Verbose,
-      format!(
-        "Packaged {} bundles ({} second passes); {} naming cycles, largest has {} bundles",
-        stats.packaged.load(Ordering::Relaxed),
-        stats.second_passes.load(Ordering::Relaxed),
-        stats.cycles.load(Ordering::Relaxed),
-        stats.largest_cycle.load(Ordering::Relaxed),
-      ),
-    );
     content_hashes = packaged.content_hashes;
   } else {
     // Nothing changed, so every bundle keeps its previous name.

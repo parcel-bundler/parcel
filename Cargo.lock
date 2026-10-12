@@ -3056,6 +3056,7 @@ dependencies = [
  "percent-encoding",
  "pretty_assertions",
  "rcgen",
+ "ring",
  "rquickjs",
  "rquickjs-serde",
  "rustls",

@@ -36,6 +36,7 @@ httparse = "1.10.1"
 # ring rather than the default aws-lc-rs: much smaller, and builds with zig.
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }
+ring = "0.17"
 tungstenite = "0.28.0"
 url = "*"
 toml = "0.9.12+spec-1.1.0"
@@ -56,6 +57,7 @@ libc = "0.2"
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [
   "Win32_Foundation",
+  "Win32_Security_Cryptography",
   "Win32_System_Diagnostics_ToolHelp",
   "Win32_System_Threading",
   "Win32_UI_Shell",
