@@ -1,5 +1,5 @@
-//! The bundle size report printed after production builds with `--detailed-report`, ported from
-//! Parcel 2's `bundleReport` and `generateBuildMetrics`.
+//! The bundle size report printed after production builds, ported from Parcel 2's `bundleReport`
+//! and `generateBuildMetrics`.
 
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
@@ -8,6 +8,7 @@ use std::path::Path;
 use anstyle::{AnsiColor, Color, Effects, Style};
 use parcel_core::{Bundle, BundleBehavior, BundleGraph, ParcelOptions, PathId};
 use parcel_sourcemap::SourceMap;
+use rayon::prelude::*;
 use unicode_width::UnicodeWidthStr;
 
 const LARGE_BUNDLE_SIZE: u64 = 1024 * 1024;
@@ -15,6 +16,8 @@ const LARGE_BUNDLE_SIZE: u64 = 1024 * 1024;
 pub struct BundleStats {
   pub path: PathId,
   pub size: u64,
+  /// The gzipped size, if requested.
+  pub gzip_size: Option<u64>,
   /// Largest first.
   pub assets: Vec<AssetStats>,
 }
@@ -27,12 +30,15 @@ pub struct AssetStats {
 
 /// Sizes of the written bundles, largest first, and of the assets in each. Asset sizes are
 /// measured in the written bundle through its source map when it has one, and are the sizes of the
-/// transformed assets otherwise.
+/// transformed assets otherwise. With `gzip`, bundles' gzipped sizes are measured too.
 pub fn generate_build_metrics(
   bundle_graph: &BundleGraph,
   options: &ParcelOptions,
+  gzip: bool,
 ) -> Vec<BundleStats> {
   let mut bundles: Vec<BundleStats> = written_bundles(bundle_graph)
+    .collect::<Vec<_>>()
+    .into_par_iter()
     .filter_map(|bundle| {
       let path = bundle.dist_path();
       let contents = options.output_fs.read(path).ok()?;
@@ -69,6 +75,7 @@ pub fn generate_build_metrics(
       Some(BundleStats {
         path,
         size: contents.len() as u64,
+        gzip_size: gzip.then(|| gzip_size(&contents)),
         assets,
       })
     })
@@ -79,6 +86,15 @@ pub fn generate_build_metrics(
   }
   bundles.sort_by(|a, b| b.size.cmp(&a.size));
   bundles
+}
+
+/// The size of `contents` gzipped at the default level.
+fn gzip_size(contents: &[u8]) -> u64 {
+  let mut compressor = libdeflater::Compressor::new(libdeflater::CompressionLvl::default());
+  let mut out = vec![0; compressor.gzip_compress_bound(contents.len())];
+  compressor
+    .gzip_compress(contents, &mut out)
+    .map_or(contents.len(), |size| size) as u64
 }
 
 /// The bundles written to files. Inline bundles aren't written, and bundles with identical content
@@ -93,13 +109,14 @@ fn written_bundles<'a>(bundle_graph: &'a BundleGraph) -> impl Iterator<Item = &'
 }
 
 /// The sizes of the written bundles, largest first, without their assets.
-fn bundle_sizes(bundle_graph: &BundleGraph, options: &ParcelOptions) -> Vec<BundleStats> {
+pub fn bundle_sizes(bundle_graph: &BundleGraph, options: &ParcelOptions) -> Vec<BundleStats> {
   let mut bundles: Vec<BundleStats> = written_bundles(bundle_graph)
     .filter_map(|bundle| {
       let path = bundle.dist_path();
       Some(BundleStats {
         path,
         size: options.output_fs.stat(path)?.size,
+        gzip_size: None,
         assets: Vec::new(),
       })
     })
@@ -373,20 +390,14 @@ fn attribute_bytes(
 }
 
 /// Prints the size of each bundle and, if `asset_count` isn't 0, of the `asset_count` largest
-/// assets in each.
+/// assets in each, with paths relative to `cwd`.
 pub fn bundle_report(
-  bundle_graph: &BundleGraph,
-  options: &ParcelOptions,
+  bundles: &[BundleStats],
   asset_count: usize,
+  cwd: PathId,
   out: &mut impl Write,
 ) -> std::io::Result<()> {
-  let bundles = if asset_count > 0 {
-    generate_build_metrics(bundle_graph, options)
-  } else {
-    bundle_sizes(bundle_graph, options)
-  };
   let dim = Style::new().effects(Effects::DIMMED);
-  let cwd = options.cwd;
   let mut rows: Vec<Vec<String>> = Vec::new();
 
   for (index, bundle) in bundles.iter().enumerate() {

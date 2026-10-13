@@ -1,0 +1,283 @@
+:root {
+  color-scheme: light dark;
+  --bg: #fff;
+  --fg: #1d1d1f;
+  --muted: #6e6e73;
+  --border: #d2d2d7;
+  --control: #f2f2f5;
+  --control-active: #fff;
+  --accent: #0a66d8;
+  --bundle: #e8e8ed;
+  --frame-line: rgba(0, 0, 0, 0.18);
+  --tooltip: rgba(255, 255, 255, 0.97);
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.14);
+  --row-hover: #f5f5f7;
+  font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161618;
+    --fg: #ececf0;
+    --muted: #9a9aa2;
+    --border: #3a3a3f;
+    --control: #26262a;
+    --control-active: #3a3a40;
+    --accent: #5aa2ff;
+    --bundle: #2a2a2f;
+    --frame-line: rgba(0, 0, 0, 0.5);
+    --tooltip: rgba(36, 36, 40, 0.97);
+    --shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+    --row-hover: #222226;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+h1 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+#summary {
+  margin-left: 8px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 7px;
+  background: var(--control);
+}
+
+.segmented button {
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--control-active);
+  color: var(--fg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+button:focus-visible,
+input:focus-visible,
+#duplicates-view a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+input[type='search'] {
+  width: 220px;
+  max-width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+#breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  min-height: 30px;
+  padding: 4px 12px;
+  color: var(--muted);
+}
+
+#breadcrumbs button {
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+#breadcrumbs button:hover {
+  background: var(--control);
+}
+
+#breadcrumbs [aria-current] {
+  padding: 2px 4px;
+  color: var(--fg);
+  font-weight: 600;
+}
+
+#breadcrumbs .stat {
+  margin-left: auto;
+  padding-left: 12px;
+}
+
+main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+#treemap-view,
+#duplicates-view {
+  position: absolute;
+  inset: 0;
+}
+
+#treemap-view {
+  padding: 0 12px 12px;
+}
+
+#treemap {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+#duplicates-view {
+  overflow: auto;
+  padding: 0 16px 16px;
+}
+
+#duplicates-view p {
+  margin: 8px 0 12px;
+  color: var(--muted);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  color: var(--muted);
+  font-weight: 500;
+}
+
+td.num,
+th.num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+tbody tr:hover {
+  background: var(--row-hover);
+}
+
+#duplicates-view a {
+  color: var(--fg);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+#duplicates-view a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.bundles {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+#tooltip {
+  position: fixed;
+  z-index: 1;
+  max-width: 420px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--tooltip);
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+
+#tooltip .name {
+  font-weight: 600;
+  word-break: break-all;
+}
+
+#tooltip .path {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+#tooltip dl {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 1px 12px;
+  margin: 0;
+}
+
+#tooltip dt {
+  color: var(--muted);
+}
+
+#tooltip dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+[hidden] {
+  display: none !important;
+}

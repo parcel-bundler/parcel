@@ -52,6 +52,8 @@ either = "1.17.0"
 anstyle = "*"
 parcel_sourcemap = { version = "*", features = ["json"] }
 unicode-width = "0.2"
+rayon = "1.7.0"
+libdeflater = "1.25"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
