@@ -110,7 +110,7 @@
   const root = node(data.title, 'root', null);
   const distDirs = new Set(data.bundles.map(b => dirname(b.name)));
   const bundles = [];
-  for (let b of data.bundles) {
+  for (let [bundleIndex, b] of data.bundles.entries()) {
     let parent =
       distDirs.size > 1 ? child(root, dirname(b.name) || '.', 'dist') : root;
     let bundle = child(parent, basename(b.name), 'bundle');
@@ -118,6 +118,7 @@
     bundle.raw = b.size;
     bundle.gzip = b.gzip;
     bundle.colorKey = bundle.path;
+    bundle.index = bundleIndex;
     bundles.push(bundle);
     // Modules' compressed sizes are estimated from the bundle's compression ratio.
     let ratio = b.size ? b.gzip / b.size : 1;
@@ -136,6 +137,7 @@
           leaf = child(leaf, name, kind);
         }
         leaf.path = path;
+        leaf.pathIndex = index;
         leaf.colorKey = colorKey;
       }
       leaf.raw += size;
@@ -193,6 +195,7 @@
         if (only.kind === 'file') {
           n.kind = 'file';
           n.path = only.path;
+          n.pathIndex = only.pathIndex;
           n.colorKey = only.colorKey;
           n.children = null;
           return n;
@@ -538,6 +541,26 @@
       return;
     }
     ctx.drawImage(base, 0, 0);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    let selectedRect = selected && drawnRect(selected);
+    if (selectedRect) {
+      // The selected node, or its closest ancestor when it's too small to draw.
+      let r = selectedRect;
+      ctx.globalAlpha = 0.1;
+      ctx.fillStyle = theme.accent;
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = theme.accent;
+      ctx.lineWidth = 2;
+      ctx.setLineDash(r.node === selected ? [] : [4, 3]);
+      ctx.strokeRect(
+        r.x + 1,
+        r.y + 1,
+        Math.max(r.w - 2, 0),
+        Math.max(r.h - 2, 0),
+      );
+      ctx.setLineDash([]);
+    }
     if (hovered) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.strokeStyle = theme.accent;
@@ -672,7 +695,10 @@
         let button = document.createElement('button');
         button.type = 'button';
         button.textContent = label;
-        button.addEventListener('click', () => zoomTo(n));
+        button.addEventListener('click', () => {
+          select(n);
+          zoomTo(n);
+        });
         nav.append(button);
       }
     });
@@ -766,7 +792,10 @@
       (detail
         ? `<div class="path">${escape(detail).replace('\n', '<br>')}</div>`
         : '') +
-      `<dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
+      `<dl>${rows
+        .map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`)
+        .join('')}</dl>` +
+      `<div class="hint">Click for details</div>`;
     tooltip.hidden = false;
     let tw = tooltip.offsetWidth;
     let th = tooltip.offsetHeight;
@@ -809,9 +838,14 @@
   canvas.addEventListener('click', e => {
     let box = canvas.getBoundingClientRect();
     let r = hitTest(e.clientX - box.left, e.clientY - box.top);
-    // Zoom into the highlighted node, or the directory containing it if it's a module.
+    // Select the highlighted node, and zoom into it if it's a bundle or directory.
     if (r) {
-      zoomTo(r.node.children ? r.node : r.node.parent);
+      select(r.node);
+      if (r.node.children) {
+        zoomTo(r.node);
+      } else {
+        reveal(r.node);
+      }
     }
   });
 
@@ -831,9 +865,14 @@
       }
       return;
     }
+    if (e.target.closest?.('input, button, a')) {
+      return;
+    }
     if (e.key === '/') {
       e.preventDefault();
       search.focus();
+    } else if (e.key === 'Escape' && selection) {
+      closePanel();
     } else if (
       (e.key === 'Escape' || e.key === 'Backspace') &&
       zoomRoot.parent &&
@@ -882,32 +921,74 @@
 
   search.addEventListener('input', () => setQuery(search.value));
 
-  // --- Duplicates ------------------------------------------------------------
+  // --- Assets ----------------------------------------------------------------
 
-  // Modules included in more than one bundle, by the bytes the extra copies take up.
-  const duplicates = (() => {
-    let byPath = new Map();
-    data.bundles.forEach((b, i) => {
-      let ratio = b.size ? b.gzip / b.size : 1;
-      for (let [index, bytes] of b.assets) {
-        if (index == null) {
-          continue;
-        }
-        let copies = byPath.get(index);
-        if (!copies) {
-          byPath.set(index, (copies = []));
-        }
-        copies.push({bundle: b.name, raw: bytes, gzip: bytes * ratio});
-      }
-    });
-    let list = [];
-    for (let [index, copies] of byPath) {
-      if (copies.length > 1) {
-        list.push({path: data.paths[index], copies});
+  // Bundle contents are measured per source file, through source maps, while assets are what's
+  // bundled. A file's bytes in a bundle belong to the assets built from it that the bundle includes.
+  const key = (bundle, path) => bundle + ':' + path;
+
+  // The bytes of each file in each bundle.
+  const fileSizes = new Map();
+  data.bundles.forEach((b, bundle) => {
+    let ratio = b.size ? b.gzip / b.size : 1;
+    for (let [path, bytes] of b.assets) {
+      if (path != null) {
+        fileSizes.set(key(bundle, path), {raw: bytes, gzip: bytes * ratio});
       }
     }
-    return list;
-  })();
+  });
+
+  // The assets built from each file, and those included in each bundle by file.
+  const fileAssets = new Map();
+  const bundleAssets = new Map();
+  data.assets.forEach((a, index) => {
+    let list = fileAssets.get(a.path);
+    if (!list) {
+      fileAssets.set(a.path, (list = []));
+    }
+    list.push(index);
+    for (let bundle of a.bundles) {
+      let k = key(bundle, a.path);
+      let inBundle = bundleAssets.get(k);
+      if (!inBundle) {
+        bundleAssets.set(k, (inBundle = []));
+      }
+      inBundle.push(index);
+    }
+  });
+
+  // The size of an asset in a bundle: its file's bytes there, which other assets built from the
+  // same file in that bundle share.
+  function assetSize(asset, bundle) {
+    return (
+      fileSizes.get(key(bundle, data.assets[asset].path)) ?? {raw: 0, gzip: 0}
+    );
+  }
+
+  // Distinguishes assets built from the same file.
+  function assetLabel(a) {
+    let parts = [a.pipeline ? `${a.pipeline}: → ${a.type}` : a.type];
+    if (a.env) {
+      parts.push(a.env);
+    }
+    if (a.generated) {
+      parts.push('generated');
+    }
+    return parts.join(' · ');
+  }
+
+  // --- Duplicates ------------------------------------------------------------
+
+  // Assets included in more than one bundle, by the bytes the extra copies take up.
+  const duplicates = data.assets.flatMap((a, asset) => {
+    if (a.bundles.length < 2) {
+      return [];
+    }
+    let copies = a.bundles
+      .map(bundle => ({bundle, ...assetSize(asset, bundle)}))
+      .filter(c => c.raw > 0);
+    return copies.length > 1 ? [{asset, path: data.paths[a.path], copies}] : [];
+  });
 
   function wasted(d) {
     let sizes = d.copies.map(c => (mode === 'gzip' ? c.gzip : c.raw));
@@ -931,17 +1012,23 @@
     let rows = list
       .slice(0, MAX_ROWS)
       .map(d => {
-        let names = d.copies.map(c => c.bundle);
+        let names = d.copies.map(c => data.bundles[c.bundle].name);
         let shown =
           names.slice(0, 4).join(', ') +
           (names.length > 4 ? `, and ${names.length - 4} more` : '');
         let max = Math.max(
           ...d.copies.map(c => (mode === 'gzip' ? c.gzip : c.raw)),
         );
+        let a = data.assets[d.asset];
+        let label =
+          (fileAssets.get(a.path)?.length ?? 0) > 1
+            ? ` <span class="badge">${escape(assetLabel(a))}</span>`
+            : '';
         return (
-          `<tr><td><a href="#" data-path="${escape(d.path)}">${escape(
+          `<tr><td><a href="#" data-asset="${d.asset}">${escape(
             d.path,
-          )}</a><div class="bundles">${escape(shown)}</div></td>` +
+          )}</a>${label}` +
+          `<div class="bundles">${escape(shown)}</div></td>` +
           `<td class="num">${
             d.copies.length
           }</td><td class="num">${approx}${formatSize(
@@ -962,13 +1049,615 @@
   }
 
   $('duplicates-view').addEventListener('click', e => {
-    let link = e.target.closest('a[data-path]');
+    let link = e.target.closest('a[data-asset]');
     if (link) {
       e.preventDefault();
-      search.value = link.dataset.path;
+      let asset = Number(link.dataset.asset);
+      let path = data.paths[data.assets[asset].path];
+      search.value = path;
       zoomRoot = root;
       setView('treemap');
-      setQuery(link.dataset.path);
+      setQuery(path);
+      showAsset(asset, null, false);
+    }
+  });
+
+  // --- Details panel ---------------------------------------------------------
+
+  const panel = $('panel');
+  // The selected tree node, and what the panel describes: a bundle, an asset (in a bundle, if
+  // known), a file without an asset, or another tree node.
+  let selected = null;
+  let selection = null;
+
+  function collectLeaves(n, map) {
+    if (!n.children) {
+      if (n.pathIndex != null) {
+        map.set(n.pathIndex, n);
+      }
+      return map;
+    }
+    for (let c of n.children) {
+      collectLeaves(c, map);
+    }
+    return map;
+  }
+  const bundleLeaves = bundles.map(b => collectLeaves(b, new Map()));
+
+  // The bundles each bundle loads, the reverse of `loaded_by`.
+  const loads = data.bundles.map(() => []);
+  data.bundles.forEach((b, i) => {
+    for (let [from, kind] of b.loaded_by ?? []) {
+      loads[from].push([i, kind]);
+    }
+  });
+
+  const LOAD_KINDS = {
+    lazy: 'Lazy import',
+    parallel: 'Parallel',
+    url: 'URL',
+    sync: 'Reference',
+    with: 'Loaded alongside',
+  };
+
+  function drawnRect(n) {
+    for (; n; n = n.parent) {
+      let r = rects.find(r => r.node === n && r.depth > 0);
+      if (r) {
+        return r;
+      }
+    }
+    return null;
+  }
+
+  // The selection for a file in a bundle: its first asset there, or the file itself.
+  function fileSelection(path, bundle) {
+    let assets = bundle != null ? bundleAssets.get(key(bundle, path)) : null;
+    return assets?.length ? {asset: assets[0], bundle} : {file: path, bundle};
+  }
+
+  function select(n) {
+    selected = n;
+    if (n.kind === 'bundle') {
+      selection = {bundle: n.index};
+    } else if (n.kind === 'file' && n.pathIndex != null) {
+      selection = fileSelection(n.pathIndex, bundleOf(n)?.index ?? null);
+    } else {
+      selection = {node: n};
+    }
+    renderPanel();
+  }
+
+  // Zooms to a module's bundle, unless the view is already within it.
+  function reveal(leaf) {
+    let bundle = bundleOf(leaf);
+    let inBundle =
+      bundleOf(zoomRoot) === bundle && ancestors(leaf).includes(zoomRoot);
+    if (bundle && !inBundle) {
+      zoomTo(bundle);
+    }
+  }
+
+  function closePanel() {
+    selected = null;
+    selection = null;
+    renderPanel();
+  }
+
+  function showBundle(index) {
+    if (view !== 'treemap') {
+      setView('treemap');
+    }
+    select(bundles[index]);
+    zoomTo(bundles[index]);
+    present();
+  }
+
+  // Selects a file in `bundle` in the treemap, and shows `nextSelection` in the panel.
+  function showInBundle(path, bundle, nextSelection, zoom) {
+    let leaf = bundle != null ? bundleLeaves[bundle].get(path) ?? null : null;
+    if (view !== 'treemap') {
+      setView('treemap');
+    }
+    selected = leaf;
+    selection = nextSelection;
+    renderPanel();
+    if (leaf && zoom) {
+      reveal(leaf);
+    }
+    present();
+  }
+
+  // Shows an asset's details, and selects it in `bundle` (or the first bundle including it) in the
+  // treemap, zooming to the bundle unless `zoom` is false.
+  function showAsset(asset, bundle, zoom = true) {
+    let a = data.assets[asset];
+    if (bundle == null || !a.bundles.includes(bundle)) {
+      bundle = a.bundles[0] ?? null;
+    }
+    showInBundle(a.path, bundle, {asset, bundle}, zoom);
+  }
+
+  function showFile(path, bundle) {
+    showInBundle(path, bundle, fileSelection(path, bundle), true);
+  }
+
+  function assetLink(asset, bundle, label) {
+    let path = data.paths[data.assets[asset].path];
+    return `<button type="button" class="link" data-asset="${asset}"${
+      bundle != null ? ` data-bundle="${bundle}"` : ''
+    } title="${escape(path)}">${escape(label ?? basename(path))}</button>`;
+  }
+
+  function fileLink(path, bundle, label) {
+    let name = data.paths[path];
+    return `<button type="button" class="link" data-path="${path}" data-bundle="${bundle}" title="${escape(
+      name,
+    )}">${escape(label ?? basename(name))}</button>`;
+  }
+
+  function bundleLink(index) {
+    let name = data.bundles[index].name;
+    return `<button type="button" class="link" data-bundle="${index}" title="${escape(
+      name,
+    )}">${escape(basename(name))}</button>`;
+  }
+
+  function sizeText(raw, gzip) {
+    return mode === 'gzip' ? '≈ ' + formatSize(gzip) : formatSize(raw);
+  }
+
+  // A list of items, showing the first `limit` and a button for the rest.
+  function list(items, limit = 10) {
+    if (!items.length) {
+      return '<p class="muted">None</p>';
+    }
+    let shown = items
+      .slice(0, limit)
+      .map(item => `<li>${item}</li>`)
+      .join('');
+    let hidden = items
+      .slice(limit)
+      .map(item => `<li hidden>${item}</li>`)
+      .join('');
+    return (
+      `<ul>${shown}${hidden}</ul>` +
+      (items.length > limit
+        ? `<button type="button" class="link more" data-more>Show ${
+            items.length - limit
+          } more</button>`
+        : '')
+    );
+  }
+
+  function head(eyebrow, title, path) {
+    return (
+      `<div class="eyebrow">${eyebrow}<button type="button" class="close" data-close aria-label="Close details">×</button></div>` +
+      `<h2>${escape(title)}</h2>` +
+      (path ? `<div class="path">${escape(path)}</div>` : '')
+    );
+  }
+
+  function stats(rows) {
+    return `<dl class="stats">${rows
+      .map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`)
+      .join('')}</dl>`;
+  }
+
+  function renderPanel() {
+    if (!selection) {
+      panel.hidden = true;
+      panel.textContent = '';
+      present();
+      return;
+    }
+    panel.innerHTML =
+      selection.asset != null
+        ? assetPanel(selection.asset, selection.bundle)
+        : selection.file != null
+        ? filePanel(selection.file, selection.bundle)
+        : selection.bundle != null
+        ? bundlePanel(selection.bundle)
+        : nodePanel(selection.node);
+    if (panel.hidden) {
+      panel.hidden = false;
+      // Lay out the treemap in the space left before zooming.
+      resize();
+    }
+    panel.scrollTop = 0;
+  }
+
+  function bundlePanel(index) {
+    let b = data.bundles[index];
+    let n = bundles[index];
+    let kinds = new Set((b.loaded_by ?? []).map(([, kind]) => kind));
+    let badges = [
+      ...(b.entry ? ['<span class="badge">Entry</span>'] : []),
+      ...[...kinds].map(
+        kind => `<span class="badge ${kind}">${LOAD_KINDS[kind]}</span>`,
+      ),
+    ].join('');
+    let files = b.assets.filter(([path]) => path != null);
+    let ratio = b.size ? b.gzip / b.size : 1;
+    // Files whose assets here are also included in other bundles, with the most copies of any.
+    let duplicated = files.flatMap(([path, bytes]) => {
+      let copies = Math.max(
+        0,
+        ...(bundleAssets.get(key(index, path)) ?? []).map(
+          a => data.assets[a].bundles.length,
+        ),
+      );
+      return copies > 1 ? [{path, bytes, copies}] : [];
+    });
+    let duplicatedBytes = duplicated.reduce((sum, d) => sum + d.bytes, 0);
+    let html =
+      head(`Bundle ${badges}`, basename(b.name), b.name) +
+      stats([
+        ['Size', formatSize(b.size)],
+        ['Gzip', formatSize(b.gzip)],
+        ['Of total', percent(size(n), size(root))],
+        ['Modules', files.length],
+      ]);
+    if (b.entries?.length) {
+      html +=
+        `<h3>Runs on load</h3>` +
+        list(
+          b.entries.map(a => assetLink(a, index)),
+          5,
+        );
+    }
+    html +=
+      `<h3>Loaded by</h3>` +
+      (b.entry && !b.loaded_by?.length
+        ? '<p class="muted">Entry bundle</p>'
+        : list(
+            (b.loaded_by ?? []).map(
+              ([from, kind]) =>
+                `${bundleLink(from)}<span class="size">${
+                  LOAD_KINDS[kind]
+                }</span>`,
+            ),
+          ));
+    html +=
+      `<h3>Loads</h3>` +
+      list(
+        loads[index].map(
+          ([to, kind]) =>
+            `${bundleLink(to)}<span class="size">${LOAD_KINDS[kind]}</span>`,
+        ),
+      );
+    html +=
+      `<h3>Largest modules</h3>` +
+      list(
+        files.map(
+          ([path, bytes]) =>
+            `${fileLink(path, index)}<span class="size">${sizeText(
+              bytes,
+              bytes * ratio,
+            )}</span>`,
+        ),
+      );
+    html +=
+      `<h3>Also in other bundles</h3>` +
+      (duplicated.length
+        ? `<p class="muted">${duplicated.length} ${
+            duplicated.length === 1 ? 'module' : 'modules'
+          } (${sizeText(
+            duplicatedBytes,
+            duplicatedBytes * ratio,
+          )}) of this bundle ${
+            duplicated.length === 1 ? 'is' : 'are'
+          } also included in other bundles.</p>` +
+          list(
+            duplicated.map(
+              d =>
+                `${fileLink(d.path, index)}<span class="size">${
+                  d.copies
+                } copies · ${sizeText(d.bytes, d.bytes * ratio)}</span>`,
+            ),
+            5,
+          )
+        : '<p class="muted">None</p>');
+    return html;
+  }
+
+  function assetPanel(asset, bundle) {
+    let a = data.assets[asset];
+    let path = data.paths[a.path];
+    let siblings = fileAssets.get(a.path) ?? [];
+    let here = a.bundles.includes(bundle) ? assetSize(asset, bundle) : null;
+    let sharing = here
+      ? (bundleAssets.get(key(bundle, a.path))?.length ?? 1) - 1
+      : 0;
+    let copies = a.bundles.map(b => ({bundle: b, ...assetSize(asset, b)}));
+    let rows = [];
+    if (here) {
+      rows.push(['In this bundle', sizeText(here.raw, here.gzip)]);
+    }
+    if (copies.length > 1 || !here) {
+      let raw = copies.reduce((sum, c) => sum + c.raw, 0);
+      let gzip = copies.reduce((sum, c) => sum + c.gzip, 0);
+      rows.push([
+        `In ${copies.length} ${copies.length === 1 ? 'bundle' : 'bundles'}`,
+        sizeText(raw, gzip),
+      ]);
+    }
+    let html =
+      head(
+        `Module${a.entry ? ' <span class="badge">Entry</span>' : ''}${
+          siblings.length > 1 || a.env || a.generated
+            ? ` <span class="badge">${escape(assetLabel(a))}</span>`
+            : ''
+        }`,
+        basename(path),
+        path,
+      ) + stats(rows);
+    if (sharing) {
+      html += `<p class="muted">Its size here includes ${sharing} other ${
+        sharing === 1 ? 'asset' : 'assets'
+      } built from this file.</p>`;
+    }
+
+    // Why it's included: the import chain from an entry.
+    let chain = [];
+    let seen = new Set();
+    for (let i = asset; i != null && !seen.has(i); ) {
+      seen.add(i);
+      let via = data.assets[i].via;
+      chain.unshift({asset: i, via});
+      i = via?.[0];
+    }
+    html += `<h3>Why is this included?</h3>`;
+    if (chain.length === 1 && !a.entry) {
+      html += '<p class="muted">Not imported from an entry.</p>';
+    } else {
+      html +=
+        '<ol class="chain">' +
+        chain
+          .map(({asset: i, via}, n) => {
+            let edge = '';
+            if (n > 0) {
+              let [, specifier, kind] = via;
+              let how =
+                kind === 'lazy'
+                  ? 'import()'
+                  : kind === 'url'
+                  ? 'URL'
+                  : kind === 'parallel'
+                  ? 'parallel'
+                  : 'imports';
+              edge = `<div class="edge ${kind}">${how} <code>${escape(
+                specifier,
+              )}</code></div>`;
+            }
+            let label =
+              n === chain.length - 1
+                ? `<strong>${escape(
+                    basename(data.paths[data.assets[i].path]),
+                  )}</strong>`
+                : assetLink(i, null);
+            let entry =
+              n === 0 && data.assets[i].entry
+                ? ' <span class="badge">Entry</span>'
+                : '';
+            return `<li>${edge}<span>${label}${entry}</span></li>`;
+          })
+          .join('') +
+        '</ol>';
+    }
+
+    html +=
+      `<h3>Included in ${copies.length} ${
+        copies.length === 1 ? 'bundle' : 'bundles'
+      }</h3>` +
+      list(
+        copies.map(
+          c =>
+            `${
+              c.bundle === bundle
+                ? `<strong>${escape(
+                    basename(data.bundles[c.bundle].name),
+                  )}</strong>`
+                : assetLink(
+                    asset,
+                    c.bundle,
+                    basename(data.bundles[c.bundle].name),
+                  )
+            }<span class="size">${sizeText(c.raw, c.gzip)}</span>`,
+        ),
+      );
+
+    if (siblings.length > 1) {
+      html +=
+        `<h3>Other assets from this file</h3>` +
+        list(
+          // Assets with the same label (e.g. CSS extracted from several macros) are grouped.
+          [
+            ...Map.groupBy(
+              siblings.filter(i => i !== asset),
+              i => assetLabel(data.assets[i]),
+            ),
+          ].map(([label, group]) => {
+            let bundles = new Set(group.flatMap(i => data.assets[i].bundles));
+            let count = `${bundles.size} ${
+              bundles.size === 1 ? 'bundle' : 'bundles'
+            }`;
+            return `${assetLink(group[0], null, label)}${
+              group.length > 1
+                ? ` <span class="muted">×${group.length}</span>`
+                : ''
+            }<span class="size">${count}</span>`;
+          }),
+        );
+    }
+
+    let importers = a.importers ?? [];
+    html +=
+      `<h3>Imported by${importers.length ? ` ${importers.length}` : ''}</h3>` +
+      list(
+        importers.map(i => assetLink(i, null, data.paths[data.assets[i].path])),
+      );
+
+    html += `<h3>Exports</h3>`;
+    if (!a.exports) {
+      html +=
+        '<p class="muted">Which exports are used isn\'t known statically, e.g. because this is a CommonJS module or not JavaScript.</p>';
+    } else {
+      let all = [...a.exports, ...(a.reexports ?? [])];
+      if (!all.length) {
+        html += '<p class="muted">No exports</p>';
+      } else {
+        let used = a.namespace ? all.length : all.filter(([, u]) => u).length;
+        html += `<p>${
+          a.namespace
+            ? `All ${all.length} used through a namespace import`
+            : `${used} of ${all.length} used`
+        }${
+          used < all.length
+            ? '. Unused exports are tree-shaken in optimized builds'
+            : ''
+        }.</p>`;
+        let chips = (items, reexport) =>
+          items
+            .slice(0, 300)
+            .map(
+              ([name, u]) =>
+                `<span class="chip${
+                  u || a.namespace ? '' : ' unused'
+                }" title="${u || a.namespace ? 'Used' : 'Unused'}${
+                  reexport ? ', re-exported' : ''
+                }">${escape(name)}</span>`,
+            )
+            .join('');
+        html += `<div class="chips">${chips(a.exports, false)}</div>`;
+        if (a.reexports?.length) {
+          html +=
+            `<p class="muted" style="margin-top:8px">Re-exports</p>` +
+            `<div class="chips">${chips(a.reexports, true)}</div>`;
+        }
+        if (all.length > 300) {
+          html += '<p class="muted">Showing the first 300.</p>';
+        }
+      }
+    }
+    return html;
+  }
+
+  // A file whose code is in a bundle without an asset built from it there, e.g. a dependency's
+  // original source, which its source map refers to.
+  function filePanel(path, bundle) {
+    let here = bundle != null ? fileSizes.get(key(bundle, path)) : null;
+    let assets = fileAssets.get(path) ?? [];
+    return (
+      head('Source file', basename(data.paths[path]), data.paths[path]) +
+      (here ? stats([['In this bundle', sizeText(here.raw, here.gzip)]]) : '') +
+      '<p class="muted" style="margin-top:12px">No asset in this bundle was built from this file. Its code is attributed to it by the source map of another module, such as a dependency published with source maps.</p>' +
+      (assets.length
+        ? `<h3>Assets built from this file</h3>` +
+          list(assets.map(i => assetLink(i, null, assetLabel(data.assets[i]))))
+        : '')
+    );
+  }
+
+  // The build, directories, packages and unmapped code.
+  function nodePanel(n) {
+    if (n.kind === 'root' || n.kind === 'dist') {
+      let contained = data.bundles
+        .map((b, index) => ({b, index}))
+        .filter(({index}) => ancestors(bundles[index]).includes(n));
+      let raw = contained.reduce((sum, {b}) => sum + b.size, 0);
+      let gzip = contained.reduce((sum, {b}) => sum + b.gzip, 0);
+      return (
+        head(
+          n.kind === 'root' ? 'Build' : 'Directory',
+          n.kind === 'root' ? data.title : n.name,
+        ) +
+        stats([
+          ['Size', formatSize(raw)],
+          ['Gzip', formatSize(gzip)],
+          ['Bundles', contained.length],
+          ['Entry bundles', contained.filter(({b}) => b.entry).length],
+        ]) +
+        `<h3>Largest bundles</h3>` +
+        list(
+          contained
+            .sort((a, b) =>
+              mode === 'gzip' ? b.b.gzip - a.b.gzip : b.b.size - a.b.size,
+            )
+            .map(
+              ({b, index}) =>
+                `${bundleLink(index)}<span class="size">${
+                  mode === 'gzip' ? formatSize(b.gzip) : formatSize(b.size)
+                }</span>`,
+            ),
+        )
+      );
+    }
+    if (n.kind === 'unknown') {
+      return (
+        head('Code', UNKNOWN, bundleOf(n)?.path) +
+        stats([['Size', sizeText(n.raw, n.gzip)]]) +
+        '<p class="muted" style="margin-top:12px">Code in the bundle that its source map doesn\'t attribute to a source file, such as the Parcel runtime, module wrappers, and code generated by plugins.</p>'
+      );
+    }
+    let leaves = [...collectLeaves(n, new Map()).values()].sort(
+      (a, b) => size(b) - size(a),
+    );
+    let bundle = bundleOf(n);
+    let kind =
+      {package: 'Package', dist: 'Directory', root: 'Build'}[n.kind] ??
+      'Directory';
+    let path =
+      n.kind === 'dir' || n.kind === 'package'
+        ? ancestors(n)
+            .slice(ancestors(bundle).length)
+            .map(a => a.name)
+            .join('/')
+        : '';
+    return (
+      head(kind, n.name, path + (bundle ? ` in ${bundle.path}` : '')) +
+      stats([
+        ['Size', sizeText(n.raw, n.gzip)],
+        ['Modules', leaves.length],
+        ...(bundle ? [['Of bundle', percent(size(n), size(bundle))]] : []),
+      ]) +
+      `<h3>Largest modules</h3>` +
+      list(
+        leaves.map(
+          leaf =>
+            `${fileLink(
+              leaf.pathIndex,
+              bundle?.index,
+              leaf.name,
+            )}<span class="size">${sizeText(leaf.raw, leaf.gzip)}</span>`,
+        ),
+      )
+    );
+  }
+
+  panel.addEventListener('click', e => {
+    let target = e.target.closest('button');
+    if (!target) {
+      return;
+    }
+    if (target.hasAttribute('data-close')) {
+      closePanel();
+    } else if (target.hasAttribute('data-more')) {
+      for (let item of target.previousElementSibling.querySelectorAll(
+        'li[hidden]',
+      )) {
+        item.hidden = false;
+      }
+      target.remove();
+    } else if (target.dataset.asset != null) {
+      showAsset(
+        Number(target.dataset.asset),
+        target.dataset.bundle != null ? Number(target.dataset.bundle) : null,
+      );
+    } else if (target.dataset.path != null) {
+      showFile(Number(target.dataset.path), Number(target.dataset.bundle));
+    } else if (target.dataset.bundle != null) {
+      showBundle(Number(target.dataset.bundle));
     }
   });
 
@@ -1000,6 +1689,11 @@
     $('mode-gzip').setAttribute('aria-pressed', String(mode === 'gzip'));
     updateSummary();
     updateBreadcrumbs();
+    if (selection) {
+      let scroll = panel.scrollTop;
+      renderPanel();
+      panel.scrollTop = scroll;
+    }
     if (view === 'treemap') {
       render();
     } else {
