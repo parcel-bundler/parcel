@@ -1,14 +1,16 @@
 use anstyle::{AnsiColor, Color, Style};
 use parcel::{HttpsOptions, ServerOptions};
 use parcel_core::{
-  BuildOptions, BuildSuccess, HmrOptions, LogEvent, LogLevel, LogMessage, OsFileSystem, PathId,
-  Reporter, ReporterEvent,
+  BuildMode, BuildOptions, BuildSuccess, HmrOptions, LogEvent, LogLevel, LogMessage, OsFileSystem,
+  PathId, Reporter, ReporterEvent,
 };
 use std::borrow::Cow;
 use std::io::Write;
 use std::path::Path;
 use std::process::ExitCode;
 use std::{collections::HashMap, sync::Arc};
+
+mod bundle_report;
 
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
@@ -92,6 +94,8 @@ fn help(command: Option<Command>) -> String {
     "  --dist-dir <dir>      Set the output directory\n",
     "  --public-url <url>    Set the public URL for bundles\n",
     "  --log-level <level>   none, error, warn, info, verbose (default: verbose)\n",
+    "  --detailed-report [count]  Print the sizes of the largest assets in each bundle in\n",
+    "                        production builds (default count: 10)\n",
     "  -h, --help            Show help\n",
   ));
   if command.is_none() || command == Some(Command::Serve) {
@@ -193,7 +197,7 @@ fn parse_args(
     dist_dir: None,
     public_url: Default::default(),
     hmr: None,
-    reporters: vec![Arc::new(CLIReporter {})],
+    reporters: Vec::new(),
   };
 
   let mut entries = Vec::new();
@@ -202,6 +206,7 @@ fn parse_args(
   let mut https = false;
   let mut cert = None;
   let mut key = None;
+  let mut detailed_report = None;
   while let Some(arg) = args.next() {
     if arg.starts_with('-') {
       match arg.as_str() {
@@ -262,6 +267,21 @@ fn parse_args(
           server_options.open = true;
           server_options.browser = Some(arg["--open=".len()..].to_owned());
         }
+        // The number of assets to list per bundle follows an `=`, or is the next argument if it's
+        // a number rather than an entry.
+        "--detailed-report" => {
+          detailed_report = Some(
+            args
+              .next_if(|next| next.parse::<usize>().is_ok())
+              .map_or(10, |count| count.parse().unwrap()),
+          );
+        }
+        arg if arg.starts_with("--detailed-report=") => {
+          let count = &arg["--detailed-report=".len()..];
+          detailed_report = Some(count.parse().map_err(|_| {
+            format!("Invalid count {count} for --detailed-report. Expected a number")
+          })?);
+        }
         "--no-source-maps" => {
           options.source_map = None;
         }
@@ -298,6 +318,7 @@ fn parse_args(
   if entries.is_empty() {
     entries.push(".".into());
   }
+  options.reporters = vec![Arc::new(CLIReporter { detailed_report })];
 
   if hmr_port.is_some() && command != Command::Run {
     return Err("--hmr-port is only supported by run".into());
@@ -393,7 +414,15 @@ pub fn main() -> ExitCode {
     match action {
       CliAction::Help(command) => print!("{}", help(command)),
       CliAction::Trust { remove } => {
-        if parcel::trust(remove, vec![Arc::new(CLIReporter {})], LogLevel::Verbose).is_err() {
+        if parcel::trust(
+          remove,
+          vec![Arc::new(CLIReporter {
+            detailed_report: None,
+          })],
+          LogLevel::Verbose,
+        )
+        .is_err()
+        {
           return ExitCode::FAILURE;
         }
       }
@@ -426,7 +455,10 @@ pub fn main() -> ExitCode {
   }
 }
 
-struct CLIReporter;
+struct CLIReporter {
+  /// The number of assets to list per bundle in the production build report, if one is printed.
+  detailed_report: Option<usize>,
+}
 
 impl Reporter for CLIReporter {
   fn report(
@@ -463,13 +495,25 @@ impl Reporter for CLIReporter {
         }
         writeln!(&mut stdio)?;
       }
-      ReporterEvent::BuildSuccess(BuildSuccess { build_time, .. })
-        if options.log_level.allows(LogLevel::Info) =>
-      {
+      ReporterEvent::BuildSuccess(BuildSuccess {
+        build_time,
+        bundle_graph,
+        ..
+      }) if options.log_level.allows(LogLevel::Info) => {
         let style = Style::new()
           .fg_color(Some(Color::Ansi(AnsiColor::BrightGreen)))
           .bold();
         println!("{style}✨ Built in {:?}{style:#}", build_time);
+        if let Some(asset_count) = self.detailed_report
+          && options.mode == BuildMode::Production
+        {
+          bundle_report::bundle_report(
+            bundle_graph,
+            options,
+            asset_count,
+            &mut std::io::stdout().lock(),
+          )?;
+        }
       }
       ReporterEvent::BuildFailure { diagnostics } if options.log_level.allows(LogLevel::Error) => {
         let style = Style::new()

@@ -14,6 +14,8 @@ pub(super) struct Printer {
   line: u32,
   column: u32,
   source_map_sections: Option<Vec<SourceMapSection>>,
+  /// Whether the last section belongs to code that `end_source_map` hasn't ended yet.
+  section_open: bool,
   should_optimize: bool,
 }
 
@@ -24,6 +26,7 @@ impl Printer {
       line: 0,
       column: 0,
       source_map_sections: source_maps.then(Vec::new),
+      section_open: false,
       should_optimize,
     }
   }
@@ -33,6 +36,24 @@ impl Printer {
       && let Some(map) = map
     {
       source_map_sections.push(SourceMapSection::new(self.line, self.column, map)?);
+      self.section_open = true;
+    }
+
+    Ok(())
+  }
+
+  /// Ends the section started by the last `add_source_map`, so that the code written after it
+  /// (e.g. the runtime) isn't mapped to the last position in the module. A section extends to
+  /// the start of the next one, so this starts an empty one.
+  pub(super) fn end_source_map(&mut self) -> Result<(), DiagnosticList> {
+    if let Some(source_map_sections) = &mut self.source_map_sections
+      && std::mem::take(&mut self.section_open)
+    {
+      source_map_sections.push(SourceMapSection::new(
+        self.line,
+        self.column,
+        r#"{"version":3,"sources":[],"names":[],"mappings":""}"#.into(),
+      )?);
     }
 
     Ok(())

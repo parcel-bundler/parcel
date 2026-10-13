@@ -3067,6 +3067,7 @@ dependencies = [
  "toml",
  "tracing",
  "tungstenite",
+ "unicode-width 0.2.2",
  "url",
  "windows-sys 0.61.2",
  "xxhash-rust",

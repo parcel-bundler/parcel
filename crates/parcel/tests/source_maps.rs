@@ -481,6 +481,10 @@ fn find_mapping(source_map: &str, generated_line: u32, generated_column: u32) ->
     assert_eq!(value["sources"], serde_json::json!([]));
     let index: SourceMapIndex = serde_json::from_value(value).unwrap();
     for section in index.sections {
+      // Empty sections end the module before them.
+      if section.map["sources"] == serde_json::json!([]) {
+        continue;
+      }
       assert_source_root(&section.map);
       let map = SourceMap::from_json("/", &section.map.to_string()).unwrap();
       collect_mappings(

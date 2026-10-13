@@ -501,9 +501,11 @@ fn write_asset_module<'a>(
     printer.add_source_map(map)?;
     if should_optimize {
       printer.write_expression_code(&code)?;
+      printer.end_source_map()?;
     } else {
       printer.write_str(std::str::from_utf8(&code).unwrap())?;
       printer.write_module_trailer(serialized_dependencies.unwrap())?;
+      printer.end_source_map()?;
     }
   } else {
     let (code, map) = (asset.content.read()?, None);
