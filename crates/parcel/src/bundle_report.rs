@@ -6,7 +6,7 @@ use std::io::Write;
 use std::path::Path;
 
 use anstyle::{AnsiColor, Color, Effects, Style};
-use parcel_core::{BundleBehavior, BundleGraph, ParcelOptions, PathId};
+use parcel_core::{Bundle, BundleBehavior, BundleGraph, ParcelOptions, PathId};
 use parcel_sourcemap::SourceMap;
 use unicode_width::UnicodeWidthStr;
 
@@ -32,13 +32,7 @@ pub fn generate_build_metrics(
   bundle_graph: &BundleGraph,
   options: &ParcelOptions,
 ) -> Vec<BundleStats> {
-  let mut seen = HashSet::new();
-  let mut bundles: Vec<BundleStats> = bundle_graph
-    .bundles
-    .iter()
-    // Inline bundles aren't written, and bundles with identical content may share a file.
-    .filter(|bundle| bundle.bundle_behavior != BundleBehavior::Inline)
-    .filter(|bundle| seen.insert(bundle.dist_path()))
+  let mut bundles: Vec<BundleStats> = written_bundles(bundle_graph)
     .filter_map(|bundle| {
       let path = bundle.dist_path();
       let contents = options.output_fs.read(path).ok()?;
@@ -83,6 +77,33 @@ pub fn generate_build_metrics(
   for bundle in &mut bundles {
     bundle.assets.sort_by(|a, b| b.size.cmp(&a.size));
   }
+  bundles.sort_by(|a, b| b.size.cmp(&a.size));
+  bundles
+}
+
+/// The bundles written to files. Inline bundles aren't written, and bundles with identical content
+/// may share a file.
+fn written_bundles<'a>(bundle_graph: &'a BundleGraph) -> impl Iterator<Item = &'a Bundle> {
+  let mut seen = HashSet::new();
+  bundle_graph
+    .bundles
+    .iter()
+    .filter(|bundle| bundle.bundle_behavior != BundleBehavior::Inline)
+    .filter(move |bundle| seen.insert(bundle.dist_path()))
+}
+
+/// The sizes of the written bundles, largest first, without their assets.
+fn bundle_sizes(bundle_graph: &BundleGraph, options: &ParcelOptions) -> Vec<BundleStats> {
+  let mut bundles: Vec<BundleStats> = written_bundles(bundle_graph)
+    .filter_map(|bundle| {
+      let path = bundle.dist_path();
+      Some(BundleStats {
+        path,
+        size: options.output_fs.stat(path)?.size,
+        assets: Vec::new(),
+      })
+    })
+    .collect();
   bundles.sort_by(|a, b| b.size.cmp(&a.size));
   bundles
 }
@@ -359,7 +380,11 @@ pub fn bundle_report(
   asset_count: usize,
   out: &mut impl Write,
 ) -> std::io::Result<()> {
-  let bundles = generate_build_metrics(bundle_graph, options);
+  let bundles = if asset_count > 0 {
+    generate_build_metrics(bundle_graph, options)
+  } else {
+    bundle_sizes(bundle_graph, options)
+  };
   let dim = Style::new().effects(Effects::DIMMED);
   let cwd = options.cwd;
   let mut rows: Vec<Vec<String>> = Vec::new();

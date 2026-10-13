@@ -206,7 +206,7 @@ fn parse_args(
   let mut https = false;
   let mut cert = None;
   let mut key = None;
-  let mut detailed_report = None;
+  let mut detailed_report = 0;
   while let Some(arg) = args.next() {
     if arg.starts_with('-') {
       match arg.as_str() {
@@ -270,17 +270,15 @@ fn parse_args(
         // The number of assets to list per bundle follows an `=`, or is the next argument if it's
         // a number rather than an entry.
         "--detailed-report" => {
-          detailed_report = Some(
-            args
-              .next_if(|next| next.parse::<usize>().is_ok())
-              .map_or(10, |count| count.parse().unwrap()),
-          );
+          detailed_report = args
+            .next_if(|next| next.parse::<usize>().is_ok())
+            .map_or(10, |count| count.parse().unwrap());
         }
         arg if arg.starts_with("--detailed-report=") => {
           let count = &arg["--detailed-report=".len()..];
-          detailed_report = Some(count.parse().map_err(|_| {
+          detailed_report = count.parse().map_err(|_| {
             format!("Invalid count {count} for --detailed-report. Expected a number")
-          })?);
+          })?;
         }
         "--no-source-maps" => {
           options.source_map = None;
@@ -416,9 +414,7 @@ pub fn main() -> ExitCode {
       CliAction::Trust { remove } => {
         if parcel::trust(
           remove,
-          vec![Arc::new(CLIReporter {
-            detailed_report: None,
-          })],
+          vec![Arc::new(CLIReporter { detailed_report: 0 })],
           LogLevel::Verbose,
         )
         .is_err()
@@ -456,8 +452,8 @@ pub fn main() -> ExitCode {
 }
 
 struct CLIReporter {
-  /// The number of assets to list per bundle in the production build report, if one is printed.
-  detailed_report: Option<usize>,
+  /// The number of assets to list per bundle in the production build report.
+  detailed_report: usize,
 }
 
 impl Reporter for CLIReporter {
@@ -504,13 +500,11 @@ impl Reporter for CLIReporter {
           .fg_color(Some(Color::Ansi(AnsiColor::BrightGreen)))
           .bold();
         println!("{style}✨ Built in {:?}{style:#}", build_time);
-        if let Some(asset_count) = self.detailed_report
-          && options.mode == BuildMode::Production
-        {
+        if options.mode == BuildMode::Production {
           bundle_report::bundle_report(
             bundle_graph,
             options,
-            asset_count,
+            self.detailed_report,
             &mut std::io::stdout().lock(),
           )?;
         }
