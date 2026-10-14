@@ -542,12 +542,18 @@ impl Reporter for CLIReporter {
         if self.analyze {
           let path = analyzer::write_report(&bundles, bundle_graph, options)?;
           if info {
-            let url = url::Url::from_file_path(path.to_path_buf())
-              .map_or_else(|_| path.to_path_buf().display().to_string(), String::from);
+            let relative = path
+              .relative(&PathId::new(&std::env::current_dir().unwrap()))
+              .display()
+              .to_string();
             let style = Style::new()
               .fg_color(Some(Color::Ansi(AnsiColor::BrightCyan)))
               .bold();
-            println!("\n📊 {style}Bundle analysis written to{style:#} {url}");
+            println!("\n📊 {style}Bundle analysis written to{style:#} {relative}");
+            let url = url::Url::from_file_path(path.to_path_buf())
+              .unwrap()
+              .to_string();
+            let _ = parcel::open_browser(&url, None);
           }
         }
       }
