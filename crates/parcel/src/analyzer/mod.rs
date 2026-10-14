@@ -5,6 +5,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
+use std::sync::LazyLock;
 
 use parcel_core::{
   AssetFlags, AssetIndex, BundleBehavior, BundleFlags, BundleGraph,
@@ -14,8 +15,10 @@ use serde::Serialize;
 
 use crate::bundle_report::BundleStats;
 
-const SCRIPT: &str = include_str!("client.js");
-const STYLE: &str = include_str!("client.css");
+static SCRIPT_BYTES: LazyLock<Vec<u8>> =
+  LazyLock::new(|| deflate_macro::decompress!("src/analyzer/client.js"));
+static STYLE_BYTES: LazyLock<Vec<u8>> =
+  LazyLock::new(|| deflate_macro::decompress!("src/analyzer/client.css"));
 
 #[derive(Serialize)]
 struct Report {
@@ -329,6 +332,8 @@ pub fn write_report(
 
   // `<` can't end the script element the data is in when escaped.
   let data = serde_json::to_string(&report)?.replace('<', "\\u003c");
+  let style = unsafe { std::str::from_utf8_unchecked(&STYLE_BYTES) };
+  let script = unsafe { std::str::from_utf8_unchecked(&SCRIPT_BYTES) };
   let html = format!(
     r#"<!doctype html>
 <html lang="en">
@@ -336,7 +341,7 @@ pub fn write_report(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bundle analysis · {title}</title>
-<style>{STYLE}</style>
+<style>{style}</style>
 </head>
 <body>
 <header>
@@ -363,7 +368,7 @@ pub fn write_report(
   <div id="tooltip" hidden></div>
 </main>
 <script type="application/json" id="data">{data}</script>
-<script>{SCRIPT}</script>
+<script>{script}</script>
 </body>
 </html>
 "#,

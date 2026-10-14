@@ -90,11 +90,9 @@ pub fn generate_build_metrics(
 
 /// The size of `contents` gzipped at the default level.
 fn gzip_size(contents: &[u8]) -> u64 {
-  let mut compressor = libdeflater::Compressor::new(libdeflater::CompressionLvl::default());
-  let mut out = vec![0; compressor.gzip_compress_bound(contents.len())];
-  compressor
-    .gzip_compress(contents, &mut out)
-    .map_or(contents.len(), |size| size) as u64
+  let mut enc = flate2::write::DeflateEncoder::new(Vec::new(), flate2::Compression::default());
+  enc.write_all(contents).unwrap();
+  enc.finish().unwrap().len() as u64
 }
 
 /// The bundles written to files. Inline bundles aren't written, and bundles with identical content

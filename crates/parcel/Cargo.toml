@@ -53,7 +53,10 @@ anstyle = "*"
 parcel_sourcemap = { version = "*", features = ["json"] }
 unicode-width = "0.2"
 rayon = "1.7.0"
-libdeflater = "1.25"
+flate2 = { version = "1.1.9", default-features = false, features = [
+  "rust_backend",
+] }
+deflate-macro = "0.1"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
