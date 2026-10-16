@@ -53,7 +53,7 @@ impl Transformer for JsTransformer {
     let config = config(&mut asset, options, fs, self)?;
     let source_size = config.code.len();
     let mut resolver = parcel_resolver::Resolver::parcel(options.project_root);
-    resolver.conditions |= ExportsCondition::SOURCE;
+    resolver.conditions |= ExportsCondition::NODE | ExportsCondition::SOURCE;
 
     let url = asset.loc.url.clone();
     let env = asset.target.clone();

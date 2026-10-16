@@ -87,7 +87,7 @@ fn quickjs_source() -> PathBuf {
     .args([
       "metadata",
       "--format-version=1",
-      "--frozen",
+      "--locked",
       "--filter-platform",
     ])
     .arg(env::var_os("TARGET").unwrap())

@@ -116,6 +116,15 @@ jobs:
             echo "RUSTFLAGS=$RUSTFLAGS"
           fi
 
+          # zig cc explicitly disables evex512 for the baseline x86_64 CPU, which
+          # breaks AVX-512 functions declared with target attributes, e.g. in
+          # libdeflate (https://github.com/ziglang/zig/issues/20414). evex512
+          # only permits 512-bit vectors where AVX-512 is already enabled, so
+          # this does not raise the baseline CPU requirement.
+          if [ "$BUILDER" = 'zig' ] && [[ "$TARGET" == x86_64-* ]]; then
+            export "CFLAGS_${TARGET//-/_}=-mevex512"
+          fi
+
           if [ "$BUILDER" = 'zig' ]; then
             cargo zigbuild --release --target "$ZIG_TARGET" -p parcel --bin parcel
           else

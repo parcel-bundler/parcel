@@ -28,7 +28,4 @@ jobs:
           shared-key: ${{ matrix.os }}
       - run: yarn --immutable
       - run: yarn gulp
-      # The QuickJS build script uses frozen workspace metadata, including
-      # dependencies of packages excluded from the test build.
-      - run: cargo fetch --locked
       - run: cargo test --workspace --exclude parcel-node-bindings --tests
