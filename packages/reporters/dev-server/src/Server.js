@@ -321,7 +321,10 @@ export default class Server {
     filePath = path.normalize('.' + path.sep + filePath);
 
     // malicious path
-    if (filePath.includes(path.sep + '..' + path.sep)) {
+    // Check every path segment for '..' rather than only the '/../'
+    // substring, so a leading or trailing traversal segment (e.g.
+    // '../secret') is caught the same way a middle one already was.
+    if (filePath.split(path.sep).includes('..')) {
       return this.sendError(res, 403);
     }
 
