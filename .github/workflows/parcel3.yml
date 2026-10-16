@@ -106,14 +106,27 @@ jobs:
           EXTRA_RUSTFLAGS: ${{ matrix.rustflags }}
           # Matches the deployment target the rest of Parcel's macOS builds use.
           MACOSX_DEPLOYMENT_TARGET: ${{ runner.os == 'macOS' && '11.0' || '' }}
+          # Lets the stable compiler accept the -Z flags below. Only release
+          # builds opt in; the source itself never uses unstable features.
+          RUSTC_BOOTSTRAP: '1'
         run: |
           set -euo pipefail
 
+          # Without this, every crate that uses a generic function compiles its
+          # own copy, and fat LTO never merges them: ~5MB of duplicate code.
+          # Debug builds already do this by default.
+          UNSTABLE_RUSTFLAGS='-Zshare-generics=y'
+
           # Setting RUSTFLAGS at all shadows the config in .cargo/config.toml, so
-          # only export it for the targets that actually need extra flags.
+          # only export it for the targets that actually need extra flags. The
+          # per-target variable is joined with the config instead.
           if [ -n "$EXTRA_RUSTFLAGS" ]; then
-            export RUSTFLAGS="$EXTRA_RUSTFLAGS"
+            export RUSTFLAGS="$EXTRA_RUSTFLAGS $UNSTABLE_RUSTFLAGS"
             echo "RUSTFLAGS=$RUSTFLAGS"
+          else
+            TARGET_VAR="CARGO_TARGET_$(echo "$TARGET" | tr 'a-z-' 'A-Z_')_RUSTFLAGS"
+            export "$TARGET_VAR=$UNSTABLE_RUSTFLAGS"
+            echo "$TARGET_VAR=$UNSTABLE_RUSTFLAGS"
           fi
 
           # zig cc explicitly disables evex512 for the baseline x86_64 CPU, which

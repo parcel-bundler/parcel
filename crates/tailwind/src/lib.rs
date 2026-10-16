@@ -1,11 +1,11 @@
 use std::{path::Path, sync::Arc};
 
 use parcel_core::{
-  Asset, BufferContent, Diagnostic, DiagnosticList, ExportsCondition, ParcelOptions, Transformer,
+  Asset, BufferContent, DiagnosticList, ExportsCondition, ParcelOptions, Transformer,
 };
 use parcel_plugin_js::{await_promise, require_source, with_js_env};
 use parcel_resolver::{Resolution, ResolveOptions, Resolver, SpecifierType};
-use rquickjs::{Array, Ctx, Function, Object, Value};
+use rquickjs::{Array, Ctx, Function, Value};
 use tailwindcss_oxide::{PublicSourceEntry, Scanner};
 
 pub struct TailwindTransformer;
