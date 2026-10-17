@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
 use crate::transformer::{
-  Config, DependencyKind, EnvContext, Type, Version, Versions, transform_to_ast,
+  Config, DependencyKind, ESM_HELPERS, Type, react_target, transform_to_ast,
 };
 use glob_match::glob_match;
 use parcel_core::*;
@@ -147,18 +147,8 @@ impl Transformer for JsTransformer {
       .iter()
       .any(|directive| directive == "use parcel-rsc-runtime");
 
-    if asset.target.environment == Environment::ReactServer
-      && !asset.target.flags.contains(EnvironmentFlags::IS_LIBRARY)
-      && directives
-        .iter()
-        .any(|d| d == "use client" || d == "use client-entry")
-    {
-      asset.target = react_target(&asset.target, Environment::ReactClient);
-    } else if asset.target.environment == Environment::ReactClient
-      && !asset.target.flags.contains(EnvironmentFlags::IS_LIBRARY)
-      && directives.iter().any(|d| d == "use server")
-    {
-      asset.target = react_target(&asset.target, Environment::ReactServer);
+    if let Some(target) = res.target {
+      asset.target = target;
     } else if directives.iter().any(|d| d == "use server-entry") {
       if !matches!(
         asset.target.environment,
@@ -289,7 +279,7 @@ impl Transformer for JsTransformer {
               // assets can be shared between workers and the main thread in the global output format.
               let mut output_format = asset.target.output_format;
               if output_format == OutputFormat::Esmodule
-                && dep.source_type == Some(crate::transformer::SourceType::Module)
+                && dep.source_type == Some(SourceType::Module)
                 && asset
                   .target
                   .engines
@@ -302,20 +292,14 @@ impl Transformer for JsTransformer {
 
               Arc::new(Target {
                 environment: Environment::WebWorker,
-                source_type: match dep.source_type {
-                  Some(crate::transformer::SourceType::Module) => SourceType::Module,
-                  _ => SourceType::Script,
-                },
+                source_type: dep.source_type.unwrap_or(SourceType::Script),
                 output_format,
                 ..(*asset.target).clone()
               })
             }
             DependencyKind::ServiceWorker => Arc::new(Target {
               environment: Environment::ServiceWorker,
-              source_type: match dep.source_type {
-                Some(crate::transformer::SourceType::Module) => SourceType::Module,
-                _ => SourceType::Script,
-              },
+              source_type: dep.source_type.unwrap_or(SourceType::Script),
               output_format: OutputFormat::Global,
               ..(*asset.target).clone()
             }),
@@ -422,7 +406,7 @@ impl Transformer for JsTransformer {
     if res.needs_esm_helpers {
       let index = asset.dependencies.len() as u32;
       asset.dependencies.push(Dependency {
-        specifier: "@parcel/parcel3/src/esmodule-helpers.js".into(),
+        specifier: ESM_HELPERS.into(),
         specifier_type: SpecifierType::Esm,
         priority: Priority::Sync,
         bundle_behavior: BundleBehavior::None,
@@ -657,42 +641,6 @@ fn dependency_import_type(attributes: Option<&JsValue>) -> Option<ImportType> {
   }
 }
 
-fn react_target(target: &Arc<Target>, environment: Environment) -> Arc<Target> {
-  if target.environment == environment {
-    return target.clone();
-  }
-
-  if environment == Environment::ReactServer
-    && let Some(server_target) = &target.rsc_server_target
-  {
-    return server_target.clone();
-  }
-
-  let rsc_server_target = if environment == Environment::ReactClient {
-    match target.environment {
-      Environment::ReactServer => Some(target.clone()),
-      _ => target.rsc_server_target.clone(),
-    }
-  } else {
-    None
-  };
-
-  Arc::new(Target {
-    environment,
-    rsc_server_target,
-    source_type: SourceType::Module,
-    // Server code runs in the same environment as the code that imports it, and client code in
-    // browsers.
-    output_format: match environment {
-      Environment::ReactServer => target.output_format,
-      Environment::ReactClient => OutputFormat::Esmodule,
-      _ => unreachable!(),
-    },
-    include_node_modules: IncludeNodeModules::Bool(true),
-    ..(**target).clone()
-  })
-}
-
 fn convert_loc(
   url: SourceUrl,
   loc: &crate::transformer::SourceLocation,
@@ -717,52 +665,12 @@ fn convert_loc(
   loc
 }
 
-fn convert_version(version: &parcel_core::Version) -> Version {
-  Version {
-    major: version.major() as u32,
-    minor: version.minor() as u32,
-    patch: 0,
-  }
-}
-
 fn config(
   asset: &mut Asset,
   options: &ParcelOptions,
   fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
   transformer: &JsTransformer,
 ) -> Result<Config, Diagnostic> {
-  let mut targets = None;
-  if asset.target.environment.is_electron() {
-    if let Some(electron) = &asset.target.engines.electron {
-      targets = Some(Versions {
-        electron: Some(convert_version(electron)),
-        ..Default::default()
-      });
-    }
-  } else if asset.target.environment.is_browser() {
-    let browsers = &asset.target.engines.browsers;
-    let mut versions = Versions::default();
-    versions.android = browsers.android.as_ref().map(convert_version);
-    versions.chrome = browsers.chrome.as_ref().map(convert_version);
-    versions.edge = browsers.edge.as_ref().map(convert_version);
-    versions.firefox = browsers.firefox.as_ref().map(convert_version);
-    versions.ie = browsers.ie.as_ref().map(convert_version);
-    versions.ios = browsers.ios_saf.as_ref().map(convert_version);
-    versions.opera = browsers.opera.as_ref().map(convert_version);
-    versions.safari = browsers.safari.as_ref().map(convert_version);
-    versions.samsung = browsers.samsung.as_ref().map(convert_version);
-    if !versions.is_any_target() {
-      targets = Some(versions);
-    }
-  } else if asset.target.environment.is_node() {
-    if let Some(node) = &asset.target.engines.node {
-      targets = Some(Versions {
-        node: Some(convert_version(node)),
-        ..Default::default()
-      });
-    }
-  }
-
   let resolver = parcel_resolver::Resolver::parcel(options.project_root);
 
   let pkg = resolver.find_package(asset.loc.url.to_file_path()?, &**fs);
@@ -971,17 +879,7 @@ fn config(
       .to_path_buf()
       .to_string_lossy()
       .into_owned(),
-    context: match &asset.target.environment {
-      Environment::Browser => EnvContext::Browser,
-      Environment::WebWorker => EnvContext::WebWorker,
-      Environment::ServiceWorker => EnvContext::ServiceWorker,
-      Environment::Worklet => EnvContext::Worklet,
-      Environment::Node => EnvContext::Node,
-      Environment::ElectronRenderer => EnvContext::ElectronRenderer,
-      Environment::ElectronMain => EnvContext::ElectronMain,
-      Environment::ReactClient => EnvContext::ReactClient,
-      Environment::ReactServer => EnvContext::ReactServer,
-    },
+    target: asset.target.clone(),
     asset_type: match asset.ty {
       AssetType::Ts => Type::Ts,
       AssetType::Tsx => Type::Tsx,
@@ -999,21 +897,6 @@ fn config(
     use_define_for_class_fields,
     is_development: options.mode == BuildMode::Development,
     react_refresh,
-    targets,
-    minify: asset
-      .target
-      .flags
-      .contains(EnvironmentFlags::SHOULD_OPTIMIZE),
-    source_type: match asset.target.source_type {
-      SourceType::Script => crate::transformer::SourceType::Script,
-      _ => crate::transformer::SourceType::Module,
-    },
-    supports_module_workers: asset
-      .target
-      .engines
-      .supports(EnvironmentFeature::WorkerModule),
-    is_library: asset.target.flags.contains(EnvironmentFlags::IS_LIBRARY),
-    is_esm_output: asset.target.output_format == OutputFormat::Esmodule,
     trace_bailouts: options.log_level == LogLevel::Verbose,
     is_swc_helpers: asset.loc.url.to_file_path()?.ancestors().any(|p| {
       p.file_name() == "helpers" && p.parent().map(|p| p.file_name() == "@swc") == Some(true)
@@ -1023,7 +906,5 @@ fn config(
       .url
       .query()
       .map_or(false, |q| q.contains("standalone=true")), // TODO: use a real parser
-    esm_helpers: Some("@parcel/parcel3/src/esmodule-helpers.js".into()),
-    mdx_components: Some("@parcel/parcel3/src/mdx-components".into()),
   })
 }

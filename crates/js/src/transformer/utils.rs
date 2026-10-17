@@ -1,5 +1,7 @@
 use std::{borrow::Cow, cmp::Ordering};
 
+pub use parcel_core::SourceType;
+
 use swc_core::{
   common::{
     DUMMY_SP, Mark, SourceMap, Span, SyntaxContext,
@@ -274,18 +276,6 @@ pub enum DiagnosticSeverity {
   Warning,
   /// An error if this is source code in the project, or a warning if in node_modules.
   SourceError,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, Copy)]
-pub enum SourceType {
-  Script,
-  Module,
-}
-
-impl Default for SourceType {
-  fn default() -> Self {
-    SourceType::Module
-  }
 }
 
 #[derive(Debug)]

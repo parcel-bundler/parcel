@@ -189,7 +189,7 @@ impl<'a> DependencyCollector<'a> {
   ) -> Option<JsWord> {
     // Rewrite SWC helpers from ESM to CJS for library output.
     let mut is_specifier_rewritten = false;
-    if self.config.is_library && !self.config.is_esm_output {
+    if self.config.is_library() && !self.config.is_esm_output() {
       if let Some(rest) = specifier.strip_prefix("@swc/helpers/_/") {
         specifier = format!("@swc/helpers/cjs/{}.cjs", rest).into();
         is_specifier_rewritten = true;
@@ -296,7 +296,7 @@ impl<'a> DependencyCollector<'a> {
       if optional {
         return req;
       }
-      return create_url_constructor(req, self.config.is_esm_output, optional);
+      return create_url_constructor(req, self.config.is_esm_output(), optional);
     }
 
     // For library builds, we need to create something that can be statically analyzed by another bundler,
@@ -329,7 +329,7 @@ impl<'a> DependencyCollector<'a> {
 
     create_url_constructor(
       ast::Expr::Lit(ast::Lit::Str(placeholder.into())),
-      self.config.is_esm_output,
+      self.config.is_esm_output(),
       optional,
     )
   }
@@ -339,7 +339,7 @@ impl<'a> DependencyCollector<'a> {
 
     // For scripts, we replace with __parcel__require__, which is later replaced
     // by a real parcelRequire of the resolved asset in the packager.
-    if self.config.source_type == SourceType::Script {
+    if self.config.source_type() == SourceType::Script {
       res.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new_no_ctxt(
         "__parcel__require__".into(),
         DUMMY_SP,
@@ -400,7 +400,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
   fn fold_module_decl(&mut self, node: ast::ModuleDecl) -> ast::ModuleDecl {
     // If an import or export is seen within a script, flag it to throw an error from JS.
-    if self.config.source_type == SourceType::Script {
+    if self.config.source_type() == SourceType::Script {
       match node {
         ast::ModuleDecl::Import(ast::ImportDecl { span, .. })
         | ast::ModuleDecl::ExportAll(ast::ExportAll { span, .. })
@@ -435,7 +435,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       DependencyKind::Import,
       attributes,
       false,
-      self.config.source_type,
+      self.config.source_type(),
       false,
     );
 
@@ -464,7 +464,7 @@ impl<'a> Fold for DependencyCollector<'a> {
         DependencyKind::Export,
         attributes,
         false,
-        self.config.source_type,
+        self.config.source_type(),
         false,
       );
 
@@ -489,7 +489,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       DependencyKind::Export,
       attributes,
       false,
-      self.config.source_type,
+      self.config.source_type(),
       false,
     );
 
@@ -577,7 +577,7 @@ impl<'a> Fold for DependencyCollector<'a> {
               }
               "importScripts" => {
                 if self.config.is_worker() {
-                  let (msg, span) = if self.config.source_type == SourceType::Script {
+                  let (msg, span) = if self.config.source_type() == SourceType::Script {
                     // Ignore if argument is not a string literal.
                     let span = if let Some(ast::ExprOrSpread { expr, .. }) = node.args.first() {
                       match &**expr {
@@ -618,7 +618,7 @@ impl<'a> Fold for DependencyCollector<'a> {
                     hints: Some(vec![String::from(
                       "Use a static `import`, or dynamic `import()` instead.",
                     )]),
-                    show_environment: self.config.source_type == SourceType::Script,
+                    show_environment: self.config.source_type() == SourceType::Script,
                     severity: DiagnosticSeverity::Error,
                     documentation_url: Some(String::from(
                       "https://parceljs.org/languages/javascript/#classic-script-workers",
@@ -886,7 +886,7 @@ impl<'a> Fold for DependencyCollector<'a> {
       if let Some((specifier, span)) = match_str(&arg.expr) {
         is_specifier_str = true;
         // require() calls aren't allowed in scripts, flag as an error.
-        if kind == DependencyKind::Require && self.config.source_type == SourceType::Script {
+        if kind == DependencyKind::Require && self.config.source_type() == SourceType::Script {
           self.add_script_error(node.span);
           return node;
         }
@@ -897,7 +897,7 @@ impl<'a> Fold for DependencyCollector<'a> {
           kind.clone(),
           attributes,
           kind == DependencyKind::Require && self.in_try,
-          self.config.source_type,
+          self.config.source_type(),
           false,
         );
 
@@ -981,7 +981,7 @@ impl<'a> Fold for DependencyCollector<'a> {
             if let Some(args) = &node.args {
               if let ast::Expr::New(new) = create_url_constructor(
                 *args[0].expr.clone().fold_with(self),
-                self.config.is_esm_output,
+                self.config.is_esm_output(),
                 false,
               ) {
                 return new;
@@ -1050,7 +1050,7 @@ impl<'a> Fold for DependencyCollector<'a> {
 
           // If module workers aren't supported natively, remove the `type: 'module'` option.
           // If no other options are passed, remove the argument entirely.
-          if !self.config.supports_module_workers {
+          if !self.config.supports_module_workers() {
             match opts {
               None => {
                 args.truncate(1);
@@ -1092,14 +1092,14 @@ impl<'a> Fold for DependencyCollector<'a> {
         specifier,
         span,
         DependencyKind::Url,
-        self.config.source_type,
+        self.config.source_type(),
         needs_stable_name,
         optional,
       );
 
       // If this is a library, we will already have a URL object. Otherwise, we need to
       // construct one from the string returned by the JSRuntime.
-      if !self.config.is_library && !self.config.standalone && !optional {
+      if !self.config.is_library() && !self.config.standalone && !optional {
         return Expr::New(NewExpr {
           span: DUMMY_SP,
           callee: Box::new(Expr::Ident(Ident::new_no_ctxt("URL".into(), DUMMY_SP))),
@@ -1528,7 +1528,7 @@ impl<'a> DependencyCollector<'a> {
         kind: MetaPropKind::ImportMeta,
         span,
       }) => {
-        if self.config.source_type == SourceType::Script {
+        if self.config.source_type() == SourceType::Script {
           self.diagnostics.push(Diagnostic {
             message: "`import.meta` is not supported outside a module.".to_string(),
             code_highlights: Some(vec![CodeHighlight {
@@ -1566,8 +1566,8 @@ impl<'a> DependencyCollector<'a> {
         if let Some((name, span)) = name {
           match name.as_str() {
             "distDir" => {
-              if self.config.is_library {
-                return if self.config.is_esm_output {
+              if self.config.is_library() {
+                return if self.config.is_esm_output() {
                   Some(Expr::Member(member_expr!(
                     SyntaxContext::empty().apply_mark(self.unresolved_mark),
                     span,
@@ -1589,8 +1589,8 @@ impl<'a> DependencyCollector<'a> {
               )))
             }
             "publicUrl" => {
-              if self.config.is_library {
-                return if self.config.is_esm_output {
+              if self.config.is_library() {
+                return if self.config.is_esm_output() {
                   Some(Expr::Member(member_expr!(
                     SyntaxContext::empty().apply_mark(self.unresolved_mark),
                     span,
@@ -1612,8 +1612,8 @@ impl<'a> DependencyCollector<'a> {
               )))
             }
             "devServer" => {
-              if self.config.is_library {
-                return if self.config.is_esm_output {
+              if self.config.is_library() {
+                return if self.config.is_esm_output() {
                   Some(Expr::Member(member_expr!(
                     Default::default(),
                     span,
@@ -1802,6 +1802,8 @@ mod test {
     DependencyDescriptor,
     test_utils::{RunTestContext, RunVisitResult, run_fold},
   };
+  use parcel_core::{Browsers, Engines, Target};
+  use std::sync::Arc;
 
   fn make_dependency_collector<'a>(
     context: RunTestContext,
@@ -2397,7 +2399,20 @@ Promise.resolve(import("{}"));
   fn test_worker_dependency() {
     let mut items = vec![];
     let mut diagnostics = vec![];
-    let config = make_config();
+    // A browser without module workers, so the `type: 'module'` option is removed.
+    let config = Config {
+      target: Arc::new(Target {
+        engines: Engines {
+          browsers: Browsers {
+            firefox: Some("100".parse().unwrap()),
+            ..Default::default()
+          },
+          ..Default::default()
+        },
+        ..Default::default()
+      }),
+      ..make_config()
+    };
     let input_code = r#"
       new Worker(new URL('other', import.meta.url), {type: 'module'});
     "#;

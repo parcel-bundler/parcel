@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::transformer::{
-  Config, SourceLocation,
+  Config, MDX_COMPONENTS, SourceLocation,
   utils::{CodeHighlight, Diagnostic, DiagnosticSeverity},
 };
 use markdown::{
@@ -64,12 +64,7 @@ pub fn mdx(config: &Config) -> Result<MdxResult, Diagnostic> {
   let mut assets = Vec::new();
   transform_code(&mut ast, &mut assets);
   if !assets.is_empty() {
-    options.provider_import_source = Some(
-      config
-        .mdx_components
-        .clone()
-        .unwrap_or_else(|| crate::transformer::DEFAULT_MDX_COMPONENTS.into()),
-    );
+    options.provider_import_source = Some(MDX_COMPONENTS.into());
     let children = ast.children_mut().unwrap();
     let imports = (0..assets.len()).map(|i| {
       Node::MdxjsEsm(MdxjsEsm {
@@ -518,11 +513,10 @@ mod tests {
   use super::*;
 
   #[test]
-  fn uses_configured_mdx_components() {
+  fn imports_mdx_components() {
     let result = mdx(&Config {
       filename: "index.mdx".into(),
       code: b"```js render\nconsole.log('test');\n```".to_vec(),
-      mdx_components: Some("@parcel/parcel3/src/mdx-components".into()),
       ..Default::default()
     })
     .unwrap();

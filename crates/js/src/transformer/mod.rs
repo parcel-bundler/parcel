@@ -36,6 +36,9 @@ use indexmap::IndexMap;
 pub use mdx::{MdxAsset, mdx};
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
+use parcel_core::{
+  Environment, EnvironmentFeature, EnvironmentFlags, IncludeNodeModules, OutputFormat, Target,
+};
 use parcel_macros::{MacroCallback, MacroError, Macros};
 use path_slash::PathExt;
 use react_lazy::ReactLazy;
@@ -77,18 +80,20 @@ pub use utils::{Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
-const DEFAULT_ESM_HELPERS: &str = "@parcel/transformer-js/src/esmodule-helpers.js";
-pub(crate) const DEFAULT_MDX_COMPONENTS: &str = "@parcel/transformer-js/src/mdx-components";
+pub(crate) const ESM_HELPERS: &str = "@parcel/parcel3/src/esmodule-helpers.js";
+pub(crate) const MDX_COMPONENTS: &str = "@parcel/parcel3/src/mdx-components";
 
 #[derive(Default, Debug)]
 pub struct Config {
   pub filename: String,
   pub code: Vec<u8>,
   pub project_root: String,
+  /// The target the module is compiled for. A "use client" or "use server" directive replaces it
+  /// (see `directive_target`).
+  pub target: Arc<Target>,
+  pub asset_type: Type,
   pub env: HashMap<JsWord, JsWord>,
   pub inline_fs: bool,
-  pub context: EnvContext,
-  pub asset_type: Type,
   pub jsx_pragma: Option<String>,
   pub jsx_pragma_frag: Option<String>,
   pub automatic_jsx_runtime: bool,
@@ -97,17 +102,9 @@ pub struct Config {
   pub use_define_for_class_fields: bool,
   pub is_development: bool,
   pub react_refresh: bool,
-  pub targets: Option<Versions>,
-  pub source_type: SourceType,
-  pub supports_module_workers: bool,
-  pub is_library: bool,
-  pub is_esm_output: bool,
-  pub minify: bool,
   pub trace_bailouts: bool,
   pub is_swc_helpers: bool,
   pub standalone: bool,
-  pub esm_helpers: Option<String>,
-  pub mdx_components: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -120,74 +117,101 @@ pub enum Type {
   Mdx,
 }
 
-#[derive(Default, Debug)]
-pub enum EnvContext {
-  #[default]
-  Browser,
-  WebWorker,
-  ServiceWorker,
-  Worklet,
-  Node,
-  ElectronRenderer,
-  ElectronMain,
-  ReactClient,
-  ReactServer,
-}
-
 impl Config {
+  fn environment(&self) -> Environment {
+    self.target.environment
+  }
+
   fn is_browser(&self) -> bool {
-    use EnvContext::*;
-    matches!(
-      self.context,
-      Browser | WebWorker | ServiceWorker | Worklet | ElectronRenderer | ReactClient
-    )
+    self.environment().is_browser()
   }
 
   fn is_node(&self) -> bool {
-    use EnvContext::*;
-    matches!(
-      self.context,
-      Node | ElectronMain | ElectronRenderer | ReactServer
-    )
-  }
-
-  fn is_server(&self) -> bool {
-    use EnvContext::*;
-    matches!(self.context, Node | ReactServer)
+    self.environment().is_node()
   }
 
   fn is_worker(&self) -> bool {
-    use EnvContext::*;
-    matches!(self.context, WebWorker | ServiceWorker)
+    self.environment().is_worker()
   }
 
-  fn is_worklet(&self) -> bool {
-    use EnvContext::*;
-    matches!(self.context, Worklet)
+  fn is_library(&self) -> bool {
+    self.target.flags.contains(EnvironmentFlags::IS_LIBRARY)
+  }
+
+  fn is_esm_output(&self) -> bool {
+    self.target.output_format == OutputFormat::Esmodule
+  }
+
+  fn source_type(&self) -> SourceType {
+    self.target.source_type
+  }
+
+  fn minify(&self) -> bool {
+    self
+      .target
+      .flags
+      .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+  }
+
+  fn supports_module_workers(&self) -> bool {
+    self
+      .target
+      .engines
+      .supports(EnvironmentFeature::WorkerModule)
+  }
+
+  /// The engine versions to compile syntax down to, or None to leave syntax as is.
+  fn versions(&self) -> Option<Versions> {
+    let engines = &self.target.engines;
+    let environment = self.environment();
+    if environment.is_electron() {
+      engines.electron.as_ref().map(|electron| Versions {
+        electron: Some(convert_version(electron)),
+        ..Default::default()
+      })
+    } else if environment.is_browser() {
+      let browsers = &engines.browsers;
+      let versions = Versions {
+        android: browsers.android.as_ref().map(convert_version),
+        chrome: browsers.chrome.as_ref().map(convert_version),
+        edge: browsers.edge.as_ref().map(convert_version),
+        firefox: browsers.firefox.as_ref().map(convert_version),
+        ie: browsers.ie.as_ref().map(convert_version),
+        ios: browsers.ios_saf.as_ref().map(convert_version),
+        opera: browsers.opera.as_ref().map(convert_version),
+        safari: browsers.safari.as_ref().map(convert_version),
+        samsung: browsers.samsung.as_ref().map(convert_version),
+        ..Default::default()
+      };
+      (!versions.is_any_target()).then_some(versions)
+    } else if environment.is_node() {
+      engines.node.as_ref().map(|node| Versions {
+        node: Some(convert_version(node)),
+        ..Default::default()
+      })
+    } else {
+      None
+    }
   }
 
   fn react_refresh(&self) -> bool {
     self.is_browser()
-      && !self.is_library
+      && !self.is_library()
       && !self.is_worker()
-      && !self.is_worklet()
+      && self.environment() != Environment::Worklet
       && self.react_refresh
   }
 
   fn inline_fs(&self) -> bool {
-    self.inline_fs && !self.is_node() && self.source_type != SourceType::Script
-  }
-
-  fn node_replacer(&self) -> bool {
-    self.is_node()
+    self.inline_fs && !self.is_node() && self.source_type() != SourceType::Script
   }
 
   fn insert_node_globals(&self) -> bool {
-    !self.is_node() && self.source_type != SourceType::Script && !self.is_library
+    !self.is_node() && self.source_type() != SourceType::Script && !self.is_library()
   }
 
   fn replace_env(&self) -> bool {
-    !self.is_node() || matches!(self.context, EnvContext::ReactServer)
+    !self.is_node() || self.environment() == Environment::ReactServer
   }
 
   fn is_jsx(&self) -> bool {
@@ -197,6 +221,71 @@ impl Config {
   fn is_type_script(&self) -> bool {
     matches!(self.asset_type, Type::Ts | Type::Tsx)
   }
+}
+
+fn convert_version(version: &parcel_core::Version) -> Version {
+  Version {
+    major: version.major() as u32,
+    minor: version.minor() as u32,
+    patch: 0,
+  }
+}
+
+/// The target a "use client" or "use server" directive moves a module to, if any.
+fn directive_target(target: &Arc<Target>, directives: &[JsWord]) -> Option<Arc<Target>> {
+  if target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+    return None;
+  }
+
+  let has_directive = |directive: &str| directives.iter().any(|d| d == directive);
+  match target.environment {
+    Environment::ReactServer
+      if has_directive("use client") || has_directive("use client-entry") =>
+    {
+      Some(react_target(target, Environment::ReactClient))
+    }
+    Environment::ReactClient if has_directive("use server") => {
+      Some(react_target(target, Environment::ReactServer))
+    }
+    _ => None,
+  }
+}
+
+/// The target for code in a React environment, imported from code with the given target.
+pub(crate) fn react_target(target: &Arc<Target>, environment: Environment) -> Arc<Target> {
+  if target.environment == environment {
+    return target.clone();
+  }
+
+  if environment == Environment::ReactServer
+    && let Some(server_target) = &target.rsc_server_target
+  {
+    return server_target.clone();
+  }
+
+  let rsc_server_target = if environment == Environment::ReactClient {
+    match target.environment {
+      Environment::ReactServer => Some(target.clone()),
+      _ => target.rsc_server_target.clone(),
+    }
+  } else {
+    None
+  };
+
+  Arc::new(Target {
+    environment,
+    rsc_server_target,
+    source_type: SourceType::Module,
+    // Server code runs in the same environment as the code that imports it, and client code in
+    // browsers.
+    output_format: match environment {
+      Environment::ReactServer => target.output_format,
+      Environment::ReactClient => OutputFormat::Esmodule,
+      _ => unreachable!(),
+    },
+    include_node_modules: IncludeNodeModules::Bool(true),
+    ..(**target).clone()
+  })
 }
 
 #[derive(Clone)]
@@ -230,6 +319,8 @@ impl Default for Ast {
 #[non_exhaustive]
 pub struct TransformAstResult {
   pub ast: Ast,
+  /// The target a "use client" or "use server" directive moved the module to.
+  pub target: Option<Arc<Target>>,
   pub shebang: Option<String>,
   pub dependencies: Vec<DependencyDescriptor>,
   pub symbol_result: Option<CollectResult>,
@@ -371,29 +462,15 @@ pub fn transform_to_ast(
     }
   }
 
-  if config.is_server()
-    && !config.is_library
-    && (result.directives.contains(&"use client".into())
-      || result.directives.contains(&"use client-entry".into()))
-  {
-    config.context = EnvContext::ReactClient;
-    config.is_esm_output = true;
-  } else if !config.is_server()
-    && !config.is_library
-    && result.directives.contains(&"use server".into())
-  {
-    config.context = EnvContext::ReactServer;
-    config.is_esm_output = false;
+  if let Some(target) = directive_target(&config.target, &result.directives) {
+    config.target = target.clone();
+    result.target = Some(target);
   }
 
   let mut global_deps = vec![];
   let mut fs_deps = vec![];
-  let should_inline_fs =
-    config.inline_fs() && config.source_type != SourceType::Script && code.contains("readFileSync");
-  let should_import_swc_helpers = match config.source_type {
-    SourceType::Module => true,
-    SourceType::Script => false,
-  };
+  let should_inline_fs = config.inline_fs() && code.contains("readFileSync");
+  let should_import_swc_helpers = config.source_type() == SourceType::Module;
 
   let globals = result.ast.globals.clone();
   swc_core::common::GLOBALS.set(&*globals, || {
@@ -500,8 +577,7 @@ pub fn transform_to_ast(
             dynamic_import: true,
             ..Default::default()
           };
-          // let versions = targets_to_versions(&config.targets);
-          let versions = config.targets;
+          let versions = config.versions();
           let mut should_run_preset_env = false;
           if !config.is_swc_helpers {
             // Avoid transpiling @swc/helpers so that we don't cause infinite recursion.
@@ -543,7 +619,7 @@ pub fn transform_to_ast(
           module.visit_mut_with(&mut (
             Optional::new(
               TypeofReplacer::new(unresolved_mark, config.is_node()),
-              config.source_type != SourceType::Script,
+              config.source_type() != SourceType::Script,
             ),
             // Inline process.env and process.browser,
             Optional::new(
@@ -556,7 +632,7 @@ pub fn transform_to_ast(
                 diagnostics: &mut diagnostics,
                 unresolved_mark,
               },
-              config.source_type != SourceType::Script && !config.is_library,
+              config.source_type() != SourceType::Script && !config.is_library(),
             ),
             paren_remover(Some(&comments)),
             // Simplify expressions and remove dead branches so that we
@@ -586,7 +662,7 @@ pub fn transform_to_ast(
                 needs_dirname: &mut result.needs_dirname,
                 has_node_replacements: &mut result.has_node_replacements,
               },
-              config.node_replacer(),
+              config.is_node(),
             ),
           );
 
@@ -656,8 +732,8 @@ pub fn transform_to_ast(
           }
 
           if matches!(
-            config.context,
-            EnvContext::ReactClient | EnvContext::ReactServer
+            config.environment(),
+            Environment::ReactClient | Environment::ReactServer
           ) {
             module.visit_with(&mut ReactLazy::new(&collect, &mut result.dependencies));
           }
@@ -667,12 +743,11 @@ pub fn transform_to_ast(
             result.symbol_result = Some(collect.into());
           }
 
-          let mut module = if !config.is_library || !config.is_esm_output {
+          let mut module = if !config.is_library() || !config.is_esm_output() {
             let (module, needs_helpers, prologue_len) = esm2cjs(
               module,
               unresolved_mark,
               versions,
-              config.esm_helpers.as_deref().unwrap_or(DEFAULT_ESM_HELPERS),
             );
             result.needs_esm_helpers = needs_helpers;
             result.esm_prologue_len = prologue_len;
@@ -747,7 +822,7 @@ pub fn transform_to_ast(
           }
 
           result.ast.program = module;
-          if !config.minify && !config.is_library {
+          if !config.minify() && !config.is_library() {
             result.ast.finalize();
           }
           Ok(result)
@@ -922,6 +997,35 @@ mod tests {
   };
 
   #[test]
+  fn directives_retarget_react_environments_only() {
+    let target = |environment| {
+      Arc::new(Target {
+        environment,
+        ..Default::default()
+      })
+    };
+    let use_client = ["use client".into()];
+    let use_server = ["use server".into()];
+
+    let client = directive_target(&target(Environment::ReactServer), &use_client).unwrap();
+    assert_eq!(client.environment, Environment::ReactClient);
+    assert_eq!(client.output_format, OutputFormat::Esmodule);
+    let server = directive_target(&target(Environment::ReactClient), &use_server).unwrap();
+    assert_eq!(server.environment, Environment::ReactServer);
+
+    // Outside React environments the directives keep the module where it is, so it is compiled
+    // for the target it is bundled with.
+    assert!(directive_target(&target(Environment::Node), &use_client).is_none());
+    assert!(directive_target(&target(Environment::Browser), &use_server).is_none());
+    let library = Arc::new(Target {
+      environment: Environment::ReactServer,
+      flags: EnvironmentFlags::IS_LIBRARY,
+      ..Default::default()
+    });
+    assert!(directive_target(&library, &use_client).is_none());
+  }
+
+  #[test]
   fn resolves_bindings_returned_by_macros() {
     let callback = |_, _, _, _| {
       Ok::<_, MacroError>(JsValue::Function(
@@ -937,7 +1041,10 @@ mod tests {
           output = makeFunction();
         "#
         .to_vec(),
-        minify: true,
+        target: Arc::new(Target {
+          flags: EnvironmentFlags::SHOULD_OPTIMIZE,
+          ..Default::default()
+        }),
         ..Default::default()
       },
       Some(&callback),

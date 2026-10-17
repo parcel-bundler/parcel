@@ -14,7 +14,7 @@ use swc_core::{
 };
 
 use crate::transformer::{
-  fold_member_expr_skip_prop, id,
+  ESM_HELPERS, fold_member_expr_skip_prop, id,
   utils::{get_undefined_ident, match_export_name, match_export_name_ident},
 };
 
@@ -22,7 +22,6 @@ pub fn esm2cjs(
   node: Module,
   unresolved_mark: Mark,
   versions: Option<Versions>,
-  esm_helpers: &str,
 ) -> (Module, bool, usize) {
   let mut fold = ESMFold {
     imports: HashMap::new(),
@@ -38,7 +37,6 @@ pub fn esm2cjs(
     unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
     versions,
     is_esm: false,
-    esm_helpers: esm_helpers.into(),
     prologue_len: 0,
   };
 
@@ -65,7 +63,6 @@ struct ESMFold {
   unresolved_ctxt: SyntaxContext,
   versions: Option<Versions>,
   is_esm: bool,
-  esm_helpers: JsWord,
   // The number of statements the module starts with that define its exports and require its
   // imports, before the rest of its body.
   prologue_len: usize,
@@ -627,10 +624,7 @@ impl Fold for ESMFold {
               .into(),
             ),
             init: Some(Box::new(Expr::Call(
-              crate::transformer::utils::create_require(
-                self.esm_helpers.clone(),
-                self.unresolved_mark,
-              ),
+              crate::transformer::utils::create_require(ESM_HELPERS.into(), self.unresolved_mark),
             ))),
             definite: false,
           }],
@@ -714,15 +708,10 @@ mod tests {
   use crate::transformer::test_utils::run_with_transformation;
 
   #[test]
-  fn uses_configured_esm_helpers() {
+  fn requires_esm_helpers() {
     let (output, needs_helpers) =
       run_with_transformation("export default 42", |context, module| {
-        let (result, needs_helpers, _) = esm2cjs(
-          module.clone(),
-          context.unresolved_mark,
-          None,
-          "@parcel/parcel3/src/esmodule-helpers.js",
-        );
+        let (result, needs_helpers, _) = esm2cjs(module.clone(), context.unresolved_mark, None);
         *module = result;
         needs_helpers
       });
