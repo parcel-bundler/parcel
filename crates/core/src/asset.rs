@@ -107,6 +107,12 @@ pub enum AssetType {
   Atom,
 }
 
+impl Default for AssetType {
+  fn default() -> Self {
+    AssetType::Js
+  }
+}
+
 impl Serialize for AssetType {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where

@@ -32,9 +32,9 @@ pub use mdx::mdx;
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
 use parcel_core::{
-  AssetFlags, AssetSymbols, Dependency, DependencyResolution, Environment, EnvironmentFeature,
-  EnvironmentFlags, FileSystem, IncludeNodeModules, OutputFormat, PathId, SourceUrl, SpecifierType,
-  Target,
+  AssetFlags, AssetSymbols, AssetType, Dependency, DependencyResolution, Environment,
+  EnvironmentFeature, EnvironmentFlags, FileSystem, IncludeNodeModules, OutputFormat, PathId,
+  SourceUrl, SpecifierType, Target,
 };
 use parcel_macros::{MacroCallback, MacroError, Macros};
 
@@ -89,7 +89,7 @@ pub struct Config {
   /// The target the module is compiled for. A "use client" or "use server" directive replaces it
   /// (see `directive_target`).
   pub target: Arc<Target>,
-  pub asset_type: Type,
+  pub asset_type: AssetType,
   pub env: HashMap<JsWord, JsWord>,
   pub inline_fs: bool,
   pub jsx_pragma: Option<String>,
@@ -103,16 +103,6 @@ pub struct Config {
   pub trace_bailouts: bool,
   pub is_swc_helpers: bool,
   pub standalone: bool,
-}
-
-#[derive(Debug, Default)]
-pub enum Type {
-  #[default]
-  Js,
-  Jsx,
-  Ts,
-  Tsx,
-  Mdx,
 }
 
 impl Config {
@@ -213,11 +203,14 @@ impl Config {
   }
 
   fn is_jsx(&self) -> bool {
-    matches!(self.asset_type, Type::Jsx | Type::Tsx | Type::Mdx)
+    matches!(
+      self.asset_type,
+      AssetType::Jsx | AssetType::Tsx | AssetType::Mdx
+    )
   }
 
   fn is_type_script(&self) -> bool {
-    matches!(self.asset_type, Type::Ts | Type::Tsx)
+    matches!(self.asset_type, AssetType::Ts | AssetType::Tsx)
   }
 }
 
@@ -405,7 +398,7 @@ pub fn transform_to_ast(
   };
 
   let mut mdx_assets = Vec::new();
-  let (module, comments) = if matches!(config.asset_type, Type::Mdx) {
+  let (module, comments) = if matches!(config.asset_type, AssetType::Mdx) {
     source_map.new_source_file(Lrc::new(FileName::Real(filename)), code.to_owned());
 
     let res = mdx(&config);

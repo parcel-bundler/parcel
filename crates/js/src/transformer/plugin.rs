@@ -450,12 +450,10 @@ fn config(
     code: asset.content.read()?,
     project_root: options.project_root,
     target: asset.target.clone(),
-    asset_type: match asset.ty {
-      AssetType::Ts => Type::Ts,
-      AssetType::Tsx => Type::Tsx,
-      AssetType::Mdx => Type::Mdx,
-      _ if is_jsx => Type::Jsx,
-      _ => Type::Js,
+    asset_type: if is_jsx && !matches!(asset.ty, AssetType::Ts | AssetType::Tsx | AssetType::Mdx) {
+      AssetType::Jsx
+    } else {
+      asset.ty.clone()
     },
     env,
     inline_fs,
