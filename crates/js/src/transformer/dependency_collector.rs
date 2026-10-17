@@ -21,7 +21,7 @@ use swc_core::{
 use crate::transformer::{Config, fold_member_expr_skip_prop, react_target, utils::*};
 use parcel_core::{
   BundleBehavior, Dependency, DependencyFlags, DependencyResolution, Environment, ExportsCondition,
-  ImportType, OutputFormat, PathId, Priority, SourceUrl, SpecifierType, Target,
+  ImportType, OutputFormat, Priority, SourceUrl, SpecifierType, Target,
 };
 
 macro_rules! hash {
@@ -195,6 +195,14 @@ impl Config {
     } else {
       None
     };
+    dependency
+  }
+
+  /// A dependency on a Parcel runtime module the transformer inserted. Projects do not depend on
+  /// these packages, so they are bundled even in libraries.
+  pub(crate) fn runtime_dependency(&self, specifier: &str) -> Dependency {
+    let mut dependency = self.helper_dependency(DependencyKind::Import, specifier);
+    dependency.flags |= DependencyFlags::FORCE_BUNDLE;
     dependency
   }
 

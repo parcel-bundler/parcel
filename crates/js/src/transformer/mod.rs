@@ -20,12 +20,11 @@ pub use plugin::JsTransformer;
 
 use std::{
   collections::{HashMap, HashSet},
-  path::{Path, PathBuf},
+  path::PathBuf,
   sync::Arc,
 };
 
-pub use collect::CollectImportedSymbol;
-use collect::{Collect, CollectResult};
+use collect::{Collect, import_namespace};
 pub use dependency_collector::{DependencyKind, dependency_collector};
 use env_replacer::*;
 use fs::inline_fs;
@@ -35,8 +34,9 @@ pub use mdx::mdx;
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
 use parcel_core::{
-  Dependency, DependencyResolution, Environment, EnvironmentFeature, EnvironmentFlags, FileSystem,
-  IncludeNodeModules, OutputFormat, PathId, SourceUrl, Target,
+  AssetFlags, AssetSymbols, Dependency, DependencyResolution, Environment, EnvironmentFeature,
+  EnvironmentFlags, FileSystem, IncludeNodeModules, OutputFormat, PathId, SourceUrl, SpecifierType,
+  Target,
 };
 use parcel_macros::{MacroCallback, MacroError, Macros};
 
@@ -323,11 +323,15 @@ pub struct TransformAstResult {
   pub target: Option<Arc<Target>>,
   pub shebang: Option<String>,
   pub dependencies: Vec<Dependency>,
-  pub symbol_result: Option<CollectResult>,
+  /// The symbols the module imports and exports, referring to `dependencies` by index.
+  pub symbols: AssetSymbols,
+  /// How the module exports its symbols, if they could be statically analyzed.
+  pub flags: AssetFlags,
+  /// The index of the dependency on the React Server Components runtime, if any.
+  pub rsc_runtime_dep: Option<u32>,
   pub diagnostics: Vec<Diagnostic>,
   /// Why symbols could not be statically analyzed, when `Config::trace_bailouts` is set.
   pub bailouts: Vec<Diagnostic>,
-  pub needs_esm_helpers: bool,
   pub has_node_replacements: bool,
   pub needs_filename: bool,
   pub needs_dirname: bool,
@@ -740,18 +744,14 @@ pub fn transform_to_ast(
             module.visit_with(&mut ReactLazy::new(&collect, &mut result.dependencies));
           }
 
-          // Bail if we could not statically analyze.
-          if collect.static_cjs_exports && !collect.should_wrap {
-            result.symbol_result = Some(collect.into());
-          }
-
+          let mut needs_esm_helpers = false;
           let mut module = if !config.is_library() || !config.is_esm_output() {
             let (module, needs_helpers, prologue_len) = esm2cjs(
               module,
               unresolved_mark,
               versions,
             );
-            result.needs_esm_helpers = needs_helpers;
+            needs_esm_helpers = needs_helpers;
             result.esm_prologue_len = prologue_len;
             module
           } else {
@@ -774,6 +774,9 @@ pub fn transform_to_ast(
           }
 
           result.diagnostics = diagnostics;
+
+          // Runtime modules the transformer inserted, whose namespaces the module imports.
+          let mut runtime_dependencies = Vec::new();
 
           if config.react_refresh() && result.dependencies.iter().any(|d| matches!(&*d.specifier, "react" | "react/jsx-runtime" | "react/jsx-dev-runtime" | "@emotion/react" | "@emotion/react/jsx-runtime" | "@emotion/react/jsx-dev-runtime")) {
             result.react_refresh_wrapped = true;
@@ -811,23 +814,37 @@ pub fn transform_to_ast(
               })))
             ];
 
+            runtime_dependencies.push(result.dependencies.len() as u32);
             result.dependencies.push(config.dependency(
               DependencyKind::Require,
               "@parcel/parcel3/src/react-refresh.js",
               SourceType::Module,
               None,
             ));
-
-            if let Some(sym) = &mut result.symbol_result {
-              sym.imports.push(CollectImportedSymbol {
-                source: "@parcel/parcel3/src/react-refresh.js".into(),
-                local: "$parcel$ReactRefreshHelpers".into(),
-                imported: "*".into(),
-                loc: SourceLocation { start_line: 0, start_col: 0, end_line: 0, end_col: 0 },
-                kind: collect::ImportKind::Require
-              });
-            }
           }
+
+          if needs_esm_helpers {
+            runtime_dependencies.push(result.dependencies.len() as u32);
+            result.dependencies.push(config.runtime_dependency(ESM_HELPERS));
+          }
+
+          let rsc_runtime = match config.environment() {
+            Environment::ReactServer => Some("@parcel/rsc/runtime/server"),
+            Environment::ReactClient => Some("@parcel/rsc/runtime/client"),
+            _ => None,
+          };
+          if let Some(specifier) = rsc_runtime
+            && !result.directives.iter().any(|d| d == "use parcel-rsc-runtime")
+          {
+            let mut dependency = config.runtime_dependency(specifier);
+            dependency.placeholder = Some("__parcel_rsc_runtime__".into());
+            result.rsc_runtime_dep = Some(result.dependencies.len() as u32);
+            runtime_dependencies.push(result.dependencies.len() as u32);
+            result.dependencies.push(dependency);
+          }
+
+          (result.symbols, result.flags) =
+            asset_symbols(collect, &result.dependencies, &runtime_dependencies);
 
           result.ast.program = module;
           if !config.minify() && !config.is_library() {
@@ -838,6 +855,47 @@ pub fn transform_to_ast(
       )
     })
   })
+}
+
+/// The symbols of a module, given all of its dependencies.
+fn asset_symbols(
+  collect: Collect,
+  dependencies: &[Dependency],
+  runtime_dependencies: &[u32],
+) -> (AssetSymbols, AssetFlags) {
+  let (mut symbols, flags) = if collect.is_static() {
+    let flags = collect.asset_flags();
+    let indices: HashMap<&str, u32> = dependencies
+      .iter()
+      .enumerate()
+      .map(|(index, dep)| {
+        let key = dep.placeholder.as_deref().unwrap_or(&dep.specifier);
+        (key, index as u32)
+      })
+      .collect();
+    (
+      collect.into_symbols(|source| indices[source.as_str()]),
+      flags,
+    )
+  } else {
+    // Could not statically analyze symbols. Assume everything is imported.
+    let mut symbols = AssetSymbols::default();
+    for (index, dep) in dependencies.iter().enumerate() {
+      if matches!(
+        dep.specifier_type,
+        SpecifierType::Esm | SpecifierType::Commonjs
+      ) {
+        import_namespace(&mut symbols, index as u32);
+      }
+    }
+    (symbols, AssetFlags::empty())
+  };
+
+  for &dep_index in runtime_dependencies {
+    import_namespace(&mut symbols, dep_index);
+  }
+  symbols.imports.sort_by_key(|symbol| symbol.dep_index);
+  (symbols, flags)
 }
 
 pub type ParseResult<T> = Result<T, Vec<Error>>;
@@ -974,6 +1032,7 @@ fn macro_error_to_diagnostic(error: MacroError, source_map: &SourceMap) -> Diagn
 mod tests {
   use super::*;
   use parcel_macros::JsValue;
+  use std::path::Path;
   use swc_core::{
     common::SyntaxContext,
     ecma::{

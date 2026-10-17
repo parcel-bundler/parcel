@@ -311,7 +311,7 @@ impl AssetType {
 }
 
 bitflags! {
-  #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+  #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Default)]
   pub struct AssetFlags: u32 {
     const IS_SOURCE = 1 << 0;
     const SIDE_EFFECTS = 1 << 1;

@@ -1,5 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
+use parcel_core::{
+  AssetFlags, AssetSymbols, ImportedSymbol, IndirectSymbol, LocalSymbol, StarSymbol, SymbolName,
+  SymbolResolution,
+};
+
 use swc_core::{
   common::{DUMMY_SP, Mark, Span, sync::Lrc},
   ecma::{
@@ -11,7 +16,7 @@ use swc_core::{
 };
 
 use crate::transformer::{
-  DependencyKind, id,
+  id,
   utils::{
     Bailout, BailoutReason, SourceLocation, is_unresolved, match_export_name,
     match_export_name_ident, match_import, match_member_expr, match_property_name, match_require,
@@ -32,28 +37,17 @@ macro_rules! collect_visit_fn {
   };
 }
 
+/// How a CommonJS module or dynamic import is loaded.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ImportKind {
   Require,
-  Import,
   DynamicImport,
-}
-
-impl Into<DependencyKind> for ImportKind {
-  fn into(self) -> DependencyKind {
-    match self {
-      ImportKind::Require => DependencyKind::Require,
-      ImportKind::Import => DependencyKind::Import,
-      ImportKind::DynamicImport => DependencyKind::DynamicImport,
-    }
-  }
 }
 
 #[derive(Debug)]
 pub struct Import {
   pub source: JsWord,
   pub specifier: JsWord,
-  pub kind: ImportKind,
   pub loc: SourceLocation,
 }
 
@@ -93,44 +87,6 @@ pub struct Collect {
   is_module: bool,
 }
 
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub struct CollectImportedSymbol {
-  pub source: JsWord,
-  pub local: JsWord,
-  pub imported: JsWord,
-  pub loc: SourceLocation,
-  pub kind: ImportKind,
-}
-
-#[derive(Debug)]
-#[non_exhaustive]
-pub struct CollectExportedSymbol {
-  pub source: Option<JsWord>,
-  pub local: JsWord,
-  pub exported: JsWord,
-  pub loc: SourceLocation,
-}
-
-#[derive(Debug)]
-pub struct CollectExportedAll {
-  pub source: JsWord,
-  pub loc: SourceLocation,
-}
-
-#[derive(Debug)]
-#[non_exhaustive]
-pub struct CollectResult {
-  pub imports: Vec<CollectImportedSymbol>,
-  pub exports: Vec<CollectExportedSymbol>,
-  pub exports_all: Vec<CollectExportedAll>,
-  pub non_static_requires: Vec<JsWord>,
-  pub should_wrap: bool,
-  pub has_cjs_exports: bool,
-  pub static_cjs_exports: bool,
-  pub is_esm: bool,
-}
-
 impl Collect {
   pub fn new(
     source_map: Lrc<swc_core::common::SourceMap>,
@@ -165,109 +121,126 @@ impl Collect {
   }
 }
 
-impl From<Collect> for CollectResult {
-  fn from(collect: Collect) -> CollectResult {
-    // The collect maps are HashMaps, so sort by source location to keep symbol
-    // order deterministic across builds (it flows into asset symbols and output).
-    let mut imports: Vec<CollectImportedSymbol> = collect
-      .imports
-      .into_iter()
-      .filter(|(local, _)| collect.used_imports.contains(local))
-      .map(
-        |(
-          local,
-          Import {
-            source,
-            specifier,
-            loc,
-            kind,
-          },
-        )| CollectImportedSymbol {
-          source,
-          local: local.0,
-          imported: specifier,
-          loc,
-          kind,
-        },
-      )
-      .collect();
-    imports.sort_by(|a, b| {
-      (a.loc.start_line, a.loc.start_col, &a.local).cmp(&(
-        b.loc.start_line,
-        b.loc.start_col,
-        &b.local,
-      ))
-    });
+impl Collect {
+  /// Whether the module's imports and exports could be statically analyzed.
+  pub fn is_static(&self) -> bool {
+    self.static_cjs_exports && !self.should_wrap
+  }
 
-    let mut exports: Vec<CollectExportedSymbol> = collect
-      .exports
-      .into_iter()
-      .map(
-        |(
-          exported,
-          Export {
-            source,
-            specifier,
-            loc,
-            ..
-          },
-        )| CollectExportedSymbol {
-          source,
-          local: specifier,
-          exported,
-          loc,
-        },
-      )
-      .collect();
-    exports.sort_by(|a, b| {
-      (a.loc.start_line, a.loc.start_col, &a.exported).cmp(&(
-        b.loc.start_line,
-        b.loc.start_col,
-        &b.exported,
-      ))
-    });
+  /// Flags describing how the module exports its symbols.
+  pub fn asset_flags(&self) -> AssetFlags {
+    let mut flags = AssetFlags::empty();
+    flags.set(AssetFlags::HAS_CJS_EXPORTS, self.has_cjs_exports);
+    flags.set(AssetFlags::SHOULD_WRAP, self.should_wrap);
+    flags.set(AssetFlags::IS_ESM, self.is_esm);
+    flags.set(AssetFlags::STATIC_EXPORTS, self.static_cjs_exports);
+    flags
+  }
 
-    // Add * symbol if there are any CJS exports so that unknown symbols don't cause errors (e.g. default interop).
-    if collect.has_cjs_exports {
-      exports.push(CollectExportedSymbol {
-        source: None,
-        exported: "*".into(),
-        local: "_".into(),
-        loc: SourceLocation {
-          start_line: 1,
-          start_col: 1,
-          end_line: 1,
-          end_col: 1,
-        },
-      })
-    }
-
-    let mut exports_all: Vec<CollectExportedAll> = collect
-      .exports_all
-      .into_iter()
-      .map(|(source, loc)| CollectExportedAll { source, loc })
-      .collect();
-    exports_all.sort_by(|a, b| {
-      (a.loc.start_line, a.loc.start_col, &a.source).cmp(&(
-        b.loc.start_line,
-        b.loc.start_col,
-        &b.source,
-      ))
-    });
-
-    let mut non_static_requires: Vec<JsWord> = collect.non_static_requires.into_iter().collect();
-    non_static_requires.sort();
-
-    CollectResult {
+  /// The symbols the module imports and exports. `dep_index` returns the index of the dependency
+  /// an import source refers to.
+  pub fn into_symbols(self, dep_index: impl Fn(&JsWord) -> u32) -> AssetSymbols {
+    let Collect {
       imports,
+      used_imports,
       exports,
       exports_all,
       non_static_requires,
-      should_wrap: collect.should_wrap,
-      has_cjs_exports: collect.has_cjs_exports,
-      static_cjs_exports: collect.static_cjs_exports,
-      is_esm: collect.is_esm,
+      has_cjs_exports,
+      ..
+    } = self;
+    let mut symbols = AssetSymbols::default();
+
+    // The collect maps are HashMaps, so sort by source location to keep symbol
+    // order deterministic across builds (it flows into asset symbols and output).
+    let mut imports: Vec<_> = imports
+      .into_iter()
+      .filter(|(local, _)| used_imports.contains(local))
+      .collect();
+    imports.sort_by(|(a_local, a), (b_local, b)| {
+      (a.loc.start_line, a.loc.start_col, &a_local.0).cmp(&(
+        b.loc.start_line,
+        b.loc.start_col,
+        &b_local.0,
+      ))
+    });
+    symbols.imports = imports
+      .into_iter()
+      .map(|(_, import)| ImportedSymbol {
+        dep_index: dep_index(&import.source),
+        symbol: SymbolName::from(import.specifier.as_str()),
+        resolved: SymbolResolution::None,
+      })
+      .collect();
+
+    let mut exports: Vec<_> = exports.into_iter().collect();
+    exports.sort_by(|(a_exported, a), (b_exported, b)| {
+      (a.loc.start_line, a.loc.start_col, a_exported).cmp(&(
+        b.loc.start_line,
+        b.loc.start_col,
+        b_exported,
+      ))
+    });
+    for (exported, export) in exports {
+      let exported = SymbolName::from(exported.as_str());
+      match export.source {
+        Some(source) => symbols.indirect.push(IndirectSymbol {
+          exported,
+          dep_index: dep_index(&source),
+          imported: SymbolName::from(export.specifier.as_str()),
+          requested: false,
+        }),
+        None => symbols.exports.push(LocalSymbol {
+          exported,
+          requested: false,
+        }),
+      }
     }
+
+    // Add * symbol if there are any CJS exports so that unknown symbols don't cause errors (e.g. default interop).
+    if has_cjs_exports {
+      symbols.exports.push(LocalSymbol {
+        exported: SymbolName::Namespace,
+        requested: false,
+      });
+    }
+
+    let mut exports_all: Vec<_> = exports_all.into_iter().collect();
+    exports_all.sort_by(|(a_source, a), (b_source, b)| {
+      (a.start_line, a.start_col, a_source).cmp(&(b.start_line, b.start_col, b_source))
+    });
+    symbols.star = exports_all
+      .into_iter()
+      .map(|(source, _)| StarSymbol {
+        dep_index: dep_index(&source),
+        requested: false,
+      })
+      .collect();
+
+    // Unknown require or dynamic import usage must retain the full namespace because any export
+    // could be observed at runtime.
+    let mut non_static_requires: Vec<_> = non_static_requires.into_iter().collect();
+    non_static_requires.sort();
+    for source in non_static_requires {
+      import_namespace(&mut symbols, dep_index(&source));
+    }
+
+    symbols
+  }
+}
+
+/// Imports the namespace of a dependency, unless it is already imported.
+pub fn import_namespace(symbols: &mut AssetSymbols, dep_index: u32) {
+  if !symbols
+    .imports
+    .iter()
+    .any(|symbol| symbol.dep_index == dep_index && symbol.symbol == SymbolName::Namespace)
+  {
+    symbols.imports.push(ImportedSymbol {
+      dep_index,
+      symbol: SymbolName::Namespace,
+      resolved: SymbolResolution::None,
+    });
   }
 }
 
@@ -369,7 +342,6 @@ impl Visit for Collect {
             Import {
               source: node.src.value.to_string_lossy().into(),
               specifier: imported,
-              kind: ImportKind::Import,
               loc: SourceLocation::from(&self.source_map, named.span),
             },
           );
@@ -380,7 +352,6 @@ impl Visit for Collect {
             Import {
               source: node.src.value.to_string_lossy().into(),
               specifier: "default".into(),
-              kind: ImportKind::Import,
               loc: SourceLocation::from(&self.source_map, default.span),
             },
           );
@@ -391,7 +362,6 @@ impl Visit for Collect {
             Import {
               source: node.src.value.to_string_lossy().into(),
               specifier: "*".into(),
-              kind: ImportKind::Import,
               loc: SourceLocation::from(&self.source_map, namespace.span),
             },
           );
@@ -973,7 +943,6 @@ impl Collect {
           Import {
             source: src.clone(),
             specifier: "*".into(),
-            kind,
             loc: SourceLocation::from(&self.source_map, ident.id.span),
           },
         );
@@ -1002,7 +971,6 @@ impl Collect {
                     Import {
                       source: src.clone(),
                       specifier: imported,
-                      kind,
                       loc: SourceLocation::from(&self.source_map, ident.id.span),
                     },
                   );
@@ -1023,7 +991,6 @@ impl Collect {
                 Import {
                   source: src.clone(),
                   specifier: assign.key.sym.clone(),
-                  kind,
                   loc: SourceLocation::from(&self.source_map, assign.key.span),
                 },
               );

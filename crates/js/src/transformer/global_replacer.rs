@@ -9,7 +9,7 @@ use swc_core::{
   },
 };
 
-use parcel_core::{Dependency, PathId};
+use parcel_core::Dependency;
 
 use crate::transformer::{
   Config,

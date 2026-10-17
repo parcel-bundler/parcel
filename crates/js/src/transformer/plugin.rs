@@ -1,12 +1,11 @@
 use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
-use crate::transformer::{Config, ESM_HELPERS, Type, transform_to_ast};
+use crate::transformer::{Config, Type, transform_to_ast};
 use glob_match::glob_match;
 use parcel_core::*;
 use parcel_macros::MacroError;
 use parcel_plugin_js::call_macro;
 use parcel_resolver::{AliasValue, BrowserField, Specifier};
-use swc_core::ecma::atoms::Atom;
 
 use crate::JsContent;
 
@@ -138,9 +137,6 @@ impl Transformer for JsTransformer {
       .iter()
       .map(|directive| directive.to_string())
       .collect::<Vec<_>>();
-    let is_rsc_runtime = directives
-      .iter()
-      .any(|directive| directive == "use parcel-rsc-runtime");
 
     if let Some(target) = res.target {
       asset.target = target;
@@ -174,162 +170,34 @@ impl Transformer for JsTransformer {
       asset.flags.remove(AssetFlags::IS_BUNDLE_SPLITTABLE);
     }
 
-    let mut dep_map = HashMap::new();
-    for dep in res.dependencies {
-      let key = dep.placeholder.as_deref().unwrap_or(&dep.specifier);
-      dep_map.insert(Atom::from(key), asset.dependencies.len() as u32);
-      asset.dependencies.push(dep);
-    }
-
-    if res.needs_esm_helpers {
-      let index = asset.dependencies.len() as u32;
-      asset.dependencies.push(Dependency {
-        specifier: ESM_HELPERS.into(),
-        specifier_type: SpecifierType::Esm,
-        priority: Priority::Sync,
-        bundle_behavior: BundleBehavior::None,
-        import_type: ImportType::JavaScript,
-        flags: DependencyFlags::FORCE_BUNDLE,
-        target: asset.target.clone(),
-        loc: None,
-        placeholder: None,
-        resolve_from: Some(SourceUrl::from_directory_path(&options.project_root)), // TODO
-        range: None,
-        conditions: ExportsCondition::empty(),
-        resolution: DependencyResolution::None,
-        concurrent_group: 0,
-      });
-
-      asset.symbols.imports.push(ImportedSymbol {
-        dep_index: index,
-        symbol: SymbolName::Namespace,
-        resolved: SymbolResolution::None,
-      });
-    }
-
-    if let Some(symbols) = res.symbol_result {
-      asset
-        .flags
-        .set(AssetFlags::HAS_CJS_EXPORTS, symbols.has_cjs_exports);
-      asset
-        .flags
-        .set(AssetFlags::SHOULD_WRAP, symbols.should_wrap);
-      asset.flags.set(AssetFlags::IS_ESM, symbols.is_esm);
-      asset
-        .flags
-        .set(AssetFlags::STATIC_EXPORTS, symbols.static_cjs_exports);
-
-      for import in symbols.imports {
-        let dep_index = dep_map[&import.source];
-        asset.symbols.imports.push(ImportedSymbol {
-          dep_index,
-          symbol: SymbolName::from(import.imported.as_str()),
-          resolved: SymbolResolution::None,
-        });
-      }
-
-      for export in symbols.exports {
-        if let Some(source) = export.source {
-          let dep_index = dep_map[&source];
-          asset.symbols.indirect.push(IndirectSymbol {
-            exported: SymbolName::from(export.exported.as_str()),
-            dep_index,
-            imported: SymbolName::from(export.local.as_str()),
-            requested: false,
-          });
-        } else {
-          asset.symbols.exports.push(LocalSymbol {
-            exported: SymbolName::from(export.exported.as_str()),
-            requested: false,
-          });
-        }
-      }
-
-      for star in symbols.exports_all {
-        let dep_index = dep_map[&star.source];
-        asset.symbols.star.push(StarSymbol {
-          dep_index,
-          requested: false,
-        });
-      }
-
-      // Unknown require or dynamic import usage must retain
-      // the full namespace because any export could be observed at runtime.
-      for source in symbols.non_static_requires {
-        let dep_index = dep_map[&source];
-        if !asset
-          .symbols
-          .imports
-          .iter()
-          .any(|symbol| symbol.dep_index == dep_index && symbol.symbol == SymbolName::Namespace)
-        {
-          asset.symbols.imports.push(ImportedSymbol {
-            dep_index,
-            symbol: SymbolName::Namespace,
-            resolved: SymbolResolution::None,
-          });
-        }
-      }
-    } else {
-      // Could not statically analyze symbols. Assume everything is imported.
-      for (dep_index, dep) in asset.dependencies.iter().enumerate() {
-        if matches!(
-          dep.specifier_type,
-          SpecifierType::Esm | SpecifierType::Commonjs
-        ) {
-          asset.symbols.imports.push(ImportedSymbol {
-            dep_index: dep_index as u32,
-            symbol: SymbolName::Namespace,
-            resolved: SymbolResolution::None,
-          });
-        }
-      }
-    }
-
+    // The result refers to its dependencies by index, after any the asset already has.
+    let offset = asset.dependencies.len() as u32;
+    asset.dependencies.extend(res.dependencies);
+    let symbols = res.symbols;
     asset
       .symbols
       .imports
-      .sort_by(|a, b| a.dep_index.cmp(&b.dep_index));
-
-    let rsc_runtime_dep = if !is_rsc_runtime {
-      let specifier = match asset.target.environment {
-        Environment::ReactServer => Some("@parcel/rsc/runtime/server"),
-        Environment::ReactClient => Some("@parcel/rsc/runtime/client"),
-        _ => None,
-      };
-
-      specifier.map(|specifier| {
-        let dep_index = asset.dependencies.len() as u32;
-        asset.dependencies.push(Dependency {
-          specifier: specifier.into(),
-          specifier_type: SpecifierType::Esm,
-          priority: Priority::Sync,
-          bundle_behavior: BundleBehavior::None,
-          import_type: ImportType::JavaScript,
-          flags: DependencyFlags::FORCE_BUNDLE,
-          target: asset.target.clone(),
-          loc: None,
-          placeholder: Some("__parcel_rsc_runtime__".into()),
-          resolve_from: Some(SourceUrl::from_directory_path(&options.project_root)),
-          range: None,
-          conditions: ExportsCondition::IMPORT,
-          resolution: DependencyResolution::None,
-          concurrent_group: 0,
-        });
-        asset.symbols.imports.push(ImportedSymbol {
-          dep_index,
-          symbol: SymbolName::Namespace,
-          resolved: SymbolResolution::None,
-        });
-        asset
-          .symbols
-          .imports
-          .sort_by(|a, b| a.dep_index.cmp(&b.dep_index));
-        dep_index
-      })
-    } else {
-      None
-    };
+      .extend(symbols.imports.into_iter().map(|mut symbol| {
+        symbol.dep_index += offset;
+        symbol
+      }));
+    asset
+      .symbols
+      .indirect
+      .extend(symbols.indirect.into_iter().map(|mut symbol| {
+        symbol.dep_index += offset;
+        symbol
+      }));
+    asset
+      .symbols
+      .star
+      .extend(symbols.star.into_iter().map(|mut symbol| {
+        symbol.dep_index += offset;
+        symbol
+      }));
+    asset.symbols.exports.extend(symbols.exports);
+    asset.flags.insert(res.flags);
+    let rsc_runtime_dep = res.rsc_runtime_dep.map(|index| index + offset);
 
     asset
       .dependencies
