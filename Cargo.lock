@@ -3176,7 +3176,6 @@ dependencies = [
  "pathdiff",
  "rustc-hash",
  "serde",
- "serde_bytes",
  "serde_json",
  "simd-utf16-len",
  "swc_core",

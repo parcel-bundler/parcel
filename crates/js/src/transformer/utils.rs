@@ -1,6 +1,5 @@
 use std::{borrow::Cow, cmp::Ordering};
 
-use serde::{Deserialize, Serialize};
 use swc_core::{
   common::{
     DUMMY_SP, Mark, SourceMap, Span, SyntaxContext,
@@ -209,7 +208,7 @@ pub fn get_undefined_ident(unresolved_mark: Mark) -> ast::Ident {
   )
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 /// Corresponds to the JS SourceLocation type (1-based, end exclusive)
 pub struct SourceLocation {
   pub start_line: usize,
@@ -251,13 +250,13 @@ impl PartialOrd for SourceLocation {
   }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct CodeHighlight {
   pub message: Option<String>,
   pub loc: SourceLocation,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Diagnostic {
   pub message: String,
   pub code_highlights: Option<Vec<CodeHighlight>>,
@@ -267,7 +266,7 @@ pub struct Diagnostic {
   pub documentation_url: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum DiagnosticSeverity {
   /// Fails the build with an error.
   Error,
@@ -277,7 +276,7 @@ pub enum DiagnosticSeverity {
   SourceError,
 }
 
-#[derive(Serialize, Debug, Deserialize, Eq, PartialEq, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum SourceType {
   Script,
   Module,

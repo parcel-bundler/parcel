@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashMap};
+use std::borrow::Cow;
 
 use crate::transformer::{
   Config, SourceLocation,
@@ -16,7 +16,6 @@ use mdxjs::{
   hast_util_to_swc, mdast_util_from_mdx, mdast_util_to_hast, mdx_plugin_recma_document,
   mdx_plugin_recma_jsx_rewrite,
 };
-use parcel_macros::{Evaluator, JsValue};
 use rustc_hash::FxHashSet;
 use swc_core::{
   common::{DUMMY_SP, GLOBALS, Globals, Mark, SourceMap, comments::Comments, sync::Lrc},
@@ -25,65 +24,28 @@ use swc_core::{
       ArrayLit, BindingIdent, CallExpr, Callee, Decl, ExportDecl, ExportDefaultExpr,
       ExportSpecifier, Expr, ExprOrSpread, Ident, JSXAttrName, JSXAttrOrSpread, JSXAttrValue,
       JSXElementName, JSXExpr, JSXExprContainer, JSXOpeningElement, Lit, Module, ModuleDecl,
-      ModuleItem, Pat, Stmt, VarDecl, VarDeclKind, VarDeclarator,
+      ModuleItem, Pat, Stmt, VarDecl, VarDeclarator,
     },
-    atoms::Atom as JsWord,
     codegen::to_code,
     parser::{EsSyntax, Parser, StringInput, Syntax, TsSyntax, lexer::Lexer},
     transforms::base::{hygiene::hygiene, resolver},
-    utils::for_each_binding_ident,
     visit::{VisitMut, VisitMutWith},
   },
-  quote, quote_expr,
+  quote,
 };
 use swc_node_comments::SwcComments;
 
 pub struct MdxResult {
   pub module: Module,
   pub comments: SwcComments,
-  pub toc: Vec<TocNode>,
-  pub exports: HashMap<JsWord, JsValue>,
   pub assets: Vec<MdxAsset>,
 }
 
-#[derive(serde::Serialize, Debug)]
+#[derive(Debug)]
 pub struct MdxAsset {
   pub lang: String,
   pub code: String,
-  #[serde(serialize_with = "serialize_position")]
   pub position: Option<Position>,
-}
-
-/// Serializes identically to the derive that markdown's `serde` feature would
-/// provide; having it here keeps that feature (Serialize/Deserialize for the
-/// whole mdast node tree) out of the binary for this one field.
-fn serialize_position<S: serde::Serializer>(
-  position: &Option<Position>,
-  serializer: S,
-) -> Result<S::Ok, S::Error> {
-  #[derive(serde::Serialize)]
-  struct PointMirror {
-    line: usize,
-    column: usize,
-    offset: usize,
-  }
-  #[derive(serde::Serialize)]
-  struct PositionMirror {
-    start: PointMirror,
-    end: PointMirror,
-  }
-  let mirror = |p: &markdown::unist::Point| PointMirror {
-    line: p.line,
-    column: p.column,
-    offset: p.offset,
-  };
-  match position {
-    None => serializer.serialize_none(),
-    Some(p) => serializer.serialize_some(&PositionMirror {
-      start: mirror(&p.start),
-      end: mirror(&p.end),
-    }),
-  }
 }
 
 pub fn mdx(config: &Config) -> Result<MdxResult, Diagnostic> {
@@ -123,7 +85,6 @@ pub fn mdx(config: &Config) -> Result<MdxResult, Diagnostic> {
   let location = Location::new(code.as_bytes());
   let mut explicit_jsxs = FxHashSet::default();
   let mut program = hast_util_to_swc(&hast, &options, Some(&location), &mut explicit_jsxs)?;
-  let exports = constant_exports(&program.module);
 
   program.module.visit_mut_with(&mut DependencyVisitor);
 
@@ -146,7 +107,7 @@ pub fn mdx(config: &Config) -> Result<MdxResult, Diagnostic> {
             ..Default::default()
           }),
           definite: false,
-          init: Some(Box::new(TocNode::to_array(contents.clone()))),
+          init: Some(Box::new(TocNode::to_array(contents))),
           span: DUMMY_SP,
         }],
         ..Default::default()
@@ -157,13 +118,11 @@ pub fn mdx(config: &Config) -> Result<MdxResult, Diagnostic> {
   Ok(MdxResult {
     module: program.module,
     comments,
-    toc: contents,
-    exports,
     assets,
   })
 }
 
-#[derive(serde::Serialize, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct TocNode {
   pub title: String,
   pub level: u8,
@@ -306,38 +265,6 @@ fn is_url(el: &str, prop: &str) -> bool {
       | ("image", "href")
       | ("image", "xlink:href")
   )
-}
-
-fn constant_exports(module: &Module) -> HashMap<JsWord, JsValue> {
-  let mut exports = HashMap::new();
-  let sm = Default::default();
-  let mut evaluator = Evaluator::new(&sm);
-
-  for item in &module.body {
-    match item {
-      ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(exp)) => {
-        if let Decl::Var(var) = &exp.decl {
-          if var.kind == VarDeclKind::Const {
-            for decl in &var.decls {
-              if let Some(expr) = &decl.init {
-                let val = evaluator.eval(&*expr);
-                evaluator.eval_pat(val, &decl.name);
-
-                for_each_binding_ident(&decl.name, |id| {
-                  if let Some(Ok(val)) = evaluator.constants.get(&id.to_id()) {
-                    exports.insert(id.id.sym.clone(), val.clone());
-                  }
-                });
-              }
-            }
-          }
-        }
-      }
-      _ => {}
-    }
-  }
-
-  exports
 }
 
 /// Transform code fences with language and meta string into <CodeBlock> components.

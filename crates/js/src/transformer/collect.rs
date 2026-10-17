@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-use serde::{Deserialize, Serialize};
 use swc_core::{
   common::{DUMMY_SP, Mark, Span, sync::Lrc},
   ecma::{
@@ -33,7 +32,7 @@ macro_rules! collect_visit_fn {
   };
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Clone, Copy, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ImportKind {
   Require,
   Import,
@@ -70,7 +69,6 @@ pub struct Collect {
   pub source_map: Lrc<swc_core::common::SourceMap>,
   pub unresolved_mark: Mark,
   pub ignore_mark: Mark,
-  pub global_mark: Mark,
   pub static_cjs_exports: bool,
   pub has_cjs_exports: bool,
   pub is_esm: bool,
@@ -80,27 +78,22 @@ pub struct Collect {
   pub this_exprs: HashMap<JsWord, Span>,
   /// exported name -> descriptor
   pub exports: HashMap<JsWord, Export>,
-  /// local variable binding -> exported name
-  pub exports_locals: HashMap<Id, JsWord>,
   /// source of the export-all --> location
   pub exports_all: HashMap<JsWord, SourceLocation>,
   /// the keys in `imports` that are actually used (referenced), except namespace imports
   pub used_imports: HashSet<Id>,
   pub non_static_access: HashMap<Id, Vec<Span>>,
-  pub non_const_bindings: HashMap<Id, Vec<Span>>,
   pub non_static_requires: HashSet<JsWord>,
-  pub wrapped_requires: HashSet<String>,
   pub bailouts: Option<Vec<Bailout>>,
   in_module_this: bool,
   in_top_level: bool,
   in_export_decl: bool,
   in_function: bool,
-  in_assign: bool,
   in_class: bool,
   is_module: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct CollectImportedSymbol {
   pub source: JsWord,
@@ -110,7 +103,7 @@ pub struct CollectImportedSymbol {
   pub kind: ImportKind,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 #[non_exhaustive]
 pub struct CollectExportedSymbol {
   pub source: Option<JsWord>,
@@ -119,13 +112,13 @@ pub struct CollectExportedSymbol {
   pub loc: SourceLocation,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct CollectExportedAll {
   pub source: JsWord,
   pub loc: SourceLocation,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Debug)]
 #[non_exhaustive]
 pub struct CollectResult {
   pub imports: Vec<CollectImportedSymbol>,
@@ -143,7 +136,6 @@ impl Collect {
     source_map: Lrc<swc_core::common::SourceMap>,
     unresolved_mark: Mark,
     ignore_mark: Mark,
-    global_mark: Mark,
     trace_bailouts: bool,
     is_module: bool,
   ) -> Self {
@@ -151,7 +143,6 @@ impl Collect {
       source_map,
       unresolved_mark,
       ignore_mark,
-      global_mark,
       is_module,
       static_cjs_exports: true,
       has_cjs_exports: false,
@@ -160,18 +151,14 @@ impl Collect {
       imports: HashMap::new(),
       this_exprs: HashMap::new(),
       exports: HashMap::new(),
-      exports_locals: HashMap::new(),
       exports_all: HashMap::new(),
       used_imports: HashSet::new(),
       non_static_access: HashMap::new(),
-      non_const_bindings: HashMap::new(),
       non_static_requires: HashSet::new(),
-      wrapped_requires: HashSet::new(),
       in_module_this: true,
       in_top_level: true,
       in_export_decl: false,
       in_function: false,
-      in_assign: false,
       in_class: false,
       bailouts: if trace_bailouts { Some(vec![]) } else { None },
     }
@@ -447,12 +434,6 @@ impl Visit for Collect {
               is_esm: true,
             },
           );
-          if node.src.is_none() {
-            self
-              .exports_locals
-              .entry(id!(match_export_name_ident(&named.orig)))
-              .or_insert_with(|| exported.0.clone());
-          }
         }
         ExportSpecifier::Default(default) => {
           self.exports.insert(
@@ -464,12 +445,6 @@ impl Visit for Collect {
               is_esm: true,
             },
           );
-          if node.src.is_none() {
-            self
-              .exports_locals
-              .entry(id!(default.exported))
-              .or_insert_with(|| "default".into());
-          }
         }
         ExportSpecifier::Namespace(namespace) => {
           self.exports.insert(
@@ -481,8 +456,6 @@ impl Visit for Collect {
               is_esm: true,
             },
           );
-          // Populating exports_locals with * doesn't make any sense at all
-          // and hoist doesn't use this anyway.
         }
       }
     }
@@ -500,9 +473,6 @@ impl Visit for Collect {
             is_esm: true,
           },
         );
-        self
-          .exports_locals
-          .insert(id!(class.ident), class.ident.sym.clone());
       }
       Decl::Fn(func) => {
         self.exports.insert(
@@ -514,9 +484,6 @@ impl Visit for Collect {
             is_esm: true,
           },
         );
-        self
-          .exports_locals
-          .insert(id!(func.ident), func.ident.sym.clone());
       }
       Decl::Var(var) => {
         for decl in &var.decls {
@@ -546,7 +513,6 @@ impl Visit for Collect {
               is_esm: true,
             },
           );
-          self.exports_locals.insert(id!(ident), "default".into());
         } else {
           self.exports.insert(
             "default".into(),
@@ -570,7 +536,6 @@ impl Visit for Collect {
               is_esm: true,
             },
           );
-          self.exports_locals.insert(id!(ident), "default".into());
         } else {
           self.exports.insert(
             "default".into(),
@@ -632,17 +597,6 @@ impl Visit for Collect {
           is_esm: true,
         },
       );
-      self
-        .exports_locals
-        .insert(id!(node.id), node.id.sym.clone());
-    }
-
-    if self.in_assign && node.id.ctxt.has_mark(self.global_mark) {
-      self
-        .non_const_bindings
-        .entry(id!(node.id))
-        .or_default()
-        .push(node.id.span);
     }
   }
 
@@ -657,17 +611,6 @@ impl Visit for Collect {
           is_esm: true,
         },
       );
-      self
-        .exports_locals
-        .insert(id!(node.key), node.key.sym.clone());
-    }
-
-    if self.in_assign && node.key.ctxt.has_mark(self.global_mark) {
-      self
-        .non_const_bindings
-        .entry(id!(node.key))
-        .or_default()
-        .push(node.key.span);
     }
 
     node.value.visit_with(self);
@@ -785,8 +728,7 @@ impl Visit for Collect {
   fn visit_expr(&mut self, node: &Expr) {
     // If we reached this visitor, this is a non-top-level require that isn't in a variable
     // declaration. We need to wrap the referenced module to preserve side effect ordering.
-    if let Some(source) = self.match_require(node) {
-      self.wrapped_requires.insert(source.to_string());
+    if self.match_require(node).is_some() {
       let span = match node {
         Expr::Call(c) => c.span,
         _ => unreachable!(),
@@ -796,7 +738,6 @@ impl Visit for Collect {
 
     if let Some(source) = match_import(node) {
       self.non_static_requires.insert(source.clone());
-      self.wrapped_requires.insert(source.to_string());
       let span = match node {
         Expr::Call(c) => c.span,
         _ => unreachable!(),
@@ -875,9 +816,7 @@ impl Visit for Collect {
     // if lhs is `module.exports`
     // if lhs is `module.exports.XXX` or `exports.XXX`, record static export
 
-    self.in_assign = true;
     node.left.visit_with(self);
-    self.in_assign = false;
     node.right.visit_with(self);
 
     if has_binding_identifier(&node.left, &"exports".into(), self.unresolved_mark) {
@@ -986,7 +925,6 @@ impl Visit for Collect {
                   self.add_pat_imports(param, &source, ImportKind::DynamicImport);
                 } else {
                   self.non_static_requires.insert(source.clone());
-                  self.wrapped_requires.insert(source.to_string());
                   self.add_bailout(node.span, BailoutReason::NonStaticDynamicImport);
                 }
 
@@ -1011,14 +949,6 @@ impl Collect {
 
   fn add_pat_imports(&mut self, node: &Pat, src: &JsWord, kind: ImportKind) {
     if !self.in_top_level {
-      match kind {
-        ImportKind::Import => self
-          .wrapped_requires
-          .insert(format!("{}{}", src.clone(), "esm")),
-        ImportKind::DynamicImport | ImportKind::Require => {
-          self.wrapped_requires.insert(src.to_string())
-        }
-      };
       if kind != ImportKind::DynamicImport {
         self.non_static_requires.insert(src.clone());
         let span = match node {
@@ -1076,14 +1006,6 @@ impl Collect {
                       loc: SourceLocation::from(&self.source_map, ident.id.span),
                     },
                   );
-
-                  // Mark as non-constant. CJS exports can be mutated by other modules,
-                  // so it's not safe to reference them directly.
-                  self
-                    .non_const_bindings
-                    .entry(id!(ident.id))
-                    .or_default()
-                    .push(ident.id.span);
                 }
                 _ => {
                   // Non-static.
@@ -1105,11 +1027,6 @@ impl Collect {
                   loc: SourceLocation::from(&self.source_map, assign.key.span),
                 },
               );
-              self
-                .non_const_bindings
-                .entry(id!(assign.key))
-                .or_default()
-                .push(assign.key.span);
             }
             ObjectPatProp::Rest(_rest) => {
               // let {x, ...y} = require('y');
@@ -1134,39 +1051,6 @@ impl Collect {
         };
         self.add_bailout(span, BailoutReason::NonStaticDestructuring);
       }
-    }
-  }
-
-  pub fn get_non_const_binding_idents(&self, node: &Pat, idents: &mut Vec<Ident>) {
-    match node {
-      Pat::Ident(ident) => {
-        if self.non_const_bindings.contains_key(&id!(ident.id)) {
-          idents.push(ident.id.clone());
-        }
-      }
-      Pat::Object(object) => {
-        for prop in &object.props {
-          match prop {
-            ObjectPatProp::KeyValue(kv) => {
-              self.get_non_const_binding_idents(&kv.value, idents);
-            }
-            ObjectPatProp::Assign(assign) => {
-              if self.non_const_bindings.contains_key(&id!(assign.key)) {
-                idents.push(assign.key.id.clone());
-              }
-            }
-            ObjectPatProp::Rest(rest) => {
-              self.get_non_const_binding_idents(&rest.arg, idents);
-            }
-          }
-        }
-      }
-      Pat::Array(array) => {
-        for el in array.elems.iter().flatten() {
-          self.get_non_const_binding_idents(el, idents);
-        }
-      }
-      _ => {}
     }
   }
 

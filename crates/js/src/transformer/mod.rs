@@ -1,11 +1,9 @@
 pub mod async_module;
 mod collect;
-mod constant_module;
 mod dependency_collector;
 mod env_replacer;
 mod fs;
 mod global_replacer;
-mod hoist;
 mod mdx;
 mod modules;
 mod node_replacer;
@@ -23,30 +21,24 @@ pub use plugin::JsTransformer;
 use std::{
   collections::{HashMap, HashSet},
   path::{Path, PathBuf},
-  str::FromStr,
   sync::Arc,
 };
 
 pub use collect::CollectImportedSymbol;
 use collect::{Collect, CollectResult};
-use constant_module::ConstantModule;
-use dependency_collector::Helpers;
 pub use dependency_collector::{
   DependencyDescriptor, DependencyFlags, DependencyKind, dependency_collector,
 };
 use env_replacer::*;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
-pub use hoist::{ExportedSymbol, ImportedSymbol};
-use hoist::{HoistResult, hoist};
 use indexmap::IndexMap;
-pub use mdx::{MdxAsset, TocNode, mdx};
+pub use mdx::{MdxAsset, mdx};
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
-use parcel_macros::{JsValue, MacroCallback, MacroError, Macros};
+use parcel_macros::{MacroCallback, MacroError, Macros};
 use path_slash::PathExt;
 use react_lazy::ReactLazy;
-use serde::{Deserialize, Serialize};
 pub use swc_core::ecma::preset_env::{Version, Versions};
 use swc_core::{
   common::{
@@ -88,17 +80,14 @@ type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol
 const DEFAULT_ESM_HELPERS: &str = "@parcel/transformer-js/src/esmodule-helpers.js";
 pub(crate) const DEFAULT_MDX_COMPONENTS: &str = "@parcel/transformer-js/src/mdx-components";
 
-#[derive(Default, Serialize, Debug, Deserialize)]
+#[derive(Default, Debug)]
 pub struct Config {
   pub filename: String,
-  #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
-  pub module_id: String,
   pub project_root: String,
   pub env: HashMap<JsWord, JsWord>,
   pub inline_fs: bool,
   pub context: EnvContext,
-  #[serde(rename = "type")]
   pub asset_type: Type,
   pub jsx_pragma: Option<String>,
   pub jsx_pragma_frag: Option<String>,
@@ -109,8 +98,6 @@ pub struct Config {
   pub is_development: bool,
   pub react_refresh: bool,
   pub targets: Option<Versions>,
-  pub source_maps: bool,
-  pub scope_hoist: bool,
   pub source_type: SourceType,
   pub supports_module_workers: bool,
   pub is_library: bool,
@@ -119,13 +106,11 @@ pub struct Config {
   pub trace_bailouts: bool,
   pub is_swc_helpers: bool,
   pub standalone: bool,
-  pub inline_constants: bool,
   pub esm_helpers: Option<String>,
   pub mdx_components: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Default)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Default)]
 pub enum Type {
   #[default]
   Js,
@@ -135,8 +120,7 @@ pub enum Type {
   Mdx,
 }
 
-#[derive(Default, Serialize, Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Default, Debug)]
 pub enum EnvContext {
   #[default]
   Browser,
@@ -146,7 +130,6 @@ pub enum EnvContext {
   Node,
   ElectronRenderer,
   ElectronMain,
-  EdgeRoutine,
   ReactClient,
   ReactServer,
 }
@@ -216,32 +199,6 @@ impl Config {
   }
 }
 
-#[derive(Serialize, Debug, Default)]
-#[non_exhaustive]
-pub struct TransformResult {
-  #[serde(with = "serde_bytes")]
-  pub code: Vec<u8>,
-  pub map: Option<String>,
-  pub shebang: Option<String>,
-  pub dependencies: Vec<DependencyDescriptor>,
-  pub hoist_result: Option<HoistResult>,
-  pub symbol_result: Option<CollectResult>,
-  pub diagnostics: Option<Vec<Diagnostic>>,
-  pub needs_esm_helpers: bool,
-  pub used_env: HashSet<JsWord>,
-  pub has_node_replacements: bool,
-  pub needs_filename: bool,
-  pub needs_dirname: bool,
-  /// Whether the module contains top-level await, i.e. evaluates asynchronously.
-  pub has_top_level_await: bool,
-  pub is_constant_module: bool,
-  pub directives: Vec<JsWord>,
-  pub helpers: Helpers,
-  pub mdx_toc: Vec<TocNode>,
-  pub mdx_exports: HashMap<JsWord, JsValue>,
-  pub mdx_assets: Vec<MdxAsset>,
-}
-
 #[derive(Clone)]
 pub struct Ast {
   pub program: Module,
@@ -275,11 +232,9 @@ pub struct TransformAstResult {
   pub ast: Ast,
   pub shebang: Option<String>,
   pub dependencies: Vec<DependencyDescriptor>,
-  pub hoist_result: Option<HoistResult>,
   pub symbol_result: Option<CollectResult>,
   pub diagnostics: Option<Vec<Diagnostic>>,
   pub needs_esm_helpers: bool,
-  pub used_env: HashSet<JsWord>,
   pub has_node_replacements: bool,
   pub needs_filename: bool,
   pub needs_dirname: bool,
@@ -290,42 +245,8 @@ pub struct TransformAstResult {
   pub esm_prologue_len: usize,
   /// Whether the module's body is wrapped for React Refresh, in the `try` block of its last statement.
   pub react_refresh_wrapped: bool,
-  pub is_constant_module: bool,
   pub directives: Vec<JsWord>,
-  pub helpers: Helpers,
-  pub mdx_toc: Vec<TocNode>,
-  pub mdx_exports: HashMap<JsWord, JsValue>,
   pub mdx_assets: Vec<MdxAsset>,
-}
-
-fn targets_to_versions(targets: &Option<HashMap<String, String>>) -> Option<Versions> {
-  if let Some(targets) = targets {
-    macro_rules! set_target {
-      ($versions: ident, $name: ident) => {
-        let version = targets.get(stringify!($name));
-        if let Some(version) = version {
-          if let Ok(version) = Version::from_str(version.as_str()) {
-            $versions.$name = Some(version);
-          }
-        }
-      };
-    }
-
-    let mut versions = Versions::default();
-    set_target!(versions, chrome);
-    set_target!(versions, opera);
-    set_target!(versions, edge);
-    set_target!(versions, firefox);
-    set_target!(versions, safari);
-    set_target!(versions, ie);
-    set_target!(versions, ios);
-    set_target!(versions, android);
-    set_target!(versions, node);
-    set_target!(versions, electron);
-    return Some(versions);
-  }
-
-  None
 }
 
 impl Ast {
@@ -370,37 +291,6 @@ impl Ast {
   }
 }
 
-pub fn transform(
-  config: Config,
-  call_macro: Option<MacroCallback>,
-) -> Result<TransformResult, std::io::Error> {
-  let source_maps = config.source_maps;
-  let mut res = transform_to_ast(config, call_macro)?;
-  let (code, map) = res.ast.to_code(source_maps, None, false)?;
-
-  Ok(TransformResult {
-    code,
-    map,
-    shebang: res.shebang,
-    dependencies: res.dependencies,
-    hoist_result: res.hoist_result,
-    symbol_result: res.symbol_result,
-    diagnostics: res.diagnostics,
-    needs_esm_helpers: res.needs_esm_helpers,
-    used_env: res.used_env,
-    has_node_replacements: res.has_node_replacements,
-    needs_filename: res.needs_filename,
-    needs_dirname: res.needs_dirname,
-    has_top_level_await: res.has_top_level_await,
-    is_constant_module: res.is_constant_module,
-    directives: res.directives,
-    helpers: res.helpers,
-    mdx_toc: res.mdx_toc,
-    mdx_exports: res.mdx_exports,
-    mdx_assets: res.mdx_assets,
-  })
-}
-
 pub fn transform_to_ast(
   mut config: Config,
   call_macro: Option<MacroCallback>,
@@ -428,8 +318,6 @@ pub fn transform_to_ast(
         return Ok(result);
       }
       Ok(res) => {
-        result.mdx_toc = res.toc;
-        result.mdx_exports = res.exports;
         result.mdx_assets = res.assets;
         (Program::Module(res.module), res.comments)
       }
@@ -636,6 +524,7 @@ pub fn transform_to_ast(
           }
 
           let mut diagnostics = vec![];
+          let mut used_env = HashSet::new();
           if let Some(call_macro) = call_macro {
             let mut errors = Vec::new();
             let mut macros = Macros::new(call_macro, &source_map, &mut errors);
@@ -651,12 +540,6 @@ pub fn transform_to_ast(
             }
           }
 
-          if config.scope_hoist && config.inline_constants {
-            let mut constant_module = ConstantModule::new();
-            module.visit_with(&mut constant_module);
-            result.is_constant_module = constant_module.is_constant_module;
-          }
-
           module.visit_mut_with(&mut (
             Optional::new(
               TypeofReplacer::new(unresolved_mark, config.is_node()),
@@ -668,7 +551,7 @@ pub fn transform_to_ast(
                 replace_env: config.replace_env(),
                 env: &config.env,
                 is_browser: config.is_browser(),
-                used_env: &mut result.used_env,
+                used_env: &mut used_env,
                 source_map: source_map.clone(),
                 diagnostics: &mut diagnostics,
                 unresolved_mark,
@@ -687,7 +570,6 @@ pub fn transform_to_ast(
               config.filename.as_str(),
               source_map.clone(),
               unresolved_mark,
-              global_mark,
               &config.project_root,
               &mut fs_deps,
               is_module,
@@ -719,7 +601,6 @@ pub fn transform_to_ast(
                 project_root: Path::new(&config.project_root),
                 filename: Path::new(&config.filename),
                 unresolved_mark,
-                scope_hoist: config.scope_hoist,
               },
               config.insert_node_globals(),
             ),
@@ -740,18 +621,9 @@ pub fn transform_to_ast(
           program.mutate(&mut helpers::inject_helpers(global_mark));
           let mut module = program.expect_module();
 
-          // Flush Id=(JsWord, SyntaxContexts) into unique names and reresolve to
-          // set global_mark for all nodes, even generated ones.
-          // - This will also remove any other other marks (like ignore_mark)
-          // This only needs to be done if preset_env ran because all other transforms
-          // insert declarations with global_mark (even though they are generated).
-          if config.scope_hoist && should_run_preset_env {
-            module.visit_mut_with(&mut (hygiene(), resolver(unresolved_mark, global_mark, false)))
-          }
-
           // Collect dependencies
           let ignore_mark = Mark::fresh(Mark::root());
-          let (module, helpers) = dependency_collector(
+          let module = dependency_collector(
             module,
             source_map.clone(),
             &mut result.dependencies,
@@ -761,7 +633,6 @@ pub fn transform_to_ast(
             &mut diagnostics,
           );
 
-          result.helpers = helpers;
           diagnostics.extend(error_buffer_to_diagnostics(&error_buffer, &source_map));
 
           if diagnostics
@@ -776,7 +647,6 @@ pub fn transform_to_ast(
             source_map.clone(),
             unresolved_mark,
             ignore_mark,
-            global_mark,
             config.trace_bailouts,
             is_module,
           );
@@ -792,39 +662,23 @@ pub fn transform_to_ast(
             module.visit_with(&mut ReactLazy::new(&collect, &mut result.dependencies));
           }
 
-          let mut module = if config.scope_hoist {
-            let res = hoist(module, config.module_id.as_str(), unresolved_mark, &collect);
-            match res {
-              Ok((module, hoist_result, hoist_diagnostics)) => {
-                result.hoist_result = Some(hoist_result);
-                diagnostics.extend(hoist_diagnostics);
-                module
-              }
-              Err(diagnostics) => {
-                result.diagnostics = Some(diagnostics);
-                return Ok(result);
-              }
-            }
-          } else {
-            // Bail if we could not statically analyze.
-            if collect.static_cjs_exports && !collect.should_wrap {
-              result.symbol_result = Some(collect.into());
-            }
+          // Bail if we could not statically analyze.
+          if collect.static_cjs_exports && !collect.should_wrap {
+            result.symbol_result = Some(collect.into());
+          }
 
-            if !config.is_library || !config.is_esm_output {
-              let (module, needs_helpers, prologue_len) =
-                esm2cjs(
-                  module,
-                  unresolved_mark,
-                  versions,
-                  config.esm_helpers.as_deref().unwrap_or(DEFAULT_ESM_HELPERS),
-                );
-              result.needs_esm_helpers = needs_helpers;
-              result.esm_prologue_len = prologue_len;
-              module
-            } else {
-              module
-            }
+          let mut module = if !config.is_library || !config.is_esm_output {
+            let (module, needs_helpers, prologue_len) = esm2cjs(
+              module,
+              unresolved_mark,
+              versions,
+              config.esm_helpers.as_deref().unwrap_or(DEFAULT_ESM_HELPERS),
+            );
+            result.needs_esm_helpers = needs_helpers;
+            result.esm_prologue_len = prologue_len;
+            module
+          } else {
+            module
           };
 
           result.dependencies.extend(global_deps);
@@ -1058,6 +912,7 @@ fn macro_error_to_diagnostic(error: MacroError, source_map: &SourceMap) -> Diagn
 #[cfg(test)]
 mod tests {
   use super::*;
+  use parcel_macros::JsValue;
   use swc_core::{
     common::SyntaxContext,
     ecma::{
@@ -1077,7 +932,6 @@ mod tests {
       Config {
         filename: "index.js".into(),
         project_root: "/".into(),
-        module_id: "index".into(),
         code: br#"
           import {makeFunction} from './macro.js' with {type: 'macro'};
           output = makeFunction();

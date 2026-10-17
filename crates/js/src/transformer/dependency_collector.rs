@@ -8,7 +8,6 @@ use std::{
 use bitflags::bitflags;
 use parcel_macros::{Evaluator, JsValue};
 use path_slash::PathBufExt;
-use serde::{Deserialize, Serialize};
 use swc_core::{
   common::{DUMMY_SP, Mark, SourceMap, Span, Spanned, SyntaxContext, sync::Lrc},
   ecma::{
@@ -30,7 +29,7 @@ macro_rules! hash {
   }};
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum DependencyKind {
   /// Corresponds to ESM import statements
   /// ```skip
@@ -100,43 +99,6 @@ pub enum DependencyKind {
   Id,
 }
 
-bitflags! {
-  #[derive(Default, Debug, Clone, Copy, PartialEq)]
-  pub struct Helpers: u8 {
-    /// `import.meta.distDir` – a relative path from the current bundle to the distDir
-    const DIST_DIR = 1 << 0;
-    /// `import.meta.publicUrl` - absolute public URL
-    const PUBLIC_URL = 1 << 1;
-    /// `parcelRequire.load`
-    const LOAD = 1 << 2;
-    /// `parcelRequire.resolve`
-    const RESOLVE = 1 << 3;
-    /// `parcelRequire.extendImportMap`
-    const EXTEND_IMPORT_MAP = 1 << 4;
-    /// `import.meta.devServer` – URL of Parcel HMR server
-    const DEV_SERVER = 1 << 5;
-  }
-}
-
-impl serde::Serialize for Helpers {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
-    self.bits().serialize(serializer)
-  }
-}
-
-impl<'de> serde::Deserialize<'de> for Helpers {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: serde::Deserializer<'de>,
-  {
-    let bits: u8 = Deserialize::deserialize(deserializer)?;
-    Self::from_bits(bits).ok_or(serde::de::Error::custom("invalid flags"))
-  }
-}
-
 impl fmt::Display for DependencyKind {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(f, "{:?}", self)
@@ -153,26 +115,7 @@ bitflags! {
   }
 }
 
-impl serde::Serialize for DependencyFlags {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
-    self.bits().serialize(serializer)
-  }
-}
-
-impl<'de> serde::Deserialize<'de> for DependencyFlags {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: serde::Deserializer<'de>,
-  {
-    let bits: u8 = Deserialize::deserialize(deserializer)?;
-    Self::from_bits(bits).ok_or(serde::de::Error::custom("invalid flags"))
-  }
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DependencyDescriptor {
   pub kind: DependencyKind,
   pub loc: SourceLocation,
@@ -197,7 +140,7 @@ pub fn dependency_collector<'a>(
   unresolved_mark: swc_core::common::Mark,
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
-) -> (Module, Helpers) {
+) -> Module {
   let mut collector = DependencyCollector {
     source_map,
     items,
@@ -211,11 +154,9 @@ pub fn dependency_collector<'a>(
     config,
     diagnostics,
     import_meta: None,
-    helpers: Helpers::empty(),
   };
 
-  let module = module.fold_with(&mut collector);
-  (module, collector.helpers)
+  module.fold_with(&mut collector)
 }
 
 struct DependencyCollector<'a> {
@@ -233,7 +174,6 @@ struct DependencyCollector<'a> {
   config: &'a Config,
   diagnostics: &'a mut Vec<Diagnostic>,
   import_meta: Option<ast::VarDecl>,
-  helpers: Helpers,
 }
 
 impl<'a> DependencyCollector<'a> {
@@ -690,19 +630,12 @@ impl<'a> Fold for DependencyCollector<'a> {
               }
               "__parcel__require__" => {
                 let mut call = node.fold_children_with(self);
-                if self.config.scope_hoist {
-                  call.callee = ast::Callee::Expr(Box::new(ast::Expr::Ident(ast::Ident::new(
-                    "require".into(),
-                    DUMMY_SP,
-                    SyntaxContext::empty().apply_mark(self.ignore_mark),
-                  ))));
-                } else {
-                  call.callee = ast::Callee::Expr(Box::new(ast::Expr::Member(member_expr!(
-                    SyntaxContext::empty().apply_mark(self.unresolved_mark),
-                    call.span,
-                    module.require
-                  ))));
-                }
+                call.callee = ast::Callee::Expr(Box::new(ast::Expr::Member(member_expr!(
+                  SyntaxContext::empty().apply_mark(self.unresolved_mark),
+                  call.span,
+                  module.require
+                ))));
+
                 return call;
               }
               "__parcel__import__" => {
@@ -739,13 +672,11 @@ impl<'a> Fold for DependencyCollector<'a> {
                   }
                 }
                 let mut call = node.fold_children_with(self);
-                if !self.config.scope_hoist {
-                  call.callee = ast::Callee::Expr(Box::new(ast::Expr::Member(member_expr!(
-                    SyntaxContext::empty().apply_mark(self.unresolved_mark),
-                    call.span,
-                    module.bundle.root
-                  ))));
-                }
+                call.callee = ast::Callee::Expr(Box::new(ast::Expr::Member(member_expr!(
+                  SyntaxContext::empty().apply_mark(self.unresolved_mark),
+                  call.span,
+                  module.bundle.root
+                ))));
                 return call;
               }
               _ => return node.fold_children_with(self),
@@ -754,17 +685,12 @@ impl<'a> Fold for DependencyCollector<'a> {
           Member(member) => {
             if match_member_expr(member, vec!["parcelRequire", "load"], self.unresolved_mark) {
               let mut call = node.fold_children_with(self);
-              let callee = if self.config.scope_hoist {
-                ast::Expr::Ident(ast::Ident::new_no_ctxt("$parcel$import".into(), call.span))
-              } else {
-                ast::Expr::Member(member_expr!(
-                  SyntaxContext::empty().apply_mark(self.unresolved_mark),
-                  call.span,
-                  module.bundle.load
-                ))
-              };
+              let callee = ast::Expr::Member(member_expr!(
+                SyntaxContext::empty().apply_mark(self.unresolved_mark),
+                call.span,
+                module.bundle.load
+              ));
               call.callee = ast::Callee::Expr(Box::new(callee));
-              self.helpers |= Helpers::LOAD;
               return call;
             } else if match_member_expr(
               member,
@@ -772,17 +698,12 @@ impl<'a> Fold for DependencyCollector<'a> {
               self.unresolved_mark,
             ) {
               let mut call = node.fold_children_with(self);
-              let callee = if self.config.scope_hoist {
-                ast::Expr::Ident(ast::Ident::new_no_ctxt("$parcel$resolve".into(), call.span))
-              } else {
-                ast::Expr::Member(member_expr!(
-                  SyntaxContext::empty().apply_mark(self.unresolved_mark),
-                  call.span,
-                  module.bundle.resolve
-                ))
-              };
+              let callee = ast::Expr::Member(member_expr!(
+                SyntaxContext::empty().apply_mark(self.unresolved_mark),
+                call.span,
+                module.bundle.resolve
+              ));
               call.callee = ast::Callee::Expr(Box::new(callee));
-              self.helpers |= Helpers::RESOLVE;
               return call;
             } else if match_member_expr(
               member,
@@ -790,20 +711,12 @@ impl<'a> Fold for DependencyCollector<'a> {
               self.unresolved_mark,
             ) {
               let mut call = node.fold_children_with(self);
-              let callee = if self.config.scope_hoist {
-                ast::Expr::Ident(ast::Ident::new_no_ctxt(
-                  "$parcel$extendImportMap".into(),
-                  call.span,
-                ))
-              } else {
-                ast::Expr::Member(member_expr!(
-                  SyntaxContext::empty().apply_mark(self.unresolved_mark),
-                  call.span,
-                  module.bundle.extendImportMap
-                ))
-              };
+              let callee = ast::Expr::Member(member_expr!(
+                SyntaxContext::empty().apply_mark(self.unresolved_mark),
+                call.span,
+                module.bundle.extendImportMap
+              ));
               call.callee = ast::Callee::Expr(Box::new(callee));
-              self.helpers |= Helpers::EXTEND_IMPORT_MAP;
               return call;
             } else if match_member_expr(member, vec!["module", "require"], self.unresolved_mark) {
               DependencyKind::Require
@@ -1669,19 +1582,11 @@ impl<'a> DependencyCollector<'a> {
                 };
               }
 
-              self.helpers |= Helpers::DIST_DIR;
-              if self.config.scope_hoist {
-                Some(Expr::Ident(Ident::new_no_ctxt(
-                  "$parcel$distDir".into(),
-                  span,
-                )))
-              } else {
-                Some(Expr::Member(member_expr!(
-                  SyntaxContext::empty().apply_mark(self.unresolved_mark),
-                  span,
-                  module.bundle.distDir
-                )))
-              }
+              Some(Expr::Member(member_expr!(
+                SyntaxContext::empty().apply_mark(self.unresolved_mark),
+                span,
+                module.bundle.distDir
+              )))
             }
             "publicUrl" => {
               if self.config.is_library {
@@ -1700,19 +1605,11 @@ impl<'a> DependencyCollector<'a> {
                 };
               }
 
-              self.helpers |= Helpers::PUBLIC_URL;
-              if self.config.scope_hoist {
-                Some(Expr::Ident(Ident::new_no_ctxt(
-                  "$parcel$publicUrl".into(),
-                  span,
-                )))
-              } else {
-                Some(Expr::Member(member_expr!(
-                  SyntaxContext::empty().apply_mark(self.unresolved_mark),
-                  span,
-                  module.bundle.publicUrl
-                )))
-              }
+              Some(Expr::Member(member_expr!(
+                SyntaxContext::empty().apply_mark(self.unresolved_mark),
+                span,
+                module.bundle.publicUrl
+              )))
             }
             "devServer" => {
               if self.config.is_library {
@@ -1731,19 +1628,11 @@ impl<'a> DependencyCollector<'a> {
                 };
               }
 
-              self.helpers |= Helpers::DEV_SERVER;
-              if self.config.scope_hoist {
-                Some(Expr::Ident(Ident::new_no_ctxt(
-                  "$parcel$devServer".into(),
-                  span,
-                )))
-              } else {
-                Some(Expr::Member(member_expr!(
-                  SyntaxContext::empty().apply_mark(self.unresolved_mark),
-                  span,
-                  module.bundle.devServer
-                )))
-              }
+              Some(Expr::Member(member_expr!(
+                SyntaxContext::empty().apply_mark(self.unresolved_mark),
+                span,
+                module.bundle.devServer
+              )))
             }
             _ => None,
           }
@@ -1785,10 +1674,7 @@ impl<'a> DependencyCollector<'a> {
     } else {
       // Declares a variable at the top of the module:
       // var import_meta = Object.assign(Object.create(null), {url: 'file:///src/foo.js'});
-      let ident = Ident::new_private(
-        format!("${}$import_meta", self.config.module_id).into(),
-        DUMMY_SP,
-      );
+      let ident = Ident::new_private("$parcel$import_meta".into(), DUMMY_SP);
       self.import_meta = Some(VarDecl {
         kind: VarDeclKind::Var,
         declare: false,
@@ -1936,7 +1822,6 @@ mod test {
       config,
       diagnostics,
       import_meta: None,
-      helpers: Helpers::empty(),
     }
   }
 

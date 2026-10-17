@@ -17,8 +17,6 @@ pub struct JsTransformer {
   #[serde(rename = "inlineFS")]
   inline_fs: Option<bool>,
   inline_environment: Option<InlineEnvironment>,
-  #[serde(default, rename = "unstable_inlineConstants")]
-  inline_constants: bool,
 }
 
 #[derive(Clone, serde::Deserialize)]
@@ -328,30 +326,9 @@ impl Transformer for JsTransformer {
               ..(*asset.target).clone()
             }),
             DependencyKind::DynamicImport => {
-              // If all of the target engines support dynamic import natively,
-              // we can output native ESM if scope hoisting is enabled.
-              // Only do this for scripts, rather than modules in the global
-              // output format so that assets can be shared between the bundles.
-              let mut output_format = asset.target.output_format;
-              if asset.target.source_type == SourceType::Script
-                && asset
-                  .target
-                  .flags
-                  .contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
-                && asset
-                  .target
-                  .engines
-                  .supports(EnvironmentFeature::DynamicImport)
-              {
-                output_format = OutputFormat::Esmodule;
-              }
-
-              if asset.target.source_type != SourceType::Module
-                || asset.target.output_format != output_format
-              {
+              if asset.target.source_type != SourceType::Module {
                 Arc::new(Target {
                   source_type: SourceType::Module,
-                  output_format,
                   ..(*asset.target).clone()
                 })
               } else {
@@ -989,7 +966,6 @@ fn config(
       .to_string_lossy()
       .into_owned(),
     code: asset.content.read()?,
-    module_id: asset.id(&options.project_root),
     project_root: options
       .project_root
       .to_path_buf()
@@ -1024,12 +1000,6 @@ fn config(
     is_development: options.mode == BuildMode::Development,
     react_refresh,
     targets,
-    source_maps: asset.target.source_map.is_some(),
-    scope_hoist: asset
-      .target
-      .flags
-      .contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
-      && asset.target.source_type != SourceType::Script,
     minify: asset
       .target
       .flags
@@ -1053,7 +1023,6 @@ fn config(
       .url
       .query()
       .map_or(false, |q| q.contains("standalone=true")), // TODO: use a real parser
-    inline_constants: transformer.inline_constants,
     esm_helpers: Some("@parcel/parcel3/src/esmodule-helpers.js".into()),
     mdx_components: Some("@parcel/parcel3/src/mdx-components".into()),
   })

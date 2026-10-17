@@ -123,7 +123,6 @@ mod test {
       context.source_map.clone(),
       context.unresolved_mark,
       Mark::fresh(Mark::root()),
-      context.global_mark,
       false,
       true,
     );

@@ -56,7 +56,6 @@ pub struct GlobalReplacer<'a> {
   pub project_root: &'a Path,
   pub filename: &'a Path,
   pub unresolved_mark: Mark,
-  pub scope_hoist: bool,
 }
 
 impl VisitMut for GlobalReplacer<'_> {
@@ -142,18 +141,16 @@ impl VisitMut for GlobalReplacer<'_> {
         });
       }
       "global" => {
-        if !self.scope_hoist {
-          self.update_binding(id, |_| {
-            Member(MemberExpr {
-              obj: Box::new(Ident(ast::Ident::new_no_ctxt("arguments".into(), DUMMY_SP))),
-              prop: MemberProp::Computed(ComputedPropName {
-                span: DUMMY_SP,
-                expr: Box::new(Lit(ast::Lit::Num(3.into()))),
-              }),
+        self.update_binding(id, |_| {
+          Member(MemberExpr {
+            obj: Box::new(Ident(ast::Ident::new_no_ctxt("arguments".into(), DUMMY_SP))),
+            prop: MemberProp::Computed(ComputedPropName {
               span: DUMMY_SP,
-            })
-          });
-        }
+              expr: Box::new(Lit(ast::Lit::Num(3.into()))),
+            }),
+            span: DUMMY_SP,
+          })
+        });
       }
       _ => {}
     }
@@ -216,7 +213,6 @@ mod test {
       project_root: Path::new("project-root"),
       filename: Path::new("filename"),
       unresolved_mark: run_test_context.unresolved_mark.clone(),
-      scope_hoist: false,
     }
   }
 
