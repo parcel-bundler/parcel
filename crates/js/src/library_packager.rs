@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
+use crate::transformer::tree_shake::tree_shake;
 use fixedbitset::FixedBitSet;
 use indexmap::IndexSet;
 use parcel_core::*;
-use parcel_js_swc_core::tree_shake::tree_shake;
 
 use swc_core::{
   common::DUMMY_SP,

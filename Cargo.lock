@@ -3155,42 +3155,30 @@ dependencies = [
 name = "parcel-js"
 version = "0.1.0"
 dependencies = [
+ "bitflags 2.13.1",
  "bytecount",
  "data-encoding",
+ "dunce",
  "fixedbitset",
  "glob-match",
- "indexmap 2.14.0",
- "node-semver",
- "parcel-core",
- "parcel-css",
- "parcel-js-swc-core",
- "parcel-macros",
- "parcel-plugin-js",
- "parcel-resolver",
- "serde",
- "serde_json",
- "simd-utf16-len",
- "swc_core",
-]
-
-[[package]]
-name = "parcel-js-swc-core"
-version = "0.1.0"
-dependencies = [
- "bitflags 2.13.1",
- "data-encoding",
- "dunce",
  "indexmap 2.14.0",
  "indoc",
  "markdown",
  "mdxjs",
+ "node-semver",
+ "parcel-core",
+ "parcel-css",
  "parcel-macros",
+ "parcel-plugin-js",
+ "parcel-resolver",
  "parking_lot",
  "path-slash",
  "pathdiff",
  "rustc-hash",
  "serde",
  "serde_bytes",
+ "serde_json",
+ "simd-utf16-len",
  "swc_core",
  "swc_node_comments",
 ]

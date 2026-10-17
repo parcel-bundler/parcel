@@ -21,7 +21,7 @@ use swc_core::{
   ecma::ast::*,
 };
 
-use crate::Ast;
+use crate::transformer::Ast;
 
 /// `prologue_len` is the number of statements the module starts with that define its exports and
 /// require its imports (from `esm2cjs`), within the `try` block of its last statement if it's wrapped

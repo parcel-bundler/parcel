@@ -11,7 +11,7 @@ use swc_core::{
   },
 };
 
-use crate::{
+use crate::transformer::{
   DependencyKind, id,
   utils::{
     Bailout, BailoutReason, SourceLocation, is_unresolved, match_export_name,

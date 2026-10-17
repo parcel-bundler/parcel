@@ -6,7 +6,7 @@ use swc_core::{
   },
 };
 
-use crate::utils::is_unresolved;
+use crate::transformer::utils::is_unresolved;
 
 /// Replaces `typeof module`, `typeof exports` and `typeof require` unary operator expressions
 /// with the resulting string literals.
@@ -95,7 +95,7 @@ impl VisitMut for TypeofReplacer {
 
 #[cfg(test)]
 mod test {
-  use crate::test_utils::run_visit;
+  use crate::transformer::test_utils::run_visit;
 
   use super::*;
 

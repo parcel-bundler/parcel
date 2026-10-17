@@ -9,6 +9,7 @@ mod hoist;
 mod mdx;
 mod modules;
 mod node_replacer;
+mod plugin;
 mod react_lazy;
 pub mod script;
 #[cfg(test)]
@@ -16,6 +17,8 @@ mod test_utils;
 pub mod tree_shake;
 mod typeof_replacer;
 mod utils;
+
+pub use plugin::JsTransformer;
 
 use std::{
   collections::{HashMap, HashSet},
@@ -75,7 +78,9 @@ use swc_core::{
 };
 use swc_node_comments::SwcComments;
 use typeof_replacer::*;
-use utils::{CodeHighlight, ErrorBuffer, error_buffer_to_diagnostics};
+use utils::{
+  CodeHighlight, ErrorBuffer, error_buffer_to_diagnostics, fold_member_expr_skip_prop, id,
+};
 pub use utils::{Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
@@ -1015,7 +1020,7 @@ fn macro_error_to_diagnostic(error: MacroError, source_map: &SourceMap) -> Diagn
       }]),
       hints: None,
       show_environment: false,
-      severity: crate::utils::DiagnosticSeverity::Error,
+      severity: crate::transformer::utils::DiagnosticSeverity::Error,
       documentation_url: None,
     },
     MacroError::LoadError(err, span) => Diagnostic {
@@ -1026,7 +1031,7 @@ fn macro_error_to_diagnostic(error: MacroError, source_map: &SourceMap) -> Diagn
       }]),
       hints: None,
       show_environment: false,
-      severity: crate::utils::DiagnosticSeverity::Error,
+      severity: crate::transformer::utils::DiagnosticSeverity::Error,
       documentation_url: None,
     },
     MacroError::ExecutionError(err, span) => Diagnostic {
@@ -1037,7 +1042,7 @@ fn macro_error_to_diagnostic(error: MacroError, source_map: &SourceMap) -> Diagn
       }]),
       hints: None,
       show_environment: false,
-      severity: crate::utils::DiagnosticSeverity::Error,
+      severity: crate::transformer::utils::DiagnosticSeverity::Error,
       documentation_url: None,
     },
     MacroError::ParseError(err) => {

@@ -1,10 +1,10 @@
 use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
-use glob_match::glob_match;
-use parcel_core::*;
-use parcel_js_swc_core::{
+use crate::transformer::{
   Config, DependencyKind, EnvContext, Type, Version, Versions, transform_to_ast,
 };
+use glob_match::glob_match;
+use parcel_core::*;
 use parcel_macros::{JsValue, MacroError};
 use parcel_plugin_js::call_macro;
 use parcel_resolver::{AliasValue, BrowserField, Specifier};
@@ -102,8 +102,8 @@ impl Transformer for JsTransformer {
       let diagnostics: Vec<Diagnostic> = diagnostics
         .into_iter()
         .filter(|d| {
-          d.severity == parcel_js_swc_core::DiagnosticSeverity::Error
-            || (d.severity == parcel_js_swc_core::DiagnosticSeverity::SourceError
+          d.severity == crate::transformer::DiagnosticSeverity::Error
+            || (d.severity == crate::transformer::DiagnosticSeverity::SourceError
               && asset.flags.contains(AssetFlags::IS_SOURCE))
         })
         .map(|d| Diagnostic {
@@ -189,7 +189,7 @@ impl Transformer for JsTransformer {
 
       let is_helper = dep
         .flags
-        .contains(parcel_js_swc_core::DependencyFlags::HELPER)
+        .contains(crate::transformer::DependencyFlags::HELPER)
         && dep.kind != DependencyKind::Url
         && !(dep.specifier.ends_with("/jsx-runtime")
           || dep.specifier.ends_with("/jsx-dev-runtime"));
@@ -258,7 +258,7 @@ impl Transformer for JsTransformer {
           let mut flags = DependencyFlags::empty();
           if dep
             .flags
-            .contains(parcel_js_swc_core::DependencyFlags::OPTIONAL)
+            .contains(crate::transformer::DependencyFlags::OPTIONAL)
           {
             flags |= DependencyFlags::OPTIONAL;
           }
@@ -272,7 +272,7 @@ impl Transformer for JsTransformer {
           }
           if dep
             .flags
-            .contains(parcel_js_swc_core::DependencyFlags::REACT_LAZY)
+            .contains(crate::transformer::DependencyFlags::REACT_LAZY)
           {
             flags |= DependencyFlags::REACT_LAZY;
           }
@@ -291,7 +291,7 @@ impl Transformer for JsTransformer {
               // assets can be shared between workers and the main thread in the global output format.
               let mut output_format = asset.target.output_format;
               if output_format == OutputFormat::Esmodule
-                && dep.source_type == Some(parcel_js_swc_core::SourceType::Module)
+                && dep.source_type == Some(crate::transformer::SourceType::Module)
                 && asset
                   .target
                   .engines
@@ -305,7 +305,7 @@ impl Transformer for JsTransformer {
               Arc::new(Target {
                 environment: Environment::WebWorker,
                 source_type: match dep.source_type {
-                  Some(parcel_js_swc_core::SourceType::Module) => SourceType::Module,
+                  Some(crate::transformer::SourceType::Module) => SourceType::Module,
                   _ => SourceType::Script,
                 },
                 output_format,
@@ -315,7 +315,7 @@ impl Transformer for JsTransformer {
             DependencyKind::ServiceWorker => Arc::new(Target {
               environment: Environment::ServiceWorker,
               source_type: match dep.source_type {
-                Some(parcel_js_swc_core::SourceType::Module) => SourceType::Module,
+                Some(crate::transformer::SourceType::Module) => SourceType::Module,
                 _ => SourceType::Script,
               },
               output_format: OutputFormat::Global,
@@ -718,7 +718,7 @@ fn react_target(target: &Arc<Target>, environment: Environment) -> Arc<Target> {
 
 fn convert_loc(
   url: SourceUrl,
-  loc: &parcel_js_swc_core::SourceLocation,
+  loc: &crate::transformer::SourceLocation,
   // map: &mut Option<SourceMap>,
 ) -> SourceLocation {
   let loc = SourceLocation {
@@ -1035,8 +1035,8 @@ fn config(
       .flags
       .contains(EnvironmentFlags::SHOULD_OPTIMIZE),
     source_type: match asset.target.source_type {
-      SourceType::Script => parcel_js_swc_core::SourceType::Script,
-      _ => parcel_js_swc_core::SourceType::Module,
+      SourceType::Script => crate::transformer::SourceType::Script,
+      _ => crate::transformer::SourceType::Module,
     },
     supports_module_workers: asset
       .target

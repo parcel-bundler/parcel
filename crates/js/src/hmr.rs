@@ -6,7 +6,7 @@ use parcel_core::{
   get_bundle_content,
 };
 
-use parcel_js_swc_core::Ast;
+use crate::transformer::Ast;
 use swc_core::{
   common::{DUMMY_SP, SyntaxContext},
   ecma::{

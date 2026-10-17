@@ -13,7 +13,7 @@ use swc_core::{
   },
 };
 
-use crate::utils::*;
+use crate::transformer::utils::*;
 
 /// Replaces process.env usage with the literal strings for values referenced.
 pub struct EnvReplacer<'a> {
@@ -355,7 +355,7 @@ impl<'a> EnvReplacer<'a> {
 
 #[cfg(test)]
 mod test {
-  use crate::test_utils::{RunTestContext, RunVisitResult, run_visit};
+  use crate::transformer::test_utils::{RunTestContext, RunVisitResult, run_visit};
 
   use super::*;
 
@@ -663,7 +663,7 @@ const package = "parcel", isTest2 = "true";
       ["package", "IS_TEST", "VERSION"]
         .iter()
         .map(|s| (*s).into())
-        .collect()
+        .collect::<HashSet<JsWord>>()
     );
     assert_eq!(diagnostics, vec![]);
   }
@@ -692,7 +692,13 @@ const { package, ...other } = process.env;
 "#
     );
     // tracks that the variable was used
-    assert_eq!(used_env, ["package"].iter().map(|s| (*s).into()).collect());
+    assert_eq!(
+      used_env,
+      ["package"]
+        .iter()
+        .map(|s| (*s).into())
+        .collect::<HashSet<JsWord>>()
+    );
     assert_eq!(diagnostics, vec![]);
   }
 

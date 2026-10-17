@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
+use crate::transformer::Ast;
 use parcel_core::*;
-use parcel_js_swc_core::Ast;
 
 pub mod hmr;
 mod library_packager;
@@ -28,7 +28,7 @@ struct JsContent {
   rsc_runtime_dep: Option<u32>,
   needs_filename: bool,
   needs_dirname: bool,
-  /// See `parcel_js_swc_core::async_module::wrap_async_module`.
+  /// See `crate::transformer::async_module::wrap_async_module`.
   esm_prologue_len: usize,
   react_refresh_wrapped: bool,
   /// The map from an earlier transformer, composed into this asset's generated map when packaging.

@@ -11,7 +11,7 @@ use swc_core::{
   },
 };
 
-use crate::{
+use crate::transformer::{
   Ast,
   tree_shake::{Resolution, tree_shake},
 };

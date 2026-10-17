@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::HashMap};
 
-use crate::{
+use crate::transformer::{
   Config, SourceLocation,
   utils::{CodeHighlight, Diagnostic, DiagnosticSeverity},
 };
@@ -106,7 +106,7 @@ pub fn mdx(config: &Config) -> Result<MdxResult, Diagnostic> {
       config
         .mdx_components
         .clone()
-        .unwrap_or_else(|| crate::DEFAULT_MDX_COMPONENTS.into()),
+        .unwrap_or_else(|| crate::transformer::DEFAULT_MDX_COMPONENTS.into()),
     );
     let children = ast.children_mut().unwrap();
     let imports = (0..assets.len()).map(|i| {

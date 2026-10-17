@@ -13,7 +13,7 @@ use swc_core::{
   quote,
 };
 
-use crate::{
+use crate::transformer::{
   fold_member_expr_skip_prop, id,
   utils::{get_undefined_ident, match_export_name, match_export_name_ident},
 };
@@ -143,10 +143,9 @@ impl ESMFold {
       decls: vec![VarDeclarator {
         span: DUMMY_SP,
         name: Pat::Ident(ident.into()),
-        init: Some(Box::new(Expr::Call(crate::utils::create_require(
-          src,
-          self.unresolved_mark,
-        )))),
+        init: Some(Box::new(Expr::Call(
+          crate::transformer::utils::create_require(src, self.unresolved_mark),
+        ))),
         definite: false,
       }],
       declare: false,
@@ -627,10 +626,12 @@ impl Fold for ESMFold {
               )
               .into(),
             ),
-            init: Some(Box::new(Expr::Call(crate::utils::create_require(
-              self.esm_helpers.clone(),
-              self.unresolved_mark,
-            )))),
+            init: Some(Box::new(Expr::Call(
+              crate::transformer::utils::create_require(
+                self.esm_helpers.clone(),
+                self.unresolved_mark,
+              ),
+            ))),
             definite: false,
           }],
           declare: false,
@@ -710,7 +711,7 @@ impl Fold for ESMFold {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::run_with_transformation;
+  use crate::transformer::test_utils::run_with_transformation;
 
   #[test]
   fn uses_configured_esm_helpers() {

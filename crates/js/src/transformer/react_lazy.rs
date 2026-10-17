@@ -3,7 +3,7 @@ use swc_core::ecma::{
   visit::{Visit, VisitWith},
 };
 
-use crate::{
+use crate::transformer::{
   DependencyDescriptor, DependencyKind, collect::Collect, dependency_collector::DependencyFlags,
   utils::match_str,
 };
@@ -95,7 +95,7 @@ mod test {
   use swc_core::{common::Mark, ecma::ast::Module};
 
   use super::*;
-  use crate::{
+  use crate::transformer::{
     DependencyKind,
     dependency_collector::DependencyFlags,
     test_utils::{RunTestContext, run_with_transformation},
@@ -108,7 +108,7 @@ mod test {
       attributes: None,
       flags: DependencyFlags::empty(),
       kind: DependencyKind::DynamicImport,
-      loc: crate::SourceLocation {
+      loc: crate::transformer::SourceLocation {
         start_line: 0,
         start_col: 0,
         end_line: 0,

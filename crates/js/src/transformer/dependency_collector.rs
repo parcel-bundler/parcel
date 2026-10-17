@@ -20,7 +20,7 @@ use swc_core::{
   quote,
 };
 
-use crate::{Config, fold_member_expr_skip_prop, utils::*};
+use crate::transformer::{Config, fold_member_expr_skip_prop, utils::*};
 
 macro_rules! hash {
   ($str:expr) => {{
@@ -1912,7 +1912,7 @@ fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<as
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::{
+  use crate::transformer::{
     DependencyDescriptor,
     test_utils::{RunTestContext, RunVisitResult, run_fold},
   };

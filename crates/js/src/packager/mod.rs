@@ -1,13 +1,13 @@
 use std::{fmt::Write, sync::Arc};
 
-use indexmap::{IndexMap, IndexSet};
-use parcel_core::*;
-use parcel_js_swc_core::{
+use crate::transformer::{
   Ast,
   async_module::wrap_async_module,
   script::{link_script, minify_script},
   tree_shake::tree_shake,
 };
+use indexmap::{IndexMap, IndexSet};
+use parcel_core::*;
 use swc_core::{
   common::{DUMMY_SP, SyntaxContext},
   ecma::ast::{
@@ -21,10 +21,10 @@ mod printer;
 mod rsc;
 mod synthetic;
 
+pub use crate::transformer::tree_shake::Resolution;
 pub use dependencies::asset_dependencies;
 pub(crate) use dependencies::bundle_dependencies;
 use dependencies::{awaited_bundles, manifest_entries, static_import_ids, static_imports};
-pub use parcel_js_swc_core::tree_shake::Resolution;
 pub use rsc::RscModule;
 use synthetic::AsyncRegistration;
 pub use synthetic::{BundleShim, SyntheticAsset};

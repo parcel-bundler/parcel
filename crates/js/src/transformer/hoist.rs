@@ -15,7 +15,7 @@ use swc_core::{
   },
 };
 
-use crate::{
+use crate::transformer::{
   collect::{Collect, Export, Import, ImportKind},
   id,
   utils::{
@@ -1363,7 +1363,7 @@ mod tests {
   };
 
   use super::*;
-  use crate::utils::BailoutReason;
+  use crate::transformer::utils::BailoutReason;
   extern crate indoc;
   use self::indoc::indoc;
 

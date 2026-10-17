@@ -383,7 +383,6 @@ impl BailoutReason {
   }
 }
 
-#[macro_export]
 macro_rules! fold_member_expr_skip_prop {
   () => {
     fn fold_member_expr(
@@ -401,12 +400,13 @@ macro_rules! fold_member_expr_skip_prop {
   };
 }
 
-#[macro_export]
 macro_rules! id {
   ($ident: expr) => {
     $ident.to_id()
   };
 }
+
+pub(super) use {fold_member_expr_skip_prop, id};
 
 #[derive(Debug, Clone, Default)]
 pub struct ErrorBuffer(

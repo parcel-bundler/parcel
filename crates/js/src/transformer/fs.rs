@@ -14,7 +14,7 @@ use swc_core::{
   },
 };
 
-use crate::{
+use crate::transformer::{
   collect::{Collect, Import},
   dependency_collector::{DependencyDescriptor, DependencyFlags, DependencyKind},
   id,

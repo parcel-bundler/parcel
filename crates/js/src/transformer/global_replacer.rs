@@ -11,7 +11,7 @@ use swc_core::{
   },
 };
 
-use crate::{
+use crate::transformer::{
   dependency_collector::{DependencyDescriptor, DependencyFlags, DependencyKind},
   utils::{SourceLocation, SourceType, create_global_decl_stmt, create_require, is_unresolved},
 };
@@ -198,7 +198,7 @@ mod test {
 
   use swc_core::ecma::atoms::Atom as JsWord;
 
-  use crate::{
+  use crate::transformer::{
     DependencyDescriptor, DependencyKind,
     global_replacer::GlobalReplacer,
     test_utils::{RunTestContext, RunVisitResult, run_visit},

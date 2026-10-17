@@ -15,7 +15,7 @@ use swc_core::{
   quote,
 };
 
-use crate::{
+use crate::transformer::{
   Ast,
   utils::{is_unresolved, match_member_expr, match_property_name},
 };

@@ -6,7 +6,7 @@ use swc_core::{
   },
 };
 
-use crate::utils::is_unresolved;
+use crate::transformer::utils::is_unresolved;
 
 /// Tracks whether a module references the Node.js `__filename` or `__dirname` globals.
 /// The packager uses this information to insert module-local definitions with paths relative
@@ -60,7 +60,7 @@ impl<'a> VisitMut for NodeReplacer<'a> {
 
 #[cfg(test)]
 mod test {
-  use crate::test_utils::run_visit;
+  use crate::transformer::test_utils::run_visit;
 
   use super::*;
 
