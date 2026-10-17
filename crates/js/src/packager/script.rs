@@ -11,10 +11,8 @@ use swc_core::{
   },
 };
 
-use crate::transformer::{
-  Ast,
-  tree_shake::{Resolution, tree_shake},
-};
+use super::tree_shake::{Resolution, tree_shake};
+use crate::transformer::Ast;
 
 /// Links a classic script's dependencies through the global `require_name`, the runtime's require
 /// which a preceding module table registers. Only the `require` calls the transformer created for

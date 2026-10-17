@@ -1,11 +1,6 @@
 use std::{fmt::Write, sync::Arc};
 
-use crate::transformer::{
-  Ast,
-  async_module::wrap_async_module,
-  script::{link_script, minify_script},
-  tree_shake::tree_shake,
-};
+use crate::transformer::{Ast, async_module::wrap_async_module};
 use indexmap::{IndexMap, IndexSet};
 use parcel_core::*;
 use swc_core::{
@@ -19,18 +14,21 @@ use swc_core::{
 mod dependencies;
 mod printer;
 mod rsc;
+mod script;
 mod synthetic;
+pub mod tree_shake;
 
-pub use crate::transformer::tree_shake::Resolution;
 pub use dependencies::asset_dependencies;
 pub(crate) use dependencies::bundle_dependencies;
 use dependencies::{awaited_bundles, manifest_entries, static_import_ids, static_imports};
 pub use rsc::RscModule;
 use synthetic::AsyncRegistration;
 pub use synthetic::{BundleShim, SyntheticAsset};
+pub use tree_shake::{Resolution, tree_shake};
 
 use crate::JsContent;
 use printer::Printer;
+use script::{link_script, minify_script};
 
 const RUNTIME_MODULES: &str = "m";
 const RUNTIME_PARCEL_REQUIRE_NAME: &str = "p";

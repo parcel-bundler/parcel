@@ -9,12 +9,10 @@ mod modules;
 mod node_replacer;
 mod plugin;
 mod react_lazy;
-pub mod script;
 #[cfg(test)]
 mod test_utils;
-pub mod tree_shake;
 mod typeof_replacer;
-mod utils;
+pub mod utils;
 
 pub use plugin::JsTransformer;
 

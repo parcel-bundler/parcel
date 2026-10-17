@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::transformer::tree_shake::tree_shake;
+use crate::packager::tree_shake::tree_shake;
 use fixedbitset::FixedBitSet;
 use indexmap::IndexSet;
 use parcel_core::*;
