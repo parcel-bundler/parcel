@@ -11,8 +11,11 @@ use swc_core::{
   },
 };
 
+use parcel_core::Dependency;
+
 use crate::transformer::{
-  dependency_collector::{DependencyDescriptor, DependencyFlags, DependencyKind},
+  Config,
+  dependency_collector::DependencyKind,
   utils::{SourceLocation, SourceType, create_global_decl_stmt, create_require, is_unresolved},
 };
 
@@ -49,12 +52,11 @@ use crate::transformer::{
 pub struct GlobalReplacer<'a> {
   pub source_map: Lrc<SourceMap>,
   /// Require statements that are inserted into the file will be added to this list.
-  pub items: &'a mut Vec<DependencyDescriptor>,
+  pub items: &'a mut Vec<Dependency>,
   pub global_mark: Mark,
   /// Internal structure for inserted global statements.
   pub globals: IndexMap<JsWord, (SyntaxContext, ast::Stmt)>,
-  pub project_root: &'a Path,
-  pub filename: &'a Path,
+  pub config: &'a Config,
   pub unresolved_mark: Mark,
 }
 
@@ -78,17 +80,7 @@ impl VisitMut for GlobalReplacer<'_> {
         if self.update_binding(id, |_| {
           Call(create_require("process".into(), unresolved_mark))
         }) {
-          let specifier = id.sym.clone();
-          self.items.push(DependencyDescriptor {
-            kind: DependencyKind::Require,
-            loc: SourceLocation::from(&self.source_map, id.span),
-            specifier,
-            attributes: None,
-            flags: DependencyFlags::empty(),
-            source_type: Some(SourceType::Module),
-            placeholder: None,
-            concurrent_group: 0,
-          });
+          self.add_dependency("process", id.span);
         }
       }
       "Buffer" => {
@@ -100,36 +92,31 @@ impl VisitMut for GlobalReplacer<'_> {
             span: DUMMY_SP,
           })
         }) {
-          self.items.push(DependencyDescriptor {
-            kind: DependencyKind::Require,
-            loc: SourceLocation::from(&self.source_map, id.span),
-            specifier,
-            attributes: None,
-            flags: DependencyFlags::empty(),
-            source_type: Some(SourceType::Module),
-            placeholder: None,
-            concurrent_group: 0,
-          });
+          self.add_dependency("buffer", id.span);
         }
       }
       "__filename" => {
         self.update_binding(id, |this| {
-          let filename =
-            if let Some(relative) = pathdiff::diff_paths(this.filename, this.project_root) {
-              relative.to_slash_lossy()
-            } else if let Some(filename) = this.filename.file_name() {
-              format!("/{}", filename.to_string_lossy())
-            } else {
-              String::from("/unknown.js")
-            };
+          let filename = if let Some(relative) = pathdiff::diff_paths(
+            Path::new(&this.config.filename),
+            Path::new(&this.config.project_root),
+          ) {
+            relative.to_slash_lossy()
+          } else if let Some(filename) = Path::new(&this.config.filename).file_name() {
+            format!("/{}", filename.to_string_lossy())
+          } else {
+            String::from("/unknown.js")
+          };
 
           Lit(ast::Lit::Str(JsWord::from(filename).into()))
         });
       }
       "__dirname" => {
         self.update_binding(id, |this| {
-          let dirname = if let Some(dirname) = this.filename.parent() {
-            if let Some(relative) = pathdiff::diff_paths(dirname, this.project_root) {
+          let dirname = if let Some(dirname) = Path::new(&this.config.filename).parent() {
+            if let Some(relative) =
+              pathdiff::diff_paths(dirname, Path::new(&this.config.project_root))
+            {
               relative.to_slash_lossy()
             } else {
               String::from("/")
@@ -169,6 +156,18 @@ impl VisitMut for GlobalReplacer<'_> {
 }
 
 impl GlobalReplacer<'_> {
+  fn add_dependency(&mut self, specifier: &str, span: swc_core::common::Span) {
+    let loc = self
+      .config
+      .loc(SourceLocation::from(&self.source_map, span));
+    self.items.push(self.config.dependency(
+      DependencyKind::Require,
+      specifier,
+      SourceType::Module,
+      Some(loc),
+    ));
+  }
+
   fn update_binding<F>(&mut self, id: &mut ast::Ident, expr: F) -> bool
   where
     F: FnOnce(&Self) -> Expr,
@@ -191,40 +190,49 @@ impl GlobalReplacer<'_> {
 
 #[cfg(test)]
 mod test {
-  use std::path::Path;
-
-  use swc_core::ecma::atoms::Atom as JsWord;
+  use parcel_core::{Dependency, SpecifierType};
 
   use crate::transformer::{
-    DependencyDescriptor, DependencyKind,
+    Config,
     global_replacer::GlobalReplacer,
     test_utils::{RunTestContext, RunVisitResult, run_visit},
   };
 
-  fn make_global_replacer(
+  fn make_global_replacer<'a>(
     run_test_context: RunTestContext,
-    items: &mut Vec<DependencyDescriptor>,
-  ) -> GlobalReplacer {
+    items: &'a mut Vec<Dependency>,
+    config: &'a Config,
+  ) -> GlobalReplacer<'a> {
     GlobalReplacer {
       source_map: run_test_context.source_map.clone(),
       items,
       global_mark: run_test_context.global_mark.clone(),
       globals: Default::default(),
-      project_root: Path::new("project-root"),
-      filename: Path::new("filename"),
+      config,
       unresolved_mark: run_test_context.unresolved_mark.clone(),
+    }
+  }
+
+  fn make_config() -> Config {
+    Config {
+      project_root: "project-root".into(),
+      filename: "filename".into(),
+      ..Default::default()
     }
   }
 
   #[test]
   fn test_globals_visitor_with_require_process() {
     let mut items = vec![];
+    let config = make_config();
 
     let RunVisitResult { output_code, .. } = run_visit(
       r#"
 console.log(process.test);
     "#,
-      |run_test_context: RunTestContext| make_global_replacer(run_test_context, &mut items),
+      |run_test_context: RunTestContext| {
+        make_global_replacer(run_test_context, &mut items, &config)
+      },
     );
     assert_eq!(
       output_code,
@@ -233,20 +241,23 @@ console.log(process.test);
 "#
     );
     assert_eq!(items.len(), 1);
-    assert_eq!(items[0].kind, DependencyKind::Require);
-    assert_eq!(items[0].specifier, JsWord::from("process"));
+    assert_eq!(items[0].specifier_type, SpecifierType::Commonjs);
+    assert_eq!(&*items[0].specifier, "process");
   }
 
   #[test]
   fn test_transforms_computed_property() {
     let mut items = vec![];
+    let config = make_config();
 
     let RunVisitResult { output_code, .. } = run_visit(
       r#"
 object[process.test];
 object[__dirname];
     "#,
-      |run_test_context: RunTestContext| make_global_replacer(run_test_context, &mut items),
+      |run_test_context: RunTestContext| {
+        make_global_replacer(run_test_context, &mut items, &config)
+      },
     );
     assert_eq!(
       output_code,
@@ -261,13 +272,16 @@ object[__dirname];
   #[test]
   fn test_does_not_transform_member_property() {
     let mut items = vec![];
+    let config = make_config();
 
     let RunVisitResult { output_code, .. } = run_visit(
       r#"
 object.process.test;
 object.__filename;
     "#,
-      |run_test_context: RunTestContext| make_global_replacer(run_test_context, &mut items),
+      |run_test_context: RunTestContext| {
+        make_global_replacer(run_test_context, &mut items, &config)
+      },
     );
     assert_eq!(
       output_code,

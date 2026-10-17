@@ -26,18 +26,17 @@ use std::{
 
 pub use collect::CollectImportedSymbol;
 use collect::{Collect, CollectResult};
-pub use dependency_collector::{
-  DependencyDescriptor, DependencyFlags, DependencyKind, dependency_collector,
-};
+pub use dependency_collector::{DependencyKind, dependency_collector};
 use env_replacer::*;
 use fs::inline_fs;
 use global_replacer::GlobalReplacer;
 use indexmap::IndexMap;
-pub use mdx::{MdxAsset, mdx};
+pub use mdx::mdx;
 use modules::esm2cjs;
 use node_replacer::NodeReplacer;
 use parcel_core::{
-  Environment, EnvironmentFeature, EnvironmentFlags, IncludeNodeModules, OutputFormat, Target,
+  Dependency, DependencyResolution, Environment, EnvironmentFeature, EnvironmentFlags, FileSystem,
+  IncludeNodeModules, OutputFormat, SourceUrl, Target,
 };
 use parcel_macros::{MacroCallback, MacroError, Macros};
 use path_slash::PathExt;
@@ -86,6 +85,7 @@ pub(crate) const MDX_COMPONENTS: &str = "@parcel/parcel3/src/mdx-components";
 #[derive(Default, Debug)]
 pub struct Config {
   pub filename: String,
+  pub url: SourceUrl,
   pub code: Vec<u8>,
   pub project_root: String,
   /// The target the module is compiled for. A "use client" or "use server" directive replaces it
@@ -322,7 +322,7 @@ pub struct TransformAstResult {
   /// The target a "use client" or "use server" directive moved the module to.
   pub target: Option<Arc<Target>>,
   pub shebang: Option<String>,
-  pub dependencies: Vec<DependencyDescriptor>,
+  pub dependencies: Vec<Dependency>,
   pub symbol_result: Option<CollectResult>,
   pub diagnostics: Vec<Diagnostic>,
   /// Why symbols could not be statically analyzed, when `Config::trace_bailouts` is set.
@@ -339,7 +339,6 @@ pub struct TransformAstResult {
   /// Whether the module's body is wrapped for React Refresh, in the `try` block of its last statement.
   pub react_refresh_wrapped: bool,
   pub directives: Vec<JsWord>,
-  pub mdx_assets: Vec<MdxAsset>,
 }
 
 impl Ast {
@@ -384,8 +383,11 @@ impl Ast {
   }
 }
 
+/// Transforms a module. Files it reads, e.g. for `fs.readFileSync` calls it inlines, are read
+/// through `fs`.
 pub fn transform_to_ast(
   mut config: Config,
+  fs: &dyn FileSystem,
   call_macro: Option<MacroCallback>,
 ) -> Result<TransformAstResult, std::io::Error> {
   let mut result = TransformAstResult::default();
@@ -401,6 +403,7 @@ pub fn transform_to_ast(
       PathBuf::from(&config.filename)
     };
 
+  let mut mdx_assets = Vec::new();
   let (module, comments) = if matches!(config.asset_type, Type::Mdx) {
     source_map.new_source_file(Lrc::new(FileName::Real(filename)), code.to_owned());
 
@@ -411,7 +414,7 @@ pub fn transform_to_ast(
         return Ok(result);
       }
       Ok(res) => {
-        result.mdx_assets = res.assets;
+        mdx_assets = res.assets;
         (Program::Module(res.module), res.comments)
       }
     }
@@ -470,7 +473,6 @@ pub fn transform_to_ast(
   }
 
   let mut global_deps = vec![];
-  let mut fs_deps = vec![];
   let should_inline_fs = config.inline_fs() && code.contains("readFileSync");
   let should_import_swc_helpers = config.source_type() == SourceType::Module;
 
@@ -649,7 +651,7 @@ pub fn transform_to_ast(
               source_map.clone(),
               unresolved_mark,
               &config.project_root,
-              &mut fs_deps,
+              fs,
               is_module,
             ),
             should_inline_fs,
@@ -676,8 +678,7 @@ pub fn transform_to_ast(
                 items: &mut global_deps,
                 global_mark,
                 globals: IndexMap::new(),
-                project_root: Path::new(&config.project_root),
-                filename: Path::new(&config.filename),
+                config: &config,
                 unresolved_mark,
               },
               config.insert_node_globals(),
@@ -759,11 +760,23 @@ pub fn transform_to_ast(
           };
 
           result.dependencies.extend(global_deps);
-          result.dependencies.extend(fs_deps);
+
+          // Code blocks rendered in MDX are compiled as separate assets, imported as `mdx-<index>`.
+          for dependency in &mut result.dependencies {
+            if let Some(asset) = dependency
+              .specifier
+              .strip_prefix("mdx-")
+              .and_then(|index| index.parse::<usize>().ok())
+              .and_then(|index| mdx_assets.get(index))
+            {
+              dependency.resolution =
+                DependencyResolution::Deferred(Arc::new(asset.to_request(&config, &dependency.specifier)));
+            }
+          }
 
           result.diagnostics = diagnostics;
 
-          if config.react_refresh() && result.dependencies.iter().any(|d| matches!(d.specifier.as_str(), "react" | "react/jsx-runtime" | "react/jsx-dev-runtime" | "'@emotion/react" | "@emotion/react/jsx-runtime" | "@emotion/react/jsx-dev-runtime")) {
+          if config.react_refresh() && result.dependencies.iter().any(|d| matches!(&*d.specifier, "react" | "react/jsx-runtime" | "react/jsx-dev-runtime" | "@emotion/react" | "@emotion/react/jsx-runtime" | "@emotion/react/jsx-dev-runtime")) {
             result.react_refresh_wrapped = true;
             // `module` and `require` are the module wrapper's, like the module's own references to
             // them, so the packager binds them the same way.
@@ -799,16 +812,12 @@ pub fn transform_to_ast(
               })))
             ];
 
-            result.dependencies.push(DependencyDescriptor {
-              kind: DependencyKind::Require,
-              loc: SourceLocation { start_line: 0, start_col: 0, end_line: 0, end_col: 0 },
-              specifier: "@parcel/parcel3/src/react-refresh.js".into(),
-              attributes: None,
-              flags: DependencyFlags::empty(),
-              source_type: None,
-              placeholder: None,
-              concurrent_group: 0,
-            });
+            result.dependencies.push(config.dependency(
+              DependencyKind::Require,
+              "@parcel/parcel3/src/react-refresh.js",
+              SourceType::Module,
+              None,
+            ));
 
             if let Some(sym) = &mut result.symbol_result {
               sym.imports.push(CollectImportedSymbol {
@@ -1025,6 +1034,7 @@ mod tests {
         }),
         ..Default::default()
       },
+      &parcel_core::MemoryFileSystem::new(),
       Some(&callback),
     )
     .unwrap();

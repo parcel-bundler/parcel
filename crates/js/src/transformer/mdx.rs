@@ -1,4 +1,6 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
+
+use parcel_core::{AssetRequest, AssetType, BufferContent};
 
 use crate::transformer::{
   Config, MDX_COMPONENTS, SourceLocation,
@@ -46,6 +48,29 @@ pub struct MdxAsset {
   pub lang: String,
   pub code: String,
   pub position: Option<Position>,
+}
+
+impl MdxAsset {
+  /// A request to compile the code block as its own asset, identified by `unique_key`.
+  pub fn to_request(&self, config: &Config, unique_key: &str) -> AssetRequest {
+    let location = |point: Option<&markdown::unist::Point>| parcel_core::Location {
+      line: point.map_or(0, |p| p.line as u32),
+      column: point.map_or(0, |p| p.column as u32),
+    };
+    AssetRequest {
+      loc: parcel_core::SourceLocation {
+        url: config.url.clone(),
+        start: location(self.position.as_ref().map(|p| &p.start)),
+        end: location(self.position.as_ref().map(|p| &p.end)),
+      },
+      ty: AssetType::from_extension(&self.lang),
+      content: Arc::new(BufferContent::new_string(self.code.clone())),
+      pipeline: None,
+      side_effects: true,
+      target: config.target.clone(),
+      unique_key: Some(unique_key.into()),
+    }
+  }
 }
 
 pub fn mdx(config: &Config) -> Result<MdxResult, Diagnostic> {

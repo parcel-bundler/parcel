@@ -3,9 +3,9 @@ use std::{
   fmt,
   hash::{Hash, Hasher},
   path::Path,
+  sync::Arc,
 };
 
-use bitflags::bitflags;
 use parcel_macros::{Evaluator, JsValue};
 use path_slash::PathBufExt;
 use swc_core::{
@@ -19,8 +19,11 @@ use swc_core::{
   quote,
 };
 
-use crate::transformer::{Config, fold_member_expr_skip_prop, utils::*};
-use parcel_core::Environment;
+use crate::transformer::{Config, fold_member_expr_skip_prop, react_target, utils::*};
+use parcel_core::{
+  BundleBehavior, Dependency, DependencyFlags, DependencyResolution, Environment, ExportsCondition,
+  ImportType, OutputFormat, PathId, Priority, SourceUrl, SpecifierType, Target,
+};
 
 macro_rules! hash {
   ($str:expr) => {{
@@ -82,20 +85,6 @@ pub enum DependencyKind {
   /// document.body.appendChild(img);
   /// ```
   Url,
-  /// `fs.readFileSync` statements
-  ///
-  /// > Calls to fs.readFileSync are replaced with the file's contents if the filepath is statically
-  /// > determinable and inside the project root.
-  ///
-  /// ```skip
-  /// import fs from "fs";
-  /// import path from "path";
-  ///
-  /// const data = fs.readFileSync(path.join(__dirname, "data.json"), "utf8");
-  /// ```
-  ///
-  /// * https://parceljs.org/features/node-emulation/#inlining-fs.readfilesync
-  File,
   /// `parcelRequire` call.
   Id,
 }
@@ -106,37 +95,217 @@ impl fmt::Display for DependencyKind {
   }
 }
 
-bitflags! {
-  #[derive(Default, Clone, Copy, Debug, PartialEq)]
-  pub struct DependencyFlags: u8 {
-    const OPTIONAL = 1 << 0;
-    const HELPER = 1 << 1;
-    const NEEDS_STABLE_NAME = 1 << 2;
-    const REACT_LAZY = 1 << 3;
+impl DependencyKind {
+  fn specifier_type(&self) -> SpecifierType {
+    use DependencyKind::*;
+    match self {
+      Import | Export | DynamicImport => SpecifierType::Esm,
+      Require => SpecifierType::Commonjs,
+      WebWorker | ServiceWorker | Worklet | Url => SpecifierType::Url,
+      Id => SpecifierType::Custom,
+    }
+  }
+
+  fn priority(&self) -> Priority {
+    use DependencyKind::*;
+    match self {
+      DynamicImport | WebWorker | ServiceWorker | Worklet | Url => Priority::Lazy,
+      Import | Export | Require | Id => Priority::Sync,
+    }
+  }
+
+  fn bundle_behavior(&self) -> BundleBehavior {
+    use DependencyKind::*;
+    match self {
+      WebWorker | ServiceWorker | Worklet | Url => BundleBehavior::Isolated,
+      Import | Export | DynamicImport | Require | Id => BundleBehavior::None,
+    }
+  }
+
+  fn import_type(&self) -> ImportType {
+    use DependencyKind::*;
+    match self {
+      WebWorker | ServiceWorker | Worklet | Url => ImportType::Url,
+      Import | Export | DynamicImport | Require | Id => ImportType::JavaScript,
+    }
+  }
+
+  fn conditions(&self) -> ExportsCondition {
+    use DependencyKind::*;
+    match self {
+      Import | Export | DynamicImport => ExportsCondition::IMPORT,
+      Require => ExportsCondition::REQUIRE,
+      WebWorker | ServiceWorker => ExportsCondition::WORKER,
+      Worklet => ExportsCondition::WORKLET,
+      Url | Id => ExportsCondition::empty(),
+    }
+  }
+
+  fn flags(&self) -> DependencyFlags {
+    match self {
+      DependencyKind::WebWorker => DependencyFlags::IS_WEBWORKER,
+      // Browsers identify a service worker registration by its script URL, and check that URL for
+      // updates. It must not change between builds.
+      DependencyKind::ServiceWorker => DependencyFlags::NEEDS_STABLE_NAME,
+      _ => DependencyFlags::empty(),
+    }
   }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct DependencyDescriptor {
-  pub kind: DependencyKind,
-  pub loc: SourceLocation,
-  /// The text specifier associated with the import/export statement.
-  pub specifier: JsWord,
-  pub attributes: Option<JsValue>,
-  pub flags: DependencyFlags,
-  /// Non-zero for a dynamic import that is a direct element of a `Promise.all`
-  /// array, numbering that array within the file: the imports of one array are
-  /// one loading event. Zero otherwise.
-  pub concurrent_group: u32,
-  pub source_type: Option<SourceType>,
-  pub placeholder: Option<String>,
+impl Config {
+  /// A dependency of the module on `specifier`, loaded as `kind`. `source_type` is the source type
+  /// of the code a worker loads.
+  pub(crate) fn dependency(
+    &self,
+    kind: DependencyKind,
+    specifier: &str,
+    source_type: SourceType,
+    loc: Option<parcel_core::SourceLocation>,
+  ) -> Dependency {
+    Dependency {
+      specifier: specifier.into(),
+      specifier_type: kind.specifier_type(),
+      priority: kind.priority(),
+      bundle_behavior: kind.bundle_behavior(),
+      import_type: kind.import_type(),
+      flags: kind.flags(),
+      concurrent_group: 0,
+      target: self.dependency_target(&kind, source_type),
+      loc,
+      placeholder: None,
+      resolve_from: Some(self.url.clone()),
+      range: None,
+      conditions: kind.conditions(),
+      resolution: DependencyResolution::None,
+    }
+  }
+
+  /// A dependency on a helper the transformer inserted, e.g. from `@swc/helpers`, which is
+  /// resolved from the project root rather than the module.
+  pub(crate) fn helper_dependency(&self, kind: DependencyKind, specifier: &str) -> Dependency {
+    let mut dependency = self.dependency(kind, specifier, SourceType::Module, None);
+    dependency.resolve_from = Some(SourceUrl::from_directory_path(&PathId::new(Path::new(
+      &self.project_root,
+    ))));
+    if !self.is_library() {
+      dependency.flags |= DependencyFlags::FORCE_BUNDLE;
+    }
+    // TODO: get versions from package.json? Can we do it at compile time?
+    dependency.range = if specifier.starts_with("@swc/helpers") {
+      Some("^0.5.0".into())
+    } else if specifier.starts_with("regenerator-runtime") {
+      Some("^0.13.7".into())
+    } else {
+      None
+    };
+    dependency
+  }
+
+  fn dependency_target(&self, kind: &DependencyKind, source_type: SourceType) -> Arc<Target> {
+    let target = &self.target;
+    match kind {
+      DependencyKind::WebWorker => {
+        // Use native ES module output if the worker was created with `type: 'module'` and all
+        // targets support native module workers. Only do this if parent asset output format is
+        // also esmodule so that assets can be shared between workers and the main thread in the
+        // global output format.
+        let output_format = if target.output_format == OutputFormat::Esmodule
+          && source_type == SourceType::Module
+          && self.supports_module_workers()
+        {
+          OutputFormat::Esmodule
+        } else if target.output_format == OutputFormat::Commonjs {
+          OutputFormat::Commonjs
+        } else {
+          OutputFormat::Global
+        };
+
+        Arc::new(Target {
+          environment: Environment::WebWorker,
+          source_type,
+          output_format,
+          ..(**target).clone()
+        })
+      }
+      DependencyKind::ServiceWorker => Arc::new(Target {
+        environment: Environment::ServiceWorker,
+        source_type,
+        output_format: OutputFormat::Global,
+        ..(**target).clone()
+      }),
+      DependencyKind::Worklet => Arc::new(Target {
+        environment: Environment::Worklet,
+        source_type: SourceType::Module,
+        output_format: OutputFormat::Esmodule,
+        ..(**target).clone()
+      }),
+      DependencyKind::DynamicImport if target.source_type != SourceType::Module => {
+        Arc::new(Target {
+          source_type: SourceType::Module,
+          ..(**target).clone()
+        })
+      }
+      _ => target.clone(),
+    }
+  }
+
+  /// Converts a location in the module to a dependency location.
+  pub(crate) fn loc(&self, loc: SourceLocation) -> parcel_core::SourceLocation {
+    parcel_core::SourceLocation {
+      url: self.url.clone(),
+      start: parcel_core::Location {
+        line: loc.start_line as u32,
+        column: loc.start_col as u32,
+      },
+      end: parcel_core::Location {
+        line: loc.end_line as u32,
+        column: loc.end_col as u32,
+      },
+    }
+  }
+}
+
+/// The environment the `env` import attribute places the imported module in, e.g.
+/// `import x from './x' with {env: 'react-client'}`.
+fn dependency_environment(attributes: Option<&JsValue>) -> Option<Environment> {
+  match import_attribute(attributes?, "env")? {
+    JsValue::String(value) if value == "react-server" => Some(Environment::ReactServer),
+    JsValue::String(value) if value == "react-client" => Some(Environment::ReactClient),
+    _ => None,
+  }
+}
+
+/// Maps the `type` import attribute to an ImportType, e.g. `import x from './x' with {type: 'url'}`.
+/// Unrecognized values (including `json` and `macro`, which affect transformation rather than
+/// evaluation) return None and fall back to the dependency kind's default.
+fn dependency_import_type(attributes: Option<&JsValue>) -> Option<ImportType> {
+  match import_attribute(attributes?, "type")? {
+    JsValue::String(value) if value == "url" => Some(ImportType::Url),
+    JsValue::String(value) if value == "text" => Some(ImportType::Text),
+    JsValue::String(value) if value == "bytes" => Some(ImportType::Bytes),
+    JsValue::String(value) if value == "css" => Some(ImportType::StyleSheet),
+    _ => None,
+  }
+}
+
+fn import_attribute<'a>(attributes: &'a JsValue, name: &str) -> Option<&'a JsValue> {
+  let JsValue::Object(attributes) = attributes else {
+    return None;
+  };
+
+  attributes.get(name).or_else(|| {
+    let JsValue::Object(with) = attributes.get("with")? else {
+      return None;
+    };
+    with.get(name)
+  })
 }
 
 /// This pass collects dependencies in a module and compiles references as needed to work with Parcel's JSRuntime.
 pub fn dependency_collector<'a>(
   module: Module,
   source_map: Lrc<SourceMap>,
-  items: &'a mut Vec<DependencyDescriptor>,
+  items: &'a mut Vec<Dependency>,
   ignore_mark: swc_core::common::Mark,
   unresolved_mark: swc_core::common::Mark,
   config: &'a Config,
@@ -162,7 +331,7 @@ pub fn dependency_collector<'a>(
 
 struct DependencyCollector<'a> {
   source_map: Lrc<SourceMap>,
-  items: &'a mut Vec<DependencyDescriptor>,
+  items: &'a mut Vec<Dependency>,
   in_try: bool,
   in_promise: bool,
   /// The `Promise.all` array whose direct `import()` element is being folded, or zero.
@@ -244,26 +413,42 @@ impl<'a> DependencyCollector<'a> {
       _ => None,
     };
 
-    let mut flags = DependencyFlags::empty();
-    flags.set(DependencyFlags::OPTIONAL, is_optional);
-    flags.set(DependencyFlags::HELPER, span.is_dummy());
-    flags.set(DependencyFlags::NEEDS_STABLE_NAME, needs_stable_name);
-    let concurrent_group = if kind == DependencyKind::DynamicImport {
-      self.concurrent_group
+    // Helpers inserted by other transforms have no location in the module. The JSX runtime is
+    // resolved from the module like any other import.
+    let is_helper = span.is_dummy()
+      && kind != DependencyKind::Url
+      && !(specifier.ends_with("/jsx-runtime") || specifier.ends_with("/jsx-dev-runtime"));
+    let mut dependency = if is_helper {
+      self.config.helper_dependency(kind.clone(), &specifier)
     } else {
-      0
+      let loc = self
+        .config
+        .loc(SourceLocation::from(&self.source_map, span));
+      self
+        .config
+        .dependency(kind.clone(), &specifier, source_type, Some(loc))
     };
-
-    self.items.push(DependencyDescriptor {
-      kind,
-      loc: SourceLocation::from(&self.source_map, span),
-      specifier,
-      attributes,
-      flags,
-      concurrent_group,
-      source_type: Some(source_type),
-      placeholder: placeholder.clone(),
-    });
+    dependency.placeholder = placeholder.as_deref().map(Into::into);
+    dependency.flags.set(DependencyFlags::OPTIONAL, is_optional);
+    if needs_stable_name {
+      dependency.flags |= DependencyFlags::NEEDS_STABLE_NAME;
+    }
+    if kind == DependencyKind::DynamicImport {
+      dependency.concurrent_group = self.concurrent_group;
+    }
+    if let Some(environment) = dependency_environment(attributes.as_ref()) {
+      dependency.target = react_target(&self.config.target, environment);
+    }
+    if let Some(import_type) = dependency_import_type(attributes.as_ref()) {
+      dependency.import_type = import_type;
+      // A URL import resolves to a separate file; the others inline the bundle's content.
+      dependency.bundle_behavior = if import_type == ImportType::Url {
+        BundleBehavior::Isolated
+      } else {
+        BundleBehavior::Inline
+      };
+    }
+    self.items.push(dependency);
 
     placeholder.map(|p| p.into())
   }
@@ -303,33 +488,23 @@ impl<'a> DependencyCollector<'a> {
     // For library builds, we need to create something that can be statically analyzed by another bundler,
     // so rather than replacing with a require call that is resolved by a runtime, replace with a `new URL`
     // call with a placeholder for the relative path to be replaced during packaging.
-    let placeholder = if self.config.standalone {
-      specifier.as_ref().into()
-    } else {
-      format!(
-        "{:x}",
-        hash!(format!(
-          "parcel_url:{}:{}:{}",
-          self.config.filename, specifier, kind
-        ))
-      )
-    };
-    let mut flags = DependencyFlags::empty();
-    flags.set(DependencyFlags::OPTIONAL, optional || span.is_dummy());
-    flags.set(DependencyFlags::NEEDS_STABLE_NAME, needs_stable_name);
-    self.items.push(DependencyDescriptor {
-      kind,
-      loc: SourceLocation::from(&self.source_map, span),
-      specifier,
-      attributes: None,
-      flags,
-      source_type: Some(source_type),
-      placeholder: Some(placeholder.clone()),
-      concurrent_group: 0,
-    });
+    let loc = self
+      .config
+      .loc(SourceLocation::from(&self.source_map, span));
+    let mut dependency = self
+      .config
+      .dependency(kind, &specifier, source_type, Some(loc));
+    dependency.placeholder = Some(specifier.as_ref().into());
+    dependency
+      .flags
+      .set(DependencyFlags::OPTIONAL, optional || span.is_dummy());
+    if needs_stable_name {
+      dependency.flags |= DependencyFlags::NEEDS_STABLE_NAME;
+    }
+    self.items.push(dependency);
 
     create_url_constructor(
-      ast::Expr::Lit(ast::Lit::Str(placeholder.into())),
+      ast::Expr::Lit(ast::Lit::Str(specifier.into())),
       self.config.is_esm_output(),
       optional,
     )
@@ -695,16 +870,15 @@ impl<'a> Fold for DependencyCollector<'a> {
               "parcelRequire" => {
                 if let Some(ast::ExprOrSpread { expr, .. }) = node.args.first() {
                   if let Some((id, span)) = match_str(expr) {
-                    self.items.push(DependencyDescriptor {
-                      kind: DependencyKind::Id,
-                      loc: SourceLocation::from(&self.source_map, span),
-                      specifier: id,
-                      attributes: None,
-                      flags: DependencyFlags::empty(),
-                      source_type: None,
-                      placeholder: None,
-                      concurrent_group: 0,
-                    });
+                    let loc = self
+                      .config
+                      .loc(SourceLocation::from(&self.source_map, span));
+                    self.items.push(self.config.dependency(
+                      DependencyKind::Id,
+                      &id,
+                      self.config.source_type(),
+                      Some(loc),
+                    ));
                   }
                 }
                 let mut call = node.fold_children_with(self);
@@ -1830,16 +2004,12 @@ fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<as
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::transformer::{
-    DependencyDescriptor,
-    test_utils::{RunTestContext, RunVisitResult, run_fold},
-  };
-  use parcel_core::{Browsers, Engines, Target};
-  use std::sync::Arc;
+  use crate::transformer::test_utils::{RunTestContext, RunVisitResult, run_fold};
+  use parcel_core::{Browsers, Engines};
 
   fn make_dependency_collector<'a>(
     context: RunTestContext,
-    items: &'a mut Vec<DependencyDescriptor>,
+    items: &'a mut Vec<Dependency>,
     diagnostics: &'a mut Vec<Diagnostic>,
     config: &'a Config,
   ) -> DependencyCollector<'a> {
@@ -1861,6 +2031,24 @@ mod test {
 
   fn make_config() -> Config {
     Config::default()
+  }
+
+  /// Asserts that `items` is a single dependency on `specifier`, loaded as `kind`.
+  fn assert_dependency(
+    items: &[Dependency],
+    kind: DependencyKind,
+    specifier: &str,
+    placeholder: Option<&str>,
+    flags: DependencyFlags,
+  ) {
+    assert_eq!(items.len(), 1, "{items:#?}");
+    let dependency = &items[0];
+    assert_eq!(&*dependency.specifier, specifier);
+    assert_eq!(dependency.specifier_type, kind.specifier_type());
+    assert_eq!(dependency.priority, kind.priority());
+    assert_eq!(dependency.import_type, kind.import_type());
+    assert_eq!(dependency.placeholder.as_deref(), placeholder);
+    assert_eq!(dependency.flags.bits(), flags.bits());
   }
 
   fn make_placeholder_hash(specifier: &str, dependency_kind: DependencyKind) -> String {
@@ -1896,17 +2084,12 @@ mod test {
 
     assert_eq!(output_code, expected_code);
     assert_eq!(diagnostics, []);
-    assert_eq!(
-      items,
-      [DependencyDescriptor {
-        kind: DependencyKind::DynamicImport,
-        specifier: "other".into(),
-        attributes: None,
-        flags: DependencyFlags::empty(),
-        source_type: Some(SourceType::Module),
-        placeholder: Some(hash),
-        ..items[0].clone()
-      }]
+    assert_dependency(
+      &items,
+      DependencyKind::DynamicImport,
+      "other",
+      Some(&hash),
+      DependencyFlags::empty(),
     );
   }
 
@@ -1933,21 +2116,21 @@ mod test {
       .map(|item| {
         (
           item.specifier.to_string(),
-          item.kind.clone(),
+          item.priority,
           item.concurrent_group,
         )
       })
       .collect();
-    let dynamic = DependencyKind::DynamicImport;
+    let dynamic = Priority::Lazy;
     assert_eq!(
       groups,
       [
-        ("a".into(), dynamic.clone(), 1),
-        ("b".into(), dynamic.clone(), 1),
-        ("c".into(), dynamic.clone(), 0),
-        ("d".into(), dynamic.clone(), 0),
-        ("f".into(), dynamic.clone(), 2),
-        ("g".into(), dynamic.clone(), 2),
+        ("a".into(), dynamic, 1),
+        ("b".into(), dynamic, 1),
+        ("c".into(), dynamic, 0),
+        ("d".into(), dynamic, 0),
+        ("f".into(), dynamic, 2),
+        ("g".into(), dynamic, 2),
         ("h".into(), dynamic, 0),
       ]
     );
@@ -1974,17 +2157,12 @@ mod test {
 
     assert_eq!(output_code, expected_code);
     assert_eq!(diagnostics, []);
-    assert_eq!(
-      items,
-      [DependencyDescriptor {
-        kind: DependencyKind::Import,
-        specifier: "other".into(),
-        attributes: None,
-        flags: DependencyFlags::empty(),
-        source_type: Some(SourceType::Module),
-        placeholder: None,
-        ..items[0].clone()
-      }]
+    assert_dependency(
+      &items,
+      DependencyKind::Import,
+      "other",
+      None,
+      DependencyFlags::empty(),
     );
   }
 
@@ -2009,17 +2187,12 @@ mod test {
 
     assert_eq!(output_code, expected_code);
     assert_eq!(diagnostics, []);
-    assert_eq!(
-      items,
-      [DependencyDescriptor {
-        kind: DependencyKind::Export,
-        specifier: "other".into(),
-        attributes: None,
-        flags: DependencyFlags::empty(),
-        source_type: Some(SourceType::Module),
-        placeholder: None,
-        ..items[0].clone()
-      }]
+    assert_dependency(
+      &items,
+      DependencyKind::Export,
+      "other",
+      None,
+      DependencyFlags::empty(),
     );
   }
 
@@ -2044,17 +2217,12 @@ mod test {
 
     assert_eq!(output_code, expected_code);
     assert_eq!(diagnostics, []);
-    assert_eq!(
-      items,
-      [DependencyDescriptor {
-        kind: DependencyKind::Export,
-        specifier: "other".into(),
-        attributes: None,
-        flags: DependencyFlags::empty(),
-        source_type: Some(SourceType::Module),
-        placeholder: None,
-        ..items[0].clone()
-      }]
+    assert_dependency(
+      &items,
+      DependencyKind::Export,
+      "other",
+      None,
+      DependencyFlags::empty(),
     );
   }
 
@@ -2084,17 +2252,12 @@ mod test {
 
     assert_eq!(output_code, expected_code);
     assert_eq!(diagnostics, []);
-    assert_eq!(
-      items,
-      [DependencyDescriptor {
-        kind: DependencyKind::Require,
-        specifier: "other".into(),
-        attributes: None,
-        flags: DependencyFlags::empty(),
-        source_type: Some(SourceType::Module),
-        placeholder: Some(hash),
-        ..items[0].clone()
-      }]
+    assert_dependency(
+      &items,
+      DependencyKind::Require,
+      "other",
+      Some(&hash),
+      DependencyFlags::empty(),
     );
   }
 
@@ -2128,17 +2291,12 @@ try {{
 
     assert_eq!(output_code, expected_code);
     assert_eq!(diagnostics, []);
-    assert_eq!(
-      items,
-      [DependencyDescriptor {
-        kind: DependencyKind::Require,
-        specifier: "other".into(),
-        attributes: None,
-        flags: DependencyFlags::OPTIONAL,
-        source_type: Some(SourceType::Module),
-        placeholder: Some(hash),
-        ..items[0].clone()
-      }]
+    assert_dependency(
+      &items,
+      DependencyKind::Require,
+      "other",
+      Some(&hash),
+      DependencyFlags::OPTIONAL,
     );
   }
 
@@ -2169,17 +2327,12 @@ Promise.resolve().then(()=>import("{}"));
 
     assert_eq!(output_code, expected_code);
     assert_eq!(diagnostics, []);
-    assert_eq!(
-      items,
-      [DependencyDescriptor {
-        kind: DependencyKind::DynamicImport,
-        specifier: "other".into(),
-        attributes: None,
-        flags: DependencyFlags::empty(),
-        source_type: Some(SourceType::Module),
-        placeholder: Some(hash),
-        ..items[0].clone()
-      }]
+    assert_dependency(
+      &items,
+      DependencyKind::DynamicImport,
+      "other",
+      Some(&hash),
+      DependencyFlags::empty(),
     );
   }
 
@@ -2243,17 +2396,12 @@ Promise.resolve().then(function() {{
 
     assert_eq!(output_code, expected_code);
     assert_eq!(diagnostics, []);
-    assert_eq!(
-      items,
-      [DependencyDescriptor {
-        kind: DependencyKind::DynamicImport,
-        specifier: "other".into(),
-        attributes: None,
-        flags: DependencyFlags::empty(),
-        source_type: Some(SourceType::Module),
-        placeholder: Some(hash),
-        ..items[0].clone()
-      }]
+    assert_dependency(
+      &items,
+      DependencyKind::DynamicImport,
+      "other",
+      Some(&hash),
+      DependencyFlags::empty(),
     );
   }
 
@@ -2288,17 +2436,12 @@ Promise.resolve().then(function() {{
 
     assert_eq!(output_code, expected_code);
     assert_eq!(diagnostics, []);
-    assert_eq!(
-      items,
-      [DependencyDescriptor {
-        kind: DependencyKind::DynamicImport,
-        specifier: "other".into(),
-        attributes: None,
-        flags: DependencyFlags::empty(),
-        source_type: Some(SourceType::Module),
-        placeholder: Some(hash),
-        ..items[0].clone()
-      }]
+    assert_dependency(
+      &items,
+      DependencyKind::DynamicImport,
+      "other",
+      Some(&hash),
+      DependencyFlags::empty(),
     );
   }
 
@@ -2329,17 +2472,12 @@ new Promise((resolve)=>resolve(import("{}")));
 
     assert_eq!(output_code, expected_code);
     assert_eq!(diagnostics, []);
-    assert_eq!(
-      items,
-      [DependencyDescriptor {
-        kind: DependencyKind::DynamicImport,
-        specifier: "other".into(),
-        attributes: None,
-        flags: DependencyFlags::empty(),
-        source_type: Some(SourceType::Module),
-        placeholder: Some(hash),
-        ..items[0].clone()
-      }]
+    assert_dependency(
+      &items,
+      DependencyKind::DynamicImport,
+      "other",
+      Some(&hash),
+      DependencyFlags::empty(),
     );
   }
 
@@ -2372,17 +2510,12 @@ new Promise(function(resolve) {{
 
     assert_eq!(output_code, expected_code);
     assert_eq!(diagnostics, []);
-    assert_eq!(
-      items,
-      [DependencyDescriptor {
-        kind: DependencyKind::DynamicImport,
-        specifier: "other".into(),
-        attributes: None,
-        flags: DependencyFlags::empty(),
-        source_type: Some(SourceType::Module),
-        placeholder: Some(hash),
-        ..items[0].clone()
-      }]
+    assert_dependency(
+      &items,
+      DependencyKind::DynamicImport,
+      "other",
+      Some(&hash),
+      DependencyFlags::empty(),
     );
   }
 
@@ -2413,17 +2546,12 @@ Promise.resolve(import("{}"));
 
     assert_eq!(output_code, expected_code);
     assert_eq!(diagnostics, []);
-    assert_eq!(
-      items,
-      [DependencyDescriptor {
-        kind: DependencyKind::DynamicImport,
-        specifier: "other".into(),
-        attributes: None,
-        flags: DependencyFlags::empty(),
-        source_type: Some(SourceType::Module),
-        placeholder: Some(hash),
-        ..items[0].clone()
-      }]
+    assert_dependency(
+      &items,
+      DependencyKind::DynamicImport,
+      "other",
+      Some(&hash),
+      DependencyFlags::empty(),
     );
   }
 
@@ -2466,18 +2594,15 @@ Promise.resolve(import("{}"));
 
     assert_eq!(output_code, expected_code);
     assert_eq!(diagnostics, []);
-    assert_eq!(
-      items,
-      [DependencyDescriptor {
-        kind: DependencyKind::WebWorker,
-        specifier: "other".into(),
-        attributes: None,
-        flags: DependencyFlags::empty(),
-        source_type: Some(SourceType::Module),
-        placeholder: Some(hash),
-        ..items[0].clone()
-      }]
+    assert_dependency(
+      &items,
+      DependencyKind::WebWorker,
+      "other",
+      Some(&hash),
+      DependencyFlags::IS_WEBWORKER,
     );
+    assert_eq!(items[0].target.environment, Environment::WebWorker);
+    assert_eq!(items[0].target.source_type, SourceType::Module);
   }
 
   #[test]
@@ -2506,18 +2631,15 @@ Promise.resolve(import("{}"));
 
     assert_eq!(output_code, expected_code);
     assert_eq!(diagnostics, []);
-    assert_eq!(
-      items,
-      [DependencyDescriptor {
-        kind: DependencyKind::ServiceWorker,
-        specifier: "other".into(),
-        attributes: None,
-        flags: DependencyFlags::empty(),
-        source_type: Some(SourceType::Module),
-        placeholder: Some(hash),
-        ..items[0].clone()
-      }]
+    assert_dependency(
+      &items,
+      DependencyKind::ServiceWorker,
+      "other",
+      Some(&hash),
+      DependencyFlags::NEEDS_STABLE_NAME,
     );
+    assert_eq!(items[0].target.environment, Environment::ServiceWorker);
+    assert_eq!(items[0].target.source_type, SourceType::Module);
   }
 
   #[test]
@@ -2546,18 +2668,14 @@ Promise.resolve(import("{}"));
 
     assert_eq!(output_code, expected_code);
     assert_eq!(diagnostics, []);
-    assert_eq!(
-      items,
-      [DependencyDescriptor {
-        kind: DependencyKind::Worklet,
-        specifier: "other".into(),
-        attributes: None,
-        flags: DependencyFlags::empty(),
-        source_type: Some(SourceType::Module),
-        placeholder: Some(hash),
-        ..items[0].clone()
-      }]
+    assert_dependency(
+      &items,
+      DependencyKind::Worklet,
+      "other",
+      Some(&hash),
+      DependencyFlags::empty(),
     );
+    assert_eq!(items[0].target.environment, Environment::Worklet);
   }
 
   #[test]
@@ -2591,17 +2709,12 @@ document.body.appendChild(img);
 
     assert_eq!(output_code, expected_code);
     assert_eq!(diagnostics, []);
-    assert_eq!(
-      items,
-      [DependencyDescriptor {
-        kind: DependencyKind::Url,
-        specifier: "hero.jpg".into(),
-        attributes: None,
-        flags: DependencyFlags::empty(),
-        source_type: Some(SourceType::Module),
-        placeholder: Some(hash),
-        ..items[0].clone()
-      }]
+    assert_dependency(
+      &items,
+      DependencyKind::Url,
+      "hero.jpg",
+      Some(&hash),
+      DependencyFlags::empty(),
     );
   }
 }

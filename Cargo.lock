@@ -3158,7 +3158,6 @@ dependencies = [
  "bitflags 2.13.1",
  "bytecount",
  "data-encoding",
- "dunce",
  "fixedbitset",
  "glob-match",
  "indexmap 2.14.0",

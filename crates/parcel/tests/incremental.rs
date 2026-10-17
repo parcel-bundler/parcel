@@ -576,6 +576,22 @@ fn update_module_content() {
   t.change(&[("/project/foo.js", "console.log('foo v1');")], &[]);
 }
 
+#[test]
+fn update_file_inlined_by_read_file_sync() {
+  let mut t = IncrementalTest::new(&[
+    (
+      "/project/index.js",
+      "import fs from 'fs';\noutput(fs.readFileSync(__dirname + '/data.txt', 'utf8'));",
+    ),
+    ("/project/data.txt", "data v1"),
+  ]);
+  assert!(t.output("/project/dist/index.js").contains("data v1"));
+
+  t.change(&[("/project/data.txt", "data v2")], &[]);
+  let out = t.output("/project/dist/index.js");
+  assert!(out.contains("data v2"), "got: {out}");
+}
+
 // ---------------------------------------------------------------------------
 // Adding and removing dependencies
 // ---------------------------------------------------------------------------

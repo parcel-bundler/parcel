@@ -1,13 +1,12 @@
 use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
-use crate::transformer::{
-  Config, DependencyKind, ESM_HELPERS, Type, react_target, transform_to_ast,
-};
+use crate::transformer::{Config, ESM_HELPERS, Type, transform_to_ast};
 use glob_match::glob_match;
 use parcel_core::*;
-use parcel_macros::{JsValue, MacroError};
+use parcel_macros::MacroError;
 use parcel_plugin_js::call_macro;
 use parcel_resolver::{AliasValue, BrowserField, Specifier};
+use swc_core::ecma::atoms::Atom;
 
 use crate::JsContent;
 
@@ -89,6 +88,7 @@ impl Transformer for JsTransformer {
     };
     let res = transform_to_ast(
       config,
+      &**fs,
       if asset.flags.contains(AssetFlags::IS_SOURCE) {
         Some(&call_macro)
       } else {
@@ -161,241 +161,24 @@ impl Transformer for JsTransformer {
       asset.bundle_behavior = BundleBehavior::Isolated;
     }
 
-    let is_mdx = asset.ty == AssetType::Mdx;
     asset.ty = AssetType::Js;
+
+    // Avoid unnecessary shared bundles between actual client code and server code that explicitly
+    // runs in the client environment (e.g. React during SSR).
+    if asset.target.environment != Environment::ReactClient
+      && res
+        .dependencies
+        .iter()
+        .any(|dep| dep.target.environment == Environment::ReactClient)
+    {
+      asset.flags.remove(AssetFlags::IS_BUNDLE_SPLITTABLE);
+    }
 
     let mut dep_map = HashMap::new();
     for dep in res.dependencies {
-      if dep.kind == DependencyKind::File {
-        continue;
-      }
-
-      let is_helper = dep
-        .flags
-        .contains(crate::transformer::DependencyFlags::HELPER)
-        && dep.kind != DependencyKind::Url
-        && !(dep.specifier.ends_with("/jsx-runtime")
-          || dep.specifier.ends_with("/jsx-dev-runtime"));
-      let dependency_environment = dependency_environment(dep.attributes.as_ref());
-      let attribute_import_type = dependency_import_type(dep.attributes.as_ref());
-
-      if dependency_environment == Some(Environment::ReactClient) {
-        // Avoid unnecessary shared bundles between actual client code and server code that
-        // explicitly runs in the client environment (e.g. React during SSR).
-        asset.flags.remove(AssetFlags::IS_BUNDLE_SPLITTABLE);
-      }
-
-      dep_map.insert(
-        dep
-          .placeholder
-          .as_ref()
-          .map_or_else(|| dep.specifier.clone(), |v| v.clone().into()),
-        asset.dependencies.len() as u32,
-      );
-
-      asset.dependencies.push(Dependency {
-        specifier: dep.specifier.to_string().into_boxed_str(),
-        specifier_type: match dep.kind {
-          DependencyKind::Import | DependencyKind::Export | DependencyKind::DynamicImport => {
-            SpecifierType::Esm
-          }
-          DependencyKind::Require => SpecifierType::Commonjs,
-          DependencyKind::WebWorker
-          | DependencyKind::ServiceWorker
-          | DependencyKind::Worklet
-          | DependencyKind::Url => SpecifierType::Url,
-          DependencyKind::File | DependencyKind::Id => SpecifierType::Custom, // TODO
-        },
-        priority: match dep.kind {
-          DependencyKind::DynamicImport
-          | DependencyKind::WebWorker
-          | DependencyKind::ServiceWorker
-          | DependencyKind::Worklet
-          | DependencyKind::Url => Priority::Lazy,
-          _ => Priority::Sync,
-        },
-        bundle_behavior: match attribute_import_type {
-          // A URL import resolves to a separate file; the others inline the bundle's content.
-          Some(ImportType::Url) => BundleBehavior::Isolated,
-          Some(_) => BundleBehavior::Inline,
-          None => match dep.kind {
-            DependencyKind::Url
-            | DependencyKind::WebWorker
-            | DependencyKind::ServiceWorker
-            | DependencyKind::Worklet => BundleBehavior::Isolated,
-            _ => BundleBehavior::None,
-          },
-        },
-        import_type: attribute_import_type.unwrap_or(match dep.kind {
-          DependencyKind::Import
-          | DependencyKind::Export
-          | DependencyKind::DynamicImport
-          | DependencyKind::Require => ImportType::JavaScript,
-          DependencyKind::WebWorker
-          | DependencyKind::ServiceWorker
-          | DependencyKind::Worklet
-          | DependencyKind::Url => ImportType::Url,
-          DependencyKind::File | DependencyKind::Id => ImportType::JavaScript,
-        }),
-        flags: {
-          let mut flags = DependencyFlags::empty();
-          if dep
-            .flags
-            .contains(crate::transformer::DependencyFlags::OPTIONAL)
-          {
-            flags |= DependencyFlags::OPTIONAL;
-          }
-          if dep.kind == DependencyKind::WebWorker {
-            flags |= DependencyFlags::IS_WEBWORKER;
-          }
-          // Browsers identify a service worker registration by its script URL, and check that
-          // URL for updates. It must not change between builds.
-          if dep.kind == DependencyKind::ServiceWorker {
-            flags |= DependencyFlags::NEEDS_STABLE_NAME;
-          }
-          if dep
-            .flags
-            .contains(crate::transformer::DependencyFlags::REACT_LAZY)
-          {
-            flags |= DependencyFlags::REACT_LAZY;
-          }
-          if is_helper && !asset.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
-            flags |= DependencyFlags::FORCE_BUNDLE;
-          }
-          flags
-        },
-        target: if let Some(environment) = dependency_environment {
-          react_target(&asset.target, environment)
-        } else {
-          match dep.kind {
-            DependencyKind::WebWorker => {
-              // Use native ES module output if the worker was created with `type: 'module'` and all targets
-              // support native module workers. Only do this if parent asset output format is also esmodule so that
-              // assets can be shared between workers and the main thread in the global output format.
-              let mut output_format = asset.target.output_format;
-              if output_format == OutputFormat::Esmodule
-                && dep.source_type == Some(SourceType::Module)
-                && asset
-                  .target
-                  .engines
-                  .supports(EnvironmentFeature::WorkerModule)
-              {
-                output_format = OutputFormat::Esmodule;
-              } else if output_format != OutputFormat::Commonjs {
-                output_format = OutputFormat::Global;
-              }
-
-              Arc::new(Target {
-                environment: Environment::WebWorker,
-                source_type: dep.source_type.unwrap_or(SourceType::Script),
-                output_format,
-                ..(*asset.target).clone()
-              })
-            }
-            DependencyKind::ServiceWorker => Arc::new(Target {
-              environment: Environment::ServiceWorker,
-              source_type: dep.source_type.unwrap_or(SourceType::Script),
-              output_format: OutputFormat::Global,
-              ..(*asset.target).clone()
-            }),
-            DependencyKind::Worklet => Arc::new(Target {
-              environment: Environment::Worklet,
-              source_type: SourceType::Module,
-              output_format: OutputFormat::Esmodule,
-              ..(*asset.target).clone()
-            }),
-            DependencyKind::DynamicImport => {
-              if asset.target.source_type != SourceType::Module {
-                Arc::new(Target {
-                  source_type: SourceType::Module,
-                  ..(*asset.target).clone()
-                })
-              } else {
-                asset.target.clone()
-              }
-            }
-            DependencyKind::Url | DependencyKind::File | DependencyKind::Id => asset.target.clone(),
-            DependencyKind::Import | DependencyKind::Export | DependencyKind::Require => {
-              asset.target.clone()
-            }
-          }
-        },
-        loc: Some(convert_loc(asset.loc.url.clone(), &dep.loc)),
-        placeholder: dep.placeholder.map(|d| d.into()),
-        resolve_from: if is_helper {
-          // TODO
-          Some(SourceUrl::from_directory_path(&options.project_root))
-        } else {
-          Some(asset.loc.url.clone())
-        },
-        range: if is_helper {
-          // TODO: get versions from package.json? Can we do it at compile time?
-          if dep.specifier.starts_with("@swc/helpers") {
-            Some("^0.5.0".into())
-          } else if dep.specifier.starts_with("regenerator-runtime") {
-            Some("^0.13.7".into())
-          } else {
-            None
-          }
-        } else {
-          None
-        },
-        conditions: match dep.kind {
-          DependencyKind::Import | DependencyKind::Export | DependencyKind::DynamicImport => {
-            ExportsCondition::IMPORT
-          }
-          DependencyKind::Require => ExportsCondition::REQUIRE,
-          DependencyKind::WebWorker | DependencyKind::ServiceWorker => ExportsCondition::WORKER,
-          DependencyKind::Worklet => ExportsCondition::WORKLET,
-          _ => ExportsCondition::empty(),
-        },
-        resolution: if is_mdx
-          && dep.specifier.starts_with("mdx-")
-          && let Some(mdx_asset) = dep.specifier[4..]
-            .parse()
-            .ok()
-            .and_then(|i| res.mdx_assets.get::<usize>(i))
-        {
-          DependencyResolution::Deferred(Arc::new(AssetRequest {
-            loc: SourceLocation {
-              url: asset.loc.url.clone(),
-              start: Location {
-                line: mdx_asset
-                  .position
-                  .as_ref()
-                  .map(|p| p.start.line as u32)
-                  .unwrap_or(0),
-                column: mdx_asset
-                  .position
-                  .as_ref()
-                  .map(|p| p.start.column as u32)
-                  .unwrap_or(0),
-              },
-              end: Location {
-                line: mdx_asset
-                  .position
-                  .as_ref()
-                  .map(|p| p.end.line as u32)
-                  .unwrap_or(0),
-                column: mdx_asset
-                  .position
-                  .as_ref()
-                  .map(|p| p.end.column as u32)
-                  .unwrap_or(0),
-              },
-            },
-            ty: AssetType::from_extension(&mdx_asset.lang),
-            content: Arc::new(BufferContent::new_string(mdx_asset.code.clone())),
-            pipeline: None,
-            side_effects: true,
-            target: asset.target.clone(),
-            unique_key: Some(dep.specifier.to_string().into()),
-          }))
-        } else {
-          DependencyResolution::None
-        },
-        concurrent_group: dep.concurrent_group,
-      })
+      let key = dep.placeholder.as_deref().unwrap_or(&dep.specifier);
+      dep_map.insert(Atom::from(key), asset.dependencies.len() as u32);
+      asset.dependencies.push(dep);
     }
 
     if res.needs_esm_helpers {
@@ -591,73 +374,6 @@ impl Transformer for JsTransformer {
     });
     Ok(asset)
   }
-}
-
-fn dependency_environment(attributes: Option<&JsValue>) -> Option<Environment> {
-  let JsValue::Object(attributes) = attributes? else {
-    return None;
-  };
-
-  let value = attributes.get("env").or_else(|| {
-    let JsValue::Object(with) = attributes.get("with")? else {
-      return None;
-    };
-    with.get("env")
-  });
-
-  match value {
-    Some(JsValue::String(value)) if value == "react-server" => Some(Environment::ReactServer),
-    Some(JsValue::String(value)) if value == "react-client" => Some(Environment::ReactClient),
-    _ => None,
-  }
-}
-
-/// Maps the `type` import attribute to an ImportType, e.g. `import x from './x' with {type: 'url'}`.
-/// Unrecognized values (including `json` and `macro`, which affect transformation rather than
-/// evaluation) return None and fall back to the dependency kind's default.
-fn dependency_import_type(attributes: Option<&JsValue>) -> Option<ImportType> {
-  let JsValue::Object(attributes) = attributes? else {
-    return None;
-  };
-
-  let value = attributes.get("type").or_else(|| {
-    let JsValue::Object(with) = attributes.get("with")? else {
-      return None;
-    };
-    with.get("type")
-  });
-
-  match value {
-    Some(JsValue::String(value)) if value == "url" => Some(ImportType::Url),
-    Some(JsValue::String(value)) if value == "text" => Some(ImportType::Text),
-    Some(JsValue::String(value)) if value == "bytes" => Some(ImportType::Bytes),
-    Some(JsValue::String(value)) if value == "css" => Some(ImportType::StyleSheet),
-    _ => None,
-  }
-}
-
-fn convert_loc(
-  url: SourceUrl,
-  loc: &crate::transformer::SourceLocation,
-  // map: &mut Option<SourceMap>,
-) -> SourceLocation {
-  let loc = SourceLocation {
-    url,
-    start: Location {
-      line: loc.start_line as u32, // + (asset.meta.startLine ?? 1) - 1
-      column: loc.start_col as u32,
-    },
-    end: Location {
-      line: loc.end_line as u32,
-      column: loc.end_col as u32,
-    },
-  };
-
-  // if let Some(map) = map {
-  // remap_source_location(&mut loc, map);
-  // }
-
-  loc
 }
 
 fn config(
@@ -868,6 +584,7 @@ fn config(
       .to_path_buf()
       .to_string_lossy()
       .into_owned(),
+    url: asset.loc.url.clone(),
     code: asset.content.read()?,
     project_root: options
       .project_root

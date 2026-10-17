@@ -3,20 +3,19 @@ use swc_core::ecma::{
   visit::{Visit, VisitWith},
 };
 
-use crate::transformer::{
-  DependencyDescriptor, DependencyKind, collect::Collect, dependency_collector::DependencyFlags,
-  utils::match_str,
-};
+use parcel_core::{Dependency, DependencyFlags, Priority, SpecifierType};
+
+use crate::transformer::{collect::Collect, utils::match_str};
 
 /// This pass marks dependencies created inside a React.lazy call.
 pub struct ReactLazy<'a> {
   collect: &'a Collect,
-  deps: &'a mut Vec<DependencyDescriptor>,
+  deps: &'a mut Vec<Dependency>,
   in_lazy: bool,
 }
 
 impl<'a> ReactLazy<'a> {
-  pub fn new(collect: &'a Collect, deps: &'a mut Vec<DependencyDescriptor>) -> Self {
+  pub fn new(collect: &'a Collect, deps: &'a mut Vec<Dependency>) -> Self {
     ReactLazy {
       collect,
       deps,
@@ -77,9 +76,11 @@ impl<'a> Visit for ReactLazy<'a> {
     if let Some(arg) = node.args.get(0) {
       if let Some((specifier, _)) = match_str(&*arg.expr) {
         for dep in self.deps.iter_mut() {
-          if dep.kind == DependencyKind::DynamicImport
-            && (dep.specifier == specifier
-              || matches!(&dep.placeholder, Some(p) if p == specifier.as_str()))
+          // Dynamic imports.
+          if dep.specifier_type == SpecifierType::Esm
+            && dep.priority == Priority::Lazy
+            && (*dep.specifier == *specifier
+              || dep.placeholder.as_deref() == Some(specifier.as_str()))
           {
             dep.flags |= DependencyFlags::REACT_LAZY;
           }
@@ -96,28 +97,17 @@ mod test {
 
   use super::*;
   use crate::transformer::{
-    DependencyKind,
-    dependency_collector::DependencyFlags,
+    Config, DependencyKind, SourceType,
     test_utils::{RunTestContext, run_with_transformation},
   };
 
   fn run(context: RunTestContext, module: &mut Module) {
-    let mut deps = Vec::new();
-    deps.push(DependencyDescriptor {
-      specifier: "./lazy".into(),
-      attributes: None,
-      flags: DependencyFlags::empty(),
-      kind: DependencyKind::DynamicImport,
-      loc: crate::transformer::SourceLocation {
-        start_line: 0,
-        start_col: 0,
-        end_line: 0,
-        end_col: 0,
-      },
-      source_type: None,
-      placeholder: None,
-      concurrent_group: 0,
-    });
+    let mut deps = vec![Config::default().dependency(
+      DependencyKind::DynamicImport,
+      "./lazy",
+      SourceType::Module,
+      None,
+    )];
 
     let mut collect = Collect::new(
       context.source_map.clone(),
@@ -128,7 +118,7 @@ mod test {
     );
     module.visit_with(&mut collect);
     module.visit_with(&mut ReactLazy::new(&collect, &mut deps));
-    assert_eq!(deps[0].flags, DependencyFlags::REACT_LAZY);
+    assert_eq!(deps[0].flags.bits(), DependencyFlags::REACT_LAZY.bits());
   }
 
   #[test]

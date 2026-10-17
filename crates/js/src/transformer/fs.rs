@@ -5,7 +5,7 @@ use std::{
 
 use data_encoding::{BASE64, HEXLOWER};
 use swc_core::{
-  common::{DUMMY_SP, Mark, Span, SyntaxContext},
+  common::{DUMMY_SP, Mark, SyntaxContext},
   ecma::{
     ast::*,
     atoms::Atom as JsWord,
@@ -14,11 +14,11 @@ use swc_core::{
   },
 };
 
+use parcel_core::{FileSystem, PathId};
+
 use crate::transformer::{
   collect::{Collect, Import},
-  dependency_collector::{DependencyDescriptor, DependencyFlags, DependencyKind},
   id,
-  utils::SourceLocation,
 };
 
 pub fn inline_fs<'a>(
@@ -26,7 +26,7 @@ pub fn inline_fs<'a>(
   source_map: swc_core::common::sync::Lrc<swc_core::common::SourceMap>,
   unresolved_mark: Mark,
   project_root: &'a str,
-  deps: &'a mut Vec<DependencyDescriptor>,
+  fs: &'a dyn FileSystem,
   is_module: bool,
 ) -> impl Fold + 'a {
   InlineFS {
@@ -39,7 +39,7 @@ pub fn inline_fs<'a>(
       is_module,
     ),
     project_root,
-    deps,
+    fs,
   }
 }
 
@@ -47,7 +47,8 @@ struct InlineFS<'a> {
   filename: PathBuf,
   collect: Collect,
   project_root: &'a str,
-  deps: &'a mut Vec<DependencyDescriptor>,
+  /// Records the files that are read, so the module is rebuilt when they change.
+  fs: &'a dyn FileSystem,
 }
 
 impl<'a> Fold for InlineFS<'a> {
@@ -62,7 +63,7 @@ impl<'a> Fold for InlineFS<'a> {
         if let Some((source, specifier)) = self.match_module_reference(expr) {
           if &source == "fs" && &specifier == "readFileSync" {
             if let Some(arg) = call.args.first() {
-              if let Some(res) = self.evaluate_fs_arg(&arg.expr, call.args.get(1), call.span) {
+              if let Some(res) = self.evaluate_fs_arg(&arg.expr, call.args.get(1)) {
                 return res;
               }
             }
@@ -120,23 +121,20 @@ impl<'a> InlineFS<'a> {
     None
   }
 
-  fn evaluate_fs_arg(
-    &mut self,
-    node: &Expr,
-    encoding: Option<&ExprOrSpread>,
-    span: Span,
-  ) -> Option<Expr> {
+  fn evaluate_fs_arg(&mut self, node: &Expr, encoding: Option<&ExprOrSpread>) -> Option<Expr> {
     let mut evaluator = Evaluator { inline: self };
 
     let res = node.clone().fold_with(&mut evaluator);
     match res {
       Expr::Lit(Lit::Str(str_)) => {
         // Ignore if outside the project root
-        let path = match dunce::canonicalize(Path::new(str_.value.to_string_lossy().as_ref())) {
+        let path = match self.fs.canonicalize(PathId::new(Path::new(
+          str_.value.to_string_lossy().as_ref(),
+        ))) {
           Ok(path) => path,
           Err(_err) => return None,
         };
-        if !path.starts_with(self.project_root) {
+        if !path.to_path_buf().starts_with(self.project_root) {
           return None;
         }
 
@@ -148,25 +146,23 @@ impl<'a> InlineFS<'a> {
           None => Cow::Borrowed("buffer"),
         };
 
-        // TODO: this should probably happen in JS so we use Parcel's file system
-        // rather than only the real FS. Will need when we convert to WASM.
         let contents = match encoding.as_ref() {
           "base64" | "buffer" => {
-            if let Ok(contents) = std::fs::read(&path) {
+            if let Ok(contents) = self.fs.read(path) {
               BASE64.encode(&contents)
             } else {
               return None;
             }
           }
           "hex" => {
-            if let Ok(contents) = std::fs::read(&path) {
+            if let Ok(contents) = self.fs.read(path) {
               HEXLOWER.encode(&contents)
             } else {
               return None;
             }
           }
           "utf8" | "utf-8" => {
-            if let Ok(contents) = std::fs::read_to_string(&path) {
+            if let Ok(contents) = self.fs.read_to_string(path) {
               contents
             } else {
               return None;
@@ -176,18 +172,6 @@ impl<'a> InlineFS<'a> {
         };
 
         let contents = Expr::Lit(Lit::Str(contents.into()));
-
-        // Add a file dependency so the cache is invalidated when this file changes.
-        self.deps.push(DependencyDescriptor {
-          kind: DependencyKind::File,
-          loc: SourceLocation::from(&self.collect.source_map, span),
-          specifier: path.to_str().unwrap().into(),
-          attributes: None,
-          flags: DependencyFlags::empty(),
-          source_type: None,
-          placeholder: None,
-          concurrent_group: 0,
-        });
 
         // If buffer, wrap in Buffer.from(base64String, 'base64')
         if encoding == "buffer" {
