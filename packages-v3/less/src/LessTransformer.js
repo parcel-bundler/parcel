@@ -28,7 +28,7 @@ export default (new Transformer({
         lessConfig.paths = config?.paths.map(p => path.join(options.projectRoot, p));
       }
 
-      if (asset.env.sourceMap) {
+      if (asset.target.sourceMap) {
         lessConfig.sourceMap = {};
       }
 
@@ -36,8 +36,6 @@ export default (new Transformer({
       lessConfig.relativeUrls = true;
       console.log(lessConfig);
       lessConfig.plugins = [
-        // ...(lessConfig.plugins || []),
-        // urlPlugin({asset}),
         resolvePathPlugin({asset, resolve}),
       ];
 
@@ -51,37 +49,11 @@ export default (new Transformer({
       };
       throw err;
     }
-    asset.setCode(result.css, result.map);
+    asset.setCode(result.css, result.map ? JSON.parse(result.map) : null);
 
     return [asset];
   },
 }): Transformer);
-
-function urlPlugin({asset}) {
-  return {
-    install(less: Less, pluginManager) {
-      // This is a hack; no such interface exists, even conceptually, in Less.
-      type LessNodeWithValue = less.tree.Node & {value: any, ...};
-
-      const visitor = new less.visitors.Visitor({
-        visitUrl(node) {
-          const valueNode = ((node.value: any): LessNodeWithValue);
-          const stringValue = (valueNode.value: string);
-          if (
-            !stringValue.startsWith('#') // IE's `behavior: url(#default#VML)`)
-          ) {
-            valueNode.value = asset.addURLDependency(stringValue, {});
-          }
-          return node;
-        },
-      });
-
-      // $FlowFixMe[method-unbinding]
-      visitor.run = visitor.visit;
-      pluginManager.addVisitor(visitor);
-    },
-  };
-}
 
 function resolvePathPlugin({asset, resolve}) {
   return {
