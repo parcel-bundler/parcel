@@ -28,4 +28,4 @@ jobs:
           shared-key: ${{ matrix.os }}
       - run: yarn --immutable
       - run: yarn gulp
-      - run: cargo test --workspace --exclude parcel-node-bindings --tests
+      - run: cargo test --workspace --tests
