@@ -1,0 +1,15 @@
+{
+  "description": "should rewrite url() in nested stylus imports relative to the imported file",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "assets": ["index.js"]},
+    {
+      "type": "css",
+      "assets": ["index.styl"],
+      "contains": [".a", ".b"]
+    },
+    {"type": "woff2", "assets": ["a.woff2"]},
+    {"type": "woff2", "assets": ["b.woff2"]}
+  ],
+  "output": 2
+}

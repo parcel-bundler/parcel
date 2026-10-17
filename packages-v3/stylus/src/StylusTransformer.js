@@ -25,17 +25,9 @@ export default (new Transformer({
     let style = stylus(code, {...stylusConfig});
     style.set('filename', asset.filePath);
     style.set('include css', true);
-    // Setup a handler for the URL function so we add dependencies for linked assets.
-    // style.define('url', (node: stylus.nodes.String | stylus.nodes.Literal) => {
-    //   let filename = asset.addURLDependency(node.val, {
-    //     loc: createDependencyLocation(
-    //       {line: node.lineno, column: node.column},
-    //       node.val,
-    //     ),
-    //   });
-    //   return new stylus.nodes.Literal(`url(${JSON.stringify(filename)})`);
-    // });
-
+    // Rewrite relative url()s in imported files to be relative to the entry file,
+    // so the CSS transformer resolves them correctly after compilation.
+    style.define('url', stylus.resolver());
     style.set(
       'Evaluator',
       await createEvaluator(

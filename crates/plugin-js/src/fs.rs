@@ -203,7 +203,7 @@ impl Fs {
           Ok(Ok(result))
         }
       }
-      Err(err) => Ok(Err(Exception::from_message(ctx, &err.to_string())?)),
+      Err(err) => Ok(Err(io_exception(ctx, &err, "scandir", &path)?)),
     }
   }
 
@@ -214,7 +214,7 @@ impl Fs {
     let fs = ctx.userdata::<FileSystemData>().unwrap().0.clone();
     match fs.canonicalize(parcel_core::PathId::new(Path::new(&path))) {
       Ok(link) => Ok(Ok(link.to_path_buf().to_string_lossy().into_owned())),
-      Err(e) => Ok(Err(Exception::from_message(ctx, &e.to_string())?)),
+      Err(e) => Ok(Err(io_exception(ctx, &e, "realpath", &path)?)),
     }
   }
 
@@ -225,7 +225,7 @@ impl Fs {
     let fs = ctx.userdata::<FileSystemData>().unwrap().0.clone();
     match fs.read_link(parcel_core::PathId::new(Path::new(&path))) {
       Ok(link) => Ok(Ok(link.to_path_buf().to_string_lossy().into_owned())),
-      Err(e) => Ok(Err(Exception::from_message(ctx, &e.to_string())?)),
+      Err(e) => Ok(Err(io_exception(ctx, &e, "readlink", &path)?)),
     }
   }
 
@@ -256,6 +256,34 @@ impl Fs {
         .collect(),
     ))
   }
+}
+
+/// Creates a Node-style error with a `code` property, which callers like glob
+/// inspect to distinguish expected failures (e.g. ENOENT) from real ones.
+fn io_exception<'js>(
+  ctx: Ctx<'js>,
+  err: &std::io::Error,
+  syscall: &str,
+  path: &str,
+) -> rquickjs::Result<Exception<'js>> {
+  use std::io::ErrorKind;
+  let code = match err.kind() {
+    ErrorKind::NotFound => Some("ENOENT"),
+    ErrorKind::NotADirectory => Some("ENOTDIR"),
+    ErrorKind::IsADirectory => Some("EISDIR"),
+    ErrorKind::PermissionDenied => Some("EACCES"),
+    ErrorKind::InvalidInput => Some("EINVAL"),
+    _ => None,
+  };
+  let Some(code) = code else {
+    return Exception::from_message(ctx, &err.to_string());
+  };
+  let exception =
+    Exception::from_message(ctx, &format!("{code}: {err}, {syscall} '{path}'"))?;
+  exception.set("code", code)?;
+  exception.set("syscall", syscall)?;
+  exception.set("path", path)?;
+  Ok(exception)
 }
 
 fn handle_sync<'js, V: IntoJs<'js>>(
