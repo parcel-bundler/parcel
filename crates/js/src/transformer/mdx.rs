@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::transformer::{
   Config, MDX_COMPONENTS, SourceLocation,
-  utils::{CodeHighlight, Diagnostic, DiagnosticSeverity},
+  utils::{Diagnostic, DiagnosticSeverity, diagnostic},
 };
 use markdown::{
   Location,
@@ -49,6 +49,10 @@ pub struct MdxAsset {
 }
 
 pub fn mdx(config: &Config) -> Result<MdxResult, Diagnostic> {
+  compile(config).map_err(message_to_diagnostic)
+}
+
+fn compile(config: &Config) -> Result<MdxResult, Message> {
   let mut options: Options = Options {
     filepath: Some(config.filename.clone()),
     development: config.is_development,
@@ -476,36 +480,27 @@ fn has_default_export(module: &Module) -> bool {
   })
 }
 
-impl From<Message> for Diagnostic {
-  fn from(value: Message) -> Self {
-    let loc = if let Some(place) = value.place {
-      Some(match *place {
-        Place::Point(point) => SourceLocation {
-          start_line: point.line,
-          start_col: point.column,
-          end_line: point.line,
-          end_col: point.column,
-        },
-        Place::Position(pos) => SourceLocation {
-          start_line: pos.start.line,
-          start_col: pos.start.column,
-          end_line: pos.end.line,
-          end_col: pos.end.column,
-        },
-      })
-    } else {
-      None
-    };
+fn message_to_diagnostic(message: Message) -> Diagnostic {
+  let loc = message.place.map(|place| match *place {
+    Place::Point(point) => SourceLocation {
+      start_line: point.line,
+      start_col: point.column,
+      end_line: point.line,
+      end_col: point.column + 1,
+    },
+    Place::Position(pos) => SourceLocation {
+      start_line: pos.start.line,
+      start_col: pos.start.column,
+      end_line: pos.end.line,
+      end_col: pos.end.column,
+    },
+  });
 
-    Diagnostic {
-      message: value.reason,
-      severity: DiagnosticSeverity::Error,
-      hints: None,
-      code_highlights: loc.map(|loc| vec![CodeHighlight { message: None, loc }]),
-      show_environment: false,
-      documentation_url: None,
-    }
-  }
+  diagnostic(
+    message.reason,
+    loc.map(|loc| loc.to_highlight(None)).into_iter().collect(),
+    DiagnosticSeverity::Error,
+  )
 }
 
 #[cfg(test)]

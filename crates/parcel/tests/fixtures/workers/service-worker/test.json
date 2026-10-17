@@ -5,24 +5,17 @@
     "bundles": [
       {
         "name": "a/index.js",
-        "assets": [
-          "index.js",
-          "index.js"
-        ]
+        "assets": ["index.js", "index.js"]
       },
       {
         "name": "b/nested/worker-nested.js",
         "environment": "service-worker",
-        "assets": [
-          "worker-nested.js"
-        ]
+        "assets": ["worker-nested.js"]
       },
       {
         "name": "b/worker-outside.js",
         "environment": "service-worker",
-        "assets": [
-          "worker-outside.js"
-        ]
+        "assets": ["worker-outside.js"]
       }
     ]
   },
@@ -32,17 +25,12 @@
     "bundles": [
       {
         "name": "module.js",
-        "assets": [
-          "module.js"
-        ]
+        "assets": ["module.js"]
       },
       {
         "name": "module-worker.js",
         "environment": "service-worker",
-        "assets": [
-          "esmodule-helpers.js",
-          "module-worker.js"
-        ]
+        "assets": ["esmodule-helpers.js", "module-worker.js"]
       }
     ]
   },
@@ -51,19 +39,12 @@
     "input": "scope.js",
     "bundles": [
       {
-        "assets": [
-          "scope.js"
-        ],
-        "contains": [
-          "scope: 'foo'"
-        ]
+        "assets": ["scope.js"],
+        "contains": ["scope: 'foo'"]
       },
       {
         "name": "module-worker.js",
-        "assets": [
-          "esmodule-helpers.js",
-          "module-worker.js"
-        ]
+        "assets": ["esmodule-helpers.js", "module-worker.js"]
       }
     ]
   },
@@ -72,7 +53,10 @@
     "input": "error.js",
     "diagnostics": [
       {
-        "message": "SCRIPT_ERROR",
+        "message": "Service workers cannot have imports or exports without the `type: \"module\"` option.",
+        "hints": [
+          "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call."
+        ],
         "origin": "@parcel/transformer-js"
       }
     ]

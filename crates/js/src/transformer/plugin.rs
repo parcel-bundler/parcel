@@ -96,46 +96,41 @@ impl Transformer for JsTransformer {
       },
     )?;
 
-    if let Some(diagnostics) = res.diagnostics {
-      let diagnostics: Vec<Diagnostic> = diagnostics
-        .into_iter()
-        .filter(|d| {
-          d.severity == crate::transformer::DiagnosticSeverity::Error
-            || (d.severity == crate::transformer::DiagnosticSeverity::SourceError
-              && asset.flags.contains(AssetFlags::IS_SOURCE))
-        })
-        .map(|d| Diagnostic {
-          origin: Some("@parcel/transformer-js".into()),
-          message: d.message,
-          code_frames: vec![CodeFrame {
-            url: Some(asset.loc.url.clone()),
-            code: None,
-            language: Some(asset.ty.clone()),
-            code_highlights: d
-              .code_highlights
-              .unwrap_or(vec![])
-              .into_iter()
-              .map(|h| CodeHighlight {
-                message: h.message,
-                start: Location {
-                  line: h.loc.start_line as u32,
-                  column: h.loc.start_col as u32,
-                },
-                end: Location {
-                  line: h.loc.end_line as u32,
-                  column: h.loc.end_col as u32,
-                },
-              })
-              .collect(),
-          }],
-          hints: vec![],
-          severity: parcel_core::DiagnosticSeverity::Error,
-          documentation_url: None,
-        })
-        .collect();
-      if !diagnostics.is_empty() {
-        return Err(DiagnosticList(diagnostics));
+    let is_source = asset.flags.contains(AssetFlags::IS_SOURCE);
+    let locate = |mut diagnostic: Diagnostic| {
+      for frame in &mut diagnostic.code_frames {
+        frame.url = Some(asset.loc.url.clone());
+        frame.language = Some(asset.ty.clone());
       }
+      diagnostic
+    };
+    let mut errors = Vec::new();
+    let mut warnings = Vec::new();
+    for diagnostic in res.diagnostics {
+      let mut diagnostic = locate(diagnostic);
+      match diagnostic.severity {
+        DiagnosticSeverity::Error => errors.push(diagnostic),
+        DiagnosticSeverity::SourceError if is_source => {
+          diagnostic.severity = DiagnosticSeverity::Error;
+          errors.push(diagnostic);
+        }
+        // A source error in a dependency is reported, but does not fail the build.
+        DiagnosticSeverity::SourceError => {
+          diagnostic.severity = DiagnosticSeverity::Warning;
+          warnings.push(diagnostic);
+        }
+        DiagnosticSeverity::Warning | DiagnosticSeverity::Info => warnings.push(diagnostic),
+      }
+    }
+    if !warnings.is_empty() {
+      options.log_diagnostics(LogLevel::Warn, &warnings);
+    }
+    if !res.bailouts.is_empty() {
+      let bailouts: Vec<_> = res.bailouts.into_iter().map(locate).collect();
+      options.log_diagnostics(LogLevel::Verbose, &bailouts);
+    }
+    if !errors.is_empty() {
+      return Err(DiagnosticList(errors));
     }
 
     let directives = res

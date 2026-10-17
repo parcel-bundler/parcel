@@ -339,17 +339,11 @@ impl<'a> EnvReplacer<'a> {
   }
 
   fn emit_mutating_error(&mut self, span: swc_core::common::Span) {
-    self.diagnostics.push(Diagnostic {
-      message: "Mutating process.env is not supported".into(),
-      code_highlights: Some(vec![CodeHighlight {
-        message: None,
-        loc: SourceLocation::from(&self.source_map, span),
-      }]),
-      hints: None,
-      show_environment: false,
-      severity: DiagnosticSeverity::SourceError,
-      documentation_url: None,
-    });
+    self.diagnostics.push(diagnostic(
+      "Mutating process.env is not supported",
+      vec![highlight(&self.source_map, span)],
+      DiagnosticSeverity::SourceError,
+    ));
   }
 }
 

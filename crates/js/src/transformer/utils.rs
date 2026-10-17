@@ -1,6 +1,6 @@
 use std::{borrow::Cow, cmp::Ordering};
 
-pub use parcel_core::SourceType;
+pub use parcel_core::{CodeFrame, CodeHighlight, Diagnostic, DiagnosticSeverity, SourceType};
 
 use swc_core::{
   common::{
@@ -252,30 +252,48 @@ impl PartialOrd for SourceLocation {
   }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct CodeHighlight {
-  pub message: Option<String>,
-  pub loc: SourceLocation,
+impl SourceLocation {
+  /// A code highlight covering this location. Unlike locations, highlights include their end.
+  pub fn to_highlight(&self, message: Option<String>) -> CodeHighlight {
+    CodeHighlight {
+      message,
+      start: parcel_core::Location {
+        line: self.start_line as u32,
+        column: self.start_col as u32,
+      },
+      end: parcel_core::Location {
+        line: self.end_line as u32,
+        column: self.end_col.saturating_sub(1).max(1) as u32,
+      },
+    }
+  }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Diagnostic {
-  pub message: String,
-  pub code_highlights: Option<Vec<CodeHighlight>>,
-  pub hints: Option<Vec<String>>,
-  pub show_environment: bool,
-  pub severity: DiagnosticSeverity,
-  pub documentation_url: Option<String>,
+/// A code highlight covering `span`.
+pub fn highlight(source_map: &SourceMap, span: Span) -> CodeHighlight {
+  SourceLocation::from(source_map, span).to_highlight(None)
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum DiagnosticSeverity {
-  /// Fails the build with an error.
-  Error,
-  /// Logs a warning, but the build does not fail.
-  Warning,
-  /// An error if this is source code in the project, or a warning if in node_modules.
-  SourceError,
+/// A diagnostic reported by the JS transformer. The plugin gives its code frame the asset's URL
+/// and language.
+pub fn diagnostic(
+  message: impl Into<String>,
+  code_highlights: Vec<CodeHighlight>,
+  severity: DiagnosticSeverity,
+) -> Diagnostic {
+  Diagnostic {
+    message: message.into(),
+    origin: Some("@parcel/transformer-js".into()),
+    code_frames: vec![CodeFrame {
+      code: None,
+      url: None,
+      language: None,
+      code_highlights,
+    }],
+    hints: vec![],
+    severity,
+    documentation_url: None,
+  }
 }
 
 #[derive(Debug)]
@@ -288,15 +306,12 @@ impl Bailout {
   pub fn to_diagnostic(&self) -> Diagnostic {
     let (message, documentation_url) = self.reason.info();
     Diagnostic {
-      message: message.into(),
       documentation_url: Some(documentation_url.into()),
-      code_highlights: Some(vec![CodeHighlight {
-        loc: self.loc.clone(),
-        message: None,
-      }]),
-      show_environment: false,
-      severity: DiagnosticSeverity::Warning,
-      hints: None,
+      ..diagnostic(
+        message,
+        vec![self.loc.to_highlight(None)],
+        DiagnosticSeverity::Warning,
+      )
     }
   }
 }
@@ -412,47 +427,26 @@ pub fn error_buffer_to_diagnostics(
   error_buffer: &ErrorBuffer,
   source_map: &SourceMap,
 ) -> Vec<Diagnostic> {
-  let s = error_buffer.0.lock().clone();
-  s.iter()
-    .map(|diagnostic| {
-      let message = diagnostic.message();
-      let span = diagnostic.span.clone();
-      let suggestions = diagnostic.suggestions.clone();
-
-      let span_labels = span.span_labels();
-      let code_highlights = if !span_labels.is_empty() {
-        let mut highlights = vec![];
-        for span_label in span_labels {
-          highlights.push(CodeHighlight {
-            message: span_label.label,
-            loc: SourceLocation::from(source_map, span_label.span),
-          });
-        }
-
-        Some(highlights)
-      } else {
-        None
-      };
-
-      let hints = if !suggestions.is_empty() {
-        Some(
-          suggestions
-            .into_iter()
-            .map(|suggestion| suggestion.msg)
-            .collect(),
-        )
-      } else {
-        None
-      };
-
-      Diagnostic {
-        message,
-        code_highlights,
-        hints,
-        show_environment: false,
-        severity: DiagnosticSeverity::Error,
-        documentation_url: None,
-      }
+  error_buffer
+    .0
+    .lock()
+    .iter()
+    .map(|error| Diagnostic {
+      hints: error
+        .suggestions
+        .iter()
+        .map(|suggestion| suggestion.msg.clone())
+        .collect(),
+      ..diagnostic(
+        error.message(),
+        error
+          .span
+          .span_labels()
+          .into_iter()
+          .map(|label| SourceLocation::from(source_map, label.span).to_highlight(label.label))
+          .collect(),
+        DiagnosticSeverity::Error,
+      )
     })
     .collect()
 }

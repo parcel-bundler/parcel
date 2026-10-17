@@ -73,10 +73,10 @@ use swc_core::{
 };
 use swc_node_comments::SwcComments;
 use typeof_replacer::*;
-use utils::{
-  CodeHighlight, ErrorBuffer, error_buffer_to_diagnostics, fold_member_expr_skip_prop, id,
-};
 pub use utils::{Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
+use utils::{
+  ErrorBuffer, diagnostic, error_buffer_to_diagnostics, fold_member_expr_skip_prop, highlight, id,
+};
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
 
@@ -324,7 +324,9 @@ pub struct TransformAstResult {
   pub shebang: Option<String>,
   pub dependencies: Vec<DependencyDescriptor>,
   pub symbol_result: Option<CollectResult>,
-  pub diagnostics: Option<Vec<Diagnostic>>,
+  pub diagnostics: Vec<Diagnostic>,
+  /// Why symbols could not be statically analyzed, when `Config::trace_bailouts` is set.
+  pub bailouts: Vec<Diagnostic>,
   pub needs_esm_helpers: bool,
   pub has_node_replacements: bool,
   pub needs_filename: bool,
@@ -405,7 +407,7 @@ pub fn transform_to_ast(
     let res = mdx(&config);
     match res {
       Err(diagnostic) => {
-        result.diagnostics = Some(vec![diagnostic]);
+        result.diagnostics = vec![diagnostic];
         return Ok(result);
       }
       Ok(res) => {
@@ -424,7 +426,7 @@ pub fn transform_to_ast(
           err.into_diagnostic(&handler).emit();
         }
 
-        result.diagnostics = Some(error_buffer_to_diagnostics(&error_buffer, &source_map));
+        result.diagnostics = error_buffer_to_diagnostics(&error_buffer, &source_map);
         return Ok(result);
       }
       Ok((module, comments)) => (module, comments),
@@ -715,7 +717,7 @@ pub fn transform_to_ast(
             .iter()
             .any(|d| d.severity == DiagnosticSeverity::Error)
           {
-            result.diagnostics = Some(diagnostics);
+            result.diagnostics = diagnostics;
             return Ok(result);
           }
 
@@ -728,7 +730,7 @@ pub fn transform_to_ast(
           );
           module.visit_with(&mut collect);
           if let Some(bailouts) = &collect.bailouts {
-            diagnostics.extend(bailouts.iter().map(|bailout| bailout.to_diagnostic()));
+            result.bailouts = bailouts.iter().map(|bailout| bailout.to_diagnostic()).collect();
           }
 
           if matches!(
@@ -759,9 +761,7 @@ pub fn transform_to_ast(
           result.dependencies.extend(global_deps);
           result.dependencies.extend(fs_deps);
 
-          if !diagnostics.is_empty() {
-            result.diagnostics = Some(diagnostics);
-          }
+          result.diagnostics = diagnostics;
 
           if config.react_refresh() && result.dependencies.iter().any(|d| matches!(d.specifier.as_str(), "react" | "react/jsx-runtime" | "react/jsx-dev-runtime" | "'@emotion/react" | "@emotion/react/jsx-runtime" | "@emotion/react/jsx-dev-runtime")) {
             result.react_refresh_wrapped = true;
@@ -940,40 +940,12 @@ impl SourceMapGenConfig for SourceMapConfig {
 }
 
 fn macro_error_to_diagnostic(error: MacroError, source_map: &SourceMap) -> Diagnostic {
-  match error {
-    MacroError::EvaluationError(span) => Diagnostic {
-      message: "Could not statically evaluate macro argument".into(),
-      code_highlights: Some(vec![CodeHighlight {
-        message: None,
-        loc: SourceLocation::from(source_map, span),
-      }]),
-      hints: None,
-      show_environment: false,
-      severity: crate::transformer::utils::DiagnosticSeverity::Error,
-      documentation_url: None,
-    },
-    MacroError::LoadError(err, span) => Diagnostic {
-      message: format!("Error loading macro: {}", err),
-      code_highlights: Some(vec![CodeHighlight {
-        message: None,
-        loc: SourceLocation::from(source_map, span),
-      }]),
-      hints: None,
-      show_environment: false,
-      severity: crate::transformer::utils::DiagnosticSeverity::Error,
-      documentation_url: None,
-    },
-    MacroError::ExecutionError(err, span) => Diagnostic {
-      message: format!("Error evaluating macro: {}", err),
-      code_highlights: Some(vec![CodeHighlight {
-        message: None,
-        loc: SourceLocation::from(source_map, span),
-      }]),
-      hints: None,
-      show_environment: false,
-      severity: crate::transformer::utils::DiagnosticSeverity::Error,
-      documentation_url: None,
-    },
+  let (message, span) = match error {
+    MacroError::EvaluationError(span) => {
+      ("Could not statically evaluate macro argument".into(), span)
+    }
+    MacroError::LoadError(err, span) => (format!("Error loading macro: {}", err), span),
+    MacroError::ExecutionError(err, span) => (format!("Error evaluating macro: {}", err), span),
     MacroError::ParseError(err) => {
       let error_buffer = ErrorBuffer::default();
       let handler = Handler::with_emitter(true, false, Box::new(error_buffer.clone()));
@@ -981,7 +953,13 @@ fn macro_error_to_diagnostic(error: MacroError, source_map: &SourceMap) -> Diagn
       let mut diagnostics = error_buffer_to_diagnostics(&error_buffer, source_map);
       return diagnostics.pop().unwrap();
     }
-  }
+  };
+
+  diagnostic(
+    message,
+    vec![highlight(source_map, span)],
+    DiagnosticSeverity::Error,
+  )
 }
 
 #[cfg(test)]

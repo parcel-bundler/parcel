@@ -20,6 +20,7 @@ use swc_core::{
 };
 
 use crate::transformer::{Config, fold_member_expr_skip_prop, utils::*};
+use parcel_core::Environment;
 
 macro_rules! hash {
   ($str:expr) => {{
@@ -349,24 +350,57 @@ impl<'a> DependencyCollector<'a> {
   }
 
   fn add_script_error(&mut self, span: Span) {
+    let message = script_error(self.config.environment())
+      .or(script_error(Environment::Browser))
+      .unwrap()
+      .0;
     // Only add the diagnostic for imports/exports in scripts once.
-    if self.diagnostics.iter().any(|d| d.message == "SCRIPT_ERROR") {
+    if self.diagnostics.iter().any(|d| d.message == message) {
       return;
     }
 
-    self.diagnostics.push(Diagnostic {
-      message: "SCRIPT_ERROR".to_string(),
-      code_highlights: Some(vec![CodeHighlight {
-        message: None,
-        loc: SourceLocation::from(&self.source_map, span),
-      }]),
-      hints: None,
-      show_environment: true,
-      severity: DiagnosticSeverity::Error,
+    let diagnostic = Diagnostic {
       documentation_url: Some(String::from(
         "https://parceljs.org/languages/javascript/#classic-scripts",
       )),
-    });
+      ..diagnostic(
+        message,
+        vec![highlight(&self.source_map, span)],
+        DiagnosticSeverity::Error,
+      )
+    };
+    self
+      .diagnostics
+      .push(self.with_environment_hint(diagnostic));
+  }
+
+  /// Adds a hint explaining how to make the environment's classic scripts modules, to a diagnostic
+  /// about code that requires a module.
+  fn with_environment_hint(&self, mut diagnostic: Diagnostic) -> Diagnostic {
+    if let Some((_, hint)) = script_error(self.config.environment()) {
+      diagnostic.hints.push(hint.into());
+    }
+    diagnostic
+  }
+}
+
+/// Why a classic script in the environment cannot have imports or exports, and how to make it a
+/// module.
+fn script_error(environment: Environment) -> Option<(&'static str, &'static str)> {
+  match environment {
+    Environment::Browser => Some((
+      "Browser scripts cannot have imports or exports.",
+      "Add the type=\"module\" attribute to the <script> tag.",
+    )),
+    Environment::WebWorker => Some((
+      "Web workers cannot have imports or exports without the `type: \"module\"` option.",
+      "Add {type: 'module'} as a second argument to the Worker constructor.",
+    )),
+    Environment::ServiceWorker => Some((
+      "Service workers cannot have imports or exports without the `type: \"module\"` option.",
+      "Add {type: 'module'} as a second argument to the navigator.serviceWorker.register() call.",
+    )),
+    _ => None,
   }
 }
 
@@ -609,21 +643,23 @@ impl<'a> Fold for DependencyCollector<'a> {
                       node.span,
                     )
                   };
-                  self.diagnostics.push(Diagnostic {
-                    message: msg.to_string(),
-                    code_highlights: Some(vec![CodeHighlight {
-                      message: None,
-                      loc: SourceLocation::from(&self.source_map, span),
-                    }]),
-                    hints: Some(vec![String::from(
+                  let mut diagnostic = Diagnostic {
+                    hints: vec![String::from(
                       "Use a static `import`, or dynamic `import()` instead.",
-                    )]),
-                    show_environment: self.config.source_type() == SourceType::Script,
-                    severity: DiagnosticSeverity::Error,
+                    )],
                     documentation_url: Some(String::from(
                       "https://parceljs.org/languages/javascript/#classic-script-workers",
                     )),
-                  });
+                    ..diagnostic(
+                      msg,
+                      vec![highlight(&self.source_map, span)],
+                      DiagnosticSeverity::Error,
+                    )
+                  };
+                  if self.config.source_type() == SourceType::Script {
+                    diagnostic = self.with_environment_hint(diagnostic);
+                  }
+                  self.diagnostics.push(diagnostic);
                 }
 
                 return node.fold_children_with(self);
@@ -845,18 +881,16 @@ impl<'a> Fold for DependencyCollector<'a> {
               )
             };
             self.diagnostics.push(Diagnostic {
-              message: msg.to_string(),
-              code_highlights: Some(vec![CodeHighlight {
-                message: None,
-                loc: SourceLocation::from(&self.source_map, str_.span),
-              }]),
-              hints: Some(vec![format!(
+              hints: vec![format!(
                 "Replace with: new URL('{}', import.meta.url)",
                 str_.value.to_string_lossy(),
-              )]),
-              show_environment: false,
-              severity: DiagnosticSeverity::Error,
+              )],
               documentation_url: Some(String::from(docs)),
+              ..diagnostic(
+                msg.to_string(),
+                vec![highlight(&self.source_map, str_.span)],
+                DiagnosticSeverity::Error,
+              )
             });
             return node;
           } else {
@@ -1010,23 +1044,21 @@ impl<'a> Fold for DependencyCollector<'a> {
               _ => "Worker".to_string(),
             };
             self.diagnostics.push(Diagnostic {
-              message: format!(
-                "Constructing a {} with a string literal is not supported.",
-                constructor
-              ),
-              code_highlights: Some(vec![CodeHighlight {
-                message: None,
-                loc: SourceLocation::from(&self.source_map, str_.span),
-              }]),
-              hints: Some(vec![format!(
+              hints: vec![format!(
                 "Replace with: new URL('{}', import.meta.url)",
                 str_.value.to_string_lossy()
-              )]),
-              show_environment: false,
-              severity: DiagnosticSeverity::Error,
+              )],
               documentation_url: Some(String::from(
                 "https://parceljs.org/languages/javascript/#web-workers",
               )),
+              ..diagnostic(
+                format!(
+                  "Constructing a {} with a string literal is not supported.",
+                  constructor
+                ),
+                vec![highlight(&self.source_map, str_.span)],
+                DiagnosticSeverity::Error,
+              )
             });
             return node;
           } else {
@@ -1529,19 +1561,19 @@ impl<'a> DependencyCollector<'a> {
         span,
       }) => {
         if self.config.source_type() == SourceType::Script {
-          self.diagnostics.push(Diagnostic {
-            message: "`import.meta` is not supported outside a module.".to_string(),
-            code_highlights: Some(vec![CodeHighlight {
-              message: None,
-              loc: SourceLocation::from(&self.source_map, *span),
-            }]),
-            hints: None,
-            show_environment: true,
-            severity: DiagnosticSeverity::Error,
+          let diagnostic = Diagnostic {
             documentation_url: Some(String::from(
               "https://parceljs.org/languages/javascript/#classic-scripts",
             )),
-          })
+            ..diagnostic(
+              "`import.meta` is not supported outside a module.",
+              vec![highlight(&self.source_map, *span)],
+              DiagnosticSeverity::Error,
+            )
+          };
+          self
+            .diagnostics
+            .push(self.with_environment_hint(diagnostic));
         }
         true
       }

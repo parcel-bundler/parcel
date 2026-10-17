@@ -9,7 +9,7 @@
           "codeHighlights": [
             {
               "start": {"line": 2, "column": 10},
-              "end": {"line": 2, "column": 17}
+              "end": {"line": 2, "column": 16}
             }
           ]
         }
