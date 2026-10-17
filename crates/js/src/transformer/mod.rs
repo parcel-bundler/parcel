@@ -36,10 +36,10 @@ use modules::esm2cjs;
 use node_replacer::NodeReplacer;
 use parcel_core::{
   Dependency, DependencyResolution, Environment, EnvironmentFeature, EnvironmentFlags, FileSystem,
-  IncludeNodeModules, OutputFormat, SourceUrl, Target,
+  IncludeNodeModules, OutputFormat, PathId, SourceUrl, Target,
 };
 use parcel_macros::{MacroCallback, MacroError, Macros};
-use path_slash::PathExt;
+
 use react_lazy::ReactLazy;
 pub use swc_core::ecma::preset_env::{Version, Versions};
 use swc_core::{
@@ -84,10 +84,10 @@ pub(crate) const MDX_COMPONENTS: &str = "@parcel/parcel3/src/mdx-components";
 
 #[derive(Default, Debug)]
 pub struct Config {
-  pub filename: String,
+  pub filename: PathId,
   pub url: SourceUrl,
   pub code: Vec<u8>,
-  pub project_root: String,
+  pub project_root: PathId,
   /// The target the module is compiled for. A "use client" or "use server" directive replaces it
   /// (see `directive_target`).
   pub target: Arc<Target>,
@@ -396,12 +396,11 @@ pub fn transform_to_ast(
   let source_map = result.ast.source_map.clone();
   // Attempt to convert the path to be relative to the project root.
   // If outside the project root, use an absolute path so that if the project root moves the path still works.
-  let filename: PathBuf =
-    if let Ok(relative) = Path::new(&config.filename).strip_prefix(&config.project_root) {
-      relative.to_slash_lossy().into()
-    } else {
-      PathBuf::from(&config.filename)
-    };
+  let filename: PathBuf = if config.filename.is_inside(config.project_root) {
+    config.filename.relative(&config.project_root)
+  } else {
+    config.filename.to_path_buf()
+  };
 
   let mut mdx_assets = Vec::new();
   let (module, comments) = if matches!(config.asset_type, Type::Mdx) {
@@ -647,10 +646,10 @@ pub fn transform_to_ast(
 
           let mut module = module.fold_with(&mut Optional::new(
             inline_fs(
-              config.filename.as_str(),
+              config.filename,
               source_map.clone(),
               unresolved_mark,
-              &config.project_root,
+              config.project_root,
               fs,
               is_module,
             ),
@@ -1021,8 +1020,8 @@ mod tests {
     };
     let result = transform_to_ast(
       Config {
-        filename: "index.js".into(),
-        project_root: "/".into(),
+        filename: PathId::new(Path::new("index.js")),
+        project_root: PathId::new(Path::new("/")),
         code: br#"
           import {makeFunction} from './macro.js' with {type: 'macro'};
           output = makeFunction();

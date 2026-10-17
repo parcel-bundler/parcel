@@ -4,6 +4,7 @@ use std::{
 };
 
 use data_encoding::{BASE64, HEXLOWER};
+use path_slash::PathExt;
 use swc_core::{
   common::{DUMMY_SP, Mark, SyntaxContext},
   ecma::{
@@ -22,15 +23,15 @@ use crate::transformer::{
 };
 
 pub fn inline_fs<'a>(
-  filename: &str,
+  filename: PathId,
   source_map: swc_core::common::sync::Lrc<swc_core::common::SourceMap>,
   unresolved_mark: Mark,
-  project_root: &'a str,
+  project_root: PathId,
   fs: &'a dyn FileSystem,
   is_module: bool,
 ) -> impl Fold + 'a {
   InlineFS {
-    filename: Path::new(filename).to_path_buf(),
+    filename,
     collect: Collect::new(
       source_map,
       unresolved_mark,
@@ -44,9 +45,9 @@ pub fn inline_fs<'a>(
 }
 
 struct InlineFS<'a> {
-  filename: PathBuf,
+  filename: PathId,
   collect: Collect,
-  project_root: &'a str,
+  project_root: PathId,
   /// Records the files that are read, so the module is rebuilt when they change.
   fs: &'a dyn FileSystem,
 }
@@ -134,7 +135,7 @@ impl<'a> InlineFS<'a> {
           Ok(path) => path,
           Err(_err) => return None,
         };
-        if !path.to_path_buf().starts_with(self.project_root) {
+        if !path.is_inside(self.project_root) {
           return None;
         }
 
@@ -224,11 +225,13 @@ impl<'a> Fold for Evaluator<'a> {
             .filename
             .parent()
             .unwrap()
-            .to_str()
-            .unwrap()
+            .to_path_buf()
+            .to_slash_lossy()
             .into(),
         )),
-        "__filename" => Expr::Lit(Lit::Str(self.inline.filename.to_str().unwrap().into())),
+        "__filename" => Expr::Lit(Lit::Str(
+          self.inline.filename.to_path_buf().to_slash_lossy().into(),
+        )),
         _ => node,
       },
       Expr::Bin(bin) => match bin.op {

@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use indexmap::IndexMap;
 use path_slash::PathBufExt;
 use swc_core::{
@@ -11,7 +9,7 @@ use swc_core::{
   },
 };
 
-use parcel_core::Dependency;
+use parcel_core::{Dependency, PathId};
 
 use crate::transformer::{
   Config,
@@ -97,33 +95,23 @@ impl VisitMut for GlobalReplacer<'_> {
       }
       "__filename" => {
         self.update_binding(id, |this| {
-          let filename = if let Some(relative) = pathdiff::diff_paths(
-            Path::new(&this.config.filename),
-            Path::new(&this.config.project_root),
-          ) {
-            relative.to_slash_lossy()
-          } else if let Some(filename) = Path::new(&this.config.filename).file_name() {
-            format!("/{}", filename.to_string_lossy())
-          } else {
-            String::from("/unknown.js")
-          };
-
+          let filename = this
+            .config
+            .filename
+            .relative(&this.config.project_root)
+            .to_slash_lossy();
           Lit(ast::Lit::Str(JsWord::from(filename).into()))
         });
       }
       "__dirname" => {
         self.update_binding(id, |this| {
-          let dirname = if let Some(dirname) = Path::new(&this.config.filename).parent() {
-            if let Some(relative) =
-              pathdiff::diff_paths(dirname, Path::new(&this.config.project_root))
-            {
-              relative.to_slash_lossy()
-            } else {
-              String::from("/")
-            }
-          } else {
-            String::from("/")
-          };
+          let dirname = this
+            .config
+            .filename
+            .parent()
+            .map(|p| p.relative(&this.config.project_root))
+            .unwrap_or_else(|| "/".into())
+            .to_slash_lossy();
           Lit(ast::Lit::Str(JsWord::from(dirname).into()))
         });
       }
@@ -190,7 +178,8 @@ impl GlobalReplacer<'_> {
 
 #[cfg(test)]
 mod test {
-  use parcel_core::{Dependency, SpecifierType};
+  use parcel_core::{Dependency, PathId, SpecifierType};
+  use std::path::Path;
 
   use crate::transformer::{
     Config,
@@ -215,8 +204,8 @@ mod test {
 
   fn make_config() -> Config {
     Config {
-      project_root: "project-root".into(),
-      filename: "filename".into(),
+      project_root: PathId::new(Path::new("/project-root")),
+      filename: PathId::new(Path::new("/filename")),
       ..Default::default()
     }
   }

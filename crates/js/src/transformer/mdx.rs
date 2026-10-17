@@ -1,6 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use parcel_core::{AssetRequest, AssetType, BufferContent};
+use path_slash::PathExt;
 
 use crate::transformer::{
   Config, MDX_COMPONENTS, SourceLocation,
@@ -79,7 +80,7 @@ pub fn mdx(config: &Config) -> Result<MdxResult, Diagnostic> {
 
 fn compile(config: &Config) -> Result<MdxResult, Message> {
   let mut options: Options = Options {
-    filepath: Some(config.filename.clone()),
+    filepath: Some(config.filename.to_path_buf().to_slash_lossy()),
     development: config.is_development,
     jsx: true,
     ..Default::default()
@@ -531,11 +532,13 @@ fn message_to_diagnostic(message: Message) -> Diagnostic {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use parcel_core::PathId;
+  use std::path::Path;
 
   #[test]
   fn imports_mdx_components() {
     let result = mdx(&Config {
-      filename: "index.mdx".into(),
+      filename: PathId::new(Path::new("index.mdx")),
       code: b"```js render\nconsole.log('test');\n```".to_vec(),
       ..Default::default()
     })
@@ -548,7 +551,7 @@ mod tests {
   /// Compiles a page with one rendered code block, returning the block's code and the page's.
   fn render_code_block(block: &str) -> (String, String) {
     let result = mdx(&Config {
-      filename: "index.mdx".into(),
+      filename: PathId::new(Path::new("index.mdx")),
       code: format!("```jsx render\n{}\n```", block).into_bytes(),
       ..Default::default()
     })

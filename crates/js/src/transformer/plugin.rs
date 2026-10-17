@@ -577,20 +577,10 @@ fn config(
   }
 
   Ok(Config {
-    filename: asset
-      .loc
-      .url
-      .to_file_path()?
-      .to_path_buf()
-      .to_string_lossy()
-      .into_owned(),
+    filename: asset.loc.url.to_file_path()?,
     url: asset.loc.url.clone(),
     code: asset.content.read()?,
-    project_root: options
-      .project_root
-      .to_path_buf()
-      .to_string_lossy()
-      .into_owned(),
+    project_root: options.project_root,
     target: asset.target.clone(),
     asset_type: match asset.ty {
       AssetType::Ts => Type::Ts,

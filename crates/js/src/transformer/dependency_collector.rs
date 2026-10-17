@@ -2,7 +2,6 @@ use std::{
   collections::hash_map::DefaultHasher,
   fmt,
   hash::{Hash, Hasher},
-  path::Path,
   sync::Arc,
 };
 
@@ -184,9 +183,7 @@ impl Config {
   /// resolved from the project root rather than the module.
   pub(crate) fn helper_dependency(&self, kind: DependencyKind, specifier: &str) -> Dependency {
     let mut dependency = self.dependency(kind, specifier, SourceType::Module, None);
-    dependency.resolve_from = Some(SourceUrl::from_directory_path(&PathId::new(Path::new(
-      &self.project_root,
-    ))));
+    dependency.resolve_from = Some(SourceUrl::from_directory_path(&self.project_root));
     if !self.is_library() {
       dependency.flags |= DependencyFlags::FORCE_BUNDLE;
     }
@@ -1676,8 +1673,8 @@ impl<'a> DependencyCollector<'a> {
 
     // self reference, e.g. new Worker(import.meta.url)
     if self.is_import_meta_url(expr) {
-      let filename = Path::new(&self.config.filename).file_name().unwrap();
-      let specifier = format!("./{}", filename.to_string_lossy());
+      let filename = self.config.filename.file_name();
+      let specifier = format!("./{}", filename);
       let span = match expr {
         Expr::Member(member) => member.span,
         _ => unreachable!(),
@@ -1851,13 +1848,11 @@ impl<'a> DependencyCollector<'a> {
   }
 
   fn get_project_relative_filename(&self) -> String {
-    if let Some(relative) = pathdiff::diff_paths(&self.config.filename, &self.config.project_root) {
-      relative.to_slash_lossy()
-    } else if let Some(filename) = Path::new(&self.config.filename).file_name() {
-      String::from(filename.to_string_lossy())
-    } else {
-      String::from("unknown.js")
-    }
+    self
+      .config
+      .filename
+      .relative(&self.config.project_root)
+      .to_slash_lossy()
   }
 
   fn get_import_meta_url(&mut self) -> ast::Expr {
