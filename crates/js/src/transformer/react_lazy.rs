@@ -110,7 +110,6 @@ mod test {
     )];
 
     let mut collect = Collect::new(
-      context.source_map.clone(),
       context.unresolved_mark,
       Mark::fresh(Mark::root()),
       false,

@@ -4,8 +4,8 @@ use parcel_core::{AssetRequest, AssetType, BufferContent};
 use path_slash::PathExt;
 
 use crate::transformer::{
-  Config, MDX_COMPONENTS, SourceLocation,
-  utils::{Diagnostic, DiagnosticSeverity, diagnostic},
+  Config, MDX_COMPONENTS,
+  utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, diagnostic},
 };
 use markdown::{
   Location,
@@ -507,24 +507,27 @@ fn has_default_export(module: &Module) -> bool {
 }
 
 fn message_to_diagnostic(message: Message) -> Diagnostic {
-  let loc = message.place.map(|place| match *place {
-    Place::Point(point) => SourceLocation {
-      start_line: point.line,
-      start_col: point.column,
-      end_line: point.line,
-      end_col: point.column + 1,
+  let location = |line: usize, column: usize| parcel_core::Location {
+    line: line as u32,
+    column: column as u32,
+  };
+  // Markdown positions end after their last character, but highlights include it.
+  let highlight = message.place.map(|place| match *place {
+    Place::Point(point) => CodeHighlight {
+      message: None,
+      start: location(point.line, point.column),
+      end: location(point.line, point.column),
     },
-    Place::Position(pos) => SourceLocation {
-      start_line: pos.start.line,
-      start_col: pos.start.column,
-      end_line: pos.end.line,
-      end_col: pos.end.column,
+    Place::Position(pos) => CodeHighlight {
+      message: None,
+      start: location(pos.start.line, pos.start.column),
+      end: location(pos.end.line, pos.end.column.saturating_sub(1).max(1)),
     },
   });
 
   diagnostic(
     message.reason,
-    loc.map(|loc| loc.to_highlight(None)).into_iter().collect(),
+    highlight.into_iter().collect(),
     DiagnosticSeverity::Error,
   )
 }

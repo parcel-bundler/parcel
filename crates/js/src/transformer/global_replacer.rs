@@ -14,7 +14,7 @@ use parcel_core::Dependency;
 use crate::transformer::{
   Config,
   dependency_collector::DependencyKind,
-  utils::{SourceLocation, SourceType, create_global_decl_stmt, create_require, is_unresolved},
+  utils::{SourceType, create_global_decl_stmt, create_require, is_unresolved},
 };
 
 /// Replaces a few node.js constants with literals or require statements.
@@ -145,9 +145,7 @@ impl VisitMut for GlobalReplacer<'_> {
 
 impl GlobalReplacer<'_> {
   fn add_dependency(&mut self, specifier: &str, span: swc_core::common::Span) {
-    let loc = self
-      .config
-      .loc(SourceLocation::from(&self.source_map, span));
+    let loc = self.config.loc(&self.source_map, span);
     self.items.push(self.config.dependency(
       DependencyKind::Require,
       specifier,

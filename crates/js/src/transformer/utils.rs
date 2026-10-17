@@ -1,6 +1,8 @@
-use std::{borrow::Cow, cmp::Ordering};
+use std::borrow::Cow;
 
-pub use parcel_core::{CodeFrame, CodeHighlight, Diagnostic, DiagnosticSeverity, SourceType};
+pub use parcel_core::{
+  CodeFrame, CodeHighlight, Diagnostic, DiagnosticSeverity, Location, SourceType,
+};
 
 use swc_core::{
   common::{
@@ -210,68 +212,37 @@ pub fn get_undefined_ident(unresolved_mark: Mark) -> ast::Ident {
   )
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-/// Corresponds to the JS SourceLocation type (1-based, end exclusive)
-pub struct SourceLocation {
-  pub start_line: usize,
-  pub start_col: usize,
-  pub end_line: usize,
-  pub end_col: usize,
-}
-
-impl SourceLocation {
-  pub fn from(source_map: &SourceMap, span: Span) -> Self {
-    if span.lo.is_dummy() || span.hi.is_dummy() {
-      return SourceLocation {
-        start_line: 1,
-        start_col: 1,
-        end_line: 1,
-        end_col: 2,
-      };
-    }
-
-    let start = source_map.lookup_char_pos(span.lo);
-    let end = source_map.lookup_char_pos(span.hi);
-    // SWC's columns are exclusive, ours are exclusive
-    // SWC has 0-based columns, ours are 1-based (column + 1)
-    SourceLocation {
-      start_line: start.line,
-      start_col: start.col_display + 1,
-      end_line: end.line,
-      end_col: end.col_display + 1,
-    }
+/// The 1-based start and exclusive end of `span`.
+pub fn span_location(source_map: &SourceMap, span: Span) -> (Location, Location) {
+  if span.lo.is_dummy() || span.hi.is_dummy() {
+    return (
+      Location { line: 1, column: 1 },
+      Location { line: 1, column: 2 },
+    );
   }
-}
 
-impl PartialOrd for SourceLocation {
-  fn partial_cmp(&self, other: &SourceLocation) -> Option<Ordering> {
-    match self.start_line.cmp(&other.start_line) {
-      Ordering::Equal => self.start_col.partial_cmp(&other.start_col),
-      o => Some(o),
+  // SWC's columns are 0-based, ours are 1-based.
+  let location = |pos| {
+    let loc = source_map.lookup_char_pos(pos);
+    Location {
+      line: loc.line as u32,
+      column: loc.col_display as u32 + 1,
     }
-  }
+  };
+  (location(span.lo), location(span.hi))
 }
 
-impl SourceLocation {
-  /// A code highlight covering this location. Unlike locations, highlights include their end.
-  pub fn to_highlight(&self, message: Option<String>) -> CodeHighlight {
-    CodeHighlight {
-      message,
-      start: parcel_core::Location {
-        line: self.start_line as u32,
-        column: self.start_col as u32,
-      },
-      end: parcel_core::Location {
-        line: self.end_line as u32,
-        column: self.end_col.saturating_sub(1).max(1) as u32,
-      },
-    }
-  }
-}
-
-/// A code highlight covering `span`.
+/// A code highlight covering `span`. Unlike locations, highlights include their end.
 pub fn highlight(source_map: &SourceMap, span: Span) -> CodeHighlight {
-  SourceLocation::from(source_map, span).to_highlight(None)
+  let (start, end) = span_location(source_map, span);
+  CodeHighlight {
+    message: None,
+    start,
+    end: Location {
+      line: end.line,
+      column: end.column.saturating_sub(1).max(1),
+    },
+  }
 }
 
 /// A diagnostic reported by the JS transformer. The plugin gives its code frame the asset's URL
@@ -298,18 +269,18 @@ pub fn diagnostic(
 
 #[derive(Debug)]
 pub struct Bailout {
-  pub loc: SourceLocation,
+  pub span: Span,
   pub reason: BailoutReason,
 }
 
 impl Bailout {
-  pub fn to_diagnostic(&self) -> Diagnostic {
+  pub fn to_diagnostic(&self, source_map: &SourceMap) -> Diagnostic {
     let (message, documentation_url) = self.reason.info();
     Diagnostic {
       documentation_url: Some(documentation_url.into()),
       ..diagnostic(
         message,
-        vec![self.loc.to_highlight(None)],
+        vec![highlight(source_map, self.span)],
         DiagnosticSeverity::Warning,
       )
     }
@@ -443,7 +414,10 @@ pub fn error_buffer_to_diagnostics(
           .span
           .span_labels()
           .into_iter()
-          .map(|label| SourceLocation::from(source_map, label.span).to_highlight(label.label))
+          .map(|label| CodeHighlight {
+            message: label.label,
+            ..highlight(source_map, label.span)
+          })
           .collect(),
         DiagnosticSeverity::Error,
       )

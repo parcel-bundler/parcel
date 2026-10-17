@@ -254,18 +254,13 @@ impl Config {
     }
   }
 
-  /// Converts a location in the module to a dependency location.
-  pub(crate) fn loc(&self, loc: SourceLocation) -> parcel_core::SourceLocation {
+  /// The location of `span` in the module.
+  pub(crate) fn loc(&self, source_map: &SourceMap, span: Span) -> parcel_core::SourceLocation {
+    let (start, end) = span_location(source_map, span);
     parcel_core::SourceLocation {
       url: self.url.clone(),
-      start: parcel_core::Location {
-        line: loc.start_line as u32,
-        column: loc.start_col as u32,
-      },
-      end: parcel_core::Location {
-        line: loc.end_line as u32,
-        column: loc.end_col as u32,
-      },
+      start,
+      end,
     }
   }
 }
@@ -426,9 +421,7 @@ impl<'a> DependencyCollector<'a> {
     let mut dependency = if is_helper {
       self.config.helper_dependency(kind.clone(), &specifier)
     } else {
-      let loc = self
-        .config
-        .loc(SourceLocation::from(&self.source_map, span));
+      let loc = self.config.loc(&self.source_map, span);
       self
         .config
         .dependency(kind.clone(), &specifier, source_type, Some(loc))
@@ -493,9 +486,7 @@ impl<'a> DependencyCollector<'a> {
     // For library builds, we need to create something that can be statically analyzed by another bundler,
     // so rather than replacing with a require call that is resolved by a runtime, replace with a `new URL`
     // call with a placeholder for the relative path to be replaced during packaging.
-    let loc = self
-      .config
-      .loc(SourceLocation::from(&self.source_map, span));
+    let loc = self.config.loc(&self.source_map, span);
     let mut dependency = self
       .config
       .dependency(kind, &specifier, source_type, Some(loc));
@@ -875,9 +866,7 @@ impl<'a> Fold for DependencyCollector<'a> {
               "parcelRequire" => {
                 if let Some(ast::ExprOrSpread { expr, .. }) = node.args.first() {
                   if let Some((id, span)) = match_str(expr) {
-                    let loc = self
-                      .config
-                      .loc(SourceLocation::from(&self.source_map, span));
+                    let loc = self.config.loc(&self.source_map, span);
                     self.items.push(self.config.dependency(
                       DependencyKind::Id,
                       &id,

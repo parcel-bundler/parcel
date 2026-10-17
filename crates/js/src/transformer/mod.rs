@@ -72,7 +72,7 @@ use swc_core::{
 };
 use swc_node_comments::SwcComments;
 use typeof_replacer::*;
-pub use utils::{Diagnostic, DiagnosticSeverity, SourceLocation, SourceType};
+pub use utils::{Diagnostic, DiagnosticSeverity, SourceType};
 use utils::{
   ErrorBuffer, diagnostic, error_buffer_to_diagnostics, fold_member_expr_skip_prop, highlight, id,
 };
@@ -651,7 +651,6 @@ pub fn transform_to_ast(
           let mut module = module.fold_with(&mut Optional::new(
             inline_fs(
               config.filename,
-              source_map.clone(),
               unresolved_mark,
               config.project_root,
               fs,
@@ -726,7 +725,6 @@ pub fn transform_to_ast(
           }
 
           let mut collect = Collect::new(
-            source_map.clone(),
             unresolved_mark,
             ignore_mark,
             config.trace_bailouts,
@@ -734,7 +732,10 @@ pub fn transform_to_ast(
           );
           module.visit_with(&mut collect);
           if let Some(bailouts) = &collect.bailouts {
-            result.bailouts = bailouts.iter().map(|bailout| bailout.to_diagnostic()).collect();
+            result.bailouts = bailouts
+              .iter()
+              .map(|bailout| bailout.to_diagnostic(&source_map))
+              .collect();
           }
 
           if matches!(

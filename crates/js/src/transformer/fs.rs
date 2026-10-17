@@ -24,7 +24,6 @@ use crate::transformer::{
 
 pub fn inline_fs<'a>(
   filename: PathId,
-  source_map: swc_core::common::sync::Lrc<swc_core::common::SourceMap>,
   unresolved_mark: Mark,
   project_root: PathId,
   fs: &'a dyn FileSystem,
@@ -32,13 +31,7 @@ pub fn inline_fs<'a>(
 ) -> impl Fold + 'a {
   InlineFS {
     filename,
-    collect: Collect::new(
-      source_map,
-      unresolved_mark,
-      Mark::fresh(Mark::root()),
-      false,
-      is_module,
-    ),
+    collect: Collect::new(unresolved_mark, Mark::fresh(Mark::root()), false, is_module),
     project_root,
     fs,
   }
