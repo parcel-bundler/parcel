@@ -9,5 +9,8 @@
   },
   "files": [
     "src"
-  ]
+  ],
+  "dependencies": {
+    "react-refresh": "^0.6.0"
+  }
 }

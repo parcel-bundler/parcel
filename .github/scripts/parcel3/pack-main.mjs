@@ -69,7 +69,7 @@ fs.copyFileSync(
 );
 fs.chmodSync(path.join(stage, 'bin', 'parcel3'), 0o755);
 fs.cpSync(
-  path.join(import.meta.dirname, '../../../packages/core/parcel3/src'),
+  path.join(import.meta.dirname, '../../../packages-v3/parcel3/src'),
   path.join(stage, 'src'),
   {recursive: true},
 );

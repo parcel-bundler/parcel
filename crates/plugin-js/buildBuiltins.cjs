@@ -344,7 +344,7 @@ class BuiltinGraph {
 
     let extension = path.extname(file);
     if (extension === '.json') return output;
-    if (extension !== '.js') {
+    if (extension !== '.js' && extension !== '.cjs' && extension !== '.mjs') {
       throw new Error(`Unsupported embedded module extension ${extension}: ${file}`);
     }
 

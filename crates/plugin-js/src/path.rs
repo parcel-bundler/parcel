@@ -345,7 +345,9 @@ pub fn path_module<'js>(ctx: &Ctx<'js>) -> rquickjs::Result<Object<'js>> {
   module.set("isAbsolute", Function::new(ctx.clone(), is_absolute)?)?;
   module.set("join", Function::new(ctx.clone(), join)?)?;
   module.set("relative", Function::new(ctx.clone(), relative)?)?;
-  module.set("_makeLong", Function::new(ctx.clone(), make_long)?)?;
+  let make_long = Function::new(ctx.clone(), make_long)?;
+  module.set("_makeLong", make_long.clone())?;
+  module.set("toNamespacedPath", make_long)?;
   module.set("dirname", Function::new(ctx.clone(), dirname)?)?;
   module.set("basename", Function::new(ctx.clone(), basename)?)?;
   module.set("extname", Function::new(ctx.clone(), extname)?)?;
@@ -370,6 +372,7 @@ impl ModuleDef for PathModule {
       "join",
       "relative",
       "_makeLong",
+      "toNamespacedPath",
       "dirname",
       "basename",
       "extname",
@@ -398,6 +401,7 @@ impl ModuleDef for PathModule {
       "join",
       "relative",
       "_makeLong",
+      "toNamespacedPath",
       "dirname",
       "basename",
       "extname",

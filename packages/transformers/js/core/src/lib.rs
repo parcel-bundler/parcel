@@ -838,7 +838,7 @@ pub fn transform_to_ast(
             let require_ident = Ident::new("require".into(), DUMMY_SP, unresolved);
             module.body = vec![
               quote!(
-                "var $parcel$ReactRefreshHelpers = $require('@parcel/transformer-react-refresh-wrap/src/helpers/helpers.js');" as ModuleItem,
+                "var $parcel$ReactRefreshHelpers = $require('@parcel/parcel3/src/react-refresh.js');" as ModuleItem,
                 require: Ident = require_ident
               ),
               quote!("$parcel$ReactRefreshHelpers.init()" as ModuleItem),
@@ -868,7 +868,7 @@ pub fn transform_to_ast(
             result.dependencies.push(DependencyDescriptor {
               kind: DependencyKind::Require,
               loc: SourceLocation { start_line: 0, start_col: 0, end_line: 0, end_col: 0 },
-              specifier: "@parcel/transformer-react-refresh-wrap/src/helpers/helpers.js".into(),
+              specifier: "@parcel/parcel3/src/react-refresh.js".into(),
               attributes: None,
               flags: DependencyFlags::empty(),
               source_type: None,
@@ -878,7 +878,7 @@ pub fn transform_to_ast(
 
             if let Some(sym) = &mut result.symbol_result {
               sym.imports.push(CollectImportedSymbol {
-                source: "@parcel/transformer-react-refresh-wrap/src/helpers/helpers.js".into(),
+                source: "@parcel/parcel3/src/react-refresh.js".into(),
                 local: "$parcel$ReactRefreshHelpers".into(),
                 imported: "*".into(),
                 loc: SourceLocation { start_line: 0, start_col: 0, end_line: 0, end_col: 0 },

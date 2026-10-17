@@ -2,11 +2,8 @@
 import {typeof default as Less} from 'less';
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
-// import SourceMap from '@parcel/source-map';
 import less from 'less';
 import fs from 'fs';
-
-import {load} from './loadConfig';
 
 // E.g: ~library/file.less
 const WEBPACK_ALIAS_RE = /^~[^/]/;
@@ -19,13 +16,8 @@ type LessConfig = {
 };
 
 export default (new Transformer({
-  loadConfig({config}) {
-    return load({config});
-  },
-
   async transform({asset, options, config, resolve}) {
     asset.type = 'css';
-    // asset.meta.hasDependencies = false;
 
     let code = await asset.getCode();
     let result;
@@ -36,10 +28,9 @@ export default (new Transformer({
         lessConfig.paths = config?.paths.map(p => path.join(options.projectRoot, p));
       }
 
-
-      // if (asset.env.sourceMap) {
-      //   lessConfig.sourceMap = {};
-      // }
+      if (asset.env.sourceMap) {
+        lessConfig.sourceMap = {};
+      }
 
       lessConfig.filename = asset.filePath;
       lessConfig.relativeUrls = true;
@@ -60,18 +51,7 @@ export default (new Transformer({
       };
       throw err;
     }
-
-    // if (result.map != null) {
-    //   let map = new SourceMap(options.projectRoot);
-    //   let rawMap = JSON.parse(result.map);
-    //   map.addVLQMap({
-    //     ...rawMap,
-    //     sources: rawMap.sources.map(s => path.relative(options.projectRoot, s)),
-    //   });
-    //   asset.setMap(map);
-    // }
-
-    asset.setCode(result.css);
+    asset.setCode(result.css, result.map);
 
     return [asset];
   },
@@ -152,9 +132,7 @@ function resolvePathPlugin({asset, resolve}) {
                 try {
                   contents = fs.readFileSync(filePath, 'utf8');
                   break outer;
-                } catch (err) {
-                  // asset.invalidateOnFileCreate({filePath});
-                }
+                } catch {}
               }
             }
           }
@@ -164,10 +142,6 @@ function resolvePathPlugin({asset, resolve}) {
               packageConditions: ['less', 'style'],
             });
             contents = fs.readFileSync(filePath, 'utf8');
-          }
-
-          if (filePath) {
-            // asset.invalidateOnFileChange(filePath);
           }
 
           return {

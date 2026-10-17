@@ -49,7 +49,7 @@ fn build_entries(files: &[(&str, &str)], entries: &[&str], mode: BuildMode) -> V
       ),
       (
         "node_modules/@parcel/parcel3/src/esmodule-helpers.js",
-        include_str!("../../../packages/core/parcel3/src/esmodule-helpers.js"),
+        include_str!("../../../packages-v3/parcel3/src/esmodule-helpers.js"),
       ),
     ]
     .iter(),

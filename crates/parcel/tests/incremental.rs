@@ -311,7 +311,7 @@ impl IncrementalTest {
       ),
       (
         "/project/node_modules/@parcel/parcel3/src/esmodule-helpers.js",
-        include_str!("../../../packages/core/parcel3/src/esmodule-helpers.js"),
+        include_str!("../../../packages-v3/parcel3/src/esmodule-helpers.js"),
       ),
     ];
     for (path, contents) in runtime_files {
