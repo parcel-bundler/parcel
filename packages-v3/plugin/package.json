@@ -14,15 +14,15 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "main": "lib/PluginAPI.js",
-  "source": "src/PluginAPI.js",
-  "types": "src/PluginAPI.d.ts",
+  "source": "src/PluginAPI.tsx",
+  "types": "src/PluginAPI.tsx",
   "engines": {
     "node": ">= 16.0.0"
   },
   "scripts": {
-    "check-ts": "tsc --noEmit src/PluginAPI.d.ts"
+    "check-ts": "tsc --noEmit --strict --skipLibCheck src/PluginAPI.tsx"
   },
   "dependencies": {
-    "@parcel/types": "2.16.3"
+    "@parcel/source-map": "^2.1.1"
   }
 }
