@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-babel",
-  "version": "2.16.3",
+  "version": "3.0.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -15,14 +15,17 @@
   },
   "type": "module",
   "main": "lib/BabelTransformer.js",
+  "files": [
+    "lib"
+  ],
   "source": "src/BabelTransformer.ts",
   "engines": {
     "node": ">= 16.0.0",
-    "parcel": "^2.16.3"
+    "parcel": "^3.0.0-0"
   },
   "dependencies": {
     "@babel/core": "^7.26.0",
-    "@parcel/plugin": "2.16.3"
+    "@parcel/plugin": "workspace:^"
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5"

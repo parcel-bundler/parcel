@@ -12,6 +12,10 @@ on:
         required: false
         default: false
         type: boolean
+      tag:
+        description: 'npm dist-tag for the JS packages. Defaults to the prerelease identifier (e.g. alpha), or latest for a stable version'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -213,6 +217,92 @@ jobs:
           name: parcel3-main
           path: ${{ runner.temp }}/main/*.tgz
           if-no-files-found: error
+
+  # The pure JS workspace packages (@parcel/plugin, the transformers, ...) are
+  # versioned, packed and published with Yarn. @parcel/parcel3 is private: its
+  # npm package is assembled from the native builds by the jobs above instead.
+  pack-js:
+    name: Pack JS packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: yarn
+
+      - run: yarn --immutable
+      - run: yarn build
+      - run: yarn check-ts
+
+      - name: Set version
+        env:
+          VERSION: ${{ inputs.version }}
+          # Bumping the workspace versions rewrites the lockfile, which Yarn
+          # otherwise refuses to do on CI.
+          YARN_ENABLE_IMMUTABLE_INSTALLS: 'false'
+        run: yarn workspaces foreach --all --no-private --exclude @parcel/parcel3 version "$VERSION"
+
+      - name: Pack
+        run: yarn workspaces foreach --all --no-private --exclude @parcel/parcel3 pack --out "$RUNNER_TEMP/js/%s-%v.tgz"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: parcel3-js
+          path: ${{ runner.temp }}/js/*.tgz
+          if-no-files-found: error
+
+  publish-js:
+    name: Publish JS packages to npm
+    if: ${{ inputs.publish }}
+    # Also wait for the native packages, so nothing is published unless the
+    # whole release built.
+    needs: [pack, pack-js]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: yarn
+
+      - run: yarn --immutable
+      - run: yarn build
+
+      - name: Set version
+        env:
+          VERSION: ${{ inputs.version }}
+          YARN_ENABLE_IMMUTABLE_INSTALLS: 'false'
+        run: yarn workspaces foreach --all --no-private --exclude @parcel/parcel3 version "$VERSION"
+
+      # Topological, so @parcel/plugin is published before the packages that
+      # depend on it. --tolerate-republish lets a failed run be retried.
+      - name: Publish
+        env:
+          VERSION: ${{ inputs.version }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+
+          # A prerelease must never become latest: these package names were
+          # used by Parcel 2, whose users would otherwise get v3.
+          if [ -z "$TAG" ]; then
+            if [[ "$VERSION" == *-* ]]; then
+              TAG="${VERSION#*-}"
+              TAG="${TAG%%.*}"
+            else
+              TAG=latest
+            fi
+          fi
+          echo "Publishing $VERSION with dist-tag $TAG"
+
+          yarn workspaces foreach --all --no-private --exclude @parcel/parcel3 --topological \
+            npm publish --access public --tag "$TAG" --tolerate-republish --provenance
 
   publish:
     name: Publish to npm

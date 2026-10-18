@@ -82,16 +82,9 @@ You can run `/path/to/monorepo/packages/core/parcel/src/bin.js build src/index.h
 
 ## Releasing a new version
 
-When releasing a new version of Parcel a couple steps should be followed:
+Releases are published by the [parcel3 workflow](.github/workflows/parcel3.yml). Run it from the Actions tab with the version to release (e.g. `3.0.0-alpha.1`) and `publish` checked. It builds the native `parcel3` packages for every target, and versions and publishes the JS packages in `packages-v3` with Yarn. Without `publish` checked, it only builds and packs everything, so the result can be checked first.
 
-1. Run `yarn tag:prerelease 2.0.0-alpha.1` or `yarn tag:release 2.4.5` based on whether it is a prerelease (alpha, beta, nightly, ...) or a stable release
-2. Open a PR (or commit directly to the default branch)
-3. Wait for the PR to get merged
-4. Create a [GitHub release](https://github.com/parcel-bundler/parcel/releases) and publish it (this should automatically trigger an npm release, with the current state of the default branch and versions defined in the `package.json` files)
-
-After these steps are completed there should be a new version of Parcel published on npm.
-
-In case the automatic npm release failed, or you want to do a manual release for any other reason you can also run `yarn run release`
+The JS packages are published to a dist-tag named after the prerelease identifier (e.g. `alpha`), or `latest` for a stable version, unless the `tag` input is set.
 
 ## Become a backer or sponsor
 

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/macros",
-  "version": "2.16.3",
+  "version": "3.0.0",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -14,9 +14,12 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "types": "macros.d.ts",
+  "files": [
+    "macros.d.ts"
+  ],
   "sideEffects": false,
   "engines": {
     "node": ">= 16.0.0",
-    "parcel": "^2.16.3"
+    "parcel": "^3.0.0-0"
   }
 }

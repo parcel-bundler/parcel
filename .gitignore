@@ -2,7 +2,6 @@
 .idea/
 .nyc_output/
 .parcel-cache/
-.verdaccio_storage/
 .vscode/*
 !.vscode/extensions.json
 coverage/
