@@ -53,11 +53,9 @@ module.exports.init = function () {
       //       `/__parcel_launch_editor?file=${encodeURIComponent(file)}`,
       //   );
       // });
-
       // ErrorOverlay.startReportingRuntimeErrors({
       //   onError: function () {},
       // });
-
       // window.addEventListener('parcelhmraccept', () => {
       //   ErrorOverlay.dismissRuntimeErrors();
       // });

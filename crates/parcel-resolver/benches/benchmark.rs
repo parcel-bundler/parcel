@@ -19,14 +19,7 @@ fn parcel(from: PathId, resolver: &parcel_resolver::Resolver, fs: &dyn parcel_co
 }
 
 fn bench_uncached(c: &mut Criterion) {
-  let root = PathId::new(
-    &Path::new(env!("CARGO_MANIFEST_DIR"))
-      .parent()
-      .unwrap()
-      .parent()
-      .unwrap()
-      .join("packages/utils/node-resolver-core/test/fixture"),
-  );
+  let root = PathId::new(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixture"));
   let from = root.child("foo.js");
   let os: Arc<dyn parcel_resolver::FileSystem> = Arc::new(parcel_resolver::OsFileSystem::default());
   c.bench_function("uncached/parcel_resolver", |b| {
@@ -42,14 +35,7 @@ fn bench_uncached(c: &mut Criterion) {
 }
 
 fn bench_cached(c: &mut Criterion) {
-  let root = PathId::new(
-    &Path::new(env!("CARGO_MANIFEST_DIR"))
-      .parent()
-      .unwrap()
-      .parent()
-      .unwrap()
-      .join("packages/utils/node-resolver-core/test/fixture"),
-  );
+  let root = PathId::new(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixture"));
   let from = root.child("foo.js");
   // Wrap the OS file system in a CachedFileSystem so metadata lookups and parsed package.json /
   // tsconfig artifacts are memoized (and shared) across resolutions, the way they will be in a

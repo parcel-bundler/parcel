@@ -1,6 +1,3 @@
-/* eslint-env browser */
-/* eslint-disable react/display-name */
-
 'use parcel-rsc-runtime';
 
 import {createElement, Fragment} from 'react';
@@ -23,7 +20,12 @@ export function scriptPreloadResource(href) {
 
 export function wrapClientReferenceWithResources(Reference, resources) {
   return props =>
-    createElement(Fragment, null, ...resources, createElement(Reference, props));
+    createElement(
+      Fragment,
+      null,
+      ...resources,
+      createElement(Reference, props),
+    );
 }
 
 export function createResourcesProxy(

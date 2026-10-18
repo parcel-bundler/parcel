@@ -1,6 +1,4 @@
-/* eslint-env browser */
 /* global parcelRequireName, modules, mainEntry, entries, awaitedBundles, externals, manifest, distDir, publicUrl, bundleUrl */
-/* eslint-disable no-unused-vars */
 
 // Save the require from previous bundle to this closure if any
 var previousRequire =

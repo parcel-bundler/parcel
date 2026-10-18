@@ -1,17 +1,31 @@
 /* @jsxRuntime automatic */
-import type { IncomingMessage, ServerResponse } from 'http';
-import type { ReadableStream as NodeReadableStream } from 'stream/web';
-import type { ReactNode } from 'react';
+import type {IncomingMessage, ServerResponse} from 'http';
+import type {ReadableStream as NodeReadableStream} from 'stream/web';
+import type {ReactNode} from 'react';
 
 import {Readable} from 'stream';
-import {renderToReadableStream, createTemporaryReferenceSet} from 'react-server-dom-parcel/server.edge';
-import {RSCToHTMLOptions, RSCOptions, renderHTML as renderHTMLBase, callAction as callActionBase, renderDevError} from './server';
+import {
+  renderToReadableStream,
+  createTemporaryReferenceSet,
+} from 'react-server-dom-parcel/server.edge';
+import {
+  RSCToHTMLOptions,
+  RSCOptions,
+  renderHTML as renderHTMLBase,
+  callAction as callActionBase,
+  renderDevError,
+} from './server';
 
 export function renderRSC(root: any, options?: RSCOptions): Readable {
-  return Readable.fromWeb(renderToReadableStream(root, options) as NodeReadableStream);
+  return Readable.fromWeb(
+    renderToReadableStream(root, options) as NodeReadableStream,
+  );
 }
 
-export async function renderHTML(root: any, options?: RSCToHTMLOptions): Promise<Readable> {
+export async function renderHTML(
+  root: any,
+  options?: RSCToHTMLOptions,
+): Promise<Readable> {
   let htmlStream = await renderHTMLBase(root, options);
   return Readable.fromWeb(htmlStream as NodeReadableStream);
 }
@@ -19,15 +33,22 @@ export async function renderHTML(root: any, options?: RSCToHTMLOptions): Promise
 const temporaryReferencesSymbol = Symbol.for('temporaryReferences');
 
 export interface RenderRequestOptions extends RSCToHTMLOptions {
-  renderError?: (err: Error) => ReactNode
+  renderError?: (err: Error) => ReactNode;
 }
 
-export async function renderRequest(request: IncomingMessage, response: ServerResponse, root: any, options?: RenderRequestOptions): Promise<void> {
+export async function renderRequest(
+  request: IncomingMessage,
+  response: ServerResponse,
+  root: any,
+  options?: RenderRequestOptions,
+): Promise<void> {
   options = {
     ...options,
-    temporaryReferences: options?.temporaryReferences ?? (request as any)[temporaryReferencesSymbol]
+    temporaryReferences:
+      options?.temporaryReferences ??
+      (request as any)[temporaryReferencesSymbol],
   };
-  
+
   if (request.headers.accept?.includes('text/html')) {
     try {
       let html = await renderHTML(root, options);
@@ -38,7 +59,7 @@ export async function renderRequest(request: IncomingMessage, response: ServerRe
       let error = err instanceof Error ? err : new Error(String(err));
       let renderedError;
       try {
-        renderedError = options?.renderError 
+        renderedError = options?.renderError
           ? await renderHTMLBase(options.renderError(error), options)
           : await renderDevError(error, options);
       } catch {
@@ -56,7 +77,10 @@ export async function renderRequest(request: IncomingMessage, response: ServerRe
   }
 }
 
-export async function callAction(request: IncomingMessage, id: string | null | undefined): Promise<{result: any}> {
+export async function callAction(
+  request: IncomingMessage,
+  id: string | null | undefined,
+): Promise<{result: any}> {
   (request as any)[temporaryReferencesSymbol] ??= createTemporaryReferenceSet();
 
   let req = new Request('http://localhost' + request.url, {
@@ -64,9 +88,11 @@ export async function callAction(request: IncomingMessage, id: string | null | u
     headers: request.headers as any,
     body: Readable.toWeb(request) as ReadableStream,
     // @ts-ignore
-    duplex: 'half'
+    duplex: 'half',
   });
 
-  (req as any)[temporaryReferencesSymbol] = (request as any)[temporaryReferencesSymbol];
+  (req as any)[temporaryReferencesSymbol] = (request as any)[
+    temporaryReferencesSymbol
+  ];
   return callActionBase(req, id);
 }

@@ -1,7 +1,0 @@
-// @flow
-
-declare module 'split2' {
-  import type {Transform} from 'stream';
-
-  declare module.exports: () => Transform;
-}

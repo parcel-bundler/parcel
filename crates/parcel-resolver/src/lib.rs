@@ -1358,14 +1358,7 @@ mod tests {
   use super::*;
 
   fn root() -> PathId {
-    PathId::new(
-      &Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .join("packages/utils/node-resolver-core/test/fixture"),
-    )
+    PathId::new(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixture"))
   }
 
   /// A test wrapper that supplies a default file system to each resolve call and keeps the old

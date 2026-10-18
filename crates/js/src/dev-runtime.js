@@ -1,6 +1,4 @@
-/* eslint-env browser */
 /* global parcelRequireName, modules, mainEntry, entries, awaitedBundles, externals, manifest, distDir, publicUrl, bundleUrl, HMR_ENABLED, HMR_HOST, HMR_PORT, $parcel$importMeta, $parcel$path, $parcel$bundleDir */
-/* eslint-disable no-unused-vars */
 
 // Save the require from previous bundle to this closure if any
 var previousRequire =
@@ -433,7 +431,6 @@ var hostname = getHostname();
 var port = getPort();
 var protocol = getProtocol(hostname);
 
-// eslint-disable-next-line no-redeclare
 var parent = parcelRequire.parent;
 // Safari doesn't support sourceURL in error stacks.
 // eval may also be disabled via CSP, so do a quick check.

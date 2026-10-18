@@ -1,6 +1,12 @@
 /* @jsxRuntime automatic */
 import {ReactNode, startTransition, useInsertionEffect} from 'react';
-import {createFromReadableStream, createFromFetch, encodeReply, setServerCallback as setReactServerCallback, createTemporaryReferenceSet} from 'react-server-dom-parcel/client';
+import {
+  createFromReadableStream,
+  createFromFetch,
+  encodeReply,
+  setServerCallback as setReactServerCallback,
+  createTemporaryReferenceSet,
+} from 'react-server-dom-parcel/client';
 import {rscStream} from 'rsc-html-stream/client';
 import {hydrateRoot, HydrationOptions, Root} from 'react-dom/client';
 
@@ -11,7 +17,7 @@ export function setServerCallback(cb: CallServerCallback): void {
 
 // Stream in initial RSC payload embedded in the HTML.
 let initialRSCPayload: Promise<ReactNode>;
-function RSCRoot({value, cb}: {value?: ReactNode, cb?: () => void}) {
+function RSCRoot({value, cb}: {value?: ReactNode; cb?: () => void}) {
   initialRSCPayload ??= createFromReadableStream<ReactNode>(rscStream);
   useInsertionEffect(() => {
     cb?.();
@@ -20,11 +26,13 @@ function RSCRoot({value, cb}: {value?: ReactNode, cb?: () => void}) {
 }
 
 export interface HydrateOptions extends HydrationOptions {
-  callServer?: CallServerCallback,
-  onHmrReload?: () => void
+  callServer?: CallServerCallback;
+  onHmrReload?: () => void;
 }
 
-export function hydrate(options?: HydrateOptions): (value: ReactNode, cb?: () => void) => void {
+export function hydrate(
+  options?: HydrateOptions,
+): (value: ReactNode, cb?: () => void) => void {
   if (options?.callServer) {
     setServerCallback(options.callServer);
   }
@@ -43,16 +51,27 @@ export function hydrate(options?: HydrateOptions): (value: ReactNode, cb?: () =>
 
   return (value: ReactNode, cb?: () => void) => {
     startTransition(() => {
-      root?.render(<RSCRoot value={value} cb={() => {cb?.(); cb = undefined}} />);
+      root?.render(
+        <RSCRoot
+          value={value}
+          cb={() => {
+            cb?.();
+            cb = undefined;
+          }}
+        />,
+      );
     });
   };
 }
 
 export interface RSCRequestInit extends Omit<RequestInit, 'body'> {
-  body?: any
+  body?: any;
 }
 
-export async function fetchRSC<T>(url: string | URL | Request, options?: RSCRequestInit): Promise<T> {
+export async function fetchRSC<T>(
+  url: string | URL | Request,
+  options?: RSCRequestInit,
+): Promise<T> {
   const temporaryReferences = createTemporaryReferenceSet();
   const response = fetch(url, {
     ...options,
@@ -60,9 +79,13 @@ export async function fetchRSC<T>(url: string | URL | Request, options?: RSCRequ
       Accept: 'text/x-component',
       ...options?.headers,
     },
-    body: options && 'body' in options 
-      ? await encodeReply(options.body, {temporaryReferences, signal: options?.signal})
-      : undefined,
+    body:
+      options && 'body' in options
+        ? await encodeReply(options.body, {
+            temporaryReferences,
+            signal: options?.signal,
+          })
+        : undefined,
   });
 
   return createFromFetch<T>(response, {temporaryReferences});

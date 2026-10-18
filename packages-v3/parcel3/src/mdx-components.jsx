@@ -1,6 +1,4 @@
 /* @jsxRuntime automatic */
-/* eslint-disable react/prop-types */
-/* eslint-disable react/react-in-jsx-scope */
 
 function CodeBlock({lang, children, render}) {
   return (

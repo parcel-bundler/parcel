@@ -1,5 +1,0 @@
-// @flow
-
-declare module 'ansi-html-community' {
-  declare module.exports: (input: string) => string;
-}
