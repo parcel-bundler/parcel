@@ -1,51 +1,51 @@
-// @flow
-
+import type {MutableAsset, ResolveFn} from '@parcel/plugin';
 import {Transformer} from '@parcel/plugin';
 import path from 'path';
 import nativeFS from 'fs';
 import stylus from 'stylus';
 import Parser from 'stylus/lib/parser';
 import DepsResolver from 'stylus/lib/visitor/deps-resolver';
-import nodes from 'stylus/lib/nodes';
-import utils from 'stylus/lib/utils';
+import nodes from 'stylus/lib/nodes/index';
+import * as utils from 'stylus/lib/utils';
 import Evaluator from 'stylus/lib/visitor/evaluator';
 
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
-export default (new Transformer({
+type StylusConfig = stylus.RenderOptions & Record<string, unknown>;
+type ResolvedPath = string | Array<string>;
+
+export default new Transformer<StylusConfig | undefined>({
   async transform({asset, resolve, config, options}) {
-    let stylusConfig = config ?? {};
-    if (stylusConfig && Array.isArray(stylusConfig.paths)) {
+    let stylusConfig = {...config};
+    if (Array.isArray(stylusConfig.paths)) {
       stylusConfig.paths = stylusConfig.paths.map(p =>
         path.join(options.projectRoot, p),
       );
     }
 
-    let code = await asset.getCode();
-    let style = stylus(code, {...stylusConfig});
+    let code = asset.getCode();
+    let style = stylus(code, stylusConfig);
     style.set('filename', asset.filePath);
     style.set('include css', true);
     // Rewrite relative url()s in imported files to be relative to the entry file,
     // so the CSS transformer resolves them correctly after compilation.
-    style.define('url', stylus.resolver());
+    style.define('url', stylus.resolver({}));
     style.set(
       'Evaluator',
-      await createEvaluator(
-        code,
-        asset,
-        resolve,
-        style.options,
-        options,
-      ),
+      await createEvaluator(code, asset, resolve, style.options),
     );
 
     asset.type = 'css';
     asset.setCode(style.render());
-    return [asset];
   },
-}): Transformer);
+});
 
-function attemptResolve(importedPath, filepath, asset, resolve, deps) {
+function attemptResolve(
+  importedPath: string,
+  filepath: string,
+  resolve: ResolveFn,
+  deps: Map<string, Promise<ResolvedPath>>,
+) {
   if (deps.has(importedPath)) {
     return;
   }
@@ -59,22 +59,20 @@ function attemptResolve(importedPath, filepath, asset, resolve, deps) {
     let entries = nativeFS.globSync(importedPath, {cwd});
     deps.set(
       importedPath,
-        Promise.all(
-          entries
-            .filter(e => nativeFS.statSync(path.join(cwd, e)).isFile())
-            .map(entry =>
-              resolve(
-                filepath,
-                './' + entry,
-                {
-                  packageConditions: ['stylus', 'style'],
-                },
-              ),
-            ),
-        ),
+      Promise.all(
+        entries
+          .filter(e => nativeFS.statSync(path.join(cwd, e)).isFile())
+          .map(entry =>
+            resolve(filepath, './' + entry, {
+              packageConditions: ['stylus', 'style'],
+            }),
+          ),
+      ),
     );
   } else {
-    let relative = path.isAbsolute(importedPath) ? './' + path.relative(path.dirname(filepath), importedPath) : importedPath;
+    let relative = path.isAbsolute(importedPath)
+      ? './' + path.relative(path.dirname(filepath), importedPath)
+      : importedPath;
     deps.set(
       importedPath,
       resolve(filepath, relative, {
@@ -85,45 +83,44 @@ function attemptResolve(importedPath, filepath, asset, resolve, deps) {
 }
 
 async function getDependencies(
-  code,
-  filepath,
-  asset,
-  resolve,
-  options,
-  parcelOptions,
-  // nativeGlob,
-  seen = new Set(),
+  code: string,
+  filepath: string,
+  asset: MutableAsset,
+  resolve: ResolveFn,
+  options: stylus.RenderOptions,
+  seen: Set<string> = new Set(),
   includeImports = true,
-) {
+): Promise<Map<string, ResolvedPath>> {
   seen.add(filepath);
 
   nodes.filename = asset.filePath;
 
   let parser = new Parser(code, options);
   let ast = parser.parse();
-  let deps = new Map();
+  let deps = new Map<string, Promise<ResolvedPath>>();
 
   if (includeImports && options.imports) {
     for (let importedPath of options.imports) {
-      attemptResolve(importedPath, filepath, asset, resolve, deps);
+      attemptResolve(importedPath, filepath, resolve, deps);
     }
   }
 
   class ImportVisitor extends DepsResolver {
-    visitImport(imported) {
+    visitImport(imported: any) {
       let importedPath = imported.path.first.string;
-      attemptResolve(importedPath, filepath, asset, resolve, deps);
+      attemptResolve(importedPath, filepath, resolve, deps);
     }
   }
 
   new ImportVisitor(ast, options).visit(ast);
 
   // Recursively process depdendencies, and return a map with all resolved paths.
-  let res = new Map();
+  let res = new Map<string, ResolvedPath>();
   await Promise.all(
-    Array.from(deps.entries()).map(async ([importedPath, resolved]) => {
+    Array.from(deps.entries()).map(async ([importedPath, promise]) => {
+      let resolved;
       try {
-        resolved = await resolved;
+        resolved = await promise;
       } catch (err) {
         resolved = null;
       }
@@ -167,7 +164,6 @@ async function getDependencies(
             asset,
             resolve,
             options,
-            parcelOptions,
             seen,
             false,
           )) {
@@ -182,11 +178,10 @@ async function getDependencies(
 }
 
 async function createEvaluator(
-  code,
-  asset,
-  resolve,
-  options,
-  parcelOptions,
+  code: string,
+  asset: MutableAsset,
+  resolve: ResolveFn,
+  options: stylus.RenderOptions,
 ) {
   const deps = await getDependencies(
     code,
@@ -194,14 +189,13 @@ async function createEvaluator(
     asset,
     resolve,
     options,
-    parcelOptions,
   );
 
   // This is a custom stylus evaluator that extends stylus with support for the node
   // require resolution algorithm. It also adds all dependencies to the parcel asset
   // tree so the file watcher works correctly, etc.
   class CustomEvaluator extends Evaluator {
-    visitImport(imported) {
+    visitImport(imported: any): any {
       let node = this.visit(imported.path).first;
       let path = node.string;
       if (node.name !== 'url' && path && !URL_RE.test(path)) {
@@ -237,12 +231,11 @@ async function createEvaluator(
 /**
  * Puts the content of all given node blocks into the first one, essentially merging them.
  */
-function mergeBlocks(blocks) {
+function mergeBlocks(blocks: Array<any>) {
   let finalBlock;
   for (const block of blocks) {
     if (finalBlock) {
-      // $FlowFixMe - finalBlock is definitely defined
-      block.nodes.forEach(node => finalBlock.push(node));
+      block.nodes.forEach((node: any) => finalBlock.push(node));
     } else {
       finalBlock = block;
     }

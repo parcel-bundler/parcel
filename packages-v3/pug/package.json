@@ -13,8 +13,9 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "type": "module",
   "main": "lib/PugTransformer.js",
-  "source": "src/PugTransformer.js",
+  "source": "src/PugTransformer.ts",
   "engines": {
     "node": ">= 16.0.0",
     "parcel": "^2.16.3"
@@ -22,5 +23,8 @@
   "dependencies": {
     "@parcel/plugin": "2.16.3",
     "pug": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/pug": "^2.0.10"
   }
 }

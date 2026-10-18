@@ -1,27 +1,15 @@
-// @flow
-
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
 import pug from 'pug';
 
-export default (new Transformer({
-  async loadConfig({config}) {
-    let configFile = await config.getConfig([
-      '.pugrc',
-      '.pugrc.js',
-      '.pugrc.cjs',
-      '.pugrc.mjs',
-      'pug.config.js',
-      'pug.config.cjs',
-      'pug.config.mjs',
-    ]);
+type PugConfig = pug.Options & {
+  locals?: pug.LocalsObject;
+};
 
-    return configFile?.contents;
-  },
-
-  async transform({asset, config}) {
+export default new Transformer<PugConfig | undefined>({
+  transform({asset, config}) {
     const pugConfig = config ?? {};
-    const content = await asset.getCode();
+    const content = asset.getCode();
     const render = pug.compile(content, {
       compileDebug: false,
       basedir: path.dirname(asset.filePath),
@@ -37,7 +25,5 @@ export default (new Transformer({
 
     asset.type = 'html';
     asset.setCode(render(pugConfig.locals));
-
-    return [asset];
   },
-}): Transformer);
+});

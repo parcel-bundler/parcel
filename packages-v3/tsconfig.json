@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "es2024",
+    "lib": ["es2024", "dom", "dom.iterable"],
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["node"],
+    // Type check against @parcel/plugin's source rather than its built declarations.
+    "paths": {
+      "@parcel/plugin": ["./plugin/src/PluginAPI.ts"]
+    }
+  },
+  "include": ["*/src", "*/*.d.ts"]
+}

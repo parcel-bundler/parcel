@@ -13,8 +13,9 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "type": "module",
   "main": "lib/BabelTransformer.js",
-  "source": "src/BabelTransformer.js",
+  "source": "src/BabelTransformer.ts",
   "engines": {
     "node": ">= 16.0.0",
     "parcel": "^2.16.3"
@@ -22,5 +23,8 @@
   "dependencies": {
     "@babel/core": "^7.26.0",
     "@parcel/plugin": "2.16.3"
+  },
+  "devDependencies": {
+    "@types/babel__core": "^7.20.5"
   }
 }

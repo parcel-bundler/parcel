@@ -1,10 +1,10 @@
-// @flow
-
 import {Transformer} from '@parcel/plugin';
+import type {AcceptedPlugin} from 'postcss';
 import postcss from 'postcss';
 import json5 from 'json5';
 import path from 'path';
 import fs from 'fs';
+import {createRequire} from 'module';
 
 const CONFIG_FILES = [
   '.postcssrc',
@@ -17,14 +17,18 @@ const CONFIG_FILES = [
   'postcss.config.mjs',
 ];
 
-export default (new Transformer({
+type Config = {
+  plugins?: Array<string | AcceptedPlugin> | Record<string, unknown>;
+};
+
+export default new Transformer<Config | undefined>({
   async transform({asset, config, options}) {
     // Config from .parcelrc takes precedence. Plugin names are resolved
     // relative to the asset since the .parcelrc location isn't known here.
     let resolveFrom = asset.filePath;
     if (config == null) {
       if (!asset.isSource) {
-        return [asset];
+        return;
       }
 
       let configFile = await findConfig(
@@ -32,7 +36,7 @@ export default (new Transformer({
         options.projectRoot,
       );
       if (!configFile) {
-        return [asset];
+        return;
       }
 
       config = configFile.contents;
@@ -52,7 +56,7 @@ export default (new Transformer({
     }
 
     let plugins = await loadPlugins(config.plugins, resolveFrom);
-    let result = await postcss(plugins).process(await asset.getCode(), {
+    let result = await postcss(plugins).process(asset.getCode(), {
       from: asset.filePath,
       to: asset.filePath,
       map: asset.target.sourceMap
@@ -66,12 +70,18 @@ export default (new Transformer({
     });
 
     asset.type = 'css';
-    asset.setCode(result.css, result.map ? result.map.toJSON() : null);
-    return [asset];
+    // source-map-js types the version as a string, but it is always 3.
+    asset.setCode(
+      result.css,
+      result.map ? {...result.map.toJSON(), version: 3} : null,
+    );
   },
-}): Transformer);
+});
 
-async function findConfig(dir, projectRoot) {
+async function findConfig(
+  dir: string,
+  projectRoot: string,
+): Promise<{filePath: string; contents: Config} | null> {
   for (;;) {
     for (let name of CONFIG_FILES) {
       let filePath = path.join(dir, name);
@@ -98,7 +108,7 @@ async function findConfig(dir, projectRoot) {
   }
 }
 
-function exists(filePath) {
+function exists(filePath: string) {
   try {
     return fs.statSync(filePath).isFile();
   } catch {
@@ -106,7 +116,7 @@ function exists(filePath) {
   }
 }
 
-async function loadConfigFile(filePath) {
+async function loadConfigFile(filePath: string): Promise<Config> {
   let ext = path.extname(filePath);
   if (ext === '.mjs') {
     let mod = await import(filePath);
@@ -114,7 +124,6 @@ async function loadConfigFile(filePath) {
   }
 
   if (ext === '.js' || ext === '.cjs') {
-    // $FlowFixMe
     let mod = require(filePath);
     return mod?.__esModule ? mod.default : mod;
   }
@@ -122,10 +131,9 @@ async function loadConfigFile(filePath) {
   let code = fs.readFileSync(filePath, 'utf8');
   try {
     return json5.parse(code);
-  } catch (err) {
+  } catch (err: any) {
     // Shape the error so it is reported with a code frame in the config file.
     let error = new Error(err.message);
-    // $FlowFixMe
     Object.assign(error, {
       filename: filePath,
       line: err.lineNumber,
@@ -135,25 +143,29 @@ async function loadConfigFile(filePath) {
   }
 }
 
-async function loadPlugins(plugins, resolveFrom) {
+async function loadPlugins(
+  plugins: NonNullable<Config['plugins']>,
+  resolveFrom: string,
+): Promise<Array<AcceptedPlugin>> {
   let loaded = Array.isArray(plugins)
     ? await Promise.all(plugins.map(p => loadPlugin(p, null, resolveFrom)))
     : await Promise.all(
         Object.keys(plugins).map(p => loadPlugin(p, plugins[p], resolveFrom)),
       );
-  return loaded.filter(Boolean);
+  return loaded.filter((p): p is AcceptedPlugin => !!p);
 }
 
-async function loadPlugin(plugin, pluginOptions, resolveFrom) {
+async function loadPlugin(
+  plugin: string | AcceptedPlugin,
+  pluginOptions: unknown,
+  resolveFrom: string,
+): Promise<AcceptedPlugin | null> {
   if (typeof plugin !== 'string') {
     return plugin;
   }
 
   // Plugins are Node packages, so resolve them with Node semantics from the config.
-  // $FlowFixMe
-  let resolved = require.resolve(plugin, {paths: [path.dirname(resolveFrom)]});
-  // $FlowFixMe
-  let mod = require(resolved);
+  let mod = createRequire(resolveFrom)(plugin);
   mod = mod.default || mod;
 
   // Plugins without options are passed uncalled; postcss invokes creators itself.

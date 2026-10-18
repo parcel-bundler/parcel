@@ -1,42 +1,21 @@
 const {Transform} = require('stream');
-const babel = require('gulp-babel');
 const gulp = require('gulp');
 const path = require('path');
 const {rimraf} = require('rimraf');
 const swc = require('@swc/core');
-const babelConfig = require('./babel.config.json');
-
-const IGNORED_PACKAGES = [
-  '!packages/examples/**',
-  '!packages/core/integration-tests/**',
-  '!packages/core/workers/test/integration/**',
-  '!packages/core/test-utils/**',
-  '!packages/core/types/**',
-  '!packages/core/types-internal/**',
-
-  // These packages are bundled.
-  '!packages/core/codeframe/**',
-  '!packages/core/fs/**',
-  '!packages/core/package-manager/**',
-  '!packages/core/utils/**',
-  '!packages/reporters/cli/**',
-  '!packages/reporters/dev-server/**',
-  '!packages/utils/error-overlay/**',
-];
 
 const paths = {
-  packageSrc: [
-    'packages-v3/*/src/**/*.js',
-    // '!**/dev-prelude.js',
-    // ...IGNORED_PACKAGES,
+  packageTS: [
+    'packages-v3/*/src/**/*.{ts,tsx}',
+    '!packages-v3/*/src/**/*.d.ts',
+    // RSC ships its TypeScript source; only declarations are built.
+    '!packages-v3/rsc/**',
   ],
-  packageOther: [],
-  packageJson: [
-    // 'packages/core/parcel/package.json',
-    // 'packages/utils/create-react-app/package.json',
-    // 'packages/utils/create-parcel/package.json',
-    // 'packages/dev/query/package.json',
-    // 'packages/dev/bundle-stats-cli/package.json',
+  // Packages that publish type declarations.
+  packageDts: [
+    'packages-v3/plugin/src/*.ts',
+    'packages-v3/rsc/src/*.tsx',
+    '!packages-v3/*/src/**/*.d.ts',
   ],
   packages: 'packages-v3/',
 };
@@ -62,41 +41,17 @@ class TapStream extends Transform {
 }
 
 exports.clean = function clean(cb) {
-  rimraf('packages-v3/*/lib/**').then(
+  rimraf('packages-v3/*/lib', {glob: true}).then(
     () => cb(),
     err => cb(err),
   );
 };
 
-exports.default = exports.build = gulp.series(
-  gulp.parallel(buildBabel, buildRSC),
-  // Babel reads from package.json so update these after babel has run
-  paths.packageJson.map(
-    packageJsonPath =>
-      function updatePackageJson() {
-        return _updatePackageJson(packageJsonPath);
-      },
-  ),
-);
+exports.default = exports.build = gulp.parallel(buildTS, buildDts);
 
-function buildBabel() {
+function buildTS() {
   return gulp
-    .src(paths.packageSrc)
-    .pipe(babel({...babelConfig, babelrcRoots: [__dirname + '/packages-v3/*']}))
-    .pipe(renameStream(relative => relative.replace('src', 'lib')))
-    .pipe(gulp.dest(paths.packages));
-}
-
-// function copyOthers() {
-//   return gulp
-//     .src(paths.packageOther)
-//     .pipe(renameStream(relative => relative.replace('src', 'lib')))
-//     .pipe(gulp.dest(paths.packages));
-// }
-
-function buildRSC() {
-  return gulp
-    .src('packages-v3/rsc/src/*.tsx')
+    .src(paths.packageTS)
     .pipe(
       new TapStream(vinyl => {
         let result = swc.transformSync(vinyl.contents.toString(), {
@@ -104,7 +59,30 @@ function buildRSC() {
           jsc: {
             parser: {
               syntax: 'typescript',
-              tsx: true,
+              tsx: vinyl.path.endsWith('.tsx'),
+            },
+            target: 'es2024',
+          },
+        });
+
+        vinyl.contents = Buffer.from(result.code);
+      }),
+    )
+    .pipe(renameStream(relative => toLib(relative, '.js')))
+    .pipe(gulp.dest(paths.packages));
+}
+
+function buildDts() {
+  return gulp
+    .src(paths.packageDts, {base: paths.packages})
+    .pipe(
+      new TapStream(vinyl => {
+        let result = swc.transformSync(vinyl.contents.toString(), {
+          filename: vinyl.path,
+          jsc: {
+            parser: {
+              syntax: 'typescript',
+              tsx: vinyl.path.endsWith('.tsx'),
             },
             target: 'esnext',
             experimental: {
@@ -117,30 +95,14 @@ function buildRSC() {
         vinyl.contents = Buffer.from(output.__swc_isolated_declarations__);
       }),
     )
-    .pipe(renameStream(relative => relative.replace('.tsx', '.d.ts')))
-    .pipe(gulp.dest('packages-v3/rsc/lib'));
+    .pipe(renameStream(relative => toLib(relative, '.d.ts')))
+    .pipe(gulp.dest(paths.packages));
 }
 
-function _updatePackageJson(file) {
-  return gulp
-    .src(file)
-    .pipe(
-      new TapStream(vinyl => {
-        let json = JSON.parse(vinyl.contents);
-        // Replace all references to `src` in package.json bin entries
-        // `lib` equivalents.
-        if (typeof json.bin === 'object' && json.bin != null) {
-          for (let [binName, binPath] of Object.entries(json.bin)) {
-            json.bin[binName] = binPath.replace('src', 'lib');
-          }
-        } else if (typeof json.bin === 'string') {
-          json.bin = json.bin.replace('src', 'lib');
-        }
-
-        vinyl.contents = Buffer.from(JSON.stringify(json, null, 2));
-      }),
-    )
-    .pipe(gulp.dest(path.dirname(file)));
+// Maps <pkg>/src/<file>.ts(x) to <pkg>/lib/<file><ext>.
+function toLib(relative, ext) {
+  let [pkg, , ...rest] = relative.split(path.sep);
+  return path.join(pkg, 'lib', ...rest).replace(/\.tsx?$/, ext);
 }
 
 function renameStream(fn) {

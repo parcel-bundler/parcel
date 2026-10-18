@@ -18,7 +18,6 @@ Before starting make sure you have the following installed:
 - [Node](https://nodejs.org) at LTS
 - [Yarn](https://yarnpkg.com) at v4 and/or enable corepack
 - [Rust](https://www.rust-lang.org/tools/install) stable
-- [Flow](https://flow.org/en/docs/editors) IDE autocompletion and type-checking
 
 ## Getting started
 
@@ -34,14 +33,13 @@ For significant changes, it is recommended that you first [propose your solution
 
 > It's important that the changes are made in separate branches to ensure a pull request only includes the commits related to a bug or feature.
 
-2. Run `yarn` and `yarn build-native` in the repository root to install dependencies.
+2. Run `yarn` in the repository root to install dependencies.
 3. If you fix a bug or introduce a new feature, add tests or ask for help if the use-case is more complex.
 4. Commit the `yarn.lock` file if it has changed.
 5. Check the steps used in [ci](https://github.com/parcel-bundler/parcel/blob/v2/.github/workflows/ci.yml) pass locally.
 
 ```sh
-$ yarn build-ts
-$ yarn flow check
+$ yarn check-ts
 $ yarn lint
 $ yarn test
 ```
@@ -54,13 +52,10 @@ Once you are ready to create a pull request, provide relevant details about the 
 
 The following commands are available:
 
-- `yarn build-ts` generates the TypeScript type definitions.
-- `yarn flow check` runs the [Flow](https://flow.org) type checking.
+- `yarn check-ts` runs TypeScript type checking.
 - `yarn format` keeps the code formatting consistent.
 - `yarn lint` checks for stylistic or unwanted errors.
-- `yarn test` runs all the unit and integration tests.
-- `yarn test:integration` runs the integration tests.
-- `yarn test:unit` runs the unit tests.
+- `yarn test` runs the tests.
 
 ### Debugging
 

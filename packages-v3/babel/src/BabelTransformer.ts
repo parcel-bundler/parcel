@@ -1,15 +1,15 @@
-// @flow
-
 import {Transformer} from '@parcel/plugin';
 import * as babel from '@babel/core';
 
-export default (new Transformer({
+export default new Transformer<babel.TransformOptions | undefined>({
   async transform({asset, config, options}) {
-    let babelOptions = {
+    let babelOptions: babel.TransformOptions = {
       filename: asset.filePath,
       cwd: options.projectRoot,
       sourceMaps: !!asset.target.sourceMap,
-      inputSourceMap: asset.getMap() ?? undefined,
+      // @types/babel__core requires fields that are optional in the source map spec.
+      inputSourceMap: (asset.getMap() ??
+        undefined) as babel.TransformOptions['inputSourceMap'],
       // Parcel handles modules itself, so presets should leave them alone.
       caller: {
         name: 'parcel',
@@ -30,18 +30,18 @@ export default (new Transformer({
       };
     } else {
       if (!asset.isSource) {
-        return [asset];
+        return;
       }
 
       // Let Babel find babel.config.* and .babelrc files itself.
       let partialConfig = await babel.loadPartialConfigAsync(babelOptions);
       if (partialConfig == null || !partialConfig.hasFilesystemConfig()) {
-        return [asset];
+        return;
       }
       babelOptions = partialConfig.options;
     }
 
-    let code = await asset.getCode();
+    let code = asset.getCode();
     let result;
     try {
       result = await babel.transformAsync(code, babelOptions);
@@ -50,17 +50,16 @@ export default (new Transformer({
     }
 
     // Babel returns null for files matched by an "ignore" option.
-    if (result == null) {
-      return [asset];
+    if (result?.code == null) {
+      return;
     }
 
     asset.setCode(result.code, result.map ?? null);
-    return [asset];
   },
-}): Transformer);
+});
 
 // Reshape Babel errors so they are reported with a code frame at the error location.
-function toDiagnosticError(err, filePath) {
+function toDiagnosticError(err: any, filePath: string): unknown {
   if (err?.loc == null) {
     return err;
   }
@@ -71,7 +70,6 @@ function toDiagnosticError(err, filePath) {
   }
 
   let error = new Error(message.split('\n')[0].trim());
-  // $FlowFixMe
   Object.assign(error, {
     filename: filePath,
     line: err.loc.line,

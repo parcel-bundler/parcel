@@ -13,8 +13,9 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "type": "module",
   "main": "lib/PostCSSTransformer.js",
-  "source": "src/PostCSSTransformer.js",
+  "source": "src/PostCSSTransformer.ts",
   "engines": {
     "node": ">= 16.0.0",
     "parcel": "^2.16.3"

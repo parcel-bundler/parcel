@@ -13,8 +13,9 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "type": "module",
   "main": "lib/CoffeeScriptTransformer.js",
-  "source": "src/CoffeeScriptTransformer.js",
+  "source": "src/CoffeeScriptTransformer.ts",
   "engines": {
     "node": ">= 16.0.0",
     "parcel": "^2.16.3"
@@ -22,5 +23,8 @@
   "dependencies": {
     "@parcel/plugin": "2.16.3",
     "coffeescript": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/coffeescript": "^2.5.7"
   }
 }

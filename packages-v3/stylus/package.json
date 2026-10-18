@@ -13,8 +13,9 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "type": "module",
   "main": "lib/StylusTransformer.js",
-  "source": "src/StylusTransformer.js",
+  "source": "src/StylusTransformer.ts",
   "engines": {
     "node": ">= 16.0.0",
     "parcel": "^2.16.3"
@@ -22,5 +23,8 @@
   "dependencies": {
     "@parcel/plugin": "2.16.3",
     "stylus": "^0.63.0"
+  },
+  "devDependencies": {
+    "@types/stylus": "^0.48.43"
   }
 }

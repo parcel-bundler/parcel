@@ -13,13 +13,11 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "type": "module",
   "main": "lib/PluginAPI.js",
-  "source": "src/PluginAPI.tsx",
-  "types": "src/PluginAPI.tsx",
+  "source": "src/PluginAPI.ts",
+  "types": "lib/PluginAPI.d.ts",
   "engines": {
     "node": ">= 16.0.0"
-  },
-  "scripts": {
-    "check-ts": "tsc --noEmit --strict --skipLibCheck src/PluginAPI.tsx"
   }
 }

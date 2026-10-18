@@ -1,9 +1,10 @@
-// @flow
-
 import {Transformer} from '@parcel/plugin';
 import posthtml from 'posthtml';
 import path from 'path';
 import fs from 'fs';
+import {createRequire} from 'module';
+
+type Plugin = posthtml.Plugin<unknown>;
 
 const CONFIG_FILES = [
   '.posthtmlrc',
@@ -16,14 +17,19 @@ const CONFIG_FILES = [
   'posthtml.config.mjs',
 ];
 
-export default (new Transformer({
+type Config = {
+  plugins?: Array<string | Plugin> | Record<string, unknown>;
+  [option: string]: unknown;
+};
+
+export default new Transformer<Config | undefined>({
   async transform({asset, config, options}) {
     // Config from .parcelrc takes precedence. Plugin names are resolved
     // relative to the asset since the .parcelrc location isn't known here.
     let resolveFrom = asset.filePath;
     if (config == null) {
       if (!asset.isSource) {
-        return [asset];
+        return;
       }
 
       let configFile = await findConfig(
@@ -31,7 +37,7 @@ export default (new Transformer({
         options.projectRoot,
       );
       if (!configFile) {
-        return [asset];
+        return;
       }
 
       config = configFile.contents;
@@ -39,21 +45,26 @@ export default (new Transformer({
     }
 
     let plugins = await loadPlugins(config.plugins, resolveFrom);
-    let {render, ...processOptions} = config;
+    let {render, ...rest} = config;
 
-    let res = await posthtml(plugins).process(await asset.getCode(), {
-      ...processOptions,
+    // posthtml's Options type is missing the parser options passed through to htmlparser2.
+    let processOptions: posthtml.Options & Record<string, unknown> = {
+      ...rest,
       plugins,
       xmlMode: asset.type === 'xhtml',
       closingSingleTag: asset.type === 'xhtml' ? 'slash' : undefined,
-    });
+    };
+
+    let res = await posthtml(plugins).process(asset.getCode(), processOptions);
 
     asset.setCode(res.html);
-    return [asset];
   },
-}): Transformer);
+});
 
-async function findConfig(dir, projectRoot) {
+async function findConfig(
+  dir: string,
+  projectRoot: string,
+): Promise<{filePath: string; contents: Config} | null> {
   for (;;) {
     for (let name of CONFIG_FILES) {
       let filePath = path.join(dir, name);
@@ -80,7 +91,7 @@ async function findConfig(dir, projectRoot) {
   }
 }
 
-function exists(filePath) {
+function exists(filePath: string) {
   try {
     return fs.statSync(filePath).isFile();
   } catch {
@@ -88,7 +99,7 @@ function exists(filePath) {
   }
 }
 
-async function loadConfigFile(filePath) {
+async function loadConfigFile(filePath: string): Promise<Config> {
   let ext = path.extname(filePath);
   if (ext === '.mjs') {
     let mod = await import(filePath);
@@ -96,7 +107,6 @@ async function loadConfigFile(filePath) {
   }
 
   if (ext === '.js' || ext === '.cjs') {
-    // $FlowFixMe
     let mod = require(filePath);
     return mod?.__esModule ? mod.default : mod;
   }
@@ -104,7 +114,10 @@ async function loadConfigFile(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
-async function loadPlugins(plugins, resolveFrom) {
+async function loadPlugins(
+  plugins: Config['plugins'],
+  resolveFrom: string,
+): Promise<Array<Plugin>> {
   if (Array.isArray(plugins)) {
     return Promise.all(plugins.map(p => loadPlugin(p, null, resolveFrom)));
   }
@@ -118,16 +131,17 @@ async function loadPlugins(plugins, resolveFrom) {
   return [];
 }
 
-async function loadPlugin(plugin, pluginOptions, resolveFrom) {
+async function loadPlugin(
+  plugin: string | Plugin,
+  pluginOptions: unknown,
+  resolveFrom: string,
+): Promise<Plugin> {
   if (typeof plugin !== 'string') {
     return plugin;
   }
 
   // Plugins are Node packages, so resolve them with Node semantics from the config.
-  // $FlowFixMe
-  let resolved = require.resolve(plugin, {paths: [path.dirname(resolveFrom)]});
-  // $FlowFixMe
-  let mod = require(resolved);
+  let mod = createRequire(resolveFrom)(plugin);
   mod = mod.default || mod;
   return mod(pluginOptions);
 }

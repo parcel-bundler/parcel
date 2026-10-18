@@ -1,5 +1,4 @@
-// @flow
-import {typeof default as Less} from 'less';
+import type {MutableAsset, ResolveFn} from '@parcel/plugin';
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
 import less from 'less';
@@ -9,23 +8,32 @@ import fs from 'fs';
 const WEBPACK_ALIAS_RE = /^~[^/]/;
 
 type LessConfig = {
-  sourceMap: any,
-  filename: string,
-  plugins: Array<any>,
-  ...
+  paths?: Array<string>;
 };
 
-export default (new Transformer({
+// Methods of less's FileManager that are missing from @types/less.
+declare global {
+  namespace Less {
+    interface AbstractFileManager {
+      extractUrlParts(url: string): {rawPath: string; filename: string};
+      tryAppendExtension(path: string, ext: string): string;
+    }
+  }
+}
+
+export default new Transformer<LessConfig | undefined>({
   async transform({asset, options, config, resolve}) {
     asset.type = 'css';
 
-    let code = await asset.getCode();
+    let code = asset.getCode();
     let result;
     try {
-      let lessConfig: LessConfig = {};
+      let lessConfig: Less.Options & {relativeUrls?: boolean} = {};
 
       if (config?.paths) {
-        lessConfig.paths = config?.paths.map(p => path.join(options.projectRoot, p));
+        lessConfig.paths = config.paths.map(p =>
+          path.join(options.projectRoot, p),
+        );
       }
 
       if (asset.target.sourceMap) {
@@ -34,13 +42,10 @@ export default (new Transformer({
 
       lessConfig.filename = asset.filePath;
       lessConfig.relativeUrls = true;
-      console.log(lessConfig);
-      lessConfig.plugins = [
-        resolvePathPlugin({asset, resolve}),
-      ];
+      lessConfig.plugins = [resolvePathPlugin({asset, resolve})];
 
       result = await less.render(code, lessConfig);
-    } catch (err) {
+    } catch (err: any) {
       // For the error reporter
       err.fileName = err.filename;
       err.loc = {
@@ -50,12 +55,16 @@ export default (new Transformer({
       throw err;
     }
     asset.setCode(result.css, result.map ? JSON.parse(result.map) : null);
-
-    return [asset];
   },
-}): Transformer);
+});
 
-function resolvePathPlugin({asset, resolve}) {
+function resolvePathPlugin({
+  asset,
+  resolve,
+}: {
+  asset: MutableAsset;
+  resolve: ResolveFn;
+}): Less.Plugin {
   return {
     install(less, pluginManager) {
       class LessFileManager extends less.FileManager {
@@ -67,7 +76,11 @@ function resolvePathPlugin({asset, resolve}) {
           return false;
         }
 
-        async loadFile(rawFilename, currentDirectory, options) {
+        async loadFile(
+          rawFilename: string,
+          currentDirectory: string,
+          options: Less.LoadFileOptions,
+        ) {
           let filename = rawFilename;
 
           if (WEBPACK_ALIAS_RE.test(filename)) {
@@ -86,7 +99,7 @@ function resolvePathPlugin({asset, resolve}) {
 
           let prefixes = options.prefixes || [''];
           let fileParts = this.extractUrlParts(filename);
-          let filePath;
+          let filePath = filename;
           let contents;
 
           if (filename[0] !== '~') {
