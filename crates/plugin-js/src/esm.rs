@@ -97,17 +97,17 @@ impl ModuleLoader {
     let exports = cjs.load(&ctx, &name)?;
     let mut source = format!("const mod = require({:?});\nexport default mod;\n", name);
     if let Some(obj) = exports.as_object() {
-      for key in obj.keys() {
-        let key: String = key?;
-        if key == "default" {
+      for (i, key) in obj.keys::<String>().enumerate() {
+        let key = key?;
+        if key == "default" || !is_identifier_name(&key) {
           continue;
         }
 
-        source.push_str("export const ");
-        source.push_str(&key);
-        source.push_str(" = mod.");
-        source.push_str(&key);
-        source.push_str(";\n");
+        // Bind to a local first, since export names may be reserved words (e.g. `eval`, `null`)
+        // that are not valid as variable names.
+        source.push_str(&format!(
+          "const __cjs{i} = mod[{key:?}];\nexport {{ __cjs{i} as {key} }};\n"
+        ));
       }
     }
     Ok(Module::declare(ctx.clone(), name, source)?)
@@ -210,4 +210,11 @@ impl Loader for ModuleLoader {
     meta.prop("url", url::Url::from_file_path(name).unwrap().to_string())?;
     Ok(module)
   }
+}
+
+/// Whether `name` can be used as an export name without quoting (ASCII only).
+fn is_identifier_name(name: &str) -> bool {
+  let mut chars = name.chars();
+  matches!(chars.next(), Some(c) if c.is_ascii_alphabetic() || c == '_' || c == '$')
+    && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
 }

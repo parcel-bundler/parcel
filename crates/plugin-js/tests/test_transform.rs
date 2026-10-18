@@ -38,6 +38,23 @@ fn run_with_options(
   plugin.transform(asset, &options, &dyn_fs)
 }
 
+fn run_with_fs(
+  fs: Arc<OverlayFileSystem>,
+  name: &str,
+  code: &str,
+) -> Result<Asset, DiagnosticList> {
+  let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
+  let plugin_path = root.join(Path::new(name));
+  fs.write(plugin_path, code.as_bytes()).unwrap();
+  let plugin = JsPlugin::new(plugin_path, None);
+  let dyn_fs: Arc<dyn FileSystem> = fs.clone();
+  let options = ParcelOptions {
+    input_fs: fs,
+    ..Default::default()
+  };
+  plugin.transform(test_asset(), &options, &dyn_fs)
+}
+
 #[test]
 fn test_transform_config() {
   let result = run_with_config(
@@ -414,6 +431,41 @@ fn test_transform_esm() {
   );
   assert_eq!(result.ty, AssetType::Css);
   assert_eq!(result.bundle_behavior, BundleBehavior::Isolated);
+}
+
+#[test]
+fn test_transform_esm_imports_cjs_reserved_word_exports() {
+  let fs = Arc::new(OverlayFileSystem::new());
+  let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
+  fs.create_dir_all(root).unwrap();
+  fs.write(
+    root.child("reserved-exports.cjs"),
+    br#"
+      exports.eval = 'eval';
+      exports.null = 'null';
+      exports.mod = 'mod';
+      exports['not-an-identifier'] = 'other';
+    "#,
+  )
+  .unwrap();
+
+  let result = run_with_fs(
+    fs,
+    "reserved-exports-plugin.mjs",
+    r#"
+      import {Transformer} from '@parcel/plugin';
+      import cjs, {eval as e, null as n, mod} from './reserved-exports.cjs';
+
+      export default new Transformer({
+        transform({asset}) {
+          asset.setCode([e, n, mod, cjs['not-an-identifier']].join(','));
+        }
+      });
+    "#,
+  )
+  .unwrap();
+
+  assert_eq!(result.content.read().unwrap(), b"eval,null,mod,other");
 }
 
 #[test]
