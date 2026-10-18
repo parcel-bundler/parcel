@@ -209,7 +209,7 @@ impl<'a> Resolver<'a> {
   pub fn node_esm(project_root: PathId) -> Self {
     Self {
       project_root,
-      extensions: Extensions::Borrowed(&[]),
+      extensions: Extensions::Borrowed(&["js", "json", "node"]),
       index_file: "index",
       entries: Fields::MAIN,
       flags: Flags::NODE_ESM,
@@ -576,7 +576,9 @@ impl<'a> ResolveRequest<'a> {
             specifier.strip_prefix("/").unwrap(),
             self.resolver.project_root.child("index"),
           )
-        } else if let Some(res) = self.load_path(&PathId::new(&specifier), None)? {
+        } else if let Some(res) =
+          self.load_path(&PathId::new(&specifier), None, self.resolver.flags)?
+        {
           Ok(res)
         } else {
           Err(ResolverError::FileNotFound {
@@ -676,7 +678,7 @@ impl<'a> ResolveRequest<'a> {
       None => None,
     };
 
-    if let Some(res) = self.load_path(&path, package)? {
+    if let Some(res) = self.load_path(&path, package, self.resolver.flags)? {
       return Ok(res);
     }
 
@@ -780,7 +782,11 @@ impl<'a> ResolveRequest<'a> {
       Err(ResolverError::IOError(_)) => {
         // No package.json in node_modules is probably invalid but we have tests for it...
         if self.resolver.flags.contains(Flags::DIR_INDEX) {
-          if let Some(res) = self.load_file(&package_dir.child(self.resolver.index_file), None)? {
+          if let Some(res) = self.load_file(
+            &package_dir.child(self.resolver.index_file),
+            None,
+            self.resolver.flags,
+          )? {
             return Ok(res);
           }
         }
@@ -795,7 +801,7 @@ impl<'a> ResolveRequest<'a> {
     // Try the "source" field first, if present.
     if self.resolver.entries.contains(Fields::SOURCE) && subpath.is_empty() {
       if let Some(source) = package.source() {
-        if let Some(res) = self.load_path(&source, Some(&*package))? {
+        if let Some(res) = self.load_path(&source, Some(&*package), self.resolver.flags)? {
           return Ok(res);
         }
       }
@@ -807,7 +813,7 @@ impl<'a> ResolveRequest<'a> {
       return self.resolve_package_exports(package, subpath);
     } else if !subpath.is_empty() {
       let package_dir = package_dir.join(Path::new(subpath));
-      if let Some(res) = self.load_path(&package_dir, Some(&*package))? {
+      if let Some(res) = self.load_path(&package_dir, Some(&*package), self.resolver.flags)? {
         return Ok(res);
       }
 
@@ -822,14 +828,14 @@ impl<'a> ResolveRequest<'a> {
         return Ok(res);
       }
 
-      // Node ESM doesn't allow directory imports.
-      if self.resolver.flags.contains(Flags::DIR_INDEX) {
-        if let Some(res) = self.load_file(
-          &package_dir.child(self.resolver.index_file),
-          Some(&*package),
-        )? {
-          return Ok(res);
-        }
+      // Node ESM doesn't usually allow directory imports, but for package entries it does.
+      // https://github.com/nodejs/node/blob/d859e9e997a3de9bdd7e116b2878acc2a3cf4bd6/lib/internal/modules/esm/resolve.js#L280
+      if let Some(res) = self.load_file(
+        &package_dir.child(self.resolver.index_file),
+        Some(&*package),
+        self.resolver.flags | Flags::OPTIONAL_EXTENSIONS,
+      )? {
+        return Ok(res);
       }
 
       res?;
@@ -863,7 +869,7 @@ impl<'a> ResolveRequest<'a> {
       .flags
       .contains(Flags::EXPORTS_OPTIONAL_EXTENSIONS)
     {
-      if let Some(res) = self.load_file(&path, Some(&*package))? {
+      if let Some(res) = self.load_file(&path, Some(&*package), self.resolver.flags)? {
         return Ok(res);
       }
     } else if let Some(res) = self.try_file_without_aliases(&path)? {
@@ -883,11 +889,18 @@ impl<'a> ResolveRequest<'a> {
     package: &PackageJson,
   ) -> Result<Option<Resolution>, ResolverError> {
     // Try all entry fields.
-    if let Some((entry, field)) = package.entries(self.resolver.entries).next() {
-      if let Some(res) = self.load_path(&entry, Some(package))? {
+    let mut err = Ok(None);
+    for (entry, field) in package.entries(self.resolver.entries) {
+      // Node ESM allows extensionless entries in the legacy main resolution path.
+      // https://github.com/nodejs/node/blob/d859e9e997a3de9bdd7e116b2878acc2a3cf4bd6/lib/internal/modules/esm/resolve.js#L280
+      if let Some(res) = self.load_path(
+        &entry,
+        Some(package),
+        self.resolver.flags | Flags::DIR_INDEX | Flags::OPTIONAL_EXTENSIONS,
+      )? {
         return Ok(Some(res));
-      } else {
-        return Err(ResolverError::ModuleEntryNotFound {
+      } else if err.is_ok() {
+        err = Err(ResolverError::ModuleEntryNotFound {
           module: package.name.to_owned(),
           entry_path: entry.to_path_buf(),
           package_path: package.path.to_path_buf(),
@@ -896,30 +909,31 @@ impl<'a> ResolveRequest<'a> {
       }
     }
 
-    Ok(None)
+    err
   }
 
   fn load_path(
     &self,
     path: &PathId,
     package: Option<&PackageJson>,
+    flags: Flags,
   ) -> Result<Option<Resolution>, ResolverError> {
     // Urls and Node ESM do not resolve directory index files.
     let can_load_directory =
-      self.resolver.flags.contains(Flags::DIR_INDEX) && self.specifier_type != SpecifierType::Url;
+      flags.contains(Flags::DIR_INDEX) && self.specifier_type != SpecifierType::Url;
 
     // If path ends with / only try loading as a directory.
     let is_directory = can_load_directory && path.file_name().ends_with(is_separator);
 
     if !is_directory {
-      if let Some(res) = self.load_file(path, package)? {
+      if let Some(res) = self.load_file(path, package, flags)? {
         return Ok(Some(res));
       }
     }
 
     // Urls and Node ESM do not resolve directory index files.
     if can_load_directory {
-      return self.load_directory(path, package);
+      return self.load_directory(path, package, flags);
     }
 
     Ok(None)
@@ -929,6 +943,7 @@ impl<'a> ResolveRequest<'a> {
     &self,
     path: &PathId,
     package: Option<&PackageJson>,
+    flags: Flags,
   ) -> Result<Option<Resolution>, ResolverError> {
     // First try the path as is.
     // TypeScript only supports resolving specifiers ending with `.ts` or `.tsx`
@@ -944,7 +959,7 @@ impl<'a> ResolveRequest<'a> {
     // rather than matching "./foo.js.ts", which seems more unlikely.
     // However, if "./foo.js" exists we will resolve to it (above), unlike TSC.
     // This is to match Node and other bundlers.
-    if self.resolver.flags.contains(Flags::TYPESCRIPT_EXTENSIONS)
+    if flags.contains(Flags::TYPESCRIPT_EXTENSIONS)
       && self.flags.contains(RequestFlags::IN_TS_FILE)
       && !self.flags.contains(RequestFlags::IN_NODE_MODULES)
       && self.specifier_type != SpecifierType::Url
@@ -968,6 +983,7 @@ impl<'a> ResolveRequest<'a> {
             package,
             &Extensions::Borrowed(extensions),
             false,
+            flags,
           )?
         } else {
           None
@@ -991,21 +1007,22 @@ impl<'a> ResolveRequest<'a> {
     }
 
     // Try adding typescript extensions if outside node_modules.
-    if self
-      .resolver
-      .flags
-      .contains(Flags::TYPESCRIPT_EXTENSIONS | Flags::OPTIONAL_EXTENSIONS)
+    if flags.contains(Flags::TYPESCRIPT_EXTENSIONS | Flags::OPTIONAL_EXTENSIONS)
       && !self.flags.contains(RequestFlags::IN_NODE_MODULES)
     {
-      if let Some(res) =
-        self.try_extensions(path, package, &Extensions::Borrowed(&["ts", "tsx"]), true)?
-      {
+      if let Some(res) = self.try_extensions(
+        path,
+        package,
+        &Extensions::Borrowed(&["ts", "tsx"]),
+        true,
+        flags,
+      )? {
         return Ok(Some(res));
       }
     }
 
     // Try appending the configured extensions.
-    if let Some(res) = self.try_extensions(path, package, &self.resolver.extensions, true)? {
+    if let Some(res) = self.try_extensions(path, package, &self.resolver.extensions, true, flags)? {
       return Ok(Some(res));
     }
 
@@ -1025,15 +1042,14 @@ impl<'a> ResolveRequest<'a> {
     package: Option<&PackageJson>,
     extensions: &Extensions,
     skip_parent: bool,
+    flags: Flags,
   ) -> Result<Option<Resolution>, ResolverError> {
-    if self.resolver.flags.contains(Flags::OPTIONAL_EXTENSIONS)
-      && self.specifier_type != SpecifierType::Url
-    {
+    if flags.contains(Flags::OPTIONAL_EXTENSIONS) && self.specifier_type != SpecifierType::Url {
       // Try appending each extension.
       for ext in extensions.iter() {
         // Skip parent extension if we already tried it.
         if skip_parent
-          && self.resolver.flags.contains(Flags::PARENT_EXTENSION)
+          && flags.contains(Flags::PARENT_EXTENSION)
           && matches!(self.from.extension(), Some(e) if e == ext)
         {
           continue;
@@ -1167,6 +1183,7 @@ impl<'a> ResolveRequest<'a> {
     &self,
     dir: &PathId,
     parent_package: Option<&PackageJson>,
+    flags: Flags,
   ) -> Result<Option<Resolution>, ResolverError> {
     // Check if there is a package.json in this directory, and if so, use its entries.
     // Note that the "exports" field is NOT used here - only in resolve_node_module.
@@ -1184,12 +1201,11 @@ impl<'a> ResolveRequest<'a> {
     };
 
     // If no package.json, or no entries, try an index file with all possible extensions.
-    if self.resolver.flags.contains(Flags::DIR_INDEX)
-      && self.fs.kind(*dir).contains(FileKind::IS_DIR)
-    {
+    if self.fs.kind(*dir).contains(FileKind::IS_DIR) {
       return self.load_file(
         &dir.child(self.resolver.index_file),
         package.as_deref().or(parent_package),
+        flags,
       );
     }
 
@@ -1200,7 +1216,7 @@ impl<'a> ResolveRequest<'a> {
     if let Some(tsconfig) = self.tsconfig() {
       for path in unwrap_arc(tsconfig)?.compiler_options.paths(self.specifier) {
         // TODO: should aliases apply to tsconfig paths??
-        if let Some(res) = self.load_path(&path, None)? {
+        if let Some(res) = self.load_path(&path, None, self.resolver.flags)? {
           return Ok(Some(res));
         }
       }
@@ -1389,6 +1405,52 @@ mod tests {
       resolver: Resolver::node(root()),
       fs: OsFileSystem::default(),
     }
+  }
+
+  fn node_esm_resolver<'a>() -> TestResolver<'a> {
+    TestResolver {
+      resolver: Resolver::node_esm(root()),
+      fs: OsFileSystem::default(),
+    }
+  }
+
+  #[test]
+  fn node_esm_legacy_main() {
+    // A "main" field pointing at a directory resolves to its index file.
+    assert_eq!(
+      node_esm_resolver()
+        .resolve(
+          "package-main-directory",
+          root().join(Path::new("foo.js")),
+          SpecifierType::Esm
+        )
+        .result
+        .unwrap()
+        .resolution,
+      Resolution::Path(root().join(Path::new(
+        "node_modules/package-main-directory/nested/index.js"
+      )))
+    );
+    // Without a "main" field, the package's index.js is used.
+    assert_eq!(
+      node_esm_resolver()
+        .resolve("foo", root().join(Path::new("foo.js")), SpecifierType::Esm)
+        .result
+        .unwrap()
+        .resolution,
+      Resolution::Path(root().join(Path::new("node_modules/foo/index.js")))
+    );
+    // Relative specifiers still require an extension.
+    assert!(
+      node_esm_resolver()
+        .resolve(
+          "./bar",
+          root().join(Path::new("foo.js")),
+          SpecifierType::Esm
+        )
+        .result
+        .is_err()
+    );
   }
 
   #[test]
