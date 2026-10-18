@@ -312,6 +312,8 @@ fn test_plugin_options_defaults_and_target_variants() {
           assert.deepEqual(options.env, {});
           assert.equal(options.hmrOptions, null);
           assert.equal(asset.target.sourceMap, null);
+          assert.equal(asset.target.isServer(), false);
+          assert.equal(asset.target.isWorklet(), false);
           assert(asset.target.includeNodeModules === false || asset.target.includeNodeModules.example === true);
         }
       }};
@@ -513,4 +515,56 @@ fn test_transform_async() {
     result.content.read().unwrap(),
     "testing".as_bytes().to_owned()
   );
+}
+
+#[test]
+fn test_resolve_specifier_type() {
+  let fs = Arc::new(OverlayFileSystem::new());
+  let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
+  let package = root.join(Path::new("resolve-fixture/node_modules/pkg"));
+  fs.create_dir_all(package).unwrap();
+  fs.write(
+    package.child("package.json"),
+    &br#"{"name": "pkg", "exports": {"import": "./esm.js", "require": "./cjs.js"}}"#.to_vec(),
+  )
+  .unwrap();
+  for file in ["esm.js", "cjs.js"] {
+    fs.write(package.child(file), &b"".to_vec()).unwrap();
+  }
+  let from = root.join(Path::new("resolve-fixture/index.js"));
+  fs.write(from, &b"".to_vec()).unwrap();
+  fs.write(root.join(Path::new("resolve-fixture/pkg")), &b"".to_vec())
+    .unwrap();
+
+  let plugin_path = root.join(Path::new("resolve-specifier-type.mjs"));
+  fs.write(
+    plugin_path,
+    &br#"
+      import assert from 'assert';
+      export default {[Symbol.for('parcel-plugin-config')]: {
+        async transform({asset, resolve}) {
+          let from = asset.filePath;
+          assert.match(await resolve(from, 'pkg'), /node_modules\/pkg\/esm\.js$/);
+          assert.match(await resolve(from, 'pkg', {specifierType: 'esm'}), /node_modules\/pkg\/esm\.js$/);
+          assert.match(await resolve(from, 'pkg', {specifierType: 'commonjs'}), /node_modules\/pkg\/cjs\.js$/);
+          // A bare URL is relative, so this is the sibling file rather than the package.
+          assert.match(await resolve(from, 'pkg', {specifierType: 'url'}), /resolve-fixture\/pkg$/);
+          assert.throws(() => resolve(from, 'pkg', {specifierType: 'custom'}), /Custom specifiers/);
+          assert.throws(() => resolve(from, 'pkg', {specifierType: 'nope'}), /Invalid specifierType/);
+        }
+      }};
+    "#
+    .to_vec(),
+  )
+  .unwrap();
+
+  let mut asset = test_asset();
+  asset.loc.url = SourceUrl::from_path(&from);
+  let plugin = JsPlugin::new(plugin_path, None);
+  let dyn_fs: Arc<dyn FileSystem> = fs.clone();
+  let options = ParcelOptions {
+    input_fs: fs,
+    ..Default::default()
+  };
+  plugin.transform(asset, &options, &dyn_fs).unwrap();
 }

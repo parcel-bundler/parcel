@@ -8,11 +8,12 @@ use std::{
 };
 
 use parcel_core::{
-  Asset, AssetFlags, AssetRequest, AssetType, BufferContent, Bundle, BundleBehavior, BundleFlags,
-  BundleGraph, Content, ContentWithSourceMap, DependencyFlags, DependencyResolution, Environment,
-  EnvironmentFlags, ExportsCondition, FileContent, FileSystem, ImportType, LogMessage, Namer,
-  Optimizer, OutputFormat, PathId, Priority, Reporter, ReporterEvent, Resolver, SourceLocation,
-  SourceType, SourceUrl, SpecifierType, Target, Transformer,
+  Asset, AssetFlags, AssetIndex, AssetRequest, AssetType, BufferContent, Bundle, BundleBehavior,
+  BundleFlags, BundleGraph, BundleGraphDependencyResolution, Content, ContentWithSourceMap,
+  DependencyFlags, DependencyResolution, Environment, EnvironmentFlags, ExportsCondition,
+  FileContent, FileSystem, ImportType, LogMessage, Namer, Optimizer, OutputFormat, PathId,
+  Priority, Reporter, ReporterEvent, Resolver, SourceLocation, SourceType, SourceUrl,
+  SpecifierType, Target, Transformer,
 };
 use rquickjs::{
   Array, Class, Coerced, Ctx, FromJs, Function, IntoJs, JsLifetime, Object, Symbol, TypedArray,
@@ -96,34 +97,14 @@ impl Optimizer for JsPlugin {
     let contents = contents.read()?;
 
     with_call_scope(|scope| {
-      let bundles = Arc::new(
-        bundle_graph
-          .bundles
-          .iter()
-          .map(|bundle| scope.wrap(bundle))
-          .collect::<Vec<_>>(),
-      );
-      let assets = Arc::new(
-        bundle_graph
-          .asset_graph
-          .assets
-          .iter()
-          .map(|asset| scope.wrap(asset))
-          .collect::<Vec<_>>(),
-      );
+      let graph = Rc::new(scope.wrap_graph(bundle_graph));
 
       with_plugin_env(options, |ctx| {
         let config = plugin_config(ctx, &self.path)?;
         let optimize: Function = config.get("optimize")?;
         let args = Object::new(ctx.clone())?;
-        args.set(
-          "bundle",
-          JsBundle::new(bundle_index, bundles.clone(), assets.clone()),
-        )?;
-        args.set(
-          "bundleGraph",
-          JsBundleGraph::new(bundles.clone(), assets.clone()),
-        )?;
+        args.set("bundle", JsBundle::new(bundle_index, graph.clone()))?;
+        args.set("bundleGraph", JsBundleGraph::new(graph.clone()))?;
         args.set("contents", TypedArray::new(ctx.clone(), contents)?)?;
         if let Some(source_map) = source_map {
           args.set("map", TypedArray::new(ctx.clone(), source_map)?)?;
@@ -242,6 +223,47 @@ impl<'scope> CallScope<'scope> {
   }
 }
 
+impl<'scope> CallScope<'scope> {
+  fn wrap_graph<'g>(&self, graph: &'scope BundleGraph<'g>) -> ScopedGraph {
+    ScopedGraph(ScopedRef {
+      // The graph's lifetime is erased here, and restored as a higher-ranked lifetime by
+      // ScopedGraph::with, so no reference into the graph can escape as 'static.
+      ptr: NonNull::from(graph).cast::<BundleGraph<'static>>(),
+      alive: self.alive.clone(),
+    })
+  }
+}
+
+/// A bundle graph shared by the bundles, assets and dependencies exposed from one plugin call.
+/// Values from the same graph share one `Rc`, which identifies the graph they belong to.
+struct ScopedGraph(ScopedRef<BundleGraph<'static>>);
+
+unsafe impl<'js> JsLifetime<'js> for ScopedGraph {
+  type Changed<'to> = ScopedGraph;
+}
+
+impl ScopedGraph {
+  fn with<R>(&self, f: impl for<'a, 'g> FnOnce(&'a BundleGraph<'g>) -> R) -> rquickjs::Result<R> {
+    self.0.with(|graph| f(graph))
+  }
+}
+
+fn same_graph(
+  a: &Rc<ScopedGraph>,
+  b: &Rc<ScopedGraph>,
+  what: &'static str,
+) -> rquickjs::Result<()> {
+  if Rc::ptr_eq(a, b) {
+    Ok(())
+  } else {
+    Err(rquickjs::Error::new_from_js_message(
+      what,
+      what,
+      format!("{what} belongs to a different BundleGraph"),
+    ))
+  }
+}
+
 impl Drop for CallScope<'_> {
   fn drop(&mut self) {
     self.alive.set(false);
@@ -303,7 +325,7 @@ fn resolve<'js>(
   ctx: Ctx<'js>,
   from: String,
   specifier: String,
-  options: rquickjs::function::Opt<Object>,
+  options: rquickjs::function::Opt<Object<'js>>,
   project_root: PathId,
   resolver_fs: &Arc<dyn FileSystem>,
 ) -> rquickjs::Result<rquickjs::Promise<'js>> {
@@ -311,7 +333,19 @@ fn resolve<'js>(
   let resolver = parcel_resolver::Resolver::parcel(project_root);
   let mut conditions = ExportsCondition::empty();
   let mut custom_conditions = Vec::new();
+  let mut specifier_type = parcel_resolver::SpecifierType::Esm;
   if let Some(options) = options.0 {
+    specifier_type = match dependency_enum(&ctx, &options, "specifierType", SpecifierType::Esm)? {
+      SpecifierType::Esm => parcel_resolver::SpecifierType::Esm,
+      SpecifierType::Commonjs => parcel_resolver::SpecifierType::Cjs,
+      SpecifierType::Url => parcel_resolver::SpecifierType::Url,
+      SpecifierType::Custom => {
+        return Err(rquickjs::Exception::throw_type(
+          &ctx,
+          "Custom specifiers cannot be resolved by Parcel's built-in resolver",
+        ));
+      }
+    };
     if let Ok(package_conditions) = options.get::<_, Array>("packageConditions") {
       for cond in package_conditions.iter() {
         let cond: String = cond?;
@@ -326,7 +360,7 @@ fn resolve<'js>(
   let res = resolver.resolve_with_options(
     &specifier,
     PathId::new(Path::new(&from)),
-    parcel_resolver::SpecifierType::Esm,
+    specifier_type,
     &**resolver_fs,
     parcel_resolver::ResolveOptions {
       conditions,
@@ -457,34 +491,14 @@ impl Namer for JsPlugin {
       .position(|candidate| std::ptr::eq(candidate, bundle))
       .expect("Bundle passed to namer must belong to the bundle graph");
     let name = with_call_scope(|scope| {
-      let bundles = Arc::new(
-        bundle_graph
-          .bundles
-          .iter()
-          .map(|bundle| scope.wrap(bundle))
-          .collect::<Vec<_>>(),
-      );
-      let assets = Arc::new(
-        bundle_graph
-          .asset_graph
-          .assets
-          .iter()
-          .map(|asset| scope.wrap(asset))
-          .collect::<Vec<_>>(),
-      );
+      let graph = Rc::new(scope.wrap_graph(bundle_graph));
 
       with_plugin_env(options, |ctx| {
         let config = plugin_config(&ctx, &self.path)?;
         let name: Function = config.get("name")?;
         let args = Object::new(ctx.clone())?;
-        args.set(
-          "bundle",
-          JsBundle::new(bundle_index, bundles.clone(), assets.clone()),
-        )?;
-        args.set(
-          "bundleGraph",
-          JsBundleGraph::new(bundles.clone(), assets.clone()),
-        )?;
+        args.set("bundle", JsBundle::new(bundle_index, graph.clone()))?;
+        args.set("bundleGraph", JsBundleGraph::new(graph.clone()))?;
         args.set("config", self.config_to_js(ctx)?)?;
         args.set(
           "options",
@@ -592,25 +606,9 @@ impl Reporter for JsPlugin {
     with_call_scope(|scope| {
       // Only a successful build carries a graph to expose.
       let graph = match event {
-        ReporterEvent::BuildSuccess(success) => Some((
-          Arc::new(
-            success
-              .bundle_graph
-              .bundles
-              .iter()
-              .map(|bundle| scope.wrap(bundle))
-              .collect::<Vec<_>>(),
-          ),
-          Arc::new(
-            success
-              .bundle_graph
-              .asset_graph
-              .assets
-              .iter()
-              .map(|asset| scope.wrap(asset))
-              .collect::<Vec<_>>(),
-          ),
-        )),
+        ReporterEvent::BuildSuccess(success) => {
+          Some(Rc::new(scope.wrap_graph(&success.bundle_graph)))
+        }
         _ => None,
       };
 
@@ -626,21 +624,17 @@ impl Reporter for JsPlugin {
           ReporterEvent::BuildStart => {}
 
           ReporterEvent::BuildSuccess(success) => {
-            let (bundles, assets) = graph
+            let graph = graph
               .as_ref()
               .expect("a buildSuccess event always wraps its graph");
-            args.set(
-              "bundleGraph",
-              JsBundleGraph::new(bundles.clone(), assets.clone()),
-            )?;
+            args.set("bundleGraph", JsBundleGraph::new(graph.clone()))?;
             args.set("buildTime", success.build_time.as_secs_f64() * 1000.0)?;
             args.set(
               "changedAssets",
               success
                 .changed_assets
                 .iter()
-                .filter_map(|index| assets.get(index.index()).cloned())
-                .map(JsAsset::borrowed)
+                .map(|&index| JsAsset::from_graph(graph.clone(), index))
                 .collect::<Vec<_>>(),
             )?;
           }
@@ -845,8 +839,7 @@ fn dependency_from_js<'js>(
 #[rquickjs::class]
 struct JsBundle {
   index: usize,
-  bundles: Arc<Vec<ScopedRef<Bundle>>>,
-  assets: Arc<Vec<ScopedRef<Asset>>>,
+  graph: Rc<ScopedGraph>,
 }
 
 impl<'js> Trace<'js> for JsBundle {
@@ -857,29 +850,29 @@ impl<'js> Trace<'js> for JsBundle {
 impl JsBundle {
   #[qjs(get, rename = "type")]
   fn get_type(&self) -> rquickjs::Result<String> {
-    self.bundles[self.index].with(|bundle| bundle.ty.extension().to_owned())
+    self.with_bundle(|bundle| bundle.ty.extension().to_owned())
   }
 
   #[qjs(get)]
   fn needs_stable_name(&self) -> rquickjs::Result<bool> {
-    self.bundles[self.index].with(|bundle| bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME))
+    self.with_bundle(|bundle| bundle.flags.contains(BundleFlags::NEEDS_STABLE_NAME))
   }
 
   /// The string a namer must include exactly once in the file name of a bundle that may be
   /// content hashed.
   #[qjs(get)]
   fn hash_reference(&self) -> rquickjs::Result<String> {
-    self.bundles[self.index].with(|bundle| bundle.hash_reference())
+    self.with_bundle(|bundle| bundle.hash_reference())
   }
 
   #[qjs(get)]
   fn is_entry(&self) -> rquickjs::Result<bool> {
-    self.bundles[self.index].with(|bundle| bundle.flags.contains(BundleFlags::ENTRY))
+    self.with_bundle(|bundle| bundle.flags.contains(BundleFlags::ENTRY))
   }
 
   #[qjs(get)]
   fn bundle_behavior(&self) -> rquickjs::Result<Option<&str>> {
-    self.bundles[self.index].with(|bundle| match bundle.bundle_behavior {
+    self.with_bundle(|bundle| match bundle.bundle_behavior {
       BundleBehavior::None => None,
       BundleBehavior::Inline => Some("inline"),
       BundleBehavior::Isolated => Some("isolated"),
@@ -888,51 +881,83 @@ impl JsBundle {
 
   #[qjs(get)]
   fn target(&self) -> rquickjs::Result<JsTarget> {
-    self.bundles[self.index].with(|bundle| JsTarget {
+    self.with_bundle(|bundle| JsTarget {
       target: bundle.target.clone(),
     })
   }
 
+  /// The bundle's final output path, once it is known.
+  #[qjs(get)]
+  fn file_path<'js>(&self, ctx: Ctx<'js>) -> rquickjs::Result<rquickjs::Value<'js>> {
+    let path = self.with_bundle(|bundle| {
+      bundle.has_final_path().then(|| {
+        bundle
+          .dist_path()
+          .to_path_buf()
+          .to_string_lossy()
+          .into_owned()
+      })
+    })?;
+    or_null(&ctx, path)
+  }
+
+  /// The bundle's name relative to its target's dist directory, once it can be read.
+  #[qjs(get)]
+  fn name<'js>(&self, ctx: Ctx<'js>) -> rquickjs::Result<rquickjs::Value<'js>> {
+    let name = self.with_bundle(|bundle| {
+      // Until it is named, a bundle has no path to take a name from.
+      (bundle.is_name_available() && (bundle.has_final_path() || bundle.dist_path.is_some()))
+        .then(|| bundle.name())
+    })?;
+    or_null(&ctx, name)
+  }
+
   fn get_main_entry(&self) -> rquickjs::Result<Option<JsAsset>> {
-    self.bundles[self.index].with(|bundle| {
+    self.with_bundle(|bundle| {
       bundle
         .main_entry_asset
-        .map(|index| self.assets[index.index()].clone())
-        .map(JsAsset::borrowed)
+        .map(|index| JsAsset::from_graph(self.graph.clone(), index))
     })
   }
 
   fn get_entry_assets(&self) -> rquickjs::Result<Vec<JsAsset>> {
-    self.bundles[self.index].with(|bundle| {
+    self.with_bundle(|bundle| {
       bundle
         .entry_assets
         .iter()
-        .map(|index| self.assets[index.index()].clone())
-        .map(JsAsset::borrowed)
+        .map(|&index| JsAsset::from_graph(self.graph.clone(), index))
         .collect()
     })
+  }
+
+  fn has_asset(&self, asset: Class<'_, JsAsset>) -> rquickjs::Result<bool> {
+    let asset = asset.borrow();
+    let JsAssetValue::Graph { graph, index } = &asset.asset else {
+      return Err(rquickjs::Error::new_from_js_message(
+        "Asset",
+        "Asset",
+        "Asset belongs to a different BundleGraph",
+      ));
+    };
+    same_graph(&self.graph, graph, "Asset")?;
+    self.with_bundle(|bundle| bundle.assets.contains(index))
   }
 }
 
 impl JsBundle {
-  fn new(
-    index: usize,
-    bundles: Arc<Vec<ScopedRef<Bundle>>>,
-    assets: Arc<Vec<ScopedRef<Asset>>>,
-  ) -> Self {
-    Self {
-      index,
-      bundles,
-      assets,
-    }
+  fn new(index: usize, graph: Rc<ScopedGraph>) -> Self {
+    Self { index, graph }
+  }
+
+  fn with_bundle<R>(&self, f: impl for<'a> FnOnce(&'a Bundle) -> R) -> rquickjs::Result<R> {
+    self.graph.with(|graph| f(&graph.bundles[self.index]))
   }
 }
 
 #[derive(JsLifetime)]
 #[rquickjs::class]
 struct JsBundleGraph {
-  bundles: Arc<Vec<ScopedRef<Bundle>>>,
-  assets: Arc<Vec<ScopedRef<Asset>>>,
+  graph: Rc<ScopedGraph>,
 }
 
 impl<'js> Trace<'js> for JsBundleGraph {
@@ -941,27 +966,22 @@ impl<'js> Trace<'js> for JsBundleGraph {
 
 #[methods(rename_all = "camelCase")]
 impl JsBundleGraph {
-  fn get_bundles(&self) -> Vec<JsBundle> {
-    self
-      .bundles
-      .iter()
-      .enumerate()
-      .map(|(index, _)| JsBundle::new(index, self.bundles.clone(), self.assets.clone()))
-      .collect()
+  fn get_bundles(&self) -> rquickjs::Result<Vec<JsBundle>> {
+    let len = self.graph.with(|graph| graph.bundles.len())?;
+    Ok(self.bundles(0..len))
   }
 
   fn get_entry_bundles(&self) -> rquickjs::Result<Vec<JsBundle>> {
-    let mut result = Vec::new();
-    for (index, bundle) in self.bundles.iter().enumerate() {
-      if bundle.with(|bundle| bundle.flags.contains(BundleFlags::ENTRY))? {
-        result.push(JsBundle::new(
-          index,
-          self.bundles.clone(),
-          self.assets.clone(),
-        ));
-      }
-    }
-    Ok(result)
+    let indices = self.graph.with(|graph| {
+      graph
+        .bundles
+        .iter()
+        .enumerate()
+        .filter(|(_, bundle)| bundle.flags.contains(BundleFlags::ENTRY))
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>()
+    })?;
+    Ok(self.bundles(indices))
   }
 
   fn get_referenced_bundles(
@@ -969,48 +989,125 @@ impl JsBundleGraph {
     bundle: Class<'_, JsBundle>,
     options: rquickjs::function::Opt<Object<'_>>,
   ) -> rquickjs::Result<Vec<JsBundle>> {
-    let bundle = bundle.borrow();
-    if !Arc::ptr_eq(&self.bundles, &bundle.bundles) {
-      return Err(rquickjs::Error::new_from_js_message(
-        "Bundle",
-        "Bundle",
-        "Bundle belongs to a different BundleGraph",
-      ));
-    }
+    let index = self.bundle_index(&bundle)?;
     let recursive = options
       .0
       .map(|options| options.get::<_, Option<bool>>("recursive"))
       .transpose()?
       .flatten()
       .unwrap_or(false);
-    let mut indices =
-      bundle.bundles[bundle.index].with(|bundle| bundle.referenced_bundles.clone())?;
-    if recursive {
-      let mut offset = 0;
-      while offset < indices.len() {
-        let index = indices[offset];
-        let referenced_bundles =
-          self.bundles[index].with(|bundle| bundle.referenced_bundles.clone())?;
-        for referenced in &referenced_bundles {
-          if !indices.contains(referenced) {
-            indices.push(*referenced);
-          }
-        }
-        offset += 1;
+    let indices = self.graph.with(|graph| {
+      if recursive {
+        // The closure starts with the bundle itself.
+        graph.referenced_bundles(index).skip(1).collect()
+      } else {
+        graph.bundles[index].referenced_bundles.clone()
       }
-    }
-    Ok(
+    })?;
+    Ok(self.bundles(indices))
+  }
+
+  /// Bundles that code in `bundle`'s execution context may load, not including `bundle`.
+  fn get_bundles_in_bundle_group(
+    &self,
+    bundle: Class<'_, JsBundle>,
+  ) -> rquickjs::Result<Vec<JsBundle>> {
+    let index = self.bundle_index(&bundle)?;
+    let indices = self
+      .graph
+      .with(|graph| graph.context_closure(&graph.bundles[index]).to_vec())?;
+    Ok(self.bundles(indices))
+  }
+
+  /// Bundles that dependencies of `bundle`'s assets resolve to: lazy, isolated, inline and URL
+  /// references.
+  fn get_bundle_dependencies(
+    &self,
+    bundle: Class<'_, JsBundle>,
+  ) -> rquickjs::Result<Vec<JsBundle>> {
+    let index = self.bundle_index(&bundle)?;
+    let indices = self.graph.with(|graph| {
+      let mut indices = Vec::new();
+      for target in graph.bundle_dependency_targets(&graph.bundles[index]) {
+        if !indices.contains(&target) {
+          indices.push(target);
+        }
+      }
       indices
-        .into_iter()
-        .map(|index| JsBundle::new(index, self.bundles.clone(), self.assets.clone()))
-        .collect(),
-    )
+    })?;
+    Ok(self.bundles(indices))
+  }
+
+  /// The asset that `dependency` resolved to, if any.
+  fn get_resolved_asset(
+    &self,
+    dependency: Class<'_, JsDependency>,
+  ) -> rquickjs::Result<Option<JsAsset>> {
+    let dependency = dependency.borrow();
+    self.dependency_id(&dependency)?;
+    let index = dependency.with_dependency(|dep| {
+      self.graph.with(|graph| {
+        graph
+          .asset_graph
+          .resolved_asset(dep)
+          .map(|(index, _)| index)
+      })
+    })??;
+    Ok(index.map(|index| JsAsset::from_graph(self.graph.clone(), index)))
+  }
+
+  /// The bundle that `dependency` references, if it resolves to a different bundle.
+  fn get_referenced_bundle(
+    &self,
+    dependency: Class<'_, JsDependency>,
+  ) -> rquickjs::Result<Option<JsBundle>> {
+    let (asset, index) = self.dependency_id(&dependency.borrow())?;
+    let resolution = self
+      .graph
+      .with(|graph| graph.dependency_resolution(asset, index))?;
+    Ok(match resolution {
+      BundleGraphDependencyResolution::Bundle { bundle_index, .. } => {
+        Some(JsBundle::new(bundle_index as usize, self.graph.clone()))
+      }
+      _ => None,
+    })
   }
 }
 
 impl JsBundleGraph {
-  fn new(bundles: Arc<Vec<ScopedRef<Bundle>>>, assets: Arc<Vec<ScopedRef<Asset>>>) -> Self {
-    Self { bundles, assets }
+  fn new(graph: Rc<ScopedGraph>) -> Self {
+    Self { graph }
+  }
+
+  fn bundles(&self, indices: impl IntoIterator<Item = usize>) -> Vec<JsBundle> {
+    indices
+      .into_iter()
+      .map(|index| JsBundle::new(index, self.graph.clone()))
+      .collect()
+  }
+
+  fn bundle_index(&self, bundle: &Class<'_, JsBundle>) -> rquickjs::Result<usize> {
+    let bundle = bundle.borrow();
+    same_graph(&self.graph, &bundle.graph, "Bundle")?;
+    Ok(bundle.index)
+  }
+
+  fn dependency_id(&self, dependency: &JsDependency) -> rquickjs::Result<(AssetIndex, usize)> {
+    match &dependency.dep {
+      JsDependencyValue::Graph {
+        graph,
+        asset,
+        index,
+      } => {
+        same_graph(&self.graph, graph, "Dependency")?;
+        Ok((*asset, *index))
+      }
+      _ => Err(rquickjs::Error::new_from_js_message(
+        "Dependency",
+        "Dependency",
+        "Dependency belongs to a different BundleGraph",
+      )),
+    }
   }
 }
 
@@ -1023,7 +1120,10 @@ struct JsAsset {
 #[derive(JsLifetime)]
 enum JsAssetValue {
   Owned(Option<Asset>),
-  Borrowed(ScopedRef<Asset>),
+  Graph {
+    graph: Rc<ScopedGraph>,
+    index: AssetIndex,
+  },
 }
 
 impl<'js> Trace<'js> for JsAsset {
@@ -1037,16 +1137,16 @@ impl JsAsset {
     }
   }
 
-  fn borrowed(asset: ScopedRef<Asset>) -> Self {
+  fn from_graph(graph: Rc<ScopedGraph>, index: AssetIndex) -> Self {
     Self {
-      asset: JsAssetValue::Borrowed(asset),
+      asset: JsAssetValue::Graph { graph, index },
     }
   }
 
   fn take_owned(&mut self) -> Option<Asset> {
     match &mut self.asset {
       JsAssetValue::Owned(asset) => asset.take(),
-      JsAssetValue::Borrowed(_) => None,
+      JsAssetValue::Graph { .. } => None,
     }
   }
 
@@ -1058,7 +1158,9 @@ impl JsAsset {
         "available asset",
         "Asset has already been consumed",
       )),
-      JsAssetValue::Borrowed(asset) => asset.with(f),
+      JsAssetValue::Graph { graph, index } => {
+        graph.with(|graph| f(&graph.asset_graph.assets[index.index()]))
+      }
     }
   }
 
@@ -1070,10 +1172,10 @@ impl JsAsset {
         "available asset",
         "Asset has already been consumed",
       )),
-      JsAssetValue::Borrowed(_) => Err(rquickjs::Error::new_from_js_message(
+      JsAssetValue::Graph { .. } => Err(rquickjs::Error::new_from_js_message(
         "read-only asset",
         "mutable asset",
-        "Assets exposed to Namer plugins are read-only",
+        "Assets in a bundle graph are read-only",
       )),
     }
   }
@@ -1182,6 +1284,21 @@ impl JsAsset {
   }
 
   fn get_dependencies(&self) -> rquickjs::Result<Vec<JsDependency>> {
+    if let JsAssetValue::Graph { graph, index } = &self.asset {
+      let len = self.with_asset(|asset| asset.dependencies.len())?;
+      return Ok(
+        (0..len)
+          .map(|dependency| JsDependency {
+            dep: JsDependencyValue::Graph {
+              graph: graph.clone(),
+              asset: *index,
+              index: dependency,
+            },
+          })
+          .collect(),
+      );
+    }
+
     // Snapshots cannot be invalidated by a later addDependency reallocating the vector.
     self.with_asset(|asset| {
       asset
@@ -1423,6 +1540,14 @@ impl JsTarget {
   fn is_worker(&self) -> bool {
     self.target.environment.is_worker()
   }
+
+  fn is_worklet(&self) -> bool {
+    self.target.environment.is_worklet()
+  }
+
+  fn is_server(&self) -> bool {
+    self.target.environment.is_server()
+  }
 }
 
 #[derive(JsLifetime)]
@@ -1435,6 +1560,12 @@ pub struct JsDependency {
 enum JsDependencyValue {
   Borrowed(ScopedRef<parcel_core::Dependency>),
   Owned(Arc<parcel_core::Dependency>),
+  /// A dependency of an asset in a bundle graph.
+  Graph {
+    graph: Rc<ScopedGraph>,
+    asset: AssetIndex,
+    index: usize,
+  },
 }
 
 impl JsDependency {
@@ -1445,6 +1576,11 @@ impl JsDependency {
     match &self.dep {
       JsDependencyValue::Borrowed(dep) => dep.with(f),
       JsDependencyValue::Owned(dep) => Ok(f(dep)),
+      JsDependencyValue::Graph {
+        graph,
+        asset,
+        index,
+      } => graph.with(|graph| f(&graph.asset_graph.assets[asset.index()].dependencies[*index])),
     }
   }
 }
@@ -1522,6 +1658,11 @@ impl JsDependency {
   #[qjs(get)]
   pub fn needs_stable_name(&self) -> rquickjs::Result<bool> {
     self.with_dependency(|dep| dep.flags.contains(DependencyFlags::NEEDS_STABLE_NAME))
+  }
+
+  #[qjs(get)]
+  pub fn side_effects(&self) -> rquickjs::Result<bool> {
+    self.with_dependency(|dep| dep.flags.contains(DependencyFlags::SIDE_EFFECTS))
   }
 
   #[qjs(get)]
@@ -1650,6 +1791,13 @@ impl JsOptions {
         .to_string_lossy()
         .into_owned()
     })
+  }
+}
+
+fn or_null<'js>(ctx: &Ctx<'js>, value: Option<String>) -> rquickjs::Result<rquickjs::Value<'js>> {
+  match value {
+    Some(value) => value.into_js(ctx),
+    None => Ok(rquickjs::Value::new_null(ctx.clone())),
   }
 }
 

@@ -627,6 +627,15 @@ impl Environment {
     use Environment::*;
     matches!(self, ElectronMain | ElectronRenderer)
   }
+
+  pub fn is_server(&self) -> bool {
+    use Environment::*;
+    matches!(self, Node | ReactServer)
+  }
+
+  pub fn is_worklet(&self) -> bool {
+    matches!(self, Environment::Worklet)
+  }
 }
 
 impl TryFrom<&str> for Environment {

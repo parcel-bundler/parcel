@@ -1,10 +1,12 @@
 use std::{borrow::Cow, collections::HashMap, path::Path, sync::Arc, time::Duration};
 
 use parcel_core::{
-  Asset, AssetFlags, AssetGraph, AssetIndex, AssetNode, AssetType, BufferContent, BuildSuccess,
-  Bundle, BundleBehavior, BundleFlags, BundleGraph, Diagnostic, DiagnosticList, FileSystem,
-  LogEvent, LogLevel, LogMessage, OverlayFileSystem, ParcelOptions, PathId, Reporter,
-  ReporterEvent, SourceLocation, SourceUrl, Target,
+  Asset, AssetFlags, AssetGraph, AssetIndex, AssetNode, AssetNodeIndex, AssetType, BufferContent,
+  BuildSuccess, Bundle, BundleBehavior, BundleFlags, BundleGraph, BundleGraphDependencyResolution,
+  Dependency, DependencyFlags, DependencyId, DependencyResolution, Diagnostic, DiagnosticList,
+  Environment, ExportsCondition, FileSystem, ImportType, LogEvent, LogLevel, LogMessage,
+  OverlayFileSystem, ParcelOptions, PathId, Priority, Reporter, ReporterEvent, SourceLocation,
+  SourceUrl, SpecifierType, Target,
 };
 use parcel_plugin_js::JsPlugin;
 
@@ -141,10 +143,11 @@ fn test_reporter_build_start() {
       import assert from 'assert';
 
       export default new Reporter({
-        buildStart({config}) {
+        buildStart({config, options}) {
           // Destructuring throws unless it was called with an object, so this
           // fails the test if buildStart is handed nothing.
           assert.equal(config, undefined);
+          assert.equal(options.mode, 'development');
         }
       });
     "#,
@@ -163,7 +166,8 @@ fn test_reporter_build_success() {
       import assert from 'assert';
 
       export default new Reporter({
-        buildSuccess({bundleGraph, buildTime, changedAssets}) {
+        buildSuccess({bundleGraph, buildTime, changedAssets, options}) {
+          assert.equal(options.mode, 'development');
           assert.equal(typeof buildTime, 'number');
           assert.equal(buildTime, 1500);
 
@@ -187,6 +191,158 @@ fn test_reporter_build_success() {
   .expect("buildSuccess");
 }
 
+/// An entry bundle that lazily loads a second bundle, through a dependency the bundler resolved
+/// to that bundle. Only the entry has its final path.
+fn lazy_bundle_graph() -> BundleGraph<'static> {
+  let target = Arc::new(Target {
+    dist_dir: PathId::new(Path::new("/dist")),
+    ..Default::default()
+  });
+  let server_target = Arc::new(Target {
+    dist_dir: PathId::new(Path::new("/dist")),
+    environment: Environment::Node,
+    ..Default::default()
+  });
+  let lazy = |specifier: &str, flags| Dependency {
+    specifier: specifier.into(),
+    specifier_type: SpecifierType::Esm,
+    priority: Priority::Lazy,
+    bundle_behavior: BundleBehavior::None,
+    import_type: ImportType::JavaScript,
+    flags,
+    concurrent_group: 0,
+    target: target.clone(),
+    loc: None,
+    placeholder: None,
+    resolve_from: None,
+    range: None,
+    conditions: ExportsCondition::empty(),
+    resolution: DependencyResolution::Asset(AssetNodeIndex(1)),
+  };
+  let mut index = test_asset("file:///src/index.js", AssetType::Js, target.clone());
+  index.dependencies = vec![
+    lazy("./lazy", DependencyFlags::SIDE_EFFECTS),
+    lazy("./lazy?again", DependencyFlags::empty()),
+  ];
+  let assets = vec![
+    index,
+    test_asset("file:///src/lazy.js", AssetType::Js, server_target.clone()),
+  ];
+  let bundles = vec![
+    Bundle {
+      id: 1,
+      ty: AssetType::Js,
+      target,
+      bundle_behavior: BundleBehavior::None,
+      flags: BundleFlags::ENTRY,
+      dist_path: Some(PathId::new(Path::new("/dist/index.js"))),
+      assets: vec![AssetIndex(0)],
+      entry_assets: vec![AssetIndex(0)],
+      main_entry_asset: Some(AssetIndex(0)),
+      referenced_bundles: vec![],
+      name_state: Default::default(),
+    },
+    Bundle {
+      id: 2,
+      ty: AssetType::Js,
+      target: server_target,
+      bundle_behavior: BundleBehavior::None,
+      flags: BundleFlags::empty(),
+      dist_path: None,
+      assets: vec![AssetIndex(1)],
+      entry_assets: vec![AssetIndex(1)],
+      main_entry_asset: Some(AssetIndex(1)),
+      referenced_bundles: vec![],
+      name_state: Default::default(),
+    },
+  ];
+  bundles[0].set_final_path(PathId::new(Path::new("/dist/index.js")));
+
+  let mut resolutions = HashMap::new();
+  // Only the first dependency was resolved to the lazy bundle; the second keeps its asset
+  // resolution, as if it had been internalized.
+  resolutions.insert(
+    DependencyId {
+      asset: AssetIndex(0),
+      dependency: 0,
+    },
+    BundleGraphDependencyResolution::Bundle {
+      bundle_index: 1,
+      asset_index: AssetIndex(1),
+    },
+  );
+
+  BundleGraph::new(
+    AssetGraph {
+      asset_nodes: Cow::Owned(
+        assets
+          .iter()
+          .enumerate()
+          .map(|(index, asset)| AssetNode::from_asset(AssetIndex::from_index(index), asset))
+          .collect(),
+      ),
+      assets: Cow::Owned(assets),
+      entries: Cow::Owned(vec![]),
+    },
+    bundles,
+    resolutions,
+    PathId::new(Path::new("/")),
+  )
+}
+
+#[test]
+fn test_reporter_bundle_graph_queries() {
+  let graph = lazy_bundle_graph();
+  report(
+    "reporter-graph-queries.mjs",
+    r#"
+      import {Reporter} from '@parcel/plugin';
+      import assert from 'assert';
+
+      export default new Reporter({
+        buildSuccess({bundleGraph}) {
+          let [entry, lazy] = bundleGraph.getBundles();
+          let [index, lazyAsset] = [entry.getMainEntry(), lazy.getMainEntry()];
+
+          assert.equal(entry.filePath, '/dist/index.js');
+          assert.equal(entry.name, 'index.js');
+          assert.equal(lazy.filePath, null);
+          assert.equal(lazy.name, null);
+
+          assert.equal(entry.hasAsset(index), true);
+          assert.equal(entry.hasAsset(lazyAsset), false);
+
+          assert.equal(entry.target.isServer(), false);
+          assert.equal(lazy.target.isServer(), true);
+          assert.equal(lazy.target.isWorklet(), false);
+
+          let [dep, internalized] = index.getDependencies();
+          assert.equal(dep.sideEffects, true);
+          assert.equal(internalized.sideEffects, false);
+
+          assert.equal(bundleGraph.getResolvedAsset(dep).url, 'file:///src/lazy.js');
+          assert.equal(bundleGraph.getResolvedAsset(internalized).url, 'file:///src/lazy.js');
+          assert.equal(bundleGraph.getReferencedBundle(dep).getMainEntry().url, 'file:///src/lazy.js');
+          assert.equal(bundleGraph.getReferencedBundle(internalized), undefined);
+
+          let dependencies = bundleGraph.getBundleDependencies(entry);
+          assert.deepEqual(dependencies.map(b => b.getMainEntry().url), ['file:///src/lazy.js']);
+          assert.deepEqual(bundleGraph.getBundleDependencies(lazy), []);
+
+          let group = bundleGraph.getBundlesInBundleGroup(entry);
+          assert.deepEqual(group.map(b => b.getMainEntry().url), ['file:///src/lazy.js']);
+        }
+      });
+    "#,
+    &ReporterEvent::BuildSuccess(BuildSuccess {
+      bundle_graph: &graph,
+      changed_assets: &[],
+      build_time: Duration::ZERO,
+    }),
+  )
+  .expect("bundle graph queries");
+}
+
 #[test]
 fn test_reporter_build_failure() {
   let diagnostics = DiagnosticList(vec![Diagnostic {
@@ -205,6 +361,7 @@ fn test_reporter_build_failure() {
       export default new Reporter({
         buildFailure({diagnostics}) {
           assert.equal(diagnostics.length, 1);
+          assert.equal(diagnostics[0].severity, 'error');
           assert.equal(diagnostics[0].message, 'it did not work');
           assert.equal(diagnostics[0].origin, '@acme/plugin');
           assert.deepEqual(diagnostics[0].hints, ['try something else']);

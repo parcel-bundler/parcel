@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
-use crate::transformer::{Config, Type, transform_to_ast};
+use crate::transformer::{Config, transform_to_ast};
 use glob_match::glob_match;
 use parcel_core::*;
 use parcel_macros::MacroError;

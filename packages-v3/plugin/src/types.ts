@@ -54,7 +54,13 @@ export type SourceLocation = {
   readonly end: Location;
 };
 
-export type DiagnosticSeverity = 'Error' | 'Warning' | 'SourceError' | 'Info';
+/**
+ *   - error: Fails the build.
+ *   - warning: Logged, but does not fail the build.
+ *   - sourceError: An error in source code in the project, or a warning in node_modules.
+ *   - info: An informative message.
+ */
+export type DiagnosticSeverity = 'error' | 'warning' | 'sourceError' | 'info';
 
 export type DiagnosticCodeHighlight = {
   /** Location of the first character that should get highlighted for this highlight. */
@@ -114,9 +120,12 @@ export interface PluginOptions {
   readonly projectRoot: FilePath;
 }
 
-/** Corresponds to <code>pkg#engines</code>. Versions are formatted as `major.minor`. */
+/**
+ * Corresponds to <code>pkg#engines</code>, resolved to minimum versions, which are
+ * formatted like `>= 18.2`.
+ */
 export type Engines = {
-  /** The resolved browser versions, e.g. `chrome 63, firefox 67, safari 11.1`. Empty if none. */
+  /** The minimum browser versions, e.g. `chrome >= 63, firefox >= 67, safari >= 11.1`. Empty if none. */
   readonly browsers: string;
   readonly electron: string | null;
   readonly node: string | null;
@@ -184,8 +193,14 @@ export interface Target {
   /** Whether <code>environment</code> specifies an electron context. */
   isElectron(): boolean;
 
+  /** Whether <code>environment</code> specifies a server context (node or react-server). */
+  isServer(): boolean;
+
   /** Whether <code>environment</code> specifies a worker context. */
   isWorker(): boolean;
+
+  /** Whether <code>environment</code> specifies a worklet context. */
+  isWorklet(): boolean;
 }
 
 export type DependencyPriority = 'sync' | 'parallel' | 'lazy';
@@ -377,6 +392,9 @@ export interface Dependency {
 
   /** Whether the dependency is an entry. */
   readonly isEntry: boolean;
+
+  /** Whether the dependency has side effects. */
+  readonly sideEffects: boolean;
 
   /** The location within the source file where the dependency was found. */
   readonly loc: SourceLocation | undefined;
@@ -583,6 +601,16 @@ export interface Bundle {
    */
   readonly hashReference: string;
 
+  /** The absolute path the bundle is written to, once it is known. */
+  readonly filePath: FilePath | null;
+
+  /**
+   * The bundle's name: its file path relative to its target's <code>distDir</code>.
+   * `null` until it can be read, i.e. before the bundle is named, or while a content hashed
+   * name is unknown.
+   */
+  readonly name: string | null;
+
   /**
    * Returns the assets that are executed immediately when the bundle is loaded.
    * Some bundles may not have any entry assets, for example, shared bundles.
@@ -594,6 +622,9 @@ export interface Bundle {
    * Some bundles do not have a main entry, for example, shared bundles.
    */
   getMainEntry(): Asset | undefined;
+
+  /** Returns whether the bundle includes the given asset. */
+  hasAsset(asset: Asset): boolean;
 }
 
 /**
@@ -614,18 +645,46 @@ export interface BundleGraph {
       recursive?: boolean;
     },
   ): Array<Bundle>;
+
+  /**
+   * Returns the bundles that code in the bundle's execution context may load: everything
+   * reachable through bundle references and Parcel's loader, without entering other
+   * execution contexts (e.g. workers). The bundle itself is not included.
+   */
+  getBundlesInBundleGroup(bundle: Bundle): Array<Bundle>;
+
+  /**
+   * Returns the bundles that dependencies of the bundle's assets resolve to,
+   * e.g. lazy, isolated, inline and URL references.
+   */
+  getBundleDependencies(bundle: Bundle): Array<Bundle>;
+
+  /** Returns the asset that the dependency resolved to, if any. */
+  getResolvedAsset(dependency: Dependency): Asset | undefined;
+
+  /** Returns the bundle that the dependency references, if it resolved to another bundle. */
+  getReferencedBundle(dependency: Dependency): Bundle | undefined;
 }
 
 /**
  * @section transformer
  */
 export type ResolveOptions = {
+  /**
+   * How the specifier should be interpreted.
+   *   - esm: An ES module specifier. It is parsed as a URL, but bare specifiers are treated as node_modules.
+   *   - commonjs: A CommonJS specifier. It is not parsed as a URL.
+   *   - url: A URL that works as in a browser. Bare specifiers are treated as relative URLs.
+   * @default 'esm'
+   */
+  readonly specifierType?: Exclude<SpecifierType, 'custom'>;
+
   /** A list of custom conditions to use when resolving package.json "exports" and "imports". */
   readonly packageConditions?: Array<string>;
 };
 
 /**
- * Resolves `specifier` as an ES module specifier from the file `from`, and returns
+ * Resolves `specifier` from the file `from` with Parcel's built-in resolver, and returns
  * the absolute path of the resolved file.
  * @section transformer
  */
@@ -735,55 +794,55 @@ export type Optimizer<ConfigType> = {
 };
 
 /**
- * The build just started.
+ * Passed to every reporter method alongside the event's own fields.
  * @section reporter
  */
-export type BuildStartEvent<ConfigType> = {
+export type ReporterContext<ConfigType> = {
   readonly config: ConfigType;
   readonly options: PluginOptions;
 };
 
 /**
+ * The build just started.
+ * @section reporter
+ */
+export type BuildStartEvent<ConfigType> = ReporterContext<ConfigType>;
+
+/**
  * The build was successful.
  * @section reporter
  */
-export type BuildSuccessEvent<ConfigType> = {
+export type BuildSuccessEvent<ConfigType> = ReporterContext<ConfigType> & {
   readonly bundleGraph: BundleGraph;
   /** The duration of the build, in milliseconds. */
   readonly buildTime: number;
   readonly changedAssets: Array<Asset>;
-  readonly config: ConfigType;
-  readonly options: PluginOptions;
 };
 
 /**
  * The build failed.
  * @section reporter
  */
-export type BuildFailureEvent<ConfigType> = {
+export type BuildFailureEvent<ConfigType> = ReporterContext<ConfigType> & {
   readonly diagnostics: Array<Diagnostic>;
-  readonly config: ConfigType;
-  readonly options: PluginOptions;
 };
 
 /**
  * A message was logged, either as text or as diagnostics.
  * @section reporter
  */
-export type LogEvent<ConfigType> = {
+export type LogEvent<ConfigType> = ReporterContext<ConfigType> & {
   readonly level: Exclude<LogLevel, 'none'>;
-  readonly config: ConfigType;
-  readonly options: PluginOptions;
 } & (
-  | {
-      readonly message: string;
-      readonly diagnostics?: undefined;
-    }
-  | {
-      readonly message?: undefined;
-      readonly diagnostics: Array<Diagnostic>;
-    }
-);
+    | {
+        readonly message: string;
+        readonly diagnostics?: undefined;
+      }
+    | {
+        readonly message?: undefined;
+        readonly diagnostics: Array<Diagnostic>;
+      }
+  );
 
 /**
  * A reporter must implement at least one of these methods.

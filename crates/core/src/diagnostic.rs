@@ -41,6 +41,7 @@ pub struct CodeHighlight {
 }
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone, Default)]
+#[serde(rename_all = "camelCase")]
 pub enum DiagnosticSeverity {
   /// Fails the build with an error.
   #[default]
