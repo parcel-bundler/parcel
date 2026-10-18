@@ -21,8 +21,5 @@
   },
   "scripts": {
     "check-ts": "tsc --noEmit --strict --skipLibCheck src/PluginAPI.tsx"
-  },
-  "dependencies": {
-    "@parcel/source-map": "^2.1.1"
   }
 }

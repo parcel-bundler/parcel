@@ -1,6 +1,10 @@
-// Plugin API types for Parcel v3. Originally copied from @parcel/types (v2).
-import type {Readable, Writable} from 'stream';
-import type SourceMap from '@parcel/source-map';
+// Plugin API types for Parcel v3. These describe the objects exposed to
+// JavaScript plugins by the QuickJS bindings in crates/plugin-js.
+//
+// Plugins log by calling `console` methods. Throwing (or rejecting) fails the
+// plugin call: the error's message becomes a diagnostic, with a code frame
+// pointing at `filename`/`fileName`, `line` and `column` if the error has them,
+// or otherwise at the top frame of its stack.
 
 export type FilePath = string;
 export type Glob = string;
@@ -9,263 +13,73 @@ export type SemverRange = string;
 /** See Dependency */
 export type DependencySpecifier = string;
 
-export type GlobInvalidation = {
-  glob: Glob;
-};
-export type FileInvalidation = {
-  filePath: FilePath;
-};
-export type FileAboveInvalidation = {
-  fileName: string;
-  aboveFilePath: FilePath;
-};
-export type FileCreateInvalidation =
-  | FileInvalidation
-  | GlobInvalidation
-  | FileAboveInvalidation;
+/** Plugins may return either a value or a promise for it. */
+export type Async<T> = T | Promise<T>;
 
-export type FileOptions = {
-  mode?: number;
-};
-export type ReaddirOptions =
-  | {
-      withFileTypes?: false;
-    }
-  | {
-      withFileTypes: true;
-    };
-export interface FileStats {
-  dev: number;
-  ino: number;
-  mode: number;
-  nlink: number;
-  uid: number;
-  gid: number;
-  rdev: number;
-  size: number;
-  blksize: number;
-  blocks: number;
-  atimeMs: number;
-  mtimeMs: number;
-  ctimeMs: number;
-  birthtimeMs: number;
-  atime: Date;
-  mtime: Date;
-  ctime: Date;
-  birthtime: Date;
-  isFile(): boolean;
-  isDirectory(): boolean;
-  isBlockDevice(): boolean;
-  isCharacterDevice(): boolean;
-  isSymbolicLink(): boolean;
-  isFIFO(): boolean;
-  isSocket(): boolean;
-}
-export type Encoding =
-  | 'hex'
-  | 'utf8'
-  | 'utf-8'
-  | 'ascii'
-  | 'binary'
-  | 'base64'
-  | 'ucs2'
-  | 'ucs-2'
-  | 'utf16le'
-  | 'latin1';
-export interface FileSystem {
-  readFile(filePath: FilePath): Promise<Buffer>;
-  readFile(filePath: FilePath, encoding: Encoding): Promise<string>;
-  readFileSync(filePath: FilePath): Buffer;
-  readFileSync(filePath: FilePath, encoding: Encoding): string;
-  writeFile(
-    filePath: FilePath,
-    contents: Buffer | string,
-    options: FileOptions | null | undefined,
-  ): Promise<void>;
-  copyFile(
-    source: FilePath,
-    destination: FilePath,
-    flags?: number,
-  ): Promise<void>;
-  stat(filePath: FilePath): Promise<FileStats>;
-  statSync(filePath: FilePath): FileStats;
-  lstat(filePath: FilePath): Promise<FileStats>;
-  lstatSync(filePath: FilePath): FileStats;
-  readdir(
-    path: FilePath,
-    opts?: {
-      withFileTypes?: false;
-    },
-  ): Promise<FilePath[]>;
-  readdir(
-    path: FilePath,
-    opts: {
-      withFileTypes: true;
-    },
-  ): Promise<Dirent[]>;
-  readdirSync(
-    path: FilePath,
-    opts?: {
-      withFileTypes?: false;
-    },
-  ): FilePath[];
-  readdirSync(
-    path: FilePath,
-    opts: {
-      withFileTypes: true;
-    },
-  ): Dirent[];
-  symlink(target: FilePath, path: FilePath): Promise<void>;
-  unlink(path: FilePath): Promise<void>;
-  realpath(path: FilePath): Promise<FilePath>;
-  realpathSync(path: FilePath): FilePath;
-  readlink(path: FilePath): Promise<FilePath>;
-  readlinkSync(path: FilePath): FilePath;
-  exists(path: FilePath): Promise<boolean>;
-  existsSync(path: FilePath): boolean;
-  mkdirp(path: FilePath): Promise<void>;
-  rimraf(path: FilePath): Promise<void>;
-  ncp(source: FilePath, destination: FilePath): Promise<void>;
-  createReadStream(
-    path: FilePath,
-    options?: FileOptions | null | undefined,
-  ): Readable;
-  createWriteStream(
-    path: FilePath,
-    options?: FileOptions | null | undefined,
-  ): Writable;
-  cwd(): FilePath;
-  chdir(dir: FilePath): void;
-  findAncestorFile(
-    fileNames: Array<string>,
-    fromDir: FilePath,
-    root: FilePath,
-  ): FilePath | null | undefined;
-  findNodeModule(
-    moduleName: string,
-    fromDir: FilePath,
-  ): FilePath | null | undefined;
-  findFirstFile(filePaths: Array<FilePath>): FilePath | null | undefined;
-}
-// https://nodejs.org/api/fs.html#fs_class_fs_dirent
-export interface Dirent {
-  readonly name: string;
-  isBlockDevice(): boolean;
-  isCharacterDevice(): boolean;
-  isDirectory(): boolean;
-  isFIFO(): boolean;
-  isFile(): boolean;
-  isSocket(): boolean;
-  isSymbolicLink(): boolean;
-}
+/** A JSON object (as in "map") */
+export type JSONObject = {[key: string]: JSONValue};
+export type JSONValue =
+  | null
+  | boolean
+  | number
+  | string
+  | Array<JSONValue>
+  | JSONObject;
 
-export type PackageManagerResolveResult = {
-  resolved: FilePath | DependencySpecifier;
-  pkg?: PackageJSON | null | undefined;
-  invalidateOnFileCreate: Array<FileCreateInvalidation>;
-  invalidateOnFileChange: Set<FilePath>;
-  type: number;
-};
-export type InstallOptions = {
-  installPeers?: boolean;
-  saveDev?: boolean;
-  packageInstaller?: PackageInstaller | null | undefined;
-};
-export type InstallerOptions = {
-  modules: Array<ModuleRequest>;
-  fs: FileSystem;
-  cwd: FilePath;
-  packagePath?: FilePath | null | undefined;
-  saveDev?: boolean;
-};
-export interface PackageInstaller {
-  install(opts: InstallerOptions): Promise<void>;
-}
-export type Invalidations = {
-  invalidateOnFileCreate: Array<FileCreateInvalidation>;
-  invalidateOnFileChange: Set<FilePath>;
-  invalidateOnStartup: boolean;
-};
-export interface PackageManager {
-  require(
-    id: DependencySpecifier,
-    from: FilePath,
-    arg2:
-      | {
-          range?: SemverRange | null | undefined;
-          shouldAutoInstall?: boolean;
-          saveDev?: boolean;
-        }
-      | null
-      | undefined,
-  ): Promise<any>;
-  resolve(
-    id: DependencySpecifier,
-    from: FilePath,
-    arg2:
-      | {
-          range?: SemverRange | null | undefined;
-          shouldAutoInstall?: boolean;
-          saveDev?: boolean;
-        }
-      | null
-      | undefined,
-  ): Promise<PackageManagerResolveResult>;
-  getInvalidations(id: DependencySpecifier, from: FilePath): Invalidations;
-  invalidate(id: DependencySpecifier, from: FilePath): void;
-}
-export type ModuleRequest = {
-  readonly name: string;
-  readonly range: SemverRange | null | undefined;
+/** A source map in the standard JSON format (version 3). */
+export type SourceMapJSON = {
+  version: number;
+  sources: Array<string>;
+  mappings: string;
+  names?: Array<string>;
+  sourcesContent?: Array<string | null>;
+  sourceRoot?: string;
+  file?: string;
+  [key: string]: unknown;
 };
 
-export type FeatureFlags = Record<string, boolean | string>;
-
-/** Plugin-specific AST */
-export type AST = {
-  type: string;
-  version: string;
-  program: any;
-};
-
-/** These positions are 1-based (so <code>1</code> is the first line/column) */
-export type DiagnosticHighlightLocation = {
+/** Line/column positions are 1-based (so <code>1</code> is the first line/column). */
+export type Location = {
   readonly line: number;
   readonly column: number;
 };
-export type DiagnosticSeverity = 'error' | 'warn' | 'info';
-/**
- * Note: A tab character is always counted as a single character
- * This is to prevent any mismatch of highlighting across machines
- */
+
+export type SourceLocation = {
+  readonly filePath: string;
+
+  /** inclusive */
+  readonly start: Location;
+
+  /** exclusive */
+  readonly end: Location;
+};
+
+export type DiagnosticSeverity = 'Error' | 'Warning' | 'SourceError' | 'Info';
+
 export type DiagnosticCodeHighlight = {
   /** Location of the first character that should get highlighted for this highlight. */
-  start: DiagnosticHighlightLocation;
+  start: Location;
   /** Location of the last character that should get highlighted for this highlight. */
-  end: DiagnosticHighlightLocation;
-  /** A message that should be displayed at this location in the code (optional). */
-  message?: string;
+  end: Location;
+  /** A message that should be displayed at this location in the code. */
+  message: string | null;
 };
+
 /**
  * Describes how to format a code frame.
  * A code frame is a visualization of a piece of code with a certain amount of
  * code highlights that point to certain chunk(s) inside the code.
  */
 export type DiagnosticCodeFrame = {
-  /**
-   * The contents of the source file.
-   *
-   * If no code is passed, it will be read in from filePath, remember that
-   * the asset's current code could be different from the input contents.
-   *
-   */
-  code?: string;
-  /** Path to the file this code frame is about (optional, absolute or relative to the project root) */
-  filePath?: string;
-  /** Language of the file this code frame is about (optional) */
-  language?: string;
+  /** The contents of the source file, if different from the file at `url`. */
+  code: string | null;
+  /** URL of the file this code frame is about. Files on disk use `file:` URLs. */
+  url: string | null;
+  /** Language (file extension) of the code. */
+  language: string | null;
   codeHighlights: Array<DiagnosticCodeHighlight>;
 };
+
 /**
  * A style agnostic way of emitting errors, warnings and info.
  * Reporters are responsible for rendering the message, codeframes, hints, ...
@@ -274,108 +88,47 @@ export type Diagnostic = {
   /** This is the message you want to log. */
   message: string;
   /** Name of plugin or file that threw this error */
-  origin?: string;
-  /** A stacktrace of the error (optional) */
-  stack?: string;
-  /** Name of the error (optional) */
-  name?: string;
-  /** A code frame points to a certain location(s) in the file this diagnostic is linked to (optional) */
-  codeFrames?: Array<DiagnosticCodeFrame> | null | undefined;
-  /** An optional list of strings that suggest ways to resolve this issue */
-  hints?: Array<string>;
-  /** @private */
-  skipFormatting?: boolean;
+  origin: string | null;
+  /** Code frames point to certain location(s) in the file(s) this diagnostic is linked to. */
+  codeFrames: Array<DiagnosticCodeFrame>;
+  /** A list of strings that suggest ways to resolve this issue */
+  hints: Array<string>;
+  severity: DiagnosticSeverity;
   /** A URL to documentation to learn more about the diagnostic. */
-  documentationURL?: string;
-  /** Diagnostic specific metadata (optional) */
-  meta?: Record<string, any>;
-};
-export interface PrintableError extends Error {
-  fileName?: string;
-  filePath?: string;
-  codeFrame?: string;
-  highlightedCodeFrame?: string;
-  loc?:
-    | {
-        column: number;
-        line: number;
-      }
-    | null
-    | undefined;
-  source?: string;
-}
-export type DiagnosticWithoutOrigin = Diagnostic & {
-  origin?: string;
-};
-/** Something that can be turned into a diagnostic. */
-export type Diagnostifiable =
-  | Diagnostic
-  | Array<Diagnostic>
-  | PrintableError
-  | Error
-  | string;
-
-export interface TraceMeasurement {
-  end(): void;
-}
-
-/** Plugin-specific config result, <code>any</code> */
-export type ConfigResultWithFilePath<T> = {
-  contents: T;
-  filePath: FilePath;
+  documentationURL: string | null;
 };
 
-/** <code>process.env</code> */
-export type EnvMap = typeof process.env;
-export type JSONValue =
-  | null
-  | void // ? Is this okay?
-  | boolean
-  | number
-  | string
-  | Array<JSONValue>
-  | JSONObject;
-
-/** A JSON object (as in "map") */
-export type JSONObject = {[key: string]: JSONValue};
-export type Semver = string;
+export type LogLevel = 'none' | 'error' | 'warn' | 'info' | 'verbose';
+export type BuildMode = 'development' | 'production' | string;
 
 export type HMROptions = {
-  port?: number;
-  host?: string;
+  readonly host: string;
+  readonly port: number;
 };
 
-/** Corresponds to <code>pkg#engines</code> */
+export interface PluginOptions {
+  readonly mode: BuildMode;
+  readonly env: Readonly<Record<string, string>>;
+  readonly logLevel: LogLevel;
+  readonly hmrOptions: HMROptions | undefined;
+  readonly projectRoot: FilePath;
+}
+
+/** Corresponds to <code>pkg#engines</code>. Versions are formatted as `major.minor`. */
 export type Engines = {
-  readonly browsers?: string | Array<string>;
-  readonly electron?: SemverRange;
-  readonly node?: SemverRange;
-  readonly parcel?: SemverRange;
+  /** The resolved browser versions, e.g. `chrome 63, firefox 67, safari 11.1`. Empty if none. */
+  readonly browsers: string;
+  readonly electron: string | null;
+  readonly node: string | null;
+  readonly parcel: string | null;
 };
 
 /** Corresponds to <code>pkg#targets.*.sourceMap</code> */
 export type TargetSourceMapOptions = {
-  readonly sourceRoot?: string;
-  readonly inline?: boolean;
-  readonly inlineSources?: boolean;
+  readonly sourceRoot: string | null;
+  readonly inline: boolean | null;
+  readonly inlineSources: boolean | null;
 };
-
-/**
- * A parsed version of PackageTargetDescriptor
- */
-export interface Target {
-  /** The output filename of the entry */
-  readonly distEntry: FilePath | null | undefined;
-
-  /** The output folder */
-  readonly distDir: FilePath;
-  readonly env: Environment;
-  readonly name: string;
-  readonly publicUrl: string;
-
-  /** The location that created this Target, e.g. `package.json#main`*/
-  readonly loc: SourceLocation | null | undefined;
-}
 
 /** In which environment the output should run (influces e.g. bundle loaders) */
 export type EnvironmentContext =
@@ -392,78 +145,15 @@ export type EnvironmentContext =
 /** The JS module format for the bundle output */
 export type OutputFormat = 'esmodule' | 'commonjs' | 'global';
 
-/**
- * The format of <code>pkg#targets.*</code>
- *
- * See Environment and Target.
- */
-export type PackageTargetDescriptor = {
-  readonly context?: EnvironmentContext;
-  readonly engines?: Engines;
-  readonly includeNodeModules?:
-    | boolean
-    | Array<PackageName>
-    | Record<PackageName, boolean>;
-  readonly outputFormat?: OutputFormat;
-  readonly publicUrl?: string;
-  readonly distDir?: FilePath;
-  readonly sourceMap?: boolean | TargetSourceMapOptions;
-  readonly isLibrary?: boolean;
-  readonly optimize?: boolean;
-  readonly scopeHoist?: boolean;
-  readonly source?: FilePath | Array<FilePath>;
-};
-
 export type SourceType = 'script' | 'module';
 
 /**
- * This is used when creating an Environment (see that).
+ * Where and how an asset or bundle will run.
  */
-export type EnvironmentOptions = {
-  readonly context?: EnvironmentContext;
-  readonly engines?: Engines;
-  readonly includeNodeModules?:
-    | boolean
-    | Array<PackageName>
-    | Record<PackageName, boolean>;
-  readonly outputFormat?: OutputFormat;
-  readonly sourceType?: SourceType;
-  readonly isLibrary?: boolean;
-  readonly shouldOptimize?: boolean;
-  readonly shouldScopeHoist?: boolean;
-  readonly sourceMap?: TargetSourceMapOptions | null | undefined;
-  readonly loc?: SourceLocation | null | undefined;
-};
-
-/**
- * A resolved browserslist, e.g.:
- * <pre><code>
- * {
- *   edge: '76',
- *   firefox: '67',
- *   chrome: '63',
- *   safari: '11.1',
- *   opera: '50',
- * }
- * </code></pre>
- */
-export type VersionMap = Record<string, string>;
-export type EnvironmentFeature =
-  | 'esmodules'
-  | 'dynamic-import'
-  | 'worker-module'
-  | 'service-worker-module'
-  | 'import-meta-url'
-  | 'import-meta-resolve'
-  | 'arrow-functions'
-  | 'global-this';
-
-/**
- * Defines the environment in for the output bundle
- */
-export interface Environment {
-  readonly id: string;
-  readonly context: EnvironmentContext;
+export interface Target {
+  /** The output folder */
+  readonly distDir: FilePath;
+  readonly publicUrl: string;
   readonly engines: Engines;
 
   /** Whether to include all/none packages \
@@ -474,6 +164,8 @@ export interface Environment {
     | boolean
     | Array<PackageName>
     | Record<PackageName, boolean>;
+  readonly sourceMap: TargetSourceMapOptions | null;
+  readonly environment: EnvironmentContext;
   readonly outputFormat: OutputFormat;
   readonly sourceType: SourceType;
 
@@ -483,225 +175,53 @@ export interface Environment {
   /** Whether the output should be minified. */
   readonly shouldOptimize: boolean;
 
-  /** Whether scope hoisting is enabled. */
-  readonly shouldScopeHoist: boolean;
-  readonly sourceMap: TargetSourceMapOptions | null | undefined;
-  readonly loc: SourceLocation | null | undefined;
-
-  /** Whether <code>context</code> specifies a browser context. */
+  /** Whether <code>environment</code> specifies a browser context. */
   isBrowser(): boolean;
 
-  /** Whether <code>context</code> specifies a node context. */
+  /** Whether <code>environment</code> specifies a node context. */
   isNode(): boolean;
 
-  /** Whether <code>context</code> specifies a server context. */
-  isServer(): boolean;
-
-  /** Whether <code>context</code> specifies an electron context. */
+  /** Whether <code>environment</code> specifies an electron context. */
   isElectron(): boolean;
 
-  /** Whether <code>context</code> specifies a worker context. */
+  /** Whether <code>environment</code> specifies a worker context. */
   isWorker(): boolean;
-
-  /** Whether <code>context</code> specifies a worklet context. */
-  isWorklet(): boolean;
-
-  /** Whether <code>context</code> specifies an isolated context (can't access other loaded ancestor bundles). */
-  isIsolated(): boolean;
-  matchesEngines(minVersions: VersionMap, defaultValue?: boolean): boolean;
-  supports(feature: EnvironmentFeature, defaultValue?: boolean): boolean;
 }
 
-/**
- * Format of <code>pkg#dependencies</code>, <code>pkg#devDependencies</code>, <code>pkg#peerDependencies</code>
- */
-type PackageDependencies = Record<PackageName, Semver>;
-
-/**
- * Format of <code>package.json</code>
- */
-export type PackageJSON = {
-  name: PackageName;
-  version: Semver;
-  type?: 'module';
-  main?: FilePath;
-  module?: FilePath;
-  types?: FilePath;
-  browser?: FilePath | Record<FilePath, FilePath | boolean>;
-  source?: FilePath | Array<FilePath>;
-  alias?: {
-    [key in PackageName | FilePath | Glob]?:
-      | PackageName
-      | FilePath
-      | {
-          global: string;
-        };
-  };
-  browserslist?: Array<string> | Record<string, Array<string>>;
-  engines?: Engines;
-  targets?: Record<string, PackageTargetDescriptor>;
-  dependencies?: PackageDependencies;
-  devDependencies?: PackageDependencies;
-  peerDependencies?: PackageDependencies;
-  sideEffects?: boolean | FilePath | Array<FilePath>;
-  bin?: string | Record<string, FilePath>;
-};
-export type LogLevel = 'none' | 'error' | 'warn' | 'info' | 'verbose';
-export type BuildMode = 'development' | 'production' | string;
-export type DetailedReportOptions = {
-  assetsPerBundle?: number;
-};
-export interface PluginOptions {
-  readonly mode: BuildMode;
-  readonly parcelVersion: string;
-  readonly env: EnvMap;
-  readonly hmrOptions: HMROptions | null | undefined;
-  readonly serveOptions: ServerOptions | false;
-  readonly shouldBuildLazily: boolean;
-  readonly shouldAutoInstall: boolean;
-  readonly logLevel: LogLevel;
-  readonly projectRoot: FilePath;
-  readonly cacheDir: FilePath;
-  readonly inputFS: FileSystem;
-  readonly outputFS: FileSystem;
-  readonly packageManager: PackageManager;
-  readonly instanceId: string;
-  readonly detailedReport: DetailedReportOptions | null | undefined;
-  readonly featureFlags: FeatureFlags;
-}
-export type ServerOptions = {
-  readonly distDir: FilePath;
-  readonly host?: string;
-  readonly port: number;
-  readonly https?: HTTPSOptions | boolean;
-  readonly publicUrl?: string;
-};
-export type HTTPSOptions = {
-  readonly cert: FilePath;
-  readonly key: FilePath;
-};
-
-/**
- * Source locations are 1-based, meaning lines and columns start at 1
- */
-export type SourceLocation = {
-  readonly filePath: string;
-
-  /** inclusive */
-  readonly start: {
-    readonly line: number;
-    readonly column: number;
-  };
-
-  /** exclusive */
-  readonly end: {
-    readonly line: number;
-    readonly column: number;
-  };
-};
-
-/**
- * An object that plugins can write arbitrary data to.
- */
-export type Meta = JSONObject;
-
-/**
- * An identifier in an asset (likely imported/exported).
- */
-export type Symbol = string;
-
-/**
- * A map of export names to the corresponding asset's local variable names.
- */
-export interface AssetSymbols // eslint-disable-next-line no-undef
-  extends Iterable<
-    [
-      Symbol,
-      {
-        local: Symbol;
-        loc: SourceLocation | null | undefined;
-        meta?: Meta | null | undefined;
-      },
-    ]
-  > {
-  /**
-   * The exports of the asset are unknown, rather than just empty.
-   * This is the default state.
-   */
-  readonly isCleared: boolean;
-  get(exportSymbol: Symbol):
-    | {
-        local: Symbol;
-        loc: SourceLocation | null | undefined;
-        meta?: Meta | null | undefined;
-      }
-    | null
-    | undefined;
-  hasExportSymbol(exportSymbol: Symbol): boolean;
-  hasLocalSymbol(local: Symbol): boolean;
-  exportSymbols(): Iterable<Symbol>;
-}
-export interface MutableAssetSymbols extends AssetSymbols {
-  /**
-   * Initializes the map, sets isCleared to false.
-   */
-  ensure(): void;
-  set(
-    exportSymbol: Symbol,
-    local: Symbol,
-    loc: SourceLocation | null | undefined,
-    meta?: Meta | null | undefined,
-  ): void;
-  delete(exportSymbol: Symbol): void;
-}
-
-/**
- * isWeak means: the symbol is not used by the parent asset itself and is merely reexported
- */
-export interface MutableDependencySymbols // eslint-disable-next-line no-undef
-  extends Iterable<
-    [
-      Symbol,
-      {
-        local: Symbol;
-        loc: SourceLocation | null | undefined;
-        isWeak: boolean;
-        meta?: Meta | null | undefined;
-      },
-    ]
-  > {
-  /**
-   * Initializes the map, sets isCleared to false.
-   */
-  ensure(): void;
-
-  /**
-   * The symbols that are imports are unknown, rather than just empty.
-   * This is the default state.
-   */
-  readonly isCleared: boolean;
-  get(exportSymbol: Symbol):
-    | {
-        local: Symbol;
-        loc: SourceLocation | null | undefined;
-        isWeak: boolean;
-        meta?: Meta | null | undefined;
-      }
-    | null
-    | undefined;
-  hasExportSymbol(exportSymbol: Symbol): boolean;
-  hasLocalSymbol(local: Symbol): boolean;
-  exportSymbols(): Iterable<Symbol>;
-  set(
-    exportSymbol: Symbol,
-    local: Symbol,
-    loc: SourceLocation | null | undefined,
-    isWeak: boolean | null | undefined,
-  ): void;
-  delete(exportSymbol: Symbol): void;
-}
 export type DependencyPriority = 'sync' | 'parallel' | 'lazy';
 export type SpecifierType = 'commonjs' | 'esm' | 'url' | 'custom';
+export type BundleBehavior = 'inline' | 'isolated';
+
+/**
+ * How the resolved asset is used by the importing asset.
+ *   - javascript: Imported as a JavaScript module.
+ *   - stylesheet: Imported as a CSS stylesheet.
+ *   - url: Referenced by URL.
+ *   - text: Imported as a string.
+ *   - bytes: Imported as binary data.
+ */
+export type ImportType = 'javascript' | 'stylesheet' | 'url' | 'text' | 'bytes';
+
+/** The package.json "exports" and "imports" conditions supported by Parcel. */
+export type PackageCondition =
+  | 'import'
+  | 'require'
+  | 'module'
+  | 'node'
+  | 'browser'
+  | 'worker'
+  | 'worklet'
+  | 'electron'
+  | 'development'
+  | 'production'
+  | 'types'
+  | 'default'
+  | 'style'
+  | 'sass'
+  | 'less'
+  | 'stylus'
+  | 'react-server'
+  | 'source';
 
 /**
  * Used when creating a Dependency, see that.
@@ -717,8 +237,9 @@ export type DependencyOptions = {
    *   - commonjs: A CommonJS specifier. It is not parsed as a URL.
    *   - url: A URL that works as in a browser. Bare specifiers are treated as relative URLs.
    *   - custom: A custom specifier. Must be handled by a custom resolver plugin.
+   * @default 'esm'
    */
-  readonly specifierType: SpecifierType;
+  readonly specifierType?: SpecifierType | null;
 
   /**
    * When the dependency should be loaded.
@@ -729,7 +250,7 @@ export type DependencyOptions = {
    *   - lazy: The dependency should be placed in a separate bundle that's loaded later.
    * @default 'sync'
    */
-  readonly priority?: DependencyPriority;
+  readonly priority?: DependencyPriority | null;
 
   /**
    * Controls the behavior of the bundle the resolved asset is placed into. Use in combination with `priority`
@@ -739,7 +260,13 @@ export type DependencyOptions = {
    *   - isolated: The resolved asset will be isolated from its parents in a separate bundle.
    *       Shared assets will be duplicated.
    */
-  readonly bundleBehavior?: BundleBehavior;
+  readonly bundleBehavior?: BundleBehavior | 'none' | null;
+
+  /**
+   * How the resolved asset is used by the importing asset.
+   * @default 'javascript'
+   */
+  readonly importType?: ImportType | null;
 
   /**
    * When the dependency is a bundle entry (priority is "parallel" or "lazy"), this controls the naming
@@ -748,50 +275,50 @@ export type DependencyOptions = {
    * for, as well as for things like service workers or RSS feeds, where the URL must remain consistent
    * over time.
    */
-  readonly needsStableName?: boolean;
+  readonly needsStableName?: boolean | null;
 
   /** Whether the dependency is optional. If the dependency cannot be resolved, this will not fail the build. */
-  readonly isOptional?: boolean;
+  readonly isOptional?: boolean | null;
 
-  /** The location within the source file where the dependency was found. */
-  readonly loc?: SourceLocation | null | undefined;
+  /** Whether the dependency is an entry. */
+  readonly isEntry?: boolean | null;
 
-  /** The environment of the dependency. */
-  readonly env?: EnvironmentOptions;
+  /** Whether the dependency has side effects. */
+  readonly sideEffects?: boolean | null;
 
   /**
-   * A list of custom conditions to use when resolving package.json "exports" and "imports".
-   * This is combined with the conditions from the environment. However, it overrides the
-   * default "import" and "require" conditions inferred from the specifierType. To include those
-   * in addition to custom conditions, explicitly add them to this list.
+   * The location within the source file where the dependency was found.
+   * `filePath` may be an absolute path or a URL, and defaults to the asset's.
    */
-  readonly packageConditions?: Array<string>;
+  readonly loc?: {
+    readonly filePath?: string | null;
+    readonly start: Location;
+    readonly end: Location;
+  } | null;
 
-  /** Plugin-specific metadata for the dependency. */
-  readonly meta?: Meta;
+  /**
+   * The target to resolve the dependency in. Must be a Target obtained from Parcel,
+   * e.g. from an asset or dependency. Defaults to the asset's target.
+   */
+  readonly target?: Target | null;
+
+  /**
+   * A list of package.json "exports" and "imports" conditions to use when resolving the dependency.
+   * An unsupported condition throws.
+   */
+  readonly packageConditions?: Array<PackageCondition> | null;
 
   /** The pipeline defined in .parcelrc that the dependency should be processed with. */
-  readonly pipeline?: string;
+  readonly pipeline?: string | null;
 
   /**
-   * The file path where the dependency should be resolved from.
-   * By default, this is the path of the source file where the dependency was specified.
+   * The absolute file path or URL where the dependency should be resolved from.
+   * By default, this is the source file where the dependency was specified.
    */
-  readonly resolveFrom?: FilePath | null | undefined;
+  readonly resolveFrom?: string | null;
 
   /** The semver version range expected for the dependency. */
-  readonly range?: SemverRange | null | undefined;
-
-  /** The symbols within the resolved module that the source file depends on. */
-  readonly symbols?: ReadonlyMap<
-    Symbol,
-    {
-      local: Symbol;
-      loc: SourceLocation | null | undefined;
-      isWeak: boolean;
-      meta?: Meta;
-    }
-  >;
+  readonly range?: SemverRange | null;
 };
 
 /**
@@ -801,9 +328,6 @@ export type DependencyOptions = {
  * @section transformer
  */
 export interface Dependency {
-  /** The id of the dependency. */
-  readonly id: string;
-
   /** The specifier used to resolve the dependency. */
   readonly specifier: DependencySpecifier;
 
@@ -823,7 +347,6 @@ export interface Dependency {
    *   - parallel: The dependency should be placed in a separate bundle that's loaded in parallel
    *       with the current bundle.
    *   - lazy: The dependency should be placed in a separate bundle that's loaded later.
-   * @default 'sync'
    */
   readonly priority: DependencyPriority;
 
@@ -835,7 +358,10 @@ export interface Dependency {
    *   - isolated: The resolved asset will be isolated from its parents in a separate bundle.
    *       Shared assets will be duplicated.
    */
-  readonly bundleBehavior: BundleBehavior | null | undefined;
+  readonly bundleBehavior: BundleBehavior | undefined;
+
+  /** How the resolved asset is used by the importing asset. */
+  readonly importType: ImportType;
 
   /**
    * When the dependency is a bundle entry (priority is "parallel" or "lazy"), this controls the naming
@@ -853,75 +379,39 @@ export interface Dependency {
   readonly isEntry: boolean;
 
   /** The location within the source file where the dependency was found. */
-  readonly loc: SourceLocation | null | undefined;
+  readonly loc: SourceLocation | undefined;
 
-  /** The environment of the dependency. */
-  readonly env: Environment;
+  /** The target the dependency is resolved in. */
+  readonly target: Target;
 
-  /**
-   * A list of custom conditions to use when resolving package.json "exports" and "imports".
-   * This is combined with the conditions from the environment. However, it overrides the
-   * default "import" and "require" conditions inferred from the specifierType. To include those
-   * in addition to custom conditions, explicitly add them to this list.
-   */
-  readonly packageConditions: Array<string> | null | undefined;
+  /** The package.json "exports" and "imports" conditions used to resolve the dependency. */
+  readonly packageConditions: Array<PackageCondition>;
 
-  /** Plugin-specific metadata for the dependency. */
-  readonly meta: Meta;
-
-  /** If this is an entry, this is the target that is associated with that entry. */
-  readonly target: Target | null | undefined;
-
-  /** The id of the asset with this dependency. */
-  readonly sourceAssetId: string | null | undefined;
-
-  /** The file path of the asset with this dependency. */
-  readonly sourcePath: FilePath | null | undefined;
-
-  /** The type of the asset that referenced this dependency. */
-  readonly sourceAssetType: string | null | undefined;
-
-  /**
-   * The file path where the dependency should be resolved from.
-   * By default, this is the path of the source file where the dependency was specified.
-   */
-  readonly resolveFrom: FilePath | null | undefined;
+  /** The URL the dependency is resolved from. Files on disk use `file:` URLs. */
+  readonly resolveFrom: string | undefined;
 
   /** The semver version range expected for the dependency. */
-  readonly range: SemverRange | null | undefined;
+  readonly range: SemverRange | undefined;
 
-  /** The pipeline defined in .parcelrc that the dependency should be processed with. */
-  readonly pipeline: string | null | undefined;
-  // TODO make immutable
-
-  /** The symbols within the resolved module that the source file depends on. */
-  readonly symbols: MutableDependencySymbols;
+  /**
+   * A unique string that a transformer can embed in the asset's content to refer to the
+   * dependency. It is replaced with the resolved bundle URL or module id during packaging.
+   */
+  readonly placeholder: string | undefined;
 }
-export type File = {
-  readonly filePath: FilePath;
-  readonly hash?: string;
-};
 
-/**
- * @section transformer
- */
-export type ASTGenerator = {
-  type: string;
-  version: Semver;
-};
-export type BundleBehavior = 'inline' | 'isolated';
 /**
  * An asset represents a file or part of a file. It may represent any data type, including source code,
  * binary data, etc. Assets may exist in the file system or may be virtual.
  *
+ * Assets passed to namers, optimizers and reporters are read-only, and can only be
+ * accessed during the plugin call they were passed to.
+ *
  * @section transformer
  */
-export interface BaseAsset {
-  /** The id of the asset. */
-  readonly id: string;
-
-  /** The file system where the source is located. */
-  readonly fs: FileSystem;
+export interface Asset {
+  /** The URL of the asset, including its query. Files on disk use `file:` URLs. */
+  readonly url: string;
 
   /** The file path of the asset. */
   readonly filePath: FilePath;
@@ -932,20 +422,14 @@ export interface BaseAsset {
    */
   readonly type: string;
 
-  /** The transformer options for the asset from the dependency query string. */
-  readonly query: URLSearchParams;
-
-  /** The environment of the asset. */
-  readonly env: Environment;
+  /** The target of the asset. */
+  readonly target: Target;
 
   /**
    * Whether this asset is part of the project, and not an external dependency (e.g. in node_modules).
    * This indicates that transformation using the project's configuration should be applied.
    */
   readonly isSource: boolean;
-
-  /** Plugin-specific metadata for the asset. */
-  readonly meta: Meta;
 
   /**
    * Controls which bundle the asset is placed into.
@@ -954,7 +438,7 @@ export interface BaseAsset {
    *   - isolated: The asset will be isolated from its parents in a separate bundle. Shared assets
    *       will be duplicated.
    */
-  readonly bundleBehavior: BundleBehavior | null | undefined;
+  readonly bundleBehavior: BundleBehavior | undefined;
 
   /**
    * If the asset is used as a bundle entry, this controls whether that bundle can be split
@@ -973,44 +457,29 @@ export interface BaseAsset {
    * This can be used to find assets during packaging, or to create dependencies between multiple
    * assets returned by a transformer by using the unique key as the dependency specifier.
    */
-  readonly uniqueKey: string | null | undefined;
-
-  /** The type of the AST. */
-  readonly astGenerator: ASTGenerator | null | undefined;
+  readonly uniqueKey: string | undefined;
 
   /** The pipeline defined in .parcelrc that the asset should be processed with. */
-  readonly pipeline: string | null | undefined;
-
-  /** The symbols that the asset exports. */
-  readonly symbols: AssetSymbols;
-
-  /** Returns the current AST. */
-  getAST(): Promise<AST | null | undefined>;
+  readonly pipeline: string | undefined;
 
   /** Returns the asset contents as a string. */
-  getCode(): Promise<string>;
+  getCode(): string;
 
-  /** Returns the asset contents as a buffer. */
-  getBuffer(): Promise<Buffer>;
+  /** Returns the asset contents as bytes. */
+  getBuffer(): Uint8Array;
 
-  /** Returns the asset contents as a stream. */
-  getStream(): Readable;
+  /** Returns a copy of the source map for the asset, if available. */
+  getMap(): SourceMapJSON | null;
 
-  /** Returns the source map for the asset, if available. */
-  getMap(): Promise<SourceMap | null | undefined>;
-
-  /** Returns a buffer representation of the source map, if available. */
-  getMapBuffer(): Promise<Buffer | null | undefined>;
-
-  /** Returns a list of dependencies for the asset. */
-  getDependencies(): ReadonlyArray<Dependency>;
+  /** Returns a snapshot of the asset's dependencies. */
+  getDependencies(): Array<Dependency>;
 }
 
 /**
  * A mutable Asset, available during transformation.
  * @section transformer
  */
-export interface MutableAsset extends BaseAsset {
+export interface MutableAsset extends Asset {
   /**
    * The asset's type. This initially corresponds to the source file extension,
    * but it may be changed during transformation.
@@ -1024,7 +493,8 @@ export interface MutableAsset extends BaseAsset {
    *   - isolated: The asset will be isolated from its parents in a separate bundle. Shared assets
    *       will be duplicated.
    */
-  bundleBehavior: BundleBehavior | null | undefined;
+  get bundleBehavior(): BundleBehavior | undefined;
+  set bundleBehavior(value: BundleBehavior | 'none' | null | undefined);
 
   /**
    * If the asset is used as a bundle entry, this controls whether that bundle can be split
@@ -1043,492 +513,73 @@ export interface MutableAsset extends BaseAsset {
    * When a transformer returns multiple assets, it can give them unique keys to identify them.
    * This can be used to find assets during packaging, or to create dependencies between multiple
    * assets returned by a transformer by using the unique key as the dependency specifier.
+   * It can only be set once.
    */
-  uniqueKey: string | null | undefined;
+  get uniqueKey(): string | undefined;
+  set uniqueKey(value: string | null | undefined);
 
-  /** The symbols that the asset exports. */
-  readonly symbols: MutableAssetSymbols;
+  /** The pipeline defined in .parcelrc that the asset should be processed with. */
+  get pipeline(): string | undefined;
+  set pipeline(value: string | null | undefined);
 
-  /** Adds a dependency to the asset. */
-  addDependency(arg0: DependencyOptions): string;
+  /**
+   * Adds a dependency to the asset. Returns the dependency's placeholder, which can be
+   * embedded in the asset's content to refer to the resolved dependency.
+   */
+  addDependency(options: DependencyOptions): string;
 
   /**
    * Adds a url dependency to the asset.
-   * This is a shortcut for addDependency that sets the specifierType to 'url' and priority to 'lazy'.
+   * This is a shortcut for addDependency that defaults the specifierType and importType
+   * to 'url' and the priority to 'lazy'. Returns the dependency's placeholder.
    */
-  addURLDependency(url: string, opts: Partial<DependencyOptions>): string;
+  addURLDependency(
+    url: string,
+    options?: Partial<Omit<DependencyOptions, 'specifier'>>,
+  ): string;
 
-  /** Invalidates the transformation when the given file is modified or deleted. */
-  invalidateOnFileChange(arg0: FilePath): void;
+  /** Sets the asset contents as a string, and optionally its source map. */
+  setCode(code: string, map?: SourceMapJSON | null): void;
 
-  /** Invalidates the transformation when matched files are created. */
-  invalidateOnFileCreate(arg0: FileCreateInvalidation): void;
-
-  /** Invalidates the transformation when the given environment variable changes. */
-  invalidateOnEnvChange(arg0: string): void;
-
-  /** Invalidates the transformation only when Parcel restarts. */
-  invalidateOnStartup(): void;
-
-  /** Invalidates the transformation on every build. */
-  invalidateOnBuild(): void;
-
-  /** Sets the asset contents as a string. */
-  setCode(arg0: string): void;
-
-  /** Sets the asset contents as a buffer. */
-  setBuffer(arg0: Buffer): void;
-
-  /** Sets the asset contents as a stream. */
-  setStream(arg0: Readable): void;
-
-  /** Sets the asset's AST. */
-  setAST(arg0: AST): void;
-
-  /** Returns whether the AST has been modified. */
-  isASTDirty(): boolean;
-
-  /** Sets the asset's source map. */
-  setMap(arg0: SourceMap | null | undefined): void;
-  setEnvironment(opts: EnvironmentOptions): void;
+  /** Sets the asset contents as bytes, and optionally its source map. */
+  setBuffer(buffer: Uint8Array, map?: SourceMapJSON | null): void;
 }
-
-/**
- * An immutable Asset, available after transformation.
- * @section transformer
- */
-export interface Asset extends BaseAsset {
-  /** Statistics about the asset. */
-  readonly stats: Stats;
-}
-export type DevDepOptions = {
-  specifier: DependencySpecifier;
-  resolveFrom: FilePath;
-  range?: SemverRange | null | undefined;
-
-  /**
-   * When this dev dependency is invalidated, also invalidate these dependencies.
-   * This is useful if the parcel plugin or another parent dependency
-   * has its own cache for this dev dependency other than Node's require cache.
-   */
-  additionalInvalidations?: Array<{
-    specifier: DependencySpecifier;
-    resolveFrom: FilePath;
-    range?: SemverRange | null | undefined;
-  }>;
-};
-
-/**
- * @section transformer
- */
-export interface Config {
-  /**
-   * Whether this config is part of the project, and not an external dependency (e.g. in node_modules).
-   * This indicates that transformation using the project's configuration should be applied.
-   */
-  readonly isSource: boolean;
-
-  /** The path of the file to start searching for config from. */
-  readonly searchPath: FilePath;
-
-  /** The environment */
-  readonly env: Environment;
-
-  /** Invalidates the config when the given file is modified or deleted. */
-  invalidateOnFileChange(arg0: FilePath): void;
-
-  /** Invalidates the config when matched files are created. */
-  invalidateOnFileCreate(arg0: FileCreateInvalidation): void;
-
-  /** Invalidates the config when the given environment variable changes. */
-  invalidateOnEnvChange(arg0: string): void;
-
-  /** Invalidates the config only when Parcel restarts. */
-  invalidateOnStartup(): void;
-
-  /** Invalidates the config on every build. */
-  invalidateOnBuild(): void;
-
-  /**
-   * Adds a dev dependency to the config. If the dev dependency or any of its
-   * dependencies change, the config will be invalidated.
-   */
-  addDevDependency(arg0: DevDepOptions): void;
-
-  /**
-   * Sets the cache key for the config. By default, this is computed as a hash of the
-   * files passed to invalidateOnFileChange or loaded by getConfig. If none, then a
-   * hash of the result returned from loadConfig is used. This method can be used to
-   * override this behavior and explicitly control the cache key. This can be useful
-   * in cases where only part of a file is used to avoid unnecessary invalidations,
-   * or when the result is not hashable (i.e. contains non-serializable properties like functions).
-   */
-  setCacheKey(arg0: string): void;
-
-  /**
-   * Searches for config files with the given names in all parent directories
-   * of the config's searchPath.
-   */
-  getConfig<T>(
-    filePaths: Array<FilePath>,
-    options?: {
-      packageKey?: string;
-      parse?: boolean;
-      exclude?: boolean;
-    },
-  ): Promise<ConfigResultWithFilePath<T> | null | undefined>;
-
-  /**
-   * Searches for config files with the given names in all parent directories
-   * of the passed searchPath.
-   */
-  getConfigFrom<T>(
-    searchPath: FilePath,
-    filePaths: Array<FilePath>,
-    options?: {
-      packageKey?: string;
-      parse?: boolean;
-      exclude?: boolean;
-    },
-  ): Promise<ConfigResultWithFilePath<T> | null | undefined>;
-
-  /** Finds the nearest package.json from the config's searchPath. */
-  getPackage(): Promise<PackageJSON | null | undefined>;
-}
-export type Stats = {
-  time: number;
-  size: number;
-};
-
-/**
- * @section transformer
- */
-export type GenerateOutput = {
-  readonly content: Blob;
-  readonly map?: SourceMap | null | undefined;
-};
-export type Blob = string | Buffer | Readable;
-
-/**
- * Transformers can return multiple result objects to create new assets.
- * For example, a file may contain multiple parts of different types,
- * which should be processed by their respective transformation pipelines.
- *
- * @section transformer
- */
-export type TransformerResult = {
-  /** The asset's type. */
-  readonly type: string;
-
-  /** The content of the asset. Either content or an AST is required. */
-  readonly content?: Blob | null | undefined;
-
-  /** The asset's AST. Either content or an AST is required. */
-  readonly ast?: AST | null | undefined;
-
-  /** The source map for the asset. */
-  readonly map?: SourceMap | null | undefined;
-
-  /** The dependencies of the asset. */
-  readonly dependencies?: ReadonlyArray<DependencyOptions>;
-
-  /** The environment of the asset. The options are merged with the input asset's environment. */
-  readonly env?: EnvironmentOptions | Environment;
-
-  /**
-   * Controls which bundle the asset is placed into.
-   *   - inline: The asset will be placed into a new inline bundle. Inline bundles are not written
-   *       to a separate file, but embedded into the parent bundle.
-   *   - isolated: The asset will be isolated from its parents in a separate bundle. Shared assets
-   *       will be duplicated.
-   */
-  readonly bundleBehavior?: BundleBehavior | null | undefined;
-
-  /**
-   * If the asset is used as a bundle entry, this controls whether that bundle can be split
-   * into multiple, or whether all of the dependencies must be placed in a single bundle.
-   */
-  readonly isBundleSplittable?: boolean;
-
-  /** Plugin-specific metadata for the asset. */
-  readonly meta?: Meta;
-
-  /** The pipeline defined in .parcelrc that the asset should be processed with. */
-  readonly pipeline?: string | null | undefined;
-
-  /**
-   * Whether this asset can be omitted if none of its exports are being used.
-   * This is initially set by the resolver, but can be overridden by transformers.
-   */
-  readonly sideEffects?: boolean;
-
-  /** The symbols that the asset exports. */
-  readonly symbols?: ReadonlyMap<
-    Symbol,
-    {
-      local: Symbol;
-      loc: SourceLocation | null | undefined;
-    }
-  >;
-
-  /**
-   * When a transformer returns multiple assets, it can give them unique keys to identify them.
-   * This can be used to find assets during packaging, or to create dependencies between multiple
-   * assets returned by a transformer by using the unique key as the dependency specifier.
-   */
-  readonly uniqueKey?: string | null | undefined;
-};
-export type Async<T> = T | Promise<T>;
-export interface PluginLogger {
-  /** Logs a diagnostic at the verbose log level. */
-  verbose(
-    diagnostic: DiagnosticWithoutOrigin | Array<DiagnosticWithoutOrigin>,
-  ): void;
-
-  /** Logs a diagnostic at the info log level. */
-  info(
-    diagnostic: DiagnosticWithoutOrigin | Array<DiagnosticWithoutOrigin>,
-  ): void;
-
-  /** Synonym for logger.info. */
-  log(
-    diagnostic: DiagnosticWithoutOrigin | Array<DiagnosticWithoutOrigin>,
-  ): void;
-
-  /** Logs a diagnostic at the verbose warning log level. */
-  warn(
-    diagnostic: DiagnosticWithoutOrigin | Array<DiagnosticWithoutOrigin>,
-  ): void;
-
-  /** Logs a diagnostic at the verbose error log level. */
-  error(
-    input:
-      | Diagnostifiable
-      | DiagnosticWithoutOrigin
-      | Array<DiagnosticWithoutOrigin>,
-  ): void;
-}
-
-/**
- * @section transformer
- */
-export type ResolveOptions = {
-  /**
-   * How the specifier should be interpreted.
-   *   - esm: An ES module specifier. It is parsed as a URL, but bare specifiers are treated as node_modules.
-   *   - commonjs: A CommonJS specifier. It is not parsed as a URL.
-   *   - url: A URL that works as in a browser. Bare specifiers are treated as relative URLs.
-   *   - custom: A custom specifier. Must be handled by a custom resolver plugin.
-   */
-  readonly specifierType?: SpecifierType;
-
-  /** A list of custom conditions to use when resolving package.json "exports" and "imports". */
-  readonly packageConditions?: Array<string>;
-};
-
-/**
- * @section transformer
- */
-export type ResolveFn = (
-  from: FilePath,
-  to: string,
-  options?: ResolveOptions,
-) => Promise<FilePath>;
-
-/**
- * The methods for a transformer plugin.
- * @section transformer
- */
-export type Transformer<ConfigType> = {
-  loadConfig?: (arg0: {
-    config: Config;
-    options: PluginOptions;
-    logger: PluginLogger;
-    tracer: PluginTracer;
-  }) => Promise<ConfigType> | ConfigType;
-
-  /** Whether an AST from a previous transformer can be reused (to prevent double-parsing) */
-  canReuseAST?: (arg0: {
-    ast: AST;
-    options: PluginOptions;
-    logger: PluginLogger;
-    tracer: PluginTracer;
-  }) => boolean;
-
-  /** Parse the contents into an ast */
-  parse?: (arg0: {
-    asset: Asset;
-    config: ConfigType;
-    resolve: ResolveFn;
-    options: PluginOptions;
-    logger: PluginLogger;
-    tracer: PluginTracer;
-  }) => Async<AST | null | undefined>;
-
-  /** Transform the asset and/or add new assets */
-  transform(arg0: {
-    asset: MutableAsset;
-    config: ConfigType;
-    resolve: ResolveFn;
-    options: PluginOptions;
-    logger: PluginLogger;
-    tracer: PluginTracer;
-  }): Async<Array<TransformerResult | MutableAsset>>;
-
-  /**
-   * Do some processing after the transformation
-   * @experimental
-   */
-  postProcess?: (arg0: {
-    assets: Array<MutableAsset>;
-    config: ConfigType;
-    resolve: ResolveFn;
-    options: PluginOptions;
-    logger: PluginLogger;
-    tracer: PluginTracer;
-  }) => Async<Array<TransformerResult>>;
-
-  /** Stringify the AST */
-  generate?: (arg0: {
-    asset: Asset;
-    ast: AST;
-    options: PluginOptions;
-    logger: PluginLogger;
-    tracer: PluginTracer;
-  }) => Async<GenerateOutput>;
-};
-
-/**
- * Used to control a traversal
- * @section bundler
- */
-export type TraversalActions = {
-  /** Skip the current node's children and continue the traversal if there are other nodes in the queue. */
-  skipChildren(): void;
-
-  /** Stop the traversal */
-  stop(): void;
-};
-
-/**
- * Essentially GraphTraversalCallback, but allows adding specific node enter and exit callbacks.
- * @section bundler
- */
-export type GraphVisitor<TNode, TContext> =
-  | GraphTraversalCallback<TNode, TContext>
-  | {
-      enter?: GraphTraversalCallback<TNode, TContext>;
-      exit?: GraphTraversalCallback<TNode, TContext>;
-    };
-
-/**
- * A generic callback for graph traversals
- * @param context The parent node's return value is passed as a parameter to the children's callback. \
- * This can be used to forward information from the parent to children in a DFS (unlike a global variable).
- * @section bundler
- */
-export type GraphTraversalCallback<TNode, TContext> = (
-  node: TNode,
-  context: TContext | null | undefined,
-  actions: TraversalActions,
-) => TContext | null | undefined;
-
-/**
- * @section bundler
- */
-export type BundleTraversable =
-  | {
-      readonly type: 'asset';
-      value: Asset;
-    }
-  | {
-      readonly type: 'dependency';
-      value: Dependency;
-    };
-
-/**
- * @section bundler
- */
-export type BundleGraphTraversable =
-  | {
-      readonly type: 'asset';
-      value: Asset;
-    }
-  | {
-      readonly type: 'dependency';
-      value: Dependency;
-    };
-
-/**
- * Specifies a symbol in an asset
- * @section packager
- */
-export type SymbolResolution = {
-  /** The Asset which exports the symbol. */
-  readonly asset: Asset;
-
-  /** under which name the symbol is exported */
-  readonly exportSymbol: Symbol | string;
-
-  /** The identifier under which the symbol can be referenced. */
-  readonly symbol: void | null | false | Symbol;
-
-  /** The location of the specifier that lead to this result. */
-  readonly loc: SourceLocation | null | undefined;
-};
-
-/**
- * @section packager
- */
-export type ExportSymbolResolution = SymbolResolution & {
-  readonly exportAs: Symbol | string;
-};
 
 /**
  * A Bundle (a collection of assets)
  *
+ * Bundles can only be accessed during the plugin call they were passed to.
+ *
  * @section bundler
  */
 export interface Bundle {
-  /** The bundle id. */
-  readonly id: string;
-
   /** The type of the bundle. */
   readonly type: string;
-
-  /** The environment of the bundle. */
-  readonly env: Environment;
 
   /** The bundle's target. */
   readonly target: Target;
 
-  /** Assets that run when the bundle is loaded (e.g. runtimes could be added). VERIFY */
+  /** Whether the bundle is an entry. */
+  readonly isEntry: boolean;
 
   /**
    * Indicates that the bundle's file name should be stable over time, even when the content of the bundle
    * changes. This is useful for entries that a user would manually enter the URL for, as well as for things
    * like service workers or RSS feeds, where the URL must remain consistent over time.
    */
-  readonly needsStableName: boolean | null | undefined;
+  readonly needsStableName: boolean;
 
   /**
    * Controls the behavior of the bundle.
-   * to determine when the bundle is loaded.
    *   - inline: Inline bundles are not written to a separate file, but embedded into the parent bundle.
    *   - isolated: The bundle will be isolated from its parents. Shared assets will be duplicated.
    */
-  readonly bundleBehavior: BundleBehavior | null | undefined;
+  readonly bundleBehavior: BundleBehavior | undefined;
 
   /**
-   * Whether the bundle can be split. If false, then all dependencies of the bundle will be kept
-   * internal to the bundle, rather than referring to other bundles. This may result in assets
-   * being duplicated between multiple bundles, but can be useful for things like server side rendering.
-   */
-  readonly isSplittable: boolean | null | undefined;
-
-  /**
-   * A placeholder for the bundle's content hash that can be used in the bundle's name or the contents of another
-   * bundle. Hash references are replaced with a content hash of the bundle after packaging and optimizing.
+   * A placeholder for the bundle's content hash. A namer must include it exactly once in the
+   * name of a bundle that may be content hashed. It is replaced with a content hash of the
+   * bundle after packaging and optimizing.
    */
   readonly hashReference: string;
 
@@ -1542,255 +593,62 @@ export interface Bundle {
    * Returns the main entry of the bundle, which will provide the bundle's exports.
    * Some bundles do not have a main entry, for example, shared bundles.
    */
-  getMainEntry(): Asset | null | undefined;
-
-  /** Returns whether the bundle includes the given asset. */
-  hasAsset(arg0: Asset): boolean;
-
-  /** Returns whether the bundle includes the given dependency. */
-  hasDependency(arg0: Dependency): boolean;
-
-  /** Traverses the assets in the bundle. */
-  traverseAssets<TContext>(
-    visit: GraphVisitor<Asset, TContext>,
-    startAsset?: Asset,
-  ): TContext | null | undefined;
-
-  /** Traverses assets and dependencies in the bundle. */
-  traverse<TContext>(
-    visit: GraphVisitor<BundleTraversable, TContext>,
-  ): TContext | null | undefined;
-
-  /** Returns a hash of the contents of the bundle. */
-  getContentHash(): string;
+  getMainEntry(): Asset | undefined;
 }
 
 /**
- * A Bundle that got named by a Namer
+ * A Graph that contains Bundle-s.
  * @section bundler
  */
-export interface NamedBundle extends Bundle {
-  /** A shortened version of the bundle id that is used to refer to the bundle at runtime. */
-  readonly publicId: string;
-
-  /**
-   * The bundle's name. This is a file path relative to the bundle's target directory.
-   * The bundle name may include a hash reference, but not the final content hash.
-   */
-  readonly name: string;
-
-  /** A version of the bundle's name with hash references removed for display. */
-  readonly displayName: string;
-}
-export interface PackagedBundle extends NamedBundle {
-  /** The absolute file path of the written bundle, including the final content hash if any. */
-  readonly filePath: FilePath;
-
-  /** Statistics about the bundle. */
-  readonly stats: Stats;
-
-  /** A list of all of the files written for this bundle. */
-  readonly files: Array<PackagedBundleFile>;
-}
-export interface PackagedBundleFile {
-  /** The absolute file path of the written file, including the final content hash if any. */
-  readonly filePath: FilePath;
-
-  /** Statistics about the file. */
-  readonly stats: Stats;
-}
-
-/**
- * A collection of sibling bundles (which are stored in the BundleGraph) that should be loaded together (in order).
- * @section bundler
- */
-export interface BundleGroup {
-  /** The target of the bundle group. */
-  readonly target: Target;
-
-  /** The id of the entry asset in the bundle group, which is executed immediately when the bundle group is loaded. */
-  readonly entryAssetId: string;
-}
-
-/**
- * A Graph that contains Bundle-s, Asset-s, Dependency-s, BundleGroup-s
- * @section bundler
- */
-export interface BundleGraph<TBundle extends Bundle> {
-  /** Retrieves an asset by id. */
-  getAssetById(id: string): Asset;
-
-  /** Returns the public (short) id for an asset. */
-  getAssetPublicId(asset: Asset): string;
-
-  /** Returns a list of bundles in the bundle graph. By default, inline bundles are excluded. */
-  getBundles(opts?: {includeInline: boolean}): Array<TBundle>;
-
-  /** Traverses the assets and dependencies in the bundle graph, in depth first order. */
-  traverse<TContext>(
-    visit: GraphVisitor<BundleGraphTraversable, TContext>,
-    startAsset: Asset | null | undefined,
-    options?: {
-      skipUnusedDependencies?: boolean;
-    },
-  ): TContext | null | undefined;
-
-  /** Traverses all bundles in the bundle graph, including inline bundles, in depth first order. */
-  traverseBundles<TContext>(
-    visit: GraphVisitor<TBundle, TContext>,
-    startBundle: Bundle | null | undefined,
-  ): TContext | null | undefined;
-
-  /** Returns a list of bundle groups that load the given bundle. */
-  getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
-
-  /** Returns a list of bundles that load together in the given bundle group. */
-  getBundlesInBundleGroup(
-    bundleGroup: BundleGroup,
-    opts?: {
-      recursive?: boolean;
-      includeInline?: boolean;
-      includeIsolated?: boolean;
-    },
-  ): Array<TBundle>;
-
-  /** Returns a list of bundles that this bundle loads asynchronously. */
-  getChildBundles(bundle: Bundle): Array<TBundle>;
-
-  /** Returns a list of bundles that load this bundle asynchronously. */
-  getParentBundles(bundle: Bundle): Array<TBundle>;
-
-  /** Returns whether the bundle was loaded by another bundle of the given type. */
-  hasParentBundleOfType(bundle: Bundle, type: string): boolean;
-
-  /** Returns a list of bundles that are referenced by this bundle. By default, inline bundles are excluded. */
-  getReferencedBundles(
-    bundle: Bundle,
-    opts?: {
-      recursive?: boolean;
-      includeInline?: boolean;
-      includeIsolated?: boolean;
-    },
-  ): Array<TBundle>;
-
-  /** Returns a list of bundles that reference this bundle. */
-  getReferencingBundles(bundle: Bundle): Array<TBundle>;
-
-  /** Get the dependencies that the asset requires */
-  getDependencies(asset: Asset): Array<Dependency>;
-
-  /** Get the dependencies that require the asset */
-  getIncomingDependencies(asset: Asset): Array<Dependency>;
-
-  /** Get the asset that created the dependency. */
-  getAssetWithDependency(dep: Dependency): Asset | null | undefined;
-
-  /** Returns whether the given bundle group is an entry. */
-  isEntryBundleGroup(bundleGroup: BundleGroup): boolean;
-
-  /**
-   * Returns undefined if the specified dependency was excluded or wasn't async \
-   * and otherwise the BundleGroup or Asset that the dependency resolves to.
-   */
-  resolveAsyncDependency(
-    dependency: Dependency,
-    bundle: Bundle | null | undefined,
-  ):
-    | (
-        | {
-            type: 'bundle_group';
-            value: BundleGroup;
-          }
-        | {
-            type: 'asset';
-            value: Asset;
-          }
-      )
-    | null
-    | undefined;
-
-  /** Returns whether a dependency was excluded because it had no used symbols. */
-  isDependencySkipped(dependency: Dependency): boolean;
-
-  /**
-   * Returns the asset that the dependency resolved to.
-   * If a bundle is given, assets in that bundle are preferred.
-   * Returns null if the dependency was excluded.
-   */
-  getResolvedAsset(
-    dependency: Dependency,
-    bundle: Bundle | null | undefined,
-  ): Asset | null | undefined;
-
-  /** Returns the bundle that a dependency in a given bundle references, if any. */
-  getReferencedBundle(
-    dependency: Dependency,
-    bundle: Bundle,
-  ): TBundle | null | undefined;
-
-  /** Returns a list of bundles that contain the given asset. */
-  getBundlesWithAsset(arg0: Asset): Array<TBundle>;
-
-  /** Returns a list of bundles that contain the given dependency. */
-  getBundlesWithDependency(arg0: Dependency): Array<TBundle>;
-
-  /**
-   * Returns whether the given asset is reachable in a sibling, or all possible
-   * ancestries of the given bundle. This indicates that the asset may be excluded
-   * from the given bundle.
-   */
-  isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
-
-  /** Returns whether an asset is referenced outside the given bundle. */
-  isAssetReferenced(bundle: Bundle, asset: Asset): boolean;
-
-  /**
-   * Resolves the export `symbol` of `asset` to the source,
-   * stopping at the first asset after leaving `bundle`.
-   * `symbol === null`: bailout (== caller should do `asset.exports[exportsSymbol]`)
-   * `symbol === undefined`: symbol not found
-   * `symbol === false`: skipped
-   *
-   * <code>asset</code> exports <code>symbol</code>, try to find the asset where the \
-   * corresponding variable lives (resolves re-exports). Stop resolving transitively once \
-   * <code>boundary</code> was left (<code>bundle.hasAsset(asset) === false</code>), then <code>result.symbol</code> is undefined.
-   */
-  getSymbolResolution(
-    asset: Asset,
-    symbol: Symbol,
-    boundary: Bundle | null | undefined,
-  ): SymbolResolution;
-
-  /** Returns a list of symbols that are exported by the asset, including re-exports. */
-  getExportedSymbols(
-    asset: Asset,
-    boundary: Bundle | null | undefined,
-  ): Array<ExportSymbolResolution>;
-
-  /**
-   * Returns a list of symbols from an asset or dependency that are referenced by a dependent asset.
-   *
-   * Returns null if symbol propagation didn't run (so the result is unknown).
-   */
-  getUsedSymbols(
-    arg0: Asset | Dependency,
-  ): ReadonlySet<Symbol> | null | undefined;
-
-  /** Returns the common root directory for the entry assets of a target. */
-  getEntryRoot(target: Target): FilePath;
+export interface BundleGraph {
+  /** Returns a list of bundles in the bundle graph. */
+  getBundles(): Array<Bundle>;
 
   /** Returns a list of entry bundles. */
-  getEntryBundles(): Array<TBundle>;
+  getEntryBundles(): Array<Bundle>;
+
+  /** Returns a list of bundles that are referenced by this bundle. */
+  getReferencedBundles(
+    bundle: Bundle,
+    options?: {
+      recursive?: boolean;
+    },
+  ): Array<Bundle>;
 }
 
 /**
- * @section bundler
+ * @section transformer
  */
-export type BundleResult = {
-  readonly contents: Blob;
-  readonly ast?: AST;
-  readonly map?: SourceMap | null | undefined;
-  readonly type?: string;
+export type ResolveOptions = {
+  /** A list of custom conditions to use when resolving package.json "exports" and "imports". */
+  readonly packageConditions?: Array<string>;
+};
+
+/**
+ * Resolves `specifier` as an ES module specifier from the file `from`, and returns
+ * the absolute path of the resolved file.
+ * @section transformer
+ */
+export type ResolveFn = (
+  from: FilePath,
+  specifier: string,
+  options?: ResolveOptions,
+) => Promise<FilePath>;
+
+/**
+ * The methods for a transformer plugin.
+ *
+ * `config` is the configuration given for the plugin in .parcelrc, if any.
+ * @section transformer
+ */
+export type Transformer<ConfigType> = {
+  /** Transform the asset in place. */
+  transform(args: {
+    asset: MutableAsset;
+    config: ConfigType;
+    resolve: ResolveFn;
+    options: PluginOptions;
+  }): Async<void>;
 };
 
 /**
@@ -1798,357 +656,144 @@ export type BundleResult = {
  */
 export type ResolveResult = {
   /** An absolute path to the resolved file. */
-  readonly filePath?: FilePath;
+  readonly filePath?: FilePath | null;
 
-  /** An optional named pipeline to use to compile the resolved file. */
-  readonly pipeline?: string | null | undefined;
+  /**
+   * An optional named pipeline to use to compile the resolved file. Defaults to the
+   * dependency's pipeline. `null` removes the pipeline.
+   */
+  readonly pipeline?: string | null;
 
   /** Query parameters to be used by transformers when compiling the resolved file. */
-  readonly query?: URLSearchParams;
+  readonly query?: URLSearchParams | string | null;
 
   /** Whether the resolved file should be excluded from the build. */
-  readonly isExcluded?: boolean;
+  readonly isExcluded?: boolean | null;
 
-  /** Overrides the priority set on the dependency. */
-  readonly priority?: DependencyPriority;
-
-  /** Corresponds to BaseAsset's <code>sideEffects</code>. */
-  readonly sideEffects?: boolean;
+  /** Corresponds to Asset's <code>sideEffects</code>. */
+  readonly sideEffects?: boolean | null;
 
   /** The code of the resolved asset. If provided, this is used rather than reading the file from disk. */
-  readonly code?: string;
-
-  /** Whether this dependency can be deferred by Parcel itself (true by default). */
-  readonly canDefer?: boolean;
-
-  /** A resolver might return diagnostics to also run subsequent resolvers while still providing a reason why it failed. */
-  readonly diagnostics?: Diagnostic | Array<Diagnostic>;
-
-  /** Is spread (shallowly merged) onto the request's dependency.meta */
-  readonly meta?: JSONObject;
-
-  /** A list of file paths or patterns that should invalidate the resolution if created. */
-  readonly invalidateOnFileCreate?: Array<FileCreateInvalidation>;
-
-  /** A list of files that should invalidate the resolution if modified or deleted. */
-  readonly invalidateOnFileChange?: Array<FilePath>;
-
-  /** Invalidates the resolution when the given environment variable changes.*/
-  readonly invalidateOnEnvChange?: Array<string>;
+  readonly code?: string | null;
 };
 
 /**
+ * `config` is the configuration given for the plugin in .parcelrc, if any.
+ * @section resolver
+ */
+export type Resolver<ConfigType> = {
+  /** Resolve a dependency, or return nullish to leave it to the next resolver plugin. */
+  resolve(args: {
+    dependency: Dependency;
+    specifier: DependencySpecifier;
+    pipeline: string | undefined;
+    config: ConfigType;
+    options: PluginOptions;
+  }): Async<ResolveResult | null | undefined>;
+};
+
+/**
+ * `config` is the configuration given for the plugin in .parcelrc, if any.
  * @section namer
  */
 export type Namer<ConfigType> = {
-  loadConfig?: (arg0: {
-    config: Config;
-    options: PluginOptions;
-    logger: PluginLogger;
-    tracer: PluginTracer;
-  }) => Promise<ConfigType> | ConfigType;
-
-  /** Return a filename/-path for <code>bundle</code> or nullish to leave it to the next namer plugin. */
-  name(arg0: {
+  /**
+   * Return a file path for <code>bundle</code>, relative to its target's <code>distDir</code>,
+   * or nullish to leave it to the next namer plugin.
+   */
+  name(args: {
     bundle: Bundle;
-    bundleGraph: BundleGraph<Bundle>;
+    bundleGraph: BundleGraph;
     config: ConfigType;
     options: PluginOptions;
-    logger: PluginLogger;
-    tracer: PluginTracer;
   }): Async<FilePath | null | undefined>;
 };
 
 /**
  * @section optimizer
  */
-export type Optimizer<ConfigType, BundleConfigType> = {
-  loadConfig?: (arg0: {
-    config: Config;
-    options: PluginOptions;
-    logger: PluginLogger;
-    tracer: PluginTracer;
-  }) => Async<ConfigType>;
-  loadBundleConfig?: (arg0: {
-    bundle: NamedBundle;
-    bundleGraph: BundleGraph<NamedBundle>;
-    config: Config;
-    options: PluginOptions;
-    logger: PluginLogger;
-    tracer: PluginTracer;
-  }) => Async<BundleConfigType>;
-  optimize(arg0: {
-    bundle: NamedBundle;
-    bundleGraph: BundleGraph<NamedBundle>;
-    contents: Blob;
-    map: SourceMap | null | undefined;
-    options: PluginOptions;
-    logger: PluginLogger;
-    tracer: PluginTracer;
+export type OptimizerResult = {
+  readonly contents: Uint8Array;
+  /** The source map for the optimized contents, as UTF-8 encoded JSON. */
+  readonly map?: Uint8Array | null;
+};
+
+/**
+ * `config` is the configuration given for the plugin in .parcelrc, if any.
+ * @section optimizer
+ */
+export type Optimizer<ConfigType> = {
+  optimize(args: {
+    bundle: Bundle;
+    bundleGraph: BundleGraph;
+    contents: Uint8Array;
+    /** The source map for the bundle, as UTF-8 encoded JSON. */
+    map: Uint8Array | null;
     config: ConfigType;
-    bundleConfig: BundleConfigType;
-    getSourceMapReference: (
-      map: SourceMap | null | undefined,
-    ) => Async<string | null | undefined>;
-  }): Async<BundleResult>;
-};
-
-/**
- * @section resolver
- */
-export type Resolver<ConfigType> = {
-  loadConfig?: (arg0: {
-    config: Config;
     options: PluginOptions;
-    logger: PluginLogger;
-    tracer: PluginTracer;
-  }) => Promise<ConfigType> | ConfigType;
-  resolve(arg0: {
-    dependency: Dependency;
-    options: PluginOptions;
-    logger: PluginLogger;
-    tracer: PluginTracer;
-    specifier: FilePath;
-    pipeline: string | null | undefined;
-    config: ConfigType;
-  }): Async<ResolveResult | null | undefined>;
+  }): Async<OptimizerResult>;
 };
-
-/**
- * @section reporter
- */
-export type ProgressLogEvent = {
-  readonly type: 'log';
-  readonly level: 'progress';
-  readonly phase?: string;
-  readonly message: string;
-};
-
-/**
- * A log event with a rich diagnostic
- * @section reporter
- */
-export type DiagnosticLogEvent = {
-  readonly type: 'log';
-  readonly level: 'error' | 'warn' | 'info' | 'verbose';
-  readonly diagnostics: Array<Diagnostic>;
-};
-
-/**
- * @section reporter
- */
-export type TextLogEvent = {
-  readonly type: 'log';
-  readonly level: 'success';
-  readonly message: string;
-};
-
-/**
- * @section reporter
- */
-export type LogEvent = ProgressLogEvent | DiagnosticLogEvent | TextLogEvent;
 
 /**
  * The build just started.
  * @section reporter
  */
-export type BuildStartEvent = {
-  readonly type: 'buildStart';
+export type BuildStartEvent<ConfigType> = {
+  readonly config: ConfigType;
+  readonly options: PluginOptions;
 };
-
-/**
- * The build just started in watch mode.
- * @section reporter
- */
-export type WatchStartEvent = {
-  readonly type: 'watchStart';
-};
-
-/**
- * The build just ended in watch mode.
- * @section reporter
- */
-export type WatchEndEvent = {
-  readonly type: 'watchEnd';
-};
-
-/**
- * A new Dependency is being resolved.
- * @section reporter
- */
-export type ResolvingProgressEvent = {
-  readonly type: 'buildProgress';
-  readonly phase: 'resolving';
-  readonly dependency: Dependency;
-};
-
-/**
- * A new Asset is being transformed.
- * @section reporter
- */
-export type TransformingProgressEvent = {
-  readonly type: 'buildProgress';
-  readonly phase: 'transforming';
-  readonly filePath: FilePath;
-};
-
-/**
- * The BundleGraph is generated.
- * @section reporter
- */
-export type BundlingProgressEvent = {
-  readonly type: 'buildProgress';
-  readonly phase: 'bundling';
-};
-export type BundledProgressEvent = {
-  readonly type: 'buildProgress';
-  readonly phase: 'bundled';
-  readonly bundleGraph: BundleGraph<NamedBundle>;
-  readonly changedAssets: Map<string, Asset>;
-};
-
-/**
- * A new Bundle is being packaged.
- * @section reporter
- */
-export type PackagingProgressEvent = {
-  readonly type: 'buildProgress';
-  readonly phase: 'packaging';
-  readonly bundle: NamedBundle;
-};
-
-/**
- * A new Bundle is being optimized.
- * @section reporter
- */
-export type OptimizingProgressEvent = {
-  readonly type: 'buildProgress';
-  readonly phase: 'optimizing';
-  readonly bundle: NamedBundle;
-};
-
-/**
- * @section reporter
- */
-export type BuildProgressEvent =
-  | ResolvingProgressEvent
-  | TransformingProgressEvent
-  | BundlingProgressEvent
-  | BundledProgressEvent
-  | PackagingProgressEvent
-  | OptimizingProgressEvent;
 
 /**
  * The build was successful.
  * @section reporter
  */
-export type BuildSuccessEvent = {
-  readonly type: 'buildSuccess';
-  readonly bundleGraph: BundleGraph<PackagedBundle>;
+export type BuildSuccessEvent<ConfigType> = {
+  readonly bundleGraph: BundleGraph;
+  /** The duration of the build, in milliseconds. */
   readonly buildTime: number;
-  readonly changedAssets: Map<string, Asset>;
-  readonly requestBundle: (bundle: NamedBundle) => Promise<BuildSuccessEvent>;
-  readonly unstable_requestStats: Record<string, number>;
+  readonly changedAssets: Array<Asset>;
+  readonly config: ConfigType;
+  readonly options: PluginOptions;
 };
 
 /**
  * The build failed.
  * @section reporter
  */
-export type BuildFailureEvent = {
-  readonly type: 'buildFailure';
+export type BuildFailureEvent<ConfigType> = {
   readonly diagnostics: Array<Diagnostic>;
-  readonly unstable_requestStats: Record<string, number>;
+  readonly config: ConfigType;
+  readonly options: PluginOptions;
 };
 
 /**
+ * A message was logged, either as text or as diagnostics.
  * @section reporter
  */
-export type BuildEvent = BuildFailureEvent | BuildSuccessEvent;
+export type LogEvent<ConfigType> = {
+  readonly level: Exclude<LogLevel, 'none'>;
+  readonly config: ConfigType;
+  readonly options: PluginOptions;
+} & (
+  | {
+      readonly message: string;
+      readonly diagnostics?: undefined;
+    }
+  | {
+      readonly message?: undefined;
+      readonly diagnostics: Array<Diagnostic>;
+    }
+);
 
 /**
- * A new file is being validated.
- * @section reporter
- */
-export type ValidationEvent = {
-  readonly type: 'validation';
-  readonly filePath: FilePath;
-};
-
-/**
- * A trace event has occured.
- * Loosely modeled on Chrome's Trace Event format: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
+ * A reporter must implement at least one of these methods.
  *
+ * `config` is the configuration given for the plugin in .parcelrc, if any.
  * @section reporter
  */
-export type TraceEvent = {
-  readonly type: 'trace';
-  readonly ts: number;
-  readonly duration: number;
-  readonly name: string;
-  readonly tid: number;
-  readonly pid: number;
-  readonly categories: string[];
-  readonly args?: Record<string, unknown>;
+export type Reporter<ConfigType> = {
+  buildStart?: (event: BuildStartEvent<ConfigType>) => Async<void>;
+  buildSuccess?: (event: BuildSuccessEvent<ConfigType>) => Async<void>;
+  buildFailure?: (event: BuildFailureEvent<ConfigType>) => Async<void>;
+  log?: (event: LogEvent<ConfigType>) => Async<void>;
 };
-export type CacheEvent = {
-  type: 'cache';
-  phase: string;
-  total: number;
-  size: number;
-};
-
-/**
- * @section reporter
- */
-export type ReporterEvent =
-  | LogEvent
-  | BuildStartEvent
-  | BuildProgressEvent
-  | BuildSuccessEvent
-  | BuildFailureEvent
-  | WatchStartEvent
-  | WatchEndEvent
-  | ValidationEvent
-  | TraceEvent
-  | CacheEvent;
-
-/**
- * @section reporter
- */
-export type Reporter = {
-  report(arg0: {
-    event: ReporterEvent;
-    options: PluginOptions;
-    logger: PluginLogger;
-    tracer: PluginTracer;
-  }): Async<void>;
-};
-export interface PluginTracer {
-  /** Returns whether the tracer is enabled. Use this to avoid possibly expensive calculations
-   * of arguments to `createMeasurement` - for example if you need to determine the entry of a bundle to pass it
-   * in as the <code>argumentName</code>, you would only do this if the tracer is enabled.
-   */
-  readonly enabled: boolean;
-
-  /**
-   * Creates a new trace measurement with the specified name. This name should reflect the current plugin or
-   * function being executed (for example, the name of a Babel transform). The category will default to the name of your plugin,
-   * however it should be set to reflect the type of operation (for example, for a hypothetical operation
-   * to find CSS in an asset within a Compiled plugin you might set this to <code>find_css<code>).
-   *
-   * If this is an operation that executes multiple times on different things - whether that's assets, bundles, or
-   * otherwise - specify the name of the context object in <code>argumentName</code>.
-   *
-   * <code>otherArgs</code> can be used for specifying any other key/value pairs
-   * that should be written to the trace.
-   *
-   * For example: <code>tracer.createMeasurement('compiled', 'find_css', path.relative(options.projecRoot, asset.filePath), { meta: 'data' })</code>
-   */
-  createMeasurement(
-    name: string,
-    category?: string,
-    argumentName?: string,
-    otherArgs?: Record<string, unknown>,
-  ): TraceMeasurement | null;
-}

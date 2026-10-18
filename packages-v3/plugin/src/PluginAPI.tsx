@@ -31,15 +31,15 @@ export class Namer<T> {
   }
 }
 
-export class Optimizer<T, U> {
-  constructor(opts: OptimizerOpts<T, U>) {
+export class Optimizer<T> {
+  constructor(opts: OptimizerOpts<T>) {
     // @ts-ignore
     this[CONFIG] = opts;
   }
 }
 
-export class Reporter {
-  constructor(opts: ReporterOpts) {
+export class Reporter<T> {
+  constructor(opts: ReporterOpts<T>) {
     // @ts-ignore
     this[CONFIG] = opts;
   }
