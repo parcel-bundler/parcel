@@ -31,7 +31,6 @@ serde = { version = "1.0.228", features = ["derive", "rc"] }
 parcel-watcher = { git = "https://github.com/parcel-bundler/watcher.git", branch = "rust" }
 parcel-plugin-js = { path = "../plugin-js" }
 parcel-tailwind = { path = "../tailwind" }
-parcel-sass = { path = "../sass" }
 httparse = "1.10.1"
 # ring rather than the default aws-lc-rs: much smaller, and builds with zig.
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
@@ -75,6 +74,9 @@ lightningcss = { version = "1.0.0-alpha.72", default-features = false, features 
 rquickjs = { version = "0.14.0", features = ["full"] }
 rquickjs-serde = "0.8.0"
 testing_macros = "1.0.2"
+# Never linked: it is a cdylib, loaded by the Sass fixtures at run time. Depending on it is what
+# makes `cargo test` build it first, into target/<profile>/deps next to the test binaries.
+parcel-transformer-sass = { path = "../sass" }
 pretty_assertions = "1.4.1"
 criterion = { version = "*", features = ["html_reports"] }
 

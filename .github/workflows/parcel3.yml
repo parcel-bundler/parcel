@@ -13,7 +13,7 @@ on:
         default: false
         type: boolean
       tag:
-        description: 'npm dist-tag for the JS packages. Defaults to the prerelease identifier (e.g. alpha), or latest for a stable version'
+        description: 'npm dist-tag for every package published. Defaults to the prerelease identifier (e.g. alpha), or latest for a stable version'
         required: false
         type: string
 
@@ -256,9 +256,9 @@ jobs:
   publish-js:
     name: Publish JS packages to npm
     if: ${{ inputs.publish }}
-    # Also wait for the native packages, so nothing is published unless the
-    # whole release built.
-    needs: [pack, pack-js]
+    # Also wait for the native packages and plugins, so nothing is published
+    # unless the whole release built.
+    needs: [pack, pack-js, plugins]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -291,28 +291,48 @@ jobs:
 
           # A prerelease must never become latest: these package names were
           # used by Parcel 2, whose users would otherwise get v3.
-          if [ -z "$TAG" ]; then
-            if [[ "$VERSION" == *-* ]]; then
-              TAG="${VERSION#*-}"
-              TAG="${TAG%%.*}"
-            else
-              TAG=latest
-            fi
-          fi
+          TAG="$(node .github/scripts/native-plugin/dist-tag.mjs --version "$VERSION" --tag "$TAG")"
           echo "Publishing $VERSION with dist-tag $TAG"
 
           yarn workspaces foreach --all --no-private --exclude @parcel/parcel3 --topological \
             npm publish --access public --tag "$TAG" --tolerate-republish --provenance
 
+  # Native plugins that live in this repo but are installed separately, so
+  # that projects without those file types do not download them. Released in
+  # lockstep with parcel3, through the same workflow third-party native plugins
+  # use (.github/scripts/native-plugin/README.md).
+  #
+  # Waits for Parcel's own builds so that a broken target stops the plugins
+  # being published too, rather than leaving half a release on npm.
+  plugins:
+    name: Plugins
+    needs: build
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing
+    uses: ./.github/workflows/native-plugin.yml
+    with:
+      paths: |
+        crates/sass
+      version: ${{ inputs.version }}
+      tag: ${{ inputs.tag }}
+      publish: ${{ inputs.publish }}
+      # The workspace builds with panic = 'abort', which would turn a panic in a
+      # plugin into a crash of the whole build. The SDK catches panics and
+      # reports them as diagnostics, but only if they unwind.
+      cargo-args: --config profile.release.panic="unwind"
+
   publish:
     name: Publish to npm
     if: ${{ inputs.publish }}
-    needs: pack
+    needs: [pack, plugins]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write # npm trusted publishing
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -339,19 +359,11 @@ jobs:
       # Platform packages first: parcel3's optionalDependencies pin exact
       # versions of them, so it must never be resolvable before they are.
       - name: Publish platform packages
-        run: |
-          set -euo pipefail
-          for tarball in "$RUNNER_TEMP"/artifacts/*.tgz; do
-            echo "::group::npm publish $(basename "$tarball")"
-            npm publish "$tarball" --access public
-            echo '::endgroup::'
-          done
+        env:
+          TAG: ${{ inputs.tag }}
+        run: node .github/scripts/native-plugin/publish.mjs --tag "$TAG" "$RUNNER_TEMP"/artifacts/*.tgz
 
       - name: Publish parcel3
-        run: |
-          set -euo pipefail
-          for tarball in "$RUNNER_TEMP"/main/*.tgz; do
-            echo "::group::npm publish $(basename "$tarball")"
-            npm publish "$tarball" --access public
-            echo '::endgroup::'
-          done
+        env:
+          TAG: ${{ inputs.tag }}
+        run: node .github/scripts/native-plugin/publish.mjs --tag "$TAG" "$RUNNER_TEMP"/main/*.tgz

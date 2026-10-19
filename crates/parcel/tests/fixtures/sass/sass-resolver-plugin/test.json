@@ -1,0 +1,13 @@
+{
+  "description": "should resolve Sass imports with the resolvers in .parcelrc",
+  "options": {"config": ".parcelrc"},
+  "input": "index.scss",
+  "bundles": [
+    {
+      "name": "index.css",
+      "type": "css",
+      "assets": ["index.scss"],
+      "contains": [".brand-theme"]
+    }
+  ]
+}

@@ -3015,8 +3015,8 @@ dependencies = [
  "parcel-plugin-abi",
  "parcel-plugin-js",
  "parcel-resolver",
- "parcel-sass",
  "parcel-tailwind",
+ "parcel-transformer-sass",
  "parcel-watcher",
  "parcel_sourcemap",
  "pathdiff",
@@ -3262,17 +3262,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "parcel-sass"
-version = "0.1.1"
-dependencies = [
- "parcel-core",
- "parcel-resolver",
- "sasso",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "parcel-tailwind"
 version = "0.1.1"
 dependencies = [
@@ -3281,6 +3270,16 @@ dependencies = [
  "parcel-resolver",
  "rquickjs",
  "tailwindcss-oxide",
+]
+
+[[package]]
+name = "parcel-transformer-sass"
+version = "0.1.1"
+dependencies = [
+ "parcel-plugin",
+ "sasso",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

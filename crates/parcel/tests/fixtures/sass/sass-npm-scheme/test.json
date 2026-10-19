@@ -1,5 +1,6 @@
 {
   "description": "should support npm scheme",
+  "options": {"config": "../.parcelrc"},
   "input": "index.js",
   "bundles": [
     {"name": "index.js", "assets": ["index.js"]},

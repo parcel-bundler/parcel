@@ -1,5 +1,6 @@
 {
   "description": "should import from packages with a string sass key in package.json",
+  "options": {"config": "../.parcelrc"},
   "input": "index.js",
   "bundles": [
     {"name": "index.js", "assets": ["index.js"]},

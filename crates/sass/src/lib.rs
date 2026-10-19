@@ -1,18 +1,13 @@
-use std::{
-  path::{Path, PathBuf},
-  sync::Arc,
-};
+use std::path::{Path, PathBuf};
 
-use parcel_core::{
-  AssetType, BufferContent, CodeFrame, CodeHighlight, Diagnostic, ExportsCondition, FileKind,
-  FileSystem, Location, PathId, SubPath, Transformer,
+use parcel_plugin::{
+  Asset, DependencyOptions, Diagnostic, ExportsConditions, FileKind, Options, Plugin,
+  ResolveResult, register_plugin,
 };
-use sasso::{
-  CanonicalUrl, CanonicalizeContext, Importer, ImporterError, ImporterResult, Options, Syntax,
-};
+use sasso::{CanonicalUrl, CanonicalizeContext, Importer, ImporterError, ImporterResult, Syntax};
 
 pub struct SassTransformer {
-  load_paths: Vec<PathId>,
+  load_paths: Vec<PathBuf>,
 }
 
 #[derive(Default, serde::Deserialize)]
@@ -22,86 +17,68 @@ struct SassOptions {
   load_paths: Vec<PathBuf>,
 }
 
-impl SassTransformer {
-  pub fn new(
-    config: Option<serde_json::Value>,
-    path: PathId,
-  ) -> Result<SassTransformer, Diagnostic> {
-    let options: SassOptions = match config {
-      Some(config) => serde_json::from_value(config)?,
-      None => Default::default(),
+impl Plugin for SassTransformer {
+  fn new(config: &[u8]) -> Result<Self, Diagnostic> {
+    let options: SassOptions = if config.is_empty() {
+      Default::default()
+    } else {
+      serde_json::from_slice(config)
+        .map_err(|err| Diagnostic::new(format!("Invalid Sass config: {err}")))?
     };
     Ok(SassTransformer {
-      load_paths: options
-        .load_paths
-        .into_iter()
-        .map(|p| path.resolve(&p))
-        .collect(),
+      load_paths: options.load_paths,
     })
   }
-}
 
-impl Transformer for SassTransformer {
-  fn transform(
-    &self,
-    mut asset: parcel_core::Asset,
-    options: &parcel_core::ParcelOptions,
-    fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
-  ) -> Result<parcel_core::Asset, parcel_core::DiagnosticList> {
-    let code = asset.content.read_string()?;
+  fn transform(&self, asset: &mut Asset, options: &Options) -> Result<(), Diagnostic> {
+    let code = asset.content();
+    let file_path = asset.file_path();
+
+    // The plugin is not told where the config that names it lives, so relative
+    // load paths are taken relative to the project root.
+    let project_root = PathBuf::from(options.project_root());
+    let load_paths: Vec<PathBuf> = self
+      .load_paths
+      .iter()
+      .map(|p| project_root.join(p))
+      .collect();
+
     let importer = ParcelImporter {
-      fs: fs.clone(),
-      load_paths: &self.load_paths,
-      project_root: options.project_root,
+      asset,
+      options,
+      load_paths: &load_paths,
+      entry: &file_path,
     };
-    let mut options = Options::default();
-    let url = asset
-      .loc
-      .url
-      .to_file_path()?
-      .to_path_buf()
-      .to_string_lossy()
-      .into_owned();
-    options.url = Some(&url);
-    options.importer = Some(&importer);
-    options.syntax = match asset.ty {
-      AssetType::Sass => Syntax::Sass,
-      AssetType::Scss => Syntax::Scss,
+    let mut sass_options = sasso::Options::default();
+    sass_options.url = Some(&file_path);
+    sass_options.importer = Some(&importer);
+    sass_options.syntax = match asset.asset_type().as_str() {
+      "sass" => Syntax::Sass,
       _ => Syntax::Scss,
     };
 
-    let result = sasso::compile_with_source_map(&code, &options).map_err(|e| Diagnostic {
-      message: e.message,
-      severity: parcel_core::DiagnosticSeverity::Error,
-      documentation_url: None,
-      hints: vec![],
-      origin: Some("@parcel/transformer-sass".into()),
-      code_frames: vec![CodeFrame {
-        code_highlights: vec![CodeHighlight {
-          message: None,
-          start: Location {
-            line: e.line as u32,
-            column: e.col as u32,
-          },
-          end: Location {
-            line: e.line as u32,
-            column: e.col as u32,
-          },
-        }],
-        ..Default::default()
-      }],
+    let result = sasso::compile_with_source_map(&code, &sass_options).map_err(|e| {
+      Diagnostic::new(e.message)
+        .with_file(file_path.clone())
+        .at(e.line as u32, e.col as u32)
     })?;
 
-    asset.content = Arc::new(BufferContent::new(result.css.into_bytes()));
-    asset.ty = AssetType::Css;
-    Ok(asset)
+    asset.set_content(result.css);
+    asset.set_type("css");
+    Ok(())
   }
 }
 
+register_plugin!(SassTransformer);
+
+/// Resolves and loads imports through Parcel, so every file read or probed is
+/// tracked and invalidates the stylesheet when it changes, appears, or vanishes.
 struct ParcelImporter<'a> {
-  fs: Arc<dyn FileSystem>,
-  load_paths: &'a Vec<PathId>,
-  project_root: PathId,
+  asset: &'a Asset<'a>,
+  options: &'a Options<'a>,
+  load_paths: &'a [PathBuf],
+  /// The stylesheet being compiled, for imports with no containing URL.
+  entry: &'a str,
 }
 
 impl<'a> Importer for ParcelImporter<'a> {
@@ -110,78 +87,45 @@ impl<'a> Importer for ParcelImporter<'a> {
     url: &str,
     ctx: &CanonicalizeContext<'_>,
   ) -> Result<Option<CanonicalUrl>, ImporterError> {
-    let from = ctx
-      .containing_url
-      .map(|c| PathId::new(Path::new(c.as_str())))
-      .unwrap_or(PathId::root());
-    let base_dir = from.parent().unwrap_or(PathId::root());
-    let paths = std::iter::once(base_dir).chain(self.load_paths.iter().cloned());
-
-    // The importer should look for stylesheets by adding the prefix _ to the URL's basename,
-    // and by adding the extensions .sass and .scss if the URL doesn't already have one of those extensions.
-    let subpath = SubPath::new(Path::new(url));
-    let mut urls = vec![SubPath::new(Path::new(url))];
-    let filename = subpath.file_name();
-    let parent = subpath.parent();
-    if !filename.starts_with("_") {
-      urls.push(parent.child(&format!("_{filename}")));
-    }
-
-    let (_, ext) = url.rsplit_once('.').unwrap_or((url, ""));
-    if ext != "sass" && ext != "scss" && ext != "css" {
-      let len = urls.len();
-      for i in 0..len {
-        urls.push(urls[i].add_extension("sass"));
-        urls.push(urls[i].add_extension("scss"));
-      }
-    }
-
-    // If none of the possible paths is valid, the importer should perform the same resolution on the URL followed by /index.
-    urls.push(subpath.child("index.sass"));
-    urls.push(subpath.child("index.scss"));
-    urls.push(subpath.child("_index.sass"));
-    urls.push(subpath.child("_index.scss"));
+    let from = ctx.containing_url.map_or(self.entry, |c| c.as_str());
+    let base_dir = Path::new(from).parent().unwrap_or(Path::new("/"));
+    let urls = candidate_urls(url);
 
     // If the legacy webpack ~ syntax is used, treat this as a node module.
     if !url.starts_with('~') {
-      for path in paths {
+      let dirs = std::iter::once(base_dir).chain(self.load_paths.iter().map(PathBuf::as_path));
+      for dir in dirs {
         for url in &urls {
-          let p = path.join_subpath(&url);
-          if self.fs.kind(p).contains(FileKind::IS_FILE) {
+          let path = dir.join(url);
+          let Some(path) = path.to_str() else {
+            continue;
+          };
+          if self.options.file_kind(path).contains(FileKind::FILE) {
             let key = self
-              .fs
-              .canonicalize(p)
-              .map(|c| c.to_path_buf().to_string_lossy().into_owned())
-              .unwrap_or_else(|_| p.to_path_buf().to_string_lossy().into_owned());
+              .options
+              .canonicalize(path)
+              .unwrap_or_else(|_| path.to_owned());
             return Ok(Some(CanonicalUrl::new(key)));
           }
         }
       }
     }
 
-    // If none of the default sass rules apply, try Parcel's resolver.
-    // TODO: ideally this should use the configured resolver from .parcelrc.
-    let mut resolver = parcel_resolver::Resolver::parcel(self.project_root);
-    resolver.conditions |= ExportsCondition::SASS | ExportsCondition::STYLE;
-
+    // If none of the default sass rules apply, try the resolvers configured in .parcelrc.
     for url in &urls {
-      let specifier = url.to_url_path();
       // Strip webpack ~ syntax (but not ~/).
-      let specifier = if specifier.starts_with('~') && !specifier.starts_with("~/") {
-        &specifier[1..]
-      } else {
-        &specifier
+      let specifier = match url.strip_prefix('~') {
+        Some(rest) if !rest.starts_with('/') => rest,
+        _ => url.as_str(),
       };
-      if let Ok(resolved) = resolver.resolve(
-        specifier,
-        from,
-        parcel_resolver::SpecifierType::Esm,
-        &*self.fs,
-      ) {
-        if let parcel_resolver::Resolution::Path(p) = resolved.resolution {
-          let key = p.to_path_buf().to_string_lossy().into_owned();
-          return Ok(Some(CanonicalUrl::new(key)));
-        }
+      let dep = DependencyOptions {
+        conditions: ExportsConditions::SASS | ExportsConditions::STYLE,
+        ..DependencyOptions::new(specifier)
+      };
+      if let Some(ResolveResult::Resolved { file_path, .. }) =
+        self.asset.resolve(&dep, Some(from), self.options)
+      {
+        return Ok(Some(CanonicalUrl::new(file_path.to_string_lossy())));
       }
     }
 
@@ -189,11 +133,11 @@ impl<'a> Importer for ParcelImporter<'a> {
   }
 
   fn load(&self, canonical: &CanonicalUrl) -> Result<Option<ImporterResult>, ImporterError> {
-    let p = PathId::new(Path::new(canonical.as_str()));
-    match self.fs.read_to_string(p) {
+    let path = canonical.as_str();
+    match self.options.read_to_string(path) {
       Ok(contents) => Ok(Some(ImporterResult {
         contents,
-        syntax: syntax_for_path(p),
+        syntax: syntax_for_path(path),
         source_map_url: None,
       })),
       // The file vanished between `canonicalize` and `load` -> a miss.
@@ -202,16 +146,85 @@ impl<'a> Importer for ParcelImporter<'a> {
       // reportable error via the `ImporterError` channel, not a misleading
       // "can't find stylesheet".
       Err(e) => Err(ImporterError {
-        message: format!("Cannot read {:?}: {e}", p),
+        message: format!("Cannot read {path:?}: {e}"),
       }),
     }
   }
 }
 
-fn syntax_for_path(p: PathId) -> Syntax {
-  match p.extension() {
+/// The paths an import URL may refer to, in the order Sass tries them.
+fn candidate_urls(url: &str) -> Vec<String> {
+  let (dir, filename) = match url.rfind('/') {
+    Some(i) => url.split_at(i + 1),
+    None => ("", url),
+  };
+
+  // The importer should look for stylesheets by adding the prefix _ to the URL's basename,
+  // and by adding the extensions .sass and .scss if the URL doesn't already have one of those extensions.
+  let mut urls = vec![url.to_owned()];
+  if !filename.starts_with('_') {
+    urls.push(format!("{dir}_{filename}"));
+  }
+
+  let ext = filename.rsplit_once('.').map_or("", |(_, ext)| ext);
+  if ext != "sass" && ext != "scss" && ext != "css" {
+    for i in 0..urls.len() {
+      urls.push(format!("{}.sass", urls[i]));
+      urls.push(format!("{}.scss", urls[i]));
+    }
+  }
+
+  // If none of the possible paths is valid, the importer should perform the same resolution on the URL followed by /index.
+  let base = url.trim_end_matches('/');
+  for index in ["index.sass", "index.scss", "_index.sass", "_index.scss"] {
+    urls.push(format!("{base}/{index}"));
+  }
+
+  urls
+}
+
+fn syntax_for_path(path: &str) -> Syntax {
+  match Path::new(path).extension().and_then(|e| e.to_str()) {
     Some(e) if e.eq_ignore_ascii_case("sass") => Syntax::Sass,
     Some(e) if e.eq_ignore_ascii_case("css") => Syntax::Css,
     _ => Syntax::Scss,
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn candidates_add_partials_extensions_and_index_files() {
+    assert_eq!(
+      candidate_urls("foo/bar"),
+      [
+        "foo/bar",
+        "foo/_bar",
+        "foo/bar.sass",
+        "foo/bar.scss",
+        "foo/_bar.sass",
+        "foo/_bar.scss",
+        "foo/bar/index.sass",
+        "foo/bar/index.scss",
+        "foo/bar/_index.sass",
+        "foo/bar/_index.scss",
+      ]
+    );
+  }
+
+  #[test]
+  fn candidates_keep_an_explicit_extension() {
+    assert_eq!(
+      candidate_urls("_vars.scss"),
+      [
+        "_vars.scss",
+        "_vars.scss/index.sass",
+        "_vars.scss/index.scss",
+        "_vars.scss/_index.sass",
+        "_vars.scss/_index.scss",
+      ]
+    );
   }
 }

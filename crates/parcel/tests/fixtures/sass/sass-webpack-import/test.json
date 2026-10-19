@@ -1,5 +1,6 @@
 {
   "description": "should support the custom webpack/sass node_modules syntax",
+  "options": {"config": "../.parcelrc"},
   "input": "index.sass",
   "bundles": [
     {

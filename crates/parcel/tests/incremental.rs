@@ -2468,3 +2468,61 @@ fn stylesheets_loaded_with_their_references_do_not_depend_on_them() {
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Native plugins
+// ---------------------------------------------------------------------------
+
+/// Native plugins read imports through Parcel's file system rather than their
+/// own, so every file the Sass plugin reads or probes invalidates the stylesheet:
+/// editing a partial, and creating a file that now wins resolution.
+#[test]
+fn native_plugin_file_reads_invalidate() {
+  // A dev-dependency of this crate, so cargo builds it into the directory holding this test binary.
+  let library = std::env::current_exe()
+    .unwrap()
+    .parent()
+    .unwrap()
+    .join(format!(
+      "{}parcel_transformer_sass.{}",
+      std::env::consts::DLL_PREFIX,
+      std::env::consts::DLL_EXTENSION
+    ));
+  let library = std::fs::canonicalize(&library).unwrap_or_else(|_| {
+    panic!("{library:?} not found; is parcel-transformer-sass still a dev-dependency?")
+  });
+  let library = library.to_str().unwrap();
+  let package = format!(
+    r#"{{"name": "@parcel/transformer-sass", "parcel": {{"abi": 1, "artifacts": {{"none": "none"}}, "devLibrary": {library:?}}}}}"#
+  );
+
+  let mut t = IncrementalTest::with_entries(
+    &[
+      (
+        "/project/node_modules/@parcel/transformer-sass/package.json",
+        &package,
+      ),
+      // The library is loaded from disk; Parcel only checks that it exists here.
+      (library, ""),
+      (
+        "/project/.parcelrc",
+        r#"{"extends": "@parcel/config-default", "transformers": {"*.scss": ["@parcel/transformer-sass"]}}"#,
+      ),
+      (
+        "/project/index.scss",
+        "@use 'vars';\n.a { color: vars.$color; }",
+      ),
+      ("/project/_vars.scss", "$color: red;"),
+    ],
+    &["/project/index.scss"],
+  );
+  assert!(t.output("/project/dist/index.css").contains("red"));
+
+  t.change(&[("/project/_vars.scss", "$color: green;")], &[]);
+  assert!(t.output("/project/dist/index.css").contains("green"));
+
+  // `vars.scss` is tried before `_vars.scss`, so the plugin probed for it and
+  // must re-resolve once it exists.
+  t.change(&[("/project/vars.scss", "$color: purple;")], &[]);
+  assert!(t.output("/project/dist/index.css").contains("purple"));
+}

@@ -1,5 +1,6 @@
 {
   "description": "should support node_modules imports",
+  "options": {"config": "../.parcelrc"},
   "input": "index.sass",
   "bundles": [
     {

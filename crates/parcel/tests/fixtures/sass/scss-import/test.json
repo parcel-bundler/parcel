@@ -1,5 +1,6 @@
 {
   "description": "should support scss imports",
+  "options": {"config": "../.parcelrc"},
   "input": "index.js",
   "bundles": [
     {"name": "index.js", "assets": ["index.js"]},

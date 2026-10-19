@@ -1,5 +1,6 @@
 {
   "description": "should support absolute imports",
+  "options": {"config": "../.parcelrc"},
   "input": "style.scss",
   "bundles": [
     {

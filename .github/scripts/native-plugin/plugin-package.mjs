@@ -52,6 +52,12 @@ export function readPluginPackage(dir) {
     throw new Error(`Could not read ${file}: ${err.message}`);
   }
 
+  // Lets a plugin be released in lockstep with something else, such as Parcel
+  // itself, without committing a version bump to its package.json first.
+  if (process.env.PARCEL_PLUGIN_VERSION) {
+    pkg.version = process.env.PARCEL_PLUGIN_VERSION;
+  }
+
   let errors = [];
   if (typeof pkg.name !== 'string' || pkg.name === '') {
     errors.push('"name" must be a non-empty string');

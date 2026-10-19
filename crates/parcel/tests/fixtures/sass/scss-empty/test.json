@@ -1,5 +1,6 @@
 {
   "description": "should support requiring empty scss files",
+  "options": {"config": "../.parcelrc"},
   "input": "index.js",
   "bundles": [
     {"name": "index.js", "assets": ["index.js"]},

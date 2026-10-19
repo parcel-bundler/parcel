@@ -1,5 +1,6 @@
 {
   "description": "should support advanced import syntax",
+  "options": {"config": "../.parcelrc"},
   "input": "index.sass",
   "bundles": [
     {

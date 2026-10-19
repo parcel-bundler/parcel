@@ -1,5 +1,6 @@
 {
   "description": "should support linking to assets with url() from scss",
+  "options": {"config": "../.parcelrc"},
   "input": "index.js",
   "bundles": [
     {"name": "index.js", "assets": ["index.js"]},

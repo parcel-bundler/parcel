@@ -21,6 +21,18 @@ on:
         required: false
         default: false
         type: boolean
+      version:
+        description: |
+          Version to publish, in place of the one in each package.json. For
+          releasing plugins in lockstep with something else, such as Parcel itself.
+        required: false
+        default: ''
+        type: string
+      tag:
+        description: 'npm dist-tag to publish under. Defaults to the prerelease identifier (e.g. alpha), or latest for a stable version'
+        required: false
+        default: ''
+        type: string
       language:
         description: 'Toolchain that builds the plugin: rust or go. Detected from Cargo.toml / go.mod when empty.'
         required: false
@@ -117,6 +129,7 @@ jobs:
         env:
           PLUGIN_DIRS: ${{ inputs.paths }}
           LANGUAGE: ${{ inputs.language }}
+          PARCEL_PLUGIN_VERSION: ${{ inputs.version }}
         run: node "$RUNNER_TEMP/native-plugin/matrix.mjs" --dirs "$PLUGIN_DIRS" --language "$LANGUAGE"
 
   build:
@@ -253,6 +266,7 @@ jobs:
         env:
           PLUGIN_DIR: ${{ matrix.dir }}
           TARGET: ${{ matrix.target }}
+          PARCEL_PLUGIN_VERSION: ${{ inputs.version }}
         run: |
           node "$RUNNER_TEMP/native-plugin/pack-artifact.mjs" \
             --dir "$PLUGIN_DIR" \
@@ -316,6 +330,7 @@ jobs:
         shell: bash
         env:
           PLUGIN_DIR: ${{ matrix.dir }}
+          PARCEL_PLUGIN_VERSION: ${{ inputs.version }}
         run: |
           node "$RUNNER_TEMP/native-plugin/pack-main.mjs" \
             --dir "$PLUGIN_DIR" \
@@ -337,6 +352,23 @@ jobs:
       contents: read
       id-token: write # npm trusted publishing
     steps:
+      - name: Check out packaging scripts
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .parcel-native-plugin-scripts
+          sparse-checkout: .github/scripts/native-plugin
+          sparse-checkout-cone-mode: false
+          filter: blob:none
+      - name: Move packaging scripts out of the workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/native-plugin"
+          mv .parcel-native-plugin-scripts/.github/scripts/native-plugin/* "$RUNNER_TEMP/native-plugin/"
+          rm -rf .parcel-native-plugin-scripts
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node-version }}
@@ -368,20 +400,12 @@ jobs:
       # all plugin packages satisfies that for each of them.
       - name: Publish artifact packages
         shell: bash
-        run: |
-          set -euo pipefail
-          for tarball in "$RUNNER_TEMP"/artifacts/*/*.tgz; do
-            echo "::group::npm publish $(basename "$tarball")"
-            npm publish "$tarball" --access public
-            echo '::endgroup::'
-          done
+        env:
+          TAG: ${{ inputs.tag }}
+        run: node "$RUNNER_TEMP/native-plugin/publish.mjs" --tag "$TAG" "$RUNNER_TEMP"/artifacts/*/*.tgz
 
       - name: Publish plugin packages
         shell: bash
-        run: |
-          set -euo pipefail
-          for tarball in "$RUNNER_TEMP"/main/*/*.tgz; do
-            echo "::group::npm publish $(basename "$tarball")"
-            npm publish "$tarball" --access public
-            echo '::endgroup::'
-          done
+        env:
+          TAG: ${{ inputs.tag }}
+        run: node "$RUNNER_TEMP/native-plugin/publish.mjs" --tag "$TAG" "$RUNNER_TEMP"/main/*/*.tgz

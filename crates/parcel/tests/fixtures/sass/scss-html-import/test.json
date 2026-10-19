@@ -1,5 +1,6 @@
 {
   "description": "should support scss imports in html for more than one target",
+  "options": {"config": "../.parcelrc"},
   "input": ["target1.html", "target2.html"],
   "bundles": [
     {"name": "target1.html", "type": "html", "assets": ["target1.html"]},

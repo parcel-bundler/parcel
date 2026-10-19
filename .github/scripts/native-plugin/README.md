@@ -139,6 +139,8 @@ plugin's tarballs alongside its own.
 | ---------------- | -------- | ------------------------------------------------------------------ |
 | `paths`          | `''`     | Directories containing the `package.json` and `Cargo.toml` files.  |
 | `publish`        | `false`  | Publish to npm once every target has built successfully.           |
+| `version`        | `''`     | Version to publish, overriding `version` in each package.json.     |
+| `tag`            | derived  | npm dist-tag. Defaults to the prerelease identifier, or `latest`.  |
 | `language`       | detected | `rust` or `go`. Detected from `Cargo.toml` / `go.mod` when empty.  |
 | `rust-toolchain` | `stable` | Rust toolchain to build with.                                      |
 | `go-version`     | `stable` | Go version to build with.                                          |
@@ -262,6 +264,10 @@ The workflow runs these directly; they are also runnable locally.
 - [`pack-artifact.mjs`](pack-artifact.mjs) — packs one target's library into a tarball.
 - [`pack-main.mjs`](pack-main.mjs) — packs the plugin package with `optionalDependencies`,
   failing if any declared target is missing a build.
+- [`publish.mjs`](publish.mjs) — publishes tarballs in the order given, each under the
+  dist-tag its version calls for.
+- [`dist-tag.mjs`](dist-tag.mjs) — chooses that dist-tag: the `tag` input if set, else
+  the prerelease identifier (`1.0.0-alpha.3` → `alpha`), else `latest`.
 - [`targets.mjs`](targets.mjs) — the supported target registry.
 - [`plugin-package.mjs`](plugin-package.mjs) — package.json validation and generation.
 
@@ -270,6 +276,7 @@ node matrix.mjs --dir path/to/plugin
 node pack-artifact.mjs --dir path/to/plugin --target aarch64-apple-darwin \
   --library path/to/libplugin.dylib --out ./artifacts
 node pack-main.mjs --dir path/to/plugin --artifacts ./artifacts --out ./main
+node publish.mjs ./artifacts/*.tgz ./main/*.tgz
 ```
 
 `cargo-library.mjs` reads the JSON stream from
