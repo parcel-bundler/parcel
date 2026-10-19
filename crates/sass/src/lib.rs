@@ -52,6 +52,9 @@ impl Plugin for SassTransformer {
     let mut sass_options = sasso::Options::default();
     sass_options.url = Some(&file_path);
     sass_options.importer = Some(&importer);
+    // Imported partials are not part of any asset, so without their text the map would point
+    // devtools at sources it has no content for.
+    sass_options.source_map_include_sources = true;
     sass_options.syntax = match asset.asset_type().as_str() {
       "sass" => Syntax::Sass,
       _ => Syntax::Scss,
@@ -63,7 +66,8 @@ impl Plugin for SassTransformer {
         .at(e.line as u32, e.col as u32)
     })?;
 
-    asset.set_content(result.css);
+    // The map's sources are the absolute paths of the stylesheet and everything it imported.
+    asset.set_content_with_map(result.css, result.source_map.to_json());
     asset.set_type("css");
     Ok(())
   }

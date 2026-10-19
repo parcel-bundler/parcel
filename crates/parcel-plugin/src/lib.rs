@@ -654,6 +654,40 @@ impl<'a> Asset<'a> {
     unsafe { host!(asset_set_content)(self.raw, bytes.as_ptr(), bytes.len() as u32) };
   }
 
+  /// Replaces the asset content, along with a JSON (v3) source map describing it.
+  ///
+  /// The map's `sources` may be absolute paths, `file://` URLs, or paths relative to the asset's
+  /// directory. Parcel composes it with the maps of later transformers, so the final bundle maps
+  /// back to the files this transformer read.
+  pub fn set_content_with_map(&mut self, content: impl AsRef<str>, map: impl AsRef<str>) {
+    let content = content.as_ref().as_bytes();
+    let map = map.as_ref().as_bytes();
+    unsafe {
+      host!(asset_set_content_utf8_with_map)(
+        self.raw,
+        content.as_ptr(),
+        content.len(),
+        map.as_ptr(),
+        map.len(),
+      )
+    };
+  }
+
+  /// Replaces the asset content with raw bytes, along with a JSON (v3) source map describing them.
+  /// See [`set_content_with_map`](Self::set_content_with_map).
+  pub fn set_content_bytes_with_map(&mut self, bytes: &[u8], map: impl AsRef<str>) {
+    let map = map.as_ref().as_bytes();
+    unsafe {
+      host!(asset_set_content_with_map)(
+        self.raw,
+        bytes.as_ptr(),
+        bytes.len(),
+        map.as_ptr(),
+        map.len(),
+      )
+    };
+  }
+
   pub fn set_custom_content<T: AssetContent>(&mut self, content: T) {
     unsafe extern "C" fn read_content<T: AssetContent>(
       content: *const c_void,

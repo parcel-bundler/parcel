@@ -4,7 +4,8 @@ use std::{borrow::Cow, ffi::c_void, sync::Arc};
 
 use parcel_core::{
   Asset as CoreAsset, AssetFlags as CoreAssetFlags, AssetType, BufferContent, Content, ContentType,
-  Diagnostic as CoreDiagnostic, DiagnosticList, LocalSymbol, ParcelOptions, SymbolName,
+  ContentWithSourceMap, Diagnostic as CoreDiagnostic, DiagnosticList, LocalSymbol, ParcelOptions,
+  SymbolName,
 };
 
 use crate::{
@@ -100,6 +101,58 @@ pub extern "C" fn parcel_asset_set_content_utf8(asset: Asset, data: *const u8, l
   let string =
     unsafe { String::from_utf8_unchecked(std::slice::from_raw_parts(data, len as usize).to_vec()) };
   asset.content = Arc::new(BufferContent::new_string(string));
+}
+
+/// Replaces the asset content with the given bytes, and the source map describing them.
+///
+/// `map` is a JSON source map (v3) for the new content, as `parcel_asset_set_content()` callers
+/// would otherwise lose. Its `sources` may be absolute paths, `file://` URLs, or paths relative to
+/// the asset's directory (after `sourceRoot`). Parcel composes it with the maps of later
+/// transformers, so the final bundle maps back to the original files. A null `map` is the same as
+/// `parcel_asset_set_content()`.
+pub extern "C" fn parcel_asset_set_content_with_map(
+  asset: Asset,
+  data: *const u8,
+  len: usize,
+  map: *const u8,
+  map_len: usize,
+) {
+  if asset == 0 || data.is_null() {
+    return;
+  }
+  let asset = unsafe { &mut *(asset as *mut CoreAsset) };
+  let bytes = unsafe { std::slice::from_raw_parts(data, len).to_vec() };
+  asset.content = match unsafe { source_map_arg(map, map_len) } {
+    Some(map) => Arc::new(ContentWithSourceMap::new(bytes, map)),
+    None => Arc::new(BufferContent::new(bytes)),
+  };
+}
+
+/// Like `parcel_asset_set_content_with_map()`, for UTF-8 content.
+/// It is the caller's responsibility to validate that the data is valid UTF-8.
+pub extern "C" fn parcel_asset_set_content_utf8_with_map(
+  asset: Asset,
+  data: *const u8,
+  len: usize,
+  map: *const u8,
+  map_len: usize,
+) {
+  if asset == 0 || data.is_null() {
+    return;
+  }
+  let asset = unsafe { &mut *(asset as *mut CoreAsset) };
+  let string =
+    unsafe { String::from_utf8_unchecked(std::slice::from_raw_parts(data, len).to_vec()) };
+  asset.content = match unsafe { source_map_arg(map, map_len) } {
+    Some(map) => Arc::new(ContentWithSourceMap::new_string(string, map)),
+    None => Arc::new(BufferContent::new_string(string)),
+  };
+}
+
+/// The source map passed to a `*_with_map` setter, or `None` when there is none.
+unsafe fn source_map_arg(map: *const u8, map_len: usize) -> Option<Vec<u8>> {
+  (!map.is_null() && map_len > 0)
+    .then(|| unsafe { std::slice::from_raw_parts(map, map_len).to_vec() })
 }
 
 #[derive(Debug)]

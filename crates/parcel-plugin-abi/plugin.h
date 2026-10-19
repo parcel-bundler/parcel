@@ -707,6 +707,16 @@ typedef struct ParcelApi {
                         const uint8_t *from,
                         uintptr_t from_len,
                         struct ResolveResult *result);
+  void (*asset_set_content_with_map)(Asset asset,
+                                     const uint8_t *data,
+                                     uintptr_t len,
+                                     const uint8_t *map,
+                                     uintptr_t map_len);
+  void (*asset_set_content_utf8_with_map)(Asset asset,
+                                          const uint8_t *data,
+                                          uintptr_t len,
+                                          const uint8_t *map,
+                                          uintptr_t map_len);
 } ParcelApi;
 
 /**
@@ -1099,6 +1109,14 @@ static inline IoStatus parcel_fs_canonicalize(struct Buffer *buf, Options option
 
 static inline bool parcel_asset_resolve(Asset asset, Options options, const struct DependencyOptions *dep, const uint8_t *from, uintptr_t from_len, struct ResolveResult *result) {
   return parcel_api->asset_resolve(asset, options, dep, from, from_len, result);
+}
+
+static inline void parcel_asset_set_content_with_map(Asset asset, const uint8_t *data, uintptr_t len, const uint8_t *map, uintptr_t map_len) {
+  parcel_api->asset_set_content_with_map(asset, data, len, map, map_len);
+}
+
+static inline void parcel_asset_set_content_utf8_with_map(Asset asset, const uint8_t *data, uintptr_t len, const uint8_t *map, uintptr_t map_len) {
+  parcel_api->asset_set_content_utf8_with_map(asset, data, len, map, map_len);
 }
 
 #endif  /* PARCEL_PLUGIN_H */

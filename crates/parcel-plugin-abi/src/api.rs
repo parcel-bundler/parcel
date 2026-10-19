@@ -192,6 +192,10 @@ pub struct ParcelApi {
     from_len: usize,
     result: *mut ResolveResult,
   ) -> bool,
+  pub asset_set_content_with_map:
+    unsafe extern "C" fn(asset: Asset, data: *const u8, len: usize, map: *const u8, map_len: usize),
+  pub asset_set_content_utf8_with_map:
+    unsafe extern "C" fn(asset: Asset, data: *const u8, len: usize, map: *const u8, map_len: usize),
 }
 
 /// The instance passed to every plugin. Const-initialized, so it is in the
@@ -279,6 +283,8 @@ pub static PARCEL_API: ParcelApi = ParcelApi {
   fs_get_kind: parcel_fs_get_kind,
   fs_canonicalize: parcel_fs_canonicalize,
   asset_resolve: parcel_asset_resolve,
+  asset_set_content_with_map: parcel_asset_set_content_with_map,
+  asset_set_content_utf8_with_map: parcel_asset_set_content_utf8_with_map,
 };
 
 #[cfg(test)]

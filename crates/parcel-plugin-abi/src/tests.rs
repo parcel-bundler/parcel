@@ -4,7 +4,7 @@ use parcel_core::{
   Asset as CoreAsset, AssetFlags as CoreAssetFlags, AssetGraph, AssetIndex as CoreAssetIndex,
   AssetNode, AssetNodeIndex, AssetRequest, AssetType, BufferContent, Bundle as CoreBundle,
   BundleBehavior as CoreBundleBehavior, BundleFlags as CoreBundleFlags,
-  BundleGraph as CoreBundleGraph, Dependency as CoreDependency,
+  BundleGraph as CoreBundleGraph, Content, ContentWithSourceMap, Dependency as CoreDependency,
   DependencyFlags as CoreDependencyFlags, DependencyId, DependencyResolution, DiagnosticList,
   Environment as CoreEnvironment, EnvironmentFlags as CoreEnvironmentFlags,
   ExportsCondition as CoreExportsCondition, FileCreateInvalidation, FileSystem, ImportType,
@@ -155,6 +155,58 @@ fn buffer_ownership_functions_allocate_replace_and_clear() {
   let empty = parcel_buffer_alloc(ptr::null(), 0);
   assert!(empty.data.is_null());
   parcel_free_buffer(ptr::null_mut());
+}
+
+#[test]
+fn asset_content_setters_attach_source_maps() {
+  let mut asset = asset_fixture(target_fixture());
+  let handle = &mut asset as *mut CoreAsset as Asset;
+  let map = br#"{"version":3,"sources":["a.scss"],"mappings":"AAAA"}"#;
+
+  let code = b".a{}";
+  parcel_asset_set_content_utf8_with_map(
+    handle,
+    code.as_ptr(),
+    code.len(),
+    map.as_ptr(),
+    map.len(),
+  );
+  let content = asset
+    .content
+    .downcast_ref::<ContentWithSourceMap>()
+    .expect("content with a source map");
+  assert_eq!(content.read().unwrap(), code);
+  assert_eq!(content.source_map(), map);
+  // Still readable as UTF-8 without a copy, like BufferContent::new_string.
+  assert_eq!(
+    string_output(|buffer| parcel_asset_get_content_utf8(buffer, handle)).as_deref(),
+    Some(".a{}")
+  );
+
+  let bytes = [0u8, 159, 146, 150];
+  parcel_asset_set_content_with_map(handle, bytes.as_ptr(), bytes.len(), map.as_ptr(), map.len());
+  let content = asset
+    .content
+    .downcast_ref::<ContentWithSourceMap>()
+    .expect("content with a source map");
+  assert_eq!(content.read().unwrap(), bytes);
+
+  // Without a map they behave like the plain setters, dropping the previous map.
+  parcel_asset_set_content_utf8_with_map(handle, code.as_ptr(), code.len(), ptr::null(), 0);
+  assert!(
+    asset
+      .content
+      .downcast_ref::<ContentWithSourceMap>()
+      .is_none()
+  );
+  assert_eq!(asset.content.read().unwrap(), code);
+  parcel_asset_set_content_with_map(handle, bytes.as_ptr(), bytes.len(), map.as_ptr(), 0);
+  assert!(
+    asset
+      .content
+      .downcast_ref::<ContentWithSourceMap>()
+      .is_none()
+  );
 }
 
 #[test]

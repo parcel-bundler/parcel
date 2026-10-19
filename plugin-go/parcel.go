@@ -410,6 +410,32 @@ func (a *Asset) SetContentBytes(content []byte) {
 	C.parcel_asset_set_content(a.ptr, ptr, C.uint32_t(len(content)))
 }
 
+// SetContentWithMap replaces the asset content, along with a JSON (v3) source
+// map describing it.
+//
+// The map's sources may be absolute paths, file:// URLs, or paths relative to
+// the asset's directory. Parcel composes it with the maps of later transformers,
+// so the final bundle maps back to the files this transformer read.
+func (a *Asset) SetContentWithMap(content string, sourceMap string) {
+	C.parcel_asset_set_content_utf8_with_map(a.ptr, nonNullPtr(content), C.uintptr_t(len(content)), stringPtr(sourceMap), C.uintptr_t(len(sourceMap)))
+}
+
+// SetContentBytesWithMap replaces the asset content with the given bytes, along
+// with a JSON (v3) source map describing them. See [Asset.SetContentWithMap].
+func (a *Asset) SetContentBytesWithMap(content []byte, sourceMap string) {
+	C.parcel_asset_set_content_with_map(a.ptr, nonNullPtr(unsafe.String(unsafe.SliceData(content), len(content))), C.uintptr_t(len(content)), stringPtr(sourceMap), C.uintptr_t(len(sourceMap)))
+}
+
+// nonNullPtr is like stringPtr, but never nil: the content setters ignore a null
+// pointer, and must still be able to empty an asset.
+func nonNullPtr(s string) *C.uint8_t {
+	if len(s) == 0 {
+		empty := byte(0)
+		return (*C.uint8_t)(unsafe.Pointer(&empty))
+	}
+	return stringPtr(s)
+}
+
 // Type returns the asset's type extension (e.g. "js", "css", "txt").
 func (a *Asset) Type() string {
 	var buf C.Buffer

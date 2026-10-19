@@ -169,6 +169,85 @@ fn assert_postcss_source_map(mode: BuildMode, minify: Option<bool>) {
   );
 }
 
+const SASS_INDEX: &str = r#"@use "partial";
+
+.index-token {
+  color: red;
+}
+"#;
+
+const SASS_PARTIAL: &str = r#".partial-token {
+  color: blue;
+}
+"#;
+
+#[test]
+fn dev_sass_source_map_maps_through_native_plugin() {
+  assert_sass_source_map(BuildMode::Development, Some(false));
+}
+
+#[test]
+fn prod_sass_source_map_maps_through_native_plugin() {
+  assert_sass_source_map(BuildMode::Production, Some(true));
+}
+
+/// The Sass plugin hands its map to Parcel with `parcel_asset_set_content_utf8_with_map`, which is
+/// the only place a partial's position survives: its rules are inlined into the compiled CSS.
+fn assert_sass_source_map(mode: BuildMode, minify: Option<bool>) {
+  // A dev-dependency of this crate, so cargo builds it next to this test binary.
+  let library = std::env::current_exe()
+    .unwrap()
+    .parent()
+    .unwrap()
+    .join(format!(
+      "{}parcel_transformer_sass.{}",
+      std::env::consts::DLL_PREFIX,
+      std::env::consts::DLL_EXTENSION
+    ));
+  let package = format!(
+    r#"{{"name": "@parcel/transformer-sass", "parcel": {{"abi": 1, "artifacts": {{"none": "none"}}, "devLibrary": {:?}}}}}"#,
+    library.to_str().unwrap()
+  );
+  let bundles = build_outputs(
+    if minify == Some(true) {
+      "sass-prod"
+    } else {
+      "sass-dev"
+    },
+    &[
+      (
+        ".parcelrc",
+        r#"{"extends": "@parcel/config-default", "transformers": {"*.scss": ["@parcel/transformer-sass"]}}"#,
+      ),
+      (
+        "node_modules/@parcel/transformer-sass/package.json",
+        &package,
+      ),
+      ("index.scss", SASS_INDEX),
+      ("_partial.scss", SASS_PARTIAL),
+    ],
+    "index.scss",
+    AssetType::Css,
+    mode,
+    minify,
+  );
+
+  assert_token_maps_to(
+    &bundles,
+    ".partial-token",
+    ".partial-token",
+    "_partial.scss",
+    SASS_PARTIAL,
+  );
+  assert_token_maps_to(
+    &bundles,
+    ".index-token",
+    ".index-token",
+    "index.scss",
+    SASS_INDEX,
+  );
+}
+
 #[test]
 fn css_source_map_maps_to_original_code() {
   let bundles = build_outputs(
@@ -366,6 +445,8 @@ fn fixture_fs() -> (OverlayFileSystem, PathBuf) {
 }
 
 fn write_fixture(fs: &OverlayFileSystem, path: &Path, contents: &str) {
+  fs.create_dir_all(PathId::new(path.parent().unwrap()))
+    .unwrap();
   fs.write(PathId::new(path), &contents.as_bytes().to_vec())
     .unwrap();
 }
