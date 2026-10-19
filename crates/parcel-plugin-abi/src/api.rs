@@ -170,6 +170,20 @@ pub struct ParcelApi {
   pub options_log_diagnostic: unsafe extern "C" fn(options: Options, diagnostic: *const Diagnostic),
   pub bundle_get_stable_key: unsafe extern "C" fn(buf: *mut Buffer, bundle: Bundle),
   pub bundle_get_hash_reference: unsafe extern "C" fn(buf: *mut Buffer, bundle: Bundle),
+  pub fs_read_file: unsafe extern "C" fn(
+    buf: *mut Buffer,
+    options: Options,
+    path: *const u8,
+    path_len: usize,
+  ) -> IoStatus,
+  pub fs_get_kind:
+    unsafe extern "C" fn(options: Options, path: *const u8, path_len: usize) -> FileKindFFI,
+  pub fs_canonicalize: unsafe extern "C" fn(
+    buf: *mut Buffer,
+    options: Options,
+    path: *const u8,
+    path_len: usize,
+  ) -> IoStatus,
   pub asset_resolve: unsafe extern "C" fn(
     asset: Asset,
     options: Options,
@@ -261,6 +275,9 @@ pub static PARCEL_API: ParcelApi = ParcelApi {
   options_log_diagnostic: parcel_options_log_diagnostic,
   bundle_get_stable_key: parcel_bundle_get_stable_key,
   bundle_get_hash_reference: parcel_bundle_get_hash_reference,
+  fs_read_file: parcel_fs_read_file,
+  fs_get_kind: parcel_fs_get_kind,
+  fs_canonicalize: parcel_fs_canonicalize,
   asset_resolve: parcel_asset_resolve,
 };
 
@@ -299,6 +316,7 @@ mod tests {
       include_str!("bundle_graph.rs"),
       include_str!("dependency.rs"),
       include_str!("diagnostics.rs"),
+      include_str!("fs.rs"),
       include_str!("options.rs"),
       include_str!("target.rs"),
     ]

@@ -81,6 +81,25 @@ pub enum LogLevel {
   Verbose = 4,
 }
 #[repr(u8)]
+#[doc = " Outcome of a file system call."]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum IoStatus {
+  #[doc = " The call succeeded and its result is in the output buffer."]
+  Ok = 0,
+  #[doc = " The path does not exist. The output buffer is left empty."]
+  NotFound = 1,
+  #[doc = " Any other failure. The output buffer holds a UTF-8 description of it."]
+  Error = 2,
+}
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum ResolutionType {
+  None = 0,
+  FilePath = 1,
+  External = 2,
+  Excluded = 3,
+}
+#[repr(u8)]
 #[doc = " Result of a plugin's `parcel_plugin_init()`.\n\n A plugin that cannot use the [`ParcelApi`](crate::ParcelApi) table it was\n handed returns `PARCEL_INIT_INCOMPATIBLE` without writing a diagnostic — it\n has no way to allocate one, since allocating goes through the very table it\n just rejected. Parcel writes that diagnostic instead."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum InitStatus {
@@ -90,14 +109,6 @@ pub enum InitStatus {
   Error = 1,
   #[doc = " The plugin cannot run against this build of Parcel. No diagnostic was\n written; Parcel reports the mismatch."]
   Incompatible = 2,
-}
-#[repr(u8)]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum ResolutionType {
-  None = 0,
-  FilePath = 1,
-  External = 2,
-  Excluded = 3,
 }
 #[repr(u8)]
 #[doc = " The kind of event passed to `parcel_plugin_report()`."]
@@ -309,6 +320,41 @@ impl ::std::ops::BitAndAssign for BundleFlags {
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct BundleFlags(pub u8);
+impl FileKind {
+  pub const FILE: FileKind = FileKind(1);
+  pub const DIR: FileKind = FileKind(2);
+  pub const SYMLINK: FileKind = FileKind(4);
+}
+impl ::std::ops::BitOr<FileKind> for FileKind {
+  type Output = Self;
+  #[inline]
+  fn bitor(self, other: Self) -> Self {
+    FileKind(self.0 | other.0)
+  }
+}
+impl ::std::ops::BitOrAssign for FileKind {
+  #[inline]
+  fn bitor_assign(&mut self, rhs: FileKind) {
+    self.0 |= rhs.0;
+  }
+}
+impl ::std::ops::BitAnd<FileKind> for FileKind {
+  type Output = Self;
+  #[inline]
+  fn bitand(self, other: Self) -> Self {
+    FileKind(self.0 & other.0)
+  }
+}
+impl ::std::ops::BitAndAssign for FileKind {
+  #[inline]
+  fn bitand_assign(&mut self, rhs: FileKind) {
+    self.0 &= rhs.0;
+  }
+}
+#[repr(transparent)]
+#[doc = " What a path refers to. Empty when it does not exist."]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct FileKind(pub u8);
 #[doc = " Index of an asset within the bundle graph."]
 pub type AssetIndex = u32;
 #[repr(C)]
@@ -451,6 +497,26 @@ const _: () = {
 };
 #[doc = " Opaque handle to the diagnostics attached to a reporter event. Pass to the\n `parcel_diagnostics_*` and `parcel_diagnostic_*` functions."]
 pub type Diagnostics = u64;
+#[doc = " Result filled by a resolver plugin's `parcel_plugin_resolve()`.\n The struct is zero-initialised by the host before the call.\n\n When type == PARCEL_RESOLUTION_FILE_PATH, fill `file_path` (and optionally `pipeline`) via `parcel_buffer_alloc()`."]
+#[repr(C)]
+#[derive(Debug)]
+pub struct ResolveResult {
+  #[doc = " `PARCEL_RESOLUTION_*`"]
+  pub resolution_type: ResolutionType,
+  pub file_path: Buffer,
+  pub pipeline: Buffer,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+  ["Size of ResolveResult"][::std::mem::size_of::<ResolveResult>() - 72usize];
+  ["Alignment of ResolveResult"][::std::mem::align_of::<ResolveResult>() - 8usize];
+  ["Offset of field: ResolveResult::resolution_type"]
+    [::std::mem::offset_of!(ResolveResult, resolution_type) - 0usize];
+  ["Offset of field: ResolveResult::file_path"]
+    [::std::mem::offset_of!(ResolveResult, file_path) - 8usize];
+  ["Offset of field: ResolveResult::pipeline"]
+    [::std::mem::offset_of!(ResolveResult, pipeline) - 40usize];
+};
 #[doc = " The host functions available to a plugin."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -637,6 +703,25 @@ pub struct ParcelApi {
     ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, bundle: Bundle)>,
   pub bundle_get_hash_reference:
     ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, bundle: Bundle)>,
+  pub fs_read_file: ::std::option::Option<
+    unsafe extern "C" fn(
+      buf: *mut Buffer,
+      options: Options,
+      path: *const u8,
+      path_len: usize,
+    ) -> IoStatus,
+  >,
+  pub fs_get_kind: ::std::option::Option<
+    unsafe extern "C" fn(options: Options, path: *const u8, path_len: usize) -> FileKind,
+  >,
+  pub fs_canonicalize: ::std::option::Option<
+    unsafe extern "C" fn(
+      buf: *mut Buffer,
+      options: Options,
+      path: *const u8,
+      path_len: usize,
+    ) -> IoStatus,
+  >,
   pub asset_resolve: ::std::option::Option<
     unsafe extern "C" fn(
       asset: Asset,
@@ -650,7 +735,7 @@ pub struct ParcelApi {
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 600usize];
+  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 632usize];
   ["Alignment of ParcelApi"][::std::mem::align_of::<ParcelApi>() - 8usize];
   ["Offset of field: ParcelApi::header"][::std::mem::offset_of!(ParcelApi, header) - 0usize];
   ["Offset of field: ParcelApi::asset_get_content"]
@@ -799,26 +884,14 @@ const _: () = {
     [::std::mem::offset_of!(ParcelApi, bundle_get_stable_key) - 584usize];
   ["Offset of field: ParcelApi::bundle_get_hash_reference"]
     [::std::mem::offset_of!(ParcelApi, bundle_get_hash_reference) - 592usize];
-};
-#[doc = " Result filled by a resolver plugin's `parcel_plugin_resolve()`.\n The struct is zero-initialised by the host before the call.\n\n When type == PARCEL_RESOLUTION_FILE_PATH, fill `file_path` (and optionally `pipeline`) via `parcel_buffer_alloc()`."]
-#[repr(C)]
-#[derive(Debug)]
-pub struct ResolveResult {
-  #[doc = " `PARCEL_RESOLUTION_*`"]
-  pub resolution_type: ResolutionType,
-  pub file_path: Buffer,
-  pub pipeline: Buffer,
-}
-#[allow(clippy::unnecessary_operation, clippy::identity_op)]
-const _: () = {
-  ["Size of ResolveResult"][::std::mem::size_of::<ResolveResult>() - 72usize];
-  ["Alignment of ResolveResult"][::std::mem::align_of::<ResolveResult>() - 8usize];
-  ["Offset of field: ResolveResult::resolution_type"]
-    [::std::mem::offset_of!(ResolveResult, resolution_type) - 0usize];
-  ["Offset of field: ResolveResult::file_path"]
-    [::std::mem::offset_of!(ResolveResult, file_path) - 8usize];
-  ["Offset of field: ResolveResult::pipeline"]
-    [::std::mem::offset_of!(ResolveResult, pipeline) - 40usize];
+  ["Offset of field: ParcelApi::fs_read_file"]
+    [::std::mem::offset_of!(ParcelApi, fs_read_file) - 600usize];
+  ["Offset of field: ParcelApi::fs_get_kind"]
+    [::std::mem::offset_of!(ParcelApi, fs_get_kind) - 608usize];
+  ["Offset of field: ParcelApi::fs_canonicalize"]
+    [::std::mem::offset_of!(ParcelApi, fs_canonicalize) - 616usize];
+  ["Offset of field: ParcelApi::asset_resolve"]
+    [::std::mem::offset_of!(ParcelApi, asset_resolve) - 624usize];
 };
 #[doc = " Result filled by an optimizer plugin's `parcel_plugin_optimize()`.\n The struct is zero-initialised by the host before the call. Fill `contents`\n and optionally `source_map` using `parcel_buffer_write()` or\n `parcel_buffer_write_utf8()`."]
 #[repr(C)]

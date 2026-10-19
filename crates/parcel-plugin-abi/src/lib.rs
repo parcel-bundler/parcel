@@ -11,6 +11,7 @@ mod bundle_graph;
 mod dependency;
 mod diagnostic;
 mod diagnostics;
+mod fs;
 mod handles;
 /// cbindgen:ignore
 pub mod manifest;
@@ -26,6 +27,7 @@ pub use bundle_graph::*;
 pub use dependency::*;
 pub use diagnostic::*;
 pub use diagnostics::*;
+pub use fs::*;
 pub use handles::*;
 pub use options::*;
 pub use plugin::*;

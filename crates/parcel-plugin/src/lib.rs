@@ -155,6 +155,51 @@ impl<'a> Options<'a> {
     diagnostic.write_to_raw(&mut raw);
     unsafe { host!(options_log_diagnostic)(self.raw, &raw) };
   }
+
+  /// Reads the file at the absolute `path`.
+  ///
+  /// Read files through this rather than `std::fs`: Parcel records the path, so
+  /// a change to the file re-runs the transform that read it, and a file that was
+  /// missing re-runs it when created. Only available while transforming or
+  /// resolving.
+  pub fn read_file(&self, path: &str) -> std::io::Result<Vec<u8>> {
+    let mut buf = Buffer::default();
+    let status = unsafe { host!(fs_read_file)(&mut buf, self.raw, path.as_ptr(), path.len()) };
+    match status {
+      IoStatus::Ok => Ok(buf.to_bytes().unwrap_or_default()),
+      status => Err(io_error(status, buf)),
+    }
+  }
+
+  /// Reads the file at the absolute `path` as UTF-8. See [`Options::read_file`].
+  pub fn read_to_string(&self, path: &str) -> std::io::Result<String> {
+    String::from_utf8(self.read_file(path)?)
+      .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err))
+  }
+
+  /// Returns what the absolute `path` refers to, or no flags when it does not
+  /// exist. Tracked like [`Options::read_file`]: a missing path re-runs the
+  /// transform when created, an existing one when deleted.
+  pub fn file_kind(&self, path: &str) -> FileKind {
+    unsafe { host!(fs_get_kind)(self.raw, path.as_ptr(), path.len()) }
+  }
+
+  /// Returns the absolute `path` with every symlink resolved.
+  pub fn canonicalize(&self, path: &str) -> std::io::Result<String> {
+    let mut buf = Buffer::default();
+    let status = unsafe { host!(fs_canonicalize)(&mut buf, self.raw, path.as_ptr(), path.len()) };
+    match status {
+      IoStatus::Ok => Ok(buf.to_string().unwrap_or_default()),
+      status => Err(io_error(status, buf)),
+    }
+  }
+}
+
+fn io_error(status: IoStatus, buf: Buffer) -> std::io::Error {
+  match status {
+    IoStatus::NotFound => std::io::ErrorKind::NotFound.into(),
+    _ => std::io::Error::other(buf.to_string().unwrap_or_default()),
+  }
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────

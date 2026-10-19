@@ -27,6 +27,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"runtime/cgo"
 	"time"
 	"unsafe"
@@ -525,12 +526,36 @@ func (a *Asset) Target() *Target {
 
 // AddDependency appends a dependency to the asset.
 func (a *Asset) AddDependency(dep DependencySpec) {
-	var specPtr *C.uint8_t
-	if len(dep.Specifier) > 0 {
-		specPtr = (*C.uint8_t)(unsafe.Pointer(unsafe.StringData(dep.Specifier)))
+	cDep := dep.raw()
+	C.parcel_asset_add_dependency(a.ptr, &cDep)
+}
+
+// Resolve resolves dep with the configured resolver plugins, exactly as if it
+// had been added with [Asset.AddDependency], without adding it.
+//
+// from is the absolute path of the file containing the import, when that is not
+// the asset itself, e.g. a Sass partial the asset pulled in. Pass "" to resolve
+// from the asset. Every file the resolvers read or probe invalidates the asset,
+// so the transform re-runs when the result would change.
+//
+// It returns false when the dependency could not be resolved. Only available
+// while transforming.
+func (a *Asset) Resolve(dep DependencySpec, from string) (ResolveResult, bool) {
+	cDep := dep.raw()
+	var raw C.ResolveResult
+	if !C.parcel_asset_resolve(a.ptr, a.options, &cDep, stringPtr(from), C.uintptr_t(len(from)), &raw) {
+		return ResolveResult{}, false
 	}
-	cDep := C.DependencyOptions{
-		specifier:       specPtr,
+	return ResolveResult{
+		kind:     resolveResultKind(raw.resolution_type),
+		filePath: string(bufferBytes(&raw.file_path)),
+		pipeline: string(bufferBytes(&raw.pipeline)),
+	}, true
+}
+
+func (dep *DependencySpec) raw() C.DependencyOptions {
+	return C.DependencyOptions{
+		specifier:       stringPtr(dep.Specifier),
 		specifier_len:   C.uintptr_t(len(dep.Specifier)),
 		specifier_type:  C.uint8_t(dep.SpecifierType),
 		priority:        C.uint8_t(dep.Priority),
@@ -538,7 +563,6 @@ func (a *Asset) AddDependency(dep DependencySpec) {
 		flags:           C.uint8_t(dep.Flags),
 		conditions:      C.uint32_t(dep.Conditions),
 	}
-	C.parcel_asset_add_dependency(a.ptr, &cDep)
 }
 
 // AddExportSymbol registers an exported symbol name (e.g. "default", "foo", "*").
@@ -658,6 +682,27 @@ func External() ResolveResult {
 // Excluded returns a result that silently excludes the dependency from the bundle.
 func Excluded() ResolveResult {
 	return ResolveResult{kind: resolveResultExcluded}
+}
+
+// FilePath returns the resolved absolute file path, and false when the result
+// is not a file.
+func (r ResolveResult) FilePath() (string, bool) {
+	return r.filePath, r.kind == resolveResultFilePath
+}
+
+// Pipeline returns the transformer pipeline the resolver chose for a file, or "".
+func (r ResolveResult) Pipeline() string {
+	return r.pipeline
+}
+
+// IsExternal reports whether the dependency is external (not bundled).
+func (r ResolveResult) IsExternal() bool {
+	return r.kind == resolveResultExternal
+}
+
+// IsExcluded reports whether the dependency is excluded from the bundle.
+func (r ResolveResult) IsExcluded() bool {
+	return r.kind == resolveResultExcluded
 }
 
 func writeResolveResult(raw *C.ResolveResult, result ResolveResult) {
@@ -1125,6 +1170,71 @@ func (o *Options) LogDiagnostic(diagnostic *Diagnostic) {
 	defer C.parcel_free_buffer(&raw.file_path)
 	defer C.parcel_free_buffer(&raw.hint)
 	C.parcel_options_log_diagnostic(o.ptr, &raw)
+}
+
+// FileKind describes what a path refers to. Zero when it does not exist.
+type FileKind uint8
+
+const (
+	FileKindFile    FileKind = 1 << 0
+	FileKindDir     FileKind = 1 << 1
+	FileKindSymlink FileKind = 1 << 2
+)
+
+// ReadFile reads the file at the absolute path.
+//
+// Read files through this rather than the os package: Parcel records the path,
+// so a change to the file re-runs the transform that read it, and a file that was
+// missing re-runs it when created. Only available while transforming or
+// resolving. A missing file returns an error matching [fs.ErrNotExist].
+func (o *Options) ReadFile(path string) ([]byte, error) {
+	var buf C.Buffer
+	status := C.parcel_fs_read_file(&buf, o.ptr, stringPtr(path), C.uintptr_t(len(path)))
+	return bufferBytes(&buf), ioError(status, &buf, path)
+}
+
+// FileKind returns what the absolute path refers to, or zero when it does not
+// exist. Tracked like [Options.ReadFile]: a missing path re-runs the transform
+// when created, an existing one when deleted.
+func (o *Options) FileKind(path string) FileKind {
+	return FileKind(C.parcel_fs_get_kind(o.ptr, stringPtr(path), C.uintptr_t(len(path))))
+}
+
+// Canonicalize returns the absolute path with every symlink resolved.
+func (o *Options) Canonicalize(path string) (string, error) {
+	var buf C.Buffer
+	status := C.parcel_fs_canonicalize(&buf, o.ptr, stringPtr(path), C.uintptr_t(len(path)))
+	return string(bufferBytes(&buf)), ioError(status, &buf, path)
+}
+
+// stringPtr returns a pointer to the bytes of s, or nil when it is empty.
+func stringPtr(s string) *C.uint8_t {
+	if len(s) == 0 {
+		return nil
+	}
+	return (*C.uint8_t)(unsafe.Pointer(unsafe.StringData(s)))
+}
+
+// bufferBytes copies a host-filled buffer into Go memory and frees it.
+func bufferBytes(buf *C.Buffer) []byte {
+	if buf.data == nil {
+		return nil
+	}
+	defer C.parcel_free_buffer(buf)
+	return C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.len))
+}
+
+// ioError converts the status of a host file system call. On PARCEL_IO_ERROR the
+// buffer holds the message, and is consumed here.
+func ioError(status C.IoStatus, buf *C.Buffer, path string) error {
+	switch status {
+	case C.PARCEL_IO_OK:
+		return nil
+	case C.PARCEL_IO_NOT_FOUND:
+		return &fs.PathError{Op: "open", Path: path, Err: fs.ErrNotExist}
+	default:
+		return errors.New(string(bufferBytes(buf)))
+	}
 }
 
 // EnvironmentFlags is a bitfield of target environment flags.

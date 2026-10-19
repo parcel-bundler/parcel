@@ -130,6 +130,10 @@ func TestConstantsMatchHeader(t *testing.T) {
 		{"ExportsConditionStylus", "PARCEL_EXPORTS_CONDITION_STYLUS", int(parcel.ExportsConditionStylus)},
 		{"ExportsConditionReactServer", "PARCEL_EXPORTS_CONDITION_REACT_SERVER", int(parcel.ExportsConditionReactServer)},
 		{"ExportsConditionSource", "PARCEL_EXPORTS_CONDITION_SOURCE", int(parcel.ExportsConditionSource)},
+		// FileKind
+		{"FileKindFile", "PARCEL_FILE_KIND_FILE", int(parcel.FileKindFile)},
+		{"FileKindDir", "PARCEL_FILE_KIND_DIR", int(parcel.FileKindDir)},
+		{"FileKindSymlink", "PARCEL_FILE_KIND_SYMLINK", int(parcel.FileKindSymlink)},
 		// AssetFlags
 		{"AssetFlagIsSource", "PARCEL_ASSET_IS_SOURCE", int(parcel.AssetFlagIsSource)},
 		{"AssetFlagSideEffects", "PARCEL_ASSET_SIDE_EFFECTS", int(parcel.AssetFlagSideEffects)},

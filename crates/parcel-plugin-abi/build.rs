@@ -181,6 +181,7 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
         "PARCEL_ASSET_",
         "PARCEL_BUNDLE_FLAG_",
         "PARCEL_EXPORTS_CONDITION_",
+        "PARCEL_FILE_KIND_",
       ]
       .iter()
       .find_map(|prefix| original_variant_name.strip_prefix(prefix))
@@ -201,6 +202,7 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
         "PARCEL_BUNDLE_GRAPH_RESOLUTION_",
         "PARCEL_EVENT_",
         "PARCEL_LOG_",
+        "PARCEL_IO_",
       ]
       .iter()
       .find_map(|prefix| original_variant_name.strip_prefix(prefix));
@@ -234,7 +236,7 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
     .allowlist_function("parcel_.*")
     .allowlist_var("PARCEL_.*")
     .allowlist_type(
-      "ParcelApi|InitStatus|SpecifierType|Priority|BundleBehavior|Environment|OutputFormat|SourceType|Diagnostic|DiagnosticSeverity|Diagnostics|ResolveResult|OptimizeResult|ReportEvent|ReportEventType|LogLevel|ResolutionType|DependencyFlags|ExportsConditions|AssetFlags|EnvironmentFlags|BundleFlags|BundleGraphResolutionType|BundleGraphDependencyResolution|AssetIndex|BundleIndex",
+      "ParcelApi|InitStatus|SpecifierType|Priority|BundleBehavior|Environment|OutputFormat|SourceType|Diagnostic|DiagnosticSeverity|Diagnostics|ResolveResult|OptimizeResult|ReportEvent|ReportEventType|LogLevel|ResolutionType|DependencyFlags|ExportsConditions|AssetFlags|EnvironmentFlags|BundleFlags|BundleGraphResolutionType|BundleGraphDependencyResolution|AssetIndex|BundleIndex|IoStatus|FileKind",
     )
     .rustified_enum("InitStatus")
     .rustified_enum("SpecifierType")
@@ -248,11 +250,13 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
     .rustified_enum("BundleGraphResolutionType")
     .rustified_enum("ReportEventType")
     .rustified_enum("LogLevel")
+    .rustified_enum("IoStatus")
     .bitfield_enum("DependencyFlags")
     .bitfield_enum("ExportsConditions")
     .bitfield_enum("AssetFlags")
     .bitfield_enum("EnvironmentFlags")
     .bitfield_enum("BundleFlags")
+    .bitfield_enum("FileKind")
     .translate_enum_integer_types(true)
     .no_copy("Buffer")
     .parse_callbacks(Box::new(CustomCallbacks))

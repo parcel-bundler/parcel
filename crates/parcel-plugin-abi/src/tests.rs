@@ -5,11 +5,12 @@ use parcel_core::{
   AssetNode, AssetNodeIndex, AssetRequest, AssetType, BufferContent, Bundle as CoreBundle,
   BundleBehavior as CoreBundleBehavior, BundleFlags as CoreBundleFlags,
   BundleGraph as CoreBundleGraph, Dependency as CoreDependency,
-  DependencyFlags as CoreDependencyFlags, DependencyId, DependencyResolution,
+  DependencyFlags as CoreDependencyFlags, DependencyId, DependencyResolution, DiagnosticList,
   Environment as CoreEnvironment, EnvironmentFlags as CoreEnvironmentFlags,
-  ExportsCondition as CoreExportsCondition, ImportType, OutputFormat as CoreOutputFormat,
-  ParcelOptions, PathId, Priority as CorePriority, SourceLocation, SourceType as CoreSourceType,
-  SourceUrl, SpecifierType as CoreSpecifierType, Target as CoreTarget,
+  ExportsCondition as CoreExportsCondition, FileCreateInvalidation, FileSystem, ImportType,
+  MemoryFileSystem, OutputFormat as CoreOutputFormat, ParcelOptions, PathId, PluginContext,
+  Priority as CorePriority, Resolver, SourceLocation, SourceType as CoreSourceType, SourceUrl,
+  SpecifierType as CoreSpecifierType, Target as CoreTarget, TrackingFileSystem,
 };
 
 use super::*;
@@ -49,6 +50,7 @@ fn dependency_fixture(target: Arc<CoreTarget>) -> CoreDependency {
     conditions: CoreExportsCondition::IMPORT | CoreExportsCondition::BROWSER,
     resolution: DependencyResolution::None,
     concurrent_group: 0,
+    custom_conditions: Default::default(),
   }
 }
 
@@ -813,7 +815,8 @@ fn options_accessors_return_project_root_and_environment_values() {
     ..Default::default()
   };
   options.env.insert("NODE_ENV".into(), "test".into());
-  let handle = &options as *const ParcelOptions as Options;
+  let context = OptionsContext::new(&options);
+  let handle = context.handle();
 
   assert_eq!(
     string_output(|buffer| parcel_options_get_project_root(buffer, handle)).as_deref(),
@@ -972,7 +975,8 @@ fn options_with_recorder() -> (Arc<ParcelOptions>, Arc<std::sync::Mutex<Vec<Stri
 #[test]
 fn plugins_log_messages_through_the_options_handle() {
   let (options, events) = options_with_recorder();
-  let handle = &*options as *const ParcelOptions as Options;
+  let context = OptionsContext::new(&options);
+  let handle = context.handle();
 
   let message = b"a message from a plugin";
   parcel_options_log(
@@ -988,7 +992,8 @@ fn plugins_log_messages_through_the_options_handle() {
 #[test]
 fn plugins_log_diagnostics_without_giving_up_their_buffers() {
   let (options, events) = options_with_recorder();
-  let handle = &*options as *const ParcelOptions as Options;
+  let context = OptionsContext::new(&options);
+  let handle = context.handle();
 
   let message = b"a warning worth surfacing";
   let mut diagnostic = Diagnostic {
@@ -1009,4 +1014,265 @@ fn plugins_log_diagnostics_without_giving_up_their_buffers() {
     message
   );
   parcel_free_buffer(&mut diagnostic.message);
+}
+
+/// A project in memory, read through a tracker so tests can see what was recorded.
+fn tracked_project() -> (ParcelOptions, Arc<TrackingFileSystem>) {
+  let memory = MemoryFileSystem::new();
+  let files: [(&str, &str); 4] = [
+    ("/project/src/index.scss", "a { color: red }"),
+    (
+      "/project/node_modules/pkg/package.json",
+      r#"{"name": "pkg", "exports": {"sass": "./style.scss", "default": "./index.js"}}"#,
+    ),
+    ("/project/node_modules/pkg/style.scss", ""),
+    ("/project/node_modules/pkg/index.js", ""),
+  ];
+  for (file, contents) in files {
+    let file = path(file);
+    memory.create_dir_all(file.parent().unwrap()).unwrap();
+    memory.write(file, contents.as_bytes()).unwrap();
+  }
+
+  let options = ParcelOptions {
+    project_root: path("/project"),
+    ..Default::default()
+  };
+  (options, Arc::new(TrackingFileSystem::new(Arc::new(memory))))
+}
+
+fn read_file(handle: Options, file: &str) -> (IoStatus, Option<String>) {
+  let mut status = IoStatus::PARCEL_IO_ERROR;
+  let output = string_output(|buffer| {
+    status = parcel_fs_read_file(buffer, handle, file.as_ptr(), file.len());
+  });
+  (status, output)
+}
+
+#[test]
+fn fs_reads_are_recorded_as_invalidations() {
+  let (options, fs) = tracked_project();
+  let dyn_fs: Arc<dyn FileSystem> = fs.clone();
+  let plugin = PluginContext::new(&options, &dyn_fs);
+  let context = OptionsContext::with_plugin(&plugin);
+  let handle = context.handle();
+
+  assert_eq!(
+    read_file(handle, "/project/src/index.scss"),
+    (IoStatus::PARCEL_IO_OK, Some("a { color: red }".into()))
+  );
+  assert_eq!(
+    read_file(handle, "/project/src/missing.scss"),
+    (IoStatus::PARCEL_IO_NOT_FOUND, None)
+  );
+
+  let invalidations = fs.take();
+  assert_eq!(
+    invalidations.invalidate_on_file_change,
+    [path("/project/src/index.scss")]
+  );
+  assert!(matches!(
+    invalidations.invalidate_on_file_create.as_slice(),
+    [FileCreateInvalidation::Path(p)] if *p == path("/project/src/missing.scss")
+  ));
+}
+
+#[test]
+fn fs_reports_kinds_and_canonical_paths() {
+  let (options, fs) = tracked_project();
+  let dyn_fs: Arc<dyn FileSystem> = fs.clone();
+  let plugin = PluginContext::new(&options, &dyn_fs);
+  let context = OptionsContext::with_plugin(&plugin);
+  let handle = context.handle();
+  let kind = |file: &str| parcel_fs_get_kind(handle, file.as_ptr(), file.len());
+
+  assert_eq!(
+    kind("/project/src/index.scss"),
+    FileKind::PARCEL_FILE_KIND_FILE as FileKindFFI
+  );
+  assert_eq!(
+    kind("/project/src"),
+    FileKind::PARCEL_FILE_KIND_DIR as FileKindFFI
+  );
+  assert_eq!(kind("/project/missing"), 0);
+
+  let file = "/project/src/../src/index.scss";
+  let mut status = IoStatus::PARCEL_IO_ERROR;
+  let canonical = string_output(|buffer| {
+    status = parcel_fs_canonicalize(buffer, handle, file.as_ptr(), file.len());
+  });
+  assert_eq!(status, IoStatus::PARCEL_IO_OK);
+  assert_eq!(canonical.as_deref(), Some("/project/src/index.scss"));
+}
+
+/// Resolves `pkg` to a file next to the importer and records the dependency it was given, so
+/// tests can check what reached the resolver chain.
+#[derive(Default)]
+struct RecordingResolver {
+  seen: std::sync::Mutex<Vec<CoreDependency>>,
+}
+
+impl Resolver for RecordingResolver {
+  fn resolve(
+    &self,
+    dep: &CoreDependency,
+    specifier: &str,
+    _pipeline: Option<&str>,
+    ctx: &PluginContext,
+  ) -> Result<DependencyResolution, DiagnosticList> {
+    self.seen.lock().unwrap().push(dep.clone());
+    let from = dep.resolve_from.as_ref().unwrap().to_file_path()?;
+    match specifier {
+      "pkg" => {
+        let file = from.parent().unwrap().child("pkg.scss");
+        // Probed through the context's file system, as a real resolver would.
+        ctx.fs.kind(file);
+        Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
+          loc: SourceLocation {
+            url: SourceUrl::from_path(&file),
+            ..Default::default()
+          },
+          ty: AssetType::Scss,
+          pipeline: Some("styles".into()),
+          target: dep.target.clone(),
+          content: Arc::new(BufferContent::new_string(String::new())),
+          side_effects: false,
+          unique_key: None,
+        })))
+      }
+      "excluded" => Ok(DependencyResolution::Excluded),
+      _ => Ok(DependencyResolution::None),
+    }
+  }
+}
+
+fn asset_resolve(
+  asset: &CoreAsset,
+  handle: Options,
+  specifier: &str,
+  from: &str,
+) -> Option<(ResolutionType, Option<String>, Option<String>)> {
+  let dep = DependencyOptions {
+    specifier: specifier.as_ptr(),
+    specifier_len: specifier.len(),
+    specifier_type: SpecifierType::PARCEL_SPECIFIER_ESM,
+    priority: Priority::PARCEL_PRIORITY_SYNC,
+    bundle_behavior: BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_NONE,
+    flags: 0,
+    conditions: CoreExportsCondition::SASS.bits(),
+  };
+  let mut result = ResolveResult {
+    resolution_type: ResolutionType::PARCEL_RESOLUTION_NONE,
+    file_path: Buffer::default(),
+    pipeline: Buffer::default(),
+  };
+  let resolved = parcel_asset_resolve(
+    asset as *const CoreAsset as Asset,
+    handle,
+    &dep,
+    from.as_ptr(),
+    from.len(),
+    &mut result,
+  );
+  let take = |buffer: &mut Buffer| {
+    if buffer.data.is_null() {
+      return None;
+    }
+    let bytes = unsafe { std::slice::from_raw_parts(buffer.data, buffer.len).to_vec() };
+    parcel_free_buffer(buffer);
+    Some(String::from_utf8(bytes).unwrap())
+  };
+  resolved.then(|| {
+    (
+      result.resolution_type,
+      take(&mut result.file_path),
+      take(&mut result.pipeline),
+    )
+  })
+}
+
+#[test]
+fn asset_resolve_runs_the_resolver_chain() {
+  let (options, fs) = tracked_project();
+  let dyn_fs: Arc<dyn FileSystem> = fs.clone();
+  let recorder = Arc::new(RecordingResolver::default());
+  let resolvers: Vec<Arc<dyn Resolver>> = vec![recorder.clone()];
+  let transformers = Default::default();
+  let plugin = PluginContext::new(&options, &dyn_fs).with_resolvers(&resolvers, &transformers);
+  let context = OptionsContext::with_plugin(&plugin);
+  let asset = asset_fixture(target_fixture());
+
+  // An empty `from` resolves from the asset itself.
+  assert_eq!(
+    asset_resolve(&asset, context.handle(), "pkg", ""),
+    Some((
+      ResolutionType::PARCEL_RESOLUTION_FILE_PATH,
+      Some("/project/src/pkg.scss".into()),
+      Some("styles".into())
+    ))
+  );
+  // An import inside a file the asset pulled in resolves from that file.
+  assert_eq!(
+    asset_resolve(
+      &asset,
+      context.handle(),
+      "pkg",
+      "/project/lib/nested/_partial.scss"
+    ),
+    Some((
+      ResolutionType::PARCEL_RESOLUTION_FILE_PATH,
+      Some("/project/lib/nested/pkg.scss".into()),
+      Some("styles".into())
+    ))
+  );
+  assert_eq!(
+    asset_resolve(&asset, context.handle(), "excluded", ""),
+    Some((ResolutionType::PARCEL_RESOLUTION_EXCLUDED, None, None))
+  );
+  // Nothing in the chain resolves it.
+  assert_eq!(asset_resolve(&asset, context.handle(), "missing", ""), None);
+
+  let seen = recorder.seen.lock().unwrap();
+  assert!(Arc::ptr_eq(&seen[0].target, &asset.target));
+  assert_eq!(seen[0].conditions, CoreExportsCondition::SASS);
+  assert_eq!(
+    seen[1].resolve_from,
+    Some(SourceUrl::from_path(&path(
+      "/project/lib/nested/_partial.scss"
+    )))
+  );
+
+  // Probes made by resolvers invalidate the asset like the plugin's own reads.
+  assert!(
+    fs.take()
+      .invalidate_on_file_create
+      .iter()
+      .any(|i| matches!(i, FileCreateInvalidation::Path(p) if *p == path("/project/src/pkg.scss")))
+  );
+}
+
+#[test]
+fn fs_is_unavailable_outside_transform_and_resolve() {
+  let (options, _) = tracked_project();
+  let context = OptionsContext::new(&options);
+  let handle = context.handle();
+  let file = "/project/src/index.scss";
+
+  let (status, message) = read_file(handle, file);
+  assert_eq!(status, IoStatus::PARCEL_IO_ERROR);
+  assert!(message.unwrap().contains("only available"));
+  assert_eq!(parcel_fs_get_kind(handle, file.as_ptr(), file.len()), 0);
+  let asset = asset_fixture(target_fixture());
+  assert_eq!(asset_resolve(&asset, handle, "pkg", ""), None);
+}
+
+#[test]
+fn fs_rejects_relative_paths() {
+  let (options, fs) = tracked_project();
+  let dyn_fs: Arc<dyn FileSystem> = fs.clone();
+  let plugin = PluginContext::new(&options, &dyn_fs);
+  let context = OptionsContext::with_plugin(&plugin);
+  let (status, message) = read_file(context.handle(), "src/index.scss");
+  assert_eq!(status, IoStatus::PARCEL_IO_ERROR);
+  assert_eq!(message.as_deref(), Some("Expected an absolute path"));
 }

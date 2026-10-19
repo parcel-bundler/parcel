@@ -196,6 +196,53 @@ typedef uint8_t LogLevel;
 #endif // __cplusplus
 
 /**
+ * Outcome of a file system call.
+ */
+enum IoStatus
+#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+  : uint8_t
+#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+ {
+  /**
+   * The call succeeded and its result is in the output buffer.
+   */
+  PARCEL_IO_OK = 0,
+  /**
+   * The path does not exist. The output buffer is left empty.
+   */
+  PARCEL_IO_NOT_FOUND = 1,
+  /**
+   * Any other failure. The output buffer holds a UTF-8 description of it.
+   */
+  PARCEL_IO_ERROR = 2,
+};
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef enum IoStatus IoStatus;
+#else
+typedef uint8_t IoStatus;
+#endif // __STDC_VERSION__ >= 202311L
+#endif // __cplusplus
+
+enum ResolutionType
+#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+  : uint8_t
+#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+ {
+  PARCEL_RESOLUTION_NONE = 0,
+  PARCEL_RESOLUTION_FILE_PATH = 1,
+  PARCEL_RESOLUTION_EXTERNAL = 2,
+  PARCEL_RESOLUTION_EXCLUDED = 3,
+};
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef enum ResolutionType ResolutionType;
+#else
+typedef uint8_t ResolutionType;
+#endif // __STDC_VERSION__ >= 202311L
+#endif // __cplusplus
+
+/**
  * Result of a plugin's `parcel_plugin_init()`.
  *
  * A plugin that cannot use the [`ParcelApi`](crate::ParcelApi) table it was
@@ -227,24 +274,6 @@ enum InitStatus
 typedef enum InitStatus InitStatus;
 #else
 typedef uint8_t InitStatus;
-#endif // __STDC_VERSION__ >= 202311L
-#endif // __cplusplus
-
-enum ResolutionType
-#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
-  : uint8_t
-#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
- {
-  PARCEL_RESOLUTION_NONE = 0,
-  PARCEL_RESOLUTION_FILE_PATH = 1,
-  PARCEL_RESOLUTION_EXTERNAL = 2,
-  PARCEL_RESOLUTION_EXCLUDED = 3,
-};
-#ifndef __cplusplus
-#if __STDC_VERSION__ >= 202311L
-typedef enum ResolutionType ResolutionType;
-#else
-typedef uint8_t ResolutionType;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
@@ -384,6 +413,26 @@ enum BundleFlags
 typedef enum BundleFlags BundleFlags;
 #else
 typedef uint8_t BundleFlags;
+#endif // __STDC_VERSION__ >= 202311L
+#endif // __cplusplus
+
+/**
+ * What a path refers to. Empty when it does not exist.
+ */
+enum FileKind
+#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+  : uint8_t
+#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+ {
+  PARCEL_FILE_KIND_FILE = (1 << 0),
+  PARCEL_FILE_KIND_DIR = (1 << 1),
+  PARCEL_FILE_KIND_SYMLINK = (1 << 2),
+};
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef enum FileKind FileKind;
+#else
+typedef uint8_t FileKind;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
@@ -531,6 +580,21 @@ typedef struct DependencyOptions {
 typedef uint64_t Diagnostics;
 
 /**
+ * Result filled by a resolver plugin's `parcel_plugin_resolve()`.
+ * The struct is zero-initialised by the host before the call.
+ *
+ * When type == PARCEL_RESOLUTION_FILE_PATH, fill `file_path` (and optionally `pipeline`) via `parcel_buffer_alloc()`.
+ */
+typedef struct ResolveResult {
+  /**
+   * `PARCEL_RESOLUTION_*`
+   */
+  ResolutionType resolution_type;
+  struct Buffer file_path;
+  struct Buffer pipeline;
+} ResolveResult;
+
+/**
  * The host functions available to a plugin.
  */
 typedef struct ParcelApi {
@@ -628,22 +692,22 @@ typedef struct ParcelApi {
   void (*options_log_diagnostic)(Options options, const struct Diagnostic *diagnostic);
   void (*bundle_get_stable_key)(struct Buffer *buf, Bundle bundle);
   void (*bundle_get_hash_reference)(struct Buffer *buf, Bundle bundle);
+  IoStatus (*fs_read_file)(struct Buffer *buf,
+                           Options options,
+                           const uint8_t *path,
+                           uintptr_t path_len);
+  FileKind (*fs_get_kind)(Options options, const uint8_t *path, uintptr_t path_len);
+  IoStatus (*fs_canonicalize)(struct Buffer *buf,
+                              Options options,
+                              const uint8_t *path,
+                              uintptr_t path_len);
+  bool (*asset_resolve)(Asset asset,
+                        Options options,
+                        const struct DependencyOptions *dep,
+                        const uint8_t *from,
+                        uintptr_t from_len,
+                        struct ResolveResult *result);
 } ParcelApi;
-
-/**
- * Result filled by a resolver plugin's `parcel_plugin_resolve()`.
- * The struct is zero-initialised by the host before the call.
- *
- * When type == PARCEL_RESOLUTION_FILE_PATH, fill `file_path` (and optionally `pipeline`) via `parcel_buffer_alloc()`.
- */
-typedef struct ResolveResult {
-  /**
-   * `PARCEL_RESOLUTION_*`
-   */
-  ResolutionType resolution_type;
-  struct Buffer file_path;
-  struct Buffer pipeline;
-} ResolveResult;
 
 /**
  * Result filled by an optimizer plugin's `parcel_plugin_optimize()`.
@@ -1019,6 +1083,22 @@ static inline void parcel_bundle_get_stable_key(struct Buffer *buf, Bundle bundl
 
 static inline void parcel_bundle_get_hash_reference(struct Buffer *buf, Bundle bundle) {
   parcel_api->bundle_get_hash_reference(buf, bundle);
+}
+
+static inline IoStatus parcel_fs_read_file(struct Buffer *buf, Options options, const uint8_t *path, uintptr_t path_len) {
+  return parcel_api->fs_read_file(buf, options, path, path_len);
+}
+
+static inline FileKind parcel_fs_get_kind(Options options, const uint8_t *path, uintptr_t path_len) {
+  return parcel_api->fs_get_kind(options, path, path_len);
+}
+
+static inline IoStatus parcel_fs_canonicalize(struct Buffer *buf, Options options, const uint8_t *path, uintptr_t path_len) {
+  return parcel_api->fs_canonicalize(buf, options, path, path_len);
+}
+
+static inline bool parcel_asset_resolve(Asset asset, Options options, const struct DependencyOptions *dep, const uint8_t *from, uintptr_t from_len, struct ResolveResult *result) {
+  return parcel_api->asset_resolve(asset, options, dep, from, from_len, result);
 }
 
 #endif  /* PARCEL_PLUGIN_H */
