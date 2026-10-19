@@ -18,8 +18,7 @@
     "lint": "oxfmt --check packages-v3 && cargo fmt --all -- --check",
     "test:unit": "cargo test --workspace",
     "test": "yarn test:unit",
-    "prepare": "husky install",
-    "postinstall": "patch-package"
+    "prepare": "husky install"
   },
   "devDependencies": {
     "@babel/core": "^7.22.11",
@@ -81,9 +80,6 @@
     "react": "preact/compat",
     "react-dom": "preact/compat",
     "scheduler": false
-  },
-  "dependencies": {
-    "patch-package": "^8.0.0"
   },
   "_": "See issue #9405 for the Vue problem",
   "__": "The watcher complains about non-existing dirs in the integration tests on >=2.3.0",
