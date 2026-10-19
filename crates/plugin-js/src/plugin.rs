@@ -11,7 +11,7 @@ use parcel_core::{
   Asset, AssetFlags, AssetIndex, AssetRequest, AssetType, BufferContent, Bundle, BundleBehavior,
   BundleFlags, BundleGraph, BundleGraphDependencyResolution, Content, ContentWithSourceMap,
   DependencyFlags, DependencyResolution, Environment, EnvironmentFlags, ExportsCondition,
-  FileContent, FileSystem, ImportType, LogMessage, Namer, Optimizer, OutputFormat, PathId,
+  FileContent, ImportType, LogMessage, Namer, Optimizer, OutputFormat, PathId, PluginContext,
   Priority, Reporter, ReporterEvent, Resolver, SourceLocation, SourceType, SourceUrl,
   SpecifierType, Target, Transformer,
 };
@@ -234,6 +234,27 @@ impl<'scope> CallScope<'scope> {
   }
 }
 
+impl<'scope> CallScope<'scope> {
+  fn wrap_context<'c>(&self, context: &'scope PluginContext<'c>) -> ScopedContext {
+    ScopedContext(ScopedRef {
+      // As with wrap_graph: the context's lifetime is erased here and restored as a higher-ranked
+      // lifetime by ScopedContext::with.
+      ptr: NonNull::from(context).cast::<PluginContext<'static>>(),
+      alive: self.alive.clone(),
+    })
+  }
+}
+
+/// The context of the transform or resolve call a JS plugin is running in, for the `resolve`
+/// function it is handed.
+struct ScopedContext(ScopedRef<PluginContext<'static>>);
+
+impl ScopedContext {
+  fn with<R>(&self, f: impl for<'a, 'c> FnOnce(&'a PluginContext<'c>) -> R) -> rquickjs::Result<R> {
+    self.0.with(|context| f(context))
+  }
+}
+
 /// A bundle graph shared by the bundles, assets and dependencies exposed from one plugin call.
 /// Values from the same graph share one `Rc`, which identifies the graph they belong to.
 struct ScopedGraph(ScopedRef<BundleGraph<'static>>);
@@ -282,13 +303,15 @@ impl Transformer for JsPlugin {
   fn transform(
     &self,
     asset: Asset,
-    options: &parcel_core::ParcelOptions,
-    fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+    context: &PluginContext,
   ) -> std::result::Result<Asset, parcel_core::DiagnosticList> {
+    let options = context.options;
     with_call_scope(|scope| {
       let asset = with_plugin_env(options, |ctx| {
         let config = plugin_config(&ctx, &self.path)?;
         let transform: Function = config.get("transform")?;
+        // Dependencies resolved through `resolve` are imported by this asset, for its target.
+        let target = asset.target.clone();
         let asset = JsAsset::owned(asset);
         let value = asset.into_js(&ctx)?;
         let opts = Object::new(ctx.clone())?;
@@ -300,12 +323,11 @@ impl Transformer for JsPlugin {
             options: scope.wrap(options),
           },
         )?;
-        let project_root = options.project_root;
-        let resolver_fs = fs.clone();
+        let context = scope.wrap_context(context);
         opts.set(
           "resolve",
-          Function::new(ctx.clone(), move |ctx, specifier, from, options| {
-            resolve(ctx, specifier, from, options, project_root, &resolver_fs)
+          Function::new(ctx.clone(), move |ctx, from, specifier, options| {
+            resolve(ctx, from, specifier, options, &context, &target)
           }),
         )?;
         let res: rquickjs::Value = transform.call((opts,))?;
@@ -321,31 +343,21 @@ impl Transformer for JsPlugin {
   }
 }
 
+/// The `resolve(from, specifier, options)` function handed to a JS transformer: resolves with the
+/// configured resolver plugins, exactly as a dependency the transformer added would be.
 fn resolve<'js>(
   ctx: Ctx<'js>,
   from: String,
   specifier: String,
   options: rquickjs::function::Opt<Object<'js>>,
-  project_root: PathId,
-  resolver_fs: &Arc<dyn FileSystem>,
+  context: &ScopedContext,
+  target: &Arc<Target>,
 ) -> rquickjs::Result<rquickjs::Promise<'js>> {
-  // TODO: this should use the configured resolver plugins.
-  let resolver = parcel_resolver::Resolver::parcel(project_root);
+  let mut specifier_type = SpecifierType::Esm;
   let mut conditions = ExportsCondition::empty();
   let mut custom_conditions = Vec::new();
-  let mut specifier_type = parcel_resolver::SpecifierType::Esm;
   if let Some(options) = options.0 {
-    specifier_type = match dependency_enum(&ctx, &options, "specifierType", SpecifierType::Esm)? {
-      SpecifierType::Esm => parcel_resolver::SpecifierType::Esm,
-      SpecifierType::Commonjs => parcel_resolver::SpecifierType::Cjs,
-      SpecifierType::Url => parcel_resolver::SpecifierType::Url,
-      SpecifierType::Custom => {
-        return Err(rquickjs::Exception::throw_type(
-          &ctx,
-          "Custom specifiers cannot be resolved by Parcel's built-in resolver",
-        ));
-      }
-    };
+    specifier_type = dependency_enum(&ctx, &options, "specifierType", SpecifierType::Esm)?;
     if let Ok(package_conditions) = options.get::<_, Array>("packageConditions") {
       for cond in package_conditions.iter() {
         let cond: String = cond?;
@@ -357,36 +369,49 @@ fn resolve<'js>(
       }
     }
   }
-  let res = resolver.resolve_with_options(
-    &specifier,
-    PathId::new(Path::new(&from)),
+
+  let dep = parcel_core::Dependency {
+    specifier: specifier.as_str().into(),
     specifier_type,
-    &**resolver_fs,
-    parcel_resolver::ResolveOptions {
-      conditions,
-      custom_conditions,
-    },
-  );
-  match res {
-    Ok(resolved) => {
-      if let parcel_resolver::Resolution::Path(p) = resolved.resolution {
-        let (promise, resolve, _) = rquickjs::Promise::new(&ctx)?;
-        let _: rquickjs::Value = resolve.call((p.to_path_buf().to_string_lossy().into_owned(),))?;
-        return Ok(promise);
-      } else {
-        let (promise, _, reject) = rquickjs::Promise::new(&ctx)?;
-        let _: rquickjs::Value =
-          reject.call((rquickjs::Exception::from_message(ctx, "Could not resolve")?,))?;
-        return Ok(promise);
-      }
-    }
-    Err(e) => {
-      let (promise, _, reject) = rquickjs::Promise::new(&ctx)?;
+    priority: Priority::Sync,
+    bundle_behavior: BundleBehavior::None,
+    import_type: ImportType::JavaScript,
+    flags: DependencyFlags::empty(),
+    concurrent_group: 0,
+    target: target.clone(),
+    loc: None,
+    placeholder: None,
+    resolve_from: Some(SourceUrl::from_path(&PathId::new(Path::new(&from)))),
+    range: None,
+    conditions,
+    custom_conditions: custom_conditions.into(),
+    resolution: DependencyResolution::None,
+  };
+
+  let (promise, resolve, reject) = rquickjs::Promise::new(&ctx)?;
+  match context.with(|context| context.resolve(&dep))? {
+    Ok(DependencyResolution::Deferred(req)) if req.loc.url.to_file_path().is_ok() => {
+      let path = req.loc.url.to_file_path().unwrap();
       let _: rquickjs::Value =
-        reject.call((rquickjs::Exception::from_message(ctx, &e.to_string())?,))?;
-      return Ok(promise);
+        resolve.call((path.to_path_buf().to_string_lossy().into_owned(),))?;
+    }
+    Ok(_) => {
+      let _: rquickjs::Value = reject.call((rquickjs::Exception::from_message(
+        ctx,
+        &format!("Could not resolve '{specifier}' to a file"),
+      )?,))?;
+    }
+    Err(diagnostics) => {
+      let message = diagnostics
+        .0
+        .iter()
+        .map(|d| d.message.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+      let _: rquickjs::Value = reject.call((rquickjs::Exception::from_message(ctx, &message)?,))?;
     }
   }
+  Ok(promise)
 }
 
 impl Resolver for JsPlugin {
@@ -395,9 +420,9 @@ impl Resolver for JsPlugin {
     dep: &parcel_core::Dependency,
     specifier: &str,
     pipeline: Option<&str>,
-    options: &parcel_core::ParcelOptions,
-    _fs: &Arc<dyn parcel_core::FileSystem>,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<parcel_core::DependencyResolution, parcel_core::DiagnosticList> {
+    let options = ctx.options;
     with_call_scope(|scope| {
       with_plugin_env(options, |ctx| {
         let config = plugin_config(&ctx, &self.path)?;
@@ -820,6 +845,7 @@ fn dependency_from_js<'js>(
     import_type,
     flags,
     concurrent_group: 0,
+    custom_conditions: Default::default(),
     target,
     loc,
     placeholder: None,

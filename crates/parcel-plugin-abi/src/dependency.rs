@@ -5,11 +5,12 @@ use std::sync::Arc;
 use parcel_core::{
   Asset as CoreAsset, Dependency as CoreDependency, DependencyFlags as CoreDependencyFlags,
   DependencyResolution, ExportsCondition as CoreExportsCondition, ImportType,
-  Priority as CorePriority, SpecifierType as CoreSpecifierType,
+  Priority as CorePriority, SourceUrl, SpecifierType as CoreSpecifierType,
 };
 
 use crate::{
-  Asset, Buffer, BundleBehavior, Dependency, Options, Target, bytes_to_str, write_buffer,
+  Asset, Buffer, BundleBehavior, Dependency, Options, ResolutionType, ResolveResult, Target,
+  bytes_to_str, options_context, path_arg, write_buffer,
 };
 
 // SpecifierType — how a dependency specifier is interpreted
@@ -170,40 +171,124 @@ pub extern "C" fn parcel_asset_get_dependency(asset: Asset, index: usize) -> Dep
   })
 }
 
+impl DependencyOptions {
+  /// The dependency these options describe, imported by `asset` from `resolve_from`. It inherits
+  /// the asset's target. `None` when no specifier was given.
+  ///
+  /// # Safety
+  ///
+  /// `specifier` must point to `specifier_len` readable bytes.
+  unsafe fn to_dependency(
+    &self,
+    asset: &CoreAsset,
+    resolve_from: SourceUrl,
+  ) -> Option<CoreDependency> {
+    if self.specifier.is_null() {
+      return None;
+    }
+    let specifier = unsafe { bytes_to_str(self.specifier, self.specifier_len) };
+
+    Some(CoreDependency {
+      specifier: specifier.into(),
+      specifier_type: self.specifier_type.into(),
+      priority: self.priority.into(),
+      bundle_behavior: self.bundle_behavior.into(),
+      import_type: ImportType::JavaScript, // TODO
+      flags: CoreDependencyFlags::from_bits_truncate(self.flags),
+      target: asset.target.clone(),
+      loc: None,
+      placeholder: None,
+      resolve_from: Some(resolve_from),
+      range: None,
+      conditions: CoreExportsCondition::from_bits_truncate(self.conditions),
+      resolution: DependencyResolution::None,
+      concurrent_group: 0,
+      custom_conditions: Default::default(),
+    })
+  }
+}
+
 /// Appends a dependency to the asset. The new dependency inherits the asset's target.
 pub extern "C" fn parcel_asset_add_dependency(asset: Asset, dep: *const DependencyOptions) {
-  if dep.is_null() {
+  if asset == 0 || dep.is_null() {
     return;
   }
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
-  let dep = unsafe { &*dep };
-
-  if dep.specifier.is_null() {
-    return;
+  let from = asset.loc.url.clone();
+  if let Some(dep) = unsafe { (*dep).to_dependency(asset, from) } {
+    asset.dependencies.push(dep);
   }
-  let specifier = unsafe { bytes_to_str(dep.specifier, dep.specifier_len) }.to_owned();
+}
 
-  let specifier_type = dep.specifier_type.into();
-  let priority = dep.priority.into();
-  let bundle_behavior = dep.bundle_behavior.into();
-  let flags = CoreDependencyFlags::from_bits_truncate(dep.flags);
+/// Resolves a dependency of `asset` with the configured resolver plugins, exactly as one added
+/// with `parcel_asset_add_dependency()` would be, without adding it.
+///
+/// `from` is the absolute path of the file containing the import, for an import inside a file the
+/// asset itself pulled in (e.g. a Sass partial). Pass an empty `from` to resolve from the asset.
+///
+/// Every file the resolvers read or probe is recorded as an invalidation of the asset, so the
+/// transform re-runs when the result would change. Only available while transforming.
+///
+/// Returns false when the dependency could not be resolved. Otherwise fills `*result`: for
+/// `PARCEL_RESOLUTION_FILE_PATH`, `file_path` and, when the resolver chose one, `pipeline`. The
+/// caller must `parcel_free_buffer()` both.
+pub extern "C" fn parcel_asset_resolve(
+  asset: Asset,
+  options: Options,
+  dep: *const DependencyOptions,
+  from: *const u8,
+  from_len: usize,
+  result: *mut ResolveResult,
+) -> bool {
+  if asset == 0 || options == 0 || dep.is_null() || result.is_null() {
+    return false;
+  }
+  let Some(plugin) = unsafe { options_context(options) }.plugin else {
+    return false;
+  };
+  let asset = unsafe { &*(asset as *const CoreAsset) };
+  let resolve_from = if from_len == 0 {
+    asset.loc.url.clone()
+  } else {
+    match unsafe { path_arg(from, from_len) } {
+      Some(from) => SourceUrl::from_path(&from),
+      None => return false,
+    }
+  };
+  let Some(dep) = (unsafe { (*dep).to_dependency(asset, resolve_from) }) else {
+    return false;
+  };
 
-  asset.dependencies.push(CoreDependency {
-    specifier: specifier.into_boxed_str(),
-    specifier_type,
-    priority,
-    bundle_behavior,
-    import_type: ImportType::JavaScript, // TODO
-    flags,
-    target: asset.target.clone(),
-    loc: None,
-    placeholder: None,
-    resolve_from: Some(asset.loc.url.clone()),
-    range: None,
-    conditions: CoreExportsCondition::from_bits_truncate(dep.conditions),
-    resolution: DependencyResolution::None,
-    concurrent_group: 0,
-  });
+  let Ok(resolution) = plugin.resolve(&dep) else {
+    return false;
+  };
+
+  let result = unsafe { &mut *result };
+  result.resolution_type = ResolutionType::PARCEL_RESOLUTION_NONE;
+  result.file_path = Buffer::default();
+  result.pipeline = Buffer::default();
+  match resolution {
+    DependencyResolution::Deferred(req) => {
+      // A request for something other than a file, e.g. a virtual module, has no path to hand
+      // back.
+      if let Ok(path) = req.loc.url.to_file_path() {
+        let path = path.to_path_buf().to_string_lossy().into_owned();
+        result.resolution_type = ResolutionType::PARCEL_RESOLUTION_FILE_PATH;
+        unsafe { write_buffer(&mut result.file_path, path.into_bytes(), true) };
+        if let Some(pipeline) = &req.pipeline {
+          unsafe { write_buffer(&mut result.pipeline, pipeline.as_bytes().to_vec(), true) };
+        }
+      }
+    }
+    DependencyResolution::External => {
+      result.resolution_type = ResolutionType::PARCEL_RESOLUTION_EXTERNAL;
+    }
+    DependencyResolution::Excluded => {
+      result.resolution_type = ResolutionType::PARCEL_RESOLUTION_EXCLUDED;
+    }
+    DependencyResolution::None | DependencyResolution::Asset(_) => {}
+  }
+  true
 }
 
 // ── Dependency accessors (read-only) ──────────────────────────────────────────

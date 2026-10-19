@@ -70,7 +70,12 @@ fn run_times(
   };
   let mut result = None;
   for _ in 0..times {
-    result = Some(plugin.resolve(&dependency, specifier, pipeline, &options, &dyn_fs));
+    result = Some(plugin.resolve(
+      &dependency,
+      specifier,
+      pipeline,
+      &parcel_core::PluginContext::new(&options, &dyn_fs),
+    ));
   }
   result.expect("Resolver must be called at least once")
 }
@@ -123,6 +128,7 @@ fn test_dependency() -> Dependency {
     conditions: ExportsCondition::REQUIRE | ExportsCondition::BROWSER,
     resolution: DependencyResolution::None,
     concurrent_group: 0,
+    custom_conditions: Default::default(),
   }
 }
 

@@ -531,6 +531,21 @@ typedef struct DependencyOptions {
 typedef uint64_t Diagnostics;
 
 /**
+ * Result filled by a resolver plugin's `parcel_plugin_resolve()`.
+ * The struct is zero-initialised by the host before the call.
+ *
+ * When type == PARCEL_RESOLUTION_FILE_PATH, fill `file_path` (and optionally `pipeline`) via `parcel_buffer_alloc()`.
+ */
+typedef struct ResolveResult {
+  /**
+   * `PARCEL_RESOLUTION_*`
+   */
+  ResolutionType resolution_type;
+  struct Buffer file_path;
+  struct Buffer pipeline;
+} ResolveResult;
+
+/**
  * The host functions available to a plugin.
  */
 typedef struct ParcelApi {
@@ -628,22 +643,13 @@ typedef struct ParcelApi {
   void (*options_log_diagnostic)(Options options, const struct Diagnostic *diagnostic);
   void (*bundle_get_stable_key)(struct Buffer *buf, Bundle bundle);
   void (*bundle_get_hash_reference)(struct Buffer *buf, Bundle bundle);
+  bool (*asset_resolve)(Asset asset,
+                        Options options,
+                        const struct DependencyOptions *dep,
+                        const uint8_t *from,
+                        uintptr_t from_len,
+                        struct ResolveResult *result);
 } ParcelApi;
-
-/**
- * Result filled by a resolver plugin's `parcel_plugin_resolve()`.
- * The struct is zero-initialised by the host before the call.
- *
- * When type == PARCEL_RESOLUTION_FILE_PATH, fill `file_path` (and optionally `pipeline`) via `parcel_buffer_alloc()`.
- */
-typedef struct ResolveResult {
-  /**
-   * `PARCEL_RESOLUTION_*`
-   */
-  ResolutionType resolution_type;
-  struct Buffer file_path;
-  struct Buffer pipeline;
-} ResolveResult;
 
 /**
  * Result filled by an optimizer plugin's `parcel_plugin_optimize()`.
@@ -1019,6 +1025,10 @@ static inline void parcel_bundle_get_stable_key(struct Buffer *buf, Bundle bundl
 
 static inline void parcel_bundle_get_hash_reference(struct Buffer *buf, Bundle bundle) {
   parcel_api->bundle_get_hash_reference(buf, bundle);
+}
+
+static inline bool parcel_asset_resolve(Asset asset, Options options, const struct DependencyOptions *dep, const uint8_t *from, uintptr_t from_len, struct ResolveResult *result) {
+  return parcel_api->asset_resolve(asset, options, dep, from, from_len, result);
 }
 
 #endif  /* PARCEL_PLUGIN_H */

@@ -211,6 +211,7 @@ fn lazy_bundle_graph() -> BundleGraph<'static> {
     import_type: ImportType::JavaScript,
     flags,
     concurrent_group: 0,
+    custom_conditions: Default::default(),
     target: target.clone(),
     loc: None,
     placeholder: None,

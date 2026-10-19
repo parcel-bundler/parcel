@@ -1,8 +1,9 @@
 use std::{path::Path, sync::Arc};
 
 use parcel_core::{
-  Asset, AssetFlags, AssetType, BufferContent, BundleBehavior, DiagnosticList, FileSystem,
-  OverlayFileSystem, ParcelOptions, PathId, SourceLocation, SourceUrl, Transformer,
+  Asset, AssetFlags, AssetRequest, AssetType, BufferContent, BundleBehavior, DependencyResolution,
+  DiagnosticList, FileSystem, OverlayFileSystem, ParcelOptions, PathId, SourceLocation, SourceUrl,
+  SpecifierType, Transformer,
 };
 use parcel_plugin_js::JsPlugin;
 
@@ -35,7 +36,7 @@ fn run_with_options(
   let plugin = JsPlugin::new(plugin_path, config);
   let dyn_fs: Arc<dyn FileSystem> = fs.clone();
   options.input_fs = fs;
-  plugin.transform(asset, &options, &dyn_fs)
+  plugin.transform(asset, &parcel_core::PluginContext::new(&options, &dyn_fs))
 }
 
 fn run_with_fs(
@@ -52,7 +53,10 @@ fn run_with_fs(
     input_fs: fs,
     ..Default::default()
   };
-  plugin.transform(test_asset(), &options, &dyn_fs)
+  plugin.transform(
+    test_asset(),
+    &parcel_core::PluginContext::new(&options, &dyn_fs),
+  )
 }
 
 #[test]
@@ -375,7 +379,12 @@ fn plugin_fs_reads_are_tracked_by_the_plugin_tracker() {
     .unwrap();
     let asset_tracker = Arc::new(TrackingFileSystem::new(fs.clone()));
     let asset_fs: Arc<dyn FileSystem> = asset_tracker.clone();
-    let result = plugin.transform(test_asset(), &options, &asset_fs).unwrap();
+    let result = plugin
+      .transform(
+        test_asset(),
+        &parcel_core::PluginContext::new(&options, &asset_fs),
+      )
+      .unwrap();
     assert_eq!(result.content.read().unwrap(), value.as_bytes());
     assert!(
       plugin_tracker
@@ -569,18 +578,68 @@ fn test_transform_async() {
   );
 }
 
+/// Resolves the way Parcel's default resolver does, from what the dependency carries, so tests
+/// can see that `resolve` passes the specifier type and conditions through the resolver chain.
+/// Custom specifiers, which only a plugin could resolve, go to `custom.js`.
+struct NodeResolver;
+
+impl parcel_core::Resolver for NodeResolver {
+  fn resolve(
+    &self,
+    dep: &parcel_core::Dependency,
+    specifier: &str,
+    _pipeline: Option<&str>,
+    ctx: &parcel_core::PluginContext,
+  ) -> Result<DependencyResolution, DiagnosticList> {
+    let from = dep.resolve_from.as_ref().unwrap().to_file_path()?;
+    let path = if dep.specifier_type == SpecifierType::Custom {
+      from.parent().unwrap().child("custom.js")
+    } else {
+      let resolver = parcel_resolver::Resolver::parcel(ctx.options.project_root);
+      let specifier_type = match dep.specifier_type {
+        SpecifierType::Commonjs => parcel_resolver::SpecifierType::Cjs,
+        SpecifierType::Url => parcel_resolver::SpecifierType::Url,
+        _ => parcel_resolver::SpecifierType::Esm,
+      };
+      let options = parcel_resolver::ResolveOptions {
+        conditions: dep.conditions,
+        custom_conditions: dep.custom_conditions.to_vec(),
+      };
+      match resolver.resolve_with_options(specifier, from, specifier_type, &**ctx.fs, options) {
+        Ok(parcel_resolver::ResolutionAndQuery {
+          resolution: parcel_resolver::Resolution::Path(path),
+          ..
+        }) => path,
+        _ => return Ok(DependencyResolution::None),
+      }
+    };
+    Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
+      loc: SourceLocation {
+        url: SourceUrl::from_path(&path),
+        ..Default::default()
+      },
+      ty: AssetType::Js,
+      pipeline: None,
+      target: dep.target.clone(),
+      content: Arc::new(BufferContent::new_string(String::new())),
+      side_effects: true,
+      unique_key: None,
+    })))
+  }
+}
+
 #[test]
-fn test_resolve_specifier_type() {
+fn test_resolve_uses_the_resolver_chain() {
   let fs = Arc::new(OverlayFileSystem::new());
   let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
   let package = root.join(Path::new("resolve-fixture/node_modules/pkg"));
   fs.create_dir_all(package).unwrap();
   fs.write(
     package.child("package.json"),
-    &br#"{"name": "pkg", "exports": {"import": "./esm.js", "require": "./cjs.js"}}"#.to_vec(),
+    &br#"{"name": "pkg", "exports": {"my-condition": "./custom-condition.js", "import": "./esm.js", "require": "./cjs.js"}}"#.to_vec(),
   )
   .unwrap();
-  for file in ["esm.js", "cjs.js"] {
+  for file in ["esm.js", "cjs.js", "custom-condition.js"] {
     fs.write(package.child(file), &b"".to_vec()).unwrap();
   }
   let from = root.join(Path::new("resolve-fixture/index.js"));
@@ -601,7 +660,11 @@ fn test_resolve_specifier_type() {
           assert.match(await resolve(from, 'pkg', {specifierType: 'commonjs'}), /node_modules\/pkg\/cjs\.js$/);
           // A bare URL is relative, so this is the sibling file rather than the package.
           assert.match(await resolve(from, 'pkg', {specifierType: 'url'}), /resolve-fixture\/pkg$/);
-          assert.throws(() => resolve(from, 'pkg', {specifierType: 'custom'}), /Custom specifiers/);
+          // Conditions Parcel has no flag for still reach the resolvers.
+          assert.match(await resolve(from, 'pkg', {packageConditions: ['my-condition']}), /custom-condition\.js$/);
+          // Custom specifiers are for resolver plugins to interpret.
+          assert.match(await resolve(from, 'pkg', {specifierType: 'custom'}), /resolve-fixture\/custom\.js$/);
+          await assert.rejects(resolve(from, 'missing'), /Failed to resolve 'missing'/);
           assert.throws(() => resolve(from, 'pkg', {specifierType: 'nope'}), /Invalid specifierType/);
         }
       }};
@@ -618,5 +681,9 @@ fn test_resolve_specifier_type() {
     input_fs: fs,
     ..Default::default()
   };
-  plugin.transform(asset, &options, &dyn_fs).unwrap();
+  let resolvers: Vec<Arc<dyn parcel_core::Resolver>> = vec![Arc::new(NodeResolver)];
+  let transformers = Default::default();
+  let context =
+    parcel_core::PluginContext::new(&options, &dyn_fs).with_resolvers(&resolvers, &transformers);
+  plugin.transform(asset, &context).unwrap();
 }

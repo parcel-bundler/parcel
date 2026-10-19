@@ -5,6 +5,7 @@ mod bundle_graph;
 mod bundler;
 mod config;
 mod content;
+mod context;
 mod dependency;
 mod diagnostic;
 mod entry;
@@ -26,7 +27,7 @@ mod transformer;
 use std::{
   collections::{HashMap, HashSet},
   path::Path,
-  sync::{Arc, atomic::Ordering},
+  sync::Arc,
 };
 
 use crossbeam_channel::bounded;
@@ -38,6 +39,7 @@ pub use bundle_graph::*;
 pub use bundler::*;
 pub use config::*;
 pub use content::*;
+pub use context::PluginContext;
 pub use dependency::*;
 pub use diagnostic::*;
 pub use entry::*;

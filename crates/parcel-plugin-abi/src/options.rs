@@ -1,8 +1,59 @@
 //! Read-only Parcel option accessors.
 
-use parcel_core::{LogLevel as CoreLogLevel, ParcelOptions};
+use parcel_core::{FileSystem, LogLevel as CoreLogLevel, ParcelOptions, PluginContext};
 
 use crate::{Buffer, Diagnostic, LogLevel, Options, bytes_to_str, copy_cdiagnostic, write_buffer};
+
+/// What an [`Options`] handle points to.
+///
+/// The handle is opaque to plugins, so it can carry more than the options
+/// themselves. During a transform or a resolve it also carries the
+/// [`PluginContext`]: the file system that records every path a plugin reads as
+/// an invalidation, and the resolver chain `parcel_asset_resolve` runs. Elsewhere
+/// it is `None`, and those functions report an error rather than read files
+/// nothing would ever invalidate.
+///
+/// Lives on the host's stack for the duration of the plugin call that receives
+/// the handle, exactly as the bare options pointer did.
+/// cbindgen:ignore
+pub(crate) struct OptionsContext<'a> {
+  pub options: &'a ParcelOptions,
+  pub plugin: Option<&'a PluginContext<'a>>,
+}
+
+impl<'a> OptionsContext<'a> {
+  /// For entry points with no plugin context: namers, optimizers, reporters, packagers.
+  pub fn new(options: &'a ParcelOptions) -> Self {
+    OptionsContext {
+      options,
+      plugin: None,
+    }
+  }
+
+  /// For transforms and resolves.
+  pub fn with_plugin(plugin: &'a PluginContext<'a>) -> Self {
+    OptionsContext {
+      options: plugin.options,
+      plugin: Some(plugin),
+    }
+  }
+
+  pub fn fs(&self) -> Option<&'a dyn FileSystem> {
+    self.plugin.map(|plugin| &**plugin.fs)
+  }
+
+  pub fn handle(&self) -> Options {
+    self as *const OptionsContext as Options
+  }
+}
+
+/// # Safety
+///
+/// `options` must be a handle created by [`OptionsContext::handle`] whose
+/// context is still alive.
+pub(crate) unsafe fn options_context<'a>(options: Options) -> &'a OptionsContext<'a> {
+  unsafe { &*(options as *const OptionsContext) }
+}
 
 // ── Options accessors (read-only) ─────────────────────────────────────────────
 
@@ -12,7 +63,7 @@ pub extern "C" fn parcel_options_get_project_root(buf: *mut Buffer, options: Opt
   if buf.is_null() {
     return;
   }
-  let options: &ParcelOptions = unsafe { &*(options as *const ParcelOptions) };
+  let options = unsafe { options_context(options) }.options;
   unsafe {
     write_buffer(
       buf,
@@ -39,7 +90,7 @@ pub extern "C" fn parcel_options_get_env(
   if buf.is_null() || key.is_null() {
     return;
   }
-  let options: &ParcelOptions = unsafe { &*(options as *const ParcelOptions) };
+  let options = unsafe { options_context(options) }.options;
   let key_str = unsafe { bytes_to_str(key, key_len) };
   if let Some(value) = options.env.get(key_str) {
     unsafe { write_buffer(buf, value.as_bytes().to_vec(), true) };
@@ -62,7 +113,7 @@ pub extern "C" fn parcel_options_log(
   if options == 0 || message.is_null() {
     return;
   }
-  let options: &ParcelOptions = unsafe { &*(options as *const ParcelOptions) };
+  let options = unsafe { options_context(options) }.options;
   let message = unsafe { bytes_to_str(message, message_len) };
   options.log(CoreLogLevel::from(level), message);
 }
@@ -78,7 +129,7 @@ pub extern "C" fn parcel_options_log_diagnostic(options: Options, diagnostic: *c
   if options == 0 || diagnostic.is_null() {
     return;
   }
-  let options: &ParcelOptions = unsafe { &*(options as *const ParcelOptions) };
+  let options = unsafe { options_context(options) }.options;
   let diagnostic = unsafe { &*diagnostic };
   let level = match diagnostic.severity {
     crate::DiagnosticSeverity::PARCEL_SEVERITY_ERROR => CoreLogLevel::Error,

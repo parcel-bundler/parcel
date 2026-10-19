@@ -3,8 +3,8 @@ use std::{borrow::Cow, collections::BTreeMap, fmt::Write, sync::Arc};
 use glob_match::glob_match_with_captures;
 use parcel_core::{
   AssetRequest, AssetType, BufferContent, CodeFrame, Dependency, DependencyResolution, Diagnostic,
-  DiagnosticList, DiagnosticSeverity, FileSystem, ImportType, OutputFormat, ParcelOptions, PathId,
-  Resolver, SourceLocation, SourceUrl, SpecifierType, is_glob,
+  DiagnosticList, DiagnosticSeverity, ImportType, OutputFormat, PathId, Resolver, SourceLocation,
+  SourceUrl, SpecifierType, is_glob,
 };
 use xxhash_rust::xxh3::xxh3_64;
 
@@ -16,9 +16,9 @@ impl Resolver for GlobResolver {
     dep: &Dependency,
     specifier: &str,
     pipeline: Option<&str>,
-    _options: &ParcelOptions,
-    fs: &Arc<dyn FileSystem>,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<DependencyResolution, DiagnosticList> {
+    let fs = ctx.fs;
     let (glob, query) = specifier.split_once('?').unwrap_or((specifier, ""));
     if !is_glob(glob) {
       return Ok(DependencyResolution::None);

@@ -13,8 +13,7 @@ impl Transformer for ImageTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    _: &ParcelOptions,
-    _fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+    _ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
     asset.bundle_behavior = BundleBehavior::Isolated;
 

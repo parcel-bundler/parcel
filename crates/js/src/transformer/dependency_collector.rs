@@ -169,6 +169,7 @@ impl Config {
       import_type: kind.import_type(),
       flags: kind.flags(),
       concurrent_group: 0,
+      custom_conditions: Default::default(),
       target: self.dependency_target(&kind, source_type),
       loc,
       placeholder: None,

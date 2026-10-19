@@ -95,7 +95,10 @@ fn console_logs_reach_rust_reporters_even_when_the_plugin_fails() {
     None,
   );
   let error = plugin
-    .transform(asset(), &options, &options.input_fs)
+    .transform(
+      asset(),
+      &parcel_core::PluginContext::new(&options, &options.input_fs),
+    )
     .unwrap_err();
   assert!(error.0[0].message.contains("plugin failed"));
   assert_eq!(
@@ -128,7 +131,10 @@ fn console_obeys_rust_log_levels_and_supports_esm_imports() {
     None,
   );
   plugin
-    .transform(asset(), &options, &options.input_fs)
+    .transform(
+      asset(),
+      &parcel_core::PluginContext::new(&options, &options.input_fs),
+    )
     .unwrap();
   assert_eq!(
     *events.lock().unwrap(),
@@ -173,10 +179,16 @@ fn console_can_deliver_to_javascript_reporters_without_reentry_or_recursion() {
     ),
   );
   plugin
-    .transform(asset(), &options, &options.input_fs)
+    .transform(
+      asset(),
+      &parcel_core::PluginContext::new(&options, &options.input_fs),
+    )
     .unwrap();
   plugin
-    .transform(asset(), &options, &options.input_fs)
+    .transform(
+      asset(),
+      &parcel_core::PluginContext::new(&options, &options.input_fs),
+    )
     .unwrap();
   assert_eq!(
     *events.lock().unwrap(),
@@ -197,7 +209,10 @@ fn console_debug_uses_verbose_level() {
     None,
   );
   plugin
-    .transform(asset(), &options, &options.input_fs)
+    .transform(
+      asset(),
+      &parcel_core::PluginContext::new(&options, &options.input_fs),
+    )
     .unwrap();
   assert_eq!(
     *events.lock().unwrap(),

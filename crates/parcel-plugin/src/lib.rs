@@ -240,6 +240,22 @@ impl Default for DependencyFlags {
   }
 }
 
+/// What a path refers to, as returned by [`Options::file_kind`]. Empty when the
+/// path does not exist.
+pub use ffi::FileKind;
+
+impl FileKind {
+  pub fn contains(self, other: FileKind) -> bool {
+    self.0 & other.0 == other.0
+  }
+
+  pub fn is_empty(self) -> bool {
+    self.0 == 0
+  }
+}
+
+use ffi::IoStatus;
+
 /// Conditions used when resolving package `exports` and `imports` fields.
 pub use ffi::ExportsConditions;
 
@@ -812,6 +828,63 @@ impl<'a> Asset<'a> {
       conditions: dep.conditions,
     };
     unsafe { host!(asset_add_dependency)(self.raw, &raw) };
+  }
+
+  /// Resolves `dep` with the configured resolver plugins, exactly as if it had been added with
+  /// [`add_dependency`](Self::add_dependency), without adding it.
+  ///
+  /// `from` is the absolute path of the file containing the import, when that is not the asset
+  /// itself, e.g. a Sass partial the asset pulled in. Every file the resolvers read or probe
+  /// invalidates the asset, so the transform re-runs when the result would change.
+  ///
+  /// Returns `None` when the dependency could not be resolved. Only available while
+  /// transforming.
+  pub fn resolve(
+    &self,
+    dep: &DependencyOptions,
+    from: Option<&str>,
+    options: &Options,
+  ) -> Option<ResolveResult> {
+    let specifier = dep.specifier.as_bytes();
+    let raw = ffi::DependencyOptions {
+      specifier: specifier.as_ptr(),
+      specifier_len: specifier.len(),
+      specifier_type: dep.specifier_type,
+      priority: dep.priority,
+      bundle_behavior: dep.bundle_behavior,
+      flags: dep.flags,
+      conditions: dep.conditions,
+    };
+    let from = from.unwrap_or("").as_bytes();
+    let mut result = ffi::ResolveResult {
+      resolution_type: ffi::ResolutionType::None,
+      file_path: Buffer::default(),
+      pipeline: Buffer::default(),
+    };
+    let resolved = unsafe {
+      host!(asset_resolve)(
+        self.raw,
+        options.raw,
+        &raw,
+        from.as_ptr(),
+        from.len(),
+        &mut result,
+      )
+    };
+    if !resolved {
+      return None;
+    }
+
+    // Dropping the buffers frees them.
+    Some(match result.resolution_type {
+      ffi::ResolutionType::FilePath => ResolveResult::Resolved {
+        file_path: PathBuf::from(result.file_path.to_string()?),
+        pipeline: result.pipeline.to_string(),
+      },
+      ffi::ResolutionType::External => ResolveResult::External,
+      ffi::ResolutionType::Excluded => ResolveResult::Excluded,
+      ffi::ResolutionType::None => ResolveResult::None,
+    })
   }
 
   // ── Symbols ───────────────────────────────────────────────────────────────

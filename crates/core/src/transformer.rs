@@ -3,23 +3,18 @@ use std::{borrow::Cow, sync::Arc};
 use crate::{
   Asset, AssetFlags, AssetNodeIndex, AssetRequest, AssetSymbols, AssetType, DependencyFlags,
   DependencyResolution, Diagnostic, DiagnosticList, FileContent, FileSystem, Invalidations,
-  ParcelOptions, PathId, Pipeline, SourceUrl, Target, TrackingFileSystem, config::ParcelConfig,
-  resolver::resolve,
+  ParcelOptions, PathId, Pipeline, PluginContext, SourceUrl, Target, TrackingFileSystem,
+  config::ParcelConfig,
 };
 
 pub trait Transformer: Send + Sync {
   /// Transforms an asset.
   ///
-  /// `fs` is a per-request file system: any files a transformer reads through it (e.g. config or
-  /// sidecar files, via [`FileSystem::read`], [`FileSystem::glob`] or
-  /// [`FileSystem::find_ancestor_file`]) are automatically recorded as invalidations, so editing
-  /// them re-runs this transform. Read the asset's own source through `asset.content`, not `fs`.
-  fn transform(
-    &self,
-    asset: Asset,
-    options: &ParcelOptions,
-    fs: &Arc<dyn FileSystem>,
-  ) -> Result<Asset, DiagnosticList>;
+  /// Files read through `ctx.fs` (e.g. config or sidecar files, via [`FileSystem::read`],
+  /// [`FileSystem::glob`] or [`FileSystem::find_ancestor_file`]) are automatically recorded as
+  /// invalidations, so editing them re-runs this transform, and `ctx.resolve` resolves with the
+  /// configured resolvers. See [`PluginContext`].
+  fn transform(&self, asset: Asset, ctx: &PluginContext) -> Result<Asset, DiagnosticList>;
 }
 
 pub struct TransformRequest {
@@ -116,19 +111,14 @@ impl TransformRequest {
     // below: files read before a failure must still invalidate (e.g. the existence probes of
     // a failed resolution, so creating the missing file re-runs this asset).
     let result = (|| {
-      let mut asset = transform(asset, transformer_pipeline, &self.options, &fs)?;
+      let ctx = PluginContext::new(&self.options, &fs)
+        .with_resolvers(&self.config.resolvers, &self.config.transformers);
+      let mut asset = transform(asset, transformer_pipeline, &ctx)?;
       asset.target = Target::normalize(&asset.target, &asset.ty);
 
-      let resolvers = &self.config.resolvers;
       for dep in &mut asset.dependencies {
         if dep.resolution == DependencyResolution::None {
-          dep.resolution = resolve(
-            dep,
-            resolvers,
-            &self.config.transformers,
-            &*self.options,
-            &fs,
-          )?;
+          dep.resolution = ctx.resolve(dep)?;
         }
 
         if let DependencyResolution::Deferred(req) = &dep.resolution {
@@ -151,14 +141,14 @@ impl TransformRequest {
 fn transform(
   asset: Asset,
   mut pipeline: Pipeline<'_, dyn Transformer>,
-  options: &ParcelOptions,
-  fs: &Arc<dyn FileSystem>,
+  ctx: &PluginContext,
 ) -> Result<Asset, DiagnosticList> {
+  let options = ctx.options;
   let mut input = asset;
 
   while let Some(plugin) = pipeline.next() {
     let ty: AssetType = input.ty.clone();
-    let mut result = plugin.transform(input, options, fs)?;
+    let mut result = plugin.transform(input, ctx)?;
     if result.ty != ty {
       let next_path = relative_path(&result.loc.url, &options.project_root, &result.ty)?;
       pipeline.change_type(next_path, &mut result.pipeline);

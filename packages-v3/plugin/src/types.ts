@@ -675,17 +675,19 @@ export type ResolveOptions = {
    *   - esm: An ES module specifier. It is parsed as a URL, but bare specifiers are treated as node_modules.
    *   - commonjs: A CommonJS specifier. It is not parsed as a URL.
    *   - url: A URL that works as in a browser. Bare specifiers are treated as relative URLs.
+   *   - custom: A specifier only a resolver plugin knows how to interpret.
    * @default 'esm'
    */
-  readonly specifierType?: Exclude<SpecifierType, 'custom'>;
+  readonly specifierType?: SpecifierType;
 
   /** A list of custom conditions to use when resolving package.json "exports" and "imports". */
   readonly packageConditions?: Array<string>;
 };
 
 /**
- * Resolves `specifier` from the file `from` with Parcel's built-in resolver, and returns
- * the absolute path of the resolved file.
+ * Resolves `specifier` from the file `from` with the resolvers configured in .parcelrc, exactly as
+ * a dependency of the asset would be, and returns the absolute path of the resolved file. Rejects
+ * when it does not resolve to a file. Every file the resolvers read invalidates the asset.
  * @section transformer
  */
 export type ResolveFn = (

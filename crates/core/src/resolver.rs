@@ -1,39 +1,36 @@
-use std::{borrow::Cow, path::Path, sync::Arc};
+use std::{path::Path, sync::Arc};
 
 use crate::{
   CodeFrame, Dependency, DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList,
-  FileSystem, ImportType, ParcelOptions, Transformer, config::PipelineMap,
-  transformer::relative_path,
+  ImportType, PluginContext,
 };
 
 pub trait Resolver: Send + Sync {
   /// Resolves a dependency's specifier to a resolution.
   ///
-  /// `fs` is the per-request file system: files read through it (config, `package.json`, existence
-  /// checks, globs, ...) are automatically recorded as invalidations, so a change to any of them
-  /// re-runs resolution. Read through `fs` rather than `options.input_fs` so this tracking applies.
+  /// Read files through `ctx.fs` so that they are recorded as invalidations (see
+  /// [`PluginContext`]). `ctx.resolve` continues with the resolvers after this one.
   fn resolve(
     &self,
     dep: &Dependency,
     specifier: &str,
     pipeline: Option<&str>,
-    options: &ParcelOptions,
-    fs: &Arc<dyn FileSystem>,
+    ctx: &PluginContext,
   ) -> Result<DependencyResolution, DiagnosticList>;
 }
 
-pub fn resolve(
+/// Runs `dep` through the resolvers in `ctx`, in order, until one resolves it.
+pub(crate) fn resolve(
   dep: &Dependency,
-  resolvers: &Vec<Arc<dyn Resolver>>,
-  transformers: &PipelineMap<dyn Transformer>,
-  options: &ParcelOptions,
-  fs: &Arc<dyn FileSystem>,
+  ctx: &PluginContext,
 ) -> Result<DependencyResolution, DiagnosticList> {
+  let transformers = ctx.transformers();
+  let options = ctx.options;
   let (pipeline, specifier) = if let Ok((pipeline, specifier)) = parse_pipeline(&dep.specifier) {
     // Don't consider absolute paths. Absolute paths are only supported for entries,
     // and include e.g. `C:\` on Windows, conflicting with pipelines.
     if Path::new(&*dep.specifier).is_absolute()
-      || !transformers.named_pipelines().any(|v| v == pipeline)
+      || !transformers.is_some_and(|t| t.named_pipelines().any(|v| v == pipeline))
     {
       // This may be a url protocol or scheme rather than a pipeline, such as
       // `url('http://example.com/foo.png')`. Pass it to resolvers to handle.
@@ -46,19 +43,21 @@ pub fn resolve(
   };
 
   let mut diagnostics = Vec::new();
-  for resolver in resolvers {
-    match resolver.resolve(dep, specifier, pipeline, options, fs) {
+  for (index, resolver) in ctx.resolvers().iter().enumerate() {
+    match resolver.resolve(dep, specifier, pipeline, &ctx.for_resolver(index)) {
       Ok(res) => match res {
         DependencyResolution::None => continue,
         DependencyResolution::Deferred(mut req) => {
           // TODO: is this how we want to handle special case transformations like JSON that only apply when importing from JS?
           if req.pipeline.is_none() && dep.import_type == ImportType::JavaScript {
             let path = req.loc.url.to_file_path()?;
-            let matches = path.with_relative(options.project_root, |relative_path| {
-              transformers
-                .get(relative_path.to_string_lossy(), &Some("js"), false)
-                .next()
-                .is_some()
+            let matches = transformers.is_some_and(|transformers| {
+              path.with_relative(options.project_root, |relative_path| {
+                transformers
+                  .get(relative_path.to_string_lossy(), &Some("js"), false)
+                  .next()
+                  .is_some()
+              })
             });
             if matches {
               let inner = Arc::make_mut(&mut req);
@@ -151,8 +150,7 @@ mod tests {
       _dep: &Dependency,
       specifier: &str,
       _pipeline: Option<&str>,
-      _options: &ParcelOptions,
-      _fs: &Arc<dyn FileSystem>,
+      _ctx: &crate::PluginContext,
     ) -> Result<DependencyResolution, DiagnosticList> {
       if specifier == "one" {
         Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
@@ -183,8 +181,7 @@ mod tests {
       _dep: &Dependency,
       specifier: &str,
       _pipeline: Option<&str>,
-      _options: &ParcelOptions,
-      _fs: &Arc<dyn FileSystem>,
+      _ctx: &crate::PluginContext,
     ) -> Result<DependencyResolution, DiagnosticList> {
       if specifier == "two" {
         Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
@@ -233,17 +230,14 @@ mod tests {
       conditions: ExportsCondition::empty(),
       resolution: crate::DependencyResolution::None,
       concurrent_group: 0,
+      custom_conditions: Default::default(),
     };
 
     let fs: Arc<dyn FileSystem> = Arc::new(OsFileSystem {});
-    let res = resolve(
-      &dep,
-      &resolvers,
-      &Default::default(),
-      &Default::default(),
-      &fs,
-    )
-    .unwrap();
+    let options = Default::default();
+    let transformers = Default::default();
+    let ctx = PluginContext::new(&options, &fs).with_resolvers(&resolvers, &transformers);
+    let res = ctx.resolve(&dep).unwrap();
     let DependencyResolution::Deferred(req) = res else {
       panic!("expected Deferred");
     };
@@ -253,19 +247,69 @@ mod tests {
 
     dep.specifier = "two".into();
 
-    let res = resolve(
-      &dep,
-      &resolvers,
-      &Default::default(),
-      &Default::default(),
-      &fs,
-    )
-    .unwrap();
+    let res = ctx.resolve(&dep).unwrap();
     let DependencyResolution::Deferred(req) = res else {
       panic!("expected Deferred");
     };
     assert_eq!(req.loc.url, SourceUrl::parse("file:///two.js").unwrap());
     assert_eq!(req.ty, AssetType::Js);
     assert!(!req.side_effects);
+  }
+
+  /// Resolves "delegate" by asking the context to resolve "one" instead, as a resolver plugin
+  /// that wraps another would.
+  struct Delegating {}
+  impl Resolver for Delegating {
+    fn resolve(
+      &self,
+      dep: &Dependency,
+      specifier: &str,
+      _pipeline: Option<&str>,
+      ctx: &crate::PluginContext,
+    ) -> Result<DependencyResolution, DiagnosticList> {
+      if specifier != "delegate" && specifier != "loop" {
+        return Ok(DependencyResolution::None);
+      }
+      let mut dep = dep.clone();
+      // "loop" asks for itself again: only the resolvers after this one may see it.
+      dep.specifier = if specifier == "loop" { "loop" } else { "one" }.into();
+      ctx.resolve(&dep)
+    }
+  }
+
+  #[test]
+  fn resolvers_continue_with_the_rest_of_the_chain() {
+    let resolvers: Vec<Arc<dyn Resolver>> = vec![Arc::new(Delegating {}), Arc::new(Resolver1 {})];
+    let mut dep = Dependency {
+      specifier: "delegate".into(),
+      specifier_type: crate::SpecifierType::Esm,
+      priority: crate::Priority::Sync,
+      bundle_behavior: crate::BundleBehavior::None,
+      flags: DependencyFlags::empty(),
+      target: Arc::new(Default::default()),
+      loc: None,
+      import_type: ImportType::JavaScript,
+      placeholder: None,
+      resolve_from: None,
+      range: None,
+      conditions: ExportsCondition::empty(),
+      resolution: crate::DependencyResolution::None,
+      concurrent_group: 0,
+      custom_conditions: Default::default(),
+    };
+
+    let fs: Arc<dyn FileSystem> = Arc::new(OsFileSystem {});
+    let options = Default::default();
+    let transformers = Default::default();
+    let ctx = PluginContext::new(&options, &fs).with_resolvers(&resolvers, &transformers);
+
+    let Ok(DependencyResolution::Deferred(req)) = ctx.resolve(&dep) else {
+      panic!("expected Deferred");
+    };
+    assert_eq!(req.loc.url, SourceUrl::parse("file:///one.js").unwrap());
+
+    // Would recurse forever if the delegating resolver saw itself again.
+    dep.specifier = "loop".into();
+    assert!(ctx.resolve(&dep).is_err());
   }
 }

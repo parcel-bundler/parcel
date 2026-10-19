@@ -111,6 +111,7 @@ pub fn collect_dependencies<'arena>(
         unique_key: asset.unique_key.clone(),
       })),
       concurrent_group: 0,
+      custom_conditions: Default::default(),
     });
   }
 
@@ -318,6 +319,7 @@ impl<'arena> DependencyCollector<'arena> {
             conditions: ExportsCondition::empty(),
             resolution: DependencyResolution::None,
             concurrent_group: 0,
+            custom_conditions: Default::default(),
           };
 
           node.set_attribute(expanded_name!("", "href"), dep.set_placeholder());
@@ -412,6 +414,7 @@ impl<'arena> DependencyCollector<'arena> {
               conditions: ExportsCondition::empty(),
               resolution: DependencyResolution::None,
               concurrent_group: 0,
+              custom_conditions: Default::default(),
             };
 
             copy.set_attribute(src_attr, dep.set_placeholder());
@@ -434,6 +437,7 @@ impl<'arena> DependencyCollector<'arena> {
             conditions: ExportsCondition::empty(),
             resolution: DependencyResolution::None,
             concurrent_group: 0,
+            custom_conditions: Default::default(),
           };
 
           node.set_attribute(src_attr, dep.set_placeholder());
@@ -766,6 +770,7 @@ impl<'arena> DependencyCollector<'arena> {
           conditions: ExportsCondition::empty(),
           resolution: DependencyResolution::None,
           concurrent_group: 0,
+          custom_conditions: Default::default(),
         };
 
         img.url = dep.set_placeholder().into();
@@ -802,6 +807,7 @@ impl<'arena> DependencyCollector<'arena> {
       conditions: ExportsCondition::empty(),
       resolution: DependencyResolution::None,
       concurrent_group: 0,
+      custom_conditions: Default::default(),
     };
 
     let placeholder = dep.set_placeholder().into();

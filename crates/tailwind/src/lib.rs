@@ -1,8 +1,6 @@
 use std::{path::Path, sync::Arc};
 
-use parcel_core::{
-  Asset, BufferContent, DiagnosticList, ExportsCondition, ParcelOptions, Transformer,
-};
+use parcel_core::{Asset, BufferContent, DiagnosticList, ExportsCondition, Transformer};
 use parcel_plugin_js::{await_promise, require_source, with_js_env};
 use parcel_resolver::{Resolution, ResolveOptions, Resolver, SpecifierType};
 use rquickjs::{Array, Ctx, Function, Value};
@@ -16,9 +14,10 @@ impl Transformer for TailwindTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    options: &ParcelOptions,
-    fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
+    let options = ctx.options;
+    let fs = ctx.fs;
     let project_root_path = options.project_root;
 
     let css = asset.content.read_string()?;

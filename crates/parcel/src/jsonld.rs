@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use parcel_core::{Asset, AssetType, DiagnosticList, FileSystem, ParcelOptions, Transformer};
+use parcel_core::{Asset, AssetType, DiagnosticList, Transformer};
 use serde_json::Value;
 
 use crate::json_urls::JsonUrlContent;
@@ -26,8 +26,7 @@ impl Transformer for JsonLdTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    _options: &ParcelOptions,
-    _fs: &Arc<dyn FileSystem>,
+    _ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
     let source = asset.content.read()?;
     let json = serde_json::from_slice(&source)?;

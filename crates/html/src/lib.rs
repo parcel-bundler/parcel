@@ -364,8 +364,7 @@ impl Transformer for HtmlTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    options: &ParcelOptions,
-    _fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+    _ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let res = transform_html(TransformOptions {
@@ -709,8 +708,7 @@ impl Transformer for SvgTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    options: &ParcelOptions,
-    _fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+    _ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
     let code = asset.content.read()?;
     let res = transform_svg(TransformOptions {
@@ -741,9 +739,9 @@ impl Transformer for SvgToJsxTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    options: &ParcelOptions,
-    _fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
+    let options = ctx.options;
     let code = asset.content.read()?;
     let mut config = self.config.clone();
     if matches!(config.svgo_config.prefix_ids, ConfigItem::None) {

@@ -218,9 +218,10 @@ impl Transformer for MockTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    options: &ParcelOptions,
-    fs: &Arc<dyn FileSystem>,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
+    let options = ctx.options;
+    let fs = ctx.fs;
     let content = asset.content.read()?;
     let text = String::from_utf8(content).map_err(Diagnostic::from)?;
 
@@ -283,6 +284,7 @@ fn make_dep(
     conditions: ExportsCondition::empty(),
     resolution: DependencyResolution::None,
     concurrent_group: 0,
+    custom_conditions: Default::default(),
   }
 }
 
@@ -310,9 +312,10 @@ impl Resolver for MockResolver {
     dep: &Dependency,
     specifier: &str,
     _pipeline: Option<&str>,
-    options: &ParcelOptions,
-    fs: &Arc<dyn FileSystem>,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<DependencyResolution, DiagnosticList> {
+    let options = ctx.options;
+    let fs = ctx.fs;
     let base = dep
       .resolve_from
       .clone()

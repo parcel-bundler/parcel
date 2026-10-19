@@ -111,6 +111,7 @@ impl MacroContext {
         unique_key: Some(ordinal.to_string().into()),
       })),
       concurrent_group: 0,
+      custom_conditions: Default::default(),
     })
   }
 

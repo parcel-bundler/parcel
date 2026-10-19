@@ -135,8 +135,7 @@ impl Transformer for XmlTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    _options: &ParcelOptions,
-    _fs: &Arc<dyn FileSystem>,
+    _ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
     let result = transform_xml(TransformOptions {
       code: asset.content.read()?,

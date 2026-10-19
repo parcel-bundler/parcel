@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use parcel_core::{
-  Asset, AssetType, CodeFrame, CodeHighlight, Diagnostic, DiagnosticList, FileSystem, Location,
-  ParcelOptions, SourceLocation, Transformer,
+  Asset, AssetType, CodeFrame, CodeHighlight, Diagnostic, DiagnosticList, Location, SourceLocation,
+  Transformer,
 };
 use serde_json::Value;
 
@@ -14,8 +14,7 @@ impl Transformer for WebManifestTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    _options: &ParcelOptions,
-    _fs: &Arc<dyn FileSystem>,
+    _ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
     let source = asset.content.read_string()?.into_owned();
     let json: Value = serde_json::from_str(&source)?;

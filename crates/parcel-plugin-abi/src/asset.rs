@@ -8,8 +8,8 @@ use parcel_core::{
 };
 
 use crate::{
-  Asset, Buffer, Bundle, BundleBehavior, BundleGraph, Diagnostic, Options, bytes_to_str,
-  read_cdiagnostic, write_buffer,
+  Asset, Buffer, Bundle, BundleBehavior, BundleGraph, Diagnostic, Options, OptionsContext,
+  bytes_to_str, read_cdiagnostic, write_buffer,
 };
 
 #[repr(u32)]
@@ -206,6 +206,7 @@ impl Content for CContent {
     options: &ParcelOptions,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     if let Some(package) = self.package {
+      let context = OptionsContext::new(options);
       let mut buf = Buffer::default();
       let mut diagnostic = Diagnostic::default();
 
@@ -213,7 +214,7 @@ impl Content for CContent {
         self.ptr,
         bundle_graph as *const parcel_core::BundleGraph as BundleGraph,
         bundle as *const parcel_core::Bundle as Bundle,
-        options as *const ParcelOptions as Options,
+        context.handle(),
         &mut buf,
         &mut diagnostic,
       );

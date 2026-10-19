@@ -95,9 +95,9 @@ impl Transformer for CssTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    options: &ParcelOptions,
-    _fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
+    let options = ctx.options;
     let code = asset.content.read()?;
     let code = std::str::from_utf8(&code)?;
     let input_map = if asset.target.source_map.is_some() {
@@ -218,6 +218,7 @@ impl Transformer for CssTransformer {
                 conditions: ExportsCondition::STYLE,
                 resolution: DependencyResolution::None,
                 concurrent_group: 0,
+                custom_conditions: Default::default(),
               });
 
               asset.symbols.imports.push(ImportedSymbol {
@@ -254,6 +255,7 @@ impl Transformer for CssTransformer {
                 conditions: ExportsCondition::STYLE,
                 resolution: DependencyResolution::None,
                 concurrent_group: 0,
+                custom_conditions: Default::default(),
               });
 
               let index = asset.symbols.imports.len();
@@ -461,6 +463,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
         conditions: ExportsCondition::STYLE,
         resolution: DependencyResolution::None,
         concurrent_group: 0,
+        custom_conditions: Default::default(),
       });
 
       Ok(())
@@ -546,6 +549,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
       conditions: ExportsCondition::empty(),
       resolution: DependencyResolution::None,
       concurrent_group: 0,
+      custom_conditions: Default::default(),
     });
 
     Ok(())
@@ -558,9 +562,9 @@ impl Transformer for StyleAttrTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    options: &ParcelOptions,
-    _fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
+    let options = ctx.options;
     let code = asset.content.read()?;
     let code = std::str::from_utf8(&code)?;
     let mut attr = StyleAttribute::parse(

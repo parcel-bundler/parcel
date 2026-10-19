@@ -29,6 +29,7 @@ impl JsonUrlContent {
       import_type: ImportType::Url,
       flags: DependencyFlags::empty(),
       concurrent_group: 0,
+      custom_conditions: Default::default(),
       target: asset.target.clone(),
       loc,
       placeholder: None,

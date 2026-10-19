@@ -12,7 +12,8 @@ use parcel_core::{
 
 use crate::{
   Asset, AssetIndex, Buffer, Bundle, BundleGraph, Dependency, Diagnostic, DiagnosticSeverity,
-  Diagnostics, Options, diagnostics::DiagnosticsView, parcel_free_buffer, read_cdiagnostic,
+  Diagnostics, Options, OptionsContext, diagnostics::DiagnosticsView, parcel_free_buffer,
+  read_cdiagnostic,
 };
 
 /// Result of a plugin's `parcel_plugin_init()`.
@@ -241,9 +242,9 @@ impl Transformer for CPlugin {
   fn transform(
     &self,
     mut asset: CoreAsset,
-    options: &ParcelOptions,
-    _fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<CoreAsset, DiagnosticList> {
+    let options = ctx.options;
     type TransformFn = extern "C" fn(Asset, Options, *mut c_void, *mut Diagnostic);
     let transform: Symbol<TransformFn> = unsafe {
       self.lib.get(b"parcel_plugin_transform").map_err(|_| {
@@ -251,10 +252,11 @@ impl Transformer for CPlugin {
       })?
     };
 
+    let context = OptionsContext::with_plugin(ctx);
     let mut diagnostic = Diagnostic::default();
     transform(
       &mut asset as *mut CoreAsset as Asset,
-      options as *const ParcelOptions as Options,
+      context.handle(),
       self.state,
       &mut diagnostic,
     );
@@ -272,9 +274,9 @@ impl Resolver for CPlugin {
     dep: &CoreDependency,
     specifier: &str,
     pipeline: Option<&str>,
-    options: &ParcelOptions,
-    _fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<DependencyResolution, DiagnosticList> {
+    let options = ctx.options;
     type ResolveFn = extern "C" fn(
       Dependency,
       *const u8,
@@ -332,6 +334,7 @@ impl Resolver for CPlugin {
     };
 
     let pipeline_bytes = pipeline.map(|p| p.as_bytes());
+    let context = OptionsContext::with_plugin(ctx);
 
     resolve(
       dep as *const CoreDependency as Dependency,
@@ -339,7 +342,7 @@ impl Resolver for CPlugin {
       specifier.len(),
       pipeline_bytes.map_or(ptr::null(), |b| b.as_ptr()),
       pipeline_bytes.map_or(0, |b| b.len()),
-      options as *const ParcelOptions as Options,
+      context.handle(),
       &mut result,
       self.state,
       &mut diagnostic,
@@ -424,12 +427,13 @@ impl parcel_core::Namer for CPlugin {
       })?
     };
 
+    let context = OptionsContext::new(options);
     let mut name = Buffer::default();
     let mut diagnostic = Diagnostic::default();
     name_fn(
       bundle_graph as *const parcel_core::BundleGraph as BundleGraph,
       bundle as *const parcel_core::Bundle as Bundle,
-      options as *const ParcelOptions as Options,
+      context.handle(),
       &mut name,
       self.state,
       &mut diagnostic,
@@ -532,13 +536,9 @@ impl Reporter for CPlugin {
       _ => return Ok(()),
     }
 
+    let context = OptionsContext::new(options);
     let mut diagnostic = Diagnostic::default();
-    report(
-      &c_event,
-      options as *const ParcelOptions as Options,
-      self.state,
-      &mut diagnostic,
-    );
+    report(&c_event, context.handle(), self.state, &mut diagnostic);
 
     if let Some(diag) = read_cdiagnostic(&mut diagnostic, Some(&options.project_root)) {
       return Err(DiagnosticList(vec![diag]));
@@ -579,6 +579,7 @@ impl Optimizer for CPlugin {
     let contents = contents.read()?;
     let mut result = OptimizeResult::default();
     let mut diagnostic = Diagnostic::default();
+    let context = OptionsContext::new(options);
 
     optimize(
       bundle_graph as *const parcel_core::BundleGraph as BundleGraph,
@@ -587,7 +588,7 @@ impl Optimizer for CPlugin {
       contents.len(),
       source_map.as_ref().map_or(ptr::null(), |map| map.as_ptr()),
       source_map.as_ref().map_or(0, Vec::len),
-      options as *const ParcelOptions as Options,
+      context.handle(),
       &mut result,
       self.state,
       &mut diagnostic,

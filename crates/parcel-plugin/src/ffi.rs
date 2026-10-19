@@ -637,6 +637,16 @@ pub struct ParcelApi {
     ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, bundle: Bundle)>,
   pub bundle_get_hash_reference:
     ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, bundle: Bundle)>,
+  pub asset_resolve: ::std::option::Option<
+    unsafe extern "C" fn(
+      asset: Asset,
+      options: Options,
+      dep: *const DependencyOptions,
+      from: *const u8,
+      from_len: usize,
+      result: *mut ResolveResult,
+    ) -> bool,
+  >,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {

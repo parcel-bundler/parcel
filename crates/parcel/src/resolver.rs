@@ -4,8 +4,8 @@ use parcel_core::{
   AssetRequest, AssetType, BufferContent, BuildMode, CodeFrame, CodeHighlight, Dependency,
   DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList, DiagnosticSeverity,
   Environment, EnvironmentFlags, ExportsCondition, FileContent, FileSystem, IncludeNodeModules,
-  JsonSourceLocationType, Location, ParcelOptions, PathId, Resolver, SourceLocation, SourceUrl,
-  SpecifierType, Target, json_source_location,
+  JsonSourceLocationType, Location, PathId, Resolver, SourceLocation, SourceUrl, SpecifierType,
+  Target, json_source_location,
 };
 use parcel_resolver::{
   Extensions, Fields, PackageJsonError, Resolution, ResolutionAndQuery, ResolveOptions,
@@ -26,9 +26,10 @@ impl Resolver for DefaultResolver {
     dep: &Dependency,
     specifier: &str,
     pipeline: Option<&str>,
-    options: &ParcelOptions,
-    fs: &Arc<dyn FileSystem>,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<DependencyResolution, DiagnosticList> {
+    let options = ctx.options;
+    let fs = ctx.fs;
     let resolve_from = dep.resolve_from.as_ref().unwrap();
     let mut conditions = ExportsCondition::SOURCE;
 
@@ -100,7 +101,8 @@ impl Resolver for DefaultResolver {
       &**fs,
       ResolveOptions {
         conditions: dep.conditions,
-        ..Default::default()
+        // Only allocates when there are any.
+        custom_conditions: dep.custom_conditions.to_vec(),
       },
     );
 
@@ -215,7 +217,7 @@ impl Resolver for DefaultResolver {
             }
           };
 
-          self.resolve(dep, module, pipeline, options, fs)
+          self.resolve(dep, module, pipeline, ctx)
         }
       },
       Err(error) => Err(DiagnosticList(resolver_error_diagnostics(

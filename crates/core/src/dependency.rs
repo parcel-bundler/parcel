@@ -35,6 +35,9 @@ pub struct Dependency {
   pub resolve_from: Option<SourceUrl>,
   pub range: Option<Box<str>>,
   pub conditions: ExportsCondition,
+  /// Package `exports` conditions with no [`ExportsCondition`] flag, e.g. ones a plugin asks for
+  /// by name. Almost always empty, which costs no allocation.
+  pub custom_conditions: Box<[String]>,
   pub resolution: DependencyResolution,
 }
 

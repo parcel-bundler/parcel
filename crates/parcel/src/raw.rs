@@ -6,8 +6,7 @@ impl Transformer for RawTransformer {
   fn transform(
     &self,
     mut asset: parcel_core::Asset,
-    _options: &parcel_core::ParcelOptions,
-    _fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+    _ctx: &parcel_core::PluginContext,
   ) -> Result<parcel_core::Asset, DiagnosticList> {
     asset.bundle_behavior = parcel_core::BundleBehavior::Isolated;
     Ok(asset)

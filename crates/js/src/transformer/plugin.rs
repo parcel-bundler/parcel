@@ -34,9 +34,10 @@ impl Transformer for JsTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    options: &ParcelOptions,
-    fs: &std::sync::Arc<dyn parcel_core::FileSystem>,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
+    let options = ctx.options;
+    let fs = ctx.fs;
     let input_source_map = if asset.target.source_map.is_some() {
       input_source_map(
         &*asset.content,
