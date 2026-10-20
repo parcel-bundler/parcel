@@ -1,4 +1,4 @@
-# Reusable workflow that builds a native Parcel plugin — Rust or Go — for every
+# Reusable workflow that builds a native Parcel plugin — Rust, Go, or Swift — for every
 # target listed in its package.json, and publishes the results to npm.
 #
 # See .github/scripts/native-plugin/README.md for usage.
@@ -34,7 +34,7 @@ on:
         default: ''
         type: string
       language:
-        description: 'Toolchain that builds the plugin: rust or go. Detected from Cargo.toml / go.mod when empty.'
+        description: 'Toolchain that builds the plugin: rust, go, or swift. Detected from Cargo.toml / go.mod / Package.swift when empty.'
         required: false
         default: ''
         type: string
@@ -50,6 +50,26 @@ on:
         type: string
       go-args:
         description: 'Extra arguments passed to go build (e.g. -tags foo)'
+        required: false
+        default: ''
+        type: string
+      swift-version:
+        description: 'Swift version for Linux builds: a tag of the official swift Docker image, used as swift:<version>-amazonlinux2'
+        required: false
+        default: '6.2'
+        type: string
+      xcode-version:
+        description: 'Xcode version for macOS Swift builds, as accepted by maxim-lobanov/setup-xcode'
+        required: false
+        default: 'latest-stable'
+        type: string
+      swift-product:
+        description: 'Dynamic library product to build, when Package.swift declares more than one'
+        required: false
+        default: ''
+        type: string
+      swift-args:
+        description: 'Extra arguments passed to swift build (e.g. -Xswiftc -DFOO)'
         required: false
         default: ''
         type: string
@@ -259,6 +279,79 @@ jobs:
 
           LIBRARY="$RUNNER_TEMP/plugin.$EXT"
           go build -buildmode=c-shared -o "$LIBRARY" $GO_ARGS .
+          echo "LIBRARY=$LIBRARY" >> "$GITHUB_ENV"
+
+      # The Swift SDK needs a newer toolchain than some runner images default to.
+      - name: Select Xcode
+        if: ${{ matrix.language == 'swift' && matrix.builder == 'native' }}
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ inputs.xcode-version }}
+
+      - name: Build (Swift, macOS)
+        if: ${{ matrix.language == 'swift' && matrix.builder == 'native' }}
+        shell: bash
+        working-directory: ${{ matrix.dir }}
+        env:
+          ARCH: ${{ matrix.swiftArch }}
+          SWIFT_PRODUCT: ${{ inputs.swift-product }}
+          SWIFT_ARGS: ${{ inputs.swift-args }}
+        run: |
+          set -euo pipefail
+          swift --version
+
+          swift package dump-package > "$RUNNER_TEMP/swift-package.json"
+          PRODUCT="$(node "$RUNNER_TEMP/native-plugin/swift-product.mjs" --manifest "$RUNNER_TEMP/swift-package.json" --product "$SWIFT_PRODUCT")"
+
+          # The other architecture is a cross build; macros still build for the host.
+          swift build -c release --product "$PRODUCT" --arch "$ARCH" $SWIFT_ARGS
+          BIN="$(swift build -c release --product "$PRODUCT" --arch "$ARCH" $SWIFT_ARGS --show-bin-path)"
+
+          # macOS ships the Swift runtime, so the library links the system's.
+          LIBRARY="$BIN/lib$PRODUCT.dylib"
+          lipo -info "$LIBRARY"
+          echo "LIBRARY=$LIBRARY" >> "$GITHUB_ENV"
+
+      # Built natively in the official Amazon Linux 2 image rather than cross
+      # compiled: its glibc 2.26 is the floor Rust and Go builds target through
+      # Zig, so the library runs on the same distributions.
+      - name: Build (Swift, Linux)
+        if: ${{ matrix.language == 'swift' && matrix.builder == 'docker' }}
+        shell: bash
+        working-directory: ${{ matrix.dir }}
+        env:
+          IMAGE: swift:${{ inputs.swift-version }}-amazonlinux2
+          PLATFORM: ${{ matrix.swiftPlatform }}
+          SWIFT_PRODUCT: ${{ inputs.swift-product }}
+          SWIFT_ARGS: ${{ inputs.swift-args }}
+        run: |
+          set -euo pipefail
+
+          # The whole checkout is mounted at the same path, so path dependencies
+          # elsewhere in the repository resolve, and paths swift prints are valid
+          # out here too.
+          swift() {
+            docker run --rm --platform "$PLATFORM" \
+              -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$PWD" \
+              "$IMAGE" swift "$@"
+          }
+          swift --version
+
+          swift package dump-package > "$RUNNER_TEMP/swift-package.json"
+          PRODUCT="$(node "$RUNNER_TEMP/native-plugin/swift-product.mjs" --manifest "$RUNNER_TEMP/swift-package.json" --product "$SWIFT_PRODUCT")"
+
+          # Linux has no system Swift runtime, so the plugin carries its own.
+          swift build -c release --product "$PRODUCT" -Xswiftc -static-stdlib $SWIFT_ARGS
+          BIN="$(swift build -c release --product "$PRODUCT" -Xswiftc -static-stdlib $SWIFT_ARGS --show-bin-path)"
+          LIBRARY="$BIN/lib$PRODUCT.so"
+
+          # A library that still needs the toolchain's shared runtime would load
+          # on this image and nowhere else.
+          docker run --rm --platform "$PLATFORM" -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" "$IMAGE" ldd "$LIBRARY" | tee "$RUNNER_TEMP/ldd.txt"
+          if grep -E 'libswift|libFoundation|libdispatch|libBlocksRuntime|not found' "$RUNNER_TEMP/ldd.txt"; then
+            echo "::error::lib$PRODUCT.so links the Swift runtime dynamically; it must be linked statically to load outside the build image."
+            exit 1
+          fi
           echo "LIBRARY=$LIBRARY" >> "$GITHUB_ENV"
 
       - name: Pack ${{ matrix.package }}

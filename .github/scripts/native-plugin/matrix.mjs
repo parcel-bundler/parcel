@@ -2,7 +2,7 @@
  * Prints the build matrix for one or more plugins, derived from the keys of each
  * `parcel.artifacts` map.
  *
- * Usage: node matrix.mjs --dirs <newline or comma separated> [--language rust|go]
+ * Usage: node matrix.mjs --dirs <newline or comma separated> [--language rust|go|swift]
  *
  * Every entry carries the plugin it belongs to, so a monorepo releasing several
  * plugins at once keeps their artifacts apart. Sharing one workflow run is also
@@ -20,7 +20,10 @@ import {TARGETS, zigTarget} from './targets.mjs';
 reportErrors();
 
 let {values} = parseArgs({
-  options: {dirs: {type: 'string', default: '.'}, language: {type: 'string'}},
+  options: {
+    dirs: {type: 'string', default: '.'},
+    language: {type: 'string'},
+  },
 });
 
 /**
@@ -28,23 +31,31 @@ let {values} = parseArgs({
  * artifact map is keyed by the target triple *Parcel* was built for, which says
  * nothing about the language the plugin is written in.
  */
+const MANIFESTS = {rust: 'Cargo.toml', go: 'go.mod', swift: 'Package.swift'};
+
 function detectLanguage(dir) {
-  let has = file => fs.existsSync(path.join(dir, file));
-  let rust = has('Cargo.toml');
-  let go = has('go.mod');
+  let found = Object.entries(MANIFESTS).filter(([, file]) =>
+    fs.existsSync(path.join(dir, file)),
+  );
 
-  if (rust && go) {
+  if (found.length > 1) {
     throw new Error(
-      `${dir} contains both Cargo.toml and go.mod. Pass the language input to say which one builds the plugin.`,
+      `${dir} contains ${found
+        .map(([, file]) => file)
+        .join(
+          ' and ',
+        )}. Pass the language input to say which one builds the plugin.`,
     );
   }
-  if (!rust && !go) {
+  if (found.length === 0) {
     throw new Error(
-      `${dir} contains neither Cargo.toml nor go.mod, so there is nothing to build.`,
+      `${dir} contains none of ${Object.values(MANIFESTS).join(
+        ', ',
+      )}, so there is nothing to build.`,
     );
   }
 
-  return rust ? 'rust' : 'go';
+  return found[0][0];
 }
 
 /**
@@ -70,15 +81,30 @@ let slugs = new Map();
 
 for (let dir of dirs) {
   let language = values.language || detectLanguage(dir);
-  if (language !== 'rust' && language !== 'go') {
+  if (!(language in MANIFESTS)) {
     throw new Error(
       `Unsupported language ${JSON.stringify(
         language,
-      )}; expected "rust" or "go"`,
+      )}; expected "rust", "go", or "swift"`,
     );
   }
 
   let {pkg, targets} = readPluginPackage(dir);
+
+  if (language === 'swift') {
+    let unsupported = targets.filter(target => !TARGETS[target].swift);
+    if (unsupported.length > 0) {
+      throw new Error(
+        `${pkg.name} in ${dir} lists targets Swift plugins cannot be built for yet: ${unsupported.join(
+          ', ',
+        )}. Remove them from parcel.artifacts. Swift plugins support ${Object.keys(
+          TARGETS,
+        )
+          .filter(target => TARGETS[target].swift)
+          .join(', ')}.`,
+      );
+    }
+  }
   let slug = slugify(pkg.name);
 
   if (slugs.has(slug)) {
@@ -100,8 +126,15 @@ for (let dir of dirs) {
 
   for (let target of targets) {
     let info = TARGETS[target];
+    // Swift builds Linux targets natively in a container, never through Zig.
+    let builder =
+      language === 'swift'
+        ? info.os === 'darwin'
+          ? 'native'
+          : 'docker'
+        : info.builder;
     // Empty for native builds. cargo-zigbuild and cgo are the only consumers.
-    let zig = info.builder === 'zig' ? zigTarget(target) : '';
+    let zig = builder === 'zig' ? zigTarget(target) : '';
 
     include.push({
       plugin: slug,
@@ -109,8 +142,8 @@ for (let dir of dirs) {
       language,
       target,
       package: pkg.parcel.artifacts[target],
-      runner: info.runner,
-      builder: info.builder,
+      runner: (language === 'swift' && info.swift.runner) || info.runner,
+      builder,
       zigTarget: zig,
       ext: info.ext,
       rustflags: info.rustflags ?? '',
@@ -120,6 +153,8 @@ for (let dir of dirs) {
       // go through Zig, which is what pins the glibc floor; elsewhere the
       // runner's own compiler is already correct.
       cc: info.go.cc ?? `zig cc -target ${info.zigCcTarget}`,
+      swiftArch: info.swift?.arch ?? '',
+      swiftPlatform: info.swift?.platform ?? '',
     });
   }
 }

@@ -18,6 +18,13 @@
  *   zigCcTarget - target for `zig cc`, which speaks arch-os-abi and does not
  *             accept a Rust triple. cargo-zigbuild translates `zigTarget` for
  *             itself; invoking zig directly for cgo means doing it here.
+ *   swift   - how to build a Swift plugin for the target, when it can be. macOS
+ *             builds pass `arch` to `swift build --arch`. Linux builds run
+ *             natively in the official Amazon Linux 2 image for `platform` on
+ *             `runner` — its glibc 2.26 is the same floor Rust and Go builds
+ *             target — linking the Swift runtime statically. Targets without it
+ *             have no Swift toolchain support yet: musl (the static Linux SDK
+ *             links musl itself into the library) and Windows.
  */
 /**
  * musl targets link the CRT statically by default, and a static CRT cannot produce
@@ -36,6 +43,7 @@ export const TARGETS = {
     cpu: 'arm64',
     ext: 'dylib',
     go: {os: 'darwin', arch: 'arm64', cc: ''},
+    swift: {arch: 'arm64'},
   },
   'x86_64-apple-darwin': {
     runner: 'macos-latest',
@@ -44,6 +52,7 @@ export const TARGETS = {
     cpu: 'x64',
     ext: 'dylib',
     go: {os: 'darwin', arch: 'amd64', cc: 'clang -arch x86_64'},
+    swift: {arch: 'x86_64'},
   },
   'aarch64-pc-windows-msvc': {
     runner: 'windows-latest',
@@ -71,6 +80,7 @@ export const TARGETS = {
     ext: 'so',
     zigCcTarget: 'x86_64-linux-gnu.2.26',
     go: {os: 'linux', arch: 'amd64'},
+    swift: {runner: 'ubuntu-latest', platform: 'linux/amd64'},
   },
   'aarch64-unknown-linux-gnu': {
     runner: 'ubuntu-latest',
@@ -82,6 +92,7 @@ export const TARGETS = {
     ext: 'so',
     zigCcTarget: 'aarch64-linux-gnu.2.26',
     go: {os: 'linux', arch: 'arm64'},
+    swift: {runner: 'ubuntu-24.04-arm', platform: 'linux/arm64'},
   },
   'x86_64-unknown-linux-musl': {
     runner: 'ubuntu-latest',

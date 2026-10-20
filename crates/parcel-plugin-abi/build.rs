@@ -37,6 +37,13 @@ fn main() {
   let plugin_go_header = format!("{}/../../plugin-go/plugin.h", crate_dir);
   write_if_changed(&plugin_go_header, &content);
 
+  // And the Swift SDK's C target.
+  let plugin_swift_header = format!(
+    "{}/../../plugin-swift/Sources/CParcelABI/include/plugin.h",
+    crate_dir
+  );
+  write_if_changed(&plugin_swift_header, &content);
+
   // Generate the Rust FFI bindings for parcel-plugin and commit them as
   // src/ffi.rs so that crate can be published to crates.io without
   // requiring users to have libclang installed.

@@ -1,0 +1,5 @@
+module CParcelABI {
+  header "plugin.h"
+  header "parcel_swift.h"
+  export *
+}

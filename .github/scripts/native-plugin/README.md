@@ -1,7 +1,7 @@
 # Building and publishing native Parcel plugins
 
 `parcel-bundler/parcel/.github/workflows/native-plugin.yml` is a reusable GitHub Actions
-workflow that builds a native Parcel plugin — written in Rust or Go — for every platform
+workflow that builds a native Parcel plugin — written in Rust, Go, or Swift — for every platform
 it declares, and publishes the results to npm.
 
 A native plugin is published as one package per platform, plus a plugin package that
@@ -46,10 +46,12 @@ form; the path form is meant for plugins that don't need to publish this way.
 
 Nothing in that file says which language the plugin is written in, and nothing needs to:
 `parcel.artifacts` is keyed by the target triple **Parcel** was built for, which is what
-picks the artifact to load at runtime. A Go plugin's package.json has exactly this shape.
+picks the artifact to load at runtime. A Go or Swift plugin's package.json has exactly
+this shape.
 
 The workflow detects the toolchain from the plugin directory — `Cargo.toml` means Rust,
-`go.mod` means Go — or takes the `language` input if a repository has both.
+`go.mod` means Go, `Package.swift` means Swift — or takes the `language` input if a
+directory has more than one.
 
 ## Developing a plugin
 
@@ -85,6 +87,17 @@ crate-type = ["cdylib"]
 A Go plugin needs nothing beyond its `go.mod`; the workflow builds it with
 `go build -buildmode=c-shared`, which requires cgo and therefore a C compiler for the
 target. That is supplied for you — see the targets table below.
+
+A Swift plugin's `Package.swift` must declare a dynamic library product, which is what
+`swift build` produces as `lib<Product>.dylib` / `.so`:
+
+```swift
+products: [.library(name: "MyPlugin", type: .dynamic, targets: ["MyPlugin"])],
+```
+
+Point `devLibrary` at `./.build/debug/libMyPlugin` while developing. If the package
+declares several dynamic libraries, name the plugin with the `swift-product` input. See
+[Swift](#swift) for which targets Swift plugins support.
 
 ## Using the workflow
 
@@ -135,20 +148,24 @@ plugin's tarballs alongside its own.
 
 ### Inputs
 
-| Input            | Default  | Description                                                        |
-| ---------------- | -------- | ------------------------------------------------------------------ |
-| `paths`          | `''`     | Directories containing the `package.json` and `Cargo.toml` files.  |
-| `publish`        | `false`  | Publish to npm once every target has built successfully.           |
-| `version`        | `''`     | Version to publish, overriding `version` in each package.json.     |
-| `tag`            | derived  | npm dist-tag. Defaults to the prerelease identifier, or `latest`.  |
-| `language`       | detected | `rust` or `go`. Detected from `Cargo.toml` / `go.mod` when empty.  |
-| `rust-toolchain` | `stable` | Rust toolchain to build with.                                      |
-| `go-version`     | `stable` | Go version to build with.                                          |
-| `go-args`        | `''`     | Extra arguments for `go build`, e.g. `-tags foo`.                  |
-| `cargo-args`     | `''`     | Extra arguments for cargo, e.g. `--features foo`.                  |
-| `rustflags`      | `''`     | Extra `RUSTFLAGS`. See the note on musl below.                     |
-| `node-version`   | `24`     | Node.js version used for packaging and publishing.                 |
-| `zig-version`    | `0.14.0` | Zig version used by `cargo-zigbuild` for Linux targets.            |
+| Input            | Default         | Description                                                       |
+| ---------------- | --------------- | ----------------------------------------------------------------- |
+| `paths`          | `''`            | Directories containing the `package.json` and `Cargo.toml` files. |
+| `publish`        | `false`         | Publish to npm once every target has built successfully.          |
+| `version`        | `''`            | Version to publish, overriding `version` in each package.json.    |
+| `tag`            | derived         | npm dist-tag. Defaults to the prerelease identifier, or `latest`. |
+| `language`       | detected        | `rust`, `go`, or `swift`. Detected from the manifest when empty.  |
+| `rust-toolchain` | `stable`        | Rust toolchain to build with.                                     |
+| `go-version`     | `stable`        | Go version to build with.                                         |
+| `go-args`        | `''`            | Extra arguments for `go build`, e.g. `-tags foo`.                 |
+| `cargo-args`     | `''`            | Extra arguments for cargo, e.g. `--features foo`.                 |
+| `swift-version`  | `6.2`           | Swift for Linux builds: the `swift:<version>-amazonlinux2` image. |
+| `xcode-version`  | `latest-stable` | Xcode for macOS Swift builds, via `maxim-lobanov/setup-xcode`.    |
+| `swift-product`  | `''`            | Dynamic library product to build, when there is more than one.    |
+| `swift-args`     | `''`            | Extra arguments for `swift build`, e.g. `-Xswiftc -DFOO`.         |
+| `rustflags`      | `''`            | Extra `RUSTFLAGS`. See the note on musl below.                    |
+| `node-version`   | `24`            | Node.js version used for packaging and publishing.                |
+| `zig-version`    | `0.14.0`        | Zig version used by `cargo-zigbuild` for Linux targets.           |
 
 ### Outputs
 
@@ -199,6 +216,32 @@ flags you set in `.cargo/config.toml` are ignored on musl targets. Pass them thr
 `rustflags` input if you need them there — it is prepended to the target's own flags.
 
 To add a target, add it to [`targets.mjs`](targets.mjs).
+
+### Swift
+
+Swift plugins can be built for four of these targets:
+
+| Rust target                 | Runner             | Built with                                      |
+| --------------------------- | ------------------ | ----------------------------------------------- |
+| `aarch64-apple-darwin`      | `macos-latest`     | `swift build --arch arm64`                      |
+| `x86_64-apple-darwin`       | `macos-latest`     | `swift build --arch x86_64`                     |
+| `x86_64-unknown-linux-gnu`  | `ubuntu-latest`    | `swift build` in `swift:<version>-amazonlinux2` |
+| `aarch64-unknown-linux-gnu` | `ubuntu-24.04-arm` | `swift build` in `swift:<version>-amazonlinux2` |
+
+macOS libraries link the Swift runtime that ships with macOS. The Swift SDK needs
+macOS 15 or later.
+
+Linux has no system Swift runtime, so Linux libraries are linked with `-static-stdlib`
+to carry their own. The build fails if the library still links the runtime dynamically.
+They are built natively in the official Amazon Linux 2 image, whose glibc 2.26 is the
+same floor the Rust and Go builds target through Zig. The build mounts the whole checkout
+into the container, so a path dependency elsewhere in the repository resolves too.
+Plugins in other repositories depend on the SDK by URL; see `plugin-swift/README.md`.
+
+musl and Windows targets aren't supported yet. Swift's static Linux SDK links musl itself
+into what it builds, which can't work for a library loaded into a musl process, and
+Windows needs the Swift runtime DLLs shipped alongside the plugin. The matrix step names
+any of these targets listed in `parcel.artifacts` and stops.
 
 ## What gets published
 
@@ -261,6 +304,9 @@ The workflow runs these directly; they are also runnable locally.
   and detects the plugin's language.
 - [`cargo-library.mjs`](cargo-library.mjs) — resolves which file cargo produced. The one
   Rust-specific step; a Go build already knows, having named it with `-o`.
+- [`swift-product.mjs`](swift-product.mjs) — picks the dynamic library product to build
+  from `swift package dump-package` output. Swift names the library after it, and
+  `swift build --show-bin-path` says where it is.
 - [`pack-artifact.mjs`](pack-artifact.mjs) — packs one target's library into a tarball.
 - [`pack-main.mjs`](pack-main.mjs) — packs the plugin package with `optionalDependencies`,
   failing if any declared target is missing a build.

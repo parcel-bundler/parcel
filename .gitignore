@@ -31,3 +31,8 @@ yarn-error.log*
 *.log
 *.min.js
 *.node
+
+# Swift (Package.swift at the root exposes plugin-swift/ to SwiftPM)
+/.build/
+/.swiftpm/
+/Package.resolved

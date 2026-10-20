@@ -11,3 +11,4 @@ sha2-const-stable = "0.1.0"
 parcel = { path = "../parcel" }
 parcel-core = { path = "../core" }
 parcel-plugin-abi = { path = "../parcel-plugin-abi" }
+serde_json = "1.0.149"
