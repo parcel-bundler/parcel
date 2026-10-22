@@ -282,6 +282,16 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
         actual.sort();
         assert_eq!(&actual, expected, "Referenced bundles for {names:?}");
       }
+      if let Some(prefix) = &found.starts_with {
+        let contents = output_fs.read_to_string(bundle.dist_path()).unwrap();
+        assert!(
+          contents.starts_with(prefix.as_str()),
+          "Bundle {:?} did not start with {:?}\n\nBundle contents: {}",
+          bundle.dist_path(),
+          prefix,
+          contents
+        );
+      }
       if !found.contains.is_empty() {
         let contents = output_fs.read_to_string(bundle.dist_path()).unwrap();
         for substring in &found.contains {
@@ -794,6 +804,7 @@ struct TestBundle {
   contains: Vec<String>,
   #[serde(default)]
   not_contains: Vec<String>,
+  starts_with: Option<String>,
   /// Asset lists of directly referenced bundles, independent of hashed filenames.
   references: Option<Vec<Vec<String>>>,
 }

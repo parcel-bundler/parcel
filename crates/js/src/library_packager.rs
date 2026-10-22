@@ -7,7 +7,7 @@ use parcel_core::*;
 
 use swc_core::{
   common::DUMMY_SP,
-  ecma::ast::{ImportDecl, ModuleDecl, ModuleItem},
+  ecma::ast::{Expr, ExprStmt, ImportDecl, Lit, ModuleDecl, ModuleItem, Stmt},
   quote,
 };
 
@@ -121,6 +121,7 @@ impl JsContent {
         true,
         "require".into(),
       );
+      hoist_directives(&mut ast.program.body, &content.directives);
       ast.finalize();
       content.to_code(
         &ast,
@@ -138,4 +139,29 @@ impl JsContent {
       Ok(Arc::new(BufferContent::new(code)))
     }
   }
+}
+
+/// Moves the asset's directives (e.g. "use client") back to the start of the module. Statements
+/// inserted while transforming and packaging (CommonJS interop, macro imports, Node replacements)
+/// push them down, where they are no longer directives.
+fn hoist_directives(body: &mut [ModuleItem], directives: &[String]) {
+  if directives.is_empty() {
+    return;
+  }
+
+  let is_directive = |item: &ModuleItem, directive: &String| match item {
+    ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) => {
+      matches!(&**expr, Expr::Lit(Lit::Str(s)) if s.value.to_string_lossy() == *directive)
+    }
+    _ => false,
+  };
+  let Some(start) = body.windows(directives.len()).position(|items| {
+    items
+      .iter()
+      .zip(directives)
+      .all(|(item, directive)| is_directive(item, directive))
+  }) else {
+    return;
+  };
+  body[..start + directives.len()].rotate_right(directives.len());
 }

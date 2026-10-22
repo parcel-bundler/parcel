@@ -1,0 +1,13 @@
+{
+  "description": "should preserve directives at the top of library bundles",
+  "input": ".",
+  "output": {"name": "hi", "value": "foo/"},
+  "bundles": [
+    {"name": "main.js", "assets": ["index.js"], "startsWith": "\"use client\";\nrequire("},
+    {"name": "module.mjs", "assets": ["index.js"], "startsWith": "\"use client\";\nimport "},
+    {"type": "js", "outputFormat": "commonjs", "assets": ["foo.js"], "startsWith": "'use client';\n'use strict';\nvar "},
+    {"type": "js", "outputFormat": "esmodule", "assets": ["foo.js"], "startsWith": "'use client';\n'use strict';\nexport "},
+    {"type": "css", "assets": ["index.js"]},
+    {"type": "js", "assets": ["esmodule-helpers.js"]}
+  ]
+}
