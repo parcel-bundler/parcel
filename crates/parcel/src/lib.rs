@@ -58,7 +58,11 @@ pub fn build(
 }
 
 pub fn watch(entries: &Vec<String>, options: BuildOptions) -> Result<(), DiagnosticList> {
-  let mut parcel = make_parcel(entries, options)?;
+  let log_level = options.log_level.clone();
+  let reporters = options.reporters.clone();
+  let mut parcel = make_parcel(entries, options).inspect_err(|err| {
+    standalone_options(reporters, log_level).log_diagnostics(LogLevel::Error, &err.0)
+  })?;
   let project_root = parcel.project_root();
 
   let _ = parcel.build();
@@ -91,7 +95,11 @@ pub fn serve(
   if let Some(hmr) = &mut options.hmr {
     hmr.port = port;
   }
-  let mut parcel = make_parcel(entries, options)?;
+  let log_level = options.log_level.clone();
+  let reporters = options.reporters.clone();
+  let mut parcel = make_parcel(entries, options).inspect_err(|err| {
+    standalone_options(reporters, log_level).log_diagnostics(LogLevel::Error, &err.0)
+  })?;
   if port != server_options.port {
     parcel.options.log(
       LogLevel::Info,
@@ -234,7 +242,11 @@ pub fn run(
   };
   let hmr_server = hmr.as_ref().map(|(server, _, _)| server.clone());
 
-  let mut parcel = make_parcel(entries, options)?;
+  let log_level = options.log_level.clone();
+  let reporters = options.reporters.clone();
+  let mut parcel = make_parcel(entries, options).inspect_err(|err| {
+    standalone_options(reporters, log_level).log_diagnostics(LogLevel::Error, &err.0)
+  })?;
   if server_options.hmr {
     offer_trust(&server_options, &parcel.options);
   }
