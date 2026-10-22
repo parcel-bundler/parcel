@@ -1,0 +1,10 @@
+{
+  "description": "should write an output for each dist entry of the same source and target",
+  "input": ".",
+  "options": { "mode": "production" },
+  "bundles": [
+    {"name": "foo.js", "assets": ["index.js"], "contains": ["./src/shared-"]},
+    {"name": "bar.js", "assets": ["index.js"], "contains": ["./src/shared-"]},
+    {"assets": ["shared.js"]}
+  ]
+}

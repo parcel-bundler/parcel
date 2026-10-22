@@ -1,4 +1,7 @@
-use std::{collections::HashMap, hash::Hash};
+use std::{
+  collections::{HashMap, HashSet},
+  hash::Hash,
+};
 
 use parcel_core::{
   AssetGraph, AssetIndex, Bundle, BundleFlags, BundleGraph, BundleGraphDependencyResolution,
@@ -79,11 +82,53 @@ impl Bundler for LibraryBundler {
       }
     }
 
+    // Entries that resolve to the same asset share its transformed code, but each requested dist
+    // path still needs its own output. The dfs only names the bundle for the first entry to reach
+    // an asset, so name the rest here, adding a bundle per extra dist path. These are packaged
+    // separately because the contents depend on the location (e.g. relative imports and source
+    // map URLs). Dependencies keep resolving to the first bundle.
+    let mut seen = HashSet::new();
     for entry in asset_graph.entries.iter() {
-      if let Some(asset_index) = asset_graph.resolved_entry(entry) {
-        if let Some(bundle) = asset_to_bundle.get(&asset_index) {
-          bundles[*bundle].flags |= BundleFlags::ENTRY;
+      let Some(asset_index) = asset_graph.resolved_entry(entry) else {
+        continue;
+      };
+      let Some(&bundle_index) = asset_to_bundle.get(&asset_index) else {
+        continue;
+      };
+
+      let bundle = &mut bundles[bundle_index];
+      bundle.flags |= BundleFlags::ENTRY;
+      let Some(dist_entry) = entry.dist_entry else {
+        continue;
+      };
+
+      match bundle.dist_path {
+        None => {
+          bundle.dist_path = Some(dist_entry);
+          bundle.flags |= BundleFlags::NEEDS_STABLE_NAME;
         }
+        Some(dist_path) if dist_path != dist_entry && seen.insert((bundle_index, dist_entry)) => {
+          let mut hasher = xxhash_rust::xxh3::Xxh3Default::new();
+          bundle.id.hash(&mut hasher);
+          dist_entry
+            .relative(&bundle.target.dist_dir)
+            .hash(&mut hasher);
+          let alias = Bundle {
+            id: hasher.digest(),
+            ty: bundle.ty.clone(),
+            target: bundle.target.clone(),
+            bundle_behavior: bundle.bundle_behavior,
+            flags: bundle.flags,
+            dist_path: Some(dist_entry),
+            assets: bundle.assets.clone(),
+            entry_assets: bundle.entry_assets.clone(),
+            main_entry_asset: bundle.main_entry_asset,
+            referenced_bundles: Vec::new(),
+            name_state: Default::default(),
+          };
+          bundles.push(alias);
+        }
+        _ => {}
       }
     }
 

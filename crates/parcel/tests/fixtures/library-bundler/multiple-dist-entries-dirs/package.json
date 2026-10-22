@@ -1,0 +1,9 @@
+{
+  "engines": { "node": "*" },
+  "type": "module",
+  "exports": {
+    "source": "./src/index.js",
+    "foo": "./dist/foo/index.js",
+    "default": "./dist/index.js"
+  }
+}

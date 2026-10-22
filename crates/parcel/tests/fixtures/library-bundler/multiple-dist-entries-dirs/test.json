@@ -1,0 +1,10 @@
+{
+  "description": "should package each dist entry relative to its own location",
+  "input": ".",
+  "options": { "mode": "production" },
+  "bundles": [
+    {"name": "foo/index.js", "assets": ["index.js"], "contains": ["../src/shared-"]},
+    {"name": "index.js", "assets": ["index.js"], "contains": ["./src/shared-"], "not_contains": ["../src/shared-"]},
+    {"assets": ["shared.js"]}
+  ]
+}

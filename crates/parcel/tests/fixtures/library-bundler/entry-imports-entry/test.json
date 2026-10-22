@@ -1,0 +1,9 @@
+{
+  "description": "should use the dist entry of an entry that is also imported by another entry",
+  "input": ".",
+  "options": { "mode": "production" },
+  "bundles": [
+    {"name": "a-main.mjs", "assets": ["a.js"], "contains": ["./b-main.mjs"]},
+    {"name": "b-main.mjs", "assets": ["b.js"]}
+  ]
+}
