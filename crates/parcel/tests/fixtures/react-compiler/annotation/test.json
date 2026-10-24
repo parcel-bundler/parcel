@@ -1,0 +1,13 @@
+{
+  "description": "should only compile annotated functions in annotation mode",
+  "input": "index.js",
+  "output": "<b>a</b><i>b</i>",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": ["index.js"],
+      "contains": ["function Memo(t0)", "function Plain({ label })"]
+    }
+  ],
+  "skipNodeModules": true
+}

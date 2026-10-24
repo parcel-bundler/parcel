@@ -6,6 +6,8 @@ use parcel_core::*;
 use parcel_macros::MacroError;
 use parcel_plugin_js::call_macro;
 use parcel_resolver::{AliasValue, BrowserField, Specifier};
+use serde::{Deserialize, Deserializer, de::Error};
+use swc_core::ecma::react_compiler::{CompilerTarget, GatingConfig, default_plugin_options};
 
 use crate::JsContent;
 
@@ -15,6 +17,63 @@ pub struct JsTransformer {
   #[serde(rename = "inlineFS")]
   inline_fs: Option<bool>,
   inline_environment: Option<InlineEnvironment>,
+  #[serde(default, deserialize_with = "deserialize_react_compiler")]
+  react_compiler: Option<ReactCompiler>,
+}
+
+/// The public subset of React Compiler's options, from `"reactCompiler": true` or an object.
+/// See https://react.dev/reference/react-compiler/configuration.
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ReactCompiler {
+  compilation_mode: Option<CompilationMode>,
+  panic_threshold: Option<PanicThreshold>,
+  /// The React version to compile for. Detected from the package's dependencies if not set.
+  target: Option<ReactTarget>,
+  gating: Option<GatingConfig>,
+}
+
+/// Which functions to compile. The compiler's "syntax" mode only compiles Flow component
+/// syntax, which SWC does not parse.
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum CompilationMode {
+  Infer,
+  Annotation,
+  All,
+}
+
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum PanicThreshold {
+  None,
+  CriticalErrors,
+  AllErrors,
+}
+
+#[derive(Clone, Copy, Deserialize)]
+enum ReactTarget {
+  #[serde(rename = "17")]
+  React17,
+  #[serde(rename = "18")]
+  React18,
+  #[serde(rename = "19")]
+  React19,
+}
+
+fn deserialize_react_compiler<'de, D: Deserializer<'de>>(
+  deserializer: D,
+) -> Result<Option<ReactCompiler>, D::Error> {
+  match serde_json::Value::deserialize(deserializer)? {
+    serde_json::Value::Bool(false) => Ok(None),
+    serde_json::Value::Bool(true) => Ok(Some(ReactCompiler::default())),
+    options @ serde_json::Value::Object(_) => ReactCompiler::deserialize(options)
+      .map(Some)
+      .map_err(|err| D::Error::custom(format!("invalid reactCompiler options: {err}"))),
+    _ => Err(D::Error::custom(
+      "reactCompiler must be a boolean or an object of React Compiler options",
+    )),
+  }
 }
 
 #[derive(Clone, serde::Deserialize)]
@@ -262,8 +321,70 @@ fn config(
   let mut is_jsx = false;
   let mut decorators = false;
   let mut use_define_for_class_fields = false;
+  let mut react_compiler = None;
   if asset.flags.contains(AssetFlags::IS_SOURCE) {
     let mut react_lib = None;
+    if let Some(react_compiler_config) = &transformer.react_compiler
+      && matches!(
+        asset.ty,
+        AssetType::Js | AssetType::Jsx | AssetType::Ts | AssetType::Tsx
+      )
+    {
+      let mut compiler_options = default_plugin_options();
+      compiler_options.is_dev = options.mode == BuildMode::Development;
+      compiler_options.filename = Some(
+        asset
+          .loc
+          .url
+          .to_file_path()?
+          .to_path_buf()
+          .to_string_lossy()
+          .into_owned(),
+      );
+      if let Some(mode) = react_compiler_config.compilation_mode {
+        compiler_options.compilation_mode = match mode {
+          CompilationMode::Infer => "infer",
+          CompilationMode::Annotation => "annotation",
+          CompilationMode::All => "all",
+        }
+        .into();
+      }
+      if let Some(threshold) = react_compiler_config.panic_threshold {
+        compiler_options.panic_threshold = match threshold {
+          PanicThreshold::None => "none",
+          PanicThreshold::CriticalErrors => "critical_errors",
+          PanicThreshold::AllErrors => "all_errors",
+        }
+        .into();
+      }
+      compiler_options.gating = react_compiler_config.gating.clone();
+      // The compiler targets React 19 by default. Earlier versions need the
+      // react-compiler-runtime package.
+      let target = react_compiler_config.target.or_else(|| {
+        let pkg = pkg.as_deref()?.as_ref().ok()?;
+        let major = node_semver::Range::parse(pkg.get_dependency_version("react")?)
+          .ok()?
+          .min_version()?
+          .major;
+        match major {
+          17 => Some(ReactTarget::React17),
+          18 => Some(ReactTarget::React18),
+          _ => None,
+        }
+      });
+      if let Some(target) = target {
+        compiler_options.target = CompilerTarget::Version(
+          match target {
+            ReactTarget::React17 => "17",
+            ReactTarget::React18 => "18",
+            ReactTarget::React19 => "19",
+          }
+          .into(),
+        );
+      }
+      react_compiler = Some(compiler_options);
+    }
+
     if let Some(pkg) = &pkg {
       if let Ok(pkg) = &**pkg {
         if pkg
@@ -466,6 +587,7 @@ fn config(
     use_define_for_class_fields,
     is_development: options.mode == BuildMode::Development,
     react_refresh,
+    react_compiler,
     trace_bailouts: options.log_level == LogLevel::Verbose,
     is_swc_helpers: asset.loc.url.to_file_path()?.ancestors().any(|p| {
       p.file_name() == "helpers" && p.parent().map(|p| p.file_name() == "@swc") == Some(true)

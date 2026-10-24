@@ -1,0 +1,13 @@
+{
+  "description": "should target the React version in package.json with React Compiler",
+  "input": "index.js",
+  "output": "<b>a</b>",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": ["index.js", "index.js"],
+      "contains": ["require(\"react-compiler-runtime\")"]
+    }
+  ],
+  "skipNodeModules": true
+}

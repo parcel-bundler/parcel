@@ -33,6 +33,7 @@ swc_core = { version = "82", features = [
   "ecma_utils",
   "ecma_visit",
   "ecma_quote",
+  "ecma_react_compiler",
   "stacker",
 ] }
 fixedbitset = "0.5.7"

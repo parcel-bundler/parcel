@@ -1,0 +1,34 @@
+[
+  {
+    "description": "should compile source components with React Compiler",
+    "input": "index.js",
+    "output": "<ul><li>#a</li><li>#b</li><li>lib</li></ul>",
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": ["App.tsx", "index.js", "index.js"],
+        "contains": ["require(\"react/compiler-runtime\")", "(0, _compilerRuntime.c)(8)"]
+      }
+    ],
+    "skipNodeModules": true
+  },
+  {
+    "description": "should compile source components with React Compiler in production",
+    "input": "index.js",
+    "options": {"mode": "production"},
+    "output": "<ul><li>#a</li><li>#b</li><li>lib</li></ul>"
+  },
+  {
+    "description": "should not compile node_modules with React Compiler",
+    "input": "lib.js",
+    "output": "<li>lib</li>",
+    "bundles": [
+      {
+        "name": "lib.js",
+        "assets": ["index.js", "lib.js"],
+        "notContains": ["compiler-runtime"]
+      }
+    ],
+    "skipNodeModules": true
+  }
+]

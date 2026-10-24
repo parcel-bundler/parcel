@@ -8,6 +8,7 @@ mod mdx;
 mod modules;
 mod node_replacer;
 mod plugin;
+mod react_compiler;
 mod react_lazy;
 #[cfg(test)]
 mod test_utils;
@@ -38,6 +39,7 @@ use parcel_core::{
 };
 use parcel_macros::{MacroCallback, MacroError, Macros};
 
+use react_compiler::react_compiler;
 use react_lazy::ReactLazy;
 pub use swc_core::ecma::preset_env::{Version, Versions};
 use swc_core::{
@@ -100,6 +102,8 @@ pub struct Config {
   pub use_define_for_class_fields: bool,
   pub is_development: bool,
   pub react_refresh: bool,
+  /// React Compiler options, if it runs on this module.
+  pub react_compiler: Option<swc_core::ecma::react_compiler::PluginOptions>,
   pub trace_bailouts: bool,
   pub is_swc_helpers: bool,
   pub standalone: bool,
@@ -466,6 +470,28 @@ pub fn transform_to_ast(
     result.target = Some(target);
   }
 
+  if let Some(options) = config.react_compiler.take() {
+    let res = react_compiler(
+      &module,
+      code,
+      &comments,
+      &source_map,
+      config.is_type_script(),
+      config.react_refresh(),
+      options,
+    );
+    if !res.diagnostics.is_empty() {
+      result.diagnostics = res.diagnostics;
+      return Ok(result);
+    }
+    if config.trace_bailouts {
+      result.bailouts = res.bailouts;
+    }
+    if let Some(program) = res.program {
+      module = program;
+    }
+  }
+
   let mut global_deps = vec![];
   let should_inline_fs = config.inline_fs() && code.contains("readFileSync");
   let should_import_swc_helpers = config.source_type() == SourceType::Module;
@@ -723,10 +749,11 @@ pub fn transform_to_ast(
           );
           module.visit_with(&mut collect);
           if let Some(bailouts) = &collect.bailouts {
-            result.bailouts = bailouts
-              .iter()
-              .map(|bailout| bailout.to_diagnostic(&source_map))
-              .collect();
+            result.bailouts.extend(
+              bailouts
+                .iter()
+                .map(|bailout| bailout.to_diagnostic(&source_map)),
+            );
           }
 
           if matches!(

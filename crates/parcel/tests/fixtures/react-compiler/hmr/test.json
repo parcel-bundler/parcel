@@ -1,0 +1,22 @@
+{
+  "description": "should reset React Compiler caches when a module is hot reloaded",
+  "input": "index.js",
+  "options": {
+    "hmr": true
+  },
+  "output": "<ul><li>#a</li><li>#b</li><li>lib</li></ul>",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": [
+        "App.tsx",
+        "index.js",
+        "index.js"
+      ],
+      "contains": [
+        "$[$i] = Symbol.for(\"react.memo_cache_sentinel\")"
+      ]
+    }
+  ],
+  "skipNodeModules": true
+}

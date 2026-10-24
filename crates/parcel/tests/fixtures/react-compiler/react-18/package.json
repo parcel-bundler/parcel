@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-compiler-runtime": "^1.0.0"
+  }
+}

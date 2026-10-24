@@ -1,0 +1,14 @@
+{
+  "description": "should gate compiled components behind a feature flag",
+  "input": "index.js",
+  "output": "<b>a</b>",
+  "sideEffects": ["flag"],
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": ["flags.js", "index.js"],
+      "contains": ["require(\"react/compiler-runtime\")"]
+    }
+  ],
+  "skipNodeModules": true
+}

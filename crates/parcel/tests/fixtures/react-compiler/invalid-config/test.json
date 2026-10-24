@@ -1,0 +1,9 @@
+{
+  "description": "should reject React Compiler options Parcel does not support",
+  "input": "index.js",
+  "diagnostics": [
+    {
+      "message": "invalid reactCompiler options: unknown field `sources`"
+    }
+  ]
+}
