@@ -23,7 +23,7 @@ md-5 = "0.10"
 sha1 = "0.10"
 sha2 = "0.10"
 url = "*"
-swc_core = { version = "77", features = [
+swc_core = { version = "82", features = [
   "common",
   "ecma_ast",
   "ecma_codegen",

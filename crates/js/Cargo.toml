@@ -15,7 +15,7 @@ parcel-resolver = { path = "../parcel-resolver" }
 parcel-macros = { path = "../macros" }
 node-semver = "2.2.0"
 glob-match = "*"
-swc_core = { version = "77", features = [
+swc_core = { version = "82", features = [
   "common",
   "common_concurrent",
   "common_sourcemap",
@@ -52,7 +52,7 @@ rustc-hash = "2.1.3"
 indoc = "1.0.3"
 
 [build-dependencies]
-swc_core = { version = "77", features = [
+swc_core = { version = "82", features = [
   "common",
   "ecma_ast",
   "ecma_codegen",

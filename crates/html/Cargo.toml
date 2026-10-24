@@ -18,7 +18,7 @@ oxvg_optimiser = { version = "0.0.8", git = "https://github.com/devongovett/oxvg
 oxvg_serialize = { version = "0.0.8", git = "https://github.com/devongovett/oxvg.git", branch = "lightningcss-master" }
 lightningcss = { version = "1.0.0-alpha.72", default-features = false }
 anyhow = "*"
-swc_core = { version = "77", features = [
+swc_core = { version = "82", features = [
   "common",
   "ecma_parser",
   "ecma_ast",

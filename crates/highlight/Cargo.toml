@@ -5,7 +5,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-swc_ecma_parser = { version = "45.0.0", default-features = false, features = [
+swc_ecma_parser = { version = "46", default-features = false, features = [
   "typescript",
   "unstable",
 ] }

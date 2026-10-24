@@ -9,7 +9,7 @@ napi = ["dep:napi", "dep:napi-derive", "dep:crossbeam-channel"]
 
 [dependencies]
 indexmap = { version = "2.11.0", features = ["serde"] }
-swc_core = { version = "77", features = [
+swc_core = { version = "82", features = [
   "common",
   "common_sourcemap",
   "ecma_ast",
