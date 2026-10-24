@@ -159,6 +159,7 @@ function parcelRequire(name, jumped) {
 parcelRequire.isParcelRequire = true;
 parcelRequire.Module = Module;
 parcelRequire.modules = modules;
+parcelRequire.externals = externals;
 parcelRequire.cache = cache;
 parcelRequire.parent = previousRequire;
 parcelRequire.distDir = distDir;
@@ -539,7 +540,11 @@ async function handleMessage(data /*: HMRMessage */) {
       removeErrorOverlay();
     }
 
-    let assets = data.assets;
+    // Bundles that ES module bundles import synchronously (e.g. JSON) are sent with their own type,
+    // since an update can't add an import. One a bundle on the page already imports is unaffected.
+    let assets = data.assets.filter(
+      asset => !hmrIsImportedBundle(parcelRequire.root, asset.id),
+    );
 
     // Handle HMR Update
     let handled = assets.every(asset => {
@@ -953,6 +958,19 @@ function hmrDelete(bundle, id) {
   } else if (bundle.parent) {
     hmrDelete(bundle.parent, id);
   }
+}
+
+// Whether `id` is a bundle imported synchronously by a bundle on the page (see `externals`).
+function hmrIsImportedBundle(bundle /*: ParcelRequire */, id /*: string */) {
+  for (; bundle; bundle = bundle.parent) {
+    if (
+      bundle.externals &&
+      Object.prototype.hasOwnProperty.call(bundle.externals, id)
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function hmrAcceptCheck(

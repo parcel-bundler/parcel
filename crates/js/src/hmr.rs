@@ -180,7 +180,8 @@ pub fn get_hmr_update<'a>(
     assets.push(HmrAsset {
       id,
       // ESM updates cannot introduce a new top-level import. Sending the
-      // referenced bundle's non-JS type makes the runtime perform a full reload.
+      // referenced bundle's non-JS type makes the runtime perform a full reload,
+      // unless a bundle on the page already imports it.
       ty: esm_sync_bundle
         .map(|bundle| bundle_graph.bundles[bundle as usize].ty.clone())
         .unwrap_or(AssetType::Js),

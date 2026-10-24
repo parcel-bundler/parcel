@@ -119,7 +119,7 @@ impl Loader for ModuleLoader {
     &mut self,
     ctx: &Ctx<'js>,
     name: &str,
-    _attributes: Option<rquickjs::loader::ImportAttributes<'js>>,
+    attributes: Option<rquickjs::loader::ImportAttributes<'js>>,
   ) -> rquickjs::Result<Module<'js, rquickjs::module::Declared>> {
     // println!("LOADING {:?}", name);
 
@@ -140,7 +140,15 @@ impl Loader for ModuleLoader {
       }
     }
 
-    let module_type = if self.environment == Environment::Browser {
+    let module_type = if attributes
+      .map(|attributes| attributes.get_type())
+      .transpose()?
+      .flatten()
+      .as_deref()
+      == Some("json")
+    {
+      ModuleType::Json
+    } else if self.environment == Environment::Browser {
       ModuleType::Module
     } else {
       self

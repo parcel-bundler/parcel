@@ -501,6 +501,65 @@ if (module.hot) module.hot.accept();",
   );
 }
 
+const ESM_SYNC_BUNDLE_FILES: &[(&str, &str)] = &[
+  (
+    "/project/.parcelrc",
+    r#"{
+      "extends": "@parcel/config-default",
+      "transformers": {
+        "raw-json:*.json": ["@parcel/transformer-raw"]
+      }
+    }"#,
+  ),
+  (
+    "/project/package.json",
+    r#"{"targets": {"default": {"outputFormat": "esmodule"}}}"#,
+  ),
+  (
+    "/project/index.js",
+    "const data = require('raw-json:./data.json');
+output(data.value);
+if (module.hot) module.hot.accept();",
+  ),
+  ("/project/data.json", r#"{"value":42}"#),
+  ("/project/other.json", r#"{"value":1}"#),
+];
+
+#[test]
+fn hmr_runtime_updates_modules_importing_esm_sync_bundles() {
+  let mut hmr = HmrRuntimeTest::new(ESM_SYNC_BUNDLE_FILES);
+  assert_eq!(hmr.outputs(), vec![serde_json::json!(42)]);
+
+  // The update lists the JSON bundle the module imports, but the page already imports it.
+  hmr.update(&[(
+    "/project/index.js",
+    "const data = require('raw-json:./data.json');
+output(data.value + 1);
+if (module.hot) module.hot.accept();",
+  )]);
+
+  assert!(!hmr.reloaded());
+  assert_eq!(
+    hmr.outputs(),
+    vec![serde_json::json!(42), serde_json::json!(43)]
+  );
+}
+
+#[test]
+fn hmr_runtime_reloads_when_update_imports_a_new_esm_sync_bundle() {
+  let mut hmr = HmrRuntimeTest::new(ESM_SYNC_BUNDLE_FILES);
+
+  hmr.update(&[(
+    "/project/index.js",
+    "const data = require('raw-json:./data.json');
+const other = require('raw-json:./other.json');
+output(data.value + other.value);
+if (module.hot) module.hot.accept();",
+  )]);
+
+  assert!(hmr.reloaded());
+}
+
 struct HmrRuntimeTest {
   parcel: Parcel,
   input_fs: Arc<MemoryFileSystem>,
