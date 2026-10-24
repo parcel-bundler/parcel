@@ -10,6 +10,7 @@ use std::path::Path;
 use std::process::ExitCode;
 use std::{collections::HashMap, sync::Arc};
 
+mod analyzer;
 mod bundle_report;
 
 #[global_allocator]
@@ -94,6 +95,8 @@ fn help(command: Option<Command>) -> String {
     "  --dist-dir <dir>      Set the output directory\n",
     "  --public-url <url>    Set the public URL for bundles\n",
     "  --log-level <level>   none, error, warn, info, verbose (default: info)\n",
+    "  --analyze             Write an interactive analysis of bundle sizes to\n",
+    "                        parcel-bundle-reports/index.html in production builds\n",
     "  --detailed-report [count]  Print the sizes of the largest assets in each bundle in\n",
     "                        production builds (default count: 10)\n",
     "  -h, --help            Show help\n",
@@ -207,6 +210,7 @@ fn parse_args(
   let mut cert = None;
   let mut key = None;
   let mut detailed_report = 0;
+  let mut analyze = false;
   while let Some(arg) = args.next() {
     if arg.starts_with('-') {
       match arg.as_str() {
@@ -269,6 +273,9 @@ fn parse_args(
         }
         // The number of assets to list per bundle follows an `=`, or is the next argument if it's
         // a number rather than an entry.
+        "--analyze" => {
+          analyze = true;
+        }
         "--detailed-report" => {
           detailed_report = args
             .next_if(|next| next.parse::<usize>().is_ok())
@@ -316,7 +323,13 @@ fn parse_args(
   if entries.is_empty() {
     entries.push(".".into());
   }
-  options.reporters = vec![Arc::new(CLIReporter { detailed_report })];
+  if analyze && command != Command::Build {
+    return Err("--analyze is only supported by build".into());
+  }
+  options.reporters = vec![Arc::new(CLIReporter {
+    detailed_report,
+    analyze,
+  })];
 
   if hmr_port.is_some() && command != Command::Run {
     return Err("--hmr-port is only supported by run".into());
@@ -414,7 +427,10 @@ pub fn main() -> ExitCode {
       CliAction::Trust { remove } => {
         if parcel::trust(
           remove,
-          vec![Arc::new(CLIReporter { detailed_report: 0 })],
+          vec![Arc::new(CLIReporter {
+            detailed_report: 0,
+            analyze: false,
+          })],
           LogLevel::Verbose,
         )
         .is_err()
@@ -454,6 +470,8 @@ pub fn main() -> ExitCode {
 struct CLIReporter {
   /// The number of assets to list per bundle in the production build report.
   detailed_report: usize,
+  /// Whether to write the bundle analysis in production builds.
+  analyze: bool,
 }
 
 impl Reporter for CLIReporter {
@@ -495,18 +513,48 @@ impl Reporter for CLIReporter {
         build_time,
         bundle_graph,
         ..
-      }) if options.log_level.allows(LogLevel::Info) => {
-        let style = Style::new()
-          .fg_color(Some(Color::Ansi(AnsiColor::BrightGreen)))
-          .bold();
-        println!("{style}✨ Built in {:?}{style:#}", build_time);
-        if options.mode == BuildMode::Production {
+      }) => {
+        let info = options.log_level.allows(LogLevel::Info);
+        if info {
+          let style = Style::new()
+            .fg_color(Some(Color::Ansi(AnsiColor::BrightGreen)))
+            .bold();
+          println!("{style}✨ Built in {:?}{style:#}", build_time);
+        }
+        // The analysis is written regardless of the log level.
+        if options.mode != BuildMode::Production || !(info || self.analyze) {
+          return Ok(());
+        }
+        // Measuring assets reads every bundle and source map, so the plain report only stats them.
+        let bundles = if self.detailed_report > 0 || self.analyze {
+          bundle_report::generate_build_metrics(bundle_graph, options, self.analyze)
+        } else {
+          bundle_report::bundle_sizes(bundle_graph, options)
+        };
+        if info {
           bundle_report::bundle_report(
-            bundle_graph,
-            options,
+            &bundles,
             self.detailed_report,
+            options.cwd,
             &mut std::io::stdout().lock(),
           )?;
+        }
+        if self.analyze {
+          let path = analyzer::write_report(&bundles, bundle_graph, options)?;
+          if info {
+            let relative = path
+              .relative(&PathId::new(&std::env::current_dir().unwrap()))
+              .display()
+              .to_string();
+            let style = Style::new()
+              .fg_color(Some(Color::Ansi(AnsiColor::BrightCyan)))
+              .bold();
+            println!("\n📊 {style}Bundle analysis written to{style:#} {relative}");
+            let url = url::Url::from_file_path(path.to_path_buf())
+              .unwrap()
+              .to_string();
+            let _ = parcel::open_browser(&url, None);
+          }
         }
       }
       ReporterEvent::BuildFailure { diagnostics } if options.log_level.allows(LogLevel::Error) => {

@@ -40,6 +40,8 @@ mod trust;
 mod webmanifest;
 mod yaml;
 
+pub use open_browser::open_browser;
+
 pub fn make_parcel(
   entries: &Vec<String>,
   options: BuildOptions,

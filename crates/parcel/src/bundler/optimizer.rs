@@ -424,6 +424,7 @@ pub(super) fn optimize(
     protected.insert(root);
   }
   let mut asset_requests = vec![Vec::new(); graph.assets.len()];
+  let mut independent = FixedBitSet::with_capacity(bundles.len());
   for (id, resolution) in resolutions.iter() {
     if let BundleGraphDependencyResolution::Bundle { bundle_index, .. } = resolution {
       let target = *bundle_index as usize;
@@ -437,12 +438,36 @@ pub(super) fn optimize(
         && bundles[target].bundle_behavior != BundleBehavior::Isolated
       {
         asset_requests[id.asset.index()].push(target);
+      } else if dep.priority == Priority::Lazy
+        || (dep.specifier_type == SpecifierType::Url && bundles[target].ty == AssetType::Js)
+      {
+        independent.insert(target);
       }
     }
   }
   for requests in &mut asset_requests {
     requests.sort_unstable();
     requests.dedup();
+  }
+  // Sample only roots that start a loading context of their own: entries,
+  // roots that execute on load (HTML scripts, whose own context also keeps
+  // their execution order intact), lazy imports, and JS URL targets such as
+  // workers. Inline and isolated outputs, parallel siblings, and URL assets
+  // always load inside another context, which already accounts for them;
+  // sampling them as activations dilutes the chance that two activations
+  // share a payload, undervaluing reuse.
+  let activations: Vec<usize> = roots
+    .iter()
+    .copied()
+    .filter(|&r| {
+      bundles[r].bundle_behavior != BundleBehavior::Inline
+        && (bundles[r].flags.contains(BundleFlags::ENTRY)
+          || (bundles[r].ty == AssetType::Js && !bundles[r].entry_assets.is_empty())
+          || independent.contains(r))
+    })
+    .collect();
+  if !activations.is_empty() {
+    roots = activations;
   }
   let mut hosts = FixedBitSet::with_capacity(bundles.len());
   let mut packagers = Vec::with_capacity(bundles.len());

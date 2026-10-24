@@ -82,8 +82,14 @@ eagerly loaded. Their constant byte costs do not affect JS merge comparisons.
   code. Reintroduce a completed-run comparison only with evidence at scale.
 
 The cost is expected session JS transfer plus expected transfer invalidated by
-one edit. Activations are sampled uniformly from loadable roots; a second
-activation, when present, samples a different root. HTTP cache reuse follows
+one edit. Activations are sampled uniformly from roots that start a loading
+context of their own: entries, roots that execute on load (HTML scripts),
+lazy imports, and JS URL targets such as workers. Inline and isolated outputs,
+parallel siblings, and URL assets always load inside another context and are
+not sampled; on a storybook build they outnumbered real activations about 6:1,
+which made two activations look ~6× less likely to share a payload and drove
+widespread duplication into lazy roots. A second activation, when present,
+samples a different root. HTTP cache reuse follows
 physical file identity, so identical modules in two files still cost two
 downloads. Edit probability is proportional to source/dependency weights, and
 an edit invalidates each complete file containing that asset. Transfer applies
