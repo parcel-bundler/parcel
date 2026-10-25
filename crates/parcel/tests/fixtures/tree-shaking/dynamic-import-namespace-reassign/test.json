@@ -1,0 +1,18 @@
+{
+  "description": "tree shaking: re-assigning a dynamic import namespace binding conservatively keeps every export",
+  "input": "dynamic.js",
+  "options": {"mode": "production"},
+  "output": "used-dynamic",
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["dynamic.js"],
+      "notContains": ["unused-dynamic-sentinel"]
+    },
+    {
+      "type": "js",
+      "assets": ["async-dep.js", "esmodule-helpers.js"],
+      "contains": ["used-dynamic", "unused-dynamic-sentinel"]
+    }
+  ]
+}

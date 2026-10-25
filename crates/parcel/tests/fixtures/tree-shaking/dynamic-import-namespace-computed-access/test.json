@@ -1,0 +1,18 @@
+{
+  "description": "tree shaking: computed access of a dynamic import namespace keeps every export",
+  "input": "dynamic.js",
+  "options": {"mode": "production"},
+  "output": "used-dynamic unused-dynamic-sentinel",
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["dynamic.js"],
+      "notContains": ["unused-dynamic-sentinel"]
+    },
+    {
+      "type": "js",
+      "assets": ["async-dep.js", "esmodule-helpers.js"],
+      "contains": ["used-dynamic", "unused-dynamic-sentinel"]
+    }
+  ]
+}

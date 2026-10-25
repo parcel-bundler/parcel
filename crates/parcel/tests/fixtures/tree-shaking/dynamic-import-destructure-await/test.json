@@ -1,0 +1,26 @@
+[
+  {
+    "description": "tree shaking: dynamic import removes unused async export when destructuring an awaited namespace",
+    "input": "dynamic.js",
+    "options": {"mode": "production"},
+    "output": "used-dynamic",
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["dynamic.js"],
+        "notContains": ["unused-dynamic-sentinel"]
+      },
+      {
+        "type": "js",
+        "assets": ["async-dep.js", "esmodule-helpers.js"],
+        "contains": ["used-dynamic"],
+        "notContains": ["unused-dynamic-sentinel"]
+      }
+    ]
+  },
+  {
+    "description": "tree shaking: destructured awaited dynamic import works in development",
+    "input": "dynamic.js",
+    "output": "used-dynamic"
+  }
+]

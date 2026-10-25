@@ -1,0 +1,27 @@
+[
+  {
+    "description": "tree shaking: static accesses of a namespace import through re-exports remove unused exports",
+    "input": "namespace.js",
+    "options": {"mode": "production"},
+    "output": ["used-namespace", "used-other", "undefined"],
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["dep-namespace.js", "esmodule-helpers.js", "namespace.js", "other.js"],
+        "contains": ["used-namespace", "used-other"],
+        "notContains": ["unused-namespace-sentinel", "unused-other-sentinel"]
+      }
+    ]
+  },
+  {
+    "description": "tree shaking: static accesses of a namespace import through re-exports work in development",
+    "input": "namespace.js",
+    "output": ["used-namespace", "used-other", "undefined"]
+  },
+  {
+    "description": "tree shaking: static accesses of a namespace import through re-exports work with HMR",
+    "input": "namespace.js",
+    "options": {"hmr": true},
+    "output": ["used-namespace", "used-other", "undefined"]
+  }
+]

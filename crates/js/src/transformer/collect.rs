@@ -37,9 +37,10 @@ macro_rules! collect_visit_fn {
   };
 }
 
-/// How a CommonJS module or dynamic import is loaded.
+/// How a module is loaded.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ImportKind {
+  Import,
   Require,
   DynamicImport,
 }
@@ -49,6 +50,7 @@ pub struct Import {
   pub source: JsWord,
   pub specifier: JsWord,
   pub span: Span,
+  pub kind: ImportKind,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -76,6 +78,8 @@ pub struct Collect {
   /// the keys in `imports` that are actually used (referenced), except namespace imports
   pub used_imports: HashSet<Id>,
   pub non_static_access: HashMap<Id, Vec<Span>>,
+  /// namespace import binding -> statically accessed properties, e.g. `ns.foo`
+  pub static_access: HashMap<Id, Vec<(JsWord, Span)>>,
   pub non_static_requires: HashSet<JsWord>,
   pub bailouts: Option<Vec<Bailout>>,
   in_module_this: bool,
@@ -107,6 +111,7 @@ impl Collect {
       exports_all: HashMap::new(),
       used_imports: HashSet::new(),
       non_static_access: HashMap::new(),
+      static_access: HashMap::new(),
       non_static_requires: HashSet::new(),
       in_module_this: true,
       in_top_level: true,
@@ -142,25 +147,49 @@ impl Collect {
       used_imports,
       exports,
       exports_all,
+      non_static_access,
+      static_access,
       non_static_requires,
       has_cjs_exports,
       ..
     } = self;
     let mut symbols = AssetSymbols::default();
 
+    // A namespace import or dynamic import that is only accessed statically (e.g. `ns.foo`)
+    // imports just the accessed properties. Any other usage, e.g. a computed access, passing the
+    // namespace around or re-assigning the binding, observes the whole namespace.
+    let mut imported: Vec<(Span, &JsWord, &JsWord, &JsWord)> = Vec::new();
+    for (local, import) in &imports {
+      if !used_imports.contains(local) {
+        continue;
+      }
+
+      if import.specifier == "*"
+        && import.kind != ImportKind::Require
+        && !non_static_access.contains_key(local)
+        && let Some(accesses) = static_access.get(local)
+      {
+        let mut seen = HashSet::new();
+        for (name, span) in accesses {
+          if seen.insert(name) {
+            imported.push((*span, name, &import.source, name));
+          }
+        }
+      } else {
+        imported.push((import.span, &local.0, &import.source, &import.specifier));
+      }
+    }
+
     // The collect maps are HashMaps, so sort by source location to keep symbol
     // order deterministic across builds (it flows into asset symbols and output).
-    let mut imports: Vec<_> = imports
+    imported.sort_by(|(a_span, a_name, ..), (b_span, b_name, ..)| {
+      (a_span.lo, a_name).cmp(&(b_span.lo, b_name))
+    });
+    symbols.imports = imported
       .into_iter()
-      .filter(|(local, _)| used_imports.contains(local))
-      .collect();
-    imports
-      .sort_by(|(a_local, a), (b_local, b)| (a.span.lo, &a_local.0).cmp(&(b.span.lo, &b_local.0)));
-    symbols.imports = imports
-      .into_iter()
-      .map(|(_, import)| ImportedSymbol {
-        dep_index: dep_index(&import.source),
-        symbol: SymbolName::from(import.specifier.as_str()),
+      .map(|(_, _, source, symbol)| ImportedSymbol {
+        dep_index: dep_index(source),
+        symbol: SymbolName::from(symbol.as_str()),
         resolved: SymbolResolution::None,
       })
       .collect();
@@ -329,6 +358,7 @@ impl Visit for Collect {
               source: node.src.value.to_string_lossy().into(),
               specifier: imported,
               span: named.span,
+              kind: ImportKind::Import,
             },
           );
         }
@@ -339,6 +369,7 @@ impl Visit for Collect {
               source: node.src.value.to_string_lossy().into(),
               specifier: "default".into(),
               span: default.span,
+              kind: ImportKind::Import,
             },
           );
         }
@@ -349,6 +380,7 @@ impl Visit for Collect {
               source: node.src.value.to_string_lossy().into(),
               specifier: "*".into(),
               span: namespace.span,
+              kind: ImportKind::Import,
             },
           );
         }
@@ -627,7 +659,19 @@ impl Visit for Collect {
           self.static_cjs_exports = false;
           self.should_wrap = true;
           self.add_bailout(node.span, BailoutReason::FreeModule);
-        } else if match_property_name(node).is_none() {
+        } else if let Some((name, _)) = match_property_name(node) {
+          if self
+            .imports
+            .get(&id!(ident))
+            .is_some_and(|import| import.specifier == "*")
+          {
+            self
+              .static_access
+              .entry(id!(ident))
+              .or_default()
+              .push((name, node.span));
+          }
+        } else {
           self
             .non_static_access
             .entry(id!(ident))
@@ -773,6 +817,7 @@ impl Visit for Collect {
 
     node.left.visit_with(self);
     node.right.visit_with(self);
+    self.add_reassigned_namespaces(&node.left);
 
     if has_binding_identifier(&node.left, &"exports".into(), self.unresolved_mark) {
       // Must wrap for cases like
@@ -848,12 +893,38 @@ impl Visit for Collect {
       }
     }
 
+    // e.g. `var ns = await import('foo'); var ns = other;`
+    self.add_reassigned_namespaces(&node.name);
+
     // This is visited via visit_module_item with is_top_level == true, it needs to be
     // set to false for called visitors (and restored again).
     let in_top_level = self.in_top_level;
     self.in_top_level = false;
     node.visit_children_with(self);
     self.in_top_level = in_top_level;
+  }
+
+  fn visit_prop(&mut self, node: &Prop) {
+    // `{ns}` observes the whole namespace, like `{ns: ns}`.
+    if let Prop::Shorthand(ident) = node {
+      self
+        .non_static_access
+        .entry(id!(ident))
+        .or_default()
+        .push(ident.span);
+    }
+
+    node.visit_children_with(self);
+  }
+
+  fn visit_for_in_stmt(&mut self, node: &ForInStmt) {
+    self.add_reassigned_namespaces(&node.left);
+    node.visit_children_with(self);
+  }
+
+  fn visit_for_of_stmt(&mut self, node: &ForOfStmt) {
+    self.add_reassigned_namespaces(&node.left);
+    node.visit_children_with(self);
   }
 
   fn visit_call_expr(&mut self, node: &CallExpr) {
@@ -929,6 +1000,7 @@ impl Collect {
             source: src.clone(),
             specifier: "*".into(),
             span: ident.id.span,
+            kind,
           },
         );
       }
@@ -957,6 +1029,7 @@ impl Collect {
                       source: src.clone(),
                       specifier: imported,
                       span: ident.id.span,
+                      kind,
                     },
                   );
                 }
@@ -977,6 +1050,7 @@ impl Collect {
                   source: src.clone(),
                   specifier: assign.key.sym.clone(),
                   span: assign.key.span,
+                  kind,
                 },
               );
             }
@@ -1006,10 +1080,40 @@ impl Collect {
     }
   }
 
+  /// Marks namespace imports bound by an assignment target or declaration as accessed
+  /// non-statically, e.g. `let ns = await import('foo'); ns = other;`. Afterwards, member accesses
+  /// of the binding may not refer to the namespace.
+  fn add_reassigned_namespaces<N: VisitWith<BindingIdentCollector>>(&mut self, node: &N) {
+    let mut collector = BindingIdentCollector { idents: vec![] };
+    node.visit_with(&mut collector);
+    for (id, span) in collector.idents {
+      if self
+        .imports
+        .get(&id)
+        .is_some_and(|import| import.specifier == "*")
+      {
+        self.non_static_access.entry(id).or_default().push(span);
+      }
+    }
+  }
+
   fn add_bailout(&mut self, span: Span, reason: BailoutReason) {
     if let Some(bailouts) = &mut self.bailouts {
       bailouts.push(Bailout { span: span, reason })
     }
+  }
+}
+
+/// Collects the identifiers bound by a pattern or assignment target.
+struct BindingIdentCollector {
+  idents: Vec<(Id, Span)>,
+}
+
+impl Visit for BindingIdentCollector {
+  noop_visit_type!();
+
+  fn visit_binding_ident(&mut self, ident: &BindingIdent) {
+    self.idents.push((id!(ident.id), ident.id.span));
   }
 }
 
@@ -1037,4 +1141,93 @@ fn has_binding_identifier(node: &AssignTarget, sym: &JsWord, unresolved_mark: Ma
   };
   node.visit_with(&mut visitor);
   visitor.found
+}
+
+#[cfg(test)]
+mod tests {
+  use swc_core::{common::Mark, ecma::visit::VisitWith};
+
+  use super::*;
+  use crate::transformer::test_utils::run_with_transformation;
+
+  /// The (source, symbol) pairs a module imports.
+  fn imported_symbols(code: &str) -> Vec<(String, String)> {
+    let (_, symbols) = run_with_transformation(code, |context, module| {
+      let mut collect = Collect::new(
+        context.unresolved_mark,
+        Mark::fresh(Mark::root()),
+        false,
+        true,
+      );
+      module.visit_with(&mut collect);
+      let sources: Vec<JsWord> = vec!["a".into(), "b".into()];
+      collect.into_symbols(|source| sources.iter().position(|s| s == source).unwrap() as u32)
+    });
+    symbols
+      .imports
+      .iter()
+      .map(|import| {
+        (
+          ["a", "b"][import.dep_index as usize].to_string(),
+          import.symbol.as_str().to_string(),
+        )
+      })
+      .collect()
+  }
+
+  fn pairs(pairs: &[(&str, &str)]) -> Vec<(String, String)> {
+    pairs
+      .iter()
+      .map(|(source, symbol)| (source.to_string(), symbol.to_string()))
+      .collect()
+  }
+
+  #[test]
+  fn namespace_static_access() {
+    assert_eq!(
+      imported_symbols("import * as ns from 'a'; ns.foo(); ns['bar']; ns.foo.baz;"),
+      pairs(&[("a", "foo"), ("a", "bar")])
+    );
+  }
+
+  #[test]
+  fn namespace_non_static_access() {
+    for code in [
+      "import * as ns from 'a'; ns.foo; ns[key];",
+      "import * as ns from 'a'; ns.foo; use(ns);",
+      "import * as ns from 'a'; ns.foo; let o = {ns};",
+      "import * as ns from 'a'; ns.foo; export default ns;",
+    ] {
+      assert_eq!(imported_symbols(code), pairs(&[("a", "*")]), "{code}");
+    }
+  }
+
+  #[test]
+  fn dynamic_import_static_access() {
+    assert_eq!(
+      imported_symbols("import('a').then(ns => ns.foo); const b = await import('b'); b.bar;"),
+      pairs(&[("a", "foo"), ("b", "bar")])
+    );
+  }
+
+  #[test]
+  fn dynamic_import_non_static_access() {
+    for code in [
+      "import('a').then(ns => ns[key]);",
+      "import('a').then(ns => ns);",
+      "let ns = await import('a'); ns.foo; ns = other;",
+      "(await import('a')).foo;",
+    ] {
+      assert_eq!(imported_symbols(code), pairs(&[("a", "*")]), "{code}");
+    }
+  }
+
+  #[test]
+  fn require_static_access() {
+    // CommonJS requires keep the whole namespace.
+    assert_eq!(
+      imported_symbols("const ns = require('a'); ns.foo;"),
+      pairs(&[("a", "*")])
+    );
+  }
 }

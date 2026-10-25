@@ -1,0 +1,13 @@
+{
+  "description": "tree shaking: computed access of a namespace import keeps every export",
+  "input": "namespace.js",
+  "options": {"mode": "production"},
+  "sideEffects": ["used-namespace", "unused-namespace-sentinel"],
+  "bundles": [
+    {
+      "type": "js",
+      "assets": ["dep-namespace.js", "esmodule-helpers.js", "namespace.js"],
+      "contains": ["used-namespace", "unused-namespace-sentinel"]
+    }
+  ]
+}
