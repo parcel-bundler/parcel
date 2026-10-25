@@ -1,0 +1,12 @@
+{
+  "description": "should parse .parcelrc and extended configs as JSON5",
+  "input": "index.js",
+  "options": {"config": ".parcelrc"},
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": ["a.data", "b.txt", "index.js"]
+    }
+  ],
+  "output": 3
+}

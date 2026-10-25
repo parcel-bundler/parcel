@@ -1,0 +1,8 @@
+// Comments, unquoted keys and trailing commas, like Parcel 2's JSON5 configs.
+{
+  extends: 'parcel-config-json5',
+  transformers: {
+    /* Data files are JSON. */
+    '*.data': ['@parcel/transformer-json',],
+  },
+}

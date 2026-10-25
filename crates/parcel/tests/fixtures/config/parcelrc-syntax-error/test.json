@@ -1,0 +1,18 @@
+{
+  "description": "should report .parcelrc syntax errors with a code frame",
+  "input": "index.js",
+  "options": {"config": ".parcelrc"},
+  "diagnostics": [
+    {
+      "message": "Unexpected character '\"'",
+      "origin": "@parcel/core",
+      "codeFrames": [
+        {
+          "codeHighlights": [
+            {"start": {"line": 5, "column": 5}, "end": {"line": 5, "column": 5}}
+          ]
+        }
+      ]
+    }
+  ]
+}
