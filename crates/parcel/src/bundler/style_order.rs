@@ -75,7 +75,10 @@ pub(super) fn plan(
   let mut contexts = vec![OrderedContent::default(); bundle_roots.len()];
   for (root_index, root_asset) in bundle_roots.iter_active() {
     contexts[root_index] = analysis.for_context(root_asset, |asset| {
-      needed_roots.reachable_roots(asset).contains(root_index)
+      // An imported root stylesheet that is available from an earlier
+      // occurrence still holds its import position: its bundle is referenced
+      // there by a cross-bundle @import, which nothing may precede.
+      needed_roots.reachable_roots(asset).contains(root_index) || bundle_roots.is_bundle_root(asset)
     });
   }
 

@@ -1,0 +1,26 @@
+{
+  "description": "a linked stylesheet that a later linked stylesheet imports after other content keeps its import position, so links preserve local, other, local order and blue wins",
+  "input": "index.html",
+  "options": {
+    "mode": "production",
+    "contentHash": false
+  },
+  "bundles": [
+    {
+      "assets": ["index.html"],
+      "references": []
+    },
+    {
+      "assets": ["local.css"],
+      "references": []
+    },
+    {
+      "assets": ["other.css"],
+      "references": []
+    },
+    {
+      "assets": ["style.css"],
+      "references": [["other.css"]]
+    }
+  ]
+}
