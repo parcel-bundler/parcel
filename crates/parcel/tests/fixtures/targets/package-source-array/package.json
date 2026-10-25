@@ -1,0 +1,4 @@
+{
+  "source": ["a.js", "b.js"],
+  "browserslist": "Chrome 40"
+}

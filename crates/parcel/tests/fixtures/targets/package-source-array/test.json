@@ -1,0 +1,8 @@
+{
+  "description": "should build each file in a package.json source array into the dist dir, applying browserslist",
+  "input": ".",
+  "bundles": [
+    {"name": "a.js", "distDir": "dist", "assets": ["a.js"], "contains": ["function a()"]},
+    {"name": "b.js", "distDir": "dist", "assets": ["b.js"], "contains": ["function b()"]}
+  ]
+}

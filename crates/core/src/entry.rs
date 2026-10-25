@@ -268,6 +268,7 @@ impl EntryResolver {
       include_node_modules: None,
     };
 
+    let start = self.entries.len();
     if let Some(exports) = json.get("exports") {
       self.extract_exports(
         fs,
@@ -281,58 +282,63 @@ impl EntryResolver {
       )?;
     }
 
-    if let Some(Value::String(source)) = json.get("source") {
-      for (field, cond) in &[
-        ("main", ExportsCondition::DEFAULT),
-        ("module", ExportsCondition::MODULE),
-        ("browser", ExportsCondition::BROWSER),
-        ("types", ExportsCondition::TYPES),
-      ] {
-        if let Some(Value::String(main)) = json.get(field) {
-          if is_glob(source) {
-            // TODO: error
-          }
+    // The top-level `source` field may list multiple entries.
+    let sources: Vec<&str> = match json.get("source") {
+      Some(Value::String(source)) => vec![source],
+      Some(Value::Array(sources)) => sources.iter().filter_map(Value::as_str).collect(),
+      _ => Vec::new(),
+    };
 
-          if let Some(child) = context.child(&json, field) {
-            let source_path = dir.join(Path::new(source));
-            let (dist_dir, dist_entry) = dist_dir_entry(dir, main, source_path)?;
-            let mut env = child.to_env(&json, dist_dir, dist_entry, options)?;
-            if *cond == ExportsCondition::MODULE {
-              env.output_format = OutputFormat::Esmodule;
-            }
-
-            let env = self.target(env);
-
-            self.add_entry(Entry {
-              url: SourceUrl::from_path(&source_path),
-              target: env,
-              dist_entry: Some(dist_entry),
-              asset: None,
-              loc: None,
-            });
-          }
+    for (field, cond) in &[
+      ("main", ExportsCondition::DEFAULT),
+      ("module", ExportsCondition::MODULE),
+      ("browser", ExportsCondition::BROWSER),
+      ("types", ExportsCondition::TYPES),
+    ] {
+      let Some(Value::String(main)) = json.get(field) else {
+        continue;
+      };
+      let source = match sources.as_slice() {
+        [] => continue,
+        [source] => source,
+        _ => {
+          return Err(Diagnostic::from_message(format!(
+            "package.json \"source\" must be a single file when used with the {field:?} field"
+          )));
         }
+      };
+
+      if is_glob(source) {
+        // TODO: error
       }
 
-      if self.entries.is_empty() {
-        for source in fs.glob(source, dir) {
-          self.add_entry(Entry {
-            url: SourceUrl::from_path(&source),
-            target: Arc::new(Target {
-              dist_dir: dir,
-              flags: if self.should_optimize {
-                EnvironmentFlags::SHOULD_OPTIMIZE
-              } else {
-                EnvironmentFlags::empty()
-              },
-              source_map: options.source_map.clone(),
-              public_url: options.public_url.clone(),
-              ..Default::default()
-            }),
-            dist_entry: None,
-            asset: None,
-            loc: None,
-          });
+      if let Some(child) = context.child(&json, field) {
+        let source_path = dir.join(Path::new(source));
+        let (dist_dir, dist_entry) = dist_dir_entry(dir, main, source_path)?;
+        let mut env = child.to_env(&json, dist_dir, dist_entry, options)?;
+        if *cond == ExportsCondition::MODULE {
+          env.output_format = OutputFormat::Esmodule;
+        }
+
+        let env = self.target(env);
+
+        self.add_entry(Entry {
+          url: SourceUrl::from_path(&source_path),
+          target: env,
+          dist_entry: Some(dist_entry),
+          asset: None,
+          loc: None,
+        });
+      }
+    }
+
+    // Without library outputs, the sources are app entries, built like CLI entries but into the
+    // package's dist directory by default.
+    if self.entries.len() == start {
+      let dist_dir = options.dist_dir.unwrap_or_else(|| dir.child("dist"));
+      for source in sources {
+        for path in fs.glob(source, dir) {
+          self.resolve_file_entry(path, Some((dir, &json)), dist_dir, options)?;
         }
       }
     }
@@ -1619,6 +1625,99 @@ mod tests {
     assert_eq!(
       targets[0].engines.node,
       Some(Version::new(NonZero::new(20).unwrap(), 0))
+    );
+  }
+
+  /// Resolves the `/root` package with the given package.json.
+  fn package_entries(pkg: &str, dist_dir: Option<&str>) -> Result<Vec<Entry>, crate::Diagnostic> {
+    let fs = MemoryFileSystem::new();
+    fs.mkdir(Path::new("/root")).unwrap();
+    fs.mkdir(Path::new("/root/src")).unwrap();
+    fs.write(
+      PathId::new(Path::new("/root/package.json")),
+      &pkg.as_bytes().to_vec(),
+    )
+    .unwrap();
+    fs.write(PathId::new(Path::new("/root/src/foo.js")), &Vec::new())
+      .unwrap();
+    fs.write(PathId::new(Path::new("/root/src/bar.html")), &Vec::new())
+      .unwrap();
+    let fs = Arc::new(fs);
+    resolve_entries(
+      &vec!["/root".into()],
+      &crate::BuildOptions {
+        input_fs: fs.clone(),
+        output_fs: fs,
+        env: HashMap::new(),
+        log_level: crate::LogLevel::Error,
+        mode: crate::BuildMode::Development,
+        optimize: None,
+        content_hash: None,
+        config: None,
+        cwd: PathId::new(Path::new("/root")),
+        source_map: None,
+        dist_dir: dist_dir.map(|dir| PathId::new(Path::new(dir))),
+        public_url: Default::default(),
+        hmr: None,
+        reporters: Vec::new(),
+      },
+    )
+    .map(|(entries, _)| entries)
+  }
+
+  #[test]
+  fn test_package_source_app_entries() {
+    let entries = package_entries(
+      r#"{"source": ["src/foo.js", "src/bar.html"], "browserslist": "Chrome 100"}"#,
+      None,
+    )
+    .unwrap();
+    let urls: Vec<_> = entries.iter().map(|e| e.url.to_string()).collect();
+    assert_eq!(
+      urls,
+      vec!["file:///root/src/foo.js", "file:///root/src/bar.html"]
+    );
+    for entry in &entries {
+      assert_eq!(entry.target.dist_dir, PathId::new(Path::new("/root/dist")));
+      assert_eq!(
+        entry.target.engines.browsers.chrome,
+        Some(Version::new(NonZero::new(100).unwrap(), 0))
+      );
+      assert!(!entry.target.flags.contains(EnvironmentFlags::IS_LIBRARY));
+    }
+
+    // `--dist-dir` and targets apply as for CLI entries.
+    let entries = package_entries(
+      r#"{"source": "src/foo.js", "engines": {"node": ">= 20"}, "targets": {"a": {}, "b": {}}}"#,
+      Some("/out"),
+    )
+    .unwrap();
+    let targets: Vec<_> = entries
+      .iter()
+      .map(|e| (e.target.dist_dir, e.target.environment))
+      .collect();
+    assert_eq!(
+      targets,
+      vec![
+        (PathId::new(Path::new("/out/a")), Environment::Node),
+        (PathId::new(Path::new("/out/b")), Environment::Node)
+      ]
+    );
+
+    // Library outputs need a single source.
+    assert!(
+      package_entries(
+        r#"{"source": ["src/foo.js"], "main": "dist/main.js"}"#,
+        None
+      )
+      .is_ok()
+    );
+    assert!(
+      package_entries(
+        r#"{"source": ["src/foo.js", "src/bar.html"], "main": "dist/main.js"}"#,
+        None
+      )
+      .is_err()
     );
   }
 }
