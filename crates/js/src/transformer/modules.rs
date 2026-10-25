@@ -13,9 +13,12 @@ use swc_core::{
   quote,
 };
 
-use crate::transformer::{
-  ESM_HELPERS, fold_member_expr_skip_prop, id,
-  utils::{get_undefined_ident, match_export_name, match_export_name_ident},
+use crate::{
+  runtime_modules::ESM_HELPERS,
+  transformer::{
+    fold_member_expr_skip_prop, id,
+    utils::{get_undefined_ident, match_export_name, match_export_name_ident},
+  },
 };
 
 pub fn esm2cjs(

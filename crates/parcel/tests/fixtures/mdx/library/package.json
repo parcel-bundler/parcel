@@ -1,0 +1,7 @@
+{
+  "source": "index.mdx",
+  "module": "dist/module.mjs",
+  "dependencies": {
+    "react": "^19"
+  }
+}

@@ -39,6 +39,7 @@ use parcel_core::{
 };
 use parcel_macros::{MacroCallback, MacroError, Macros};
 
+use crate::runtime_modules::{ESM_HELPERS, REACT_REFRESH};
 use react_compiler::react_compiler;
 use react_lazy::ReactLazy;
 pub use swc_core::ecma::preset_env::{Version, Versions};
@@ -78,9 +79,6 @@ use utils::{
 };
 
 type SourceMapBuffer = Vec<(swc_core::common::BytePos, swc_core::common::LineCol)>;
-
-pub(crate) const ESM_HELPERS: &str = "@parcel/parcel3/src/esmodule-helpers.js";
-pub(crate) const MDX_COMPONENTS: &str = "@parcel/parcel3/src/mdx-components";
 
 #[derive(Default, Debug)]
 pub struct Config {
@@ -836,7 +834,7 @@ pub fn transform_to_ast(
             runtime_dependencies.push(result.dependencies.len() as u32);
             result.dependencies.push(config.dependency(
               DependencyKind::Require,
-              "@parcel/parcel3/src/react-refresh.js",
+              REACT_REFRESH,
               SourceType::Module,
               None,
             ));

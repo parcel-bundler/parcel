@@ -43,14 +43,6 @@ fn build_entries(files: &[(&str, &str)], entries: &[&str], mode: BuildMode) -> V
       ("package.json", "{}"),
       ("x.css", ".x { color: red; }"),
       ("y.css", ".y { color: blue; }"),
-      (
-        "node_modules/@parcel/parcel3/package.json",
-        r#"{"name":"@parcel/parcel3","version":"3.0.0"}"#,
-      ),
-      (
-        "node_modules/@parcel/parcel3/src/esmodule-helpers.js",
-        include_str!("../../../packages-v3/parcel3/src/esmodule-helpers.js"),
-      ),
     ]
     .iter(),
   ) {

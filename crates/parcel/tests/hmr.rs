@@ -1468,23 +1468,60 @@ if (module.hot) module.hot.accept();",
   );
 }
 
-/// Parcel's ESM helpers, which modules with named imports or exports require.
-const ESM_HELPERS: [(&str, &str); 2] = [
-  (
-    "/project/node_modules/@parcel/parcel3/package.json",
-    r#"{"name": "@parcel/parcel3"}"#,
-  ),
-  (
-    "/project/node_modules/@parcel/parcel3/src/esmodule-helpers.js",
-    include_str!("../../../packages-v3/parcel3/src/esmodule-helpers.js"),
-  ),
-];
+#[test]
+fn hmr_runtime_refreshes_react_components_with_the_embedded_runtime() {
+  // The project has neither react-refresh nor @parcel/parcel3 installed.
+  let mut hmr = HmrRuntimeTest::new(&[
+    (
+      "/project/package.json",
+      r#"{"name": "project", "dependencies": {"react": "*"}}"#,
+    ),
+    (
+      "/project/node_modules/react/package.json",
+      r#"{"name": "react", "version": "19.0.0"}"#,
+    ),
+    (
+      "/project/node_modules/react/index.js",
+      "exports.createElement = function (type) { return type; };",
+    ),
+    // React Refresh only runs in a browser window.
+    ("/project/window.js", "globalThis.window = globalThis;"),
+    (
+      "/project/index.js",
+      "import './window.js';
+import {App} from './App.js';
+output(['index', typeof globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__]);",
+    ),
+    (
+      "/project/App.js",
+      "import React from 'react';
+output('App 1');
+export function App() { return React.createElement('div'); }",
+    ),
+  ]);
+
+  hmr.update(&[(
+    "/project/App.js",
+    "import React from 'react';
+output('App 2');
+export function App() { return React.createElement('span'); }",
+  )]);
+
+  // The runtime installed its devtools hook, and App.js is a refresh boundary, so it re-runs alone.
+  assert!(!hmr.reloaded());
+  assert_eq!(
+    hmr.outputs(),
+    vec![
+      serde_json::json!("App 1"),
+      serde_json::json!(["index", "object"]),
+      serde_json::json!("App 2"),
+    ]
+  );
+}
 
 #[test]
 fn hmr_runtime_supports_accepting_dependency_updates() {
   let mut hmr = HmrRuntimeTest::new(&[
-    ESM_HELPERS[0],
-    ESM_HELPERS[1],
     (
       "/project/index.js",
       "import {value} from './local.js';
@@ -1521,8 +1558,6 @@ if (module.hot) module.hot.accept('./local.js', ids => output(['accepted', ids.l
 #[test]
 fn hmr_runtime_bubbles_updates_to_parents_accepting_dependencies() {
   let mut hmr = HmrRuntimeTest::new(&[
-    ESM_HELPERS[0],
-    ESM_HELPERS[1],
     (
       "/project/index.js",
       "import {value} from './middle.js';
@@ -1555,8 +1590,6 @@ if (module.hot) module.hot.accept(['./middle.js'], () => output('accepted'));",
 #[test]
 fn hmr_runtime_reloads_if_only_one_importer_accepts_a_dependency() {
   let mut hmr = HmrRuntimeTest::new(&[
-    ESM_HELPERS[0],
-    ESM_HELPERS[1],
     ("/project/index.js", "import './a.js'; import './b.js';"),
     (
       "/project/a.js",
@@ -1574,8 +1607,6 @@ fn hmr_runtime_reloads_if_only_one_importer_accepts_a_dependency() {
 #[test]
 fn hmr_runtime_calls_dependency_accept_callbacks_once() {
   let mut hmr = HmrRuntimeTest::new(&[
-    ESM_HELPERS[0],
-    ESM_HELPERS[1],
     (
       "/project/index.js",
       "import './a.js'; import './b.js';

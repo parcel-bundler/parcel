@@ -34,6 +34,33 @@ impl Resolver for DefaultResolver {
     }
 
     let options = ctx.options;
+
+    // Parcel's runtime modules, e.g. the ESM helpers the JS transformer inserts, are embedded in
+    // Parcel rather than installed in the project, and are bundled even in libraries. They are
+    // located where a local install would put them, so their own imports (e.g. React) resolve
+    // from the project, and their ids and output do not depend on where Parcel is installed.
+    if let Some(module) = parcel_js::runtime_module(specifier) {
+      let url = SourceUrl::from_path(
+        &options
+          .project_root
+          .join(Path::new("node_modules"))
+          .join(Path::new(module.path)),
+      );
+      return Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
+        ty: AssetType::from_url(&url),
+        loc: SourceLocation {
+          url,
+          ..Default::default()
+        },
+        content: Arc::new(BufferContent::new_string(module.source.into())),
+        target: dep.target.clone(),
+        pipeline: pipeline.map(|p| p.into()),
+        // As for an installed package without a `sideEffects` field.
+        side_effects: true,
+        unique_key: None,
+      })));
+    }
+
     let fs = ctx.fs;
     let resolve_from = dep.resolve_from.as_ref().unwrap();
     let mut conditions = ExportsCondition::SOURCE;

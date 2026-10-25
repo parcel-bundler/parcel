@@ -6,8 +6,10 @@ use parcel_core::*;
 pub mod hmr;
 mod library_packager;
 pub mod packager;
+mod runtime_modules;
 mod transformer;
 
+pub use runtime_modules::{RuntimeModule, runtime_module};
 pub use transformer::JsTransformer;
 
 /// Source text corresponding to locations produced by the JS transformer.

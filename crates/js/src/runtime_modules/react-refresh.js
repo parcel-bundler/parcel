@@ -1,4 +1,4 @@
-var Refresh = require('react-refresh/runtime');
+var Refresh = require('@parcel/parcel3/src/react-refresh-runtime.js');
 
 function debounce(func, delay) {
   if (process.env.NODE_ENV === 'test') {

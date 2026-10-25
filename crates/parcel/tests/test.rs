@@ -238,7 +238,12 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
             .url
             .to_file_path()
             .ok()?;
-          if test.skip_node_modules && !path.to_path_buf().starts_with(fixture_dir) {
+          // Parcel's embedded runtime modules are located in the project's node_modules.
+          let buf = path.to_path_buf();
+          if test.skip_node_modules
+            && (!buf.starts_with(fixture_dir)
+              || buf.starts_with(fixture_dir.join("node_modules/@parcel/parcel3")))
+          {
             return None;
           }
           Some(path.file_name().to_string())
@@ -690,7 +695,7 @@ struct TestJson {
   #[serde(default)]
   diagnostics: Vec<Diagnostic>,
   /// Match only assets located in the fixture directory, like JS `assertBundles`'s
-  /// `skipNodeModules` option.
+  /// `skipNodeModules` option. Parcel's embedded runtime modules are skipped too.
   #[serde(default)]
   skip_node_modules: bool,
 }
@@ -1147,35 +1152,22 @@ fn get_exports_star_dedupe() {
   assert_eq!(*both, SymbolResolution::Ambiguous);
 }
 
-#[test]
-fn missing_swc_helpers_install_hint() {
-  // Built in memory, since the repository's own node_modules would provide @swc/helpers.
-  let input_fs = Arc::new(MemoryFileSystem::new());
-  for (path, contents) in [
-    (
-      "/project/package.json",
-      r#"{"name": "project", "browserslist": "ie 11"}"#,
-    ),
-    ("/project/index.js", "class Foo {}\nnew Foo();\n"),
-    (
-      "/project/node_modules/@parcel/parcel3/package.json",
-      r#"{"name": "@parcel/parcel3", "version": "3.0.0"}"#,
-    ),
-    (
-      "/project/node_modules/@parcel/parcel3/src/esmodule-helpers.js",
-      include_str!("../../../packages-v3/parcel3/src/esmodule-helpers.js"),
-    ),
-  ] {
+/// A file system holding `files`, for builds that must not see the repository's own node_modules.
+fn memory_fs(files: &[(&str, &str)]) -> Arc<MemoryFileSystem> {
+  let fs = Arc::new(MemoryFileSystem::new());
+  for (path, contents) in files {
     let path = Path::new(path);
-    input_fs
-      .create_dir_all(PathId::new(path.parent().unwrap()))
+    fs.create_dir_all(PathId::new(path.parent().unwrap()))
       .unwrap();
-    input_fs
-      .write(PathId::new(path), &contents.as_bytes().to_vec())
+    fs.write(PathId::new(path), &contents.as_bytes().to_vec())
       .unwrap();
   }
+  fs
+}
 
-  let options = BuildOptions {
+/// Options for a development build in `input_fs` from `cwd`.
+fn memory_build_options(input_fs: Arc<MemoryFileSystem>, cwd: &str) -> BuildOptions {
+  BuildOptions {
     mode: parcel_core::BuildMode::Development,
     optimize: None,
     content_hash: None,
@@ -1185,12 +1177,211 @@ fn missing_swc_helpers_install_hint() {
     output_fs: Arc::new(MemoryFileSystem::new()),
     log_level: parcel_core::LogLevel::Error,
     config: None,
-    cwd: PathId::new(Path::new("/project")),
+    cwd: PathId::new(Path::new(cwd)),
     dist_dir: None,
     public_url: Default::default(),
     hmr: None,
     reporters: Vec::new(),
+  }
+}
+
+/// The asset in `graph` whose file is named `file_name`.
+fn find_asset<'a>(graph: &'a BundleGraph, file_name: &str) -> Option<&'a parcel_core::Asset> {
+  graph.bundles.iter().find_map(|bundle| {
+    bundle.assets.iter().find_map(|&index| {
+      let asset = graph.asset_graph.asset(index);
+      (asset.loc.url.to_file_path().ok()?.file_name() == file_name).then_some(asset)
+    })
+  })
+}
+
+/// The path of the asset in `graph` whose file is named `file_name`.
+fn asset_path(graph: &BundleGraph, file_name: &str) -> Option<PathBuf> {
+  Some(
+    find_asset(graph, file_name)?
+      .loc
+      .url
+      .to_file_path()
+      .ok()?
+      .to_path_buf(),
+  )
+}
+
+#[test]
+fn parcel_runtime_modules_are_embedded() {
+  // The project does not depend on Parcel, as when it is installed globally or run through npx.
+  let input_fs = memory_fs(&[
+    ("/project/package.json", r#"{"name": "project"}"#),
+    (
+      "/project/index.js",
+      "import {a} from './a.js';\nconsole.log(a);\n",
+    ),
+    ("/project/a.js", "export const a = 1;\n"),
+  ]);
+
+  let graph = parcel::build(
+    &vec!["index.js".into()],
+    memory_build_options(input_fs, "/project"),
+  )
+  .unwrap();
+  // Located where a local install would put them, though nothing is there.
+  assert_eq!(
+    asset_path(&graph, "esmodule-helpers.js"),
+    Some(PathBuf::from(
+      "/project/node_modules/@parcel/parcel3/src/esmodule-helpers.js"
+    ))
+  );
+}
+
+#[test]
+fn parcel_runtime_module_ids_do_not_depend_on_project_location() {
+  let build = |root: &str| {
+    let input_fs = memory_fs(&[
+      (&format!("{root}/package.json"), r#"{"name": "project"}"#),
+      (
+        &format!("{root}/index.js"),
+        "import {a} from './a.js';\nconsole.log(a);\n",
+      ),
+      (&format!("{root}/a.js"), "export const a = 1;\n"),
+    ]);
+    let graph = parcel::build(
+      &vec!["index.js".into()],
+      memory_build_options(input_fs, root),
+    )
+    .unwrap();
+    let id = find_asset(&graph, "esmodule-helpers.js")
+      .unwrap()
+      .id(&graph.project_root);
+    let names: Vec<_> = graph
+      .bundles
+      .iter()
+      .map(|bundle| bundle.dist_path().relative(&bundle.target.dist_dir))
+      .collect();
+    (id, names)
   };
+
+  assert_eq!(build("/project"), build("/home/someone/elsewhere"));
+}
+
+#[test]
+fn mdx_components_import_the_projects_react() {
+  let input_fs = memory_fs(&[
+    (
+      "/project/package.json",
+      r#"{"name": "project", "dependencies": {"react": "^19"}}"#,
+    ),
+    ("/project/index.mdx", "```js\nlet x = 1;\n```\n"),
+    (
+      "/project/node_modules/react/package.json",
+      r#"{"name": "react", "version": "19.0.0"}"#,
+    ),
+    (
+      "/project/node_modules/react/jsx-dev-runtime.js",
+      "exports.jsxDEV = function () {};\nexports.Fragment = 'fragment';\n",
+    ),
+  ]);
+
+  let graph = parcel::build(
+    &vec!["index.mdx".into()],
+    memory_build_options(input_fs, "/project"),
+  )
+  .unwrap();
+  assert_eq!(
+    asset_path(&graph, "mdx-components.jsx"),
+    Some(PathBuf::from(
+      "/project/node_modules/@parcel/parcel3/src/mdx-components.jsx"
+    ))
+  );
+  assert_eq!(
+    asset_path(&graph, "jsx-dev-runtime.js"),
+    Some(PathBuf::from(
+      "/project/node_modules/react/jsx-dev-runtime.js"
+    ))
+  );
+}
+
+#[test]
+fn libraries_bundle_parcel_runtime_modules() {
+  let input_fs = memory_fs(&[
+    (
+      "/project/package.json",
+      r#"{
+        "name": "lib",
+        "source": "index.js",
+        "main": "dist/main.js",
+        "module": "dist/module.mjs",
+        "dependencies": {"react": "^19"}
+      }"#,
+    ),
+    (
+      "/project/index.js",
+      "export {default as Doc} from './doc.mdx';\nexport * from './a.js';\n",
+    ),
+    ("/project/a.js", "export const a = 1;\n"),
+    ("/project/doc.mdx", "```js\nlet x = 1;\n```\n"),
+  ]);
+  let output_fs = Arc::new(MemoryFileSystem::new());
+
+  let graph = parcel::build(
+    &vec![".".into()],
+    BuildOptions {
+      mode: parcel_core::BuildMode::Production,
+      output_fs: output_fs.clone(),
+      ..memory_build_options(input_fs, "/project")
+    },
+  )
+  .unwrap();
+  assert!(asset_path(&graph, "mdx-components.jsx").is_some());
+  assert!(asset_path(&graph, "esmodule-helpers.js").is_some());
+  for bundle in &graph.bundles {
+    let code = output_fs.read_to_string(bundle.dist_path()).unwrap();
+    assert!(
+      !code.contains("@parcel/parcel3"),
+      "{:?} imports Parcel's runtime modules:\n{code}",
+      bundle.dist_path()
+    );
+  }
+}
+
+#[test]
+fn react_refresh_runtime_import_is_the_projects() {
+  // Parcel's React Refresh wrapper uses an embedded runtime, which a project's own import of
+  // react-refresh does not get.
+  let input_fs = memory_fs(&[
+    ("/project/package.json", r#"{"name": "project"}"#),
+    ("/project/index.js", "require('react-refresh/runtime');\n"),
+    (
+      "/project/node_modules/react-refresh/package.json",
+      r#"{"name": "react-refresh", "version": "0.14.0"}"#,
+    ),
+    ("/project/node_modules/react-refresh/runtime.js", ""),
+  ]);
+
+  let graph = parcel::build(
+    &vec!["index.js".into()],
+    memory_build_options(input_fs, "/project"),
+  )
+  .unwrap();
+  assert_eq!(
+    asset_path(&graph, "runtime.js"),
+    Some(PathBuf::from(
+      "/project/node_modules/react-refresh/runtime.js"
+    ))
+  );
+}
+
+#[test]
+fn missing_swc_helpers_install_hint() {
+  // Built in memory, since the repository's own node_modules would provide @swc/helpers.
+  let input_fs = memory_fs(&[
+    (
+      "/project/package.json",
+      r#"{"name": "project", "browserslist": "ie 11"}"#,
+    ),
+    ("/project/index.js", "class Foo {}\nnew Foo();\n"),
+  ]);
+
+  let options = memory_build_options(input_fs, "/project");
   let Err(diagnostics) = parcel::build(&vec!["index.js".into()], options) else {
     panic!("expected the build to fail");
   };

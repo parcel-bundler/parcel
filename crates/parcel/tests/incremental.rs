@@ -302,21 +302,6 @@ impl IncrementalTest {
     let output_fs = Arc::new(MemoryFileSystem::new());
     let mut mirror = BTreeMap::new();
 
-    // The JS transformer injects a dependency on this runtime helper for ES module
-    // interop; make it resolvable inside the in-memory project.
-    let runtime_files = [
-      (
-        "/project/node_modules/@parcel/parcel3/package.json",
-        r#"{"name": "@parcel/parcel3", "version": "3.0.0"}"#,
-      ),
-      (
-        "/project/node_modules/@parcel/parcel3/src/esmodule-helpers.js",
-        include_str!("../../../packages-v3/parcel3/src/esmodule-helpers.js"),
-      ),
-    ];
-    for (path, contents) in runtime_files {
-      mirror.insert(path.to_string(), contents.to_string());
-    }
     for (path, contents) in files {
       mirror.insert(path.to_string(), contents.to_string());
     }

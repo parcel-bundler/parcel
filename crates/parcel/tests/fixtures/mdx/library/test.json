@@ -1,0 +1,16 @@
+{
+  "description": "should bundle Parcel's MDX components in libraries, even where @parcel/parcel3 is installed",
+  "input": ".",
+  "options": {"mode": "production"},
+  "bundles": [
+    {
+      "assets": ["index.mdx"],
+      "notContains": ["@parcel/parcel3"]
+    },
+    {
+      "assets": ["mdx-components.jsx"],
+      "contains": ["react/jsx-runtime"],
+      "notContains": ["@parcel/parcel3"]
+    }
+  ]
+}

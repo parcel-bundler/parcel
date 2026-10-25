@@ -3,9 +3,12 @@ use std::{borrow::Cow, sync::Arc};
 use parcel_core::{AssetRequest, AssetType, BufferContent};
 use path_slash::PathExt;
 
-use crate::transformer::{
-  Config, MDX_COMPONENTS,
-  utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, diagnostic},
+use crate::{
+  runtime_modules::MDX_COMPONENTS,
+  transformer::{
+    Config,
+    utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, diagnostic},
+  },
 };
 use markdown::{
   Location,
