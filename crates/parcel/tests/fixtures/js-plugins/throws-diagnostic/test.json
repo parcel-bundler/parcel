@@ -1,0 +1,20 @@
+{
+  "description": "a Diagnostic thrown by a JS plugin is reported with its code frames and hints, attributed to the plugin",
+  "options": {"config": ".parcelrc"},
+  "input": "index.js",
+  "diagnostics": [
+    {
+      "message": "Invalid data",
+      "origin": "./transformer.mjs",
+      "codeFrames": [
+        {
+          "url": null,
+          "codeHighlights": [
+            {"message": "here", "start": {"line": 2, "column": 1}, "end": {"line": 2, "column": 6}}
+          ]
+        }
+      ],
+      "hints": ["Fix the data"]
+    }
+  ]
+}
