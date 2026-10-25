@@ -1,0 +1,10 @@
+{
+  "description": "should inline environment variables in node_modules if explicitly enabled",
+  "input": "index.js",
+  "options": {
+    "env": {
+      "FOO": "abc"
+    }
+  },
+  "output": "abc:abc:test"
+}

@@ -83,12 +83,6 @@ enum InlineEnvironment {
   Array(Vec<String>),
 }
 
-impl Default for InlineEnvironment {
-  fn default() -> Self {
-    InlineEnvironment::Bool(true)
-  }
-}
-
 impl Transformer for JsTransformer {
   fn transform(
     &self,
@@ -538,7 +532,14 @@ fn config(
     }
   }
 
-  let inline_env = transformer.inline_environment.clone().unwrap_or_default();
+  // By default, only source files get the full environment. Files in node_modules only get
+  // NODE_ENV, so other variables don't leak into third-party code. An explicit config applies to all files.
+  let inline_env = transformer
+    .inline_environment
+    .clone()
+    .unwrap_or(InlineEnvironment::Bool(
+      asset.flags.contains(AssetFlags::IS_SOURCE),
+    ));
   if let Some(fs) = transformer.inline_fs {
     inline_fs = fs;
   }

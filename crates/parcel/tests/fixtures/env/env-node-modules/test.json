@@ -1,0 +1,10 @@
+{
+  "description": "should only inline NODE_ENV in node_modules by default",
+  "input": "index.js",
+  "options": {
+    "env": {
+      "FOO": "abc"
+    }
+  },
+  "output": "abc:undefined:test"
+}
