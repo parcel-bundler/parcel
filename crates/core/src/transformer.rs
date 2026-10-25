@@ -1,10 +1,10 @@
 use std::{borrow::Cow, sync::Arc};
 
 use crate::{
-  Asset, AssetFlags, AssetNodeIndex, AssetRequest, AssetSymbols, AssetType, DependencyFlags,
-  DependencyResolution, Diagnostic, DiagnosticList, FileContent, FileSystem, Invalidations,
-  ParcelOptions, PathId, Pipeline, PluginContext, SourceUrl, Target, TrackingFileSystem,
-  config::ParcelConfig,
+  Asset, AssetFlags, AssetNodeIndex, AssetRequest, AssetSymbols, AssetType, CodeFrame, Dependency,
+  DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList, FileContent, FileSystem,
+  ImportType, Invalidations, ParcelOptions, PathId, Pipeline, PluginContext, SourceUrl, Target,
+  TrackingFileSystem, config::ParcelConfig,
 };
 
 pub trait Transformer: Send + Sync {
@@ -119,6 +119,7 @@ impl TransformRequest {
       for dep in &mut asset.dependencies {
         if dep.resolution == DependencyResolution::None {
           dep.resolution = ctx.resolve(dep)?;
+          check_transformers(dep, &self.config, &self.options)?;
         }
 
         if let DependencyResolution::Deferred(req) = &dep.resolution {
@@ -163,6 +164,52 @@ fn transform(
   }
 
   Ok(input)
+}
+
+/// Without a transformer, a file imported from JavaScript becomes an empty module. Other
+/// kinds of dependencies, such as URLs, can reference any file as is.
+fn check_transformers(
+  dep: &Dependency,
+  config: &ParcelConfig,
+  options: &ParcelOptions,
+) -> Result<(), Diagnostic> {
+  let DependencyResolution::Deferred(req) = &dep.resolution else {
+    return Ok(());
+  };
+  if dep.import_type != ImportType::JavaScript {
+    return Ok(());
+  }
+
+  let path = relative_path(&req.loc.url, &options.project_root, &req.ty)?;
+  let pipeline = req.pipeline.as_deref();
+  if config.transformers.matches(&path, pipeline) {
+    return Ok(());
+  }
+
+  Err(Diagnostic {
+    origin: Some("@parcel/core".into()),
+    code_frames: dep
+      .loc
+      .iter()
+      .map(|loc| CodeFrame::from_loc(loc, None))
+      .collect(),
+    // A named pipeline was chosen on purpose, so "url:" would not be the answer.
+    hints: if pipeline.is_none() {
+      vec![format!(
+        "Add a transformer for this file type to .parcelrc, or import it as a URL with \"url:{}\".",
+        dep.specifier
+      )]
+    } else {
+      vec![]
+    },
+    ..Diagnostic::from_message(format!(
+      "No transformers found for {}{}.",
+      path,
+      pipeline
+        .map(|pipeline| format!(" with pipeline: '{}'", pipeline))
+        .unwrap_or_default()
+    ))
+  })
 }
 
 pub(crate) fn relative_path(

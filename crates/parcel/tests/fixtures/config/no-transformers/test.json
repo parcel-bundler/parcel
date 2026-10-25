@@ -1,0 +1,20 @@
+{
+  "description": "should error when importing a file with no transformers into JS",
+  "input": "index.js",
+  "diagnostics": [
+    {
+      "message": "No transformers found for crates/parcel/tests/fixtures/config/no-transformers/archive.zip.",
+      "origin": "@parcel/core",
+      "codeFrames": [
+        {
+          "codeHighlights": [
+            {"start": {"line": 1, "column": 18}, "end": {"line": 1, "column": 32}}
+          ]
+        }
+      ],
+      "hints": [
+        "Add a transformer for this file type to .parcelrc, or import it as a URL with \"url:./archive.zip\"."
+      ]
+    }
+  ]
+}

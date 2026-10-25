@@ -122,6 +122,19 @@ impl<T: ?Sized> PipelineMap<T> {
     }
   }
 
+  /// Whether any pattern in the map applies to `path` in `pipeline`, even one
+  /// that configures no plugins.
+  pub fn matches(&self, path: &str, pipeline: Option<&str>) -> bool {
+    let basename = Path::new(path)
+      .file_name()
+      .and_then(|name| name.to_str())
+      .unwrap_or(path);
+    self
+      .0
+      .iter()
+      .any(|(pattern, _)| is_match(pattern, path, basename, pipeline.unwrap_or("")))
+  }
+
   pub fn named_pipelines(&self) -> impl Iterator<Item = &str> {
     self
       .0
