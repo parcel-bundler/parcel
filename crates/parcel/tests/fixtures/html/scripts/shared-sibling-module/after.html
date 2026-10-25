@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script type="module">
+      import {a} from './a.js';
+      sideEffect('inline ' + a);
+    </script>
+    <script type="module" src="b.js"></script>
+  </head>
+</html>

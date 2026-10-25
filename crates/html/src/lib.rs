@@ -159,6 +159,11 @@ pub struct PackageOptions {
   /// element's placeholder and inserted before that element.
   #[serde(default)]
   pub element_refs: HashMap<SerializableTendril, Vec<BundleReference>>,
+  /// URLs of the document-wide scripts (`bundles`) that each element's bundle loads, keyed by
+  /// the element's placeholder. A script the document already loads in time for every element that
+  /// needs it isn't referenced again.
+  #[serde(default)]
+  pub element_scripts: HashMap<SerializableTendril, Vec<SerializableTendril>>,
   pub import_map: serde_json::Map<String, serde_json::Value>,
   /// JSON the JS runtime reads as the page's manifest: stable bundle keys to final names. It's
   /// prepended to `<head>` as a data block, which Content Security Policies don't block, unlike
@@ -192,6 +197,7 @@ pub fn package_html(options: PackageOptions) -> Result<PackageResult, ()> {
     options.inline_bundles,
     &options.stylesheet_media,
     &options.element_refs,
+    &options.element_scripts,
     &[],
     options.import_map,
     options.manifest,
@@ -226,6 +232,7 @@ pub fn package_svg(options: PackageOptions) -> Result<PackageResult, ()> {
     options.inline_bundles,
     &options.stylesheet_media,
     &options.element_refs,
+    &options.element_scripts,
     &[],
     options.import_map,
     options.manifest,
@@ -476,7 +483,7 @@ impl Content for HtmlContent {
   ) -> Result<std::sync::Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
-    let (code, bundles, inline_bundles, stylesheet_media, element_refs) =
+    let (code, bundles, inline_bundles, stylesheet_media, element_refs, element_scripts) =
       prepare_to_package(bundle_graph, bundle, get_inline_bundle_content)?;
 
     let res = package_html(PackageOptions {
@@ -486,6 +493,7 @@ impl Content for HtmlContent {
       inline_bundles,
       stylesheet_media,
       element_refs,
+      element_scripts,
       import_map: Default::default(),
       manifest: manifest_json(bundle_graph, bundle)?,
     })
@@ -623,6 +631,7 @@ fn prepare_to_package(
     HashMap<SerializableTendril, InlineBundle>,
     HashMap<SerializableTendril, Option<SerializableTendril>>,
     HashMap<SerializableTendril, Vec<BundleReference>>,
+    HashMap<SerializableTendril, Vec<SerializableTendril>>,
   ),
   DiagnosticList,
 > {
@@ -633,6 +642,7 @@ fn prepare_to_package(
   let mut inline_bundles = HashMap::new();
   let mut stylesheet_media = HashMap::new();
   let mut element_refs: HashMap<SerializableTendril, Vec<BundleReference>> = HashMap::new();
+  let mut element_scripts: HashMap<SerializableTendril, Vec<SerializableTendril>> = HashMap::new();
   // Preserve reference order: stylesheet link order is cascade order.
   let mut referenced_bundles = Vec::<usize>::new();
   let positional_styles = matches!(
@@ -681,6 +691,7 @@ fn prepare_to_package(
         }
 
         let mut refs = Vec::new();
+        let mut scripts = Vec::new();
         // Bundles don't import their siblings, so the document loads their
         // references. HTML and SVG styles follow the element's cascade position;
         // feed content loads scripts and styles within each fragment.
@@ -703,8 +714,13 @@ fn prepare_to_package(
                   refs.push(reference);
                 }
               }
-            } else if !referenced_bundles.contains(&reference) {
-              referenced_bundles.push(reference);
+            } else {
+              if !referenced_bundles.contains(&reference) {
+                referenced_bundles.push(reference);
+              }
+              if target.ty == AssetType::Js {
+                scripts.push(SerializableTendril(reference_url(target, bundle).into()));
+              }
             }
           }
         }
@@ -712,6 +728,12 @@ fn prepare_to_package(
           element_refs.insert(
             SerializableTendril((*dep.placeholder.clone().unwrap()).into()),
             refs,
+          );
+        }
+        if !scripts.is_empty() {
+          element_scripts.insert(
+            SerializableTendril((*dep.placeholder.clone().unwrap()).into()),
+            scripts,
           );
         }
       }
@@ -744,6 +766,7 @@ fn prepare_to_package(
     inline_bundles,
     stylesheet_media,
     element_refs,
+    element_scripts,
   ))
 }
 
@@ -869,7 +892,7 @@ impl Content for SvgContent {
   ) -> Result<std::sync::Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
-    let (code, bundles, inline_bundles, stylesheet_media, element_refs) =
+    let (code, bundles, inline_bundles, stylesheet_media, element_refs, element_scripts) =
       prepare_to_package(bundle_graph, bundle, get_inline_bundle_content)?;
 
     let res = package_svg(PackageOptions {
@@ -879,6 +902,7 @@ impl Content for SvgContent {
       inline_bundles,
       stylesheet_media,
       element_refs,
+      element_scripts,
       import_map: Default::default(),
       manifest: None,
     })
@@ -937,6 +961,7 @@ mod tests {
       inline_bundles: Default::default(),
       stylesheet_media: Default::default(),
       element_refs: Default::default(),
+      element_scripts: Default::default(),
       import_map: Default::default(),
       manifest: Some(r#"{"a-0123456789abcdef.js":"a-abcdefgh.js","x":"<\/script>"}"#.into()),
     })

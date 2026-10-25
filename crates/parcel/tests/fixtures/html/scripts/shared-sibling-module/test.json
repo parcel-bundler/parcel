@@ -1,0 +1,24 @@
+[
+  {
+    "description": "an inline module script that shares a bundle with an earlier module script doesn't reference it again",
+    "input": "before.html",
+    "options": {"mode": "production", "contentHash": false},
+    "bundles": [
+      {"type": "html", "assets": ["before.html"], "contains": ["<!DOCTYPE html><script type=module src={{bundle:b.js}}></script><script type=module>"]},
+      {"type": "js", "assets": ["a.js", "b.js", "esmodule-helpers.js"]},
+      {"type": "js", "assets": ["before.html"], "references": [["a.js", "b.js", "esmodule-helpers.js"]]}
+    ],
+    "sideEffects": ["b a", "inline a"]
+  },
+  {
+    "description": "a module script that a preceding inline module script relies on moves before it rather than being referenced twice",
+    "input": "after.html",
+    "options": {"mode": "production", "contentHash": false},
+    "bundles": [
+      {"type": "html", "assets": ["after.html"], "contains": ["<!DOCTYPE html><script type=module src={{bundle:b.js}}></script><script type=module>"], "notContains": ["</script><script type=module src={{bundle:b.js}}>"]},
+      {"type": "js", "assets": ["a.js", "b.js", "esmodule-helpers.js"]},
+      {"type": "js", "assets": ["after.html"], "references": [["a.js", "b.js", "esmodule-helpers.js"]]}
+    ],
+    "sideEffects": ["b a", "inline a"]
+  }
+]

@@ -165,6 +165,41 @@ fn escape_inline_script(code: &StrTendril) -> StrTendril {
   escaped.into()
 }
 
+/// When a script runs relative to parsing the document.
+#[derive(Clone, Copy, PartialEq)]
+enum ScriptTiming {
+  /// Runs when the parser reaches it.
+  Sync,
+  /// Runs after parsing, in document order with the other deferred and module scripts.
+  Deferred,
+}
+
+/// When a `<script>` runs, or None when it's async and runs in no particular order.
+fn script_timing<'arena>(node: Ref<'arena>, external: bool) -> Option<ScriptTiming> {
+  if node.get_attribute(expanded_name!("", "async")).is_some() {
+    return None;
+  }
+  let module = node
+    .get_attribute(expanded_name!("", "type"))
+    .is_some_and(|ty| ty.as_ref() == "module");
+  // `defer` has no effect on inline classic scripts.
+  if module || (external && node.get_attribute(expanded_name!("", "defer")).is_some()) {
+    Some(ScriptTiming::Deferred)
+  } else {
+    Some(ScriptTiming::Sync)
+  }
+}
+
+/// The tag a document-wide script needs at the start of the document.
+enum ScriptTag<'arena> {
+  /// None: the document's own tag runs before every element that needs it.
+  InTime,
+  /// The document's own tag, moved there, which keeps its attributes.
+  Own(Ref<'arena>),
+  /// A new tag.
+  New,
+}
+
 pub fn insert_bundle_references<'arena>(
   arena: &'arena Arena<Node<'arena>>,
   dom: &'arena Node<'arena>,
@@ -172,6 +207,7 @@ pub fn insert_bundle_references<'arena>(
   inline_bundles: HashMap<SerializableTendril, InlineBundle>,
   stylesheet_media: &HashMap<SerializableTendril, Option<SerializableTendril>>,
   element_refs: &HashMap<SerializableTendril, Vec<BundleReference>>,
+  element_scripts: &HashMap<SerializableTendril, Vec<SerializableTendril>>,
   reference_scopes: &[Ref<'arena>],
   mut import_map: serde_json::map::Map<String, serde_json::Value>,
   manifest: Option<String>,
@@ -190,8 +226,74 @@ pub fn insert_bundle_references<'arena>(
     .collect();
   let mut inserted: HashMap<*const Node, HashSet<SerializableTendril>> = HashMap::new();
 
+  // Document-wide scripts are inserted at the start of the document, so they run before the
+  // elements that need them. A script the document already references doesn't need another tag
+  // when its own tag runs first for every such element. Otherwise its tag is moved to the start.
+  let mut needed_by: HashMap<&SerializableTendril, usize> = HashMap::new();
+  for url in element_scripts.values().flatten() {
+    *needed_by.entry(url).or_default() += 1;
+  }
+  // Scripts the document has referenced so far, when they run, and their first in-order tag and
+  // its placeholder.
+  let mut loaded: HashMap<SerializableTendril, (ScriptTiming, Ref<'arena>, SerializableTendril)> =
+    HashMap::new();
+  let mut loaded_in_time: HashMap<&SerializableTendril, usize> = HashMap::new();
+
   dom.walk(&mut |node| {
     if let NodeData::Element { name, attrs, .. } = &node.data {
+      if !element_scripts.is_empty() {
+        let script = matches!(
+          name.expanded(),
+          expanded_name!(html "script") | expanded_name!(svg "script")
+        );
+        let src = if !script {
+          None
+        } else if name.ns == ns!(svg) {
+          node
+            .get_attribute(expanded_name!(xlink "href"))
+            .or_else(|| node.get_attribute(expanded_name!("", "href")))
+        } else {
+          node.get_attribute(expanded_name!("", "src"))
+        };
+        let timing = if script {
+          script_timing(node, src.is_some())
+        } else {
+          None
+        };
+
+        for attr in attrs.borrow().iter() {
+          if let Some(urls) = element_scripts.get(&SerializableTendril(attr.value.clone())) {
+            for url in urls {
+              let in_time = match (loaded.get(url), timing) {
+                (Some((ScriptTiming::Sync, ..)), Some(_)) => true,
+                (Some((ScriptTiming::Deferred, ..)), Some(ScriptTiming::Deferred)) => true,
+                _ => false,
+              };
+              if in_time {
+                *loaded_in_time.entry(url).or_default() += 1;
+              }
+            }
+          }
+        }
+
+        // Scripts in a template don't run.
+        let mut root = node;
+        while let Some(parent) = root.parent.get() {
+          root = parent;
+        }
+        if let (Some(src), Some(timing), true) = (src, timing, std::ptr::eq(root, dom)) {
+          let src = SerializableTendril(src);
+          if let Some(bundle) = inline_bundles.get(&src) {
+            let entry = loaded
+              .entry(bundle.contents.clone())
+              .or_insert((timing, node, src));
+            if timing == ScriptTiming::Sync {
+              entry.0 = ScriptTiming::Sync;
+            }
+          }
+        }
+      }
+
       // Resolve positional references before replacing attribute placeholders.
       if (name.ns == ns!(html) || name.ns == ns!(svg)) && !element_refs.is_empty() {
         let scope = if scope_roots.is_empty() {
@@ -319,9 +421,53 @@ pub fn insert_bundle_references<'arena>(
     }
   });
 
+  // Scripts that need a tag at the start of the document: those that some element needs before
+  // the document's own tag runs, and those that a script moved there needs.
+  let mut hoisted: HashSet<&SerializableTendril> = needed_by
+    .iter()
+    .filter(|(url, count)| loaded_in_time.get(*url) != Some(*count))
+    .map(|(url, _)| *url)
+    .collect();
+  let mut stack: Vec<_> = hoisted.iter().copied().collect();
+  while let Some(url) = stack.pop() {
+    if let Some(needs) = loaded
+      .get(url)
+      .and_then(|(_, _, placeholder)| element_scripts.get(placeholder))
+    {
+      for need in needs {
+        if hoisted.insert(need) {
+          stack.push(need);
+        }
+      }
+    }
+  }
+  let script_tag = |src: &SerializableTendril, module: bool, ns: &html5ever::Namespace| {
+    match loaded.get(src) {
+      Some(_) if !hoisted.contains(src) => ScriptTag::InTime,
+      Some((_, node, _)) if matches!(&node.data, NodeData::Element { name, .. } if name.ns == *ns) =>
+      {
+        if !module {
+          // It must run before scripts that run as the parser reaches them.
+          node.remove_attribute(expanded_name!("", "defer"));
+        }
+        node.detach();
+        ScriptTag::Own(node)
+      }
+      _ => ScriptTag::New,
+    }
+  };
+
   if let Some(head) = dom.find(expanded_name!(html "head")) {
     for bundle in bundles.into_iter().rev() {
-      head.prepend(bundle.create_element(arena, None));
+      let tag = match &bundle {
+        BundleReference::Script { src, module } => script_tag(src, *module, &ns!(html)),
+        BundleReference::StyleSheet { .. } => ScriptTag::New,
+      };
+      match tag {
+        ScriptTag::InTime => {}
+        ScriptTag::Own(node) => head.prepend(node),
+        ScriptTag::New => head.prepend(bundle.create_element(arena, None)),
+      }
     }
 
     if !import_map.is_empty() {
@@ -389,11 +535,15 @@ pub fn insert_bundle_references<'arena>(
           ));
           dom.prepend(node);
         }
-        BundleReference::Script { src, .. } => {
-          let node = arena.alloc(Node::create_element(expanded_name!(svg "script")));
-          node.set_attribute(expanded_name!("", "href"), &src.0);
-          svg.prepend(node);
-        }
+        BundleReference::Script { src, module } => match script_tag(&src, module, &ns!(svg)) {
+          ScriptTag::InTime => {}
+          ScriptTag::Own(node) => svg.prepend(node),
+          ScriptTag::New => {
+            let node = arena.alloc(Node::create_element(expanded_name!(svg "script")));
+            node.set_attribute(expanded_name!("", "href"), &src.0);
+            svg.prepend(node);
+          }
+        },
       }
     }
   }
@@ -439,12 +589,120 @@ mod tests {
         (SerializableTendril("one.js".into()), references()),
         (SerializableTendril("two.js".into()), references()),
       ].into(),
+      element_scripts: Default::default(),
       import_map: Default::default(),
       manifest: None,
     }).unwrap();
     assert_eq!(
       String::from_utf8(result.code).unwrap(),
       r#"<html><head><link rel="stylesheet" href="theme.css" media="print"><script type="module" src="shared.js"></script><script src="one.js"></script><script src="two.js"></script></head><body></body></html>"#
+    );
+  }
+
+  fn package_shared_script(code: &str, module: bool) -> String {
+    let inline_bundle = |contents: &str| InlineBundle {
+      contents: SerializableTendril(contents.into()),
+      module,
+    };
+    let result = package_html(PackageOptions {
+      code: code.as_bytes().to_vec(),
+      xml: false,
+      bundles: vec![BundleReference::Script {
+        src: SerializableTendril("/b.js".into()),
+        module,
+      }],
+      inline_bundles: [
+        (SerializableTendril("b".into()), inline_bundle("/b.js")),
+        (SerializableTendril("inline".into()), inline_bundle("run()")),
+      ]
+      .into(),
+      stylesheet_media: Default::default(),
+      element_refs: Default::default(),
+      element_scripts: [(
+        SerializableTendril("inline".into()),
+        vec![SerializableTendril("/b.js".into())],
+      )]
+      .into(),
+      import_map: Default::default(),
+      manifest: None,
+    })
+    .unwrap();
+    String::from_utf8(result.code).unwrap()
+  }
+
+  #[test]
+  fn shared_scripts_are_referenced_once_per_page() {
+    let expected = r#"<html><head><script type="module" src="/b.js"></script><script type="module">run()</script></head><body></body></html>"#;
+    // The page's own tag already runs first.
+    assert_eq!(
+      package_shared_script(
+        r#"<html><head><script type="module" src="b"></script><script type="module" data-parcel-key="inline"></script></head><body></body></html>"#,
+        true
+      ),
+      expected
+    );
+    // The page's own tag runs too late, so it moves.
+    assert_eq!(
+      package_shared_script(
+        r#"<html><head><script type="module" data-parcel-key="inline"></script><script type="module" src="b"></script></head><body></body></html>"#,
+        true
+      ),
+      expected
+    );
+    // An inline classic script runs before deferred scripts, even earlier ones.
+    assert_eq!(
+      package_shared_script(
+        r#"<html><head><script src="b" defer></script><script data-parcel-key="inline"></script></head><body></body></html>"#,
+        false
+      ),
+      r#"<html><head><script src="/b.js"></script><script>run()</script></head><body></body></html>"#
+    );
+    // Scripts in templates don't run.
+    assert_eq!(
+      package_shared_script(
+        r#"<html><head><template><script type="module" src="b"></script></template><script type="module" data-parcel-key="inline"></script></head><body></body></html>"#,
+        true
+      ),
+      r#"<html><head><script type="module" src="/b.js"></script><template><script type="module" src="/b.js"></script></template><script type="module">run()</script></head><body></body></html>"#
+    );
+  }
+
+  #[test]
+  fn shared_scripts_moved_earlier_keep_what_they_need_before_them() {
+    let tendril = |value: &str| SerializableTendril(value.into());
+    let script = |src: &str| BundleReference::Script {
+      src: tendril(src),
+      module: true,
+    };
+    let inline_bundle = |contents: &str| InlineBundle {
+      contents: tendril(contents),
+      module: true,
+    };
+    let result = package_html(PackageOptions {
+      code: br#"<html><head><script type="module" src="y"></script><script type="module" data-parcel-key="inline"></script><script type="module" src="x"></script></head><body></body></html>"#.to_vec(),
+      xml: false,
+      bundles: vec![script("/y.js"), script("/x.js")],
+      inline_bundles: [
+        (tendril("x"), inline_bundle("/x.js")),
+        (tendril("y"), inline_bundle("/y.js")),
+        (tendril("inline"), inline_bundle("run()")),
+      ]
+      .into(),
+      stylesheet_media: Default::default(),
+      element_refs: Default::default(),
+      // y runs before x where x is, but x has to move before the inline script.
+      element_scripts: [
+        (tendril("inline"), vec![tendril("/x.js")]),
+        (tendril("x"), vec![tendril("/y.js")]),
+      ]
+      .into(),
+      import_map: Default::default(),
+      manifest: None,
+    })
+    .unwrap();
+    assert_eq!(
+      String::from_utf8(result.code).unwrap(),
+      r#"<html><head><script type="module" src="/y.js"></script><script type="module" src="/x.js"></script><script type="module">run()</script></head><body></body></html>"#
     );
   }
 
@@ -460,6 +718,7 @@ mod tests {
         (SerializableTendril("one.js".into()), references()),
         (SerializableTendril("two.js".into()), references()),
       ].into(),
+      element_scripts: Default::default(),
       import_map: Default::default(),
       manifest: None,
     }).unwrap();
@@ -484,6 +743,7 @@ mod tests {
           media: None,
         }],
       )).collect(),
+      element_scripts: Default::default(),
       import_map: Default::default(),
       manifest: None,
     }).unwrap();
@@ -518,6 +778,7 @@ mod tests {
       Default::default(),
       &Default::default(),
       &element_refs,
+      &Default::default(),
       &scopes,
       Default::default(),
       None,
