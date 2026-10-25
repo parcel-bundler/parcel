@@ -188,7 +188,7 @@ impl<Wr: Write> HtmlSerializer<Wr> {
         ns!() => (),
         ns!(xml) => self.writer.write_all(b"xml:")?,
         ns!(xmlns) => {
-          if name.local != local_name!("xmlns") {
+          if attr.name.local != local_name!("xmlns") {
             self.writer.write_all(b"xmlns:")?;
           }
         }
@@ -621,6 +621,10 @@ mod tests {
     test(
       "<body><svg><rect width=100 height=100></rect></svg></body>",
       "<svg><rect width=100 height=100 /></svg>",
+    );
+    test(
+      "<body><svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'><rect></rect></svg></body>",
+      "<svg xmlns=http://www.w3.org/2000/svg xmlns:xlink=http://www.w3.org/1999/xlink><rect /></svg>",
     );
   }
 }
