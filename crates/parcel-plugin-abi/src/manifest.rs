@@ -83,6 +83,15 @@ pub struct PluginPackage {
   pub name: Option<String>,
   pub version: Option<String>,
   pub parcel: PluginManifest,
+  pub engines: PluginEngines,
+}
+
+/// The `engines` key of a plugin's package.json.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PluginEngines {
+  /// The semver range of Parcel versions the plugin supports, e.g. `^3.0.0-0`.
+  pub parcel: Option<String>,
 }
 
 impl PluginPackage {
@@ -130,6 +139,7 @@ mod tests {
     "name": "@acme/plugin",
     "version": "1.0.0",
     "description": "ignored",
+    "engines": {"node": ">= 16", "parcel": "^3.0.0-0"},
     "parcel": {
       "abi": 1,
       "artifacts": {
@@ -144,6 +154,7 @@ mod tests {
     let package = PluginPackage::parse(PLUGIN).unwrap();
     assert_eq!(package.name.as_deref(), Some("@acme/plugin"));
     assert_eq!(package.parcel.abi, Some(crate::PARCEL_ABI_VERSION));
+    assert_eq!(package.engines.parcel.as_deref(), Some("^3.0.0-0"));
     assert!(package.is_native_plugin());
     assert_eq!(
       package.parcel.artifacts.get("aarch64-apple-darwin"),

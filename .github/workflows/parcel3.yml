@@ -108,6 +108,8 @@ jobs:
           ZIG_TARGET: ${{ matrix.zigTarget }}
           BUILDER: ${{ matrix.builder }}
           EXTRA_RUSTFLAGS: ${{ matrix.rustflags }}
+          # Compiled in as the version plugins' engines.parcel ranges are checked against.
+          PARCEL_VERSION: ${{ inputs.version }}
           # Matches the deployment target the rest of Parcel's macOS builds use.
           MACOSX_DEPLOYMENT_TARGET: ${{ runner.os == 'macOS' && '11.0' || '' }}
           # Lets the stable compiler accept the -Z flags below. Only release

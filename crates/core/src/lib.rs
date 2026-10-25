@@ -217,6 +217,10 @@ impl Parcel {
     // Weak, so the options may own the reporters without the two keeping each
     // other alive forever.
     reporters.attach(Arc::downgrade(&options));
+    let warnings = factory.take_warnings();
+    if !warnings.is_empty() {
+      reporters.log_diagnostics(LogLevel::Warn, &warnings);
+    }
 
     Ok(Parcel {
       asset_graph_builder: AssetGraphBuilder::new(

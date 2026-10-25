@@ -3027,6 +3027,7 @@ dependencies = [
  "lightningcss",
  "log",
  "mimalloc",
+ "node-semver",
  "parcel-core",
  "parcel-css",
  "parcel-html",

@@ -18,6 +18,9 @@ seven. The workflow derives all of that from a single `parcel` key in your packa
   "version": "1.0.0",
   "license": "MIT",
   "repository": "https://github.com/devongovett/ts-doc-rs",
+  "engines": {
+    "parcel": "^3.0.0-0"
+  },
   "parcel": {
     "abi": 1,
     "artifacts": {
@@ -33,6 +36,9 @@ seven. The workflow derives all of that from a single `parcel` key in your packa
 }
 ```
 
+- `engines.parcel` — the range of Parcel versions your plugin supports. Parcel refuses to
+  load a plugin whose range its version does not satisfy, and warns about one without a
+  range. `^3.0.0-0` includes the Parcel 3 prereleases, which `^3.0.0` does not.
 - `parcel.abi` — the Parcel plugin ABI version your crate builds against.
 - `parcel.artifacts` — one entry per platform you want to ship, mapping a Rust target
   triple to the npm package name its binary is published under. The build matrix is

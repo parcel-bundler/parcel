@@ -355,6 +355,11 @@ pub trait PluginFactory {
     config: Option<serde_json::Value>,
     from: PathId,
   ) -> Result<Arc<dyn Reporter>, DiagnosticList>;
+  /// Warnings found while loading plugins, e.g. a plugin with no `engines.parcel`
+  /// range. They are logged once the reporters are ready.
+  fn take_warnings(&self) -> Vec<Diagnostic> {
+    Vec::new()
+  }
 }
 
 impl RawParcelConfig {

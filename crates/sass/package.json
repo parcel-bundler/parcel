@@ -9,6 +9,9 @@
     "directory": "crates/sass"
   },
   "files": [],
+  "engines": {
+    "parcel": "^3.0.0-0"
+  },
   "parcel": {
     "abi": 1,
     "artifacts": {

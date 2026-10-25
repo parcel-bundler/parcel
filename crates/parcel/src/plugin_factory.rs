@@ -1,8 +1,12 @@
-use std::{path::Path, sync::Arc};
+use std::{
+  path::Path,
+  sync::{Arc, Mutex},
+};
 
 use parcel_core::{
-  Diagnostic, DiagnosticList, FileKind, FileSystem, Namer, Optimizer, ParcelConfig, PathId,
-  PluginFactory, Reporter, Transformer,
+  AssetType, CodeFrame, CodeHighlight, Diagnostic, DiagnosticList, DiagnosticSeverity, FileKind,
+  FileSystem, JsonSourceLocationType, Namer, Optimizer, ParcelConfig, PathId, PluginFactory,
+  Reporter, SourceUrl, Transformer, json_source_location,
 };
 use parcel_css::{CssTransformer, StyleAttrTransformer};
 use parcel_html::{HtmlTransformer, SvgToJsxTransformer, SvgTransformer, XmlTransformer};
@@ -24,9 +28,20 @@ use crate::{
   yaml::YamlTransformer,
 };
 
+/// The version of Parcel that plugins' `engines.parcel` ranges are checked against.
+///
+/// Release builds are given the version they are published as. Any other build
+/// counts as the earliest 3.0.0 prerelease, so it accepts plugins that accept
+/// every Parcel 3 prerelease, as `^3.0.0-0` does.
+const PARCEL_VERSION: &str = match option_env!("PARCEL_VERSION") {
+  Some(version) if !version.is_empty() => version,
+  _ => "3.0.0-0",
+};
+
 pub struct DefaultPluginFactory {
   resolver: parcel_resolver::Resolver<'static>,
   fs: Arc<dyn FileSystem>,
+  warnings: Mutex<Vec<Diagnostic>>,
 }
 
 impl DefaultPluginFactory {
@@ -34,6 +49,7 @@ impl DefaultPluginFactory {
     DefaultPluginFactory {
       resolver: parcel_resolver::Resolver::node(parcel_resolver::PathId::root()),
       fs,
+      warnings: Mutex::new(Vec::new()),
     }
   }
 }
@@ -172,6 +188,14 @@ impl PluginFactory for DefaultPluginFactory {
       return ParcelConfig::from_json(PathId::root(), include_bytes!("default-config.json"), self);
     }
 
+    if let Ok((Specifier::Package(module, _), _)) =
+      Specifier::parse(specifier, SpecifierType::Esm, self.resolver.flags)
+    {
+      if let Some((dir, package)) = self.read_plugin_package(&module, from) {
+        self.check_engines(PackageKind::Config, specifier, dir, &package)?;
+      }
+    }
+
     let resolved = self.resolver.resolve(
       specifier,
       from,
@@ -192,6 +216,16 @@ impl PluginFactory for DefaultPluginFactory {
       Diagnostic::from_message(format!("Could not find extended config {}", specifier)).into(),
     );
   }
+
+  fn take_warnings(&self) -> Vec<Diagnostic> {
+    std::mem::take(&mut *self.warnings.lock().unwrap())
+  }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum PackageKind {
+  Plugin,
+  Config,
 }
 
 /// A plugin implementation loaded from disk, before it is coerced to the plugin
@@ -211,15 +245,22 @@ impl DefaultPluginFactory {
     from: PathId,
     config: Option<serde_json::Value>,
   ) -> Result<ResolvedPlugin, DiagnosticList> {
-    // Only a bare package specifier can name a native plugin. Its entry point is a
-    // shared library recorded in package.json, which module resolution cannot find,
-    // so the package is looked up directly instead of being resolved.
+    // Plugins installed as packages declare the Parcel versions they support. Only
+    // a bare package specifier can name a native plugin: its entry point is a shared
+    // library recorded in package.json, which module resolution cannot find, so the
+    // package is looked up directly instead of being resolved.
     if let Ok((Specifier::Package(module, subpath), _)) =
       Specifier::parse(name, SpecifierType::Esm, self.resolver.flags)
     {
-      if subpath.is_empty() {
-        if let Some(plugin) = self.resolve_native_plugin(&module, from, config.as_ref())? {
-          return Ok(ResolvedPlugin::Native(plugin));
+      if let Some((dir, package)) = self.read_plugin_package(&module, from) {
+        self.check_engines(PackageKind::Plugin, name, dir, &package)?;
+        if subpath.is_empty() && package.is_native_plugin() {
+          return Ok(ResolvedPlugin::Native(self.load_native_plugin(
+            &module,
+            dir,
+            &package,
+            config.as_ref(),
+          )?));
         }
       }
     }
@@ -249,26 +290,79 @@ impl DefaultPluginFactory {
     }
   }
 
-  /// Loads the shared library of a native plugin package.
+  /// Checks a package's `engines.parcel` range against this version of Parcel.
   ///
-  /// Returns `Ok(None)` when `module` is not a native plugin — it may not exist at
-  /// all, or be an ordinary JavaScript plugin — so that the caller falls back to
-  /// resolving it as a module. Once a package is known to be native, every further
-  /// failure is reported, since no fallback could succeed.
-  fn resolve_native_plugin(
+  /// A range that is not satisfied, or not valid, is an error. A plugin with no
+  /// range at all is only warned about, as in Parcel 2: nothing is known to be
+  /// wrong with it. Config packages were never checked by Parcel 2, so a missing
+  /// range is not worth a warning for them.
+  fn check_engines(
     &self,
-    module: &str,
-    from: PathId,
-    config: Option<&serde_json::Value>,
-  ) -> Result<Option<Arc<CPlugin>>, DiagnosticList> {
-    let Some((dir, package)) = self.read_plugin_package(module, from) else {
-      return Ok(None);
+    kind: PackageKind,
+    name: &str,
+    dir: PathId,
+    package: &PluginPackage,
+  ) -> Result<(), DiagnosticList> {
+    let kind_name = match kind {
+      PackageKind::Plugin => "plugin",
+      PackageKind::Config => "config",
     };
 
-    if !package.is_native_plugin() {
-      return Ok(None);
+    let Some(range) = &package.engines.parcel else {
+      if kind == PackageKind::Plugin {
+        let mut warnings = self.warnings.lock().unwrap();
+        let message = format!(
+          "The plugin \"{}\" needs to specify a `package.json#engines.parcel` field with the supported Parcel version range.",
+          name
+        );
+        // A plugin may be named in more than one pipeline.
+        if !warnings.iter().any(|warning| warning.message == message) {
+          warnings.push(Diagnostic {
+            origin: Some("@parcel/core".into()),
+            severity: DiagnosticSeverity::Warning,
+            ..Diagnostic::from_message(message)
+          });
+        }
+      }
+      return Ok(());
+    };
+
+    if satisfies(PARCEL_VERSION, range) {
+      return Ok(());
     }
 
+    let mut diagnostic = Diagnostic {
+      origin: Some("@parcel/core".into()),
+      ..Diagnostic::from_message(format!(
+        "The {} \"{}\" is not compatible with the current version of Parcel. Requires \"{}\" but the current version is \"{}\".",
+        kind_name, name, range, PARCEL_VERSION
+      ))
+    };
+    let path = dir.child("package.json");
+    if let Ok(code) = self.fs.read_to_string(path) {
+      if let Ok(Some((start, end))) =
+        json_source_location(&code, "/engines/parcel", JsonSourceLocationType::Value)
+      {
+        diagnostic.code_frames.push(CodeFrame {
+          code: Some(code),
+          url: Some(SourceUrl::from_path(&path)),
+          language: Some(AssetType::Json),
+          code_highlights: vec![CodeHighlight::from_json(start, end, None)],
+        });
+      }
+    }
+    Err(diagnostic.into())
+  }
+
+  /// Loads the shared library of a native plugin package. Every failure is
+  /// reported, since no fallback to resolving it as a module could succeed.
+  fn load_native_plugin(
+    &self,
+    module: &str,
+    dir: PathId,
+    package: &PluginPackage,
+    config: Option<&serde_json::Value>,
+  ) -> Result<Arc<CPlugin>, DiagnosticList> {
     if package.parcel.abi != Some(PARCEL_ABI_VERSION) {
       let abi = package.parcel.abi.map_or_else(
         || "an unknown ABI".to_string(),
@@ -300,7 +394,7 @@ impl DefaultPluginFactory {
           .into(),
         );
       }
-      return Ok(Some(Arc::new(CPlugin::new(path, config)?)));
+      return Ok(Arc::new(CPlugin::new(path, config)?));
     }
 
     let Some(artifact) = package.artifact() else {
@@ -341,7 +435,7 @@ impl DefaultPluginFactory {
       _ => self.resolve_artifact_package(module, artifact, dir)?,
     };
 
-    Ok(Some(Arc::new(CPlugin::new(path, config)?)))
+    Ok(Arc::new(CPlugin::new(path, config)?))
   }
 
   /// Resolves the library of a platform-specific artifact package.
@@ -391,5 +485,37 @@ impl DefaultPluginFactory {
     let contents = self.fs.read_to_string(dir.child("package.json")).ok()?;
     let package = PluginPackage::parse(&contents).ok()?;
     Some((dir, package))
+  }
+}
+
+/// Whether `version` satisfies the npm semver `range`. As in npm, a prerelease
+/// version only satisfies a range that names a prerelease of the same release, so
+/// `^3.0.0-0` accepts 3.0.0-alpha.1 but `^3.0.0` and `3.x` do not.
+fn satisfies(version: &str, range: &str) -> bool {
+  let Ok(version) = node_semver::Version::parse(version) else {
+    return false;
+  };
+  node_semver::Range::parse(range).is_ok_and(|range| range.satisfies(&version))
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn checks_engines_ranges_like_npm() {
+    assert!(satisfies(PARCEL_VERSION, "^3.0.0-0"));
+    for version in ["3.0.0-alpha.1", "3.0.0-beta.2", "3.0.0", "3.4.1"] {
+      assert!(satisfies(version, "^3.0.0-0"), "{version}");
+      assert!(satisfies(version, ">= 3.0.0-0"), "{version}");
+      assert!(!satisfies(version, "2.x"), "{version}");
+      assert!(!satisfies(version, "^2.0.0"), "{version}");
+    }
+    assert!(!satisfies("3.0.0-alpha.1", "^3.0.0"));
+    assert!(!satisfies("3.0.0-alpha.1", "3.x"));
+    assert!(satisfies("3.0.0", "3.x"));
+    assert!(satisfies("3.0.0-alpha.2", "^3.0.0-alpha.1"));
+    assert!(!satisfies("3.0.0-alpha.1", "^3.0.0-alpha.2"));
+    assert!(!satisfies("3.0.0", "not a range"));
   }
 }
