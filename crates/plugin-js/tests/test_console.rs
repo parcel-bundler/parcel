@@ -15,8 +15,24 @@ struct Recorder(Arc<Mutex<Vec<(LogLevel, String)>>>);
 impl Reporter for Recorder {
   fn report(&self, event: &ReporterEvent, _options: &ParcelOptions) -> Result<(), DiagnosticList> {
     if let ReporterEvent::Log(log) = event {
-      if let LogMessage::Text(message) = log.message {
-        self.0.lock().unwrap().push((log.level, message.to_owned()));
+      match log.message {
+        LogMessage::Text(message) => {
+          self.0.lock().unwrap().push((log.level, message.to_owned()));
+        }
+        LogMessage::Diagnostics(diagnostics) => {
+          for diagnostic in diagnostics {
+            self.0.lock().unwrap().push((
+              log.level,
+              format!(
+                "{} {:?}: {} {:?}",
+                diagnostic.origin.as_deref().unwrap_or("unknown"),
+                diagnostic.severity,
+                diagnostic.message,
+                diagnostic.hints
+              ),
+            ));
+          }
+        }
       }
     }
     Ok(())
@@ -217,5 +233,46 @@ fn console_debug_uses_verbose_level() {
   assert_eq!(
     *events.lock().unwrap(),
     vec![(LogLevel::Verbose, "details".into())]
+  );
+}
+
+#[test]
+fn console_logs_diagnostics() {
+  let (plugin, options, events) = setup(
+    "console-diagnostics.mjs",
+    r#"
+    import {Transformer, Diagnostic} from '@parcel/plugin';
+    export default new Transformer({
+      transform() {
+        console.warn(new Diagnostic({message: 'careful', hints: ['a hint']}));
+        console.error(new Diagnostic([
+          {message: 'one', origin: 'other'},
+          {message: 'two', severity: 'info'},
+        ]));
+        console.info(new Diagnostic({message: 'note'}), new Diagnostic({message: 'another'}));
+      }
+    });
+  "#,
+    LogLevel::Info,
+    None,
+  );
+  plugin
+    .transform(
+      asset(),
+      &parcel_core::PluginContext::new(&options, &options.input_fs),
+    )
+    .unwrap();
+  assert_eq!(
+    *events.lock().unwrap(),
+    vec![
+      (
+        LogLevel::Warn,
+        r#"test-plugin Warning: careful ["a hint"]"#.into()
+      ),
+      (LogLevel::Error, "other Error: one []".into()),
+      (LogLevel::Error, "test-plugin Info: two []".into()),
+      (LogLevel::Info, "test-plugin Info: note []".into()),
+      (LogLevel::Info, "test-plugin Info: another []".into()),
+    ]
   );
 }

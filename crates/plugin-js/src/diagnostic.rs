@@ -11,10 +11,12 @@ use rquickjs::{Array, Coerced, Ctx, FromJs, Function, Object, Symbol, Value};
 /// so that every copy of `@parcel/plugin` agrees on it.
 const DIAGNOSTICS: &str = "parcel-diagnostics";
 
-/// Returns the diagnostics of `value` if it is a `Diagnostic` from `@parcel/plugin`.
+/// Returns the diagnostics of `value` if it is a `Diagnostic` from `@parcel/plugin`. Those that
+/// don't set a severity get `severity`.
 pub(crate) fn diagnostics_from_js<'js>(
   ctx: &Ctx<'js>,
   value: &Value<'js>,
+  severity: DiagnosticSeverity,
 ) -> Option<Vec<Diagnostic>> {
   let object = value.as_object()?;
   let symbol_for: Function = get(ctx, &ctx.globals().get::<_, Object>("Symbol").ok()?, "for")?;
@@ -24,15 +26,22 @@ pub(crate) fn diagnostics_from_js<'js>(
     diagnostics
       .iter::<Value>()
       .filter_map(Result::ok)
-      .map(|diagnostic| diagnostic_from_js(ctx, &diagnostic))
+      .map(|diagnostic| diagnostic_from_js(ctx, &diagnostic, severity.clone()))
       .collect(),
   )
 }
 
 /// Converts a `DiagnosticOptions` object.
-fn diagnostic_from_js<'js>(ctx: &Ctx<'js>, value: &Value<'js>) -> Diagnostic {
+fn diagnostic_from_js<'js>(
+  ctx: &Ctx<'js>,
+  value: &Value<'js>,
+  severity: DiagnosticSeverity,
+) -> Diagnostic {
   let Some(object) = value.as_object() else {
-    return Diagnostic::from_message(string(ctx, value).unwrap_or_default());
+    return Diagnostic {
+      severity,
+      ..Diagnostic::from_message(string(ctx, value).unwrap_or_default())
+    };
   };
 
   Diagnostic {
@@ -50,7 +59,8 @@ fn diagnostic_from_js<'js>(ctx: &Ctx<'js>, value: &Value<'js>) -> Diagnostic {
       Some("warning") => DiagnosticSeverity::Warning,
       Some("sourceError") => DiagnosticSeverity::SourceError,
       Some("info") => DiagnosticSeverity::Info,
-      _ => DiagnosticSeverity::Error,
+      Some("error") => DiagnosticSeverity::Error,
+      _ => severity,
     },
     documentation_url: get_string(ctx, object, "documentationURL"),
   }

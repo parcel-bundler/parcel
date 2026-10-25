@@ -1,12 +1,14 @@
 // Plugin API types for Parcel v3. These describe the objects exposed to
 // JavaScript plugins by the QuickJS bindings in crates/plugin-js.
 //
-// Plugins log by calling `console` methods. Throwing (or rejecting) fails the
-// plugin call. A thrown `Diagnostic` (exported by `@parcel/plugin`) is reported
-// as the diagnostics it was created with. For any other error, the message
-// becomes a diagnostic, with a code frame pointing at `filename`/`fileName`,
-// `line` and `column` if the error has them, or otherwise at the top frame of
-// its stack. Diagnostics are attributed to the plugin unless they set `origin`.
+// Plugins log by calling `console` methods. Passing a `Diagnostic` (exported by
+// `@parcel/plugin`) logs its diagnostics, with a severity matching the method's
+// level unless they set one. Throwing (or rejecting) fails the plugin call. A
+// thrown `Diagnostic` is reported as the diagnostics it was created with. For
+// any other error, the message becomes a diagnostic, with a code frame pointing
+// at `filename`/`fileName`, `line` and `column` if the error has them, or
+// otherwise at the top frame of its stack. Diagnostics are attributed to the
+// plugin unless they set `origin`.
 
 export type FilePath = string;
 export type Glob = string;

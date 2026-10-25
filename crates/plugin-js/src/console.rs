@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use parcel_core::LogLevel;
+use parcel_core::{Diagnostic, DiagnosticSeverity, LogLevel};
 use rquickjs::{
   Ctx, Function, IntoJs, JsLifetime, Object, Value, class::Trace, function::This,
   module::ModuleDef, prelude::Rest,
@@ -9,7 +9,13 @@ use rquickjs::{
 use crate::cjs::require;
 
 #[derive(JsLifetime, Trace)]
-pub(crate) struct ConsoleLogs(#[qjs(skip_trace)] pub Rc<RefCell<Vec<(LogLevel, String)>>>);
+pub(crate) struct ConsoleLogs(#[qjs(skip_trace)] pub Rc<RefCell<Vec<(LogLevel, ConsoleLog)>>>);
+
+pub(crate) enum ConsoleLog {
+  Text(String),
+  /// Logged by passing `Diagnostic`s from `@parcel/plugin`.
+  Diagnostics(Vec<Diagnostic>),
+}
 
 #[derive(Clone, Trace, JsLifetime)]
 #[rquickjs::class(frozen)]
@@ -39,6 +45,27 @@ impl Console {
   ) -> rquickjs::Result<()> {
     use std::fmt::Write;
 
+    // Logging `Diagnostic`s logs their diagnostics, at this level unless they set a severity.
+    let severity = match level {
+      LogLevel::Error => DiagnosticSeverity::Error,
+      LogLevel::Warn => DiagnosticSeverity::Warning,
+      _ => DiagnosticSeverity::Info,
+    };
+    let diagnostics = values
+      .iter()
+      .map(|value| crate::diagnostic::diagnostics_from_js(&ctx, value, severity.clone()))
+      .collect::<Option<Vec<_>>>();
+    if let Some(diagnostics) = diagnostics.filter(|_| !values.is_empty()) {
+      if let Some(logs) = ctx.userdata::<ConsoleLogs>() {
+        let diagnostics = diagnostics.into_iter().flatten().collect();
+        logs
+          .0
+          .borrow_mut()
+          .push((level, ConsoleLog::Diagnostics(diagnostics)));
+      }
+      return Ok(());
+    }
+
     let message = if values.len() == 1 && values[0].is_string() {
       values[0].as_string().unwrap().to_string()?
     } else {
@@ -56,7 +83,7 @@ impl Console {
       message
     };
     if let Some(logs) = ctx.userdata::<ConsoleLogs>() {
-      logs.0.borrow_mut().push((level, message));
+      logs.0.borrow_mut().push((level, ConsoleLog::Text(message)));
     }
     Ok(())
   }

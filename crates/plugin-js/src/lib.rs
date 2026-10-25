@@ -128,8 +128,17 @@ where
       }
     }
     let _reset = Reset(delivering);
-    for (level, message) in logs.borrow_mut().drain(..) {
-      options.log(level, message);
+    for (level, log) in logs.borrow_mut().drain(..) {
+      match log {
+        console::ConsoleLog::Text(message) => options.log(level, message),
+        console::ConsoleLog::Diagnostics(diagnostics) => {
+          let diagnostics = match origin {
+            Some(origin) => with_origin(DiagnosticList(diagnostics), origin).0,
+            None => diagnostics,
+          };
+          options.log_diagnostics(level, &diagnostics);
+        }
+      }
     }
   });
   result.map_err(|diagnostics| match origin {
@@ -280,7 +289,7 @@ pub fn create_runtime(
 /// Converts a thrown value: the diagnostics of a `Diagnostic` from `@parcel/plugin`, or one for
 /// any other error.
 fn error_to_diagnostics<'js>(e: Value<'js>) -> Vec<Diagnostic> {
-  diagnostic::diagnostics_from_js(&e.ctx().clone(), &e)
+  diagnostic::diagnostics_from_js(&e.ctx().clone(), &e, parcel_core::DiagnosticSeverity::Error)
     .unwrap_or_else(|| vec![error_to_diagnostic(e)])
 }
 
