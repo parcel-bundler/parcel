@@ -1,0 +1,5 @@
+{
+  // Parcel 2 parsed .json files as JSON5 too.
+  "a": 1,
+  b: 2,
+}

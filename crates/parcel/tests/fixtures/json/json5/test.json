@@ -1,0 +1,14 @@
+{
+  "description": "should support JSON5 syntax in .json5 and .json files",
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "assets": ["data.json5", "index.js", "local.json"]
+    }
+  ],
+  "output": [
+    {"hello": ["world", "it's"], "hex": 255, "half": 0.5, "multiline": "ab"},
+    {"a": 1, "b": 2}
+  ]
+}

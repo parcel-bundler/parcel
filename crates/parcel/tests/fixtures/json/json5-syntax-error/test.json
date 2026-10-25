@@ -1,0 +1,17 @@
+{
+  "description": "should report JSON5 syntax errors with a code frame",
+  "input": "index.js",
+  "diagnostics": [
+    {
+      "message": "Unexpected character 'b'",
+      "origin": "@parcel/transformer-json",
+      "codeFrames": [
+        {
+          "codeHighlights": [
+            {"start": {"line": 3, "column": 7}, "end": {"line": 3, "column": 7}}
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+// JSON5 allows comments,
+{
+  /* unquoted keys and single-quoted strings, */
+  hello: ['world', 'it\'s',],
+  hex: 0xFF,
+  half: .5,
+  multiline: 'a\
+b',
+}
