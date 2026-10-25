@@ -27,6 +27,8 @@ const POLL_INTERVAL: Duration = Duration::from_millis(50);
 pub struct NodeRunner {
   child: Option<Child>,
   hmr: Option<RunnerHmr>,
+  /// The NODE_ENV the build used, which may be a default the parent process doesn't have.
+  node_env: Option<String>,
 }
 
 /// Where the process connects to, and the token identifying the current one.
@@ -38,9 +40,13 @@ struct RunnerHmr {
 }
 
 impl NodeRunner {
-  pub fn new(hmr: Option<(HmrServer, SocketAddr, Receiver<RunnerEvent>)>) -> Self {
+  pub fn new(
+    hmr: Option<(HmrServer, SocketAddr, Receiver<RunnerEvent>)>,
+    node_env: Option<String>,
+  ) -> Self {
     NodeRunner {
       child: None,
+      node_env,
       hmr: hmr.map(|(server, address, events)| {
         // The process connects locally even when the server listens on all interfaces.
         let ip = match address.ip() {
@@ -62,23 +68,13 @@ impl NodeRunner {
   /// has run its entry, so that pages reloaded afterwards reach it.
   pub fn restart(&mut self, entry: PathId) {
     self.stop();
-    let mut command = Command::new("node");
-    command
-      .arg("--enable-source-maps")
-      .arg(&*entry.to_path_buf().to_string_lossy());
     if let Some(hmr) = &mut self.hmr {
       hmr.token = format!(
         "{:016x}",
         std::collections::hash_map::RandomState::new().hash_one(std::time::SystemTime::now())
       );
-      // The runtime connects to this instead of the HMR server browsers use, and its token tells
-      // the server which process is on the other end.
-      command.env(
-        "PARCEL_HMR_URL",
-        format!("ws://{}/?token={}", hmr.address, hmr.token),
-      );
     }
-    match command.spawn() {
+    match self.command(entry).spawn() {
       Ok(child) => self.child = Some(child),
       Err(err) => {
         eprintln!("Could not start node: {err}");
@@ -87,6 +83,27 @@ impl NodeRunner {
     }
 
     self.wait_for(&[RunnerMessage::Ready], START_TIMEOUT);
+  }
+
+  /// The command that runs `entry`. The process inherits Parcel's environment, as if it was run
+  /// with node directly.
+  fn command(&self, entry: PathId) -> Command {
+    let mut command = Command::new("node");
+    command
+      .arg("--enable-source-maps")
+      .arg(&*entry.to_path_buf().to_string_lossy());
+    if let Some(node_env) = &self.node_env {
+      command.env("NODE_ENV", node_env);
+    }
+    if let Some(hmr) = &self.hmr {
+      // The runtime connects to this instead of the HMR server browsers use, and its token tells
+      // the server which process is on the other end.
+      command.env(
+        "PARCEL_HMR_URL",
+        format!("ws://{}/?token={}", hmr.address, hmr.token),
+      );
+    }
+    command
   }
 
   /// Applies `update` to the running process, and restarts it with `entry` if the process doesn't
@@ -191,4 +208,22 @@ pub fn entry_context_assets(bundle_graph: &BundleGraph, entry: usize) -> FixedBi
     }
   }
   assets
+}
+
+#[cfg(test)]
+mod tests {
+  use std::{ffi::OsStr, path::Path};
+
+  use super::*;
+
+  #[test]
+  fn command_sets_build_node_env() {
+    let runner = NodeRunner::new(None, Some("development".into()));
+    let command = runner.command(PathId::new(Path::new("/dist/index.js")));
+    let envs: Vec<_> = command.get_envs().collect();
+    assert_eq!(
+      envs,
+      vec![(OsStr::new("NODE_ENV"), Some(OsStr::new("development")))]
+    );
+  }
 }

@@ -250,6 +250,7 @@ pub fn run(
 
   let log_level = options.log_level.clone();
   let reporters = options.reporters.clone();
+  let node_env = options.env.get("NODE_ENV").cloned();
   let mut parcel = make_parcel(entries, options).inspect_err(|err| {
     standalone_options(reporters, log_level).log_diagnostics(LogLevel::Error, &err.0)
   })?;
@@ -257,7 +258,7 @@ pub fn run(
     offer_trust(&server_options, &parcel.options);
   }
   let project_root = parcel.project_root();
-  let mut runner = NodeRunner::new(hmr);
+  let mut runner = NodeRunner::new(hmr, node_env);
   if let Some(server) = &hmr_server {
     server.set_reporters(parcel.options.reporters.clone());
     server.set_source_roots(
