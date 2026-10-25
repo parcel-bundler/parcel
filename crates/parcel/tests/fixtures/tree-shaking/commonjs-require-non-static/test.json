@@ -1,0 +1,54 @@
+[
+  {
+    "description": "tree shaking: computed access of a required module keeps every export",
+    "input": "computed.js",
+    "options": {"mode": "production"},
+    "sideEffects": ["used", "unused-computed-sentinel"],
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["computed.js", "dep-computed.js"],
+        "contains": ["unused-computed-sentinel"]
+      }
+    ]
+  },
+  {
+    "description": "tree shaking: passing a required module elsewhere keeps every export",
+    "input": "escape.js",
+    "options": {"mode": "production"},
+    "sideEffects": ["used", "unused-escape-sentinel"],
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["dep-escape.js", "escape.js"],
+        "contains": ["unused-escape-sentinel"]
+      }
+    ]
+  },
+  {
+    "description": "tree shaking: re-assigning a required module binding conservatively keeps every export",
+    "input": "reassign.js",
+    "options": {"mode": "production"},
+    "sideEffects": ["used"],
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["dep-reassign.js", "reassign.js"],
+        "contains": ["unused-reassign-sentinel"]
+      }
+    ]
+  },
+  {
+    "description": "tree shaking: a require inside a function keeps every export",
+    "input": "function.js",
+    "options": {"mode": "production"},
+    "sideEffects": ["used"],
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["dep-function.js", "function.js"],
+        "contains": ["unused-function-sentinel"]
+      }
+    ]
+  }
+]

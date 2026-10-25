@@ -37,10 +37,9 @@ macro_rules! collect_visit_fn {
   };
 }
 
-/// How a module is loaded.
+/// How a CommonJS module or dynamic import is loaded.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ImportKind {
-  Import,
   Require,
   DynamicImport,
 }
@@ -50,7 +49,6 @@ pub struct Import {
   pub source: JsWord,
   pub specifier: JsWord,
   pub span: Span,
-  pub kind: ImportKind,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -162,9 +160,9 @@ impl Collect {
     } = self;
     let mut symbols = AssetSymbols::default();
 
-    // A namespace import or dynamic import that is only accessed statically (e.g. `ns.foo`)
-    // imports just the accessed properties. Any other usage, e.g. a computed access, passing the
-    // namespace around or re-assigning the binding, observes the whole namespace.
+    // A namespace import, require or dynamic import that is only accessed statically (e.g.
+    // `ns.foo`) imports just the accessed properties. Any other usage, e.g. a computed access,
+    // passing the namespace around or re-assigning the binding, observes the whole namespace.
     let mut imported: Vec<(Span, &JsWord, &JsWord, &JsWord)> = Vec::new();
     for (local, import) in &imports {
       if !used_imports.contains(local) {
@@ -172,7 +170,6 @@ impl Collect {
       }
 
       if import.specifier == "*"
-        && import.kind != ImportKind::Require
         && !non_static_access.contains_key(local)
         && let Some(accesses) = static_access.get(local)
       {
@@ -372,7 +369,6 @@ impl Visit for Collect {
               source: node.src.value.to_string_lossy().into(),
               specifier: imported,
               span: named.span,
-              kind: ImportKind::Import,
             },
           );
         }
@@ -383,7 +379,6 @@ impl Visit for Collect {
               source: node.src.value.to_string_lossy().into(),
               specifier: "default".into(),
               span: default.span,
-              kind: ImportKind::Import,
             },
           );
         }
@@ -394,7 +389,6 @@ impl Visit for Collect {
               source: node.src.value.to_string_lossy().into(),
               specifier: "*".into(),
               span: namespace.span,
-              kind: ImportKind::Import,
             },
           );
         }
@@ -1014,7 +1008,6 @@ impl Collect {
             source: src.clone(),
             specifier: "*".into(),
             span: ident.id.span,
-            kind,
           },
         );
       }
@@ -1043,7 +1036,6 @@ impl Collect {
                       source: src.clone(),
                       specifier: imported,
                       span: ident.id.span,
-                      kind,
                     },
                   );
                 }
@@ -1064,7 +1056,6 @@ impl Collect {
                   source: src.clone(),
                   specifier: assign.key.sym.clone(),
                   span: assign.key.span,
-                  kind,
                 },
               );
             }
@@ -1269,10 +1260,13 @@ mod tests {
 
   #[test]
   fn require_static_access() {
-    // CommonJS requires keep the whole namespace.
     assert_eq!(
-      imported_symbols("const ns = require('a'); ns.foo;"),
-      pairs(&[("a", "*")])
+      imported_symbols("const ns = require('a'); ns.foo(); ns['bar']; ns.foo.baz;"),
+      pairs(&[("a", "foo"), ("a", "bar")])
+    );
+    assert_eq!(
+      imported_symbols("const {foo, bar: baz} = require('a'); foo(baz);"),
+      pairs(&[("a", "foo"), ("a", "bar")])
     );
   }
 
@@ -1318,5 +1312,24 @@ mod tests {
         ),
       ]
     );
+  }
+
+  #[test]
+  fn require_non_static_access() {
+    for code in [
+      "const ns = require('a'); ns.foo; ns[key];",
+      "const ns = require('a'); ns.foo; use(ns);",
+      "const ns = require('a'); ns.foo; let o = {ns};",
+      "const ns = require('a'); ns.foo; module.exports = ns;",
+      "let ns = require('a'); ns.foo; ns = other;",
+      "const {foo, ...rest} = require('a');",
+      "function f() { const ns = require('a'); return ns.foo; }",
+      "if (cond) { const ns = require('a'); ns.foo; }",
+    ] {
+      assert!(
+        imported_symbols(code).contains(&("a".to_string(), "*".to_string())),
+        "{code}"
+      );
+    }
   }
 }

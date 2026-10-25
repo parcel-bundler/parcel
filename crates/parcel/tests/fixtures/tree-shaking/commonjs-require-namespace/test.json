@@ -1,0 +1,21 @@
+[
+  {
+    "description": "tree shaking: static member accesses of a required module remove unused exports",
+    "input": "commonjs.js",
+    "options": {"mode": "production"},
+    "sideEffects": ["used-commonjs", "used-computed", "used-esm"],
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["commonjs-dep.js", "commonjs.js", "esm-dep.js", "esmodule-helpers.js"],
+        "contains": ["used-commonjs", "used-computed", "used-esm"],
+        "notContains": ["unused-commonjs-sentinel", "unused-esm-sentinel"]
+      }
+    ]
+  },
+  {
+    "description": "tree shaking: static member accesses of a required module work in development",
+    "input": "commonjs.js",
+    "sideEffects": ["used-commonjs", "used-computed", "used-esm"]
+  }
+]
