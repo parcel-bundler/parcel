@@ -4,5 +4,5 @@
   "bundles": [
     {"assets": ["index.js"]}
   ],
-  "output": "[ undefined,\n  null,\n  true,\n  false,\n  1,\n  0,\n  -2,\n  'hi',\n  /yo/i,\n  [ 1, { test: 8 } ] ]"
+  "output": "[\n  undefined,\n  null,\n  true,\n  false,\n  1,\n  0,\n  -2,\n  'hi',\n  /yo/i,\n  [ 1, { test: 8 } ]\n]"
 }

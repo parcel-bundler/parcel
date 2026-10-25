@@ -1412,6 +1412,7 @@ __metadata:
     lint-staged: "npm:^10.5.4"
     lodash: "npm:^4.17.21"
     nib: "npm:^1.2.0"
+    node-inspect-extracted: "npm:^3.3.4"
     os-browserify: "npm:^0.3.0"
     oxfmt: "npm:^0.73.0"
     path-browserify: "npm:^1.0.1"
@@ -5135,6 +5136,13 @@ __metadata:
   bin:
     node-gyp: bin/node-gyp.js
   checksum: 10c0/bd8d8c76b06be761239b0c8680f655f6a6e90b48e44d43415b11c16f7e8c15be346fba0cbf71588c7cdfb52c419d928a7d3db353afc1d952d19756237d8f10b9
+  languageName: node
+  linkType: hard
+
+"node-inspect-extracted@npm:^3.3.4":
+  version: 3.3.4
+  resolution: "node-inspect-extracted@npm:3.3.4"
+  checksum: 10c0/16b86341561764f0d101a35fa6fe3e099109aeb3ff41598c276e2535e082ac4c37aa3c2c7e42dfe3a1abda3aa5735006f417f16a33b4087d620b0ff42cc793fe
   languageName: node
   linkType: hard
 

@@ -43,8 +43,6 @@ impl Console {
     level: LogLevel,
     values: Rest<Value<'js>>,
   ) -> rquickjs::Result<()> {
-    use std::fmt::Write;
-
     // Logging `Diagnostic`s logs their diagnostics, at this level unless they set a severity.
     let severity = match level {
       LogLevel::Error => DiagnosticSeverity::Error,
@@ -69,18 +67,11 @@ impl Console {
     let message = if values.len() == 1 && values[0].is_string() {
       values[0].as_string().unwrap().to_string()?
     } else {
+      // As Node's console formats them.
       let util = require(ctx.clone(), "util".into())?;
       let util = util.try_into_object().unwrap();
-      let inspect: rquickjs::Function = util.get("inspect")?;
-      let mut message = String::new();
-      for (i, value) in values.0.into_iter().enumerate() {
-        if i > 0 {
-          write!(&mut message, ", ").map_err(|_| rquickjs::Error::Unknown)?
-        }
-        let formatted: String = inspect.call((value,))?;
-        message.push_str(&formatted);
-      }
-      message
+      let format: rquickjs::Function = util.get("format")?;
+      format.call((values,))?
     };
     if let Some(logs) = ctx.userdata::<ConsoleLogs>() {
       logs.0.borrow_mut().push((level, ConsoleLog::Text(message)));

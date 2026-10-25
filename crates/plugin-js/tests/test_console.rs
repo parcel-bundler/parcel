@@ -125,7 +125,7 @@ fn console_logs_reach_rust_reporters_even_when_the_plugin_fails() {
       (LogLevel::Info, "info".into()),
       (LogLevel::Warn, "warning".into()),
       (LogLevel::Error, "failure".into()),
-      (LogLevel::Info, "{ value: 42 }, 7".into()),
+      (LogLevel::Info, "{ value: 42 } 7".into()),
     ]
   );
 }
@@ -335,5 +335,69 @@ fn console_logs_from_javascript_called_back_by_a_plugin_are_delivered_in_order()
       ),
       (LogLevel::Info, "after".into()),
     ]
+  );
+}
+
+#[test]
+fn console_formats_values_like_node() {
+  let (plugin, options, events) = setup(
+    "console-format.cjs",
+    r#"
+    const util = require('util');
+    class Foo { constructor() { this.x = 1; } }
+    const circular = {a: 1}; circular.self = circular;
+    module.exports = {[Symbol.for('parcel-plugin-config')]: {
+      transform() {
+        console.log('plain', 'strings', 42);
+        console.log('%s=%d %i %f %j %o %O %c%%', 'a', 42.5, 42.5, '1.5', {j: 1}, [1], {O: 'x'}, 'color: red', 'extra');
+        console.log({a: 'str', b: [1, 'two', {c: null}], d: undefined, e: 10n, f: Symbol('s'), g() {}, h: class K {}});
+        console.log(new Map([['k', {v: 1}]]), new Set([1, 'a']));
+        console.log(new Uint8Array([1, 2, 3]), new Float64Array(2), Buffer.from('ab'), new ArrayBuffer(2));
+        console.log(circular, new Foo(), Object.create(null), [, 1], new Date(0), /re/g, -0, null);
+        console.log({a: {b: {c: {d: 1}}}});
+        console.log(Array.from({length: 30}, (_, i) => i));
+        console.log(util.inspect('quoted'), util.format('%s', 'x', 'y'));
+        const error = new TypeError('boom');
+        error.code = 'E_BOOM';
+        console.error({error});
+      }
+    }};
+  "#,
+    LogLevel::Info,
+    None,
+  );
+  plugin
+    .transform(
+      asset(),
+      &parcel_core::PluginContext::new(&options, &options.input_fs),
+    )
+    .unwrap();
+  let mut events = events.lock().unwrap().clone();
+  let (level, error) = events.pop().unwrap();
+  assert_eq!(level, LogLevel::Error);
+  // The stack follows the error's name and message, as in V8, then its own properties.
+  assert!(
+    error.starts_with("{\n  error: TypeError: boom\n      at transform (")
+      && error.contains("console-format.cjs:")
+      && error.ends_with(" {\n    code: 'E_BOOM'\n  }\n}"),
+    "{error}"
+  );
+  let expected = [
+    "plain strings 42",
+    r#"a=42.5 42 1.5 {"j":1} [ 1, [length]: 1 ] { O: 'x' } % extra"#,
+    "{\n  a: 'str',\n  b: [ 1, 'two', { c: null } ],\n  d: undefined,\n  e: 10n,\n  f: Symbol(s),\n  g: [Function: g],\n  h: [class K]\n}",
+    "Map(1) { 'k' => { v: 1 } } Set(2) { 1, 'a' }",
+    "Uint8Array(3) [ 1, 2, 3 ] Float64Array(2) [ 0, 0 ] <Buffer 61 62> ArrayBuffer { [Uint8Contents]: <00 00>, [byteLength]: 2 }",
+    "<ref *1> { a: 1, self: [Circular *1] } Foo { x: 1 } [Object: null prototype] {} [ <1 empty item>, 1 ] 1970-01-01T00:00:00.000Z /re/g -0 null",
+    "{ a: { b: { c: [Object] } } }",
+    "[\n   0,  1,  2,  3,  4,  5,  6,  7,  8,\n   9, 10, 11, 12, 13, 14, 15, 16, 17,\n  18, 19, 20, 21, 22, 23, 24, 25, 26,\n  27, 28, 29\n]",
+    "'quoted' x y",
+  ];
+  assert_eq!(
+    events,
+    expected
+      .iter()
+      .map(|message| (LogLevel::Info, message.to_string()))
+      .collect::<Vec<_>>()
   );
 }

@@ -40,6 +40,7 @@
     "lint-staged": "^10.5.4",
     "lodash": "^4.17.21",
     "nib": "^1.2.0",
+    "node-inspect-extracted": "^3.3.4",
     "os-browserify": "^0.3.0",
     "oxfmt": "^0.73.0",
     "path-browserify": "^1.0.1",

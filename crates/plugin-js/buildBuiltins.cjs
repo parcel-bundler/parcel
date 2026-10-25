@@ -26,6 +26,11 @@ const BUILTINS = {
   }
 };
 
+// Packages that only post-copy transforms require, so graph discovery can't find them.
+const TRANSFORM_DEPENDENCIES = {
+  'node-inspect-extracted': {request: 'node-inspect-extracted'}
+};
+
 // Builtins supplied by the QuickJS host rather than embedded JavaScript.
 const HOST_BUILTINS = new Set([
   'base64-js',
@@ -102,7 +107,34 @@ const POST_COPY_TRANSFORMS = new Map([
   ],
   [
     'util/util.js',
-    source => source + '\nexports.TextDecoder = TextDecoder;\nexports.TextEncoder = TextEncoder;\n'
+    source =>
+      source +
+      `
+exports.TextDecoder = TextDecoder;
+exports.TextEncoder = TextEncoder;
+// Node's own inspect and format, so logged values look as they do in Node.
+var nodeInspect = require('../node-inspect-extracted');
+exports.inspect = nodeInspect.inspect;
+exports.format = nodeInspect.format;
+exports.formatWithOptions = nodeInspect.formatWithOptions;
+`
+  ],
+  [
+    'node-inspect-extracted/dist/inspect.js',
+    source => {
+      // V8 stacks start with the error's name and message, which inspect relies on to print
+      // them. QuickJS stacks only list frames, so prepend them.
+      let getStackString =
+        /(try\{(\w+)=(\w+)\.stack\}catch\{\}if\(\2\)\{if\("string"==typeof \2\)return )\2;([^`]*`\$\{(\w+)\(\3\)\})/;
+      if (!getStackString.test(source)) {
+        throw new Error('Could not find getStackString in node-inspect-extracted');
+      }
+      return source.replace(
+        getStackString,
+        (_, prefix, stack, error, rest, errorToString) =>
+          `${prefix}/^\\s*at /.test(${stack})?${errorToString}(${error})+"\\n"+${stack}.replace(/\\n$/,""):${stack};${rest}`
+      );
+    }
   ]
 ]);
 
@@ -490,7 +522,8 @@ function validateOutput(outputDir) {
 function buildBuiltins(outputDir = path.join(__dirname, 'builtins'), options = {}) {
   let graph = new BuiltinGraph();
   for (let config of Object.values(BUILTINS)) graph.reserveRoot(config);
-  for (let [name, config] of Object.entries(BUILTINS).sort(([a], [b]) => a.localeCompare(b))) {
+  let roots = {...BUILTINS, ...TRANSFORM_DEPENDENCIES};
+  for (let [name, config] of Object.entries(roots).sort(([a], [b]) => a.localeCompare(b))) {
     graph.addRoot(name, config);
   }
 
