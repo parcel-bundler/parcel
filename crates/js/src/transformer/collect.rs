@@ -1235,4 +1235,48 @@ mod tests {
       pairs(&[("a", "*")])
     );
   }
+
+  /// The (message, documentation URL) of each bailout diagnostic for a script.
+  fn bailout_diagnostics(code: &str) -> Vec<(String, String)> {
+    let (_, diagnostics) = run_with_transformation(code, |context, module| {
+      let mut collect = Collect::new(
+        context.unresolved_mark,
+        Mark::fresh(Mark::root()),
+        true,
+        false,
+      );
+      module.visit_with(&mut collect);
+      collect
+        .bailouts
+        .unwrap()
+        .iter()
+        .map(|bailout| {
+          let diagnostic = bailout.to_diagnostic(&context.source_map);
+          (diagnostic.message, diagnostic.documentation_url.unwrap())
+        })
+        .collect::<Vec<_>>()
+    });
+    diagnostics
+  }
+
+  #[test]
+  fn bailout_diagnostics_link_tree_shaking_docs() {
+    assert_eq!(
+      bailout_diagnostics("if (x) { require('a'); } eval('y'); exports = {};"),
+      vec![
+        (
+          "Conditional or non-top-level `require()` call. This causes all exports of the resolved module to be included.".into(),
+          "https://parceljs.org/features/tree-shaking/#avoid-conditional-require()".into()
+        ),
+        (
+          "Module contains usage of `eval`. This disables tree shaking for the module and its dependencies, and prevents the minifier from renaming variables.".into(),
+          "https://parceljs.org/features/tree-shaking/#avoid-eval".into()
+        ),
+        (
+          "Module contains a reassignment of the CommonJS `exports` object. This disables tree shaking for the module and its dependencies.".into(),
+          "https://parceljs.org/features/tree-shaking/#avoid-module-and-exports-re-assignment".into()
+        ),
+      ]
+    );
+  }
 }
