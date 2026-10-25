@@ -1,0 +1,8 @@
+{
+  "description": "should build each app target with its own engines and dist dir",
+  "input": "index.js",
+  "bundles": [
+    {"name": "index.js", "distDir": "dist/modern", "assets": ["index.js"], "contains": ["const add = (a, b)=>"]},
+    {"name": "index.js", "distDir": "build/legacy", "assets": ["index.js"], "contains": ["function add(a, b)"]}
+  ]
+}

@@ -50,132 +50,16 @@ pub fn resolve_entries(
     if options.input_fs.kind(path).contains(FileKind::IS_DIR) {
       entries.resolve_package_entries(&*options.input_fs, path, &project_root, options)?;
     } else {
-      let mut flags = EnvironmentFlags::empty();
-      flags.set(EnvironmentFlags::SHOULD_OPTIMIZE, should_optimize);
-
-      let mut output_format = OutputFormat::default();
-      if let Some(ext) = path.extension() {
-        flags.set(
-          EnvironmentFlags::MODULE_TYPE_EXTENSION,
-          ext == "mjs" || ext == "cjs",
-        );
-        if ext == "mjs" {
-          output_format = OutputFormat::Esmodule;
-        } else if ext == "cjs" {
-          output_format = OutputFormat::Commonjs;
-        }
-      }
-
-      if let Some(pkg) = find_package(path, &*options.input_fs) {
-        let engines = pkg.get("engines");
-        let is_non_js = path
-          .extension()
-          .map(|ext| AssetType::from_extension(ext))
-          .is_some_and(|ty| !ty.is_js() || ty == AssetType::Svg);
-        let empty = serde_json::Map::new();
-        let targets = pkg
-          .get("targets")
-          .and_then(Value::as_object)
-          .unwrap_or(&empty);
-
-        let iter = if targets.is_empty() {
-          either::Either::Left(std::iter::once(None))
-        } else {
-          either::Either::Right(targets.values().map(Value::as_object))
-        };
-
-        // Build all targets.
-        // TODO: support --target CLI option.
-        for target in iter {
-          let context =
-            if let Some(Value::String(context)) = target.and_then(|target| target.get("context")) {
-              Environment::try_from(context.as_str())?
-            } else if engines.and_then(|e| e.get("electron")).is_some() {
-              if is_non_js {
-                Environment::ElectronRenderer
-              } else {
-                Environment::ElectronMain
-              }
-            } else if !is_non_js && engines.and_then(|e| e.get("node")).is_some() {
-              Environment::Node
-            } else {
-              Environment::Browser
-            };
-
-          let output_format = if let Some(Value::String(format)) =
-            target.and_then(|target| target.get("outputFormat"))
-          {
-            OutputFormat::try_from(format.as_str())?
-          } else if !matches!(path.extension(), Some("mjs" | "cjs")) {
-            match context {
-              Environment::ReactClient => OutputFormat::Esmodule,
-              // Node loads `.js` files in `"type": "module"` packages as ES modules, and others as
-              // CommonJS.
-              Environment::Node | Environment::ElectronMain | Environment::ReactServer => {
-                if pkg.get("type").and_then(Value::as_str) == Some("module") {
-                  OutputFormat::Esmodule
-                } else {
-                  OutputFormat::Commonjs
-                }
-              }
-              _ => output_format,
-            }
-          } else {
-            output_format
-          };
-
-          let engines = package_engines(&pkg, engines, context, output_format);
-          let include_node_modules = target
-            .and_then(|t| t.get("includeNodeModules"))
-            .and_then(|t| serde_json::from_value(t.clone()).ok())
-            .unwrap_or_default();
-
-          let env = entries.target(Target {
-            environment: context,
-            engines,
-            flags,
-            output_format,
-            include_node_modules,
-            // TODO: support target.distDir?
-            dist_dir: options
-              .dist_dir
-              .unwrap_or_else(|| project_root.child("dist")),
-            source_map: options.source_map.clone(), // TODO
-            public_url: options.public_url.clone(),
-            ..Default::default() // TODO
-          });
-
-          entries.add_entry(Entry {
-            url: SourceUrl::from_path(&path),
-            target: env,
-            dist_entry: None,
-            loc: None,
-            asset: None,
-          });
-        }
-      } else {
-        let env = entries.target(Target {
-          environment: Environment::Browser,
-          engines: Default::default(),
-          flags,
-          output_format,
-          include_node_modules: Default::default(),
-          dist_dir: options
-            .dist_dir
-            .unwrap_or_else(|| project_root.child("dist")),
-          source_map: options.source_map.clone(),
-          public_url: options.public_url.clone(),
-          ..Default::default()
-        });
-
-        entries.add_entry(Entry {
-          url: SourceUrl::from_path(&path),
-          target: env,
-          dist_entry: None,
-          loc: None,
-          asset: None,
-        });
-      };
+      let pkg = find_package(path, &*options.input_fs);
+      let dist_dir = options
+        .dist_dir
+        .unwrap_or_else(|| project_root.child("dist"));
+      entries.resolve_file_entry(
+        path,
+        pkg.as_ref().map(|(dir, pkg)| (*dir, pkg)),
+        dist_dir,
+        options,
+      )?;
     }
   }
 
@@ -212,6 +96,157 @@ impl EntryResolver {
     let arc = Arc::new(env);
     self.targets.insert(arc.clone());
     arc
+  }
+
+  /// Adds an app entry for a file, building it for each target in its package.json, with
+  /// `dist_dir` as the default output directory. `pkg` is the package's directory and contents.
+  fn resolve_file_entry(
+    &mut self,
+    path: PathId,
+    pkg: Option<(PathId, &Value)>,
+    dist_dir: PathId,
+    options: &BuildOptions,
+  ) -> Result<(), Diagnostic> {
+    let mut flags = EnvironmentFlags::empty();
+    flags.set(EnvironmentFlags::SHOULD_OPTIMIZE, self.should_optimize);
+
+    let mut output_format = OutputFormat::default();
+    if let Some(ext) = path.extension() {
+      flags.set(
+        EnvironmentFlags::MODULE_TYPE_EXTENSION,
+        ext == "mjs" || ext == "cjs",
+      );
+      if ext == "mjs" {
+        output_format = OutputFormat::Esmodule;
+      } else if ext == "cjs" {
+        output_format = OutputFormat::Commonjs;
+      }
+    }
+
+    let Some((pkg_dir, pkg)) = pkg else {
+      let env = self.target(Target {
+        environment: Environment::Browser,
+        engines: Default::default(),
+        flags,
+        output_format,
+        include_node_modules: Default::default(),
+        dist_dir,
+        source_map: options.source_map.clone(),
+        public_url: options.public_url.clone(),
+        ..Default::default()
+      });
+
+      self.add_entry(Entry {
+        url: SourceUrl::from_path(&path),
+        target: env,
+        dist_entry: None,
+        loc: None,
+        asset: None,
+      });
+      return Ok(());
+    };
+
+    let is_non_js = path
+      .extension()
+      .map(|ext| AssetType::from_extension(ext))
+      .is_some_and(|ty| !ty.is_js() || ty == AssetType::Svg);
+
+    // Targets set to `false` are skipped.
+    let targets: Vec<_> = pkg
+      .get("targets")
+      .and_then(Value::as_object)
+      .into_iter()
+      .flatten()
+      .filter_map(|(name, target)| Some((name.as_str(), target.as_object()?)))
+      .collect();
+    let target_count = targets.len();
+    let iter = if targets.is_empty() {
+      either::Either::Left(std::iter::once(None))
+    } else {
+      either::Either::Right(targets.into_iter().map(Some))
+    };
+
+    // Build all targets.
+    for named_target in iter {
+      let target = named_target.map(|(_, target)| target);
+      let engines = target
+        .and_then(|target| target.get("engines"))
+        .or_else(|| pkg.get("engines"));
+      let context =
+        if let Some(Value::String(context)) = target.and_then(|target| target.get("context")) {
+          Environment::try_from(context.as_str())?
+        } else if engines.and_then(|e| e.get("electron")).is_some() {
+          if is_non_js {
+            Environment::ElectronRenderer
+          } else {
+            Environment::ElectronMain
+          }
+        } else if !is_non_js && engines.and_then(|e| e.get("node")).is_some() {
+          Environment::Node
+        } else {
+          Environment::Browser
+        };
+
+      let output_format =
+        if let Some(Value::String(format)) = target.and_then(|target| target.get("outputFormat")) {
+          OutputFormat::try_from(format.as_str())?
+        } else if !matches!(path.extension(), Some("mjs" | "cjs")) {
+          match context {
+            Environment::ReactClient => OutputFormat::Esmodule,
+            // Node loads `.js` files in `"type": "module"` packages as ES modules, and others as
+            // CommonJS.
+            Environment::Node | Environment::ElectronMain | Environment::ReactServer => {
+              if pkg.get("type").and_then(Value::as_str) == Some("module") {
+                OutputFormat::Esmodule
+              } else {
+                OutputFormat::Commonjs
+              }
+            }
+            _ => output_format,
+          }
+        } else {
+          output_format
+        };
+
+      let engines = package_engines(pkg, engines, context, output_format);
+      let include_node_modules = target
+        .and_then(|t| t.get("includeNodeModules"))
+        .and_then(|t| serde_json::from_value(t.clone()).ok())
+        .unwrap_or_default();
+
+      // As in Parcel 2, a target's `distDir` is relative to the package and takes precedence over
+      // `--dist-dir`. Otherwise, each of multiple targets builds into a subdirectory named after it.
+      let dist_dir = match named_target {
+        Some((name, target)) => match target.get("distDir") {
+          Some(Value::String(dir)) => pkg_dir.join(Path::new(dir)),
+          _ if target_count > 1 => dist_dir.child(name),
+          _ => dist_dir,
+        },
+        None => dist_dir,
+      };
+
+      let env = self.target(Target {
+        environment: context,
+        engines,
+        flags,
+        output_format,
+        include_node_modules,
+        dist_dir,
+        source_map: options.source_map.clone(), // TODO
+        public_url: options.public_url.clone(),
+        ..Default::default() // TODO
+      });
+
+      self.add_entry(Entry {
+        url: SourceUrl::from_path(&path),
+        target: env,
+        dist_entry: None,
+        loc: None,
+        asset: None,
+      });
+    }
+
+    Ok(())
   }
 
   fn resolve_package_entries(
@@ -682,7 +717,8 @@ fn common_root_path<'a>(paths: impl IntoIterator<Item = &'a PathId>) -> Option<P
   Some(PathId::new(&root))
 }
 
-fn find_package(path: PathId, fs: &dyn FileSystem) -> Option<serde_json::Value> {
+/// Finds the package.json that contains `path`, returning its directory and contents.
+fn find_package(path: PathId, fs: &dyn FileSystem) -> Option<(PathId, serde_json::Value)> {
   let pkg = fs.find_ancestor(
     path,
     SubPath::package_json(),
@@ -690,7 +726,7 @@ fn find_package(path: PathId, fs: &dyn FileSystem) -> Option<serde_json::Value> 
     PathId::root(),
   )?;
   let contents = fs.read(pkg).ok()?;
-  serde_json::from_slice(&contents).ok()
+  Some((pkg.parent()?, serde_json::from_slice(&contents).ok()?))
 }
 
 #[cfg(test)]
@@ -1470,6 +1506,119 @@ mod tests {
         .target
         .flags
         .contains(EnvironmentFlags::IS_LIBRARY)
+    );
+  }
+
+  /// Resolves `/root/{entry}` with the given package.json, returning each entry's target.
+  fn file_entry_targets(pkg: &str, entry: &str, dist_dir: Option<&str>) -> Vec<Arc<Target>> {
+    let fs = MemoryFileSystem::new();
+    fs.mkdir(Path::new("/root")).unwrap();
+    fs.write(
+      PathId::new(Path::new("/root/package.json")),
+      &pkg.as_bytes().to_vec(),
+    )
+    .unwrap();
+    fs.write(PathId::new(&Path::new("/root").join(entry)), &Vec::new())
+      .unwrap();
+    let fs = Arc::new(fs);
+    let (entries, _) = resolve_entries(
+      &vec![format!("/root/{entry}")],
+      &crate::BuildOptions {
+        input_fs: fs.clone(),
+        output_fs: fs,
+        env: HashMap::new(),
+        log_level: crate::LogLevel::Error,
+        mode: crate::BuildMode::Production,
+        optimize: None,
+        content_hash: None,
+        config: None,
+        cwd: PathId::new(Path::new("/root")),
+        source_map: None,
+        dist_dir: dist_dir.map(|dir| PathId::new(Path::new(dir))),
+        public_url: Default::default(),
+        hmr: None,
+        reporters: Vec::new(),
+      },
+    )
+    .unwrap();
+    entries.into_iter().map(|entry| entry.target).collect()
+  }
+
+  #[test]
+  fn test_file_entry_target_dist_dir() {
+    let dist_dirs = |pkg: &str, dist_dir: Option<&str>| -> Vec<PathId> {
+      file_entry_targets(pkg, "index.html", dist_dir)
+        .iter()
+        .map(|target| target.dist_dir)
+        .collect()
+    };
+    let dir = |dir: &str| PathId::new(Path::new(dir));
+
+    assert_eq!(dist_dirs(r#"{}"#, None), vec![dir("/root/dist")]);
+    assert_eq!(dist_dirs(r#"{}"#, Some("/out")), vec![dir("/out")]);
+    assert_eq!(
+      dist_dirs(r#"{"targets":{"default":{}}}"#, Some("/out")),
+      vec![dir("/out")]
+    );
+
+    // Multiple targets build into a subdirectory each, unless they declare a `distDir`, which is
+    // relative to the package and takes precedence over `--dist-dir`.
+    let pkg = r#"{"targets":{"modern":{},"legacy":{"distDir":"./build/legacy"}}}"#;
+    assert_eq!(
+      dist_dirs(pkg, None),
+      vec![dir("/root/dist/modern"), dir("/root/build/legacy")]
+    );
+    assert_eq!(
+      dist_dirs(pkg, Some("/out")),
+      vec![dir("/out/modern"), dir("/root/build/legacy")]
+    );
+
+    // Targets set to `false` are skipped.
+    assert_eq!(
+      dist_dirs(r#"{"targets":{"types":false,"app":{}}}"#, None),
+      vec![dir("/root/dist")]
+    );
+    assert_eq!(
+      dist_dirs(r#"{"targets":{"types":false}}"#, None),
+      vec![dir("/root/dist")]
+    );
+  }
+
+  #[test]
+  fn test_file_entry_target_engines() {
+    let targets = file_entry_targets(
+      r#"{
+        "browserslist": "Chrome 100",
+        "targets": {
+          "modern": {},
+          "legacy": {"engines": {"browsers": "Chrome 60"}}
+        }
+      }"#,
+      "index.html",
+      None,
+    );
+    let chrome = |target: &Target| target.engines.browsers.chrome.clone();
+    assert_eq!(targets.len(), 2);
+    assert_eq!(
+      chrome(&targets[0]),
+      Some(Version::new(NonZero::new(100).unwrap(), 0))
+    );
+    assert_eq!(
+      chrome(&targets[1]),
+      Some(Version::new(NonZero::new(60).unwrap(), 0))
+    );
+
+    // A target's engines also determine its context.
+    let targets = file_entry_targets(
+      r#"{"targets": {"server": {"engines": {"node": ">= 20"}}}}"#,
+      "index.js",
+      None,
+    );
+    assert_eq!(targets.len(), 1);
+    assert_eq!(targets[0].environment, Environment::Node);
+    assert_eq!(
+      targets[0].engines.node,
+      Some(Version::new(NonZero::new(20).unwrap(), 0))
     );
   }
 }

@@ -1,0 +1,11 @@
+{
+  "targets": {
+    "modern": {
+      "engines": {"browsers": "Chrome 100"}
+    },
+    "legacy": {
+      "engines": {"browsers": "Chrome 40"},
+      "distDir": "build/legacy"
+    }
+  }
+}

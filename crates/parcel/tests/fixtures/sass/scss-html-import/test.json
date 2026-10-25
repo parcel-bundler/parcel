@@ -3,9 +3,13 @@
   "options": {"config": "../.parcelrc"},
   "input": ["target1.html", "target2.html"],
   "bundles": [
-    {"name": "target1.html", "type": "html", "assets": ["target1.html"]},
-    {"type": "css", "assets": ["style.scss"]},
-    {"name": "target2.html", "type": "html", "assets": ["target2.html"]},
-    {"type": "ttf", "assets": ["fa-regular-400.ttf"]}
+    {"name": "target1.html", "distDir": "target1", "type": "html", "assets": ["target1.html"]},
+    {"name": "target2.html", "distDir": "target1", "type": "html", "assets": ["target2.html"]},
+    {"distDir": "target1", "type": "css", "assets": ["style.scss"]},
+    {"distDir": "target1", "type": "ttf", "assets": ["fa-regular-400.ttf"]},
+    {"name": "target1.html", "distDir": "target2", "type": "html", "assets": ["target1.html"]},
+    {"name": "target2.html", "distDir": "target2", "type": "html", "assets": ["target2.html"]},
+    {"distDir": "target2", "type": "css", "assets": ["style.scss"]},
+    {"distDir": "target2", "type": "ttf", "assets": ["fa-regular-400.ttf"]}
   ]
 }

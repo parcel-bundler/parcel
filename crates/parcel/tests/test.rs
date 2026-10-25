@@ -265,6 +265,10 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
           && (b.name.is_none()
             || Path::new(b.name.as_ref().unwrap())
               == bundle.dist_path().relative(&bundle.target.dist_dir))
+          && b
+            .dist_dir
+            .as_ref()
+            .is_none_or(|dir| fixture_dir.join(dir) == bundle.target.dist_dir.to_path_buf())
       });
       assert!(
         found.is_some(),
@@ -791,6 +795,8 @@ fn assert_code_highlight_matches(actual: &CodeHighlight, expected: &CodeHighligh
 #[serde(rename_all = "camelCase")]
 struct TestBundle {
   name: Option<String>,
+  /// The target's dist directory, relative to the fixture directory.
+  dist_dir: Option<String>,
   #[serde(alias = "context")]
   environment: Option<Environment>,
   #[serde(default)]
