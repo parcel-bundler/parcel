@@ -1,4 +1,5 @@
 import type {
+  DiagnosticOptions,
   Transformer as TransformerOpts,
   Resolver as ResolverOpts,
   Namer as NamerOpts,
@@ -44,3 +45,25 @@ export class Reporter<T> {
     this[CONFIG] = opts;
   }
 }
+
+/**
+ * An error carrying one or more diagnostics. Throw it from a plugin to fail with them, or pass
+ * it to a `console` method to log them at that level.
+ */
+export class Diagnostic extends Error {
+  readonly diagnostics: Array<DiagnosticOptions>;
+
+  constructor(diagnostic: DiagnosticOptions | Array<DiagnosticOptions>) {
+    let diagnostics = Array.isArray(diagnostic) ? diagnostic : [diagnostic];
+    super(diagnostics[0]?.message ?? '');
+    this.name = 'Diagnostic';
+    this.diagnostics = diagnostics;
+  }
+}
+
+// Parcel reads the diagnostics from this symbol, which every copy of this package agrees on.
+Object.defineProperty(Diagnostic.prototype, Symbol.for('parcel-diagnostics'), {
+  get(this: Diagnostic) {
+    return this.diagnostics;
+  },
+});

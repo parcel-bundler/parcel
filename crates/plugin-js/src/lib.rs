@@ -25,6 +25,7 @@ mod bytecode;
 mod cjs;
 mod console;
 mod crypto;
+mod diagnostic;
 mod encoding;
 mod esm;
 mod fs;
@@ -153,19 +154,18 @@ impl JsEnv {
     self.context.with(|ctx| {
       f(&ctx)
         .map_err(|e| {
-          let diagnostic = if matches!(e, rquickjs::Error::Exception) {
-            error_to_diagnostic(ctx.catch())
+          let mut diagnostics = if matches!(e, rquickjs::Error::Exception) {
+            error_to_diagnostics(ctx.catch())
           } else {
-            Diagnostic {
+            vec![Diagnostic {
               origin: None,
               message: e.to_string(),
               code_frames: Vec::new(),
               documentation_url: None,
               hints: Vec::new(),
               severity: parcel_core::DiagnosticSeverity::Error,
-            }
+            }]
           };
-          let mut diagnostics = vec![diagnostic];
           diagnostics.extend(collect_rejected_promises(&ctx, self));
           DiagnosticList(diagnostics)
         })
@@ -277,6 +277,13 @@ pub fn create_runtime(
   Ok(env)
 }
 
+/// Converts a thrown value: the diagnostics of a `Diagnostic` from `@parcel/plugin`, or one for
+/// any other error.
+fn error_to_diagnostics<'js>(e: Value<'js>) -> Vec<Diagnostic> {
+  diagnostic::diagnostics_from_js(&e.ctx().clone(), &e)
+    .unwrap_or_else(|| vec![error_to_diagnostic(e)])
+}
+
 fn error_to_diagnostic<'js>(e: Value<'js>) -> Diagnostic {
   let object = e.as_object();
   let mut stack = None;
@@ -361,10 +368,10 @@ fn collect_rejected_promises(ctx: &Ctx, env: &JsEnv) -> Vec<Diagnostic> {
   if !rejected_promises.is_empty() {
     rejected_promises
       .drain()
-      .map(|(promise, reason)| {
+      .flat_map(|(promise, reason)| {
         drop(promise.restore(&ctx));
         let reason = reason.restore(&ctx).unwrap();
-        error_to_diagnostic(reason)
+        error_to_diagnostics(reason)
       })
       .collect()
   } else {

@@ -2,9 +2,11 @@
 // JavaScript plugins by the QuickJS bindings in crates/plugin-js.
 //
 // Plugins log by calling `console` methods. Throwing (or rejecting) fails the
-// plugin call: the error's message becomes a diagnostic, with a code frame
-// pointing at `filename`/`fileName`, `line` and `column` if the error has them,
-// or otherwise at the top frame of its stack.
+// plugin call. A thrown `Diagnostic` (exported by `@parcel/plugin`) is reported
+// as the diagnostics it was created with. For any other error, the message
+// becomes a diagnostic, with a code frame pointing at `filename`/`fileName`,
+// `line` and `column` if the error has them, or otherwise at the top frame of
+// its stack. Diagnostics are attributed to the plugin unless they set `origin`.
 
 export type FilePath = string;
 export type Glob = string;
@@ -65,10 +67,10 @@ export type DiagnosticSeverity = 'error' | 'warning' | 'sourceError' | 'info';
 export type DiagnosticCodeHighlight = {
   /** Location of the first character that should get highlighted for this highlight. */
   start: Location;
-  /** Location of the last character that should get highlighted for this highlight. */
-  end: Location;
+  /** Location of the last character that should get highlighted for this highlight. Defaults to `start`. */
+  end?: Location;
   /** A message that should be displayed at this location in the code. */
-  message: string | null;
+  message?: string | null;
 };
 
 /**
@@ -77,31 +79,39 @@ export type DiagnosticCodeHighlight = {
  * code highlights that point to certain chunk(s) inside the code.
  */
 export type DiagnosticCodeFrame = {
-  /** The contents of the source file, if different from the file at `url`. */
-  code: string | null;
+  /** The contents of the source file, if different from the file. If omitted, the file is read. */
+  code?: string | null;
+  /**
+   * Absolute path of the file this code frame is about. Diagnostics passed to reporters
+   * use `url` instead.
+   */
+  filePath?: string | null;
   /** URL of the file this code frame is about. Files on disk use `file:` URLs. */
-  url: string | null;
-  /** Language (file extension) of the code. */
-  language: string | null;
+  url?: string | null;
+  /** Language (file extension) of the code, used for syntax highlighting. */
+  language?: string | null;
   codeHighlights: Array<DiagnosticCodeHighlight>;
 };
 
 /**
  * A style agnostic way of emitting errors, warnings and info.
  * Reporters are responsible for rendering the message, codeframes, hints, ...
+ *
+ * Diagnostics passed to reporters have every field.
  */
-export type Diagnostic = {
+export type DiagnosticOptions = {
   /** This is the message you want to log. */
   message: string;
-  /** Name of plugin or file that threw this error */
-  origin: string | null;
+  /** Name of plugin or file that threw this error. Defaults to the plugin's name in .parcelrc. */
+  origin?: string | null;
   /** Code frames point to certain location(s) in the file(s) this diagnostic is linked to. */
-  codeFrames: Array<DiagnosticCodeFrame>;
+  codeFrames?: Array<DiagnosticCodeFrame>;
   /** A list of strings that suggest ways to resolve this issue */
-  hints: Array<string>;
-  severity: DiagnosticSeverity;
+  hints?: Array<string>;
+  /** @default 'error' */
+  severity?: DiagnosticSeverity;
   /** A URL to documentation to learn more about the diagnostic. */
-  documentationURL: string | null;
+  documentationURL?: string | null;
 };
 
 export type LogLevel = 'none' | 'error' | 'warn' | 'info' | 'verbose';
@@ -830,7 +840,7 @@ export type BuildSuccessEvent<ConfigType> = ReporterContext<ConfigType> & {
  * @section reporter
  */
 export type BuildFailureEvent<ConfigType> = ReporterContext<ConfigType> & {
-  readonly diagnostics: Array<Diagnostic>;
+  readonly diagnostics: Array<DiagnosticOptions>;
 };
 
 /**
@@ -846,7 +856,7 @@ export type LogEvent<ConfigType> = ReporterContext<ConfigType> & {
       }
     | {
         readonly message?: undefined;
-        readonly diagnostics: Array<Diagnostic>;
+        readonly diagnostics: Array<DiagnosticOptions>;
       }
   );
 

@@ -600,6 +600,88 @@ fn test_transform_errors_are_attributed_to_the_plugin() {
   assert_eq!(diagnostics.0[0].origin.as_deref(), Some("test-plugin"));
 }
 
+#[test]
+fn test_transform_throws_diagnostics() {
+  let diagnostics = run(
+    "plugin-throws-diagnostics.mjs",
+    r#"
+  import {Transformer, Diagnostic} from '@parcel/plugin';
+
+  export default new Transformer({
+    async transform({asset}) {
+      throw new Diagnostic([
+        {
+          message: 'first',
+          codeFrames: [
+            {
+              filePath: '/src/index.js',
+              code: 'let x = 1;',
+              language: 'ts',
+              codeHighlights: [
+                {start: {line: 1, column: 5}, end: {line: 1, column: 5}, message: 'here'},
+                {start: {line: 1, column: 9}},
+              ],
+            },
+            {url: 'file:///src/other.js', codeHighlights: []},
+            {filePath: 'relative.js', codeHighlights: []},
+          ],
+          hints: ['try this'],
+          documentationURL: 'https://parceljs.org',
+        },
+        {message: 'second', origin: 'custom-origin', severity: 'warning'},
+      ]);
+    }
+  });
+  "#,
+    test_asset(),
+  )
+  .unwrap_err();
+
+  let location = |line, column| parcel_core::Location { line, column };
+  assert_eq!(
+    diagnostics.0,
+    vec![
+      parcel_core::Diagnostic {
+        message: "first".into(),
+        origin: Some("test-plugin".into()),
+        code_frames: vec![
+          parcel_core::CodeFrame {
+            code: Some("let x = 1;".into()),
+            url: Some(SourceUrl::parse("file:///src/index.js").unwrap()),
+            language: Some(AssetType::Ts),
+            code_highlights: vec![
+              parcel_core::CodeHighlight {
+                message: Some("here".into()),
+                start: location(1, 5),
+                end: location(1, 5),
+              },
+              parcel_core::CodeHighlight {
+                message: None,
+                start: location(1, 9),
+                end: location(1, 9),
+              },
+            ],
+          },
+          parcel_core::CodeFrame {
+            url: Some(SourceUrl::parse("file:///src/other.js").unwrap()),
+            ..Default::default()
+          },
+          // Only absolute paths can be reported.
+          parcel_core::CodeFrame::default(),
+        ],
+        hints: vec!["try this".into()],
+        severity: parcel_core::DiagnosticSeverity::Error,
+        documentation_url: Some("https://parceljs.org".into()),
+      },
+      parcel_core::Diagnostic {
+        origin: Some("custom-origin".into()),
+        severity: parcel_core::DiagnosticSeverity::Warning,
+        ..parcel_core::Diagnostic::from_message("second".into())
+      },
+    ]
+  );
+}
+
 /// Resolves the way Parcel's default resolver does, from what the dependency carries, so tests
 /// can see that `resolve` passes the specifier type and conditions through the resolver chain.
 /// Custom specifiers, which only a plugin could resolve, go to `custom.js`.
