@@ -1,0 +1,10 @@
+{
+  "description": "inline module scripts stay modules when every target supports them",
+  "input": "index.html",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"type": "html", "assets": ["index.html"], "contains": ["<script type=module>"], "notContains": ["<script>"]},
+    {"type": "js", "assets": ["a.js", "b.js", "esmodule-helpers.js"]},
+    {"type": "js", "assets": ["index.html"]}
+  ]
+}

@@ -7,12 +7,16 @@
       "type": "html"
     },
     {
-      "assets": ["a.js", "value.js"]
+      "assets": ["a.js"],
+      "references": [["value.js"]]
     },
     {
-      "assets": ["index.html", "value.js"],
+      "assets": ["index.html"],
       "type": "js",
-      "references": []
+      "references": [["value.js"]]
+    },
+    {
+      "assets": ["value.js"]
     }
   ]
 }
