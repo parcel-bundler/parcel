@@ -1,0 +1,6 @@
+{
+  "description": "should ignore the browser field when resolving macros",
+  "input": "index.js",
+  "bundles": [{"assets": ["index.js"]}],
+  "output": "node"
+}

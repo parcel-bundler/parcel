@@ -104,6 +104,8 @@ impl Transformer for JsTransformer {
     let source_size = config.code.len();
     let mut resolver = parcel_resolver::Resolver::parcel(options.project_root);
     resolver.conditions |= ExportsCondition::NODE | ExportsCondition::SOURCE;
+    // Macros run in Node, so ignore the browser field.
+    resolver.entries.remove(parcel_resolver::Fields::BROWSER);
 
     let url = asset.loc.url.clone();
     let env = asset.target.clone();
