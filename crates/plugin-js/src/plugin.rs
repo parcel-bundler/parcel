@@ -97,7 +97,7 @@ impl Optimizer for JsPlugin {
     let contents = contents.read()?;
 
     with_call_scope(|scope| {
-      let graph = Rc::new(scope.wrap_graph(bundle_graph));
+      let graph = Rc::new(scope.wrap_graph(bundle_graph, options));
 
       with_plugin_env(options, |ctx| {
         let config = plugin_config(ctx, &self.path)?;
@@ -224,13 +224,20 @@ impl<'scope> CallScope<'scope> {
 }
 
 impl<'scope> CallScope<'scope> {
-  fn wrap_graph<'g>(&self, graph: &'scope BundleGraph<'g>) -> ScopedGraph {
-    ScopedGraph(ScopedRef {
-      // The graph's lifetime is erased here, and restored as a higher-ranked lifetime by
-      // ScopedGraph::with, so no reference into the graph can escape as 'static.
-      ptr: NonNull::from(graph).cast::<BundleGraph<'static>>(),
-      alive: self.alive.clone(),
-    })
+  fn wrap_graph<'g>(
+    &self,
+    graph: &'scope BundleGraph<'g>,
+    options: &'scope parcel_core::ParcelOptions,
+  ) -> ScopedGraph {
+    ScopedGraph {
+      graph: ScopedRef {
+        // The graph's lifetime is erased here, and restored as a higher-ranked lifetime by
+        // ScopedGraph::with, so no reference into the graph can escape as 'static.
+        ptr: NonNull::from(graph).cast::<BundleGraph<'static>>(),
+        alive: self.alive.clone(),
+      },
+      options: self.wrap(options),
+    }
   }
 }
 
@@ -257,7 +264,11 @@ impl ScopedContext {
 
 /// A bundle graph shared by the bundles, assets and dependencies exposed from one plugin call.
 /// Values from the same graph share one `Rc`, which identifies the graph they belong to.
-struct ScopedGraph(ScopedRef<BundleGraph<'static>>);
+struct ScopedGraph {
+  graph: ScopedRef<BundleGraph<'static>>,
+  /// The options of the build the graph belongs to.
+  options: ScopedRef<parcel_core::ParcelOptions>,
+}
 
 unsafe impl<'js> JsLifetime<'js> for ScopedGraph {
   type Changed<'to> = ScopedGraph;
@@ -265,7 +276,7 @@ unsafe impl<'js> JsLifetime<'js> for ScopedGraph {
 
 impl ScopedGraph {
   fn with<R>(&self, f: impl for<'a, 'g> FnOnce(&'a BundleGraph<'g>) -> R) -> rquickjs::Result<R> {
-    self.0.with(|graph| f(graph))
+    self.graph.with(|graph| f(graph))
   }
 }
 
@@ -516,7 +527,7 @@ impl Namer for JsPlugin {
       .position(|candidate| std::ptr::eq(candidate, bundle))
       .expect("Bundle passed to namer must belong to the bundle graph");
     let name = with_call_scope(|scope| {
-      let graph = Rc::new(scope.wrap_graph(bundle_graph));
+      let graph = Rc::new(scope.wrap_graph(bundle_graph, options));
 
       with_plugin_env(options, |ctx| {
         let config = plugin_config(&ctx, &self.path)?;
@@ -632,7 +643,7 @@ impl Reporter for JsPlugin {
       // Only a successful build carries a graph to expose.
       let graph = match event {
         ReporterEvent::BuildSuccess(success) => {
-          Some(Rc::new(scope.wrap_graph(&success.bundle_graph)))
+          Some(Rc::new(scope.wrap_graph(&success.bundle_graph, options)))
         }
         _ => None,
       };
@@ -912,18 +923,16 @@ impl JsBundle {
     })
   }
 
-  /// The bundle's final output path, once it is known.
+  /// The path the bundle is written to, once it is known.
   #[qjs(get)]
   fn file_path<'js>(&self, ctx: Ctx<'js>) -> rquickjs::Result<rquickjs::Value<'js>> {
-    let path = self.with_bundle(|bundle| {
-      bundle.has_final_path().then(|| {
+    let path = self.graph.options.with(|options| {
+      self.with_bundle(|bundle| {
         bundle
-          .dist_path()
-          .to_path_buf()
-          .to_string_lossy()
-          .into_owned()
+          .output_path(options)
+          .map(|path| path.to_path_buf().to_string_lossy().into_owned())
       })
-    })?;
+    })??;
     or_null(&ctx, path)
   }
 

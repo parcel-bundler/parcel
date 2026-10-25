@@ -191,6 +191,32 @@ fn test_reporter_build_success() {
   .expect("buildSuccess");
 }
 
+#[test]
+fn test_reporter_file_path_of_bundles_that_are_not_content_hashed() {
+  let mut graph = bundle_graph();
+  // Written to the namer's path, so it never gets a final path of its own.
+  graph.bundles[0].dist_path = Some(PathId::new(Path::new("/dist/index.js")));
+  report(
+    "reporter-file-path.mjs",
+    r#"
+      import {Reporter} from '@parcel/plugin';
+      import assert from 'assert';
+
+      export default new Reporter({
+        buildSuccess({bundleGraph}) {
+          assert.equal(bundleGraph.getBundles()[0].filePath, '/dist/index.js');
+        }
+      });
+    "#,
+    &ReporterEvent::BuildSuccess(BuildSuccess {
+      bundle_graph: &graph,
+      changed_assets: &[],
+      build_time: Duration::ZERO,
+    }),
+  )
+  .expect("buildSuccess");
+}
+
 /// An entry bundle that lazily loads a second bundle, through a dependency the bundler resolved
 /// to that bundle. Only the entry has its final path.
 fn lazy_bundle_graph() -> BundleGraph<'static> {

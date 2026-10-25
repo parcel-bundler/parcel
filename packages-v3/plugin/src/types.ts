@@ -601,7 +601,10 @@ export interface Bundle {
    */
   readonly hashReference: string;
 
-  /** The absolute path the bundle is written to, once it is known. */
+  /**
+   * The absolute path the bundle is written to, once it is known. `null` for inline bundles,
+   * before the bundle is named, and while a content hashed name is unknown.
+   */
   readonly filePath: FilePath | null;
 
   /**
@@ -818,6 +821,7 @@ export type BuildSuccessEvent<ConfigType> = ReporterContext<ConfigType> & {
   readonly bundleGraph: BundleGraph;
   /** The duration of the build, in milliseconds. */
   readonly buildTime: number;
+  /** The assets transformed by this build. On a full build, that is every asset. */
   readonly changedAssets: Array<Asset>;
 };
 

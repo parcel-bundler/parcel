@@ -41,8 +41,7 @@ pub enum ReporterEvent<'a> {
 
 pub struct BuildSuccess<'a> {
   pub bundle_graph: &'a BundleGraph<'a>,
-  /// Assets re-transformed by this build. Empty on a full build, which
-  /// transformed all of them.
+  /// Assets transformed by this build. On a full build, that is every asset.
   pub changed_assets: &'a [AssetIndex],
   pub build_time: Duration,
 }

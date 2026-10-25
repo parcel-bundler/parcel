@@ -7,7 +7,8 @@ use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-  AssetIndex, AssetType, EnvironmentFlags, PathId, SourceUrl, Target, impl_bitflags_serde,
+  AssetIndex, AssetType, EnvironmentFlags, ParcelOptions, PathId, SourceUrl, Target,
+  impl_bitflags_serde, packaging::is_content_hashed,
 };
 
 #[derive(Debug, Clone)]
@@ -194,6 +195,22 @@ impl Bundle {
     self.name_state.final_path.get().is_some()
   }
 
+  /// The path the bundle is written to, once it is known: its final path, or the namer's path
+  /// for a bundle that isn't content hashed. `None` before the bundle is named, and for inline
+  /// bundles, which aren't written.
+  pub fn output_path(&self, options: &ParcelOptions) -> Option<PathId> {
+    if let Some(path) = self.name_state.final_path.get() {
+      return Some(*path);
+    }
+    if self.bundle_behavior == BundleBehavior::Inline
+      || self.dist_path.is_none()
+      || is_content_hashed(self, options)
+    {
+      return None;
+    }
+    self.dist_path
+  }
+
   fn current_path(&self) -> Option<PathId> {
     self.name_state.final_path.get().copied().or(self.dist_path)
   }
@@ -321,5 +338,34 @@ mod tests {
     assert_eq!(clone.name(), "a-final.js");
     assert!(clone.may_access(&b));
     assert!(!a.may_access(&b));
+  }
+
+  #[test]
+  fn output_paths_are_known_once_names_are_final() {
+    let options = ParcelOptions {
+      content_hash: true,
+      ..Default::default()
+    };
+    let a = bundle(1, "a.js");
+    assert_eq!(
+      a.output_path(&options),
+      Some(a.target.dist_dir.child("a.js"))
+    );
+
+    let b = bundle(2, "b-0000000000000002.js");
+    assert_eq!(b.output_path(&options), None);
+    assert_eq!(
+      b.output_path(&ParcelOptions::default()),
+      Some(b.target.dist_dir.child("b-0000000000000002.js"))
+    );
+    b.set_final_path(b.target.dist_dir.child("b-abcdefgh.js"));
+    assert_eq!(
+      b.output_path(&options),
+      Some(b.target.dist_dir.child("b-abcdefgh.js"))
+    );
+
+    let mut inline = bundle(3, "c.js");
+    inline.bundle_behavior = BundleBehavior::Inline;
+    assert_eq!(inline.output_path(&options), None);
   }
 }
