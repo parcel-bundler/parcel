@@ -4,8 +4,8 @@ use lightningcss::{
   css_modules::CssModuleReference,
   printer::PrinterOptions,
   rules::CssRule,
-  stylesheet::{MinifyOptions, ParserOptions, StyleAttribute, StyleSheet},
-  targets::{Browsers, Targets},
+  stylesheet::{MinifyOptions, ParserFlags, ParserOptions, StyleAttribute, StyleSheet},
+  targets::{Browsers, Features, Targets},
   traits::{IntoOwned, ToCss},
   visitor::Visit,
 };
@@ -18,6 +18,15 @@ use crate::{CssContent, StyleAttrContent, convert_error, convert_version};
 struct Config {
   css_modules: Option<CssModulesOption>,
   pseudo_classes: Option<PseudoClasses>,
+  drafts: Option<Drafts>,
+}
+
+/// Draft CSS syntax to enable, matching v2's `drafts` option.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Drafts {
+  #[serde(default)]
+  custom_media: bool,
 }
 
 #[derive(serde::Deserialize)]
@@ -53,6 +62,7 @@ pub struct PseudoClasses {
 pub struct CssTransformer {
   pub css_modules: Option<lightningcss::css_modules::Config>,
   pub pseudo_classes: Option<Arc<PseudoClasses>>,
+  pub parser_flags: ParserFlags,
 }
 
 impl<'de> serde::Deserialize<'de> for CssTransformer {
@@ -87,6 +97,11 @@ impl<'de> serde::Deserialize<'de> for CssTransformer {
         None
       },
       pseudo_classes: config.pseudo_classes.map(Arc::new),
+      parser_flags: if config.drafts.is_some_and(|d| d.custom_media) {
+        ParserFlags::CUSTOM_MEDIA
+      } else {
+        ParserFlags::empty()
+      },
     })
   }
 }
@@ -114,6 +129,7 @@ impl Transformer for CssTransformer {
       ParserOptions {
         filename: asset.loc.url.stable_id(&options.project_root),
         css_modules: self.css_modules.clone(),
+        flags: self.parser_flags.clone(),
         ..Default::default()
       },
     )
@@ -142,6 +158,13 @@ impl Transformer for CssTransformer {
             })
           } else {
             None
+          },
+          // No browser supports custom media yet, so always resolve them, even without browser
+          // targets. Like v2, only rules defined in the same file are resolved.
+          include: if self.parser_flags.contains(ParserFlags::CUSTOM_MEDIA) {
+            Features::CustomMediaQueries
+          } else {
+            Features::empty()
           },
           ..Default::default()
         },

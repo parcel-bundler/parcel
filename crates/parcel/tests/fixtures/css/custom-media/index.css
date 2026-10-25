@@ -1,0 +1,9 @@
+@import "./other.css";
+
+@custom-media --small (max-width: 30em);
+
+@media (--small) {
+  .a {
+    color: red;
+  }
+}

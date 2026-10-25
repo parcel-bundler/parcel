@@ -1,0 +1,7 @@
+@media (--large) {
+  .b {
+    color: green;
+  }
+}
+
+@custom-media --large (min-width: 60em);

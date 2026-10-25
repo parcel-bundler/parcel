@@ -1,0 +1,12 @@
+@media (width >= 60em) {
+  .b {
+    color: green;
+  }
+}
+
+@media (width <= 30em) {
+  .a {
+    color: red;
+  }
+}
+/*# sourceMappingURL=index.css.map */

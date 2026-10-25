@@ -1,0 +1,7 @@
+{
+  "description": "should compile @custom-media with the drafts.customMedia option",
+  "input": "index.css",
+  "bundles": [
+    {"type": "css", "assets": ["other.css", "index.css"]}
+  ]
+}
