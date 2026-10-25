@@ -1442,8 +1442,6 @@ __metadata:
 "@parcel/parcel3@workspace:packages-v3/parcel3":
   version: 0.0.0-use.local
   resolution: "@parcel/parcel3@workspace:packages-v3/parcel3"
-  dependencies:
-    react-refresh: "npm:^0.6.0"
   languageName: unknown
   linkType: soft
 
@@ -6095,13 +6093,6 @@ __metadata:
   peerDependencies:
     react: ^19.3.1
   checksum: 10c0/382700916313b2ebc46acee80642f300bb8601eac6a9e7fefade5b8b30e66b05bf3aaa56a3c964589fcd578d27b486e847470c2697d879264e766661ff49fac7
-  languageName: node
-  linkType: hard
-
-"react-refresh@npm:^0.6.0":
-  version: 0.6.0
-  resolution: "react-refresh@npm:0.6.0"
-  checksum: 10c0/6f44e0517e763cbc9283a254f211a1c8e5c40b5894e4fe1a04ab9757a587962585c58c13ee470f0df95ffe3d767f4b8415398c1dee86782e9f8e5a0094c7468a
   languageName: node
   linkType: hard
 

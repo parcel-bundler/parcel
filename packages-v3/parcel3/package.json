@@ -6,11 +6,5 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
-  },
-  "files": [
-    "src"
-  ],
-  "dependencies": {
-    "react-refresh": "^0.6.0"
   }
 }
