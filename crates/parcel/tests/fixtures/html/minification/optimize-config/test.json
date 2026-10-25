@@ -1,9 +1,9 @@
 {
-  "description": "should read .htmlnanorc.json and minify HTML in production mode",
+  "description": "should read HTML minifier options from .parcelrc",
   "input": "index.html",
   "options": {"mode": "production"},
   "bundles": [
-    {"type": "html", "assets": ["index.html"], "contains": ["{\"user\":\"me\"}"]},
+    {"type": "html", "assets": ["index.html"], "contains": ["{\"user\":\"me\"}", "<!-- comment -->", "version=1.1 baseProfile=full width=300 height=200 xmlns=http://www.w3.org/2000/svg>"]},
     {"type": "css", "assets": ["index.html"]},
     {"type": "css", "assets": ["index.html"]},
     {"type": "css", "assets": ["index.html"]},

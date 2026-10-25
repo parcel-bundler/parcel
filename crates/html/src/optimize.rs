@@ -9,7 +9,7 @@ use crate::{
   oxvg::{OxvgConfig, OxvgKind},
 };
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct OptimizeOptions {
   #[serde(default = "default_true", deserialize_with = "ok_or_default")]
@@ -24,7 +24,7 @@ pub struct OptimizeOptions {
   remove_empty_attributes: bool,
   #[serde(default = "default_true", deserialize_with = "ok_or_default")]
   minify_json: bool,
-  #[serde(default)]
+  #[serde(default, deserialize_with = "crate::oxvg::bool_or_config")]
   minify_svg: OxvgConfig,
   #[serde(default = "default_true", deserialize_with = "ok_or_default")]
   remove_redundant_attributes: bool,

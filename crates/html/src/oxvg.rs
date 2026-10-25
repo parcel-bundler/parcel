@@ -640,6 +640,27 @@ impl<C> ConfigItem<C> {
   }
 }
 
+/// Deserializes either a config, or a boolean that enables or disables the default jobs.
+pub fn bool_or_config<'de, D>(deserializer: D) -> Result<OxvgConfig, D::Error>
+where
+  D: serde::Deserializer<'de>,
+{
+  #[derive(Deserialize)]
+  #[serde(untagged)]
+  enum BoolOrConfig {
+    Bool(bool),
+    Config(OxvgConfig),
+  }
+
+  Ok(match BoolOrConfig::deserialize(deserializer)? {
+    BoolOrConfig::Bool(enabled) => OxvgConfig {
+      default: DefaultTrue(enabled),
+      ..Default::default()
+    },
+    BoolOrConfig::Config(config) => config,
+  })
+}
+
 fn ok_or_default<'de, T, D>(deserializer: D) -> Result<T, D::Error>
 where
   T: serde::Deserialize<'de> + Default,

@@ -358,7 +358,57 @@ pub fn svg_react(mut options: SvgReactOptions) -> Result<PackageResult, ()> {
   })
 }
 
-pub struct HtmlTransformer {}
+/// The `"optimize"` option of @parcel/transformer-html and @parcel/transformer-svg in .parcelrc:
+/// false disables minification, and an object sets the minifier's options.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum OptimizeConfig<T> {
+  Enabled(bool),
+  Options(T),
+}
+
+impl<T: Default> OptimizeConfig<T> {
+  fn into_options(self) -> Option<T> {
+    match self {
+      OptimizeConfig::Enabled(enabled) => enabled.then(T::default),
+      OptimizeConfig::Options(options) => Some(options),
+    }
+  }
+}
+
+#[derive(Deserialize)]
+pub struct HtmlTransformer {
+  #[serde(
+    default = "default_html_optimize",
+    deserialize_with = "deserialize_html_optimize"
+  )]
+  optimize: Option<Arc<optimize::OptimizeOptions>>,
+}
+
+fn default_html_optimize() -> Option<Arc<optimize::OptimizeOptions>> {
+  Some(Default::default())
+}
+
+fn deserialize_html_optimize<'de, D>(
+  deserializer: D,
+) -> Result<Option<Arc<optimize::OptimizeOptions>>, D::Error>
+where
+  D: serde::Deserializer<'de>,
+{
+  Ok(
+    OptimizeConfig::deserialize(deserializer)?
+      .into_options()
+      .map(Arc::new),
+  )
+}
+
+impl Default for HtmlTransformer {
+  fn default() -> Self {
+    HtmlTransformer {
+      optimize: default_html_optimize(),
+    }
+  }
+}
 
 impl Transformer for HtmlTransformer {
   fn transform(
@@ -383,6 +433,7 @@ impl Transformer for HtmlTransformer {
     asset.content = Arc::new(HtmlContent {
       code: res.code,
       url: asset.loc.url.clone(),
+      optimize: self.optimize.clone(),
     });
     asset.dependencies.extend(res.dependencies);
 
@@ -394,6 +445,7 @@ impl Transformer for HtmlTransformer {
 pub struct HtmlContent {
   code: Vec<u8>,
   url: SourceUrl,
+  optimize: Option<Arc<optimize::OptimizeOptions>>,
 }
 
 impl Content for HtmlContent {
@@ -439,22 +491,24 @@ impl Content for HtmlContent {
     })
     .unwrap();
 
-    let code = if bundle
-      .target
-      .flags
-      .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
-    {
-      optimize_html(OptimizeHtmlOptions {
-        code: res.code,
-        xml: bundle.ty == AssetType::Xhtml,
-        config: Default::default(), // TODO
-        url: self.url.clone(),
-        project_root: Some(options.project_root),
-      })
-      .unwrap()
-      .code
-    } else {
-      res.code
+    let code = match &self.optimize {
+      Some(config)
+        if bundle
+          .target
+          .flags
+          .contains(EnvironmentFlags::SHOULD_OPTIMIZE) =>
+      {
+        optimize_html(OptimizeHtmlOptions {
+          code: res.code,
+          xml: bundle.ty == AssetType::Xhtml,
+          config: (**config).clone(),
+          url: self.url.clone(),
+          project_root: Some(options.project_root),
+        })
+        .unwrap()
+        .code
+      }
+      _ => res.code,
     };
 
     Ok(Arc::new(BufferContent::new(code)))
@@ -694,14 +748,36 @@ fn prepare_to_package(
 }
 
 pub struct SvgTransformer {
-  pub config: OxvgConfig,
+  /// None when optimization is disabled.
+  pub config: Option<OxvgConfig>,
 }
 
 impl Default for SvgTransformer {
   fn default() -> Self {
     SvgTransformer {
-      config: OxvgConfig::default(),
+      config: Some(OxvgConfig::default()),
     }
+  }
+}
+
+impl<'de> Deserialize<'de> for SvgTransformer {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    use serde::de::Error;
+    // OXVG options are also accepted at the top level, outside "optimize".
+    let mut value = serde_json::Value::deserialize(deserializer)?;
+    let config = match value
+      .as_object_mut()
+      .and_then(|config| config.remove("optimize"))
+    {
+      Some(optimize) => OptimizeConfig::deserialize(optimize).map_err(D::Error::custom)?,
+      None => OptimizeConfig::Options(OxvgConfig::deserialize(value).map_err(D::Error::custom)?),
+    };
+    Ok(SvgTransformer {
+      config: config.into_options(),
+    })
   }
 }
 
@@ -767,7 +843,7 @@ impl Transformer for SvgToJsxTransformer {
 #[derive(Debug)]
 pub struct SvgContent {
   code: Vec<u8>,
-  config: OxvgConfig,
+  config: Option<OxvgConfig>,
   url: SourceUrl,
 }
 
@@ -812,21 +888,23 @@ impl Content for SvgContent {
     })
     .unwrap();
 
-    let code = if bundle
-      .target
-      .flags
-      .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
-    {
-      optimize_svg(OptimizeSvgOptions {
-        code: res.code,
-        config: self.config.clone(),
-        url: self.url.clone(),
-        project_root: Some(options.project_root),
-      })
-      .unwrap()
-      .code
-    } else {
-      res.code
+    let code = match &self.config {
+      Some(config)
+        if bundle
+          .target
+          .flags
+          .contains(EnvironmentFlags::SHOULD_OPTIMIZE) =>
+      {
+        optimize_svg(OptimizeSvgOptions {
+          code: res.code,
+          config: config.clone(),
+          url: self.url.clone(),
+          project_root: Some(options.project_root),
+        })
+        .unwrap()
+        .code
+      }
+      _ => res.code,
     };
 
     Ok(Arc::new(BufferContent::new(code)))

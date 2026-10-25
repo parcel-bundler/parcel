@@ -1,0 +1,8 @@
+{
+  "description": "\"optimize\": false disables HTML minification",
+  "input": "index.html",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"type": "html", "assets": ["index.html"], "contains": ["<!-- comment -->", "<h1 class=\"  title  \">Hello</h1>"]}
+  ]
+}

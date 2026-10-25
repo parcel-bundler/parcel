@@ -73,12 +73,14 @@ impl PluginFactory for DefaultPluginFactory {
         CssTransformer::default()
       }),
       "@parcel/transformer-style-attr" => Arc::new(StyleAttrTransformer {}),
-      "@parcel/transformer-html" => Arc::new(HtmlTransformer {}),
+      "@parcel/transformer-html" => Arc::new(if let Some(config) = config {
+        serde_json::from_value(config)?
+      } else {
+        HtmlTransformer::default()
+      }),
       "@parcel/transformer-xml" => Arc::new(XmlTransformer {}),
       "@parcel/transformer-svg" => Arc::new(if let Some(config) = config {
-        SvgTransformer {
-          config: serde_json::from_value(config)?,
-        }
+        serde_json::from_value::<SvgTransformer>(config)?
       } else {
         SvgTransformer::default()
       }),
