@@ -1,0 +1,10 @@
+{
+  "description": "KNOWN BUG, not fixed yet: OXVG's removeHiddenElems removes non-rendering elements (<symbol>, <linearGradient>) whose ids are only referenced from other files (file.svg#id), leaving an empty <svg/>. The expected output records the current, wrong result. When it's fixed, the symbol and gradient should be kept.",
+  "input": "index.html",
+  "options": {"mode": "production", "contentHash": false},
+  "bundles": [
+    {"type": "html", "assets": ["index.html"], "contains": ["#circle", "#grad)"]},
+    {"type": "svg", "assets": ["icons.svg"]},
+    {"type": "svg", "assets": ["gradient.svg"]}
+  ]
+}
