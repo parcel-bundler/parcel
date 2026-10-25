@@ -176,7 +176,7 @@ impl AssetType {
       "jsx" => AssetType::Jsx,
       "mjs" => AssetType::Js,
       "cjs" => AssetType::Js,
-      "ts" => AssetType::Ts,
+      "ts" | "mts" | "cts" => AssetType::Ts,
       "tsx" => AssetType::Tsx,
       "mdx" => AssetType::Mdx,
       "css" => AssetType::Css,

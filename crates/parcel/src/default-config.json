@@ -4,7 +4,7 @@
     "bundle-text:*": ["...", "@parcel/transformer-inline"],
     "data-url:*": ["...", "@parcel/transformer-inline"],
     "url:*": ["...", "@parcel/transformer-raw"],
-    "*.{js,mjs,jsm,jsx,es6,ts,tsx,mdx}": ["@parcel/transformer-js"],
+    "*.{js,mjs,cjs,jsm,jsx,es6,ts,mts,cts,tsx,mdx}": ["@parcel/transformer-js"],
     "*.module.css": [
       {
         "plugin": "@parcel/transformer-css",
