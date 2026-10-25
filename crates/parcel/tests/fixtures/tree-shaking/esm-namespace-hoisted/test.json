@@ -1,0 +1,35 @@
+[
+  {
+    "description": "tree shaking: namespace import accessed in a function declared before the import removes unused export",
+    "input": "namespace.js",
+    "options": {
+      "mode": "production"
+    },
+    "sideEffects": [
+      "used-namespace"
+    ],
+    "bundles": [
+      {
+        "type": "js",
+        "assets": [
+          "dep-namespace.js",
+          "esmodule-helpers.js",
+          "namespace.js"
+        ],
+        "contains": [
+          "used-namespace"
+        ],
+        "notContains": [
+          "unused-namespace-sentinel"
+        ]
+      }
+    ]
+  },
+  {
+    "description": "tree shaking: namespace import accessed in a function declared before the import works in development",
+    "input": "namespace.js",
+    "sideEffects": [
+      "used-namespace"
+    ]
+  }
+]

@@ -1,0 +1,40 @@
+[
+  {
+    "description": "tree shaking: dynamic import keeps exports used through an awaited namespace accessed in a function declared before it",
+    "input": "dynamic.js",
+    "options": {
+      "mode": "production"
+    },
+    "output": "used-dynamic other-dynamic",
+    "bundles": [
+      {
+        "type": "js",
+        "assets": [
+          "dynamic.js"
+        ],
+        "notContains": [
+          "unused-dynamic-sentinel"
+        ]
+      },
+      {
+        "type": "js",
+        "assets": [
+          "async-dep.js",
+          "esmodule-helpers.js"
+        ],
+        "contains": [
+          "used-dynamic",
+          "other-dynamic"
+        ],
+        "notContains": [
+          "unused-dynamic-sentinel"
+        ]
+      }
+    ]
+  },
+  {
+    "description": "tree shaking: dynamic import used through an awaited namespace accessed in a function declared before it works in development",
+    "input": "dynamic.js",
+    "output": "used-dynamic other-dynamic"
+  }
+]

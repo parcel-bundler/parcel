@@ -75,10 +75,12 @@ pub struct Collect {
   pub exports: HashMap<JsWord, Export>,
   /// source of the export-all --> location
   pub exports_all: HashMap<JsWord, Span>,
-  /// the keys in `imports` that are actually used (referenced), except namespace imports
+  /// Referenced bindings, filtered to `imports` in `into_symbols`. These, `non_static_access`
+  /// and `static_access` are recorded for every binding because a reference can be visited before
+  /// the import that declares it, e.g. in a function declared above `const ns = await import()`.
   pub used_imports: HashSet<Id>,
   pub non_static_access: HashMap<Id, Vec<Span>>,
-  /// namespace import binding -> statically accessed properties, e.g. `ns.foo`
+  /// binding -> statically accessed properties, e.g. `ns.foo`
   pub static_access: HashMap<Id, Vec<(JsWord, Span)>>,
   pub non_static_requires: HashSet<JsWord>,
   pub bailouts: Option<Vec<Bailout>>,
@@ -264,7 +266,7 @@ impl Visit for Collect {
     self.in_module_this = true;
     self.in_top_level = true;
     self.in_function = false;
-    // Visit all imports first so that all imports are known when collecting used_imports
+    // Visit all imports first so that all imports are known when visiting the rest of the module
     for n in &node.body {
       if n.is_module_decl() {
         n.visit_with(self);
@@ -660,17 +662,11 @@ impl Visit for Collect {
           self.should_wrap = true;
           self.add_bailout(node.span, BailoutReason::FreeModule);
         } else if let Some((name, _)) = match_property_name(node) {
-          if self
-            .imports
-            .get(&id!(ident))
-            .is_some_and(|import| import.specifier == "*")
-          {
-            self
-              .static_access
-              .entry(id!(ident))
-              .or_default()
-              .push((name, node.span));
-          }
+          self
+            .static_access
+            .entry(id!(ident))
+            .or_default()
+            .push((name, node.span));
         } else {
           self
             .non_static_access
@@ -678,9 +674,7 @@ impl Visit for Collect {
             .or_default()
             .push(node.span);
         }
-        if self.imports.contains_key(&id!(ident)) {
-          self.used_imports.insert(id!(ident));
-        }
+        self.used_imports.insert(id!(ident));
         // Visit computed property keys so imported symbols used there are tracked.
         if let MemberProp::Computed(_) = &node.prop {
           node.prop.visit_with(self);
@@ -766,9 +760,7 @@ impl Visit for Collect {
           .or_default()
           .push(ident.span);
 
-        if self.imports.contains_key(&id!(ident)) {
-          self.used_imports.insert(id!(ident));
-        }
+        self.used_imports.insert(id!(ident));
       }
       _ => {
         maybe_grow_default(|| node.visit_children_with(self));
@@ -781,9 +773,7 @@ impl Visit for Collect {
     //
     //   import { foo } from "bar";
     //   const baz = { foo };
-    if self.imports.contains_key(&id!(node)) {
-      self.used_imports.insert(id!(node));
-    }
+    self.used_imports.insert(id!(node));
   }
 
   fn visit_class(&mut self, class: &Class) {
@@ -1080,20 +1070,15 @@ impl Collect {
     }
   }
 
-  /// Marks namespace imports bound by an assignment target or declaration as accessed
-  /// non-statically, e.g. `let ns = await import('foo'); ns = other;`. Afterwards, member accesses
-  /// of the binding may not refer to the namespace.
+  /// Marks bindings of an assignment target or declaration as accessed non-statically, so that a
+  /// re-assigned namespace import keeps the whole namespace, e.g.
+  /// `let ns = await import('foo'); ns = other;`. Afterwards, member accesses of the binding may
+  /// not refer to the namespace.
   fn add_reassigned_namespaces<N: VisitWith<BindingIdentCollector>>(&mut self, node: &N) {
     let mut collector = BindingIdentCollector { idents: vec![] };
     node.visit_with(&mut collector);
     for (id, span) in collector.idents {
-      if self
-        .imports
-        .get(&id)
-        .is_some_and(|import| import.specifier == "*")
-      {
-        self.non_static_access.entry(id).or_default().push(span);
-      }
+      self.non_static_access.entry(id).or_default().push(span);
     }
   }
 
@@ -1220,6 +1205,26 @@ mod tests {
     ] {
       assert_eq!(imported_symbols(code), pairs(&[("a", "*")]), "{code}");
     }
+  }
+
+  #[test]
+  fn access_before_declaration() {
+    assert_eq!(
+      imported_symbols("function f() { return ns.foo; } sideEffect(f()); import * as ns from 'a';"),
+      pairs(&[("a", "foo")])
+    );
+    assert_eq!(
+      imported_symbols(
+        "async function f() { function g() { return ns.foo + bar; } const ns = await import('a'); const {bar} = await import('b'); return g() + ns.baz; }"
+      ),
+      pairs(&[("a", "foo"), ("b", "bar"), ("a", "baz")])
+    );
+    assert_eq!(
+      imported_symbols(
+        "async function f() { function g() { return ns[key]; } const ns = await import('a'); return g(); }"
+      ),
+      pairs(&[("a", "*")])
+    );
   }
 
   #[test]
