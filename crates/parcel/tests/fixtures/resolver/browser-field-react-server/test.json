@@ -1,0 +1,5 @@
+{
+  "description": "should ignore the package.json browser field in react-server environments",
+  "input": "index.js",
+  "output": true
+}

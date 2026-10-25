@@ -1,0 +1,7 @@
+{
+  "targets": {
+    "default": {
+      "context": "react-server"
+    }
+  }
+}
