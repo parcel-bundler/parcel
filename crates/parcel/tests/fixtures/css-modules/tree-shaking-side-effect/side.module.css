@@ -1,3 +1,7 @@
 .side {
   color: red;
 }
+
+:global(.side-global) {
+  color: red;
+}

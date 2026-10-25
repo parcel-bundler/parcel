@@ -2,6 +2,6 @@
   color: green;
 }
 
-.linked-unused-sentinel {
-  color: orange;
+:global(.linked-global) {
+  color: green;
 }

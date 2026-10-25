@@ -1,31 +1,31 @@
 [
   {
-    "description": "should keep every class of css modules imported for side effects or with @import, and tree shake named imports",
+    "description": "should remove unused classes of css modules imported for side effects or with @import, keeping global rules",
     "input": "index.js",
     "options": {"mode": "production"},
     "bundles": [
       {"assets": ["index.js"], "notContains": ["[\"side\"]", "[\"pkg\"]", "[\"imported\"]"]},
       {
         "assets": ["imported.module.css", "named.module.css", "plain.css", "side.module.css", "styles.module.css"],
-        "contains": ["_side{", "_pkg{", "_imported{", "_used{"],
-        "notContains": ["_unused{"]
+        "contains": ["_used{", ".side-global{", "body{"],
+        "notContains": ["_side{", "_pkg{", "_imported{", "_unused{"]
       }
     ],
     "output": "f4WNpG_used"
   },
   {
-    "description": "should keep every class of a css module loaded by an HTML link",
+    "description": "should remove unused classes of a css module loaded by an HTML link, keeping global rules",
     "input": "index.html",
     "options": {"mode": "production"},
     "bundles": [
       {"assets": ["index.html"]},
-      {"assets": ["linked.module.css"], "contains": ["linked-unused-sentinel"]}
+      {"assets": ["linked.module.css"], "contains": [".linked-global{"], "notContains": ["_linked{"]}
     ]
   },
   {
-    "description": "should keep every class of a css module entry",
+    "description": "should remove unused classes of a css module entry",
     "input": "entry.module.css",
     "options": {"mode": "production"},
-    "bundles": [{"assets": ["entry.module.css"], "contains": ["_entry{"]}]
+    "bundles": [{"assets": ["entry.module.css"], "notContains": ["_entry{"]}]
   }
 ]
