@@ -51,8 +51,7 @@ impl<'js> TextDecoder {
 
   pub fn decode(&self, ctx: Ctx<'js>, bytes: rquickjs::Object<'js>) -> rquickjs::Result<String> {
     // SAFETY: the bytes are only decoded in Rust; no JS runs while they are borrowed.
-    if let Some(bytes) = bytes
-      .as_array_buffer()
+    if let Some(bytes) = crate::buffer::as_array_buffer(&bytes)
       .and_then(|a| unsafe { a.as_bytes() })
       .or_else(|| {
         bytes

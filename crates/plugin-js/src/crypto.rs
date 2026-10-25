@@ -393,7 +393,11 @@ fn byte_view<'js>(
   ctx: &Ctx<'js>,
   object: &Object<'js>,
 ) -> rquickjs::Result<(ArrayBuffer<'js>, usize, usize)> {
-  if let Some(buffer) = ArrayBuffer::from_object(object.clone()) {
+  if let Some(buffer) = crate::buffer::as_array_buffer(object)
+    .is_some()
+    .then(|| ArrayBuffer::from_object(object.clone()))
+    .flatten()
+  {
     let len = buffer.len();
     return Ok((buffer, 0, len));
   }

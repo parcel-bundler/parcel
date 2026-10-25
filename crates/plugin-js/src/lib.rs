@@ -526,6 +526,31 @@ mod tests {
     assert_eq!(result, 42);
   }
 
+  #[test]
+  fn reading_byte_arrays_leaves_no_pending_exception() {
+    let env = create_runtime(
+      Arc::new(parcel_core::MemoryFileSystem::new()),
+      &HashMap::new(),
+      PathId::root(),
+      Environment::Node,
+    )
+    .unwrap();
+    env
+      .with(|ctx| {
+        for script in [
+          "new TextDecoder().decode(new Uint8Array([104, 105]))",
+          "require('crypto').createHash('sha256').update(new Uint8Array([1])).digest('hex')",
+          "require('zlib').gzipSync(new DataView(new ArrayBuffer(1)))",
+        ] {
+          // Errors thrown to JS are caught here. A pending exception isn't.
+          ctx.eval::<(), _>(format!("try {{ {script} }} catch {{}}"))?;
+          assert!(!ctx.has_exception(), "{script} left an exception pending");
+        }
+        Ok(())
+      })
+      .unwrap();
+  }
+
   fn promise_env() -> JsEnv {
     create_runtime(
       Arc::new(parcel_core::MemoryFileSystem::new()),

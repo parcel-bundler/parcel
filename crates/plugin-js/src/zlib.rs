@@ -140,9 +140,7 @@ fn bytes_from_js<'js>(ctx: &Ctx<'js>, input: Object<'js>) -> rquickjs::Result<Ve
     .as_typed_array::<u8>()
     .and_then(|value| unsafe { value.as_bytes() })
     .or_else(|| {
-      input
-        .as_array_buffer()
-        .and_then(|value| unsafe { value.as_bytes() })
+      crate::buffer::as_array_buffer(&input).and_then(|value| unsafe { value.as_bytes() })
     })
     .map(ToOwned::to_owned)
     .ok_or_else(|| {

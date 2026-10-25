@@ -1,5 +1,19 @@
 use data_encoding::{BASE64, BASE64URL};
-use rquickjs::{Ctx, Function, Object, TypedArray};
+use rquickjs::{ArrayBuffer, Ctx, Function, Object, TypedArray};
+
+/// Returns `object` as an `ArrayBuffer` if it is one.
+///
+/// Use this instead of rquickjs's `Object::as_array_buffer` or `ArrayBuffer::from_object`, which
+/// throw a TypeError for any other object. Nothing catches it, so it stays pending in the context
+/// and surfaces from whatever JS call checks for an exception next, e.g. another plugin.
+pub(crate) fn as_array_buffer<'a>(object: &'a Object<'_>) -> Option<&'a ArrayBuffer<'a>> {
+  // SAFETY: `JS_IsArrayBuffer` only reads the value's class id.
+  if unsafe { rquickjs::qjs::JS_IsArrayBuffer(object.as_raw()) } {
+    object.as_array_buffer()
+  } else {
+    None
+  }
+}
 
 fn bytes<'a, 'js>(ctx: &Ctx<'js>, value: &'a TypedArray<'js, u8>) -> rquickjs::Result<&'a [u8]> {
   // SAFETY: callers only read the slice in Rust; no JS runs while it is borrowed.
