@@ -92,9 +92,11 @@ fn compile(config: &Config) -> Result<MdxResult, Message> {
   toc(&ast, &mut contents);
 
   let mut assets = Vec::new();
-  transform_code(&mut ast, &mut assets);
-  if !assets.is_empty() {
+  // The default CodeBlock component comes from the provider, so only import it when needed.
+  if transform_code(&mut ast, &mut assets) {
     options.provider_import_source = Some(MDX_COMPONENTS.into());
+  }
+  if !assets.is_empty() {
     let children = ast.children_mut().unwrap();
     let imports = (0..assets.len()).map(|i| {
       Node::MdxjsEsm(MdxjsEsm {
@@ -293,19 +295,24 @@ fn is_url(el: &str, prop: &str) -> bool {
 }
 
 /// Transform code fences with language and meta string into <CodeBlock> components.
-fn transform_code(node: &mut Node, assets: &mut Vec<MdxAsset>) {
+/// Returns whether any <CodeBlock> was created.
+fn transform_code(node: &mut Node, assets: &mut Vec<MdxAsset>) -> bool {
   match node {
     Node::Code(code) if code.lang.is_some() => {
       if let Some(replacement) = parse_code_block(code, assets) {
         *node = replacement;
+        return true;
       }
+      false
     }
     _ => {
+      let mut found = false;
       if let Some(children) = node.children_mut() {
         for child in children {
-          transform_code(child, assets);
+          found |= transform_code(child, assets);
         }
       }
+      found
     }
   }
 }
@@ -549,6 +556,31 @@ mod tests {
 
     assert_eq!(result.assets.len(), 1);
     assert!(to_code(&result.module).contains(r#"from "@parcel/parcel3/src/mdx-components""#));
+  }
+
+  #[test]
+  fn imports_mdx_components_for_plain_code_blocks() {
+    let result = mdx(&Config {
+      filename: PathId::new(Path::new("index.mdx")),
+      code: b"```js\nconsole.log('test');\n```".to_vec(),
+      ..Default::default()
+    })
+    .unwrap();
+
+    assert!(result.assets.is_empty());
+    assert!(to_code(&result.module).contains(r#"from "@parcel/parcel3/src/mdx-components""#));
+  }
+
+  #[test]
+  fn does_not_import_mdx_components_without_code_blocks() {
+    let result = mdx(&Config {
+      filename: PathId::new(Path::new("index.mdx")),
+      code: b"# Hello\n\n```\nno language\n```".to_vec(),
+      ..Default::default()
+    })
+    .unwrap();
+
+    assert!(!to_code(&result.module).contains("mdx-components"));
   }
 
   /// Compiles a page with one rendered code block, returning the block's code and the page's.

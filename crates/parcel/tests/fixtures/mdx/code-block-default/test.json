@@ -1,0 +1,5 @@
+{
+  "description": "should provide the default CodeBlock component for plain code fences in MDX",
+  "input": "index.js",
+  "output": "<h1>Example</h1>\n<pre><code class=\"language-js\">console.log(&quot;hi&quot;);</code></pre>"
+}
