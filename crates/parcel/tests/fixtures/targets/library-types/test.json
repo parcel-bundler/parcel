@@ -1,0 +1,7 @@
+{
+  "description": "should not build types outputs, which Parcel doesn't generate",
+  "input": ".",
+  "bundles": [
+    {"name": "index.js", "distDir": "dist", "assets": ["index.js"]}
+  ]
+}

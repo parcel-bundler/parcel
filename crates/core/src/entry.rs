@@ -293,7 +293,6 @@ impl EntryResolver {
       ("main", ExportsCondition::DEFAULT),
       ("module", ExportsCondition::MODULE),
       ("browser", ExportsCondition::BROWSER),
-      ("types", ExportsCondition::TYPES),
     ] {
       let Some(Value::String(main)) = json.get(field) else {
         continue;
@@ -515,6 +514,11 @@ struct ExportsContext<'a> {
 
 impl<'a> ExportsContext<'a> {
   fn child(&'a self, pkg: &'a Value, condition: &str) -> Option<ExportsContext<'a>> {
+    // Parcel doesn't generate type declarations, so `types` outputs are left to other tools.
+    if condition == "types" {
+      return None;
+    }
+
     let target = pkg
       .get("targets")
       .and_then(|targets| targets.get(condition));
@@ -1718,6 +1722,38 @@ mod tests {
         None
       )
       .is_err()
+    );
+  }
+
+  #[test]
+  fn test_types_outputs_are_skipped() {
+    let entries = package_entries(
+      r#"{
+        "source": "src/foo.js",
+        "main": "dist/main.js",
+        "types": "dist/main.d.ts",
+        "exports": {
+          "source": "./src/foo.js",
+          "types": "./dist/index.d.ts",
+          "import": {
+            "types": "./dist/index.d.mts",
+            "default": "./dist/index.mjs"
+          }
+        }
+      }"#,
+      None,
+    )
+    .unwrap();
+    let dist_entries: Vec<_> = entries
+      .iter()
+      .map(|e| e.dist_entry.unwrap().to_path_buf())
+      .collect();
+    assert_eq!(
+      dist_entries,
+      vec![
+        Path::new("/root/dist/index.mjs").to_path_buf(),
+        Path::new("/root/dist/main.js").to_path_buf()
+      ]
     );
   }
 }

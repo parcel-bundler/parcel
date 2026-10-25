@@ -1,0 +1,9 @@
+{
+  "type": "module",
+  "types": "dist/main.d.ts",
+  "exports": {
+    "source": "./src/index.js",
+    "types": "./dist/index.d.ts",
+    "default": "./dist/index.js"
+  }
+}
