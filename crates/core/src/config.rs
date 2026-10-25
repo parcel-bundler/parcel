@@ -5,9 +5,8 @@ use serde::Deserialize;
 use std::{borrow::Cow, collections::HashSet, ffi::OsStr, path::Path, slice, sync::Arc};
 
 use crate::{
-  CodeFrame, Diagnostic, DiagnosticList, FileSystem, PathId, SourceUrl, bundler::Bundler, json5,
-  namer::Namer, optimizer::Optimizer, reporter::Reporter, resolver::Resolver,
-  transformer::Transformer,
+  Diagnostic, DiagnosticList, FileSystem, PathId, SourceUrl, bundler::Bundler, namer::Namer,
+  optimizer::Optimizer, reporter::Reporter, resolver::Resolver, transformer::Transformer,
 };
 
 pub struct ParcelConfig {
@@ -36,21 +35,8 @@ impl ParcelConfig {
     factory: &dyn PluginFactory,
   ) -> Result<ParcelConfig, DiagnosticList> {
     // Parsed as JSON5, as in Parcel 2, so that configs may have comments.
-    let source = std::str::from_utf8(json)?;
-    let url = SourceUrl::from_path(&path);
-    let value = json5::parse(source).map_err(|err| Diagnostic {
-      origin: Some("@parcel/core".into()),
-      ..err.to_diagnostic(source, url.clone())
-    })?;
-    let raw: RawParcelConfig = serde_json::from_value(value).map_err(|err| Diagnostic {
-      origin: Some("@parcel/core".into()),
-      // The value no longer knows where it came from, so the frame only names the file.
-      code_frames: vec![CodeFrame {
-        url: Some(url),
-        ..Default::default()
-      }],
-      ..Diagnostic::from_message(format!("Invalid Parcel config: {}", err))
-    })?;
+    let raw: RawParcelConfig = json5::from_str(std::str::from_utf8(json)?)
+      .map_err(|err| Diagnostic::from(err).with_url(&SourceUrl::from_path(&path)))?;
     raw.resolve(factory, path)
   }
 }

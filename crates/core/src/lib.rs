@@ -11,7 +11,6 @@ mod diagnostic;
 mod entry;
 mod fs;
 mod invalidations;
-pub mod json5;
 mod location;
 mod namer;
 mod optimizer;

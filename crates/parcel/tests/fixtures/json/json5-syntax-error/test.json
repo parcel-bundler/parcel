@@ -3,8 +3,8 @@
   "input": "index.js",
   "diagnostics": [
     {
-      "message": "Unexpected character 'b'",
-      "origin": "@parcel/transformer-json",
+      "message": "expected colon",
+      "origin": "@parcel/core",
       "codeFrames": [
         {
           "codeHighlights": [

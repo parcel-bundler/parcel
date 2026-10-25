@@ -1,9 +1,7 @@
 use std::fmt::Write;
 use std::sync::Arc;
 
-use parcel_core::{
-  AssetType, BufferContent, Diagnostic, DiagnosticList, OutputFormat, Transformer,
-};
+use parcel_core::{AssetType, BufferContent, DiagnosticList, OutputFormat, Transformer};
 
 pub struct JsonTransformer {}
 
@@ -15,11 +13,12 @@ impl Transformer for JsonTransformer {
   ) -> Result<parcel_core::Asset, DiagnosticList> {
     let content = asset.content.read()?;
     let code = std::str::from_utf8(&content)?;
-    // JSON5, like Parcel 2, for .json files as well as .json5.
-    let json = parcel_core::json5::parse(code).map_err(|err| Diagnostic {
-      origin: Some("@parcel/transformer-json".into()),
-      ..err.to_diagnostic(code, asset.loc.url.clone())
-    })?;
+    // JSON5, like Parcel 2, for .json files as well as .json5. Most input is plain JSON,
+    // which serde_json parses much faster (json5 is quadratic in the number of floats).
+    let json: serde_json::Value = match serde_json::from_str(code) {
+      Ok(json) => json,
+      Err(_) => json5::from_str(code)?,
+    };
     let js = json_to_js(json, asset.target.output_format)?;
 
     asset.ty = AssetType::Js;

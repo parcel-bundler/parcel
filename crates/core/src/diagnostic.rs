@@ -115,6 +115,17 @@ impl Diagnostic {
       documentation_url: None,
     }
   }
+
+  /// Points code frames that have neither a url nor code at `url`, for errors that
+  /// know where in a file they occurred but not which file.
+  pub fn with_url(mut self, url: &SourceUrl) -> Self {
+    for frame in &mut self.code_frames {
+      if frame.url.is_none() && frame.code.is_none() {
+        frame.url = Some(url.clone());
+      }
+    }
+    self
+  }
 }
 
 impl From<std::io::Error> for Diagnostic {
@@ -175,6 +186,44 @@ impl From<serde_json::Error> for Diagnostic {
       origin: Some("@parcel/core".into()),
       message: value.to_string(),
       code_frames: Vec::new(),
+      hints: Vec::new(),
+      severity: DiagnosticSeverity::Error,
+      documentation_url: None,
+    }
+  }
+}
+
+impl From<json5::Error> for Diagnostic {
+  fn from(value: json5::Error) -> Self {
+    let mut message = value.to_string();
+    // The position goes in the code frame instead of the message. Errors at the end of
+    // the input have none. The error doesn't know which file it came from, so the frame
+    // has no url until `Diagnostic::with_url` gives it one.
+    let mut code_highlights = Vec::new();
+    if let Some(position) = value.position() {
+      if let Some(rest) = message.strip_suffix(&format!(" at {position}")) {
+        message.truncate(rest.len());
+      }
+      let location = Location {
+        line: position.line as u32 + 1,
+        column: position.column as u32 + 1,
+      };
+      code_highlights.push(CodeHighlight {
+        message: None,
+        start: location.clone(),
+        end: location,
+      });
+    }
+
+    Diagnostic {
+      origin: Some("@parcel/core".into()),
+      message,
+      code_frames: vec![CodeFrame {
+        code: None,
+        url: None,
+        language: Some(AssetType::Json),
+        code_highlights,
+      }],
       hints: Vec::new(),
       severity: DiagnosticSeverity::Error,
       documentation_url: None,

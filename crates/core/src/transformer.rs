@@ -148,7 +148,12 @@ fn transform(
 
   while let Some(plugin) = pipeline.next() {
     let ty: AssetType = input.ty.clone();
-    let mut result = plugin.transform(input, ctx)?;
+    let url = input.loc.url.clone();
+    // Errors that don't say which file they're in (e.g. from `?` on a parser error) are
+    // in the asset being transformed.
+    let mut result = plugin
+      .transform(input, ctx)
+      .map_err(|errors| DiagnosticList(errors.0.into_iter().map(|d| d.with_url(&url)).collect()))?;
     if result.ty != ty {
       let next_path = relative_path(&result.loc.url, &options.project_root, &result.ty)?;
       pipeline.change_type(next_path, &mut result.pipeline);
