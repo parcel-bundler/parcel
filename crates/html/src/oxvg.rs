@@ -497,7 +497,7 @@ pub struct PrefixIdsOptions {
 #[derive(Deserialize, Default, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct OxvgConfig {
-  #[serde(deserialize_with = "ok_or_default")]
+  #[serde(default, deserialize_with = "ok_or_default")]
   pub default: DefaultTrue,
   #[serde(default, deserialize_with = "ok_or_default")]
   pub add_attributes_to_svg_element: ConfigItem<oxvg_optimiser::AddAttributesToSVGElement>,

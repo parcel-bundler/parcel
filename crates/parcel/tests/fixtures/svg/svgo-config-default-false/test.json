@@ -1,0 +1,9 @@
+{
+  "description": "\"default\": false disables the default OXVG jobs, leaving only the configured ones",
+  "input": "index.html",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "svg", "assets": ["icon.svg"]}
+  ]
+}
