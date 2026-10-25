@@ -10,7 +10,7 @@ use swc_core::{
     ast::*,
     atoms::Atom as JsWord,
     minifier::option::{CompressOptions, MangleOptions, TopLevelOptions},
-    visit::{VisitMut, VisitMutWith},
+    visit::{Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_type},
   },
   quote,
 };
@@ -106,13 +106,25 @@ fn stylesheet_expr(text: &str) -> Expr {
 
 pub fn tree_shake<'a>(
   ast: &mut Ast,
-  used_symbols: HashSet<JsWord>,
+  mut used_symbols: HashSet<JsWord>,
   resolutions: IndexMap<String, Resolution<'a>>,
   minify: bool,
   is_library: bool,
   require_name: JsWord,
 ) {
   swc_core::common::GLOBALS.set(&*ast.globals, || {
+    // A CommonJS module reading its own exports (e.g. `exports.foo` within `exports.bar`) needs
+    // their assignments even when no importer uses them.
+    if !used_symbols.is_empty() {
+      let mut self_references = SelfReferences {
+        names: HashSet::new(),
+        unresolved_mark: ast.unresolved_mark,
+        in_module_this: true,
+      };
+      ast.program.visit_with(&mut self_references);
+      used_symbols.extend(self_references.names);
+    }
+
     let wrapper_mark = Mark::new();
     let wrapper_ctxt = SyntaxContext::empty().apply_mark(wrapper_mark);
     let mut shake = TreeShake {
@@ -204,6 +216,80 @@ pub fn tree_shake<'a>(
 
     ast.program = module;
   })
+}
+
+/// Collects the names of exports a CommonJS module reads from its own exports object through
+/// `exports.foo`, `module.exports.foo` or top-level `this.foo`.
+struct SelfReferences {
+  names: HashSet<JsWord>,
+  unresolved_mark: Mark,
+  /// Whether `this` refers to the module's exports, i.e. outside of any function or class.
+  in_module_this: bool,
+}
+
+impl SelfReferences {
+  /// The export a member expression of the module's exports object refers to.
+  fn export_name(&self, member: &MemberExpr) -> Option<JsWord> {
+    let is_exports = match &*member.obj {
+      Expr::Ident(ident) => &*ident.sym == "exports" && is_unresolved(ident, self.unresolved_mark),
+      Expr::Member(obj) => match_member_expr(obj, vec!["module", "exports"], self.unresolved_mark),
+      Expr::This(_) => self.in_module_this,
+      _ => false,
+    };
+    if is_exports {
+      match_property_name(member).map(|(name, _)| name)
+    } else {
+      None
+    }
+  }
+}
+
+impl Visit for SelfReferences {
+  noop_visit_type!();
+
+  fn visit_assign_expr(&mut self, node: &AssignExpr) {
+    // Assigning an export isn't a read, unless the assignment also reads it (e.g. `+=`).
+    if node.op == AssignOp::Assign
+      && let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &node.left
+      && self.export_name(member).is_some()
+    {
+      member.prop.visit_with(self);
+    } else {
+      node.left.visit_with(self);
+    }
+    node.right.visit_with(self);
+  }
+
+  fn visit_member_expr(&mut self, node: &MemberExpr) {
+    if let Some(name) = self.export_name(node) {
+      self.names.insert(name);
+    }
+    node.visit_children_with(self);
+  }
+
+  fn visit_function(&mut self, node: &Function) {
+    let in_module_this = std::mem::replace(&mut self.in_module_this, false);
+    node.visit_children_with(self);
+    self.in_module_this = in_module_this;
+  }
+
+  fn visit_getter_prop(&mut self, node: &GetterProp) {
+    let in_module_this = std::mem::replace(&mut self.in_module_this, false);
+    node.visit_children_with(self);
+    self.in_module_this = in_module_this;
+  }
+
+  fn visit_setter_prop(&mut self, node: &SetterProp) {
+    let in_module_this = std::mem::replace(&mut self.in_module_this, false);
+    node.visit_children_with(self);
+    self.in_module_this = in_module_this;
+  }
+
+  fn visit_class(&mut self, node: &Class) {
+    let in_module_this = std::mem::replace(&mut self.in_module_this, false);
+    node.visit_children_with(self);
+    self.in_module_this = in_module_this;
+  }
 }
 
 struct TreeShake<'a> {

@@ -1,0 +1,20 @@
+[
+  {
+    "description": "tree shaking: CommonJS exports read by the module itself are kept",
+    "input": "index.js",
+    "options": {"mode": "production"},
+    "output": ["a", "b", 1, "c"],
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["dep.js", "index.js"],
+        "notContains": ["unused-sentinel"]
+      }
+    ]
+  },
+  {
+    "description": "tree shaking: CommonJS exports read by the module itself work in development",
+    "input": "index.js",
+    "output": ["a", "b", 1, "c"]
+  }
+]
