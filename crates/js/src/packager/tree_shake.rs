@@ -124,6 +124,7 @@ pub fn tree_shake<'a>(
       mutated: false,
       is_library,
       require_name,
+      in_module_this: true,
     };
 
     if !minify {
@@ -154,7 +155,8 @@ pub fn tree_shake<'a>(
       }),
     };
 
-    wrapper.visit_mut_with(&mut shake);
+    // Visit the wrapper's children so its body is still treated as the module's top level.
+    wrapper.function.visit_mut_children_with(&mut shake);
 
     let mut program = swc_core::ecma::minifier::optimize(
       Program::Module(Module {
@@ -213,6 +215,8 @@ struct TreeShake<'a> {
   mutated: bool,
   is_library: bool,
   require_name: JsWord,
+  /// Whether `this` refers to the module's exports, i.e. outside of any function or class.
+  in_module_this: bool,
 }
 
 impl<'a> TreeShake<'a> {
@@ -260,6 +264,14 @@ impl<'a> VisitMut for TreeShake<'a> {
                 return;
               }
             }
+            // Top-level `this` in CommonJS is `exports`.
+            Expr::This(_) if self.in_module_this => {
+              if let Some((name, _)) = match_property_name(&member) {
+                name
+              } else {
+                return;
+              }
+            }
             _ => return,
           };
 
@@ -299,6 +311,30 @@ impl<'a> VisitMut for TreeShake<'a> {
       }
       _ => {}
     }
+  }
+
+  fn visit_mut_function(&mut self, node: &mut Function) {
+    let in_module_this = std::mem::replace(&mut self.in_module_this, false);
+    node.visit_mut_children_with(self);
+    self.in_module_this = in_module_this;
+  }
+
+  fn visit_mut_getter_prop(&mut self, node: &mut GetterProp) {
+    let in_module_this = std::mem::replace(&mut self.in_module_this, false);
+    node.visit_mut_children_with(self);
+    self.in_module_this = in_module_this;
+  }
+
+  fn visit_mut_setter_prop(&mut self, node: &mut SetterProp) {
+    let in_module_this = std::mem::replace(&mut self.in_module_this, false);
+    node.visit_mut_children_with(self);
+    self.in_module_this = in_module_this;
+  }
+
+  fn visit_mut_class(&mut self, node: &mut Class) {
+    let in_module_this = std::mem::replace(&mut self.in_module_this, false);
+    node.visit_mut_children_with(self);
+    self.in_module_this = in_module_this;
   }
 
   fn visit_mut_expr(&mut self, node: &mut Expr) {

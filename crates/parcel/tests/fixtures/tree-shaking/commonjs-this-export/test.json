@@ -1,0 +1,21 @@
+[
+  {
+    "description": "tree shaking: CommonJS removes unused top-level this exports",
+    "input": "commonjs-this.js",
+    "options": {"mode": "production"},
+    "sideEffects": ["used-this", "local-this"],
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["commonjs-this-dep.js", "commonjs-this.js"],
+        "contains": ["used-this", "local-this"],
+        "notContains": ["unused-this-sentinel", "unused-arrow-this-sentinel"]
+      }
+    ]
+  },
+  {
+    "description": "tree shaking: CommonJS top-level this exports work in development",
+    "input": "commonjs-this.js",
+    "sideEffects": ["used-this", "local-this"]
+  }
+]
