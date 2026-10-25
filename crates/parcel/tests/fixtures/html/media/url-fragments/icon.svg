@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <path id="shape" d="M0 0L10 10"/>
+  <use href="external.svg#gradient"/>
+  <rect fill="url(external.svg#gradient)" width="10" height="10"/>
+</svg>

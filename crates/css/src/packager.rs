@@ -1251,7 +1251,8 @@ impl ReferenceReplacer {
               .into_owned();
             urls.insert(dep.specifier.clone(), url);
           } else {
-            let url = referenced_bundle.relative_url(bundle).unwrap().into();
+            let mut url = referenced_bundle.relative_url(bundle).unwrap();
+            url.push_str(dep.url_fragment().unwrap_or_default());
             urls.insert(dep.specifier.clone(), url);
           }
         }

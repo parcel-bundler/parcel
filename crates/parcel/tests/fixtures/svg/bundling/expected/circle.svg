@@ -4,10 +4,10 @@
   <a href="other1.html">
     <use href="#circle" x="10" fill="blue"/>
   </a>
-  <use xlink:href="square-fcacd968feed77d3.svg" x="20" fill="white" stroke="red"/>
-  <circle cx="5" cy="5" r="4" fill="url(gradient-58aac6aeeea6d51e.svg)"/>
+  <use xlink:href="square-fcacd968feed77d3.svg#square" x="20" fill="white" stroke="red"/>
+  <circle cx="5" cy="5" r="4" fill="url(gradient-58aac6aeeea6d51e.svg#myGradient)"/>
   <text>
-    <textPath href="path-bed0b1bc34c64643.svg">
+    <textPath href="path-bed0b1bc34c64643.svg#MyPath">
       Quick brown fox jumps over the lazy dog.
     </textPath>
   </text>

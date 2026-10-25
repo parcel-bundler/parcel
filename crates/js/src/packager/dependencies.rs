@@ -383,10 +383,9 @@ pub fn asset_dependencies<'a>(
             };
             dependencies.insert((&**placeholder).into(), resolution);
           } else if dep.specifier_type == SpecifierType::Url || dep.import_type == ImportType::Url {
-            dependencies.insert(
-              (&**placeholder).into(),
-              Resolution::String(resolved_bundle.relative_url(bundle).unwrap().into()),
-            );
+            let mut url = resolved_bundle.relative_url(bundle).unwrap();
+            url.push_str(dep.url_fragment().unwrap_or_default());
+            dependencies.insert((&**placeholder).into(), Resolution::String(url.into()));
           } else {
             if resolved_bundle.ty != AssetType::Js {
               let asset = &bundle_graph.asset_graph.asset(asset_index);

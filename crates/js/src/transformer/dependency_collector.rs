@@ -463,6 +463,11 @@ impl<'a> DependencyCollector<'a> {
   ) -> ast::Expr {
     // If not a library, replace with a require call pointing to a runtime that will resolve the url dynamically.
     if !self.config.standalone {
+      // Resolution drops the fragment, e.g. `#icon` in `sprite.svg#icon`, so append it to the
+      // bundle's URL.
+      let fragment = specifier
+        .find('#')
+        .map(|index| JsWord::from(&specifier[index..]));
       let placeholder = self.add_dependency(
         specifier.clone(),
         span,
@@ -477,7 +482,15 @@ impl<'a> DependencyCollector<'a> {
       } else {
         specifier
       };
-      let req = ast::Expr::Call(self.create_require(specifier));
+      let mut req = ast::Expr::Call(self.create_require(specifier));
+      if let Some(fragment) = fragment {
+        req = ast::Expr::Bin(ast::BinExpr {
+          span: DUMMY_SP,
+          op: ast::BinaryOp::Add,
+          left: Box::new(req),
+          right: Box::new(ast::Expr::Lit(ast::Lit::Str(fragment.into()))),
+        });
+      }
       if optional {
         return req;
       }

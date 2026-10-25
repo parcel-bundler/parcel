@@ -1,0 +1,21 @@
+{
+  "description": "references to other bundles keep the URL fragment",
+  "input": "index.html",
+  "options": {"mode": "development"},
+  "bundles": [
+    {
+      "assets": ["index.html"],
+      "contains": [
+        "href=\"{{bundle:other.html}}#section\"",
+        "src=\"{{bundle:icon.svg}}#a\"",
+        "href=\"{{bundle:icon.svg}}#shape\""
+      ]
+    },
+    {"assets": ["other.html"]},
+    {"assets": ["icon.svg"], "contains": [".svg#gradient\"/>", ".svg#gradient)\""]},
+    {"assets": ["logo.svg"]},
+    {"assets": ["external.svg"]},
+    {"assets": ["style.css"], "contains": [".svg#b\")"]},
+    {"assets": ["app.js", "esmodule-helpers.js"], "contains": ["+ \"#c\""]}
+  ]
+}

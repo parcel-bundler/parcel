@@ -51,6 +51,19 @@ impl Dependency {
       && self.bundle_behavior == BundleBehavior::None
   }
 
+  /// The fragment of a URL specifier including its `#`, e.g. `#icon` in `sprite.svg#icon`.
+  /// Resolution drops it, so references to the resolved bundle append it again. Queries are not
+  /// kept, since they select how an asset is transformed rather than part of the output URL.
+  pub fn url_fragment(&self) -> Option<&str> {
+    if self.specifier_type != SpecifierType::Url {
+      return None;
+    }
+    self
+      .specifier
+      .find('#')
+      .map(|index| &self.specifier[index..])
+  }
+
   pub fn set_placeholder(&mut self) -> &str {
     let mut hasher = DefaultHasher::new();
     self.specifier.hash(&mut hasher);

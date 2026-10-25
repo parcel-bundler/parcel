@@ -602,7 +602,9 @@ fn prepare_to_package(
             .read_string()?
             .into_owned()
         } else {
-          reference_url(referenced_bundle, bundle)
+          let mut url = reference_url(referenced_bundle, bundle);
+          url.push_str(dep.url_fragment().unwrap_or_default());
+          url
         };
 
         inline_bundles.insert(
