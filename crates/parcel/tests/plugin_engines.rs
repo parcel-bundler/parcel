@@ -14,6 +14,11 @@ struct Warnings(Mutex<Vec<Diagnostic>>);
 impl Reporter for Warnings {
   fn report(&self, event: &ReporterEvent, _: &ParcelOptions) -> Result<(), DiagnosticList> {
     if let ReporterEvent::Log(log) = event {
+      // Errors from loading the config are logged too, but the tests check them through the
+      // result of the build.
+      if log.level == LogLevel::Error {
+        return Ok(());
+      }
       if let LogMessage::Diagnostics(diagnostics) = log.message {
         assert_eq!(log.level, LogLevel::Warn);
         self.0.lock().unwrap().extend(diagnostics.iter().cloned());
