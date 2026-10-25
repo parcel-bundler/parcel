@@ -1,5 +1,7 @@
 # Always use unix style line-endings
 * text eol=lf
+*.avif binary
+*.ico binary
 *.jpeg binary
 *.jpg binary
 *.png binary

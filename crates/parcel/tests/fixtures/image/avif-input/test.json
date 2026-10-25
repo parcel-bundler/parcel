@@ -1,0 +1,10 @@
+{
+  "description": "Should report a clear error when transforming an AVIF input, even in development",
+  "input": "index.js",
+  "diagnostics": [
+    {
+      "message": "Cannot transform avif images in image.avif",
+      "origin": "@parcel/transformer-image"
+    }
+  ]
+}

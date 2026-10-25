@@ -10,7 +10,6 @@ image = { version = "0.25.9", default-features = false, features = [
   "avif",
   "bmp",
   "gif",
-  "ico",
   "jpeg",
   "png",
   "rayon",

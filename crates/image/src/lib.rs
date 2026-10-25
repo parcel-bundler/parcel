@@ -13,17 +13,9 @@ impl Transformer for ImageTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    _ctx: &parcel_core::PluginContext,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
     asset.bundle_behavior = BundleBehavior::Isolated;
-
-    if !asset
-      .target
-      .flags
-      .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
-    {
-      return Ok(asset);
-    }
 
     let mut width: Option<u32> = None;
     let mut height: Option<u32> = None;
@@ -38,32 +30,82 @@ impl Transformer for ImageTransformer {
       } else if key == "quality" {
         quality = val.parse().ok();
       } else if key == "as" {
-        format = match &*val {
-          "png" => Some(AssetType::Png),
-          "jpeg" | "jpg" => Some(AssetType::Jpeg),
-          "gif" => Some(AssetType::Gif),
-          "webp" => Some(AssetType::WebP),
-          "ico" => Some(AssetType::Ico),
-          "avif" => Some(AssetType::Avif),
-          _ => None,
-        }
+        format = Some(match &*val {
+          "png" => AssetType::Png,
+          "jpeg" | "jpg" => AssetType::Jpeg,
+          "gif" => AssetType::Gif,
+          "webp" => AssetType::WebP,
+          "avif" => AssetType::Avif,
+          _ => {
+            return Err(
+              image_error(
+                &asset,
+                ctx,
+                format!("Unsupported image output format \"{val}\""),
+                "Supported ?as= formats are png, jpeg, jpg, gif, webp, and avif.",
+              )
+              .into(),
+            );
+          }
+        });
       }
     }
 
-    if width.is_some() || height.is_some() || quality.is_some() || format.is_some() {
+    // Validated before the production-only early return below, so an unsupported
+    // input fails the same way in development as in a production build.
+    let input_format =
+      if width.is_some() || height.is_some() || quality.is_some() || format.is_some() {
+        let input_format = match &asset.ty {
+          AssetType::Png => ImageFormat::Png,
+          AssetType::Jpeg => ImageFormat::Jpeg,
+          AssetType::Gif => ImageFormat::Gif,
+          AssetType::WebP => ImageFormat::WebP,
+          AssetType::Tiff => ImageFormat::Tiff,
+          AssetType::Bmp => ImageFormat::Bmp,
+          ty => {
+            return Err(
+              image_error(
+                &asset,
+                ctx,
+                format!("Cannot transform {} images", ty.extension()),
+                concat!(
+                  "Only png, jpeg, gif, webp, tiff, and bmp images can be resized or converted. ",
+                  "AVIF is supported as an output format only (?as=avif)."
+                ),
+              )
+              .into(),
+            );
+          }
+        };
+        // tiff and bmp can be decoded but not encoded, so they must be converted.
+        if format.is_none() && matches!(asset.ty, AssetType::Tiff | AssetType::Bmp) {
+          return Err(
+            image_error(
+              &asset,
+              ctx,
+              format!("Cannot output {} images", asset.ty.extension()),
+              "Use ?as= to convert to png, jpeg, gif, webp, or avif.",
+            )
+            .into(),
+          );
+        }
+        Some(input_format)
+      } else {
+        None
+      };
+
+    if !asset
+      .target
+      .flags
+      .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+    {
+      return Ok(asset);
+    }
+
+    if let Some(input_format) = input_format {
       let bytes = asset.content.read()?;
       let mut reader = ImageReader::new(Cursor::new(bytes));
-      reader.set_format(match &asset.ty {
-        AssetType::Png => ImageFormat::Png,
-        AssetType::Jpeg => ImageFormat::Jpeg,
-        AssetType::Gif => ImageFormat::Gif,
-        AssetType::WebP => ImageFormat::WebP,
-        AssetType::Tiff => ImageFormat::Tiff,
-        AssetType::Bmp => ImageFormat::Bmp,
-        AssetType::Ico => ImageFormat::Ico,
-        AssetType::Avif => ImageFormat::Avif,
-        _ => return Ok(asset),
-      });
+      reader.set_format(input_format);
 
       let mut decoder = reader
         .into_decoder()
@@ -238,5 +280,23 @@ impl Transformer for ImageTransformer {
     }
 
     Ok(asset)
+  }
+}
+
+fn image_error(asset: &Asset, ctx: &PluginContext, message: String, hint: &str) -> Diagnostic {
+  let file = match asset.loc.url.to_file_path() {
+    Ok(path) => path
+      .relative(&ctx.options.project_root)
+      .to_string_lossy()
+      .into_owned(),
+    Err(_) => asset.loc.url.to_string(),
+  };
+  Diagnostic {
+    message: format!("{message} in {file}"),
+    origin: Some("@parcel/transformer-image".into()),
+    code_frames: Vec::new(),
+    hints: vec![hint.into()],
+    severity: DiagnosticSeverity::Error,
+    documentation_url: None,
   }
 }

@@ -7,7 +7,6 @@
     {"type": "avif", "assets": ["foo.png"]},
     {"type": "jpg", "assets": ["foo.png"]},
     {"type": "png", "assets": ["foo.png"]},
-    {"type": "tiff", "assets": ["foo.png"]},
     {"type": "webp", "assets": ["foo.png"]}
   ]
 }

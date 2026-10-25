@@ -1,0 +1,11 @@
+{
+  "description": "Should report a clear error for an unsupported ?as= output format",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "diagnostics": [
+    {
+      "message": "Unsupported image output format \"ico\" in foo.png",
+      "origin": "@parcel/transformer-image"
+    }
+  ]
+}
