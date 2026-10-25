@@ -83,7 +83,6 @@ fn build_entries(files: &[(&str, &str)], entries: &[&str], mode: BuildMode) -> V
       public_url: "/".into(),
       hmr: None,
       reporters: vec![warnings.clone()],
-      install_dir: None,
     },
   )
   .expect("conflicting CSS orders must not fail the build");

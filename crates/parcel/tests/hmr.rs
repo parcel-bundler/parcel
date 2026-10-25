@@ -51,7 +51,6 @@ fn setup_entries(files: &[(&str, &str)], entries: &[&str]) -> (Parcel, Arc<Memor
       port: 1234,
     }),
     reporters: Vec::new(),
-    install_dir: None,
   };
 
   let entries = entries.iter().map(|entry| entry.to_string()).collect();

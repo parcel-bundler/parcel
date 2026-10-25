@@ -181,8 +181,7 @@ impl Config {
   }
 
   /// A dependency on a helper the transformer inserted, e.g. from `@swc/helpers`, which is
-  /// resolved from the project root rather than the module. Parcel's own, from `@parcel/parcel3`,
-  /// are resolved from where Parcel is installed first (see `ParcelOptions::install_dir`).
+  /// resolved from the project root rather than the module.
   pub(crate) fn helper_dependency(&self, kind: DependencyKind, specifier: &str) -> Dependency {
     let mut dependency = self.dependency(kind, specifier, SourceType::Module, None);
     dependency.resolve_from = Some(SourceUrl::from_directory_path(&self.project_root));

@@ -25,7 +25,6 @@ fn bench_dev(c: &mut Criterion) {
         public_url: Default::default(),
         hmr: None,
         reporters: Vec::new(),
-        install_dir: None,
       }).expect("build failed");
     })
   });
@@ -51,7 +50,6 @@ fn bench_prod(c: &mut Criterion) {
         public_url: Default::default(),
         hmr: None,
         reporters: Vec::new(),
-        install_dir: None,
       }).expect("build failed");
     })
   });

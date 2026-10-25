@@ -201,7 +201,6 @@ fn parse_args(
     public_url: Default::default(),
     hmr: None,
     reporters: Vec::new(),
-    install_dir: None,
   };
 
   let mut entries = Vec::new();
@@ -419,7 +418,7 @@ pub fn main() -> ExitCode {
   let CliAction::Run {
     command,
     entries,
-    mut options,
+    options,
     server_options,
   } = action
   else {
@@ -444,8 +443,6 @@ pub fn main() -> ExitCode {
     return ExitCode::SUCCESS;
   };
 
-  options.install_dir = install_dir();
-
   let res = match command {
     Command::Help => {
       print!("{}", help(None));
@@ -468,14 +465,6 @@ pub fn main() -> ExitCode {
   } else {
     ExitCode::FAILURE
   }
-}
-
-/// The directory of this executable (see [`BuildOptions::install_dir`]). Symlinks and `..` are
-/// resolved, since the `node_modules/.bin` launcher runs it by a relative path, and the
-/// `@parcel/parcel3` package it was installed with is only found from where it really lives.
-fn install_dir() -> Option<PathId> {
-  let exe = std::fs::canonicalize(std::env::current_exe().ok()?).ok()?;
-  Some(PathId::new(exe.parent()?))
 }
 
 struct CLIReporter {

@@ -29,7 +29,6 @@ fn build(fixture: &Path, entry: &str, optimize: bool) -> BTreeMap<String, String
     public_url: Default::default(),
     hmr: None,
     reporters: Vec::new(),
-    install_dir: None,
   };
   let bundle_graph = parcel::build(&vec![entry.to_string()], options).unwrap();
   bundle_graph

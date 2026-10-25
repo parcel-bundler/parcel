@@ -58,7 +58,6 @@ fn assert_bundle_source_maps(mode: BuildMode, minify: Option<bool>) {
       public_url: Default::default(),
       hmr: None,
       reporters: Vec::new(),
-      install_dir: None,
     },
   )
   .unwrap();
@@ -330,7 +329,6 @@ fn hmr_update_source_map_points_to_original_code() {
         port: 1234,
       }),
       reporters: Vec::new(),
-      install_dir: None,
     },
   )
   .unwrap();
@@ -415,7 +413,6 @@ fn build_outputs(
       public_url: Default::default(),
       hmr: None,
       reporters: Vec::new(),
-      install_dir: None,
     },
   )
   .unwrap();

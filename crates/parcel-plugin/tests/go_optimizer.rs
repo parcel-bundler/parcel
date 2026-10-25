@@ -77,7 +77,6 @@ fn test_go_optimizer_plugin() {
       public_url: Default::default(),
       hmr: None,
       reporters: Vec::new(),
-      install_dir: None,
     },
   )
   .unwrap_or_else(|error| panic!("parcel build failed: {:?}", error));

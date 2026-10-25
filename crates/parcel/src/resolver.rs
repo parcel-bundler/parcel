@@ -14,9 +14,6 @@ use parcel_resolver::{
 
 pub struct DefaultResolver;
 
-/// The package Parcel is installed as, which holds the runtime modules its transformers insert.
-const PARCEL_PACKAGE: &str = "@parcel/parcel3";
-
 impl DefaultResolver {
   pub fn new(_project_root: String) -> Self {
     DefaultResolver
@@ -101,38 +98,22 @@ impl Resolver for DefaultResolver {
       } => path.child("index"),
       _ => resolve_from.to_file_path()?,
     };
-    let resolve = |from| {
-      resolver.resolve_with_options(
-        specifier,
-        from,
-        match dep.specifier_type {
-          SpecifierType::Esm => parcel_resolver::SpecifierType::Esm,
-          SpecifierType::Commonjs => parcel_resolver::SpecifierType::Cjs,
-          SpecifierType::Url => parcel_resolver::SpecifierType::Url,
-          _ => parcel_resolver::SpecifierType::Esm,
-        },
-        &**fs,
-        ResolveOptions {
-          conditions: dep.conditions,
-          // Only allocates when there are any.
-          custom_conditions: dep.custom_conditions.to_vec(),
-        },
-      )
-    };
-    // Parcel's own runtime modules, e.g. the ESM helpers the JS transformer inserts, come from the
-    // package installed with the executable, which matches its version and is there even when the
-    // project does not depend on Parcel. A development build of Parcel is not installed that way,
-    // so they fall back to resolving from the dependency as usual.
-    let mut res = match options.install_dir {
-      Some(dir)
-        if specifier
-          .strip_prefix(PARCEL_PACKAGE)
-          .is_some_and(|subpath| subpath.starts_with('/')) =>
-      {
-        resolve(dir.child("index")).or_else(|_| resolve(from))
-      }
-      _ => resolve(from),
-    };
+    let mut res = resolver.resolve_with_options(
+      specifier,
+      from,
+      match dep.specifier_type {
+        SpecifierType::Esm => parcel_resolver::SpecifierType::Esm,
+        SpecifierType::Commonjs => parcel_resolver::SpecifierType::Cjs,
+        SpecifierType::Url => parcel_resolver::SpecifierType::Url,
+        _ => parcel_resolver::SpecifierType::Esm,
+      },
+      &**fs,
+      ResolveOptions {
+        conditions: dep.conditions,
+        // Only allocates when there are any.
+        custom_conditions: dep.custom_conditions.to_vec(),
+      },
+    );
 
     let side_effects = dep.flags.contains(DependencyFlags::SIDE_EFFECTS)
       || if let Ok(ResolutionAndQuery {

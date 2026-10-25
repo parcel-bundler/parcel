@@ -129,7 +129,6 @@ fn build(
       public_url: Default::default(),
       hmr: None,
       reporters: Vec::new(),
-      install_dir: None,
     },
   );
   Some((result, output_fs))

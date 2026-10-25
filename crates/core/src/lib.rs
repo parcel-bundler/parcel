@@ -211,7 +211,6 @@ impl Parcel {
       reporters: reporters.clone(),
       content_hash,
       plugin_tracker: Some(Arc::new(TrackingFileSystem::new(cached_fs.clone()))),
-      install_dir: options.install_dir,
     });
 
     // Weak, so the options may own the reporters without the two keeping each
