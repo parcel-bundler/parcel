@@ -82,7 +82,7 @@ You can run `/path/to/monorepo/packages/core/parcel/src/bin.js build src/index.h
 
 ## Releasing a new version
 
-Releases are published by the [parcel3 workflow](.github/workflows/parcel3.yml). Run it from the Actions tab with the version to release (e.g. `3.0.0-alpha.1`) and `publish` checked. It builds the native `parcel3` packages for every target, and versions and publishes the JS packages in `packages-v3` with Yarn. Without `publish` checked, it only builds and packs everything, so the result can be checked first.
+Releases are published by the [parcel3 workflow](.github/workflows/parcel3.yml). Run it from the Actions tab with the version to release (e.g. `3.0.0-alpha.1`) and `publish` checked. It builds Parcel for every target and publishes it as both `parcel` and `@parcel/parcel3` (which installs a `parcel3` command, so it can be used beside Parcel 2), and versions and publishes the JS packages in `packages-v3` with Yarn. Without `publish` checked, it only builds and packs everything, so the result can be checked first.
 
 The JS packages are published to a dist-tag named after the prerelease identifier (e.g. `alpha`), or `latest` for a stable version, unless the `tag` input is set.
 

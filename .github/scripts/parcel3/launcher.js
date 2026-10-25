@@ -2,12 +2,14 @@
 'use strict';
 
 /**
- * Shipped as `bin/parcel3`. Parcel itself is a native executable, published one
+ * Shipped as `bin/parcel` in the `parcel` package, and as `bin/parcel3` in
+ * `@parcel/parcel3`, which exists so Parcel 3 can be installed beside Parcel 2.
+ * Parcel itself is a native executable, published one
  * platform package per target and pulled in through optionalDependencies, so all
  * this file does is hand off to whichever one npm installed for this host.
  *
  * It also tries to take itself out of the loop. Starting Node costs ~30ms on
- * every single `parcel3` invocation, which is a large tax on a tool whose whole
+ * every single invocation, which is a large tax on a tool whose whole
  * point is being fast, so on the first run it rewrites the `node_modules/.bin`
  * entry that launched it into a launcher that execs the binary without Node.
  * See `launcher` for why that launcher looks the way it does.
@@ -19,13 +21,16 @@
 const fs = require('fs');
 const path = require('path');
 
-/** The command, which is also the `node_modules/.bin` entry `optimize` rewrites. */
-const NAME = 'parcel3';
+/**
+ * The command, which is also the `node_modules/.bin` entry `optimize` rewrites.
+ * Taken from this file's own name, so both packages can ship it unchanged.
+ */
+const NAME = path.basename(__filename);
 
-/** Prefix of the platform packages. Scoped; only `parcel3` itself is not. */
+/** Prefix of the platform packages, which both packages depend on. */
 const PLATFORM_PACKAGE = '@parcel/parcel3';
 
-const EXECUTABLE = process.platform === 'win32' ? 'parcel3.exe' : 'parcel3';
+const EXECUTABLE = process.platform === 'win32' ? 'parcel.exe' : 'parcel';
 
 /**
  * The platform packages that could serve this host, best first.
@@ -75,7 +80,7 @@ if (binPath == null) {
   process.stderr.write(
     `Parcel could not find the "${
       candidates()[0]
-    }" package, which would hold the parcel3 ` +
+    }" package, which would hold the Parcel ` +
       `binary for ${process.platform} ${process.arch}.\n\n` +
       `Either Parcel publishes no binary for this platform, or the one it does publish was not ` +
       `installed: it comes in through optionalDependencies, so --no-optional and --omit=optional ` +
@@ -93,7 +98,7 @@ run();
  *
  * Only an entry that can be proven to refer to this file is ever touched, the
  * write goes through a temp file and an atomic rename, and every failure leaves
- * the entry alone - a slow parcel3 is fine, a broken one is not.
+ * the entry alone - a slow Parcel is fine, a broken one is not.
  */
 function optimize() {
   // Windows generates .cmd and .ps1 shims with `node` baked in at install time,
@@ -104,10 +109,10 @@ function optimize() {
     try {
       const stat = fs.lstatSync(entry);
       if (stat.isSymbolicLink()) {
-        // npm and Yarn: .bin/parcel3 is a symlink to this file.
+        // npm and Yarn: the .bin entry is a symlink to this file.
         if (fs.realpathSync(entry) !== __filename) continue;
       } else if (stat.isFile()) {
-        // pnpm: .bin/parcel3 is a generated sh wrapper that runs `node <this>`.
+        // pnpm: the .bin entry is a generated sh wrapper that runs `node <this>`.
         if (!wrapsThisFile(fs.readFileSync(entry, 'utf8'))) continue;
       } else {
         continue;
@@ -128,7 +133,7 @@ function wrapsThisFile(contents) {
   return contents.includes(tail) && contents.includes('node');
 }
 
-/** Every `.bin/parcel3` that could have launched this file. */
+/** Every `.bin` entry that could have launched this file. */
 function* binEntries() {
   // What the kernel was handed, before symlinks were resolved: npm and Yarn
   // launch us through the .bin symlink itself.

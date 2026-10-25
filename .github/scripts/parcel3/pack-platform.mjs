@@ -1,5 +1,5 @@
 /**
- * Packs the parcel3 binary built for one target into a publishable npm tarball.
+ * Packs the Parcel binary built for one target into a publishable npm tarball.
  *
  * Usage:
  *   node pack-platform.mjs --package parcel3-darwin-arm64 --version 3.0.0
@@ -8,8 +8,9 @@
  *                          --target <rust triple> --out <dir>
  *
  * The tarball is written to <out>/<target>.tgz, and the package metadata to
- * <out>/<target>.json, so the pack job can assemble parcel3's optionalDependencies
- * without having to unpack anything or know the target list itself.
+ * <out>/<target>.json, so the pack job can assemble the optionalDependencies of
+ * `parcel` and `@parcel/parcel3` without having to unpack anything or know the
+ * target list itself.
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -55,7 +56,7 @@ if (!fs.existsSync(binary)) {
   throw new Error(`No binary at ${binary}`);
 }
 
-let executable = values.os === 'win32' ? 'parcel3.exe' : 'parcel3';
+let executable = values.os === 'win32' ? 'parcel.exe' : 'parcel';
 
 // Stage outside the repo so `npm pack` only ever sees the two files put here.
 let stage = fs.mkdtempSync(
@@ -68,7 +69,7 @@ fs.chmodSync(path.join(stage, executable), 0o755);
 let pkg = {
   name: values.package,
   version: values.version,
-  description: `The parcel3 binary for ${values.os} ${values.cpu}.`,
+  description: `The Parcel binary for ${values.os} ${values.cpu}.`,
   license: 'MIT',
   repository: {
     type: 'git',

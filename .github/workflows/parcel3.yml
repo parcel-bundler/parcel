@@ -25,6 +25,10 @@ env:
   ZIG_VERSION: '0.14.0'
 
 jobs:
+  # Publishes Parcel 3 twice, from the same platform packages: as `parcel`, and
+  # as `@parcel/parcel3` with a `parcel3` command, so that it can be installed
+  # beside Parcel 2 (see .github/scripts/parcel3/pack-main.mjs).
+  #
   # The target list lives in .github/scripts/native-plugin/targets.mjs, shared
   # with the plugin workflow: Parcel and the plugins it loads are built for the
   # same targets, so adding one should mean editing one file.
@@ -186,7 +190,7 @@ jobs:
           if-no-files-found: error
 
   pack:
-    name: Pack parcel3
+    name: Pack parcel and @parcel/parcel3
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -207,7 +211,7 @@ jobs:
           path: ${{ runner.temp }}/artifacts
           merge-multiple: true
 
-      - name: Pack parcel3
+      - name: Pack parcel and @parcel/parcel3
         run: |
           node .github/scripts/parcel3/pack-main.mjs \
             --version "${{ inputs.version }}" \
@@ -221,8 +225,9 @@ jobs:
           if-no-files-found: error
 
   # The pure JS workspace packages (@parcel/plugin, the transformers, ...) are
-  # versioned, packed and published with Yarn. @parcel/parcel3 is private: its
-  # npm package is assembled from the native builds by the jobs above instead.
+  # versioned, packed and published with Yarn. @parcel/parcel3 is private: the
+  # parcel and @parcel/parcel3 npm packages are assembled from the native builds
+  # by the jobs above instead.
   pack-js:
     name: Pack JS packages
     runs-on: ubuntu-latest
@@ -301,7 +306,7 @@ jobs:
 
   # Native plugins that live in this repo but are installed separately, so
   # that projects without those file types do not download them. Released in
-  # lockstep with parcel3, through the same workflow third-party native plugins
+  # lockstep with Parcel, through the same workflow third-party native plugins
   # use (.github/scripts/native-plugin/README.md).
   #
   # Waits for Parcel's own builds so that a broken target stops the plugins
@@ -352,20 +357,21 @@ jobs:
           path: ${{ runner.temp }}/artifacts
           merge-multiple: true
 
-      - name: Download parcel3
+      - name: Download parcel and @parcel/parcel3
         uses: actions/download-artifact@v4
         with:
           name: parcel3-main
           path: ${{ runner.temp }}/main
 
-      # Platform packages first: parcel3's optionalDependencies pin exact
-      # versions of them, so it must never be resolvable before they are.
+      # Platform packages first: the optionalDependencies of parcel and
+      # @parcel/parcel3 pin exact versions of them, so neither must ever be
+      # resolvable before they are.
       - name: Publish platform packages
         env:
           TAG: ${{ inputs.tag }}
         run: node .github/scripts/native-plugin/publish.mjs --tag "$TAG" "$RUNNER_TEMP"/artifacts/*.tgz
 
-      - name: Publish parcel3
+      - name: Publish parcel and @parcel/parcel3
         env:
           TAG: ${{ inputs.tag }}
         run: node .github/scripts/native-plugin/publish.mjs --tag "$TAG" "$RUNNER_TEMP"/main/*.tgz
