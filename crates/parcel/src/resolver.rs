@@ -229,9 +229,21 @@ impl Resolver for DefaultResolver {
           self.resolve(dep, module, pipeline, ctx)
         }
       },
-      Err(error) => Err(DiagnosticList(resolver_error_diagnostics(
-        error, specifier, &**fs,
-      ))),
+      Err(error) => {
+        // Helpers the JS transformer inserts, e.g. from @swc/helpers, have a version range and
+        // must be installed in the project.
+        let install_hint = match (&error, &dep.range) {
+          (ResolverError::ModuleNotFound { module }, Some(_)) => {
+            Some(format!("Run `npm install {module}`"))
+          }
+          _ => None,
+        };
+        let mut diagnostics = resolver_error_diagnostics(error, specifier, &**fs);
+        if let (Some(hint), Some(diagnostic)) = (install_hint, diagnostics.first_mut()) {
+          diagnostic.hints.push(hint);
+        }
+        Err(DiagnosticList(diagnostics))
+      }
     }
   }
 }

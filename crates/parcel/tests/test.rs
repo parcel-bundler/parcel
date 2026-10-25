@@ -1145,3 +1145,68 @@ fn get_exports_star_dedupe() {
     .1;
   assert_eq!(*both, SymbolResolution::Ambiguous);
 }
+
+#[test]
+fn missing_swc_helpers_install_hint() {
+  // Built in memory, since the repository's own node_modules would provide @swc/helpers.
+  let input_fs = Arc::new(MemoryFileSystem::new());
+  for (path, contents) in [
+    (
+      "/project/package.json",
+      r#"{"name": "project", "browserslist": "ie 11"}"#,
+    ),
+    ("/project/index.js", "class Foo {}\nnew Foo();\n"),
+    (
+      "/project/node_modules/@parcel/parcel3/package.json",
+      r#"{"name": "@parcel/parcel3", "version": "3.0.0"}"#,
+    ),
+    (
+      "/project/node_modules/@parcel/parcel3/src/esmodule-helpers.js",
+      include_str!("../../../packages-v3/parcel3/src/esmodule-helpers.js"),
+    ),
+  ] {
+    let path = Path::new(path);
+    input_fs
+      .create_dir_all(PathId::new(path.parent().unwrap()))
+      .unwrap();
+    input_fs
+      .write(PathId::new(path), &contents.as_bytes().to_vec())
+      .unwrap();
+  }
+
+  let options = BuildOptions {
+    mode: parcel_core::BuildMode::Development,
+    optimize: None,
+    content_hash: None,
+    source_map: None,
+    env: HashMap::from([("NODE_ENV".into(), "test".into())]),
+    input_fs,
+    output_fs: Arc::new(MemoryFileSystem::new()),
+    log_level: parcel_core::LogLevel::Error,
+    config: None,
+    cwd: PathId::new(Path::new("/project")),
+    dist_dir: None,
+    public_url: Default::default(),
+    hmr: None,
+    reporters: Vec::new(),
+  };
+  let Err(diagnostics) = parcel::build(&vec!["index.js".into()], options) else {
+    panic!("expected the build to fail");
+  };
+  assert_diagnostics(
+    &diagnostics,
+    &[
+      Diagnostic {
+        message: "Failed to resolve '@swc/helpers/".into(),
+        origin: Some("@parcel/core".into()),
+        ..Diagnostic::from_message(String::new())
+      },
+      Diagnostic {
+        message: "Cannot find module '@swc/helpers'".into(),
+        origin: Some("@parcel/resolver-default".into()),
+        hints: vec!["Run `npm install @swc/helpers`".into()],
+        ..Diagnostic::from_message(String::new())
+      },
+    ],
+  );
+}
