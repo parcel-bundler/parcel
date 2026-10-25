@@ -1,0 +1,10 @@
+{
+  "description": "should tree shake unused css modules classes and @keyframes with static member accesses of a namespace import",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"assets": ["index.js"]},
+    {"assets": ["style.module.css"]}
+  ],
+  "output": {"a": "iIt_Bq_a iIt_Bq_c", "b": "iIt_Bq_b"}
+}
