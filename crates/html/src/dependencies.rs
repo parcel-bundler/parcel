@@ -296,6 +296,11 @@ impl<'arena> DependencyCollector<'arena> {
             {
               reference = Some(UrlReference::Document);
             }
+            // Canonical and alternate versions of the page are navigated to. Preloads request
+            // nothing, since the symbols they fetch come from wherever the resource is used.
+            if rel.as_ref() == "canonical" || rel.as_ref() == "alternate" {
+              reference = Some(UrlReference::Document);
+            }
             if rel.as_ref() == "canonical" || rel.as_ref() == "manifest" {
               flags |= DependencyFlags::NEEDS_STABLE_NAME;
               if rel.as_ref() == "manifest" && !href.contains(':') {

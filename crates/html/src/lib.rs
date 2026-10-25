@@ -191,8 +191,14 @@ fn svg_exports<'arena>(dom: arena::Ref<'arena>) -> Vec<LocalSymbol> {
     .collect()
 }
 
-/// What the files referencing an SVG document use of it, from the symbols they request.
-fn svg_usage(asset: &Asset) -> SvgUsage {
+/// What the files referencing an SVG document use of it, from the symbols they request. An
+/// entry is referenced from outside the build, so it keeps all of its elements.
+fn svg_usage(asset_graph: &AssetGraph, asset_index: AssetIndex) -> SvgUsage {
+  let asset = asset_graph.asset(asset_index);
+  let is_entry = asset_graph
+    .entries
+    .iter()
+    .any(|entry| asset_graph.resolved_entry(entry) == Some(asset_index));
   let ids = asset
     .symbols
     .exports
@@ -201,7 +207,7 @@ fn svg_usage(asset: &Asset) -> SvgUsage {
       SymbolName::Name(id) => Some((id.to_string(), export.requested)),
       _ => None,
     });
-  if asset.symbols.used_namespace {
+  if is_entry || asset.symbols.used_namespace {
     return SvgUsage {
       referenced_ids: ids.map(|(id, _)| id).collect(),
       rendered: true,
@@ -1016,7 +1022,7 @@ impl Content for SvgContent {
           config: config.clone(),
           url: self.url.clone(),
           project_root: Some(options.project_root),
-          usage: Some(svg_usage(bundle_graph.asset_graph.asset(bundle.assets[0]))),
+          usage: Some(svg_usage(&bundle_graph.asset_graph, bundle.assets[0])),
         })
         .unwrap()
         .code

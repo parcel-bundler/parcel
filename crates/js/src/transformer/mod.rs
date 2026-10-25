@@ -900,7 +900,7 @@ fn asset_symbols(
     for (index, dep) in dependencies.iter().enumerate() {
       if matches!(
         dep.specifier_type,
-        SpecifierType::Esm | SpecifierType::Commonjs
+        SpecifierType::Esm | SpecifierType::Commonjs | SpecifierType::Url
       ) {
         import_namespace(&mut symbols, index as u32);
       }

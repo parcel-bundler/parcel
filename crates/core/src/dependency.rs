@@ -108,8 +108,9 @@ impl Dependency {
 
 /// How an importer uses the document a URL dependency references. SVG documents export their
 /// element ids and the rendered document ([`SymbolName::Document`]) as symbols, so importers
-/// request what they use and the SVG packager removes the rest. A URL dependency that imports
-/// nothing, e.g. `new URL()` in JS, may use anything, so the whole document is kept.
+/// request what they use and the SVG packager removes the rest. An importer that may use anything,
+/// e.g. `new URL()` in JS, imports the namespace to keep the whole document. One that imports
+/// nothing, e.g. `<link rel="preload">`, leaves the symbols to the files that use the document.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum UrlReference {
   /// The document is rendered or navigated to, e.g. by `<img src>`. A fragment names a view of

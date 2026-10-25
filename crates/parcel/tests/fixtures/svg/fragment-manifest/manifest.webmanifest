@@ -1,0 +1,4 @@
+{
+  "name": "App",
+  "icons": [{"src": "sprite.svg", "type": "image/svg+xml", "sizes": "any"}]
+}

@@ -449,20 +449,15 @@ impl AssetGraphBuilder {
       }
 
       // Library entries request their entire namespace (originally requested via the entry
-      // node's pending symbols on the first build). Like SVGs loaded without importing any
-      // symbols (see below), SVG entries keep all of their elements.
+      // node's pending symbols on the first build).
       for entry_index in 0..self.entries.len() {
         let entry = &self.entries[entry_index];
+        if !entry.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+          continue;
+        }
         let Some(node_index) = entry.asset else {
           continue;
         };
-        if !entry.target.flags.contains(EnvironmentFlags::IS_LIBRARY)
-          && !self.asset_nodes[node_index.index()]
-            .asset
-            .is_some_and(|asset| keeps_unimported_symbols(&self.assets[asset.index()].ty))
-        {
-          continue;
-        }
         request_symbol(
           &mut self.asset_nodes,
           &mut self.assets,
@@ -523,30 +518,6 @@ impl AssetGraphBuilder {
               let asset = &mut self.assets[asset_index.index()];
               let symbol = &mut asset.symbols.imports[import_index];
               symbol.resolved = resolution;
-            }
-          }
-
-          // An SVG referenced without importing any of its elements (e.g. `new URL()` in JS) may
-          // have any of them referenced by fragment, so it keeps all of them.
-          for dep_index in 0..self.assets[asset_index.index()].dependencies.len() {
-            let asset = &self.assets[asset_index.index()];
-            if let DependencyResolution::Asset(resolved_node_index) =
-              asset.dependencies[dep_index].resolution
-              && !asset
-                .symbols
-                .imports
-                .iter()
-                .any(|import| import.dep_index == dep_index as u32)
-              && self.asset_nodes[resolved_node_index.index()]
-                .asset
-                .is_some_and(|resolved| keeps_unimported_symbols(&self.assets[resolved.index()].ty))
-            {
-              request_all(
-                &mut self.asset_nodes,
-                &mut self.assets,
-                resolved_node_index,
-                &mut queue,
-              );
             }
           }
         }
@@ -869,12 +840,6 @@ fn resolve_symbol<G: SymbolGraph>(
   }
 
   star_resolution
-}
-
-/// Whether an asset of this type keeps all of its symbols when loaded without importing any:
-/// SVGs, whose element ids can also be referenced by fragment.
-fn keeps_unimported_symbols(ty: &AssetType) -> bool {
-  matches!(ty, AssetType::Svg)
 }
 
 fn request_all(

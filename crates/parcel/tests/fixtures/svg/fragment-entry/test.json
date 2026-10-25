@@ -1,0 +1,9 @@
+{
+  "description": "should keep every element of an SVG entry, which files outside the build may reference by fragment",
+  "input": ["index.html", "sprite.svg"],
+  "options": {"mode": "production", "contentHash": false},
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "svg", "assets": ["sprite.svg"]}
+  ]
+}
