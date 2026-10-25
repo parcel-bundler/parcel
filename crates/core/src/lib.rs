@@ -684,7 +684,11 @@ fn load_dotenv(
   let mut files: Vec<String> = Vec::new();
   if let Some(node_env) = env.get("NODE_ENV").cloned() {
     files.push(format!(".env.{}.local", node_env));
-    files.push(".env.local".to_string());
+    // Don't include `.env.local` in the test environment, since tests
+    // are normally expected to produce the same results for everyone.
+    if node_env != "test" {
+      files.push(".env.local".to_string());
+    }
     files.push(format!(".env.{}", node_env));
     files.push(".env".to_string());
   } else {
@@ -759,5 +763,30 @@ mod tests {
     load_dotenv(PathId::new(Path::new("/root")), &fs, &mut env).unwrap();
 
     assert_eq!(env.get("FOO").map(String::as_str), Some("production-local"));
+  }
+
+  #[test]
+  fn dotenv_local_skipped_in_test() {
+    let fs = MemoryFileSystem::new();
+    fs.mkdir(Path::new("/root")).unwrap();
+    fs.write(PathId::new(Path::new("/root/.env")), &b"FOO=base".to_vec())
+      .unwrap();
+    fs.write(
+      PathId::new(Path::new("/root/.env.local")),
+      &b"FOO=local".to_vec(),
+    )
+    .unwrap();
+    fs.write(
+      PathId::new(Path::new("/root/.env.test.local")),
+      &b"BAR=test-local".to_vec(),
+    )
+    .unwrap();
+
+    let mut env = HashMap::new();
+    env.insert("NODE_ENV".to_string(), "test".to_string());
+    load_dotenv(PathId::new(Path::new("/root")), &fs, &mut env).unwrap();
+
+    assert_eq!(env.get("FOO").map(String::as_str), Some("base"));
+    assert_eq!(env.get("BAR").map(String::as_str), Some("test-local"));
   }
 }

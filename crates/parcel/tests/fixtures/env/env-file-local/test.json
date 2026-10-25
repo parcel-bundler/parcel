@@ -1,0 +1,17 @@
+[
+  {
+    "description": "should not load .env.local in the test environment",
+    "input": "index.js",
+    "output": "bar"
+  },
+  {
+    "description": "should load .env.local outside the test environment",
+    "input": "index.js",
+    "options": {
+      "env": {
+        "NODE_ENV": "production"
+      }
+    },
+    "output": "local"
+  }
+]
