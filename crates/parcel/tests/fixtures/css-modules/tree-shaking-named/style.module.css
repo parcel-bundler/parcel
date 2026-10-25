@@ -1,0 +1,29 @@
+.a {
+  composes: c;
+  animation: fade 1s;
+}
+
+.b {
+  composes: x from "./mixins.module.css";
+  color: red;
+}
+
+.c {
+  color: green;
+}
+
+.unused {
+  color: blue;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes unused-animation {
+  from {
+    opacity: 1;
+  }
+}

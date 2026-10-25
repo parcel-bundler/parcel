@@ -1,0 +1,10 @@
+{
+  "description": "should not tree shake css modules accessed dynamically",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"assets": ["index.js"]},
+    {"assets": ["style.module.css"]}
+  ],
+  "output": "_cc1XW_b"
+}

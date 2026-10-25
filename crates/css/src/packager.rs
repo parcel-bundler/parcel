@@ -5,6 +5,7 @@ use std::{
 };
 
 use lightningcss::{
+  css_modules::CssModuleReference,
   media_query::MediaList,
   printer::PrinterOptions,
   rules::{
@@ -308,13 +309,7 @@ fn collect(
   let asset = &bundle_graph.asset_graph.asset(asset_index);
   let content = asset.content.downcast_ref::<CssContent>().unwrap();
 
-  let mut unused_symbols = HashSet::new();
-  for export in &asset.symbols.exports {
-    if !export.requested {
-      unused_symbols.insert(export.exported.as_str().to_owned());
-    }
-  }
-
+  let unused_symbols = unused_css_module_symbols(asset, content);
   if !unused_symbols.is_empty() {
     stylesheet
       .stylesheet
@@ -401,6 +396,57 @@ fn collect(
   }
 
   Ok(())
+}
+
+/// The scoped names of a CSS module's exports that nothing uses, for `MinifyOptions::unused_symbols`.
+/// Like v2, this only applies to optimized builds, so dev builds (and HMR) keep every class.
+fn unused_css_module_symbols(asset: &Asset, content: &CssContent) -> HashSet<String> {
+  let mut unused = HashSet::new();
+  if content.exports.is_empty()
+    || asset.symbols.used_namespace
+    || !asset
+      .target
+      .flags
+      .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+  {
+    return unused;
+  }
+
+  // Exports requested by importers, plus those referenced within the file itself (e.g. @keyframes
+  // used by an animation). Request state is recomputed after transforming, so the latter is read
+  // from the transform result rather than the symbol.
+  let mut used: HashSet<&str> = HashSet::new();
+  let mut stack: Vec<&str> = Vec::new();
+  for export in &asset.symbols.exports {
+    let name = export.exported.as_str();
+    if export.requested || content.exports.get(name).is_some_and(|e| e.is_referenced) {
+      stack.push(name);
+    }
+  }
+
+  // Exports compose other local classes into their value, so those must be kept too.
+  while let Some(name) = stack.pop() {
+    if !used.insert(name) {
+      continue;
+    }
+    let Some(export) = content.exports.get(name) else {
+      continue;
+    };
+    for composes in &export.composes {
+      if let CssModuleReference::Local { name } = composes
+        && let Some((exported, _)) = content.exports.iter().find(|(_, e)| e.name == *name)
+      {
+        stack.push(exported.as_str());
+      }
+    }
+  }
+
+  for (exported, export) in &content.exports {
+    if !used.contains(exported.as_str()) {
+      unused.insert(export.name.clone());
+    }
+  }
+  unused
 }
 
 fn inline(
