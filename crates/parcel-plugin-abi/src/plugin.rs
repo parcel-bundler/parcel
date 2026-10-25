@@ -143,21 +143,44 @@ pub struct CPlugin {
   // process exit without needing an explicit unload.
   lib: ManuallyDrop<Library>,
   state: *mut c_void,
+  /// The plugin's name in .parcelrc, which its diagnostics are attributed to.
+  origin: String,
 }
 
 unsafe impl Send for CPlugin {}
 unsafe impl Sync for CPlugin {}
 
 impl CPlugin {
-  pub fn new(path: PathId, config: Option<&serde_json::Value>) -> Result<CPlugin, DiagnosticList> {
+  pub fn new(
+    path: PathId,
+    origin: &str,
+    config: Option<&serde_json::Value>,
+  ) -> Result<CPlugin, DiagnosticList> {
     let lib = path
       .with_path(|path| unsafe { Library::new(path) })
       .map_err(|e| DiagnosticList(vec![CoreDiagnostic::from_message(e.to_string())]))?;
-    let state = Self::call_init(&lib, path, config)?;
+    let state = Self::call_init(&lib, path, config).map_err(|mut diagnostics| {
+      for diagnostic in &mut diagnostics.0 {
+        diagnostic.origin.get_or_insert_with(|| origin.to_owned());
+      }
+      diagnostics
+    })?;
     Ok(CPlugin {
       lib: ManuallyDrop::new(lib),
       state,
+      origin: origin.to_owned(),
     })
+  }
+
+  /// Reads the diagnostic the plugin returned from a call, if any, attributed to the plugin.
+  fn read_diagnostic(
+    &self,
+    diagnostic: &mut Diagnostic,
+    options: &ParcelOptions,
+  ) -> Option<DiagnosticList> {
+    let mut diagnostic = read_cdiagnostic(diagnostic, Some(&options.project_root))?;
+    diagnostic.origin = Some(self.origin.clone());
+    Some(DiagnosticList(vec![diagnostic]))
   }
 
   fn call_init(
@@ -261,8 +284,8 @@ impl Transformer for CPlugin {
       &mut diagnostic,
     );
 
-    if let Some(diag) = read_cdiagnostic(&mut diagnostic, Some(&options.project_root)) {
-      return Err(DiagnosticList(vec![diag]));
+    if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, options) {
+      return Err(diagnostics);
     }
     Ok(asset)
   }
@@ -348,8 +371,8 @@ impl Resolver for CPlugin {
       &mut diagnostic,
     );
 
-    if let Some(diag) = read_cdiagnostic(&mut diagnostic, Some(&options.project_root)) {
-      return Err(DiagnosticList(vec![diag]));
+    if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, options) {
+      return Err(diagnostics);
     }
 
     match result.resolution_type {
@@ -439,9 +462,9 @@ impl parcel_core::Namer for CPlugin {
       &mut diagnostic,
     );
 
-    if let Some(diag) = read_cdiagnostic(&mut diagnostic, Some(&options.project_root)) {
+    if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, options) {
       parcel_free_buffer(&mut name);
-      return Err(DiagnosticList(vec![diag]));
+      return Err(diagnostics);
     }
 
     if name.data.is_null() {
@@ -540,8 +563,8 @@ impl Reporter for CPlugin {
     let mut diagnostic = Diagnostic::default();
     report(&c_event, context.handle(), self.state, &mut diagnostic);
 
-    if let Some(diag) = read_cdiagnostic(&mut diagnostic, Some(&options.project_root)) {
-      return Err(DiagnosticList(vec![diag]));
+    if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, options) {
+      return Err(diagnostics);
     }
     Ok(())
   }
@@ -594,10 +617,10 @@ impl Optimizer for CPlugin {
       &mut diagnostic,
     );
 
-    if let Some(diag) = read_cdiagnostic(&mut diagnostic, Some(&options.project_root)) {
+    if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, options) {
       parcel_free_buffer(&mut result.contents);
       parcel_free_buffer(&mut result.source_map);
-      return Err(DiagnosticList(vec![diag]));
+      return Err(diagnostics);
     }
 
     let optimized_source_map = if result.source_map.data.is_null() {

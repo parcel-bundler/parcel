@@ -88,7 +88,7 @@ fn run(
     HashMap::new(),
     PathId::new(Path::new("/")),
   );
-  let plugin = JsPlugin::new(plugin_path, config);
+  let plugin = JsPlugin::new(plugin_path, "test-plugin", config);
   let options = ParcelOptions {
     input_fs: fs,
     mode: parcel_core::BuildMode::Production,

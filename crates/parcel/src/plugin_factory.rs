@@ -284,9 +284,12 @@ impl DefaultPluginFactory {
       // A path to a shared library, e.g. one a plugin author built locally.
       Some(b"so" | b"dylib" | b"dll") => Ok(ResolvedPlugin::Native(Arc::new(CPlugin::new(
         path,
+        name,
         config.as_ref(),
       )?))),
-      _ => Ok(ResolvedPlugin::Js(Arc::new(JsPlugin::new(path, config)))),
+      _ => Ok(ResolvedPlugin::Js(Arc::new(JsPlugin::new(
+        path, name, config,
+      )))),
     }
   }
 
@@ -394,7 +397,7 @@ impl DefaultPluginFactory {
           .into(),
         );
       }
-      return Ok(Arc::new(CPlugin::new(path, config)?));
+      return Ok(Arc::new(CPlugin::new(path, module, config)?));
     }
 
     let Some(artifact) = package.artifact() else {
@@ -435,7 +438,7 @@ impl DefaultPluginFactory {
       _ => self.resolve_artifact_package(module, artifact, dir)?,
     };
 
-    Ok(Arc::new(CPlugin::new(path, config)?))
+    Ok(Arc::new(CPlugin::new(path, module, config)?))
   }
 
   /// Resolves the library of a platform-specific artifact package.

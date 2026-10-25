@@ -158,7 +158,7 @@ fn load(
   config: Option<&serde_json::Value>,
 ) -> Option<Result<CPlugin, DiagnosticList>> {
   let path = plugin_dir()?.join(format!("{example}.{LIB_EXT}"));
-  Some(CPlugin::new(PathId::new(&path), config))
+  Some(CPlugin::new(PathId::new(&path), "test-plugin", config))
 }
 
 macro_rules! require_swift {

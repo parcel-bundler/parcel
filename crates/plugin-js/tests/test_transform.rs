@@ -33,7 +33,7 @@ fn run_with_options(
   fs.create_dir_all(root).expect("Error creating dir");
   fs.write(plugin_path, &code.as_bytes().to_owned())
     .expect("Error writing file");
-  let plugin = JsPlugin::new(plugin_path, config);
+  let plugin = JsPlugin::new(plugin_path, "test-plugin", config);
   let dyn_fs: Arc<dyn FileSystem> = fs.clone();
   options.input_fs = fs;
   plugin.transform(asset, &parcel_core::PluginContext::new(&options, &dyn_fs))
@@ -47,7 +47,7 @@ fn run_with_fs(
   let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
   let plugin_path = root.join(Path::new(name));
   fs.write(plugin_path, code.as_bytes()).unwrap();
-  let plugin = JsPlugin::new(plugin_path, None);
+  let plugin = JsPlugin::new(plugin_path, "test-plugin", None);
   let dyn_fs: Arc<dyn FileSystem> = fs.clone();
   let options = ParcelOptions {
     input_fs: fs,
@@ -362,7 +362,7 @@ fn plugin_fs_reads_are_tracked_by_the_plugin_tracker() {
     serde_json::to_string(&config_path.to_path_buf().to_string_lossy()).unwrap()
   );
   fs.write(path, source.as_bytes()).unwrap();
-  let plugin = JsPlugin::new(path, None);
+  let plugin = JsPlugin::new(path, "test-plugin", None);
   // The plugin may cache what it reads, so reads go to the build-wide plugin tracker rather than
   // the asset's.
   let plugin_tracker = Arc::new(TrackingFileSystem::new(fs.clone()));
@@ -578,6 +578,28 @@ fn test_transform_async() {
   );
 }
 
+#[test]
+fn test_transform_errors_are_attributed_to_the_plugin() {
+  let diagnostics = run(
+    "plugin-throws.mjs",
+    r#"
+  import {Transformer} from '@parcel/plugin';
+
+  export default new Transformer({
+    transform() {
+      throw new Error('failed');
+    }
+  });
+  "#,
+    test_asset(),
+  )
+  .unwrap_err();
+
+  assert_eq!(diagnostics.0.len(), 1);
+  assert_eq!(diagnostics.0[0].message, "failed");
+  assert_eq!(diagnostics.0[0].origin.as_deref(), Some("test-plugin"));
+}
+
 /// Resolves the way Parcel's default resolver does, from what the dependency carries, so tests
 /// can see that `resolve` passes the specifier type and conditions through the resolver chain.
 /// Custom specifiers, which only a plugin could resolve, go to `custom.js`.
@@ -675,7 +697,7 @@ fn test_resolve_uses_the_resolver_chain() {
 
   let mut asset = test_asset();
   asset.loc.url = SourceUrl::from_path(&from);
-  let plugin = JsPlugin::new(plugin_path, None);
+  let plugin = JsPlugin::new(plugin_path, "test-plugin", None);
   let dyn_fs: Arc<dyn FileSystem> = fs.clone();
   let options = ParcelOptions {
     input_fs: fs,

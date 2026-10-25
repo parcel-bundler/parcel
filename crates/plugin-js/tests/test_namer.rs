@@ -99,7 +99,7 @@ fn run_times(
     HashMap::new(),
     PathId::new(Path::new("/")),
   );
-  let plugin = JsPlugin::new(plugin_path, config);
+  let plugin = JsPlugin::new(plugin_path, "test-plugin", config);
   let options = ParcelOptions {
     input_fs: fs,
     ..Default::default()

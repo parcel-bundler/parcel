@@ -63,7 +63,7 @@ fn report_times(
   )
   .expect("Error writing plugin API");
 
-  let plugin = JsPlugin::new(plugin_path, config);
+  let plugin = JsPlugin::new(plugin_path, "test-plugin", config);
   let options = ParcelOptions {
     input_fs: fs,
     ..Default::default()

@@ -92,6 +92,19 @@ pub(crate) fn with_plugin_env<F, R>(
 where
   F: FnOnce(&Ctx) -> rquickjs::Result<R>,
 {
+  with_named_plugin_env(options, None, f)
+}
+
+/// Runs a call into the plugin named `origin` (as in .parcelrc). Diagnostics it throws are
+/// attributed to it, unless they name their own origin.
+pub(crate) fn with_named_plugin_env<F, R>(
+  options: &parcel_core::ParcelOptions,
+  origin: Option<&str>,
+  f: F,
+) -> Result<R, DiagnosticList>
+where
+  F: FnOnce(&Ctx) -> rquickjs::Result<R>,
+{
   let logs = Rc::new(RefCell::new(Vec::new()));
   let result = with_js_env(options.plugin_fs(), &options.env, options.cwd, |ctx| {
     ctx.store_userdata(console::ConsoleLogs(logs.clone()))?;
@@ -118,7 +131,18 @@ where
       options.log(level, message);
     }
   });
-  result
+  result.map_err(|diagnostics| match origin {
+    Some(origin) => with_origin(diagnostics, origin),
+    None => diagnostics,
+  })
+}
+
+/// Attributes diagnostics without an origin to `origin`.
+pub(crate) fn with_origin(mut diagnostics: DiagnosticList, origin: &str) -> DiagnosticList {
+  for diagnostic in &mut diagnostics.0 {
+    diagnostic.origin.get_or_insert_with(|| origin.to_owned());
+  }
+  diagnostics
 }
 
 impl JsEnv {

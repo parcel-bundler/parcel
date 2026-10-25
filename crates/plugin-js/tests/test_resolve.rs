@@ -62,7 +62,7 @@ fn run_times(
   )
   .expect("Error writing plugin API");
 
-  let plugin = JsPlugin::new(plugin_path, config);
+  let plugin = JsPlugin::new(plugin_path, "test-plugin", config);
   let dyn_fs: Arc<dyn FileSystem> = fs.clone();
   let options = ParcelOptions {
     input_fs: fs,

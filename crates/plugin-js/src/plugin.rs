@@ -21,10 +21,12 @@ use rquickjs::{
   methods,
 };
 
-use crate::{await_promise, cjs::CjsLoader, with_plugin_env};
+use crate::{await_promise, cjs::CjsLoader, with_named_plugin_env, with_origin};
 
 pub struct JsPlugin {
   path: String,
+  /// The plugin's name in .parcelrc, which its diagnostics are attributed to.
+  origin: String,
   config: Option<serde_json::Value>,
   reporter_methods: ReporterMethods,
 }
@@ -62,12 +64,24 @@ impl ReporterMethods {
 }
 
 impl JsPlugin {
-  pub fn new(path: PathId, config: Option<serde_json::Value>) -> JsPlugin {
+  pub fn new(path: PathId, origin: &str, config: Option<serde_json::Value>) -> JsPlugin {
     JsPlugin {
       path: path.with_path(|path| path.to_str().unwrap().to_owned()),
+      origin: origin.to_owned(),
       config,
       reporter_methods: ReporterMethods::new(),
     }
+  }
+
+  fn with_env<F, R>(
+    &self,
+    options: &parcel_core::ParcelOptions,
+    f: F,
+  ) -> Result<R, parcel_core::DiagnosticList>
+  where
+    F: FnOnce(&Ctx) -> rquickjs::Result<R>,
+  {
+    with_named_plugin_env(options, Some(&self.origin), f)
   }
 
   fn config_to_js<'js>(&self, ctx: &Ctx<'js>) -> rquickjs::Result<rquickjs::Value<'js>> {
@@ -99,7 +113,7 @@ impl Optimizer for JsPlugin {
     with_call_scope(|scope| {
       let graph = Rc::new(scope.wrap_graph(bundle_graph, options));
 
-      with_plugin_env(options, |ctx| {
+      self.with_env(options, |ctx| {
         let config = plugin_config(ctx, &self.path)?;
         let optimize: Function = config.get("optimize")?;
         let args = Object::new(ctx.clone())?;
@@ -318,7 +332,7 @@ impl Transformer for JsPlugin {
   ) -> std::result::Result<Asset, parcel_core::DiagnosticList> {
     let options = context.options;
     with_call_scope(|scope| {
-      let asset = with_plugin_env(options, |ctx| {
+      let asset = self.with_env(options, |ctx| {
         let config = plugin_config(&ctx, &self.path)?;
         let transform: Function = config.get("transform")?;
         // Dependencies resolved through `resolve` are imported by this asset, for its target.
@@ -435,7 +449,7 @@ impl Resolver for JsPlugin {
   ) -> Result<parcel_core::DependencyResolution, parcel_core::DiagnosticList> {
     let options = ctx.options;
     with_call_scope(|scope| {
-      with_plugin_env(options, |ctx| {
+      self.with_env(options, |ctx| {
         let config = plugin_config(&ctx, &self.path)?;
         let resolve: Function = config.get("resolve")?;
         let js_dep = JsDependency {
@@ -529,7 +543,7 @@ impl Namer for JsPlugin {
     let name = with_call_scope(|scope| {
       let graph = Rc::new(scope.wrap_graph(bundle_graph, options));
 
-      with_plugin_env(options, |ctx| {
+      self.with_env(options, |ctx| {
         let config = plugin_config(&ctx, &self.path)?;
         let name: Function = config.get("name")?;
         let args = Object::new(ctx.clone())?;
@@ -565,7 +579,7 @@ impl JsPlugin {
       return Ok(&self.reporter_methods);
     }
 
-    let methods = with_plugin_env(options, |ctx| {
+    let methods = self.with_env(options, |ctx| {
       let config = plugin_config(ctx, &self.path)?;
       let exports = |name: &str| -> rquickjs::Result<bool> {
         Ok(
@@ -596,14 +610,15 @@ impl JsPlugin {
     if self.reporter_methods.is_empty() {
       // Reported once: the cached empty set makes every later event a no-op,
       // rather than repeating this for every event of every build.
-      return Err(
+      return Err(with_origin(
         parcel_core::Diagnostic::from_message(format!(
           "{} is configured as a reporter but exports none of {}",
           self.path,
           ReporterMethods::NAMES.join(", ")
         ))
         .into(),
-      );
+        &self.origin,
+      ));
     }
 
     Ok(&self.reporter_methods)
@@ -648,7 +663,7 @@ impl Reporter for JsPlugin {
         _ => None,
       };
 
-      with_plugin_env(options, |ctx| {
+      self.with_env(options, |ctx| {
         let args = Object::new(ctx.clone())?;
         args.set(
           "options",

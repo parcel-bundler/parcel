@@ -61,7 +61,7 @@ fn setup(
   if let Some(source) = js_reporter {
     let path = root.child(&format!("{name}-reporter.cjs"));
     fs.write(path, source.as_bytes()).unwrap();
-    plugins.push(Arc::new(JsPlugin::new(path, None)));
+    plugins.push(Arc::new(JsPlugin::new(path, "test-plugin", None)));
   }
   let reporters = Reporters::new(plugins, level);
   let options = Arc::new(ParcelOptions {
@@ -71,7 +71,7 @@ fn setup(
     ..Default::default()
   });
   reporters.attach(Arc::downgrade(&options));
-  (JsPlugin::new(path, None), options, events)
+  (JsPlugin::new(path, "test-plugin", None), options, events)
 }
 
 #[test]

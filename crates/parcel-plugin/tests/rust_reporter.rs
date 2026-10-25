@@ -51,7 +51,7 @@ fn test_rust_reporter_receives_every_event_kind() {
     "built plugin not found at {plugin_path:?}"
   );
 
-  let plugin = CPlugin::new(PathId::new(&plugin_path), None).expect("load plugin");
+  let plugin = CPlugin::new(PathId::new(&plugin_path), "test-plugin", None).expect("load plugin");
   let options = ParcelOptions::default();
 
   plugin
@@ -108,7 +108,7 @@ fn test_a_plugin_that_is_not_a_reporter_says_so() {
     .join("target");
   let plugin_path = build_example("custom-namer", "custom_namer_rs", &target_dir);
 
-  let plugin = CPlugin::new(PathId::new(&plugin_path), None).expect("load plugin");
+  let plugin = CPlugin::new(PathId::new(&plugin_path), "test-plugin", None).expect("load plugin");
   let error = plugin
     .report(&ReporterEvent::BuildStart, &ParcelOptions::default())
     .expect_err("a namer is not a reporter");
@@ -118,6 +118,7 @@ fn test_a_plugin_that_is_not_a_reporter_says_so() {
     "got: {}",
     error.0[0].message
   );
+  assert_eq!(error.0[0].origin.as_deref(), Some("test-plugin"));
 }
 
 /// The whole path: a reporter named in a `.parcelrc`, loaded by the factory and
