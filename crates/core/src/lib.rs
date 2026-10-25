@@ -680,20 +680,17 @@ fn load_dotenv(
 ) -> Result<(), DiagnosticList> {
   // Highest precedence first (first writer wins via or_insert):
   //   .env.{mode}.local > .env.local > .env.{mode} > .env
+  // An unset NODE_ENV is treated as development, like Parcel 2.
+  let node_env = env.get("NODE_ENV").map_or("development", String::as_str);
   let mut files: Vec<String> = Vec::new();
-  if let Some(node_env) = env.get("NODE_ENV").cloned() {
-    files.push(format!(".env.{}.local", node_env));
-    // Don't include `.env.local` in the test environment, since tests
-    // are normally expected to produce the same results for everyone.
-    if node_env != "test" {
-      files.push(".env.local".to_string());
-    }
-    files.push(format!(".env.{}", node_env));
-    files.push(".env".to_string());
-  } else {
+  files.push(format!(".env.{}.local", node_env));
+  // Don't include `.env.local` in the test environment, since tests
+  // are normally expected to produce the same results for everyone.
+  if node_env != "test" {
     files.push(".env.local".to_string());
-    files.push(".env".to_string());
   }
+  files.push(format!(".env.{}", node_env));
+  files.push(".env".to_string());
 
   for file in &files {
     let path = project_root.child(file);
@@ -762,6 +759,34 @@ mod tests {
     load_dotenv(PathId::new(Path::new("/root")), &fs, &mut env).unwrap();
 
     assert_eq!(env.get("FOO").map(String::as_str), Some("production-local"));
+  }
+
+  #[test]
+  fn dotenv_defaults_to_development() {
+    let fs = MemoryFileSystem::new();
+    fs.mkdir(Path::new("/root")).unwrap();
+    fs.write(PathId::new(Path::new("/root/.env")), &b"FOO=base".to_vec())
+      .unwrap();
+    fs.write(
+      PathId::new(Path::new("/root/.env.development")),
+      &b"FOO=development\nBAR=development".to_vec(),
+    )
+    .unwrap();
+    fs.write(
+      PathId::new(Path::new("/root/.env.development.local")),
+      &b"BAR=development-local".to_vec(),
+    )
+    .unwrap();
+
+    let mut env = HashMap::new();
+    load_dotenv(PathId::new(Path::new("/root")), &fs, &mut env).unwrap();
+
+    assert_eq!(env.get("FOO").map(String::as_str), Some("development"));
+    assert_eq!(
+      env.get("BAR").map(String::as_str),
+      Some("development-local")
+    );
+    assert_eq!(env.get("NODE_ENV"), None);
   }
 
   #[test]
