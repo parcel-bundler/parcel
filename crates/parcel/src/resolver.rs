@@ -73,6 +73,10 @@ impl Resolver for DefaultResolver {
     // per-resolve; the underlying metadata/parse caching is shared via the wrapped CachedFileSystem.
     let mut resolver = parcel_resolver::Resolver::parcel(options.project_root);
     resolver.conditions = conditions;
+    // The package.json browser field (entry point and alias map) only applies to browsers.
+    if !dep.target.environment.is_browser() {
+      resolver.entries.remove(Fields::BROWSER);
+    }
     if dep.conditions.contains(ExportsCondition::TYPES) {
       resolver.entries |= Fields::TYPES;
       resolver.extensions = Extensions::Borrowed(&["ts", "tsx", "d.ts"]);

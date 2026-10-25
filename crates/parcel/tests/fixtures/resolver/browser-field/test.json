@@ -1,0 +1,5 @@
+{
+  "description": "should use the package.json browser field in browser environments",
+  "input": "index.js",
+  "output": ["browser", "impl-browser"]
+}
