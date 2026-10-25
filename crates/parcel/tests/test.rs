@@ -1282,6 +1282,57 @@ fn parcel_helpers_fall_back_to_project_root() {
 }
 
 #[test]
+fn parcel_runtime_dependencies_resolve_from_project() {
+  // mdx-components imports React, which a global install of Parcel does not have beside it, and
+  // which must be the project's own copy anyway.
+  let input_fs = memory_fs(&[
+    (
+      "/project/package.json",
+      r#"{"name": "project", "dependencies": {"react": "^19"}}"#,
+    ),
+    ("/project/index.mdx", "```js\nlet x = 1;\n```\n"),
+    (
+      "/project/node_modules/react/package.json",
+      r#"{"name": "react", "version": "19.0.0"}"#,
+    ),
+    (
+      "/project/node_modules/react/jsx-dev-runtime.js",
+      "exports.jsxDEV = function () {};\nexports.Fragment = 'fragment';\n",
+    ),
+    (
+      &format!("{GLOBAL_PARCEL}/package.json"),
+      r#"{"name": "@parcel/parcel3", "version": "3.0.0"}"#,
+    ),
+    (
+      &format!("{GLOBAL_PARCEL}/src/esmodule-helpers.js"),
+      ESM_HELPERS,
+    ),
+    (
+      &format!("{GLOBAL_PARCEL}/src/mdx-components.jsx"),
+      include_str!("../../../packages-v3/parcel3/src/mdx-components.jsx"),
+    ),
+  ]);
+
+  let graph = parcel::build(
+    &vec!["index.mdx".into()],
+    memory_build_options(input_fs, Some(GLOBAL_EXECUTABLE_DIR)),
+  )
+  .unwrap();
+  assert_eq!(
+    asset_path(&graph, "mdx-components.jsx"),
+    Some(PathBuf::from(format!(
+      "{GLOBAL_PARCEL}/src/mdx-components.jsx"
+    )))
+  );
+  assert_eq!(
+    asset_path(&graph, "jsx-dev-runtime.js"),
+    Some(PathBuf::from(
+      "/project/node_modules/react/jsx-dev-runtime.js"
+    ))
+  );
+}
+
+#[test]
 fn missing_swc_helpers_install_hint() {
   // Built in memory, since the repository's own node_modules would provide @swc/helpers. Users
   // install @swc/helpers themselves, so a copy beside Parcel is not used.

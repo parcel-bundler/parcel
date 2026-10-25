@@ -133,6 +133,16 @@ impl Resolver for DefaultResolver {
       }
       _ => resolve(from),
     };
+    // The runtime modules also import packages the project provides, e.g. mdx-components imports
+    // React, which must be the project's own copy. None is found beside a global install.
+    if res.is_err()
+      && resolver
+        .find_package(from, &**fs)
+        .is_some_and(|package| matches!(&*package, Ok(package) if package.name == PARCEL_PACKAGE))
+      && let Ok(resolution) = resolve(options.project_root.child("index"))
+    {
+      res = Ok(resolution);
+    }
 
     let side_effects = dep.flags.contains(DependencyFlags::SIDE_EFFECTS)
       || if let Ok(ResolutionAndQuery {
