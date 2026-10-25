@@ -82,6 +82,7 @@ fn build(files: &[(String, String)]) -> (Result<(), DiagnosticList>, Vec<Diagnos
       public_url: "/".into(),
       hmr: None,
       reporters: vec![warnings.clone()],
+      install_dir: None,
     },
   );
   let warnings = warnings.0.lock().unwrap().clone();

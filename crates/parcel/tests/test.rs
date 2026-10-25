@@ -178,6 +178,7 @@ fn bundle_with_options(
       port: 1234,
     }),
     reporters: Vec::new(),
+    install_dir: None,
   };
 
   parcel::build(&entries, options)
@@ -1147,35 +1148,26 @@ fn get_exports_star_dedupe() {
   assert_eq!(*both, SymbolResolution::Ambiguous);
 }
 
-#[test]
-fn missing_swc_helpers_install_hint() {
-  // Built in memory, since the repository's own node_modules would provide @swc/helpers.
-  let input_fs = Arc::new(MemoryFileSystem::new());
-  for (path, contents) in [
-    (
-      "/project/package.json",
-      r#"{"name": "project", "browserslist": "ie 11"}"#,
-    ),
-    ("/project/index.js", "class Foo {}\nnew Foo();\n"),
-    (
-      "/project/node_modules/@parcel/parcel3/package.json",
-      r#"{"name": "@parcel/parcel3", "version": "3.0.0"}"#,
-    ),
-    (
-      "/project/node_modules/@parcel/parcel3/src/esmodule-helpers.js",
-      include_str!("../../../packages-v3/parcel3/src/esmodule-helpers.js"),
-    ),
-  ] {
+/// A file system holding `files`, for builds that must not see the repository's own node_modules.
+fn memory_fs(files: &[(&str, &str)]) -> Arc<MemoryFileSystem> {
+  let fs = Arc::new(MemoryFileSystem::new());
+  for (path, contents) in files {
     let path = Path::new(path);
-    input_fs
-      .create_dir_all(PathId::new(path.parent().unwrap()))
+    fs.create_dir_all(PathId::new(path.parent().unwrap()))
       .unwrap();
-    input_fs
-      .write(PathId::new(path), &contents.as_bytes().to_vec())
+    fs.write(PathId::new(path), &contents.as_bytes().to_vec())
       .unwrap();
   }
+  fs
+}
 
-  let options = BuildOptions {
+/// Options for a development build of `/project` in `input_fs`, by a Parcel installed in
+/// `install_dir`.
+fn memory_build_options(
+  input_fs: Arc<MemoryFileSystem>,
+  install_dir: Option<&str>,
+) -> BuildOptions {
+  BuildOptions {
     mode: parcel_core::BuildMode::Development,
     optimize: None,
     content_hash: None,
@@ -1190,8 +1182,133 @@ fn missing_swc_helpers_install_hint() {
     public_url: Default::default(),
     hmr: None,
     reporters: Vec::new(),
-  };
-  let Err(diagnostics) = parcel::build(&vec!["index.js".into()], options) else {
+    install_dir: install_dir.map(|dir| PathId::new(Path::new(dir))),
+  }
+}
+
+const ESM_HELPERS: &str = include_str!("../../../packages-v3/parcel3/src/esmodule-helpers.js");
+
+/// Where npm puts a global install of Parcel, with the platform package holding the executable
+/// nested inside it.
+const GLOBAL_PARCEL: &str = "/usr/local/lib/node_modules/@parcel/parcel3";
+const GLOBAL_EXECUTABLE_DIR: &str =
+  "/usr/local/lib/node_modules/@parcel/parcel3/node_modules/@parcel/parcel3-darwin-arm64";
+
+/// The path of the asset in `graph` named `file_name`.
+fn asset_path(graph: &BundleGraph, file_name: &str) -> Option<PathBuf> {
+  graph.bundles.iter().find_map(|bundle| {
+    bundle.assets.iter().find_map(|&index| {
+      let path = graph
+        .asset_graph
+        .asset(index)
+        .loc
+        .url
+        .to_file_path()
+        .ok()?
+        .to_path_buf();
+      (path.file_name()? == file_name).then_some(path)
+    })
+  })
+}
+
+#[test]
+fn parcel_helpers_resolve_from_install_dir() {
+  // The project does not depend on Parcel, as when it is installed globally or run through npx.
+  let input_fs = memory_fs(&[
+    ("/project/package.json", r#"{"name": "project"}"#),
+    (
+      "/project/index.js",
+      "import {a} from './a.js';\nconsole.log(a);\n",
+    ),
+    ("/project/a.js", "export const a = 1;\n"),
+    (
+      &format!("{GLOBAL_PARCEL}/package.json"),
+      r#"{"name": "@parcel/parcel3", "version": "3.0.0"}"#,
+    ),
+    (
+      &format!("{GLOBAL_PARCEL}/src/esmodule-helpers.js"),
+      ESM_HELPERS,
+    ),
+    (
+      &format!("{GLOBAL_EXECUTABLE_DIR}/package.json"),
+      r#"{"name": "@parcel/parcel3-darwin-arm64", "version": "3.0.0"}"#,
+    ),
+  ]);
+
+  let graph = parcel::build(
+    &vec!["index.js".into()],
+    memory_build_options(input_fs, Some(GLOBAL_EXECUTABLE_DIR)),
+  )
+  .unwrap();
+  assert_eq!(
+    asset_path(&graph, "esmodule-helpers.js"),
+    Some(PathBuf::from(format!(
+      "{GLOBAL_PARCEL}/src/esmodule-helpers.js"
+    )))
+  );
+}
+
+#[test]
+fn parcel_helpers_fall_back_to_project_root() {
+  // A development build of Parcel runs from a cargo target directory, with no package above it.
+  let input_fs = memory_fs(&[
+    ("/project/package.json", r#"{"name": "project"}"#),
+    (
+      "/project/index.js",
+      "import {a} from './a.js';\nconsole.log(a);\n",
+    ),
+    ("/project/a.js", "export const a = 1;\n"),
+    (
+      "/project/node_modules/@parcel/parcel3/package.json",
+      r#"{"name": "@parcel/parcel3", "version": "3.0.0"}"#,
+    ),
+    (
+      "/project/node_modules/@parcel/parcel3/src/esmodule-helpers.js",
+      ESM_HELPERS,
+    ),
+  ]);
+
+  let graph = parcel::build(
+    &vec!["index.js".into()],
+    memory_build_options(input_fs, Some("/parcel/target/debug")),
+  )
+  .unwrap();
+  assert_eq!(
+    asset_path(&graph, "esmodule-helpers.js"),
+    Some(PathBuf::from(
+      "/project/node_modules/@parcel/parcel3/src/esmodule-helpers.js"
+    ))
+  );
+}
+
+#[test]
+fn missing_swc_helpers_install_hint() {
+  // Built in memory, since the repository's own node_modules would provide @swc/helpers. Users
+  // install @swc/helpers themselves, so a copy beside Parcel is not used.
+  let input_fs = memory_fs(&[
+    (
+      "/project/package.json",
+      r#"{"name": "project", "browserslist": "ie 11"}"#,
+    ),
+    ("/project/index.js", "class Foo {}\nnew Foo();\n"),
+    (
+      &format!("{GLOBAL_PARCEL}/package.json"),
+      r#"{"name": "@parcel/parcel3", "version": "3.0.0"}"#,
+    ),
+    (
+      &format!("{GLOBAL_PARCEL}/src/esmodule-helpers.js"),
+      ESM_HELPERS,
+    ),
+    (
+      &format!("{GLOBAL_PARCEL}/node_modules/@swc/helpers/package.json"),
+      r#"{"name": "@swc/helpers", "version": "0.5.0"}"#,
+    ),
+  ]);
+
+  let Err(diagnostics) = parcel::build(
+    &vec!["index.js".into()],
+    memory_build_options(input_fs, Some(GLOBAL_EXECUTABLE_DIR)),
+  ) else {
     panic!("expected the build to fail");
   };
   assert_diagnostics(

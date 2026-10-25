@@ -799,6 +799,7 @@ mod tests {
         public_url: Default::default(),
         hmr: None,
         reporters: Vec::new(),
+        install_dir: None,
       },
     )
     .unwrap();
@@ -1422,6 +1423,7 @@ mod tests {
         public_url: Default::default(),
         hmr: None,
         reporters: Vec::new(),
+        install_dir: None,
       },
     );
     assert!(result.is_err());
@@ -1457,6 +1459,7 @@ mod tests {
           public_url: Default::default(),
           hmr: None,
           reporters: Vec::new(),
+          install_dir: None,
         },
       )
       .unwrap();
@@ -1521,6 +1524,7 @@ mod tests {
         public_url: Default::default(),
         hmr: None,
         reporters: Vec::new(),
+        install_dir: None,
       },
     )
     .unwrap();
@@ -1568,6 +1572,7 @@ mod tests {
         public_url: Default::default(),
         hmr: None,
         reporters: Vec::new(),
+        install_dir: None,
       },
     )
     .unwrap();
@@ -1684,6 +1689,7 @@ mod tests {
         public_url: Default::default(),
         hmr: None,
         reporters: Vec::new(),
+        install_dir: None,
       },
     )
     .map(|(entries, _)| entries)
@@ -1812,6 +1818,7 @@ mod tests {
           public_url: Default::default(),
           hmr: None,
           reporters: Vec::new(),
+          install_dir: None,
         },
       )
       .unwrap();

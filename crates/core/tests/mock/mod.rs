@@ -58,6 +58,7 @@ pub fn build_options(
     public_url: Default::default(),
     hmr: None,
     reporters: Vec::new(),
+    install_dir: None,
   }
 }
 

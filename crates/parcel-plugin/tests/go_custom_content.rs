@@ -91,6 +91,7 @@ fn build_fixture(
       public_url: Default::default(),
       hmr: None,
       reporters: Vec::new(),
+      install_dir: None,
     },
   ))
 }

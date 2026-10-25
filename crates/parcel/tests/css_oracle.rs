@@ -917,6 +917,7 @@ fn run_case(label: &str, case: &Case, mode: BuildMode, expected_error: Option<&s
     public_url: Default::default(),
     hmr: None,
     reporters: Vec::new(),
+    install_dir: None,
   };
   let entries: Vec<String> = (0..ENTRIES).map(|i| format!("f{i}.css")).collect();
   let result = parcel::build(&entries, options);

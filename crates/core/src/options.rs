@@ -26,6 +26,11 @@ pub struct BuildOptions {
   pub hmr: Option<HmrOptions>,
   /// Optional reporters to append to the resolved items in the config.
   pub reporters: Vec<Arc<dyn Reporter>>,
+  /// The directory of the running Parcel executable. Parcel's own runtime modules, in the
+  /// `@parcel/parcel3` package it is installed with, are resolved from here before the project
+  /// root, so they are found even when the project does not depend on Parcel, e.g. when it is
+  /// installed globally or run through npx. `None` resolves them from the project root only.
+  pub install_dir: Option<PathId>,
 }
 
 pub struct ParcelOptions {
@@ -44,6 +49,8 @@ pub struct ParcelOptions {
   /// they load). Runtimes cache modules and whatever state they hold, so a change to anything
   /// read here requires a full rebuild. `None` leaves reads untracked, using `input_fs`.
   pub plugin_tracker: Option<Arc<TrackingFileSystem>>,
+  /// See [`BuildOptions::install_dir`].
+  pub install_dir: Option<PathId>,
 }
 
 impl Default for ParcelOptions {
@@ -60,6 +67,7 @@ impl Default for ParcelOptions {
       reporters: Reporters::none(),
       content_hash: false,
       plugin_tracker: None,
+      install_dir: None,
     }
   }
 }
