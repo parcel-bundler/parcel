@@ -1,0 +1,5 @@
+{
+  "description": "should define class fields when tsconfig.json has \"target\": \"ESNext\", in any case",
+  "input": "index.ts",
+  "output": 1
+}

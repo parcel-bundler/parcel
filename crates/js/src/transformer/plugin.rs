@@ -430,10 +430,8 @@ fn config(
           .is_none()
         {
           if let Some(target) = &tsconfig.compiler_options.target {
-            if target == "esnext" {
-              use_define_for_class_fields = true;
-            } else if let Ok(target) = &target[2..].parse::<u32>() {
-              use_define_for_class_fields = *target >= 2022;
+            if let Some(define) = target_uses_define_for_class_fields(target) {
+              use_define_for_class_fields = define;
             }
           }
         }
@@ -605,4 +603,43 @@ fn config(
       .query()
       .map_or(false, |q| q.contains("standalone=true")), // TODO: use a real parser
   })
+}
+
+/// Whether a tsconfig `target` implies `useDefineForClassFields`, which defaults to true
+/// for ES2022 and later. TypeScript matches the target case-insensitively, e.g. "ESNext".
+fn target_uses_define_for_class_fields(target: &str) -> Option<bool> {
+  let target = target.trim().to_ascii_lowercase();
+  if target == "esnext" {
+    return Some(true);
+  }
+
+  // e.g. "es5", "es6" or "es2022".
+  let version = target.strip_prefix("es")?;
+  if !version.bytes().all(|b| b.is_ascii_digit()) {
+    return None;
+  }
+  Some(version.parse::<u32>().ok()? >= 2022)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::target_uses_define_for_class_fields;
+
+  #[test]
+  fn tsconfig_target_define_for_class_fields() {
+    assert_eq!(target_uses_define_for_class_fields("esnext"), Some(true));
+    assert_eq!(target_uses_define_for_class_fields("ESNext"), Some(true));
+    assert_eq!(target_uses_define_for_class_fields("es2022"), Some(true));
+    assert_eq!(target_uses_define_for_class_fields("ES2022"), Some(true));
+    assert_eq!(target_uses_define_for_class_fields("es2021"), Some(false));
+    assert_eq!(target_uses_define_for_class_fields("ES5"), Some(false));
+    assert_eq!(target_uses_define_for_class_fields("es6"), Some(false));
+    assert_eq!(target_uses_define_for_class_fields("es"), None);
+    assert_eq!(target_uses_define_for_class_fields("e"), None);
+    assert_eq!(target_uses_define_for_class_fields(""), None);
+    assert_eq!(target_uses_define_for_class_fields("é"), None);
+    assert_eq!(target_uses_define_for_class_fields("ésnext"), None);
+    assert_eq!(target_uses_define_for_class_fields("es+2022"), None);
+    assert_eq!(target_uses_define_for_class_fields("latest"), None);
+  }
 }

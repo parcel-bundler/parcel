@@ -43,14 +43,35 @@ pub struct TsConfig {
   pub target: Option<String>,
 }
 
-#[derive(serde::Deserialize, Debug, PartialEq, Clone, Copy)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Jsx {
   React,
   ReactJsx,
   ReactJsxdev,
   Preserve,
   ReactNative,
+}
+
+impl<'de> serde::Deserialize<'de> for Jsx {
+  fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+    // TypeScript matches enum-like options case-insensitively, e.g. "React-JSX".
+    const VARIANTS: &[&str] = &[
+      "react",
+      "react-jsx",
+      "react-jsxdev",
+      "preserve",
+      "react-native",
+    ];
+    let value = <Cow<'de, str>>::deserialize(deserializer)?;
+    match value.trim().to_ascii_lowercase().as_str() {
+      "react" => Ok(Jsx::React),
+      "react-jsx" => Ok(Jsx::ReactJsx),
+      "react-jsxdev" => Ok(Jsx::ReactJsxdev),
+      "preserve" => Ok(Jsx::Preserve),
+      "react-native" => Ok(Jsx::ReactNative),
+      _ => Err(serde::de::Error::unknown_variant(&value, VARIANTS)),
+    }
+  }
 }
 
 fn deserialize_extends<'de, D>(deserializer: D) -> Result<Vec<Specifier<'static>>, D::Error>
@@ -449,6 +470,23 @@ mod tests {
       ]
     );
     assert_eq!(test("./jquery"), Vec::<PathId>::new());
+  }
+
+  #[test]
+  fn test_jsx_case_insensitive() {
+    let parse = |jsx: &str| {
+      TsConfig::parse(
+        get_normalized("/foo/tsconfig.json"),
+        format!(r#"{{"compilerOptions": {{"jsx": "{}"}}}}"#, jsx),
+      )
+      .map(|tsconfig| tsconfig.compiler_options.jsx)
+    };
+
+    assert_eq!(parse("react-jsx").unwrap(), Some(Jsx::ReactJsx));
+    assert_eq!(parse("React-JSX").unwrap(), Some(Jsx::ReactJsx));
+    assert_eq!(parse("React-JSXDev").unwrap(), Some(Jsx::ReactJsxdev));
+    assert_eq!(parse("Preserve").unwrap(), Some(Jsx::Preserve));
+    assert!(parse("react-jsxx").is_err());
   }
 
   #[test]
