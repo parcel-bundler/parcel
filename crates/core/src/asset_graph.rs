@@ -449,20 +449,15 @@ impl AssetGraphBuilder {
       }
 
       // Library entries request their entire namespace (originally requested via the entry
-      // node's pending symbols on the first build). Like stylesheets loaded without importing
-      // any symbols (see below), stylesheet entries keep all of their CSS module classes.
+      // node's pending symbols on the first build).
       for entry_index in 0..self.entries.len() {
         let entry = &self.entries[entry_index];
+        if !entry.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+          continue;
+        }
         let Some(node_index) = entry.asset else {
           continue;
         };
-        if !entry.target.flags.contains(EnvironmentFlags::IS_LIBRARY)
-          && !self.asset_nodes[node_index.index()]
-            .asset
-            .is_some_and(|asset| self.assets[asset.index()].ty == AssetType::Css)
-        {
-          continue;
-        }
         request_symbol(
           &mut self.asset_nodes,
           &mut self.assets,
@@ -523,31 +518,6 @@ impl AssetGraphBuilder {
               let asset = &mut self.assets[asset_index.index()];
               let symbol = &mut asset.symbols.imports[import_index];
               symbol.resolved = resolution;
-            }
-          }
-
-          // A stylesheet loaded without importing any of its symbols (e.g. a side-effect import,
-          // an HTML <link> or a CSS @import) may have its CSS module classes referenced in other
-          // ways, so it keeps all of them.
-          for dep_index in 0..self.assets[asset_index.index()].dependencies.len() {
-            let asset = &self.assets[asset_index.index()];
-            if let DependencyResolution::Asset(resolved_node_index) =
-              asset.dependencies[dep_index].resolution
-              && !asset
-                .symbols
-                .imports
-                .iter()
-                .any(|import| import.dep_index == dep_index as u32)
-              && self.asset_nodes[resolved_node_index.index()]
-                .asset
-                .is_some_and(|resolved| self.assets[resolved.index()].ty == AssetType::Css)
-            {
-              request_all(
-                &mut self.asset_nodes,
-                &mut self.assets,
-                resolved_node_index,
-                &mut queue,
-              );
             }
           }
         }
