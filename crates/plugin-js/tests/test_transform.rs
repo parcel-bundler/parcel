@@ -791,3 +791,61 @@ fn test_resolve_uses_the_resolver_chain() {
     parcel_core::PluginContext::new(&options, &dyn_fs).with_resolvers(&resolvers, &transformers);
   plugin.transform(asset, &context).unwrap();
 }
+
+#[test]
+fn test_resolve_runs_javascript_resolvers() {
+  let fs = Arc::new(OverlayFileSystem::new());
+  let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
+  fs.create_dir_all(root).unwrap();
+  let resolver_path = root.join(Path::new("reentrant-resolver.mjs"));
+  fs.write(
+    resolver_path,
+    br#"
+      export default {[Symbol.for('parcel-plugin-config')]: {
+        async resolve({specifier}) {
+          await Promise.resolve();
+          if (specifier === 'fails') throw new Error('resolver failed');
+          if (specifier === 'virtual') return {filePath: '/virtual/' + globalThis.transformerState};
+          return null;
+        }
+      }};
+    "#,
+  )
+  .unwrap();
+  let plugin_path = root.join(Path::new("reentrant-transformer.mjs"));
+  fs.write(
+    plugin_path,
+    br#"
+      import assert from 'assert';
+      export default {[Symbol.for('parcel-plugin-config')]: {
+        async transform({asset, resolve}) {
+          // The resolver runs while this transformer is on the stack, in the same runtime.
+          globalThis.transformerState = 'from-transformer';
+          let pending = Promise.resolve('still pending');
+          assert.equal(await resolve(asset.filePath, 'virtual'), '/virtual/from-transformer');
+          await assert.rejects(resolve(asset.filePath, 'fails'), /resolver failed/);
+          assert.equal(await pending, 'still pending');
+          asset.setCode(await resolve(asset.filePath, 'virtual'));
+        }
+      }};
+    "#,
+  )
+  .unwrap();
+
+  let plugin = JsPlugin::new(plugin_path, "test-plugin", None);
+  let dyn_fs: Arc<dyn FileSystem> = fs.clone();
+  let options = ParcelOptions {
+    input_fs: fs,
+    ..Default::default()
+  };
+  let resolvers: Vec<Arc<dyn parcel_core::Resolver>> = vec![Arc::new(JsPlugin::new(
+    resolver_path,
+    "test-resolver",
+    None,
+  ))];
+  let transformers = Default::default();
+  let context =
+    parcel_core::PluginContext::new(&options, &dyn_fs).with_resolvers(&resolvers, &transformers);
+  let asset = plugin.transform(test_asset(), &context).unwrap();
+  assert_eq!(asset.content.read().unwrap(), b"/virtual/from-transformer");
+}

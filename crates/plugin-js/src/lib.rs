@@ -3,6 +3,7 @@ use std::{
   cell::{Cell, RefCell},
   collections::HashMap,
   path::Path,
+  ptr::NonNull,
   rc::Rc,
   sync::Arc,
 };
@@ -45,6 +46,8 @@ pub struct JsEnv {
   /// The file system modules and `fs` calls read through.
   fs: Arc<dyn FileSystem>,
   rejected_promises: Rc<RefCell<HashMap<Persistent<Value<'static>>, Persistent<Value<'static>>>>>,
+  /// The context while `with` runs, for calls back into JS from Rust code it called.
+  entered: Cell<Option<NonNull<rquickjs::qjs::JSContext>>>,
 }
 
 thread_local! {
@@ -68,21 +71,40 @@ where
   F: FnOnce(&Ctx) -> rquickjs::Result<R>,
 {
   JS_ENV.with(|cell| {
-    let mut env = cell.borrow_mut();
+    let same_fs = |env: &JsEnv| std::ptr::addr_eq(Arc::as_ptr(&env.fs), Arc::as_ptr(&fs));
 
-    // The runtime holds `fs`, so its address can't be reused by another file system.
-    if !env
+    // Called back from JS that is already running in this thread's runtime, e.g. a JS
+    // transformer's `resolve` running a JS resolver. The runtime is locked by that call, so this
+    // one runs within it.
+    if let Some(env) = cell
+      .borrow()
       .as_ref()
-      .is_some_and(|env| std::ptr::addr_eq(Arc::as_ptr(&env.fs), Arc::as_ptr(&fs)))
+      .filter(|env| env.entered.get().is_some())
     {
-      // Drop the stale runtime before creating its replacement.
-      *env = None;
-      let new_env = create_runtime(fs, env_vars, cwd, Environment::Node)
-        .map_err(|e| DiagnosticList::from(Diagnostic::from_message(e.to_string())))?;
-      *env = Some(new_env);
+      if !same_fs(env) {
+        return Err(DiagnosticList::from(Diagnostic::from_message(
+          "A JS plugin can't run with a different file system while another JS plugin is running"
+            .into(),
+        )));
+      }
+      return env.reenter(f);
     }
 
-    env.as_ref().unwrap().with(f)
+    {
+      let mut env = cell.borrow_mut();
+
+      // The runtime holds `fs`, so its address can't be reused by another file system.
+      if !env.as_ref().is_some_and(same_fs) {
+        // Drop the stale runtime before creating its replacement.
+        *env = None;
+        let new_env = create_runtime(fs.clone(), env_vars, cwd, Environment::Node)
+          .map_err(|e| DiagnosticList::from(Diagnostic::from_message(e.to_string())))?;
+        *env = Some(new_env);
+      }
+    }
+
+    // Only borrowed shared, so calls back into JS can borrow it too.
+    cell.borrow().as_ref().unwrap().with(f)
   })
 }
 
@@ -108,9 +130,25 @@ where
 {
   let logs = Rc::new(RefCell::new(Vec::new()));
   let result = with_js_env(options.plugin_fs(), &options.env, options.cwd, |ctx| {
-    ctx.store_userdata(console::ConsoleLogs(logs.clone()))?;
+    let outer = ctx.store_userdata(console::ConsoleLogs(logs.clone()))?;
     let result = f(ctx);
     ctx.remove_userdata::<console::ConsoleLogs>()?;
+    // Called back from another plugin's JS: its call delivers these, in order, once JS returns.
+    if let Some(outer) = outer {
+      outer
+        .0
+        .borrow_mut()
+        .extend(logs.borrow_mut().drain(..).map(|(level, log)| {
+          let log = match (log, origin) {
+            (console::ConsoleLog::Diagnostics(diagnostics), Some(origin)) => {
+              console::ConsoleLog::Diagnostics(with_origin(DiagnosticList(diagnostics), origin).0)
+            }
+            (log, _) => log,
+          };
+          (level, log)
+        }));
+      ctx.store_userdata(*outer)?;
+    }
     result
   });
 
@@ -161,20 +199,18 @@ impl JsEnv {
     F: FnOnce(&Ctx) -> rquickjs::Result<R>,
   {
     self.context.with(|ctx| {
+      struct Exit<'a>(&'a Cell<Option<NonNull<rquickjs::qjs::JSContext>>>);
+      impl Drop for Exit<'_> {
+        fn drop(&mut self) {
+          self.0.set(None);
+        }
+      }
+      self.entered.set(Some(ctx.as_raw()));
+      let _exit = Exit(&self.entered);
+
       f(&ctx)
         .map_err(|e| {
-          let mut diagnostics = if matches!(e, rquickjs::Error::Exception) {
-            error_to_diagnostics(ctx.catch())
-          } else {
-            vec![Diagnostic {
-              origin: None,
-              message: e.to_string(),
-              code_frames: Vec::new(),
-              documentation_url: None,
-              hints: Vec::new(),
-              severity: parcel_core::DiagnosticSeverity::Error,
-            }]
-          };
+          let mut diagnostics = call_error_to_diagnostics(&ctx, e);
           diagnostics.extend(collect_rejected_promises(&ctx, self));
           DiagnosticList(diagnostics)
         })
@@ -186,6 +222,34 @@ impl JsEnv {
           Ok(result)
         })
     })
+  }
+
+  /// Runs `f` within the call to `with` that is already running.
+  fn reenter<F, R>(&self, f: F) -> Result<R, DiagnosticList>
+  where
+    F: FnOnce(&Ctx) -> rquickjs::Result<R>,
+  {
+    // SAFETY: `with` holds the runtime's lock further up this thread's stack, and the context
+    // outlives it.
+    let ctx = unsafe { Ctx::from_raw(self.entered.get().unwrap()) };
+    // Unhandled rejections are left for the outer call to report: one of its promises may only
+    // be handled once this returns.
+    f(&ctx).map_err(|e| DiagnosticList(call_error_to_diagnostics(&ctx, e)))
+  }
+}
+
+fn call_error_to_diagnostics(ctx: &Ctx, e: rquickjs::Error) -> Vec<Diagnostic> {
+  if matches!(e, rquickjs::Error::Exception) {
+    error_to_diagnostics(ctx.catch())
+  } else {
+    vec![Diagnostic {
+      origin: None,
+      message: e.to_string(),
+      code_frames: Vec::new(),
+      documentation_url: None,
+      hints: Vec::new(),
+      severity: parcel_core::DiagnosticSeverity::Error,
+    }]
   }
 }
 
@@ -210,6 +274,7 @@ pub fn create_runtime(
     context: ctx,
     fs: fs.clone(),
     rejected_promises: rejected_promises.clone(),
+    entered: Cell::new(None),
   };
 
   let (resolver, loader) = create_esm_loader(PathId::root(), fs.clone(), environment);

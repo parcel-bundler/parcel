@@ -1,0 +1,13 @@
+{
+  "description": "a JS transformer can call resolve while a JS resolver is configured",
+  "options": {"config": ".parcelrc"},
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "index.js",
+      "type": "js",
+      "assets": ["index.js", "data.txt", "esmodule-helpers.js"],
+      "contains": ["resolved:theme/colors.txt"]
+    }
+  ]
+}

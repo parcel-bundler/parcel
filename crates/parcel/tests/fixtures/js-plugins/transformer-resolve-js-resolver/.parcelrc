@@ -1,0 +1,7 @@
+{
+  "extends": "@parcel/config-default",
+  "resolvers": ["./resolver.mjs", "..."],
+  "transformers": {
+    "*.txt": ["./transformer.mjs"]
+  }
+}

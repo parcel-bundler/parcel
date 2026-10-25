@@ -276,3 +276,64 @@ fn console_logs_diagnostics() {
     ]
   );
 }
+
+#[test]
+fn console_logs_from_javascript_called_back_by_a_plugin_are_delivered_in_order() {
+  let (plugin, options, events) = setup(
+    "console-reentrant.mjs",
+    r#"
+    export default {[Symbol.for('parcel-plugin-config')]: {
+      async transform({asset, resolve}) {
+        console.log('before');
+        await resolve(asset.filePath, './dep');
+        console.log('after');
+      }
+    }};
+  "#,
+    LogLevel::Info,
+    None,
+  );
+  let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
+  let resolver_path = root.child("console-reentrant-resolver.mjs");
+  options
+    .input_fs
+    .write(
+      resolver_path,
+      br#"
+    import {Resolver, Diagnostic} from '@parcel/plugin';
+    export default new Resolver({
+      resolve() {
+        console.log('resolving');
+        console.warn(new Diagnostic({message: 'from resolver'}));
+        return {filePath: '/src/dep.js'};
+      }
+    });
+  "#,
+    )
+    .unwrap();
+  let resolvers: Vec<Arc<dyn parcel_core::Resolver>> = vec![Arc::new(JsPlugin::new(
+    resolver_path,
+    "test-resolver",
+    None,
+  ))];
+  let transformers = Default::default();
+  plugin
+    .transform(
+      asset(),
+      &parcel_core::PluginContext::new(&options, &options.input_fs)
+        .with_resolvers(&resolvers, &transformers),
+    )
+    .unwrap();
+  assert_eq!(
+    *events.lock().unwrap(),
+    vec![
+      (LogLevel::Info, "before".into()),
+      (LogLevel::Info, "resolving".into()),
+      (
+        LogLevel::Warn,
+        "test-resolver Warning: from resolver []".into()
+      ),
+      (LogLevel::Info, "after".into()),
+    ]
+  );
+}
