@@ -156,10 +156,7 @@ impl CPlugin {
     origin: &str,
     config: Option<&serde_json::Value>,
   ) -> Result<CPlugin, DiagnosticList> {
-    let lib = path
-      .with_path(|path| unsafe { Library::new(path) })
-      .map_err(|e| DiagnosticList(vec![CoreDiagnostic::from_message(e.to_string())]))?;
-    let state = Self::call_init(&lib, path, config).map_err(|mut diagnostics| {
+    let (lib, state) = Self::load(path, config).map_err(|mut diagnostics| {
       for diagnostic in &mut diagnostics.0 {
         diagnostic.origin.get_or_insert_with(|| origin.to_owned());
       }
@@ -183,24 +180,44 @@ impl CPlugin {
     Some(DiagnosticList(vec![diagnostic]))
   }
 
+  fn load(
+    path: PathId,
+    config: Option<&serde_json::Value>,
+  ) -> Result<(Library, *mut c_void), DiagnosticList> {
+    let lib = path
+      .with_path(|path| unsafe { Library::new(path) })
+      .map_err(|e| {
+        incompatible_library(format!(
+          "Could not load {}: {}",
+          path.to_path_buf().display(),
+          e
+        ))
+      })?;
+    let state = Self::call_init(&lib, path, config)?;
+    Ok((lib, state))
+  }
+
   fn call_init(
     lib: &Library,
     path: PathId,
     config: Option<&serde_json::Value>,
   ) -> Result<*mut c_void, DiagnosticList> {
+    // Returns a raw byte rather than `InitStatus`: a library built before the
+    // status existed returns its state pointer here, and reading an arbitrary
+    // byte as the enum would be undefined behavior.
     type InitFn = extern "C" fn(
       *const crate::ParcelApi,
       *const u8,
       usize,
       *mut *mut c_void,
       *mut Diagnostic,
-    ) -> InitStatus;
+    ) -> u8;
     let sym: Result<Symbol<InitFn>, _> = unsafe { lib.get(b"parcel_plugin_init") };
     let Ok(init_fn) = sym else {
-      return Err(
-        CoreDiagnostic::from_message("Plugin did not have a parcel_plugin_init function".into())
-          .into(),
-      );
+      return Err(incompatible_library(format!(
+        "{} does not export a parcel_plugin_init function, so it is not a Parcel plugin.",
+        path.to_path_buf().display()
+      )));
     };
 
     let config_bytes = config
@@ -220,32 +237,45 @@ impl CPlugin {
     match status {
       // A plugin may legitimately have no state, so `state` says nothing about
       // whether initialization succeeded. Only the status does.
-      InitStatus::PARCEL_INIT_OK => Ok(state),
+      s if s == InitStatus::PARCEL_INIT_OK as u8 => Ok(state),
+
+      // Every SDK writes a diagnostic along with this status, so a missing one
+      // also suggests a library built against something else.
+      s if s == InitStatus::PARCEL_INIT_ERROR as u8 => Err(
+        read_cdiagnostic(&mut diagnostic, None)
+          .map(|diag| DiagnosticList(vec![diag]))
+          .unwrap_or_else(|| {
+            incompatible_library(format!(
+              "{} failed to initialize, without reporting why.",
+              path.to_path_buf().display()
+            ))
+          }),
+      ),
 
       // The plugin rejected our function table, which is also the only way it
       // could have allocated a diagnostic. Describe the mismatch here instead.
-      InitStatus::PARCEL_INIT_INCOMPATIBLE => Err(
-        CoreDiagnostic::from_message(format!(
-          "{} was built for a different version of Parcel's plugin ABI. Rebuild it \
-           against the SDK matching this version of Parcel, which implements plugin \
-           ABI {}.",
-          path.to_path_buf().display(),
-          crate::PARCEL_ABI_VERSION,
-        ))
-        .into(),
-      ),
-
-      InitStatus::PARCEL_INIT_ERROR => {
-        let diag = read_cdiagnostic(&mut diagnostic, None).unwrap_or_else(|| {
-          CoreDiagnostic::from_message(format!(
-            "{} failed to initialize, without reporting why.",
-            path.to_path_buf().display()
-          ))
-        });
-        Err(DiagnosticList(vec![diag]))
-      }
+      // Any status no SDK returns gets the same treatment, since it most likely
+      // came from a library built against an older ABI.
+      _ => Err(incompatible_library(format!(
+        "{} was built for a different version of Parcel's plugin ABI.",
+        path.to_path_buf().display(),
+      ))),
     }
   }
+}
+
+/// A diagnostic for a library that cannot be used as a plugin by this build of
+/// Parcel, most often because it is stale: built against an older SDK.
+fn incompatible_library(message: String) -> DiagnosticList {
+  CoreDiagnostic {
+    hints: vec![format!(
+      "Rebuild the plugin against the SDK matching this version of Parcel, which \
+       implements plugin ABI {}.",
+      crate::PARCEL_ABI_VERSION
+    )],
+    ..CoreDiagnostic::from_message(message)
+  }
+  .into()
 }
 
 impl Drop for CPlugin {

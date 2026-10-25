@@ -343,20 +343,24 @@ impl DefaultPluginFactory {
         kind_name, name, range, PARCEL_VERSION
       ))
     };
-    let path = dir.child("package.json");
-    if let Ok(code) = self.fs.read_to_string(path) {
-      if let Ok(Some((start, end))) =
-        json_source_location(&code, "/engines/parcel", JsonSourceLocationType::Value)
-      {
-        diagnostic.code_frames.push(CodeFrame {
-          code: Some(code),
-          url: Some(SourceUrl::from_path(&path)),
-          language: Some(AssetType::Json),
-          code_highlights: vec![CodeHighlight::from_json(start, end, None)],
-        });
-      }
-    }
+    diagnostic
+      .code_frames
+      .extend(self.package_json_code_frame(dir, "/engines/parcel"));
     Err(diagnostic.into())
+  }
+
+  /// A code frame highlighting the value at `pointer` in a package's package.json.
+  fn package_json_code_frame(&self, dir: PathId, pointer: &str) -> Option<CodeFrame> {
+    let path = dir.child("package.json");
+    let code = self.fs.read_to_string(path).ok()?;
+    let (start, end) =
+      json_source_location(&code, pointer, JsonSourceLocationType::Value).ok()??;
+    Some(CodeFrame {
+      code: Some(code),
+      url: Some(SourceUrl::from_path(&path)),
+      language: Some(AssetType::Json),
+      code_highlights: vec![CodeHighlight::from_json(start, end, None)],
+    })
   }
 
   /// Loads the shared library of a native plugin package. Every failure is
@@ -374,10 +378,21 @@ impl DefaultPluginFactory {
         |abi| format!("ABI {}", abi),
       );
       return Err(
-        Diagnostic::from_message(format!(
-          "{} was built for {}, but this version of Parcel supports ABI {}",
-          module, abi, PARCEL_ABI_VERSION
-        ))
+        Diagnostic {
+          origin: Some("@parcel/core".into()),
+          hints: vec![format!(
+            "Install a version of {} that supports ABI {}, or rebuild it against the SDK matching this version of Parcel.",
+            module, PARCEL_ABI_VERSION
+          )],
+          code_frames: self
+            .package_json_code_frame(dir, "/parcel/abi")
+            .into_iter()
+            .collect(),
+          ..Diagnostic::from_message(format!(
+            "{} was built for {}, but this version of Parcel supports ABI {}",
+            module, abi, PARCEL_ABI_VERSION
+          ))
+        }
         .into(),
       );
     }

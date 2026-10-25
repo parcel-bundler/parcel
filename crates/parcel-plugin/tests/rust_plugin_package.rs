@@ -277,3 +277,131 @@ fn test_missing_dev_library_reports_a_useful_error() {
     "error should say what to do about it, got:\n{error}"
   );
 }
+
+/// Compiles `source` into a cdylib at `out`, standing in for a plugin library that
+/// no SDK in this repository would produce.
+fn build_stub_library(source: &str, out: &Path) {
+  let source_path = out.with_extension("rs");
+  fs::write(&source_path, source).expect("write stub source");
+  let rustc = std::env::var("RUSTC").unwrap_or_else(|_| "rustc".to_owned());
+  let result = std::process::Command::new(rustc)
+    .args(["--crate-type", "cdylib", "--edition", "2024", "-o"])
+    .arg(out)
+    .arg(&source_path)
+    .output()
+    .expect("spawn rustc");
+  assert!(
+    result.status.success(),
+    "rustc failed:\n{}",
+    String::from_utf8_lossy(&result.stderr),
+  );
+}
+
+/// A library whose `parcel_plugin_init` returns `status` without doing anything.
+fn init_stub(status: u8) -> String {
+  format!(
+    "#[unsafe(no_mangle)] pub extern \"C\" fn parcel_plugin_init(\
+     _: *const u8, _: *const u8, _: usize, _: *mut *mut u8, _: *mut u8) -> u8 {{ {status} }}"
+  )
+}
+
+/// Points the plugin package's devLibrary at `library`, a file inside the plugin's
+/// directory, and builds with it.
+fn build_with_library(test: &str, write_library: impl FnOnce(&Path)) -> String {
+  let root = test_root(test);
+  let library = root
+    .join("node_modules")
+    .join(PLUGIN)
+    .join(format!("plugin.{LIB_EXT}"));
+  write_library(&library);
+  write_plugin_package_with_dev_library(&root, &format!("./plugin.{LIB_EXT}"));
+  build_fixture(&write_parcelrc(&root)).expect_err("build should have failed")
+}
+
+/// Asserts that a load failure names the plugin and its library, and says to rebuild it.
+fn assert_rebuild_error(error: &str, message: &str) {
+  assert!(
+    error.contains(message),
+    "error should say {message:?}, got:\n{error}"
+  );
+  assert!(
+    error.contains(&format!("origin: Some(\"{PLUGIN}\")"))
+      && error.contains(&format!("plugin.{LIB_EXT}")),
+    "error should name the plugin and its library, got:\n{error}"
+  );
+  assert!(
+    error.contains("Rebuild the plugin against the SDK"),
+    "error should say what to do about it, got:\n{error}"
+  );
+}
+
+/// A plugin rejects a function table it was not built for.
+#[test]
+fn test_incompatible_library_reports_a_useful_error() {
+  let error = build_with_library("parcel-rust-plugin-incompatible-test", |library| {
+    build_stub_library(&init_stub(2), library)
+  });
+  assert_rebuild_error(
+    &error,
+    "was built for a different version of Parcel's plugin ABI",
+  );
+}
+
+/// Libraries built before `parcel_plugin_init` returned a status returned their
+/// state pointer, which is unlikely to be a status any SDK returns.
+#[test]
+fn test_unknown_init_status_reports_a_useful_error() {
+  let error = build_with_library("parcel-rust-plugin-unknown-status-test", |library| {
+    build_stub_library(&init_stub(0x40), library)
+  });
+  assert_rebuild_error(
+    &error,
+    "was built for a different version of Parcel's plugin ABI",
+  );
+}
+
+#[test]
+fn test_library_without_init_reports_a_useful_error() {
+  let error = build_with_library("parcel-rust-plugin-no-init-test", |library| {
+    build_stub_library(
+      "#[unsafe(no_mangle)] pub extern \"C\" fn other() {}",
+      library,
+    )
+  });
+  assert_rebuild_error(&error, "does not export a parcel_plugin_init function");
+}
+
+#[test]
+fn test_unloadable_library_reports_a_useful_error() {
+  let error = build_with_library("parcel-rust-plugin-unloadable-test", |library| {
+    fs::write(library, "not a library").expect("write library")
+  });
+  assert_rebuild_error(&error, "Could not load");
+}
+
+/// The ABI a published plugin declares is checked before its library is opened.
+#[test]
+fn test_mismatched_abi_in_package_json_reports_a_useful_error() {
+  let root = test_root("parcel-rust-plugin-abi-mismatch-test");
+  fs::write(
+    root.join("node_modules").join(PLUGIN).join("package.json"),
+    format!(
+      r#"{{"name":"{PLUGIN}","version":"1.0.0","parcel":{{"abi":0,"artifacts":{{"{TARGET}":"{ARTIFACT}"}}}}}}"#
+    ),
+  )
+  .expect("write plugin package.json");
+
+  let error = build_fixture(&write_parcelrc(&root)).expect_err("build should have failed");
+  assert!(
+    error.contains(&format!("{PLUGIN} was built for ABI 0")),
+    "error should name the plugin and its ABI, got:\n{error}"
+  );
+  assert!(
+    error.contains("origin: Some(\"@parcel/core\")") && error.contains("package.json"),
+    "error should point at the plugin's package.json, got:\n{error}"
+  );
+  assert!(
+    error.contains("Install a version of"),
+    "error should say what to do about it, got:\n{error}"
+  );
+}
