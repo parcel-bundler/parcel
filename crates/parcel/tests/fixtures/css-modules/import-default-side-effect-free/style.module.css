@@ -1,0 +1,11 @@
+.unused {
+  color: red;
+}
+
+.b-2 {
+  font-size: 12pt;
+}
+
+:global(.page) {
+	border: 1px solid black;
+}

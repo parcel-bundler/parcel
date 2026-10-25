@@ -924,6 +924,11 @@ impl Transformer for SvgTransformer {
       url: asset.loc.url.clone(),
     });
     add_dependencies(&mut asset, res.dependencies, res.symbols);
+    // Its element ids are all known, unless scripts may create more.
+    asset.flags.set(
+      AssetFlags::STATIC_EXPORTS,
+      !asset.symbols.exports.is_empty(),
+    );
 
     Ok(asset)
   }

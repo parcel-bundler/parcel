@@ -1,0 +1,6 @@
+{
+  "description": "should resolve the default import of a side-effect-free CommonJS module to its exports object",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "output": 42
+}

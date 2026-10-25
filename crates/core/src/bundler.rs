@@ -1,9 +1,8 @@
 use std::collections::HashSet;
 
 use crate::{
-  AssetType, BundleBehavior, CodeFrame, Diagnostic, DiagnosticList, DiagnosticSeverity, LogLevel,
-  ParcelOptions, SymbolName, asset_graph::AssetGraph, bundle_graph::BundleGraph,
-  config::ParcelConfig, namer::name,
+  BundleBehavior, Diagnostic, DiagnosticList, ParcelOptions, asset_graph::AssetGraph,
+  bundle_graph::BundleGraph, config::ParcelConfig, namer::name,
 };
 
 pub trait Bundler: Send + Sync {
@@ -73,68 +72,5 @@ pub fn bundle<'a>(
     );
   }
 
-  warn_missing_fragment_ids(&bundle_graph, options);
-
   Ok(bundle_graph)
-}
-
-/// Warns about URL fragments naming an element an SVG doesn't have, e.g. a misspelled icon in
-/// `<use href="sprite.svg#hom">`, which renders nothing.
-fn warn_missing_fragment_ids(bundle_graph: &BundleGraph, options: &ParcelOptions) {
-  let asset_graph = &bundle_graph.asset_graph;
-  let mut seen = HashSet::new();
-  for &asset_index in bundle_graph
-    .bundles
-    .iter()
-    .flat_map(|bundle| &bundle.assets)
-  {
-    let asset = asset_graph.asset(asset_index);
-    for import in &asset.symbols.imports {
-      let dep = &asset.dependencies[import.dep_index as usize];
-      let SymbolName::Name(id) = &import.symbol else {
-        continue;
-      };
-      let Some((_, svg)) = asset_graph.resolved_asset(dep) else {
-        continue;
-      };
-      // An SVG with scripts exports nothing, since they may create elements.
-      if svg.ty != AssetType::Svg
-        || svg.symbols.exports.is_empty()
-        || dep.fragment_id().as_deref() != Some(&**id)
-        || svg
-          .symbols
-          .exports
-          .iter()
-          .any(|export| export.exported == import.symbol)
-        || !seen.insert((asset_index, import.dep_index))
-      {
-        continue;
-      }
-
-      let file = svg.loc.url.to_file_path().map_or_else(
-        |_| svg.loc.url.to_string(),
-        |path| {
-          path
-            .relative(&options.project_root)
-            .to_string_lossy()
-            .into_owned()
-        },
-      );
-      options.log_diagnostic(
-        LogLevel::Warn,
-        Diagnostic {
-          message: format!("{file} has no element with id '{id}'."),
-          origin: Some("@parcel/core".into()),
-          severity: DiagnosticSeverity::Warning,
-          code_frames: dep
-            .loc
-            .iter()
-            .map(|loc| CodeFrame::from_loc(loc, None))
-            .collect(),
-          documentation_url: None,
-          hints: Vec::new(),
-        },
-      );
-    }
-  }
 }

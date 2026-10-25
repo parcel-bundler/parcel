@@ -324,6 +324,8 @@ impl Transformer for CssTransformer {
         pseudo_classes: self.pseudo_classes.clone(),
       });
     }
+    // CSS module exports are all known; other stylesheets export nothing.
+    asset.flags |= AssetFlags::STATIC_EXPORTS;
 
     Ok(asset)
   }

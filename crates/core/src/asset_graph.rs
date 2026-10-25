@@ -8,9 +8,10 @@ use fixedbitset::FixedBitSet;
 use serde::Serialize;
 
 use crate::{
-  Asset, AssetFlags, AssetKey, AssetRequest, AssetRequestKey, AssetType, Dependency,
-  DependencyFlags, DependencyResolution, DiagnosticList, Entry, Environment, EnvironmentFlags,
-  FileContent, InvalidationMap, ParcelOptions, PathId, Priority, SourceLocation, SymbolName,
+  Asset, AssetFlags, AssetKey, AssetRequest, AssetRequestKey, AssetType, BundleBehavior, CodeFrame,
+  Dependency, DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList,
+  DiagnosticSeverity, Entry, Environment, EnvironmentFlags, FileContent, ImportType,
+  InvalidationMap, LogLevel, ParcelOptions, PathId, Priority, SourceLocation, SymbolName,
   SymbolResolution,
   config::ParcelConfig,
   request::{RequestResult, TransformQueue},
@@ -277,6 +278,7 @@ impl AssetGraphBuilder {
     }
 
     let mut reachable;
+    let mut missing_symbols = Vec::new();
     loop {
       while let Some(request_result) = queue.receive() {
         match request_result {
@@ -470,7 +472,9 @@ impl AssetGraphBuilder {
       }
 
       // Finalize symbol resolutions for each imported symbol. Because the request state was
-      // reset above, resolving here also re-marks the requested flags for every import.
+      // reset above, resolving here also re-marks the requested flags for every import, and
+      // finds the names that the assets they're imported from don't export.
+      missing_symbols.clear();
       for node_offset in 0..self.asset_nodes.len() {
         if !reachable.contains(&AssetNodeIndex::from_index(node_offset)) {
           continue;
@@ -481,19 +485,24 @@ impl AssetGraphBuilder {
             let asset_index = self.asset_nodes[node_offset].asset.unwrap();
             let asset = &self.assets[asset_index.index()];
             let symbol = &asset.symbols.imports[import_index];
-            let dep = &asset.dependencies[symbol.dep_index as usize];
+            let dep_index = symbol.dep_index;
+            let dep = &asset.dependencies[dep_index as usize];
             if let DependencyResolution::Asset(resolved_node_index) = dep.resolution {
               let name = symbol.symbol.clone();
               let environment = asset.target.environment;
               let priority = dep.priority;
-              let requested = request_symbol(
-                &mut self.asset_nodes,
-                &mut self.assets,
+              let requested = resolve_symbol(
+                &mut RequestSymbols {
+                  asset_nodes: &mut self.asset_nodes,
+                  assets: &mut self.assets,
+                  queue,
+                  missing: Some(&mut missing_symbols),
+                },
                 resolved_node_index,
                 name.clone(),
                 Some(environment),
+                Some((asset_index, dep_index)),
                 &mut HashSet::new(),
-                &mut queue,
               );
               // Lazy imports resolve at runtime, but the request above still marks the
               // target's symbols as used so its dependencies are packaged.
@@ -548,6 +557,8 @@ impl AssetGraphBuilder {
         return Err(reachable_errors);
       }
     }
+
+    self.warn_missing_symbols(missing_symbols);
 
     Ok(AssetGraphBuildResult {
       asset_graph: AssetGraph {
@@ -606,6 +617,77 @@ fn reachable_nodes(
   visited
 }
 
+impl AssetGraphBuilder {
+  /// Warns about names imported from assets that don't export them, e.g. a misspelled icon in
+  /// `<use href="sprite.svg#hom">` or a misspelled import in JS.
+  fn warn_missing_symbols(&self, missing: Vec<MissingSymbol>) {
+    for MissingSymbol {
+      importer: (asset_index, dep_index),
+      name,
+    } in missing
+    {
+      let dep = &self.assets[asset_index.index()].dependencies[dep_index as usize];
+      let DependencyResolution::Asset(node_index) = dep.resolution else {
+        continue;
+      };
+      let Some(resolved) = self.asset_nodes[node_index.index()].asset else {
+        continue;
+      };
+      let resolved = &self.assets[resolved.index()];
+      if provided_by_interop(resolved, dep, &name) {
+        continue;
+      }
+      let url = &resolved.loc.url;
+      let file = url.to_file_path().map_or_else(
+        |_| url.to_string(),
+        |path| {
+          path
+            .relative(&self.options.project_root)
+            .to_string_lossy()
+            .into_owned()
+        },
+      );
+      self.options.log_diagnostic(
+        LogLevel::Warn,
+        Diagnostic {
+          message: format!("{file} does not export '{}'.", name.as_str()),
+          origin: Some("@parcel/core".into()),
+          severity: DiagnosticSeverity::Warning,
+          code_frames: dep
+            .loc
+            .iter()
+            .map(|loc| CodeFrame::from_loc(loc, None))
+            .collect(),
+          documentation_url: None,
+          hints: Vec::new(),
+        },
+      );
+    }
+  }
+}
+
+/// Whether JS module interop provides a name that `asset` doesn't export to an importer
+/// requesting it through `dep`.
+fn provided_by_interop(asset: &Asset, dep: &Dependency, name: &SymbolName) -> bool {
+  match name {
+    // An ES module imported as a URL or its content resolves to that rather than its exports,
+    // e.g. `import url from 'url:./worker.js'` or `import text from './a.js' with {type: 'text'}`.
+    SymbolName::Default => {
+      dep.import_type != ImportType::JavaScript || asset.bundle_behavior != BundleBehavior::None
+    }
+    // Defined on ES modules for CommonJS importers.
+    SymbolName::Name(name) if name == "__esModule" => true,
+    // A JS module without any exports is used through CommonJS for its side effects, or is the
+    // empty module that modules aliased to `false` resolve to, which provides nothing on purpose.
+    _ => {
+      asset.ty == AssetType::Js
+        && !asset
+          .flags
+          .intersects(AssetFlags::IS_ESM | AssetFlags::HAS_CJS_EXPORTS)
+    }
+  }
+}
+
 /// Abstracts the side effects of symbol resolution so a single ResolveExport traversal
 /// can drive both the mutating build-time pass (which marks symbols as requested and
 /// queues deferred assets for transformation) and read-only resolution on a completed
@@ -621,6 +703,18 @@ trait SymbolGraph {
   fn mark_export_requested(&mut self, _node_index: AssetNodeIndex, _export_index: usize) {}
   fn mark_indirect_requested(&mut self, _node_index: AssetNodeIndex, _indirect_index: usize) {}
   fn request_all(&mut self, _node_index: AssetNodeIndex) {}
+  /// Called when an importer requests a name through a dependency whose asset's exports are all
+  /// known, but none of them provide it.
+  fn missing_symbol(&mut self, _importer: Importer, _name: &SymbolName) {}
+}
+
+/// An asset and the index of a dependency it requests symbols through.
+type Importer = (AssetIndex, u32);
+
+/// A name an importer requests that its dependency's asset doesn't export.
+struct MissingSymbol {
+  importer: Importer,
+  name: SymbolName,
 }
 
 /// Build-time resolution over a graph that is still being constructed.
@@ -628,6 +722,7 @@ struct RequestSymbols<'a> {
   asset_nodes: &'a mut [AssetNode],
   assets: &'a mut [Asset],
   queue: &'a mut TransformQueue,
+  missing: Option<&'a mut Vec<MissingSymbol>>,
 }
 
 impl SymbolGraph for RequestSymbols<'_> {
@@ -665,6 +760,19 @@ impl SymbolGraph for RequestSymbols<'_> {
 
   fn request_all(&mut self, node_index: AssetNodeIndex) {
     request_all(self.asset_nodes, self.assets, node_index, self.queue);
+  }
+
+  fn missing_symbol(&mut self, importer: Importer, name: &SymbolName) {
+    if let Some(missing) = &mut self.missing
+      && !missing
+        .iter()
+        .any(|symbol| symbol.importer == importer && symbol.name == *name)
+    {
+      missing.push(MissingSymbol {
+        importer,
+        name: name.clone(),
+      });
+    }
   }
 }
 
@@ -708,20 +816,25 @@ fn request_symbol(
       asset_nodes,
       assets,
       queue,
+      missing: None,
     },
     node_index,
     name,
     boundary_environment,
+    None,
     resolve_set,
   )
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#sec-resolveexport
+// `importer` is the dependency the name is requested through, reported if no export provides it.
+// Lookups through `export *` pass None, since another star re-export may provide the name.
 fn resolve_symbol<G: SymbolGraph>(
   graph: &mut G,
   asset_node_index: AssetNodeIndex,
   name: SymbolName,
   boundary_environment: Option<Environment>,
+  importer: Option<Importer>,
   resolve_set: &mut HashSet<(AssetNodeIndex, SymbolName)>,
 ) -> SymbolResolution {
   if !resolve_set.insert((asset_node_index, name.clone())) {
@@ -776,6 +889,7 @@ fn resolve_symbol<G: SymbolGraph>(
         resolved_asset_index,
         imported,
         boundary_environment,
+        Some((asset_index, dep_index)),
         resolve_set,
       );
 
@@ -792,18 +906,22 @@ fn resolve_symbol<G: SymbolGraph>(
   }
 
   let mut star_resolution = SymbolResolution::None;
+  // Whether an `export *` re-exports a module whose exports are unknown, e.g. an external one.
+  let mut unresolved_star = false;
 
   // A default export cannot be provided by an export * from "mod" declaration.
   if name != SymbolName::Default {
     for i in 0..asset.symbols.star.len() {
       let asset = graph.asset(asset_index);
       let dep = &asset.dependencies[asset.symbols.star[i].dep_index as usize];
+      unresolved_star |= !matches!(dep.resolution, DependencyResolution::Asset(_));
       if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
         let res = resolve_symbol(
           graph,
           resolved_asset_index,
           name.clone(),
           boundary_environment,
+          None,
           resolve_set,
         );
 
@@ -826,6 +944,24 @@ fn resolve_symbol<G: SymbolGraph>(
   }
 
   let flags = graph.asset(asset_index).flags;
+
+  // The default export of anything but an ES module is the whole module: a CommonJS module's
+  // exports object, or the URL or content of another type of asset.
+  if star_resolution == SymbolResolution::None
+    && name == SymbolName::Default
+    && !flags.contains(AssetFlags::IS_ESM)
+  {
+    graph.request_all(asset_node_index);
+    return SymbolResolution::Runtime { asset_index, name };
+  }
+
+  if star_resolution == SymbolResolution::None
+    && !unresolved_star
+    && flags.contains(AssetFlags::STATIC_EXPORTS)
+    && let Some(importer) = importer
+  {
+    graph.missing_symbol(importer, &name);
+  }
 
   // If the asset has side effects or non-static exports, resolve at runtime.
   if star_resolution == SymbolResolution::None
@@ -975,6 +1111,7 @@ fn request_runtime_star_exports(
       },
       target,
       name.clone(),
+      None,
       None,
       &mut HashSet::new(),
     ) != SymbolResolution::None;
@@ -1226,6 +1363,7 @@ impl<'a> AssetGraph<'a> {
       asset_index,
       name,
       Some(boundary_environment),
+      None,
       &mut HashSet::new(),
     )
   }
