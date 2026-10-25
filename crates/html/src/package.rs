@@ -25,7 +25,6 @@ pub enum BundleReference {
   Script {
     src: SerializableTendril,
     module: bool,
-    nomodule: bool,
   },
 }
 
@@ -107,17 +106,9 @@ impl BundleReference {
           element.set_attribute(expanded_name!("", "media"), &media.0);
         }
       }
-      BundleReference::Script {
-        src,
-        module,
-        nomodule,
-      } => {
+      BundleReference::Script { src, module } => {
         if *module {
           element.set_attribute(expanded_name!("", "type"), "module");
-        }
-        if *nomodule {
-          element.set_attribute(expanded_name!("", "nomodule"), "");
-          element.set_attribute(expanded_name!("", "defer"), "");
         }
         let attr = if svg {
           local_name!("href")
@@ -423,7 +414,6 @@ mod tests {
       BundleReference::Script {
         src: SerializableTendril("shared.js".into()),
         module: true,
-        nomodule: false,
       },
     ]
   }

@@ -547,7 +547,6 @@ fn bundle_reference(
     AssetType::Js => Some(BundleReference::Script {
       src: url(),
       module: target.target.output_format == OutputFormat::Esmodule,
-      nomodule: false,
     }),
     AssetType::Css => Some(BundleReference::StyleSheet {
       href: url(),

@@ -379,46 +379,11 @@ impl<'arena> DependencyCollector<'arena> {
 
           // If the script is async it can be executed in any order, so it cannot depend
           // on any sibling scripts for dependencies. Keep all dependencies together.
-          // Also, don't share dependencies between classic scripts and nomodule scripts
-          // because nomodule scripts won't run when modules are supported.
           let mut bundle_behavior = BundleBehavior::None;
           if source_type == SourceType::Script
             || node.get_attribute(expanded_name!("", "async")).is_some()
           {
             bundle_behavior = BundleBehavior::Isolated;
-          }
-
-          // If this is a <script type="module">, and not all of the browser targets support ESM natively,
-          // add a copy of the script tag with a nomodule attribute.
-          if output_format == OutputFormat::Esmodule
-            && !self.target.engines.supports(EnvironmentFeature::Esmodules)
-          {
-            let copy = self.arena.alloc(Node::new(node.data.clone(), node.line));
-            copy.remove_attribute(expanded_name!("", "type"));
-            copy.set_attribute(expanded_name!("", "nomodule"), "");
-            copy.set_attribute(expanded_name!("", "defer"), "");
-
-            let mut dep = Dependency {
-              specifier: src.clone().to_string().into_boxed_str(),
-              specifier_type: SpecifierType::Url,
-              priority: Priority::Parallel,
-              target: self.create_env(OutputFormat::Global, source_type),
-              flags: DependencyFlags::empty(),
-              bundle_behavior,
-              import_type: ImportType::Url,
-              placeholder: Default::default(),
-              loc: self.create_loc(node.line),
-              resolve_from: Some(self.url.clone()),
-              range: None,
-              conditions: ExportsCondition::empty(),
-              resolution: DependencyResolution::None,
-              concurrent_group: 0,
-              custom_conditions: Default::default(),
-            };
-
-            copy.set_attribute(src_attr, dep.set_placeholder());
-            self.deps.push(dep);
-            node.insert_before(copy);
           }
 
           let mut dep = Dependency {
