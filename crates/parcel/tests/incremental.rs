@@ -2558,3 +2558,37 @@ fn native_plugin_file_reads_invalidate() {
   t.change(&[("/project/vars.scss", "$color: purple;")], &[]);
   assert!(t.output("/project/dist/index.css").contains("purple"));
 }
+
+#[test]
+fn svg_fragment_reference_change_repackages_svg() {
+  // An SVG keeps only the elements other files reference by fragment, so referencing a
+  // different element from an unchanged SVG's importer must repackage the SVG.
+  let mut t = IncrementalTest::with_entries_mode(
+    &[
+      (
+        "/project/index.html",
+        r#"<svg><use href="sprite.svg#first"/></svg>"#,
+      ),
+      (
+        "/project/sprite.svg",
+        r#"<svg xmlns="http://www.w3.org/2000/svg"><symbol id="first"><path d="M0 0h1v1z"/></symbol><symbol id="second"><path d="M0 0h2v2z"/></symbol></svg>"#,
+      ),
+    ],
+    &["/project/index.html"],
+    BuildMode::Production,
+  );
+  let sprite = t.output(&t.find_output("sprite"));
+  assert!(sprite.contains("first"), "got: {sprite}");
+  assert!(!sprite.contains("second"), "got: {sprite}");
+
+  t.change(
+    &[(
+      "/project/index.html",
+      r#"<svg><use href="sprite.svg#second"/></svg>"#,
+    )],
+    &[],
+  );
+  let sprite = t.output(&t.find_output("sprite"));
+  assert!(sprite.contains("second"), "got: {sprite}");
+  assert!(!sprite.contains("first"), "got: {sprite}");
+}

@@ -1,0 +1,9 @@
+{
+  "description": "should keep only the elements of an SVG that other files reference by fragment, with the elements they reference, when nothing renders the document",
+  "input": "index.html",
+  "options": {"mode": "production", "contentHash": false},
+  "bundles": [
+    {"type": "html", "assets": ["index.html"], "contains": [".svg#home", ".svg#badge"]},
+    {"type": "svg", "assets": ["sprite.svg"]}
+  ]
+}

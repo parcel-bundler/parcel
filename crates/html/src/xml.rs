@@ -106,7 +106,7 @@ pub fn transform_xml(options: TransformOptions) -> TransformResult {
     .from_utf8()
     .one(options.code.as_slice());
   let embedded = expand_html(&arena, dom);
-  let (dependencies, assets, mut errors) = collect_dependencies(
+  let (dependencies, imports, assets, mut errors) = collect_dependencies(
     &arena,
     dom,
     options.url,
@@ -124,6 +124,10 @@ pub fn transform_xml(options: TransformOptions) -> TransformResult {
   TransformResult {
     code,
     dependencies,
+    symbols: AssetSymbols {
+      imports,
+      ..Default::default()
+    },
     assets,
     errors,
   }
@@ -148,7 +152,7 @@ impl Transformer for XmlTransformer {
       return Err(DiagnosticList(result.errors));
     }
     asset.bundle_behavior = BundleBehavior::Isolated;
-    asset.dependencies.extend(result.dependencies);
+    crate::add_dependencies(&mut asset, result.dependencies, result.symbols);
     asset.content = Arc::new(XmlContent {
       code: result.code,
       url: asset.loc.url.clone(),

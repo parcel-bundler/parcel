@@ -1,9 +1,10 @@
 use std::{
+  borrow::Cow,
   hash::{DefaultHasher, Hash, Hasher},
   sync::Arc,
 };
 
-use crate::{AssetNodeIndex, AssetType, BundleBehavior, Content, SourceUrl, Target};
+use crate::{AssetNodeIndex, AssetType, BundleBehavior, Content, SourceUrl, SymbolName, Target};
 use crate::{SourceLocation, impl_bitflags_serde};
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
@@ -64,6 +65,32 @@ impl Dependency {
       .map(|index| &self.specifier[index..])
   }
 
+  /// The element id a URL specifier's fragment names, e.g. `icon` in `sprite.svg#icon`. None
+  /// without a fragment, or for one that isn't an id, like an SVG view specification
+  /// (`#svgView(viewBox(0,0,10,10))`).
+  pub fn fragment_id(&self) -> Option<Cow<'_, str>> {
+    let fragment = self.url_fragment()?.strip_prefix('#')?;
+    if fragment.is_empty() || fragment.contains('(') {
+      return None;
+    }
+    percent_encoding::percent_decode_str(fragment)
+      .decode_utf8()
+      .ok()
+  }
+
+  /// The symbols an importer requests from the SVG document this URL dependency references, used
+  /// as `reference` describes.
+  pub fn url_reference_symbols(&self, reference: UrlReference) -> Vec<SymbolName> {
+    let id = self
+      .fragment_id()
+      .map(|id| SymbolName::Name(id.as_ref().into()));
+    match (reference, id) {
+      (UrlReference::Element, Some(id)) => vec![id],
+      (UrlReference::Document, Some(id)) => vec![SymbolName::Document, id],
+      (_, None) => vec![SymbolName::Document],
+    }
+  }
+
   pub fn set_placeholder(&mut self) -> &str {
     let mut hasher = DefaultHasher::new();
     self.specifier.hash(&mut hasher);
@@ -77,6 +104,20 @@ impl Dependency {
     self.placeholder = Some(format!("{:x}", hasher.finish()).into_boxed_str());
     self.placeholder.as_ref().unwrap()
   }
+}
+
+/// How an importer uses the document a URL dependency references. SVG documents export their
+/// element ids and the rendered document ([`SymbolName::Document`]) as symbols, so importers
+/// request what they use and the SVG packager removes the rest. A URL dependency that imports
+/// nothing, e.g. `new URL()` in JS, may use anything, so the whole document is kept.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum UrlReference {
+  /// The document is rendered or navigated to, e.g. by `<img src>`. A fragment names a view of
+  /// it, such as a `<view>` element or one styled by `:target`.
+  Document,
+  /// Only the element the fragment names is used, e.g. by `<use href="sprite.svg#icon">` or
+  /// `fill="url(paint.svg#gradient)"`. Without a fragment, that is the root element.
+  Element,
 }
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]

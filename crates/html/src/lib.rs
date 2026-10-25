@@ -3,12 +3,13 @@ use std::{
   sync::Arc,
 };
 
-use arena::{SerializableHandle, Sink};
+use arena::{NodeData, SerializableHandle, Sink};
 use dependencies::collect_dependencies;
 use html5ever::tendril::{StrTendril, TendrilSink};
+use html5ever::{expanded_name, local_name, namespace_url, ns};
 use jsx::{JsxOptions, to_component};
 use optimize::optimize;
-use oxvg::{ConfigItem, OxvgConfig};
+use oxvg::{ConfigItem, OxvgConfig, SvgUsage};
 use package::insert_bundle_references;
 use parcel_core::*;
 use serde::{Deserialize, Serialize, Serializer};
@@ -65,6 +66,9 @@ pub struct TransformOptions {
 #[derive(Serialize)]
 pub struct TransformResult {
   pub dependencies: Vec<Dependency>,
+  /// Symbols imported through `dependencies`, indexed from the first, and exported by SVG
+  /// documents.
+  pub symbols: AssetSymbols,
   #[serde(with = "serde_bytes")]
   pub code: Vec<u8>,
   pub assets: Vec<Asset>,
@@ -83,7 +87,7 @@ pub fn transform_html(options: TransformOptions) -> TransformResult {
       .one(options.code.as_slice())
   };
 
-  let (deps, assets, mut errors) = collect_dependencies(
+  let (deps, imports, assets, mut errors) = collect_dependencies(
     &arena,
     &dom,
     options.url.clone(),
@@ -110,6 +114,10 @@ pub fn transform_html(options: TransformOptions) -> TransformResult {
   TransformResult {
     code: vec,
     dependencies: deps,
+    symbols: AssetSymbols {
+      imports,
+      ..Default::default()
+    },
     assets,
     errors,
   }
@@ -121,7 +129,7 @@ pub fn transform_svg(options: TransformOptions) -> TransformResult {
     xml5ever::driver::parse_document(Sink::new(&arena), xml5ever::driver::XmlParseOpts::default())
       .from_utf8()
       .one(options.code.as_slice());
-  let (deps, assets, mut errors) = collect_dependencies(
+  let (deps, imports, assets, mut errors) = collect_dependencies(
     &arena,
     &dom,
     options.url.clone(),
@@ -129,6 +137,7 @@ pub fn transform_svg(options: TransformOptions) -> TransformResult {
     options.target,
     options.hmr,
   );
+  let exports = svg_exports(dom);
 
   let mut vec = Vec::new();
   if let Err(err) = serialize_xml::serialize(&mut vec, dom) {
@@ -138,9 +147,94 @@ pub fn transform_svg(options: TransformOptions) -> TransformResult {
   TransformResult {
     code: vec,
     dependencies: deps,
+    symbols: AssetSymbols {
+      imports,
+      exports,
+      ..Default::default()
+    },
     assets,
     errors,
   }
+}
+
+/// The symbols an SVG document exports: the rendered document, and each element by id for
+/// references like `sprite.svg#icon`. Scripts may reference or create elements dynamically, so a
+/// document with scripts exports nothing, which keeps all of it.
+fn svg_exports<'arena>(dom: arena::Ref<'arena>) -> Vec<LocalSymbol> {
+  let mut has_script = false;
+  let mut ids = Vec::new();
+  let mut seen = HashSet::new();
+  dom.walk(&mut |node| {
+    if let NodeData::Element { name, attrs, .. } = &node.data {
+      has_script |= name.expanded() == expanded_name!(svg "script");
+      for attr in attrs.borrow().iter() {
+        if attr.name.expanded() == expanded_name!("", "id")
+          && !attr.value.is_empty()
+          && seen.insert(attr.value.clone())
+        {
+          ids.push(attr.value.clone());
+        }
+      }
+    }
+  });
+
+  if has_script {
+    return Vec::new();
+  }
+
+  std::iter::once(SymbolName::Document)
+    .chain(ids.iter().map(|id| SymbolName::Name(id.as_ref().into())))
+    .map(|exported| LocalSymbol {
+      exported,
+      requested: false,
+    })
+    .collect()
+}
+
+/// What the files referencing an SVG document use of it, from the symbols they request.
+fn svg_usage(asset: &Asset) -> SvgUsage {
+  let ids = asset
+    .symbols
+    .exports
+    .iter()
+    .filter_map(|export| match &export.exported {
+      SymbolName::Name(id) => Some((id.to_string(), export.requested)),
+      _ => None,
+    });
+  if asset.symbols.used_namespace {
+    return SvgUsage {
+      referenced_ids: ids.map(|(id, _)| id).collect(),
+      rendered: true,
+    };
+  }
+
+  let referenced_ids: HashSet<String> = ids
+    .filter_map(|(id, requested)| requested.then_some(id))
+    .collect();
+  let rendered = referenced_ids.is_empty()
+    || asset
+      .symbols
+      .exports
+      .iter()
+      .any(|export| export.exported == SymbolName::Document && export.requested);
+  SvgUsage {
+    referenced_ids,
+    rendered,
+  }
+}
+
+/// Appends a transform's dependencies to an asset, with the symbols it imports through them.
+fn add_dependencies(asset: &mut Asset, dependencies: Vec<Dependency>, symbols: AssetSymbols) {
+  let offset = asset.dependencies.len() as u32;
+  asset.dependencies.extend(dependencies);
+  asset
+    .symbols
+    .imports
+    .extend(symbols.imports.into_iter().map(|import| ImportedSymbol {
+      dep_index: import.dep_index + offset,
+      ..import
+    }));
+  asset.symbols.exports.extend(symbols.exports);
 }
 
 #[derive(Deserialize)]
@@ -304,6 +398,8 @@ pub struct OptimizeSvgOptions {
   pub url: SourceUrl,
   #[serde(default)]
   pub project_root: Option<PathId>,
+  #[serde(skip)]
+  pub usage: Option<SvgUsage>,
 }
 
 pub fn optimize_svg(options: OptimizeSvgOptions) -> Result<PackageResult, ()> {
@@ -317,7 +413,7 @@ pub fn optimize_svg(options: OptimizeSvgOptions) -> Result<PackageResult, ()> {
     .project_root
     .map(|project_root| options.url.stable_id(&project_root))
     .unwrap_or_else(|| options.url.to_string());
-  optimize::optimize_svg(&arena, dom, &options.config, &url);
+  optimize::optimize_svg(&arena, dom, &options.config, &url, options.usage.as_ref());
 
   let mut vec = Vec::new();
   serialize_xml::serialize(&mut vec, dom).map_err(|_| ())?;
@@ -352,7 +448,7 @@ pub fn svg_react(mut options: SvgReactOptions) -> Result<PackageResult, ()> {
       .project_root
       .map(|project_root| options.url.stable_id(&project_root))
       .unwrap_or_else(|| options.url.to_string());
-    optimize::optimize_svg(&arena, dom, &options.config.svgo_config, &url);
+    optimize::optimize_svg(&arena, dom, &options.config.svgo_config, &url, None);
   }
 
   swc_core::common::GLOBALS.set(&swc_core::common::Globals::new(), || {
@@ -442,7 +538,7 @@ impl Transformer for HtmlTransformer {
       url: asset.loc.url.clone(),
       optimize: self.optimize.clone(),
     });
-    asset.dependencies.extend(res.dependencies);
+    add_dependencies(&mut asset, res.dependencies, res.symbols);
 
     Ok(asset)
   }
@@ -821,7 +917,7 @@ impl Transformer for SvgTransformer {
       config: self.config.clone(),
       url: asset.loc.url.clone(),
     });
-    asset.dependencies.extend(res.dependencies);
+    add_dependencies(&mut asset, res.dependencies, res.symbols);
 
     Ok(asset)
   }
@@ -920,6 +1016,7 @@ impl Content for SvgContent {
           config: config.clone(),
           url: self.url.clone(),
           project_root: Some(options.project_root),
+          usage: Some(svg_usage(bundle_graph.asset_graph.asset(bundle.assets[0]))),
         })
         .unwrap()
         .code

@@ -1,4 +1,7 @@
-use std::cell::RefCell;
+use std::{
+  cell::RefCell,
+  collections::{HashMap, HashSet},
+};
 
 use crate::arena::{Arena, Node, NodeData, Ref};
 use html5ever::{Attribute, QualName, namespace_url, ns};
@@ -9,6 +12,8 @@ use lightningcss::{
 use oxvg_ast::{
   arena::Allocator as OxvgAllocator,
   document::Document as OxvgDocument,
+  element::Element as OxvgElement,
+  get_attribute,
   node::{NodeData as OxvgNodeData, Ref as OxvgRef, Type as OxvgNodeType},
   visitor::Info,
 };
@@ -22,12 +27,24 @@ use oxvg_serialize::{PrinterOptions, ToValue};
 use serde::Deserialize;
 use xxhash_rust::xxh3::xxh3_64;
 
+/// How other files use a standalone SVG document, which decides what optimization must keep.
+#[derive(Debug, Clone)]
+pub struct SvgUsage {
+  /// Ids of elements referenced from other files, e.g. by `<use href="sprite.svg#icon">`.
+  pub referenced_ids: HashSet<String>,
+  /// Whether the document is rendered, e.g. by `<img src>`. Otherwise only the referenced
+  /// elements are used, so everything else is removed.
+  pub rendered: bool,
+}
+
 /// Translate a Parcel DOM into OXVG's typed SVG AST, run the optimiser, and
-/// translate the result back into the Parcel arena.
+/// translate the result back into the Parcel arena. `usage` is None for SVGs
+/// that aren't standalone documents, e.g. inline in HTML.
 pub fn optimize<'arena>(
   arena: Arena<'arena>,
   root: Ref<'arena>,
   jobs: &oxvg_optimiser::Jobs,
+  usage: Option<&SvgUsage>,
 ) -> Result<(), String> {
   let mut jobs = jobs.clone();
   root.walk(&mut |node| {
@@ -61,8 +78,18 @@ pub fn optimize<'arena>(
     element.set_attribute(OxvgAttr::new(OxvgAttrId::Class, ""));
   }
 
+  let mut info = Info::new(allocator);
+  if let Some(usage) = usage {
+    if !usage.rendered
+      && let Some(element) = dom.find_element()
+    {
+      remove_unreferenced(element, &usage.referenced_ids);
+    }
+    info.external_references = usage.referenced_ids.clone();
+  }
+
   jobs
-    .run(dom, &Info::new(allocator))
+    .run(dom, &info)
     .map_err(|error| format!("OXVG optimization failed: {error}"))?;
 
   let translated = oxvg_to_parcel(arena, dom)?;
@@ -74,6 +101,74 @@ pub fn optimize<'arena>(
   }
 
   Ok(())
+}
+
+/// Removes everything in a document that isn't rendered except for its referenced elements: all
+/// but those elements, their ancestors, and the elements they reference in turn.
+fn remove_unreferenced(root: OxvgElement<'_, '_>, referenced_ids: &HashSet<String>) {
+  // Stylesheets can select elements by position or relationship, which removing others would
+  // change.
+  if root
+    .breadth_first()
+    .any(|element| matches!(element.qual_name().unaliased(), ElementId::Style))
+  {
+    return;
+  }
+
+  let mut elements_by_id = HashMap::new();
+  for element in root.breadth_first() {
+    if let Some(id) = get_attribute!(element, Id) {
+      elements_by_id
+        .entry(id.0.as_str().to_owned())
+        .or_insert(element);
+    }
+  }
+
+  let mut used = HashSet::new();
+  let mut stack: Vec<String> = referenced_ids.iter().cloned().collect();
+  while let Some(id) = stack.pop() {
+    let Some(&element) = elements_by_id.get(&id) else {
+      continue;
+    };
+    if !used.insert(id) {
+      continue;
+    }
+    for element in std::iter::once(element).chain(element.breadth_first()) {
+      for mut attr in element.attributes().into_iter_mut() {
+        if matches!(attr.name(), OxvgAttrId::Id) {
+          continue;
+        }
+        let mut value = attr.value_mut();
+        value.visit_url(|url| {
+          if let Some(id) = url.strip_prefix('#') {
+            stack.push(
+              percent_encoding::percent_decode_str(id)
+                .decode_utf8_lossy()
+                .into_owned(),
+            );
+          }
+        });
+        value.visit_id(|id| stack.push(id.to_string()));
+      }
+    }
+  }
+
+  fn retain(element: OxvgElement<'_, '_>, used: &HashSet<String>) -> bool {
+    if get_attribute!(element, Id).is_some_and(|id| used.contains(id.0.as_str())) {
+      return true;
+    }
+    let mut contains_used = false;
+    for child in element.children_iter().collect::<Vec<_>>() {
+      if retain(child, used) {
+        contains_used = true;
+      } else {
+        child.remove();
+      }
+    }
+    contains_used
+  }
+
+  retain(root, &used);
 }
 
 fn parcel_to_oxvg<'input, 'oxvg>(

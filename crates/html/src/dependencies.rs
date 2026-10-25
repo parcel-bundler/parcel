@@ -11,8 +11,9 @@ use html5ever::{Attribute, ExpandedName, QualName, expanded_name, local_name, na
 use parcel_core::{
   Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, BufferContent, BundleBehavior,
   CodeFrame, CodeHighlight, Dependency, DependencyFlags, DependencyResolution, Diagnostic,
-  DiagnosticSeverity, EnvironmentFeature, ExportsCondition, ImportType, Location, OutputFormat,
-  Priority, SourceLocation, SourceType, SourceUrl, SpecifierType, Target,
+  DiagnosticSeverity, EnvironmentFeature, ExportsCondition, ImportType, ImportedSymbol, Location,
+  OutputFormat, Priority, SourceLocation, SourceType, SourceUrl, SpecifierType, SymbolResolution,
+  Target, UrlReference,
 };
 use typed_arena::Arena;
 
@@ -53,7 +54,12 @@ pub fn collect_dependencies<'arena>(
   ty: AssetType,
   target: Arc<Target>,
   hmr: bool,
-) -> (Vec<Dependency>, Vec<Asset>, Vec<Diagnostic>) {
+) -> (
+  Vec<Dependency>,
+  Vec<ImportedSymbol>,
+  Vec<Asset>,
+  Vec<Diagnostic>,
+) {
   let mut collector = DependencyCollector::new(arena, url, ty, target);
   collector.rss = collector.ty == AssetType::Xml && is_rss(dom);
 
@@ -67,8 +73,13 @@ pub fn collect_dependencies<'arena>(
         if let Ok(mut attrs) = parse_xml_stylesheet(contents.borrow().as_ref()) {
           for attr in &mut attrs {
             if attr.name.expanded() == expanded_name!("", "href") {
-              attr.value =
-                collector.add_dep(attr.value.clone(), false, Priority::Parallel, node.line);
+              attr.value = collector.add_dep(
+                attr.value.clone(),
+                false,
+                Priority::Parallel,
+                node.line,
+                None,
+              );
             }
           }
 
@@ -118,7 +129,7 @@ pub fn collect_dependencies<'arena>(
   if hmr && !collector.has_module_scripts {
     if let Some(body) = dom.find(expanded_name!(html "body")) {
       let key: StrTendril = "hmr.js".into();
-      let src = collector.add_dep(key.clone(), false, Priority::Parallel, 0);
+      let src = collector.add_dep(key.clone(), false, Priority::Parallel, 0, None);
       collector.assets.push(Asset {
         ty: AssetType::Js,
         content: Arc::new(BufferContent::new(Vec::new())),
@@ -150,7 +161,12 @@ pub fn collect_dependencies<'arena>(
     }
   }
 
-  (collector.deps, collector.assets, collector.errors)
+  (
+    collector.deps,
+    collector.imports,
+    collector.assets,
+    collector.errors,
+  )
 }
 
 struct DependencyCollector<'arena> {
@@ -159,6 +175,7 @@ struct DependencyCollector<'arena> {
   ty: AssetType,
   target: Arc<Target>,
   deps: Vec<Dependency>,
+  imports: Vec<ImportedSymbol>,
   assets: Vec<Asset>,
   key: u32,
   has_module_scripts: bool,
@@ -179,6 +196,7 @@ impl<'arena> DependencyCollector<'arena> {
       ty,
       target,
       deps: Vec::new(),
+      imports: Vec::new(),
       assets: Vec::new(),
       key: 0,
       has_module_scripts: false,
@@ -269,7 +287,15 @@ impl<'arena> DependencyCollector<'arena> {
           let mut flags = DependencyFlags::empty();
           let mut priority = Priority::Lazy;
           let mut target = self.target.clone();
+          let mut reference = None;
           if let Some(rel) = node.get_attribute(expanded_name!("", "rel")) {
+            // Icons (icon, apple-touch-icon, mask-icon, etc.) are rendered.
+            if rel
+              .split_ascii_whitespace()
+              .any(|rel| rel.ends_with("icon"))
+            {
+              reference = Some(UrlReference::Document);
+            }
             if rel.as_ref() == "canonical" || rel.as_ref() == "manifest" {
               flags |= DependencyFlags::NEEDS_STABLE_NAME;
               if rel.as_ref() == "manifest" && !href.contains(':') {
@@ -323,7 +349,7 @@ impl<'arena> DependencyCollector<'arena> {
           };
 
           node.set_attribute(expanded_name!("", "href"), dep.set_placeholder());
-          self.deps.push(dep);
+          self.push_dep(dep, reference);
         }
 
         let imagesrcset = ExpandedName {
@@ -543,30 +569,36 @@ impl<'arena> DependencyCollector<'arena> {
           let content = node.get_attribute(expanded_name!("", "content"));
           if let Some(content) = content {
             if !content.is_empty() {
-              let placeholder = self.add_dep(content, needs_stable_name, Priority::Lazy, node.line);
+              let placeholder = self.add_dep(
+                content,
+                needs_stable_name,
+                Priority::Lazy,
+                node.line,
+                Some(UrlReference::Document),
+              );
               node.set_attribute(expanded_name!("", "content"), &placeholder);
             }
           }
         }
       }
       expanded_name!(html "img") | expanded_name!(html "source") => {
-        self.handle_attr(node, expanded_name!("", "src"), false, node.line);
+        self.handle_document_attr(node, expanded_name!("", "src"), false);
         self.handle_srcset(node, expanded_name!("", "srcset"), node.line);
       }
       expanded_name!(html "audio")
       | expanded_name!(html "track")
       | expanded_name!(html "embed") => {
-        self.handle_attr(node, expanded_name!("", "src"), false, node.line);
+        self.handle_document_attr(node, expanded_name!("", "src"), false);
       }
       expanded_name!(html "video") => {
-        self.handle_attr(node, expanded_name!("", "src"), false, node.line);
-        self.handle_attr(node, expanded_name!("", "poster"), false, node.line);
+        self.handle_document_attr(node, expanded_name!("", "src"), false);
+        self.handle_document_attr(node, expanded_name!("", "poster"), false);
       }
       expanded_name!(html "iframe") => {
-        self.handle_attr(node, expanded_name!("", "src"), true, node.line);
+        self.handle_document_attr(node, expanded_name!("", "src"), true);
       }
       expanded_name!(html "object") => {
-        self.handle_attr(node, expanded_name!("", "data"), false, node.line);
+        self.handle_document_attr(node, expanded_name!("", "data"), false);
       }
       expanded_name!(html "a") => {
         if let Some(href) = node.get_attribute(expanded_name!("", "href")) {
@@ -581,7 +613,13 @@ impl<'arena> DependencyCollector<'arena> {
             return;
           }
 
-          let placeholder = self.add_dep(href, true, Priority::Lazy, node.line);
+          let placeholder = self.add_dep(
+            href,
+            true,
+            Priority::Lazy,
+            node.line,
+            Some(UrlReference::Document),
+          );
           node.set_attribute(expanded_name!("", "href"), &placeholder);
         }
       }
@@ -590,28 +628,34 @@ impl<'arena> DependencyCollector<'arena> {
       // See also https://www.w3.org/TR/SVG/attindex.html and https://www.w3.org/TR/SVG11/attindex.html
       // SVG animation elements are excluded because they may only reference elements in the same document: https://www.w3.org/TR/SVG/linking.html#processingURL-fetch
       expanded_name!(svg "a") => {
-        self.handle_attr(node, expanded_name!("", "href"), true, node.line);
-        self.handle_attr(node, expanded_name!(xlink "href"), true, node.line);
+        self.handle_document_attr(node, expanded_name!("", "href"), true);
+        self.handle_document_attr(node, expanded_name!(xlink "href"), true);
       }
+      // These render an image, or an element of it (feImage).
+      expanded_name!(svg "image") | expanded_name!(svg "feImage") => {
+        self.handle_document_attr(node, expanded_name!("", "href"), false);
+        self.handle_document_attr(node, expanded_name!(xlink "href"), false);
+      }
+      // These use the referenced element, e.g. a <symbol>, or inherit a gradient or pattern's
+      // attributes and stops.
       expanded_name!(svg "use")
-      | expanded_name!(svg "image")
-      | expanded_name!(svg "feImage")
       | expanded_name!(svg "linearGradient")
       | expanded_name!(svg "radialGradient")
       | expanded_name!(svg "pattern")
       | expanded_name!(svg "mpath")
       | expanded_name!(svg "textPath") => {
-        self.handle_attr(node, expanded_name!("", "href"), false, node.line);
-        self.handle_attr(node, expanded_name!(xlink "href"), false, node.line);
+        self.handle_element_attr(node, expanded_name!("", "href"));
+        self.handle_element_attr(node, expanded_name!(xlink "href"));
       }
       expanded_name!(svg "altGlyph")
-      | expanded_name!(svg "cursor")
       | expanded_name!(svg "filter")
       | expanded_name!(svg "font-face-uri")
       | expanded_name!(svg "glyphRef")
-      | expanded_name!(svg "tref")
-      | expanded_name!(svg "color-profile") => {
-        self.handle_attr(node, expanded_name!(xlink "href"), false, node.line);
+      | expanded_name!(svg "tref") => {
+        self.handle_element_attr(node, expanded_name!(xlink "href"));
+      }
+      expanded_name!(svg "cursor") | expanded_name!(svg "color-profile") => {
+        self.handle_document_attr(node, expanded_name!(xlink "href"), false);
       }
       _ => {}
     }
@@ -646,7 +690,20 @@ impl<'arena> DependencyCollector<'arena> {
             let mut input = cssparser::ParserInput::new(&attr.value);
             let mut parser = cssparser::Parser::new(&mut input);
             let placeholder = if let Ok(url) = parser.expect_url() {
-              Some(self.add_dep(url.as_ref().into(), false, Priority::Lazy, node.line))
+              // Most of these paint with or apply the referenced element, e.g. a gradient or
+              // mask, but cursors and images may be documents.
+              let reference = if is_func_iri_image_attr(&attr.name) {
+                UrlReference::Document
+              } else {
+                UrlReference::Element
+              };
+              Some(self.add_dep(
+                url.as_ref().into(),
+                false,
+                Priority::Lazy,
+                node.line,
+                Some(reference),
+              ))
             } else {
               None
             };
@@ -664,7 +721,13 @@ impl<'arena> DependencyCollector<'arena> {
     let contents = node.text_content();
     let url = contents.trim();
     if !url.is_empty() && !url.starts_with('#') {
-      let placeholder = self.add_dep(url.into(), true, Priority::Lazy, node.line);
+      let placeholder = self.add_dep(
+        url.into(),
+        true,
+        Priority::Lazy,
+        node.line,
+        Some(UrlReference::Document),
+      );
       node.set_text_content(self.arena, placeholder);
     }
   }
@@ -679,8 +742,23 @@ impl<'arena> DependencyCollector<'arena> {
       .get_attribute(name.clone())
       .is_some_and(|url| !url.is_empty())
     {
-      self.handle_attr(node, name, needs_stable_name, node.line);
+      self.handle_document_attr(node, name, needs_stable_name);
     }
+  }
+
+  /// Adds a dependency for a URL attribute whose target is rendered or navigated to.
+  fn handle_document_attr(
+    &mut self,
+    node: &'arena Node<'arena>,
+    name: ExpandedName,
+    needs_stable_name: bool,
+  ) {
+    self.handle_attr(node, name, needs_stable_name, UrlReference::Document);
+  }
+
+  /// Adds a dependency for a URL attribute referencing an element of another document.
+  fn handle_element_attr(&mut self, node: &'arena Node<'arena>, name: ExpandedName) {
+    self.handle_attr(node, name, false, UrlReference::Element);
   }
 
   fn handle_attr(
@@ -688,8 +766,9 @@ impl<'arena> DependencyCollector<'arena> {
     node: &'arena Node<'arena>,
     name: ExpandedName,
     needs_stable_name: bool,
-    line: u32,
+    reference: UrlReference,
   ) {
+    let line = node.line;
     let src = node.get_attribute(name.clone());
     if let Some(src) = src {
       // Check for empty string
@@ -706,7 +785,13 @@ impl<'arena> DependencyCollector<'arena> {
         return;
       }
 
-      let placeholder = self.add_dep(src, needs_stable_name, Priority::Lazy, line);
+      let placeholder = self.add_dep(
+        src,
+        needs_stable_name,
+        Priority::Lazy,
+        line,
+        Some(reference),
+      );
       node.set_attribute(name, &placeholder);
     }
   }
@@ -735,19 +820,23 @@ impl<'arena> DependencyCollector<'arena> {
         };
 
         img.url = dep.set_placeholder().into();
-        self.deps.push(dep);
+        self.push_dep(dep, Some(UrlReference::Document));
       }
 
       node.set_attribute(name, &serialize_srcset(srcset));
     }
   }
 
+  /// Adds a URL dependency, returning its placeholder. `reference` describes how the target is
+  /// used, which decides the symbols imported from SVG documents. None imports nothing, so an
+  /// SVG keeps everything.
   fn add_dep(
     &mut self,
     src: StrTendril,
     needs_stable_name: bool,
     priority: Priority,
     line: u32,
+    reference: Option<UrlReference>,
   ) -> StrTendril {
     let mut dep = Dependency {
       specifier: src.to_string().into(),
@@ -772,8 +861,33 @@ impl<'arena> DependencyCollector<'arena> {
     };
 
     let placeholder = dep.set_placeholder().into();
-    self.deps.push(dep);
+    self.push_dep(dep, reference);
     placeholder
+  }
+
+  fn push_dep(&mut self, dep: Dependency, reference: Option<UrlReference>) {
+    if let Some(reference) = reference {
+      let dep_index = self.deps.len() as u32;
+      for symbol in dep.url_reference_symbols(reference) {
+        self.imports.push(ImportedSymbol {
+          dep_index,
+          symbol,
+          resolved: SymbolResolution::None,
+        });
+      }
+    }
+    self.deps.push(dep);
+  }
+}
+
+/// Whether a presentation attribute's `url()` may reference an image rather than an element.
+fn is_func_iri_image_attr(name: &QualName) -> bool {
+  match name.expanded() {
+    expanded_name!("", "cursor") | expanded_name!("", "color-profile") => true,
+    name => matches!(
+      name.local.as_ref(),
+      "shape-inside" | "shape-subtract" | "mask-image"
+    ),
   }
 }
 

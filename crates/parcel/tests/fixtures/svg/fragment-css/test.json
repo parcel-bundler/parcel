@@ -1,0 +1,10 @@
+{
+  "description": "should keep an element of an SVG referenced by fragment from CSS",
+  "input": "index.html",
+  "options": {"mode": "production", "contentHash": false},
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "css", "assets": ["style.css"], "contains": [".svg#fade)"]},
+    {"type": "svg", "assets": ["masks.svg"]}
+  ]
+}

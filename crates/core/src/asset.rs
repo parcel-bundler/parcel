@@ -457,6 +457,10 @@ pub enum SymbolName {
   // AllButDefault,
   Default,
   Name(hstr::Atom),
+  /// A rendered SVG document, as opposed to the elements it exports by id. See [`UrlReference`].
+  ///
+  /// [`UrlReference`]: crate::UrlReference
+  Document,
 }
 
 impl From<&str> for SymbolName {
@@ -495,6 +499,7 @@ impl SymbolName {
       SymbolName::Namespace => "*",
       SymbolName::Default => "default",
       SymbolName::Name(name) => &*name,
+      SymbolName::Document => "#document",
     }
   }
 }

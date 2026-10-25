@@ -1,0 +1,10 @@
+{
+  "description": "should keep an SVG's rendered content when one page renders it, and the elements another page references by fragment",
+  "input": ["a.html", "b.html"],
+  "options": {"mode": "production", "contentHash": false},
+  "bundles": [
+    {"type": "html", "assets": ["a.html"]},
+    {"type": "html", "assets": ["b.html"]},
+    {"type": "svg", "assets": ["sprite.svg"]}
+  ]
+}

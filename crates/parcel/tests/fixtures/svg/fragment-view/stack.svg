@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10">
+  <view id="left" viewBox="0 0 10 10"/>
+  <view id="right" viewBox="10 0 10 10"/>
+  <rect width="10" height="10" fill="red"/>
+  <rect x="10" width="10" height="10" fill="blue"/>
+</svg>

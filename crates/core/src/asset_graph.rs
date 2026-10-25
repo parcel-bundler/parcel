@@ -449,8 +449,9 @@ impl AssetGraphBuilder {
       }
 
       // Library entries request their entire namespace (originally requested via the entry
-      // node's pending symbols on the first build). Like stylesheets loaded without importing
-      // any symbols (see below), stylesheet entries keep all of their CSS module classes.
+      // node's pending symbols on the first build). Like stylesheets and SVGs loaded without
+      // importing any symbols (see below), stylesheet entries keep all of their CSS module
+      // classes, and SVG entries all of their elements.
       for entry_index in 0..self.entries.len() {
         let entry = &self.entries[entry_index];
         let Some(node_index) = entry.asset else {
@@ -459,7 +460,7 @@ impl AssetGraphBuilder {
         if !entry.target.flags.contains(EnvironmentFlags::IS_LIBRARY)
           && !self.asset_nodes[node_index.index()]
             .asset
-            .is_some_and(|asset| self.assets[asset.index()].ty == AssetType::Css)
+            .is_some_and(|asset| keeps_unimported_symbols(&self.assets[asset.index()].ty))
         {
           continue;
         }
@@ -528,7 +529,8 @@ impl AssetGraphBuilder {
 
           // A stylesheet loaded without importing any of its symbols (e.g. a side-effect import,
           // an HTML <link> or a CSS @import) may have its CSS module classes referenced in other
-          // ways, so it keeps all of them.
+          // ways, so it keeps all of them. Likewise an SVG referenced without importing any of its
+          // elements (e.g. `new URL()` in JS) may have any of them referenced by fragment.
           for dep_index in 0..self.assets[asset_index.index()].dependencies.len() {
             let asset = &self.assets[asset_index.index()];
             if let DependencyResolution::Asset(resolved_node_index) =
@@ -540,7 +542,7 @@ impl AssetGraphBuilder {
                 .any(|import| import.dep_index == dep_index as u32)
               && self.asset_nodes[resolved_node_index.index()]
                 .asset
-                .is_some_and(|resolved| self.assets[resolved.index()].ty == AssetType::Css)
+                .is_some_and(|resolved| keeps_unimported_symbols(&self.assets[resolved.index()].ty))
             {
               request_all(
                 &mut self.asset_nodes,
@@ -870,6 +872,12 @@ fn resolve_symbol<G: SymbolGraph>(
   }
 
   star_resolution
+}
+
+/// Whether an asset of this type keeps all of its symbols when loaded without importing any:
+/// stylesheets and SVGs, whose classes and element ids can also be referenced by name.
+fn keeps_unimported_symbols(ty: &AssetType) -> bool {
+  matches!(ty, AssetType::Css | AssetType::Svg)
 }
 
 fn request_all(

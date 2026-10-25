@@ -12,10 +12,10 @@ serde_json = "1.0.91"
 typed-arena = "2.0.2"
 xml5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "xmlns-attrs" }
 cssparser = "0.37.0"
-oxvg_ast = { version = "0.0.8", git = "https://github.com/devongovett/oxvg.git", branch = "lightningcss-master" }
-oxvg_collections = { version = "0.0.8", git = "https://github.com/devongovett/oxvg.git", branch = "lightningcss-master" }
-oxvg_optimiser = { version = "0.0.8", git = "https://github.com/devongovett/oxvg.git", branch = "lightningcss-master" }
-oxvg_serialize = { version = "0.0.8", git = "https://github.com/devongovett/oxvg.git", branch = "lightningcss-master" }
+oxvg_ast = { version = "0.0.9", git = "https://github.com/devongovett/oxvg.git", branch = "lightningcss-master-external-references" }
+oxvg_collections = { version = "0.0.9", git = "https://github.com/devongovett/oxvg.git", branch = "lightningcss-master-external-references" }
+oxvg_optimiser = { version = "0.0.9", git = "https://github.com/devongovett/oxvg.git", branch = "lightningcss-master-external-references" }
+oxvg_serialize = { version = "0.0.9", git = "https://github.com/devongovett/oxvg.git", branch = "lightningcss-master-external-references" }
 lightningcss = { version = "1.0.0-alpha.72", default-features = false }
 anyhow = "*"
 swc_core = { version = "82", features = [
@@ -30,6 +30,7 @@ convert_case = "0.10.0"
 indexmap = { version = "2.11.0", features = ["serde"] }
 ref-cast = "1.0"
 parcel-core = { path = "../core" }
+percent-encoding = "2.2.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
 
 [dev-dependencies]

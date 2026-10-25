@@ -31,6 +31,8 @@ pub type InlineBundleCache = papaya::HashMap<(usize, PathId), Arc<Mutex<Option<A
 pub(crate) struct PrevBundle {
   /// The bundle's assets, sorted.
   pub assets: Vec<AssetIndex>,
+  /// See [`symbol_requests_hash`](crate::symbol_requests_hash).
+  pub symbol_requests: u64,
   /// The path the bundle was written to.
   pub final_path: PathId,
   /// The hash of the content that named the bundle, if it was named by its own content.
