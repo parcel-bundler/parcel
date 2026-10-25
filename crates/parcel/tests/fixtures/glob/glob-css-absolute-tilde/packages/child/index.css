@@ -1,0 +1,6 @@
+@import '/styles/*.css';
+@import '~/local/*.css';
+
+.index {
+  color: blue;
+}

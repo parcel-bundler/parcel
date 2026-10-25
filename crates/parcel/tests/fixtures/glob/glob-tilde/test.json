@@ -1,0 +1,9 @@
+{
+  "description": "should resolve a tilde glob from the importing file's package root",
+  "input": "packages/child/index.js",
+  "output": {
+    "vars": {"a": 1, "b": 2, "x": {"c": 3}},
+    "flat": {"~/dir/a.js": 1, "~/dir/b.js": 2, "~/dir/x/c.js": 3},
+    "text": {"x": {"c": "c\n"}}
+  }
+}

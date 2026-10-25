@@ -1,0 +1,7 @@
+{
+  "description": "should support CSS imports of absolute and tilde globs",
+  "input": "packages/child/index.css",
+  "bundles": [
+    {"type": "css", "assets": ["glob-7e1cc22a4c12ed6b.css", "glob-9ae6c3d937dcedff.css", "index.css", "local.css", "root.css"], "contains": [".root", ".local", ".index"]}
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "description": "should error when a tilde glob has no package.json above it",
+  "input": "index.js",
+  "diagnostics": [
+    {"message": "Failed to resolve '~/dir/*.js'", "origin": "@parcel/core"},
+    {
+      "message": "Cannot find a package.json above '",
+      "origin": "@parcel/resolver-glob",
+      "codeFrames": [{"codeHighlights": [{"start": {"line": 1, "column": 26}, "end": {"line": 1, "column": 37}}]}]
+    }
+  ]
+}

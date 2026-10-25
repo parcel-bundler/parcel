@@ -2173,6 +2173,53 @@ fn js_glob_import_tracks_matching_files() {
 }
 
 #[test]
+fn absolute_and_tilde_glob_imports_track_matching_files() {
+  // Absolute globs match from the project root, and tilde globs from the importing file's
+  // package root, so those are the directories that new files must be watched in.
+  let mut t = IncrementalTest::new(&[
+    ("/project/.parcelrc", GLOB_PARCELRC),
+    (
+      "/project/index.js",
+      "import root from '/dir/*.js';\nimport child from './packages/child';\noutput(Object.values(root).join(',') + child);",
+    ),
+    ("/project/dir/a.js", "module.exports = 'glob a';"),
+    ("/project/packages/child/package.json", "{}"),
+    (
+      "/project/packages/child/index.js",
+      "import local from '~/dir/*.js';\nexport default Object.values(local).join(',');",
+    ),
+    (
+      "/project/packages/child/dir/b.js",
+      "module.exports = 'glob b';",
+    ),
+  ]);
+  let js = t.output("/project/dist/index.js");
+  assert!(js.contains("glob a") && js.contains("glob b"), "got: {js}");
+
+  t.change(&[("/project/dir/c.js", "module.exports = 'glob c';")], &[]);
+  assert!(t.output("/project/dist/index.js").contains("glob c"));
+
+  t.change(
+    &[(
+      "/project/packages/child/dir/d.js",
+      "module.exports = 'glob d';",
+    )],
+    &[],
+  );
+  assert!(t.output("/project/dist/index.js").contains("glob d"));
+
+  t.change(
+    &[],
+    &["/project/dir/a.js", "/project/packages/child/dir/b.js"],
+  );
+  let js = t.output("/project/dist/index.js");
+  assert!(
+    !js.contains("glob a") && !js.contains("glob b"),
+    "got: {js}"
+  );
+}
+
+#[test]
 fn css_glob_import_tracks_matching_files() {
   let mut t = IncrementalTest::new(&[
     ("/project/.parcelrc", GLOB_PARCELRC),

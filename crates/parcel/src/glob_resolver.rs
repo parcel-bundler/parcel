@@ -3,8 +3,8 @@ use std::{borrow::Cow, collections::BTreeMap, fmt::Write, sync::Arc};
 use glob_match::glob_match_with_captures;
 use parcel_core::{
   AssetRequest, AssetType, BufferContent, CodeFrame, Dependency, DependencyResolution, Diagnostic,
-  DiagnosticList, DiagnosticSeverity, ImportType, OutputFormat, PathId, Resolver, SourceLocation,
-  SourceUrl, SpecifierType, is_glob,
+  DiagnosticList, DiagnosticSeverity, FileKind, ImportType, OutputFormat, PathId, Resolver,
+  SourceLocation, SourceUrl, SpecifierType, SubPath, is_glob,
 };
 use parcel_resolver::{Flags, Specifier, SpecifierError};
 use xxhash_rust::xxh3::xxh3_64;
@@ -46,30 +46,51 @@ impl Resolver for GlobResolver {
       }]));
     }
 
-    // The glob is matched against the file system relative to the importing file, so a glob
-    // of a package's files would silently match nothing. Supporting it means resolving the
-    // package first, including its "exports".
+    let source_path = dep.resolve_from.as_ref().unwrap().to_file_path()?;
+    let dir = source_path.parent().unwrap();
+
+    // The glob is matched against the file system, so a glob of a package's files would
+    // silently match nothing. Supporting it means resolving the package first, including its
+    // "exports". Absolute and tilde globs are relative to the project root and the importing
+    // file's package root, like other specifiers.
     let specifier_type = match dep.specifier_type {
       SpecifierType::Commonjs => parcel_resolver::SpecifierType::Cjs,
       SpecifierType::Url => parcel_resolver::SpecifierType::Url,
       _ => parcel_resolver::SpecifierType::Esm,
     };
-    let error = match Specifier::parse(
+    let (base, pattern) = match Specifier::parse(
       glob,
       specifier_type,
       Flags::NPM_SCHEME | Flags::ABSOLUTE_SPECIFIERS,
     ) {
-      Ok((Specifier::Package(..), _)) => Some(Diagnostic {
+      Ok((Specifier::Package(..), _)) => Err(Diagnostic {
         hints: vec![
           "Use a relative path, starting with \"./\", to glob files in your project.".into(),
         ],
         ..Diagnostic::from_message("Glob imports of packages are not supported yet.".into())
       }),
-      Err(error @ SpecifierError::FileUrl) => Some(specifier_error_diagnostic(error)),
-      _ => None,
-    };
-    if let Some(error) = error {
-      return Err(DiagnosticList(vec![Diagnostic {
+      Err(error @ SpecifierError::FileUrl) => Err(specifier_error_diagnostic(error)),
+      Ok((Specifier::Absolute(..), _)) => Ok((ctx.options.project_root, &glob[1..])),
+      Ok((Specifier::Tilde(..), _)) => {
+        let pattern = &glob[1..];
+        let pattern = pattern.strip_prefix('/').unwrap_or(pattern);
+        match fs.find_ancestor(
+          dir,
+          SubPath::package_json(),
+          FileKind::IS_FILE,
+          ctx.options.project_root,
+        ) {
+          Some(package_json) => Ok((package_json.parent().unwrap(), pattern)),
+          None => Err(Diagnostic::from_message(format!(
+            "Cannot find a package.json above '{}'",
+            dir.to_path_buf().display()
+          ))),
+        }
+      }
+      _ => Ok((dir, glob)),
+    }
+    .map_err(|error| {
+      DiagnosticList(vec![Diagnostic {
         origin: Some("@parcel/resolver-glob".into()),
         code_frames: dep
           .loc
@@ -77,8 +98,8 @@ impl Resolver for GlobResolver {
           .map(|loc| CodeFrame::from_loc(loc, None))
           .collect(),
         ..error
-      }]));
-    }
+      }])
+    })?;
 
     let mut is_async = false;
     let mut flat = false;
@@ -91,21 +112,16 @@ impl Resolver for GlobResolver {
       }
     }
 
-    let source_path = dep.resolve_from.as_ref().unwrap().to_file_path()?;
-    let dir = source_path.parent().unwrap();
     // Glob through `fs` so a new file matching the pattern triggers a rebuild (tracked as a
     // create-glob invalidation of this asset).
-    let files: Vec<_> = fs
-      .glob(glob, dir)
-      .into_iter()
-      .map(|path| path.relative(&dir))
-      .collect();
+    let files = fs.glob(pattern, base);
 
     if is_css {
       let mut specifiers: Vec<String> = files
         .iter()
         .map(|file| {
-          let rel = to_rel(file.to_str().unwrap());
+          let rel = file.relative(&dir);
+          let rel = to_rel(rel.to_str().unwrap());
           match pipeline {
             Some(pipeline) => format!("{}:{}", pipeline, rel),
             None => rel.into_owned(),
@@ -123,14 +139,25 @@ impl Resolver for GlobResolver {
     // Build the nested object tree from all wildcard captures.
     let mut root = GlobEntry::new_dir();
     for file in files.iter() {
-      let rel = to_rel(file.to_str().unwrap());
+      let rel = file.relative(&dir);
+      let rel = to_rel(rel.to_str().unwrap());
+      // The keys are the parts of the path that the wildcards matched, or with `flat`, the
+      // whole path in the form of the glob, e.g. "/dir/a.js" for "/dir/*.js".
+      let matched = file.relative(&base);
+      let matched = matched.to_str().unwrap();
+      let matched = if pattern.starts_with('.') {
+        to_rel(matched)
+      } else {
+        Cow::Borrowed(matched)
+      };
+      let flat_key = format!("{}{}", &glob[..glob.len() - pattern.len()], matched);
       let parts: Vec<&str> = if flat {
-        vec![rel.as_ref()]
-      } else if let Some(captures) = glob_match_with_captures(glob, &rel) {
+        vec![&flat_key]
+      } else if let Some(captures) = glob_match_with_captures(pattern, &matched) {
         // Collect all capture groups, split each on '/', discard empty segments.
         captures
           .iter()
-          .flat_map(|range| rel[range.clone()].split('/'))
+          .flat_map(|range| matched[range.clone()].split('/'))
           .filter(|s| !s.is_empty())
           .collect()
       } else {
