@@ -1,0 +1,5 @@
+{
+  "description": "should not fail to resolve electron in electron environments when it is not installed",
+  "input": "index.js",
+  "bundles": [{"assets": ["index.js"], "contains": [":\"electron\"}"]}]
+}

@@ -1,0 +1,11 @@
+{
+  "description": "should treat electron as an external builtin in electron environments, even when installed",
+  "input": "index.js",
+  "bundles": [
+    {
+      "assets": ["index.js"],
+      "contains": [":\"electron\"}"],
+      "notContains": ["installed electron package"]
+    }
+  ]
+}

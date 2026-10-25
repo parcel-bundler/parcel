@@ -28,6 +28,11 @@ impl Resolver for DefaultResolver {
     pipeline: Option<&str>,
     ctx: &parcel_core::PluginContext,
   ) -> Result<DependencyResolution, DiagnosticList> {
+    // Electron provides the `electron` module at runtime, so it is never bundled.
+    if dep.target.environment.is_electron() && specifier == "electron" {
+      return Ok(DependencyResolution::External);
+    }
+
     let options = ctx.options;
     let fs = ctx.fs;
     let resolve_from = dep.resolve_from.as_ref().unwrap();
