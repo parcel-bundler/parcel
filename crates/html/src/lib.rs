@@ -747,37 +747,33 @@ fn prepare_to_package(
   ))
 }
 
+#[derive(Deserialize)]
 pub struct SvgTransformer {
   /// None when optimization is disabled.
+  #[serde(
+    rename = "optimize",
+    default = "default_svg_optimize",
+    deserialize_with = "deserialize_svg_optimize"
+  )]
   pub config: Option<OxvgConfig>,
+}
+
+fn default_svg_optimize() -> Option<OxvgConfig> {
+  Some(Default::default())
+}
+
+fn deserialize_svg_optimize<'de, D>(deserializer: D) -> Result<Option<OxvgConfig>, D::Error>
+where
+  D: serde::Deserializer<'de>,
+{
+  Ok(OptimizeConfig::deserialize(deserializer)?.into_options())
 }
 
 impl Default for SvgTransformer {
   fn default() -> Self {
     SvgTransformer {
-      config: Some(OxvgConfig::default()),
+      config: default_svg_optimize(),
     }
-  }
-}
-
-impl<'de> Deserialize<'de> for SvgTransformer {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: serde::Deserializer<'de>,
-  {
-    use serde::de::Error;
-    // OXVG options are also accepted at the top level, outside "optimize".
-    let mut value = serde_json::Value::deserialize(deserializer)?;
-    let config = match value
-      .as_object_mut()
-      .and_then(|config| config.remove("optimize"))
-    {
-      Some(optimize) => OptimizeConfig::deserialize(optimize).map_err(D::Error::custom)?,
-      None => OptimizeConfig::Options(OxvgConfig::deserialize(value).map_err(D::Error::custom)?),
-    };
-    Ok(SvgTransformer {
-      config: config.into_options(),
-    })
   }
 }
 

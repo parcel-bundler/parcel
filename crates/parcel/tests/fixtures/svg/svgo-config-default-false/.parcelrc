@@ -5,8 +5,10 @@
       {
         "plugin": "@parcel/transformer-svg",
         "config": {
-          "default": false,
-          "removeComments": true
+          "optimize": {
+            "default": false,
+            "removeComments": true
+          }
         }
       }
     ]
