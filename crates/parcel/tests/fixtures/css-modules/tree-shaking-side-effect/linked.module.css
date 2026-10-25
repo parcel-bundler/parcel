@@ -1,0 +1,7 @@
+.linked {
+  color: green;
+}
+
+.linked-unused-sentinel {
+  color: orange;
+}

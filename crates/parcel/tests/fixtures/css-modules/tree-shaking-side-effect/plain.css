@@ -1,0 +1,5 @@
+@import "./imported.module.css";
+
+body {
+  margin: 0;
+}

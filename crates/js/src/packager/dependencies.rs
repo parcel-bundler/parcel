@@ -255,7 +255,14 @@ pub fn asset_dependencies<'a>(
       BundleGraphDependencyResolution::Asset(resolved) => {
         let resolved_asset = &bundle_graph.asset_graph.asset(resolved);
         if resolved_asset.ty != AssetType::Js {
-          if resolved_asset.symbols.exports.iter().any(|e| e.requested) {
+          // A side-effect import doesn't need the CSS module's class names.
+          if resolved_asset.symbols.exports.iter().any(|e| e.requested)
+            && asset
+              .symbols
+              .imports
+              .iter()
+              .any(|import| import.dep_index == dep_index as u32)
+          {
             let asset = &bundle_graph.asset_graph.asset(resolved);
             dependencies.insert(
               (&**placeholder).into(),
