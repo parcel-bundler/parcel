@@ -1,0 +1,21 @@
+{
+  "description": "should error when importing a file whose pipeline is empty into JS",
+  "input": "index.js",
+  "options": {"config": ".parcelrc"},
+  "diagnostics": [
+    {
+      "message": "No transformers found for crates/parcel/tests/fixtures/config/no-transformers-empty-pipeline/archive.zip.",
+      "origin": "@parcel/core",
+      "codeFrames": [
+        {
+          "codeHighlights": [
+            {"start": {"line": 1, "column": 18}, "end": {"line": 1, "column": 32}}
+          ]
+        }
+      ],
+      "hints": [
+        "Add a transformer for this file type to .parcelrc, or import it as a URL with \"url:./archive.zip\"."
+      ]
+    }
+  ]
+}

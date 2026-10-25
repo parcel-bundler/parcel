@@ -1,0 +1,7 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "*.data": ["..."],
+    "*.{data,txt}": ["@parcel/transformer-json"]
+  }
+}

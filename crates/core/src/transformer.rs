@@ -180,21 +180,14 @@ fn check_transformers(
     return Ok(());
   }
 
-  let path = relative_path(&req.loc.url, &options.project_root, &req.ty)?;
-  let pipeline = req.pipeline.as_deref();
-  if config.transformers.matches(&path, pipeline) {
-    return Ok(());
-  }
-
-  Err(Diagnostic {
-    origin: Some("@parcel/core".into()),
+  check_pipeline(req, config, options).map_err(|diagnostic| Diagnostic {
     code_frames: dep
       .loc
       .iter()
       .map(|loc| CodeFrame::from_loc(loc, None))
       .collect(),
     // A named pipeline was chosen on purpose, so "url:" would not be the answer.
-    hints: if pipeline.is_none() {
+    hints: if req.pipeline.is_none() {
       vec![format!(
         "Add a transformer for this file type to .parcelrc, or import it as a URL with \"url:{}\".",
         dep.specifier
@@ -202,10 +195,35 @@ fn check_transformers(
     } else {
       vec![]
     },
+    ..diagnostic
+  })
+}
+
+/// Errors when no transformer applies to the request, as in Parcel 2. A pattern that is
+/// configured with an empty pipeline, e.g. `"*.zip": []`, doesn't count.
+pub(crate) fn check_pipeline(
+  req: &AssetRequest,
+  config: &ParcelConfig,
+  options: &ParcelOptions,
+) -> Result<(), Diagnostic> {
+  let path = relative_path(&req.loc.url, &options.project_root, &req.ty)?;
+  if config
+    .transformers
+    .get(Cow::Borrowed(&path), &req.pipeline, false)
+    .next()
+    .is_some()
+  {
+    return Ok(());
+  }
+
+  Err(Diagnostic {
+    origin: Some("@parcel/core".into()),
     ..Diagnostic::from_message(format!(
       "No transformers found for {}{}.",
       path,
-      pipeline
+      req
+        .pipeline
+        .as_ref()
         .map(|pipeline| format!(" with pipeline: '{}'", pipeline))
         .unwrap_or_default()
     ))

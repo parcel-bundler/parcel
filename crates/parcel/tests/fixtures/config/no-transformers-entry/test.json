@@ -1,0 +1,10 @@
+{
+  "description": "should error when an entry has no transformers",
+  "input": "archive.zip",
+  "diagnostics": [
+    {
+      "message": "No transformers found for crates/parcel/tests/fixtures/config/no-transformers-entry/archive.zip.",
+      "origin": "@parcel/core"
+    }
+  ]
+}

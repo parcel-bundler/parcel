@@ -248,6 +248,7 @@ impl AssetGraphBuilder {
           side_effects: true, // TODO: resolve this for real?
           unique_key: None,
         });
+        crate::transformer::check_pipeline(&req, queue.config(), &self.options)?;
 
         let node_index = AssetNodeIndex::from_index(self.asset_nodes.len());
         self.asset_nodes.push(AssetNode::deferred(

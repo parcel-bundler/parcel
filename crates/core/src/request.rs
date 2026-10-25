@@ -52,6 +52,10 @@ impl TransformQueue {
     self.request_sender.send(request).unwrap();
   }
 
+  pub fn config(&self) -> &ParcelConfig {
+    &self.config
+  }
+
   /// Whether any transform requests are still in flight.
   pub fn has_pending(&self) -> bool {
     self.pending_requests > 0
