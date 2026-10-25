@@ -6,6 +6,7 @@ use parcel_core::{
   DiagnosticList, DiagnosticSeverity, ImportType, OutputFormat, PathId, Resolver, SourceLocation,
   SourceUrl, SpecifierType, is_glob,
 };
+use parcel_resolver::{Flags, Specifier};
 use xxhash_rust::xxh3::xxh3_64;
 
 pub struct GlobResolver {}
@@ -38,6 +39,33 @@ impl Resolver for GlobResolver {
           .map(|loc| CodeFrame::from_loc(loc, None))
           .collect(),
         hints: vec![],
+        severity: DiagnosticSeverity::Error,
+        documentation_url: None,
+      }]));
+    }
+
+    // The glob is matched against the file system relative to the importing file, so a glob
+    // of a package's files would silently match nothing. Supporting it means resolving the
+    // package first, including its "exports".
+    let specifier_type = match dep.specifier_type {
+      SpecifierType::Commonjs => parcel_resolver::SpecifierType::Cjs,
+      SpecifierType::Url => parcel_resolver::SpecifierType::Url,
+      _ => parcel_resolver::SpecifierType::Esm,
+    };
+    if let Ok((Specifier::Package(..), _)) =
+      Specifier::parse(glob, specifier_type, Flags::NPM_SCHEME)
+    {
+      return Err(DiagnosticList(vec![Diagnostic {
+        message: "Glob imports of packages are not supported yet.".into(),
+        origin: Some("@parcel/resolver-glob".into()),
+        code_frames: dep
+          .loc
+          .iter()
+          .map(|loc| CodeFrame::from_loc(loc, None))
+          .collect(),
+        hints: vec![
+          "Use a relative path, starting with \"./\", to glob files in your project.".into(),
+        ],
         severity: DiagnosticSeverity::Error,
         documentation_url: None,
       }]));
