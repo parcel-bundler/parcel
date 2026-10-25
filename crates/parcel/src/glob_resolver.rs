@@ -6,8 +6,10 @@ use parcel_core::{
   DiagnosticList, DiagnosticSeverity, ImportType, OutputFormat, PathId, Resolver, SourceLocation,
   SourceUrl, SpecifierType, is_glob,
 };
-use parcel_resolver::{Flags, Specifier};
+use parcel_resolver::{Flags, Specifier, SpecifierError};
 use xxhash_rust::xxh3::xxh3_64;
+
+use crate::resolver::specifier_error_diagnostic;
 
 pub struct GlobResolver {}
 
@@ -52,22 +54,29 @@ impl Resolver for GlobResolver {
       SpecifierType::Url => parcel_resolver::SpecifierType::Url,
       _ => parcel_resolver::SpecifierType::Esm,
     };
-    if let Ok((Specifier::Package(..), _)) =
-      Specifier::parse(glob, specifier_type, Flags::NPM_SCHEME)
-    {
+    let error = match Specifier::parse(
+      glob,
+      specifier_type,
+      Flags::NPM_SCHEME | Flags::ABSOLUTE_SPECIFIERS,
+    ) {
+      Ok((Specifier::Package(..), _)) => Some(Diagnostic {
+        hints: vec![
+          "Use a relative path, starting with \"./\", to glob files in your project.".into(),
+        ],
+        ..Diagnostic::from_message("Glob imports of packages are not supported yet.".into())
+      }),
+      Err(error @ SpecifierError::FileUrl) => Some(specifier_error_diagnostic(error)),
+      _ => None,
+    };
+    if let Some(error) = error {
       return Err(DiagnosticList(vec![Diagnostic {
-        message: "Glob imports of packages are not supported yet.".into(),
         origin: Some("@parcel/resolver-glob".into()),
         code_frames: dep
           .loc
           .iter()
           .map(|loc| CodeFrame::from_loc(loc, None))
           .collect(),
-        hints: vec![
-          "Use a relative path, starting with \"./\", to glob files in your project.".into(),
-        ],
-        severity: DiagnosticSeverity::Error,
-        documentation_url: None,
+        ..error
       }]));
     }
 

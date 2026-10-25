@@ -33,6 +33,10 @@ pub enum SpecifierError {
   UrlError(url::ParseError),
   /// Invalid `file://` URL.
   InvalidFileUrl,
+  /// A `file:` URL, with Parcel-style absolute specifiers. These are reserved: Parcel resolves
+  /// absolute paths relative to the project root, while a `file:` URL is an absolute path on one
+  /// machine, so a build that used it would not be portable.
+  FileUrl,
 }
 
 impl From<url::ParseError> for SpecifierError {
@@ -135,6 +139,9 @@ impl<'a> Specifier<'a> {
                   // Node does not URL decode or support query params here.
                   // See https://github.com/nodejs/node/issues/39710.
                   (Specifier::Builtin(scheme, Cow::Borrowed(path)), None)
+                }
+                "file" if flags.contains(Flags::ABSOLUTE_SPECIFIERS) => {
+                  return Err(SpecifierError::FileUrl);
                 }
                 "file" => (
                   Specifier::Absolute(Cow::Owned(url_to_path(specifier)?)),

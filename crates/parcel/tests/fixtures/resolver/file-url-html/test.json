@@ -1,0 +1,12 @@
+{
+  "description": "should error on a file: URL in an HTML reference",
+  "input": "index.html",
+  "diagnostics": [
+    {"message": "Failed to resolve 'file:///abs/", "origin": "@parcel/core"},
+    {
+      "message": "file: URLs are not supported. They are absolute paths on one machine, so the build would not be portable.",
+      "origin": "@parcel/resolver-default",
+      "hints": ["Use a relative path instead."]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "description": "should error on a file: URL in a JS import",
+  "input": "index.js",
+  "diagnostics": [
+    {
+      "message": "Failed to resolve 'file:///abs/path.js'",
+      "origin": "@parcel/core",
+      "codeFrames": [{"codeHighlights": [{"start": {"line": 1, "column": 19}, "end": {"line": 1, "column": 39}}]}]
+    },
+    {
+      "message": "file: URLs are not supported. They are absolute paths on one machine, so the build would not be portable.",
+      "origin": "@parcel/resolver-default",
+      "hints": ["Use a relative path instead."]
+    }
+  ]
+}

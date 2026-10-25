@@ -1,0 +1,13 @@
+{
+  "description": "should error on a glob of a file: URL",
+  "input": "index.js",
+  "diagnostics": [
+    {"message": "Failed to resolve 'file:///abs/*.js'", "origin": "@parcel/core"},
+    {
+      "message": "file: URLs are not supported. They are absolute paths on one machine, so the build would not be portable.",
+      "origin": "@parcel/resolver-glob",
+      "codeFrames": [{"codeHighlights": [{"start": {"line": 1, "column": 24}, "end": {"line": 1, "column": 41}}]}],
+      "hints": ["Use a relative path instead."]
+    }
+  ]
+}

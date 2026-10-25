@@ -1626,20 +1626,22 @@ mod tests {
       Resolution::Path(root().join(Path::new(Path::new("bar.js"))))
     );
 
-    #[cfg(not(windows))]
-    {
-      assert_eq!(
+    // Reserved in Parcel mode, where absolute paths are relative to the project root.
+    for specifier_type in [SpecifierType::Esm, SpecifierType::Url] {
+      assert!(matches!(
         test_resolver()
           .resolve(
             "file:///bar",
             root().join(Path::new("nested/test.js")),
-            SpecifierType::Esm
+            specifier_type
           )
-          .result
-          .unwrap()
-          .resolution,
-        Resolution::Path(root().join(Path::new(Path::new("bar.js"))))
-      );
+          .result,
+        Err(ResolverError::InvalidSpecifier(SpecifierError::FileUrl))
+      ));
+    }
+
+    #[cfg(not(windows))]
+    {
       assert_eq!(
         node_resolver()
           .resolve(

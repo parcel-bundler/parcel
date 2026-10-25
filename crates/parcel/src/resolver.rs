@@ -250,6 +250,21 @@ impl Resolver for DefaultResolver {
 
 const ORIGIN: &str = "@parcel/resolver-default";
 
+pub(crate) fn specifier_error_diagnostic(error: SpecifierError) -> Diagnostic {
+  match error {
+    SpecifierError::EmptySpecifier => diagnostic("Invalid empty specifier".into()),
+    SpecifierError::InvalidPackageSpecifier => diagnostic("Invalid package specifier".into()),
+    SpecifierError::InvalidFileUrl => diagnostic("Invalid file url".into()),
+    SpecifierError::UrlError(url) => diagnostic(format!("Invalid URL: {url}")),
+    SpecifierError::FileUrl => Diagnostic {
+      hints: vec!["Use a relative path instead.".into()],
+      ..diagnostic(
+        "file: URLs are not supported. They are absolute paths on one machine, so the build would not be portable.".into(),
+      )
+    },
+  }
+}
+
 fn diagnostic(message: String) -> Diagnostic {
   Diagnostic {
     message,
@@ -355,15 +370,7 @@ fn resolver_error_diagnostics(
       });
       vec![result]
     }
-    ResolverError::InvalidSpecifier(error) => {
-      let message = match error {
-        SpecifierError::EmptySpecifier => "Invalid empty specifier".into(),
-        SpecifierError::InvalidPackageSpecifier => "Invalid package specifier".into(),
-        SpecifierError::InvalidFileUrl => "Invalid file url".into(),
-        SpecifierError::UrlError(url) => format!("Invalid URL: {url}"),
-      };
-      vec![diagnostic(message)]
-    }
+    ResolverError::InvalidSpecifier(error) => vec![specifier_error_diagnostic(error)],
     ResolverError::UnknownScheme { scheme } => vec![diagnostic(format!(
       "Unknown url scheme or pipeline '{scheme}:'"
     ))],
