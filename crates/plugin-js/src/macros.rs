@@ -15,7 +15,7 @@ use rquickjs::{
   methods,
 };
 
-use crate::{await_promise, plugin::load_module, with_plugin_env};
+use crate::{CjsLoader, await_promise, plugin::load_module, with_plugin_env};
 
 #[derive(JsLifetime)]
 #[rquickjs::class]
@@ -139,7 +139,7 @@ pub fn call_macro(
 ) -> Result<(JsValue, Vec<Dependency>), MacroError> {
   let mut is_load_error = false;
   with_plugin_env(options, |ctx| {
-    let module = load_module(&ctx, &src).map_err(|e| {
+    let module = load_macro_module(&ctx, &src).map_err(|e| {
       is_load_error = true;
       e
     })?;
@@ -181,6 +181,18 @@ pub fn call_macro(
       MacroError::ExecutionError(d.0[0].message.clone(), Default::default())
     }
   })
+}
+
+/// Loads a macro module from a file path, or from a `builtin:<name>` specifier for Node builtins.
+fn load_macro_module<'js>(ctx: &Ctx<'js>, src: &str) -> rquickjs::Result<Object<'js>> {
+  if let Some(module) = src.strip_prefix("builtin:") {
+    let resolved = ctx
+      .userdata::<CjsLoader>()
+      .unwrap()
+      .resolve_builtin(ctx, module, true)?;
+    return load_module(ctx, &resolved);
+  }
+  load_module(ctx, src)
 }
 
 fn js_value_to_quickjs<'a>(value: JsValue, ctx: Ctx<'a>) -> rquickjs::Result<rquickjs::Value<'a>> {

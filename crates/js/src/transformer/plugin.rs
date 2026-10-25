@@ -119,16 +119,20 @@ impl Transformer for JsTransformer {
         &*fs_cloned,
       );
       if let Ok(res) = resolved {
-        if let parcel_resolver::Resolution::Path(p) = res.resolution {
-          let (res, deps) = call_macro(
-            options,
-            url.clone(),
-            env.clone(),
-            p.to_path_buf().to_str().unwrap().to_string(),
-            export,
-            args,
-            loc,
-          )?;
+        let src = match res.resolution {
+          parcel_resolver::Resolution::Path(p) => {
+            Some(p.to_path_buf().to_str().unwrap().to_string())
+          }
+          // Node builtins (e.g. `fs`) run using the JS runtime's implementation.
+          parcel_resolver::Resolution::Builtin { scheme, module }
+            if scheme.is_empty() || scheme == "node" =>
+          {
+            Some(format!("builtin:{}", module))
+          }
+          _ => None,
+        };
+        if let Some(src) = src {
+          let (res, deps) = call_macro(options, url.clone(), env.clone(), src, export, args, loc)?;
           macro_deps_cloned.borrow_mut().extend(deps);
           return Ok(res);
         }

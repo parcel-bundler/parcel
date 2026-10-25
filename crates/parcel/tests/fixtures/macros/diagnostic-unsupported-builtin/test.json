@@ -1,0 +1,20 @@
+{
+  "description": "should throw a diagnostic when a builtin macro is not supported",
+  "input": "index.js",
+  "diagnostics": [
+    {
+      "message": "Error loading macro: Unsupported node builtin 'http'",
+      "origin": "@parcel/transformer-js",
+      "codeFrames": [
+        {
+          "codeHighlights": [
+            {
+              "start": {"line": 1, "column": 1},
+              "end": {"line": 1, "column": 54}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

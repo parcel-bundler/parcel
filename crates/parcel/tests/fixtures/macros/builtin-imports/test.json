@@ -1,0 +1,6 @@
+{
+  "description": "should support importing node builtins as macros",
+  "input": "index.js",
+  "bundles": [{"assets": ["index.js"]}],
+  "output": "a/b:bar.txt:false"
+}
