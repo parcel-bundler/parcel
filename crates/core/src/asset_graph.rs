@@ -499,6 +499,15 @@ impl AssetGraphBuilder {
               let resolution = if priority == Priority::Lazy
                 && let Some(asset_index) = self.asset_nodes[resolved_node_index.index()].asset
               {
+                // The target's exports object must provide the name, including through
+                // `export *` re-exports of side-effect-free modules.
+                request_runtime_star_exports(
+                  &mut self.asset_nodes,
+                  &mut self.assets,
+                  resolved_node_index,
+                  &name,
+                  &mut HashSet::new(),
+                );
                 SymbolResolution::Runtime { asset_index, name }
               } else {
                 requested
@@ -910,6 +919,68 @@ fn request_all(
         &mut HashSet::new(),
         queue,
       );
+    }
+  }
+}
+
+/// Marks the `export *` declarations that provide `name` as requested, following re-exports.
+///
+/// Symbol resolution normally skips side-effect-free re-exports: importers reference the
+/// module that declares the export directly. A symbol read from a module's exports object at
+/// runtime (e.g. through a dynamic import) must instead be reachable from that module, so its
+/// star re-exports of the name have to be packaged too. Named re-exports are already marked
+/// during resolution.
+fn request_runtime_star_exports(
+  asset_nodes: &mut [AssetNode],
+  assets: &mut [Asset],
+  node_index: AssetNodeIndex,
+  name: &SymbolName,
+  visited: &mut HashSet<AssetNodeIndex>,
+) {
+  if *name == SymbolName::Namespace || *name == SymbolName::Default || !visited.insert(node_index) {
+    return;
+  }
+
+  let Some(asset_index) = asset_nodes[node_index.index()].asset else {
+    return;
+  };
+
+  let asset = &assets[asset_index.index()];
+  if asset.symbols.used_namespace || asset.symbols.exports.iter().any(|e| e.exported == *name) {
+    return;
+  }
+
+  if let Some(indirect) = asset.symbols.indirect.iter().find(|e| e.exported == *name) {
+    if let DependencyResolution::Asset(target) =
+      asset.dependencies[indirect.dep_index as usize].resolution
+    {
+      let imported = indirect.imported.clone();
+      request_runtime_star_exports(asset_nodes, assets, target, &imported, visited);
+    }
+    return;
+  }
+
+  for star_index in 0..asset.symbols.star.len() {
+    let asset = &assets[asset_index.index()];
+    let dep = &asset.dependencies[asset.symbols.star[star_index].dep_index as usize];
+    let DependencyResolution::Asset(target) = dep.resolution else {
+      continue;
+    };
+
+    let provides = resolve_symbol(
+      &mut ResolveSymbols {
+        asset_nodes,
+        assets,
+      },
+      target,
+      name.clone(),
+      None,
+      &mut HashSet::new(),
+    ) != SymbolResolution::None;
+
+    if provides {
+      assets[asset_index.index()].symbols.star[star_index].requested = true;
+      request_runtime_star_exports(asset_nodes, assets, target, name, visited);
     }
   }
 }

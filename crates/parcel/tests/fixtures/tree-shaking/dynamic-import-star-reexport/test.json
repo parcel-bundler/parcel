@@ -1,0 +1,36 @@
+[
+  {
+    "description": "tree shaking: dynamic import namespace access through export * of a side-effect-free module",
+    "input": "namespace.js",
+    "options": {"mode": "production"},
+    "output": "value-shared",
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["namespace.js"]
+      },
+      {
+        "type": "js",
+        "assets": ["esmodule-helpers.js", "index.js", "page.js"],
+        "contains": ["value-shared"],
+        "notContains": ["unused-lib-sentinel"]
+      }
+    ]
+  },
+  {
+    "description": "tree shaking: dynamic import namespace access through export * works in development",
+    "input": "namespace.js",
+    "output": "value-shared"
+  },
+  {
+    "description": "tree shaking: dynamic import destructuring through export * of a side-effect-free module",
+    "input": "destructure.js",
+    "options": {"mode": "production"},
+    "output": "value-shared"
+  },
+  {
+    "description": "tree shaking: dynamic import destructuring through export * works in development",
+    "input": "destructure.js",
+    "output": "value-shared"
+  }
+]
