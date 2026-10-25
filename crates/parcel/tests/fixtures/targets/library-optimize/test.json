@@ -1,0 +1,51 @@
+{
+  "description": "should minify library outputs for the production condition or with the optimize option",
+  "input": ".",
+  "options": {
+    "mode": "production"
+  },
+  "bundles": [
+    {
+      "name": "index.production.js",
+      "assets": [
+        "index.js"
+      ],
+      "contains": [
+        "export function add("
+      ],
+      "notContains": [
+        "first",
+        "result"
+      ],
+      "startsWith": "\"use client\";"
+    },
+    {
+      "name": "index.js",
+      "assets": [
+        "index.js"
+      ],
+      "contains": [
+        "export function add(first, second)"
+      ]
+    },
+    {
+      "name": "index.cjs",
+      "assets": [
+        "index.js"
+      ],
+      "contains": [
+        "exports,\"add\""
+      ],
+      "notContains": [
+        "first",
+        "result"
+      ],
+      "startsWith": "\"use client\";"
+    },
+    {
+      "assets": [
+        "esmodule-helpers.js"
+      ]
+    }
+  ]
+}

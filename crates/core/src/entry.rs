@@ -214,6 +214,15 @@ impl EntryResolver {
         .and_then(|t| serde_json::from_value(t.clone()).ok())
         .unwrap_or_default();
 
+      // Apps are optimized unless the target's `optimize` option is false.
+      let mut flags = flags;
+      if matches!(
+        target.and_then(|t| t.get("optimize")),
+        Some(Value::Bool(false))
+      ) {
+        flags.remove(EnvironmentFlags::SHOULD_OPTIMIZE);
+      }
+
       // As in Parcel 2, a target's `distDir` is relative to the package and takes precedence over
       // `--dist-dir`. Otherwise, each of multiple targets builds into a subdirectory named after it.
       let dist_dir = match named_target {
@@ -266,6 +275,7 @@ impl EntryResolver {
       context: None,
       output_format: None,
       include_node_modules: None,
+      optimize: None,
     };
 
     let start = self.entries.len();
@@ -510,6 +520,7 @@ struct ExportsContext<'a> {
   context: Option<&'a Value>,
   output_format: Option<&'a Value>,
   include_node_modules: Option<&'a Value>,
+  optimize: Option<&'a Value>,
 }
 
 impl<'a> ExportsContext<'a> {
@@ -542,6 +553,9 @@ impl<'a> ExportsContext<'a> {
       include_node_modules: target
         .and_then(|t| t.get("includeNodeModules"))
         .or(self.include_node_modules.clone()),
+      optimize: target
+        .and_then(|t| t.get("optimize"))
+        .or(self.optimize.clone()),
     })
   }
 
@@ -617,9 +631,15 @@ impl<'a> ExportsContext<'a> {
       EnvironmentFlags::MODULE_TYPE_EXTENSION,
       matches!(entry.extension(), Some("mjs" | "cjs")),
     );
+    // Libraries are only minified when optimizing, and when the target's `optimize` option is set or
+    // the output is for the `production` condition.
+    let optimize = match self.optimize {
+      Some(Value::Bool(optimize)) => *optimize,
+      _ => self.condition.contains(ExportsCondition::PRODUCTION),
+    };
     flags.set(
       EnvironmentFlags::SHOULD_OPTIMIZE,
-      self.should_optimize && self.condition.contains(ExportsCondition::PRODUCTION), // ??
+      self.should_optimize && optimize,
     );
 
     Ok(Target {
@@ -1754,6 +1774,85 @@ mod tests {
         Path::new("/root/dist/index.mjs").to_path_buf(),
         Path::new("/root/dist/main.js").to_path_buf()
       ]
+    );
+  }
+
+  #[test]
+  fn test_target_optimize() {
+    let optimized = |pkg: &str, mode: crate::BuildMode, optimize: Option<bool>| -> Vec<bool> {
+      let fs = MemoryFileSystem::new();
+      fs.mkdir(Path::new("/root")).unwrap();
+      fs.write(
+        PathId::new(Path::new("/root/package.json")),
+        &pkg.as_bytes().to_vec(),
+      )
+      .unwrap();
+      fs.write(PathId::new(Path::new("/root/foo.js")), &Vec::new())
+        .unwrap();
+      let fs = Arc::new(fs);
+      let input = if pkg.contains("exports") {
+        "/root"
+      } else {
+        "/root/foo.js"
+      };
+      let (entries, _) = resolve_entries(
+        &vec![input.into()],
+        &crate::BuildOptions {
+          input_fs: fs.clone(),
+          output_fs: fs,
+          env: HashMap::new(),
+          log_level: crate::LogLevel::Error,
+          mode,
+          optimize,
+          content_hash: None,
+          config: None,
+          cwd: PathId::new(Path::new("/root")),
+          source_map: None,
+          dist_dir: None,
+          public_url: Default::default(),
+          hmr: None,
+          reporters: Vec::new(),
+        },
+      )
+      .unwrap();
+      entries
+        .iter()
+        .map(|e| e.target.flags.contains(EnvironmentFlags::SHOULD_OPTIMIZE))
+        .collect()
+    };
+    use crate::BuildMode::{Development, Production};
+
+    // Apps are optimized in production unless `optimize` is false.
+    let app = r#"{"targets": {"a": {}, "b": {"optimize": false}, "c": {"optimize": true}}}"#;
+    assert_eq!(optimized(app, Production, None), vec![true, false, true]);
+    assert_eq!(optimized(app, Development, None), vec![false, false, false]);
+    assert_eq!(
+      optimized(app, Production, Some(false)),
+      vec![false, false, false]
+    );
+
+    // Libraries are only optimized when `optimize` is true or for the `production` condition.
+    let library = r#"{
+      "exports": {
+        "source": "./foo.js",
+        "import": "./dist/foo.mjs",
+        "require": "./dist/foo.cjs",
+        "production": "./dist/foo.production.js",
+        "development": "./dist/foo.development.js"
+      },
+      "targets": {"import": {"optimize": true}, "development": {"optimize": false}}
+    }"#;
+    assert_eq!(
+      optimized(library, Production, None),
+      vec![true, false, true, false]
+    );
+    assert_eq!(
+      optimized(library, Development, None),
+      vec![false, false, false, false]
+    );
+    assert_eq!(
+      optimized(library, Development, Some(true)),
+      vec![true, false, true, false]
     );
   }
 }

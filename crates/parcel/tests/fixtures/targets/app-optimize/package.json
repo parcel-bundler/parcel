@@ -1,0 +1,6 @@
+{
+  "targets": {
+    "minified": {},
+    "unminified": {"optimize": false}
+  }
+}

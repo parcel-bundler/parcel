@@ -1,0 +1,12 @@
+{
+  "type": "module",
+  "exports": {
+    "source": "./src/index.js",
+    "production": "./dist/index.production.js",
+    "import": "./dist/index.js",
+    "require": "./dist/index.cjs"
+  },
+  "targets": {
+    "require": {"optimize": true}
+  }
+}

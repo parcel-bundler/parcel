@@ -7,13 +7,19 @@ use parcel_core::*;
 
 use swc_core::{
   common::DUMMY_SP,
-  ecma::ast::{Expr, ExprStmt, ImportDecl, Lit, ModuleDecl, ModuleItem, Stmt},
+  ecma::{
+    ast::{Expr, ExprStmt, ImportDecl, Lit, ModuleDecl, ModuleItem, Program, Stmt},
+    minifier::option::{
+      CompressOptions, ExtraOptions, MangleOptions, MinifyOptions, TopLevelOptions,
+    },
+  },
   quote,
 };
 
 use crate::{
   JsContent,
   packager::{asset_dependencies, insert_node_replacement_helpers, insert_node_replacements},
+  transformer::Ast,
 };
 
 impl JsContent {
@@ -121,13 +127,19 @@ impl JsContent {
         true,
         "require".into(),
       );
-      hoist_directives(&mut ast.program.body, &content.directives);
+      let prologue = hoist_directives(&mut ast.program.body, &content.directives);
+      if should_optimize {
+        // The minifier drops directives such as "use client", so they are set aside meanwhile.
+        let directives: Vec<_> = ast.program.body.drain(..prologue).collect();
+        minify_library(&mut ast);
+        ast.program.body.splice(0..0, directives);
+      }
       ast.finalize();
       content.to_code(
         &ast,
         bundle.target.source_map.is_some(),
         bundle_source_root(bundle, &options.project_root).as_deref(),
-        false,
+        should_optimize,
       )?
     } else {
       (asset.content.read()?, None)
@@ -141,12 +153,44 @@ impl JsContent {
   }
 }
 
+/// Minifies a library module. Its exports keep their names, but everything else may be renamed or
+/// removed when unused.
+fn minify_library(ast: &mut Ast) {
+  swc_core::common::GLOBALS.set(&*ast.globals, || {
+    let module = std::mem::take(&mut ast.program);
+    let program = swc_core::ecma::minifier::optimize(
+      Program::Module(module),
+      ast.source_map.clone(),
+      Some(&ast.comments),
+      None,
+      &MinifyOptions {
+        rename: true,
+        compress: Some(CompressOptions {
+          top_level: Some(TopLevelOptions { functions: true }),
+          ..Default::default()
+        }),
+        mangle: Some(MangleOptions {
+          top_level: Some(true),
+          ..Default::default()
+        }),
+        ..Default::default()
+      },
+      &ExtraOptions {
+        mangle_name_cache: None,
+        top_level_mark: ast.global_mark,
+        unresolved_mark: ast.unresolved_mark,
+      },
+    );
+    ast.program = program.expect_module();
+  });
+}
+
 /// Moves the asset's directives (e.g. "use client") back to the start of the module. Statements
 /// inserted while transforming and packaging (CommonJS interop, macro imports, Node replacements)
-/// push them down, where they are no longer directives.
-fn hoist_directives(body: &mut [ModuleItem], directives: &[String]) {
+/// push them down, where they are no longer directives. Returns the number of directives moved.
+fn hoist_directives(body: &mut [ModuleItem], directives: &[String]) -> usize {
   if directives.is_empty() {
-    return;
+    return 0;
   }
 
   let is_directive = |item: &ModuleItem, directive: &String| match item {
@@ -161,7 +205,8 @@ fn hoist_directives(body: &mut [ModuleItem], directives: &[String]) {
       .zip(directives)
       .all(|(item, directive)| is_directive(item, directive))
   }) else {
-    return;
+    return 0;
   };
   body[..start + directives.len()].rotate_right(directives.len());
+  directives.len()
 }

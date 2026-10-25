@@ -1,0 +1,9 @@
+{
+  "description": "should not minify app targets with optimize set to false",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"distDir": "dist/minified", "assets": ["index.js"], "notContains": ["first"]},
+    {"distDir": "dist/unminified", "assets": ["index.js"], "contains": ["function add(first, second)"]}
+  ]
+}
