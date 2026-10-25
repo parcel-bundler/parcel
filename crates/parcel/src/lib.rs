@@ -55,7 +55,11 @@ pub fn build(
   entries: &Vec<String>,
   options: BuildOptions,
 ) -> Result<BundleGraph<'static>, DiagnosticList> {
-  let parcel = make_parcel(entries, options)?;
+  let log_level = options.log_level.clone();
+  let reporters = options.reporters.clone();
+  let parcel = make_parcel(entries, options).inspect_err(|err| {
+    standalone_options(reporters, log_level).log_diagnostics(LogLevel::Error, &err.0)
+  })?;
   parcel.build_owned()
 }
 
