@@ -1,0 +1,20 @@
+[
+  {
+    "description": "tree shaking: requires within expressions import the accessed exports, or every export",
+    "input": "index.js",
+    "options": {"mode": "production"},
+    "sideEffects": ["used", "used-inline", "used", ["used", "usedNamespace"]],
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["dep-namespace.js", "dep.js", "index.js"],
+        "notContains": ["unused-sentinel"]
+      }
+    ]
+  },
+  {
+    "description": "tree shaking: requires within expressions work in development",
+    "input": "index.js",
+    "sideEffects": ["used", "used-inline", "used", ["used", "usedNamespace"]]
+  }
+]

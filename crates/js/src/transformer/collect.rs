@@ -82,6 +82,9 @@ pub struct Collect {
   pub non_static_access: HashMap<Id, Vec<Span>>,
   /// binding -> statically accessed properties, e.g. `ns.foo`
   pub static_access: HashMap<Id, Vec<(JsWord, Span)>>,
+  /// (source, property) of static accesses of requires that aren't bound to a variable, e.g.
+  /// `require('foo').bar`
+  pub static_require_access: Vec<(JsWord, JsWord, Span)>,
   pub non_static_requires: HashSet<JsWord>,
   pub bailouts: Option<Vec<Bailout>>,
   in_module_this: bool,
@@ -114,6 +117,7 @@ impl Collect {
       used_imports: HashSet::new(),
       non_static_access: HashMap::new(),
       static_access: HashMap::new(),
+      static_require_access: Vec::new(),
       non_static_requires: HashSet::new(),
       in_module_this: true,
       in_top_level: true,
@@ -151,6 +155,7 @@ impl Collect {
       exports_all,
       non_static_access,
       static_access,
+      static_require_access,
       non_static_requires,
       has_cjs_exports,
       ..
@@ -179,6 +184,13 @@ impl Collect {
         }
       } else {
         imported.push((import.span, &local.0, &import.source, &import.specifier));
+      }
+    }
+
+    let mut seen = HashSet::new();
+    for (source, name, span) in &static_require_access {
+      if seen.insert((source, name)) {
+        imported.push((*span, name, source, name));
       }
     }
 
@@ -681,6 +693,16 @@ impl Visit for Collect {
         }
         return;
       }
+      Expr::Call(call) => {
+        // `require('foo').bar` only imports `bar`.
+        if let Some(source) = self.match_require(&node.obj)
+          && let Some((name, _)) = match_property_name(node)
+        {
+          self.add_bailout(call.span, BailoutReason::NonTopLevelRequire);
+          self.static_require_access.push((source, name, node.span));
+          return;
+        }
+      }
       Expr::This(_this) => {
         if self.in_module_this {
           if !self.is_module {
@@ -721,7 +743,9 @@ impl Visit for Collect {
   fn visit_expr(&mut self, node: &Expr) {
     // If we reached this visitor, this is a non-top-level require that isn't in a variable
     // declaration. We need to wrap the referenced module to preserve side effect ordering.
-    if self.match_require(node).is_some() {
+    // Any export of the required module could be observed.
+    if let Some(source) = self.match_require(node) {
+      self.non_static_requires.insert(source);
       let span = match node {
         Expr::Call(c) => c.span,
         _ => unreachable!(),
@@ -1224,6 +1248,22 @@ mod tests {
         "async function f() { function g() { return ns[key]; } const ns = await import('a'); return g(); }"
       ),
       pairs(&[("a", "*")])
+    );
+  }
+
+  #[test]
+  fn inline_require() {
+    assert_eq!(
+      imported_symbols("sideEffect(require('a').foo, require('a')['bar'], require('a').foo);"),
+      pairs(&[("a", "foo"), ("a", "bar")])
+    );
+    assert_eq!(
+      imported_symbols("sideEffect(require('a'), require('b')[key]);"),
+      pairs(&[("a", "*"), ("b", "*")])
+    );
+    assert_eq!(
+      imported_symbols("function f() { return require('a').foo; }"),
+      pairs(&[("a", "foo")])
     );
   }
 
