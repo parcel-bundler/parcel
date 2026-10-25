@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "paths": {
+      "jsconfig-path": ["./foo.js"]
+    }
+  }
+}

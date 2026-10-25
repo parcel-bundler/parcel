@@ -262,6 +262,11 @@ impl SubPath {
     &*TSCONFIG_JSON
   }
 
+  pub fn jsconfig_json() -> &'static SubPath {
+    static JSCONFIG_JSON: LazyLock<SubPath> = LazyLock::new(|| SubPath::file("jsconfig.json"));
+    &*JSCONFIG_JSON
+  }
+
   pub fn module(name: &str) -> SubPath {
     let mut path = smallvec::smallvec![*NODE_MODULES];
     path.extend(

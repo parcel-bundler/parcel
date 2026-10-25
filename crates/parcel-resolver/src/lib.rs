@@ -389,13 +389,16 @@ impl<'a> Resolver<'a> {
     }
   }
 
+  /// Finds the nearest `tsconfig.json` or `jsconfig.json` for the given file, e.g. for its JSX and
+  /// decorator options. Like TypeScript, a `tsconfig.json` takes precedence over a `jsconfig.json`
+  /// in the same directory. Only `tsconfig.json` is used for `paths` and `baseUrl` when resolving.
   pub fn find_tsconfig(
     &self,
     from: PathId,
     fs: &dyn FileSystem,
   ) -> Option<Arc<Result<TsConfigWrapper, ResolverError>>> {
     let request = ResolveRequest::new(self, &Specifier::Url(""), SpecifierType::Url, &from, fs);
-    request.tsconfig().clone()
+    request.tsconfig_or_jsconfig()
   }
 
   fn find_ancestor_file(
@@ -1225,13 +1228,16 @@ impl<'a> ResolveRequest<'a> {
     Ok(None)
   }
 
-  fn tsconfig(&self) -> &Option<Arc<Result<TsConfigWrapper, ResolverError>>> {
-    if self.resolver.flags.contains(Flags::TSCONFIG)
+  fn uses_tsconfig(&self) -> bool {
+    self.resolver.flags.contains(Flags::TSCONFIG)
       && self
         .flags
         .intersects(RequestFlags::IN_TS_FILE | RequestFlags::IN_JS_FILE)
       && !self.flags.contains(RequestFlags::IN_NODE_MODULES)
-    {
+  }
+
+  fn tsconfig(&self) -> &Option<Arc<Result<TsConfigWrapper, ResolverError>>> {
+    if self.uses_tsconfig() {
       self.tsconfig.get_or_init(|| {
         if let Some(path) = self.find_ancestor_file(*self.from, SubPath::tsconfig_json()) {
           return Some(self.read_tsconfig(path));
@@ -1242,6 +1248,27 @@ impl<'a> ResolveRequest<'a> {
     } else {
       &None
     }
+  }
+
+  fn tsconfig_or_jsconfig(&self) -> Option<Arc<Result<TsConfigWrapper, ResolverError>>> {
+    if !self.uses_tsconfig() {
+      return None;
+    }
+
+    let tsconfig = self.find_ancestor_file(*self.from, SubPath::tsconfig_json());
+    // A jsconfig.json is only used if it is closer to the file than the nearest tsconfig.json.
+    let tsconfig_dir = tsconfig.and_then(|path| path.parent());
+    let jsconfig = self
+      .fs
+      .find_ancestor(
+        self.from.parent().unwrap(),
+        SubPath::jsconfig_json(),
+        FileKind::IS_FILE,
+        tsconfig_dir.unwrap_or(self.resolver.project_root),
+      )
+      .filter(|path| tsconfig_dir.is_none() || path.parent() != tsconfig_dir);
+
+    jsconfig.or(tsconfig).map(|path| self.read_tsconfig(path))
   }
 
   fn read_tsconfig(&self, path: PathId) -> Arc<Result<TsConfigWrapper, ResolverError>> {
@@ -2857,6 +2884,73 @@ mod tests {
         .resolution,
       Resolution::Path(root().join(Path::new(Path::new("tsconfig/suffixes/c-test.ts"))))
     );
+  }
+
+  #[test]
+  fn test_find_tsconfig_jsconfig() {
+    let resolver = test_resolver();
+    let find = |from: &str| {
+      let tsconfig = resolver
+        .resolver
+        .find_tsconfig(root().join(Path::new(from)), &resolver.fs)
+        .unwrap();
+      let tsconfig = tsconfig.as_ref().as_ref().unwrap();
+      (
+        tsconfig.compiler_options.path,
+        tsconfig.compiler_options.experimental_decorators,
+        tsconfig.compiler_options.jsx_factory.clone(),
+      )
+    };
+
+    // A jsconfig.json closer than the nearest tsconfig.json is used.
+    assert_eq!(
+      find("jsconfig/only/index.js"),
+      (
+        root().join(Path::new("jsconfig/only/jsconfig.json")),
+        true,
+        None
+      )
+    );
+    assert_eq!(
+      find("jsconfig/nested/index.js"),
+      (
+        root().join(Path::new("jsconfig/nested/jsconfig.json")),
+        false,
+        Some("jsconfig".into())
+      )
+    );
+    // A closer tsconfig.json is used over a jsconfig.json further up.
+    assert_eq!(
+      find("jsconfig/nested/sub/index.js"),
+      (
+        root().join(Path::new("jsconfig/nested/sub/tsconfig.json")),
+        false,
+        Some("tsconfig".into())
+      )
+    );
+    // tsconfig.json takes precedence over jsconfig.json in the same directory.
+    assert_eq!(
+      find("jsconfig/same-dir/index.js"),
+      (
+        root().join(Path::new("jsconfig/same-dir/tsconfig.json")),
+        false,
+        Some("tsconfig".into())
+      )
+    );
+    // Without a jsconfig.json, the nearest tsconfig.json is used.
+    assert_eq!(find("foo.js").0, root().join(Path::new("tsconfig.json")));
+
+    // Path aliases only come from tsconfig.json.
+    assert!(matches!(
+      resolver
+        .resolve(
+          "jsconfig-path",
+          root().join(Path::new("jsconfig/only/index.js")),
+          SpecifierType::Esm
+        )
+        .result,
+      Err(ResolverError::ModuleNotFound { .. })
+    ));
   }
 
   #[test]
