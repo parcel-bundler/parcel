@@ -688,6 +688,21 @@ impl<'a> Asset<'a> {
     };
   }
 
+  /// Returns the JSON (v3) source map describing the current content, or `None` if it has none.
+  ///
+  /// This is the map an earlier transformer attached (with [`set_content_with_map`] in a native
+  /// plugin, or `setCode(code, map)` in a JS one), exactly as it was set: its `sources` may be
+  /// absolute paths, `file://` URLs, or paths relative to the asset's directory. Replacing the
+  /// content without a map drops it, so a transformer that edits the content should update this map
+  /// and pass it back with [`set_content_with_map`] to keep the bundle mapping to the original files.
+  ///
+  /// [`set_content_with_map`]: Self::set_content_with_map
+  pub fn source_map(&self) -> Option<String> {
+    let mut buf = Buffer::default();
+    unsafe { host!(asset_get_map)(&mut buf, self.raw) };
+    buf.to_string()
+  }
+
   pub fn set_custom_content<T: AssetContent>(&mut self, content: T) {
     unsafe extern "C" fn read_content<T: AssetContent>(
       content: *const c_void,

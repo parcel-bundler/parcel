@@ -89,6 +89,21 @@ public struct Asset {
     }
   }
 
+  /// The JSON (v3) source map describing the current content, or `nil` if it
+  /// has none.
+  ///
+  /// This is the map an earlier transformer attached (with
+  /// ``setContent(_:sourceMap:)-(String,_)`` in a native plugin, or
+  /// `setCode(code, map)` in a JS one), exactly as it was set: its sources may
+  /// be absolute paths, `file://` URLs, or paths relative to the asset's
+  /// directory. Replacing the content without a map drops it, so a transformer
+  /// that edits the content should update this map and pass it back with
+  /// ``setContent(_:sourceMap:)-(String,_)`` to keep the bundle mapping to the
+  /// original files.
+  public var sourceMap: String? {
+    host { hostString { parcel_asset_get_map($0, raw) } }
+  }
+
   // ── Metadata ─────────────────────────────────────────────────────────────
 
   /// The asset's type, as a file extension such as `"js"` or `"css"`.

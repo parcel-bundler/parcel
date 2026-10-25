@@ -149,6 +149,30 @@ pub extern "C" fn parcel_asset_set_content_utf8_with_map(
   };
 }
 
+/// Returns the asset's source map into `*buf`, or leaves `buf->data == NULL` if it has none.
+/// Caller must `parcel_free_buffer(buf)` when `data != NULL`.
+///
+/// This is the JSON (v3) source map an earlier transformer attached with one of the `*_with_map`
+/// setters (or a JS transformer's `setCode(code, map)`), exactly as it was set: its `sources` may be
+/// absolute paths, `file://` URLs, or paths relative to the asset's directory (after `sourceRoot`).
+/// It describes the current content, and is dropped whenever the content is replaced without one.
+/// A transformer that edits the content and wants the final bundle to keep mapping back to the
+/// original files reads it here, updates it, and passes it to `parcel_asset_set_content_with_map()`.
+pub extern "C" fn parcel_asset_get_map(buf: *mut Buffer, asset: Asset) {
+  if buf.is_null() || asset == 0 {
+    return;
+  }
+  let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
+  let Some(content) = asset.content.downcast_ref::<ContentWithSourceMap>() else {
+    return;
+  };
+  let map = content.source_map();
+  if map.is_empty() {
+    return;
+  }
+  unsafe { write_buffer(buf, map.to_vec(), false) };
+}
+
 /// The source map passed to a `*_with_map` setter, or `None` when there is none.
 unsafe fn source_map_arg(map: *const u8, map_len: usize) -> Option<Vec<u8>> {
   (!map.is_null() && map_len > 0)

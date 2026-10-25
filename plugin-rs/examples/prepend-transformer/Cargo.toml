@@ -1,0 +1,14 @@
+[workspace]
+
+[package]
+name = "prepend-transformer-rs"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "prepend_transformer_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+parcel-plugin = { path = "../../../crates/parcel-plugin" }
+serde_json = "1"

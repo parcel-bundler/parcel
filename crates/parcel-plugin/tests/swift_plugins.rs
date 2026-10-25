@@ -2,6 +2,8 @@
 //!
 //! Skipped unless Swift 6.2 or later is installed.
 
+mod common;
+
 use std::{
   path::{Path, PathBuf},
   sync::{Arc, OnceLock},
@@ -28,6 +30,7 @@ const EXAMPLES: &[&str] = &[
   "CustomReporter",
   "CustomContentTransformer",
   "AsyncPlugin",
+  "PrependTransformer",
 ];
 
 /// Builds every example once, and copies the libraries into a temporary
@@ -183,6 +186,15 @@ fn swift_transformer() {
   let bundle_graph = result.unwrap_or_else(|error| panic!("parcel build failed: {error:?}"));
   let content = outputs(&bundle_graph, &output_fs, parcel_core::AssetType::Js);
   assert!(content.contains(r#""Hello from Go!""#), "got:\n{content}");
+}
+
+#[test]
+fn swift_transformer_reads_the_input_source_map() {
+  let dir = require_swift!(plugin_dir());
+  common::assert_prepend_keeps_input_map(
+    "swift",
+    &dir.join(format!("PrependTransformer.{LIB_EXT}")),
+  );
 }
 
 #[test]

@@ -717,6 +717,7 @@ typedef struct ParcelApi {
                                           uintptr_t len,
                                           const uint8_t *map,
                                           uintptr_t map_len);
+  void (*asset_get_map)(struct Buffer *buf, Asset asset);
 } ParcelApi;
 
 /**
@@ -1117,6 +1118,10 @@ static inline void parcel_asset_set_content_with_map(Asset asset, const uint8_t 
 
 static inline void parcel_asset_set_content_utf8_with_map(Asset asset, const uint8_t *data, uintptr_t len, const uint8_t *map, uintptr_t map_len) {
   parcel_api->asset_set_content_utf8_with_map(asset, data, len, map, map_len);
+}
+
+static inline void parcel_asset_get_map(struct Buffer *buf, Asset asset) {
+  parcel_api->asset_get_map(buf, asset);
 }
 
 #endif  /* PARCEL_PLUGIN_H */

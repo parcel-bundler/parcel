@@ -426,6 +426,25 @@ func (a *Asset) SetContentBytesWithMap(content []byte, sourceMap string) {
 	C.parcel_asset_set_content_with_map(a.ptr, nonNullPtr(unsafe.String(unsafe.SliceData(content), len(content))), C.uintptr_t(len(content)), stringPtr(sourceMap), C.uintptr_t(len(sourceMap)))
 }
 
+// SourceMap returns the JSON (v3) source map describing the current content, or
+// "" if it has none.
+//
+// This is the map an earlier transformer attached (with [Asset.SetContentWithMap]
+// in a native plugin, or setCode(code, map) in a JS one), exactly as it was set:
+// its sources may be absolute paths, file:// URLs, or paths relative to the
+// asset's directory. Replacing the content without a map drops it, so a
+// transformer that edits the content should update this map and pass it back
+// with [Asset.SetContentWithMap] to keep the bundle mapping to the original files.
+func (a *Asset) SourceMap() string {
+	var buf C.Buffer
+	C.parcel_asset_get_map(&buf, a.ptr)
+	if buf.data == nil {
+		return ""
+	}
+	defer C.parcel_free_buffer(&buf)
+	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+}
+
 // nonNullPtr is like stringPtr, but never nil: the content setters ignore a null
 // pointer, and must still be able to empty an asset.
 func nonNullPtr(s string) *C.uint8_t {

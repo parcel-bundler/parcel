@@ -3222,6 +3222,7 @@ dependencies = [
  "parcel",
  "parcel-core",
  "parcel-plugin-abi",
+ "parcel_sourcemap",
  "serde_json",
  "sha2-const-stable",
 ]

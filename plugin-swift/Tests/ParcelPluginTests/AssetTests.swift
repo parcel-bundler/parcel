@@ -42,10 +42,36 @@ nonisolated(unsafe) private let mockAPI: UnsafeMutablePointer<ParcelApi> = {
   api.pointee.asset_set_content_utf8_with_map = {
     record("set_content_utf8_with_map", $0, $1, Int($2), $3, Int($4))
   }
+  api.pointee.asset_get_map = { buffer, asset in
+    guard let buffer, let map = sourceMaps.withLock({ $0[asset] }) else { return }
+    let bytes = Array(map.utf8)
+    let data = UnsafeMutablePointer<UInt8>.allocate(capacity: bytes.count)
+    data.initialize(from: bytes, count: bytes.count)
+    buffer.pointee = Buffer(data: data, len: UInt(bytes.count), cap: UInt(bytes.count), is_utf8: true)
+  }
+  api.pointee.free_buffer = { buffer in
+    guard let buffer else { return }
+    buffer.pointee.data?.deallocate()
+    buffer.pointee = Buffer()
+  }
   return api
 }()
 
+/// The source map the mock host returns for each asset handle; none for the rest.
+private let sourceMaps = Mutex<[UInt64: String]>([:])
+
 private let nextHandle = Atomic<UInt64>(1)
+
+/// Runs `body` with an asset backed by the mock host, whose source map is
+/// `sourceMap`, and returns what it returns.
+private func withAsset<R>(sourceMap: String?, _ body: (ParcelPlugin.Asset) -> R) -> R {
+  #expect(installAPI(UnsafeRawPointer(mockAPI)))
+  let handle = nextHandle.add(1, ordering: .relaxed).newValue
+  sourceMaps.withLock { $0[handle] = sourceMap }
+  let scope = CallScope("transform")
+  defer { scope.close() }
+  return body(ParcelPlugin.Asset(raw: handle, options: ParcelPlugin.Options(raw: 1, scope: scope)))
+}
 
 /// Runs `body` with an asset backed by the mock host, and returns the setter
 /// call it made.
@@ -129,6 +155,17 @@ private func setContent(_ body: (ParcelPlugin.Asset) -> Void) -> SetContentCall?
     #expect(
       setContent { $0.contentBytes = bytes }
         == SetContentCall(function: "set_content", content: bytes))
+  }
+}
+
+@Suite struct AssetSourceMapTests {
+  @Test func returnsTheHostMap() {
+    let map = #"{"version":3,"sources":["a.ts"],"mappings":"AAAA"}"#
+    #expect(withAsset(sourceMap: map) { $0.sourceMap } == map)
+  }
+
+  @Test func isNilWithoutAMap() {
+    #expect(withAsset(sourceMap: nil) { $0.sourceMap } == nil)
   }
 }
 

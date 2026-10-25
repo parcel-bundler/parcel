@@ -15,6 +15,7 @@ let examples = [
   "CustomReporter",
   "CustomContentTransformer",
   "AsyncPlugin",
+  "PrependTransformer",
 ]
 
 let package = Package(

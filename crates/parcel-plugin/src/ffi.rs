@@ -738,10 +738,11 @@ pub struct ParcelApi {
   pub asset_set_content_utf8_with_map: ::std::option::Option<
     unsafe extern "C" fn(asset: Asset, data: *const u8, len: usize, map: *const u8, map_len: usize),
   >,
+  pub asset_get_map: ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: Asset)>,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 648usize];
+  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 656usize];
   ["Alignment of ParcelApi"][::std::mem::align_of::<ParcelApi>() - 8usize];
   ["Offset of field: ParcelApi::header"][::std::mem::offset_of!(ParcelApi, header) - 0usize];
   ["Offset of field: ParcelApi::asset_get_content"]
@@ -902,6 +903,8 @@ const _: () = {
     [::std::mem::offset_of!(ParcelApi, asset_set_content_with_map) - 632usize];
   ["Offset of field: ParcelApi::asset_set_content_utf8_with_map"]
     [::std::mem::offset_of!(ParcelApi, asset_set_content_utf8_with_map) - 640usize];
+  ["Offset of field: ParcelApi::asset_get_map"]
+    [::std::mem::offset_of!(ParcelApi, asset_get_map) - 648usize];
 };
 #[doc = " Result filled by an optimizer plugin's `parcel_plugin_optimize()`.\n The struct is zero-initialised by the host before the call. Fill `contents`\n and optionally `source_map` using `parcel_buffer_write()` or\n `parcel_buffer_write_utf8()`."]
 #[repr(C)]

@@ -210,6 +210,60 @@ fn asset_content_setters_attach_source_maps() {
 }
 
 #[test]
+fn asset_map_getter_returns_the_map_set_with_the_content() {
+  let mut asset = asset_fixture(target_fixture());
+  let handle = &mut asset as *mut CoreAsset as Asset;
+  let map = br#"{"version":3,"sources":["a.ts"],"mappings":"AAAA"}"#;
+
+  // Plain content has no map, and the buffer is left untouched.
+  assert_eq!(
+    buffer_output(|buffer| parcel_asset_get_map(buffer, handle)),
+    None
+  );
+
+  let code = b"a();";
+  parcel_asset_set_content_utf8_with_map(
+    handle,
+    code.as_ptr(),
+    code.len(),
+    map.as_ptr(),
+    map.len(),
+  );
+  // Exactly as set, sources and all. Not marked UTF-8: native setters don't validate the map.
+  assert_eq!(
+    buffer_output(|buffer| parcel_asset_get_map(buffer, handle)),
+    Some((map.to_vec(), false))
+  );
+
+  // Content set by other plugins (e.g. a JS transformer's `setCode(code, map)`) reads the same way.
+  asset.content = Arc::new(ContentWithSourceMap::new(code.to_vec(), map.to_vec()));
+  assert_eq!(
+    string_output(|buffer| parcel_asset_get_map(buffer, handle)).as_deref(),
+    Some(std::str::from_utf8(map).unwrap())
+  );
+
+  // Replacing the content without a map drops it.
+  parcel_asset_set_content_utf8(handle, code.as_ptr(), code.len() as u32);
+  assert_eq!(
+    buffer_output(|buffer| parcel_asset_get_map(buffer, handle)),
+    None
+  );
+
+  // An empty map is no map, like the setters treat it.
+  asset.content = Arc::new(ContentWithSourceMap::new(code.to_vec(), Vec::new()));
+  assert_eq!(
+    buffer_output(|buffer| parcel_asset_get_map(buffer, handle)),
+    None
+  );
+
+  parcel_asset_get_map(ptr::null_mut(), handle);
+  assert_eq!(
+    buffer_output(|buffer| parcel_asset_get_map(buffer, 0)),
+    None
+  );
+}
+
+#[test]
 fn asset_accessors_return_content_metadata_and_optional_values() {
   let target = target_fixture();
   let mut asset = asset_fixture(target.clone());

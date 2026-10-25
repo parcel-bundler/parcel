@@ -196,6 +196,7 @@ pub struct ParcelApi {
     unsafe extern "C" fn(asset: Asset, data: *const u8, len: usize, map: *const u8, map_len: usize),
   pub asset_set_content_utf8_with_map:
     unsafe extern "C" fn(asset: Asset, data: *const u8, len: usize, map: *const u8, map_len: usize),
+  pub asset_get_map: unsafe extern "C" fn(buf: *mut Buffer, asset: Asset),
 }
 
 /// The instance passed to every plugin. Const-initialized, so it is in the
@@ -285,6 +286,7 @@ pub static PARCEL_API: ParcelApi = ParcelApi {
   asset_resolve: parcel_asset_resolve,
   asset_set_content_with_map: parcel_asset_set_content_with_map,
   asset_set_content_utf8_with_map: parcel_asset_set_content_utf8_with_map,
+  asset_get_map: parcel_asset_get_map,
 };
 
 #[cfg(test)]
