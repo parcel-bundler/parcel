@@ -68,10 +68,13 @@ fs.copyFileSync(
   path.join(stage, 'bin', 'parcel3'),
 );
 fs.chmodSync(path.join(stage, 'bin', 'parcel3'), 0o755);
-fs.cpSync(
-  path.join(import.meta.dirname, '../../../packages-v3/parcel3/src'),
-  path.join(stage, 'src'),
-  {recursive: true},
+let source = path.join(import.meta.dirname, '../../../packages-v3/parcel3');
+fs.cpSync(path.join(source, 'src'), path.join(stage, 'src'), {recursive: true});
+
+// The runtime files in src are bundled into user code and require packages of
+// their own, e.g. react-refresh.js requires react-refresh/runtime.
+let {dependencies} = JSON.parse(
+  fs.readFileSync(path.join(source, 'package.json'), 'utf8'),
 );
 
 let pkg = {
@@ -88,6 +91,7 @@ let pkg = {
   // The launcher uses process.execve where it can, added in Node 23.11, and
   // falls back to spawnSync everywhere else.
   engines: {node: '>= 18'},
+  dependencies,
   optionalDependencies,
 };
 
