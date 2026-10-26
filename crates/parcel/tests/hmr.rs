@@ -1675,3 +1675,31 @@ fn editing_a_file_does_not_invalidate_inline_assets_emitted_from_it() {
   // Only the HTML file. Its re-transform provides the inline script's content.
   assert_eq!(result.affected.len(), 1);
 }
+
+#[test]
+fn hmr_runtime_updates_importers_when_a_reexport_target_changes() {
+  // The importer's dependency map points at the module that declares the re-exported binding,
+  // so changing the re-export must update the importer too.
+  let mut hmr = HmrRuntimeTest::new(&[
+    (
+      "/project/index.js",
+      "import {value} from './lib.js';
+output(['index', value]);
+if (module.hot) module.hot.accept();",
+    ),
+    ("/project/lib.js", "export {value} from './a.js';"),
+    ("/project/a.js", "export const value = 'from-a';"),
+    ("/project/b.js", "export const value = 'from-b';"),
+  ]);
+
+  hmr.update(&[("/project/lib.js", "export {value} from './b.js';")]);
+
+  assert!(!hmr.reloaded());
+  assert_eq!(
+    hmr.outputs(),
+    vec![
+      serde_json::json!(["index", "from-a"]),
+      serde_json::json!(["index", "from-b"]),
+    ]
+  );
+}

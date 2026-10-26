@@ -26,12 +26,12 @@ mod transformer;
 
 use std::{
   collections::{HashMap, HashSet},
-  hash::{DefaultHasher, Hash, Hasher},
   path::Path,
   sync::Arc,
 };
 
 use crossbeam_channel::bounded;
+use fixedbitset::FixedBitSet;
 
 pub use asset::*;
 pub use asset_graph::{AssetGraph, AssetGraphBuilder, AssetIndex, AssetNode, AssetNodeIndex};
@@ -51,7 +51,7 @@ pub use namer::*;
 pub use optimizer::Optimizer;
 pub use options::*;
 pub use packaging::{InlineBundleCache, get_bundle_content};
-use packaging::{Packaged, PrevBundle};
+use packaging::{Packaged, PrevBundle, bundle_content};
 pub use parcel_sourcemap::SourceMap as InputSourceMap;
 pub use path::{PathId, SubPath};
 pub use reporter::*;
@@ -80,10 +80,9 @@ pub struct Parcel {
   /// Metadata from the previous bundle pass used to detect which bundles need re-packaging.
   /// Keyed by the bundle's template dist path.
   prev_bundles: HashMap<PathId, PrevBundle>,
-  /// As `prev_bundles`, for inline bundles (which have no dist path), keyed by bundle id: their
-  /// sorted assets and symbol requests. A dirty inline bundle re-packages every bundle its
-  /// content is embedded in.
-  prev_inline_bundles: HashMap<u64, (Vec<AssetIndex>, u64)>,
+  /// As `prev_bundles`, for inline bundles (which have no dist path), keyed by bundle id.
+  /// A dirty inline bundle re-packages every bundle its content is embedded in.
+  prev_inline_bundles: HashMap<u64, Vec<AssetIndex>>,
   /// Original constructor inputs, retained so the build can be recreated from scratch when a
   /// configuration file changes.
   entries: Vec<String>,
@@ -362,6 +361,7 @@ impl Parcel {
       &self.config,
       &self.options,
       &changed_assets,
+      &result.changed_requests,
       &mut self.prev_bundles,
       &mut self.prev_inline_bundles,
     )?;
@@ -400,6 +400,7 @@ impl Parcel {
       &config,
       &options,
       &result.changed_assets,
+      &result.changed_requests,
       &mut prev_bundles,
       &mut prev_inline_bundles,
     ) {
@@ -424,50 +425,63 @@ fn bundle_and_package<'a>(
   asset_graph: AssetGraph<'a>,
   config: &ParcelConfig,
   options: &ParcelOptions,
-  changed_assets: &Vec<AssetIndex>,
+  changed_assets: &[AssetIndex],
+  changed_requests: &[AssetIndex],
   prev_bundles: &mut HashMap<PathId, PrevBundle>,
-  prev_inline_bundles: &mut HashMap<u64, (Vec<AssetIndex>, u64)>,
+  prev_inline_bundles: &mut HashMap<u64, Vec<AssetIndex>>,
 ) -> Result<(BundleGraph<'a>, bool), DiagnosticList> {
   // Group assets into bundles.
   let bundle_graph = bundle(asset_graph, config, options)?;
   let bundles = &bundle_graph.bundles;
 
   // Diff the new bundle graph against the previous build's metadata to find dirty bundles.
-  // A bundle is dirty if it's new, its asset composition changed, any of its assets
-  // were re-transformed this build, or other bundles request different symbols from them. Bundles are tracked by their template path (the namer's
-  // output), which is stable across builds, and inline bundles by id since they aren't written.
-  let mut new_prev_inline: HashMap<u64, (Vec<AssetIndex>, u64)> = HashMap::new();
+  // A bundle is dirty if it's new, its asset composition changed, or the packaged output of any
+  // of its assets, or of an asset it embeds, may have changed: they were re-transformed, their
+  // imports resolve differently, or other assets request different symbols from them. Bundles
+  // are tracked by their template path (the namer's output), which is stable across builds, and
+  // inline bundles by id since they aren't written.
+  let mut changed = FixedBitSet::with_capacity(bundle_graph.asset_graph.assets.len());
+  changed.extend(
+    changed_assets
+      .iter()
+      .chain(changed_requests)
+      .map(|asset| asset.index()),
+  );
+  let mut new_prev_inline: HashMap<u64, Vec<AssetIndex>> = HashMap::new();
   let mut dirty = vec![false; bundles.len()];
   let mut sorted_assets = Vec::with_capacity(bundles.len());
 
   for (bundle_index, bundle) in bundles.iter().enumerate() {
     let mut assets = bundle.assets.clone();
     assets.sort_unstable();
-    let symbol_requests = symbol_requests_hash(&bundle_graph.asset_graph, &assets);
 
-    let prev = if bundle.bundle_behavior == BundleBehavior::Inline {
-      prev_inline_bundles
-        .get(&bundle.id)
-        .map(|(assets, symbol_requests)| (assets, *symbol_requests))
+    let prev_assets = if bundle.bundle_behavior == BundleBehavior::Inline {
+      prev_inline_bundles.get(&bundle.id)
     } else {
       prev_bundles
         .get(&bundle.dist_path.unwrap())
-        .map(|prev| (&prev.assets, prev.symbol_requests))
+        .map(|prev| &prev.assets)
     };
 
-    dirty[bundle_index] = match prev {
+    dirty[bundle_index] = match prev_assets {
       None => true,
-      Some((prev_assets, prev_symbol_requests)) => {
+      Some(prev_assets) => {
         *prev_assets != assets
-          || prev_symbol_requests != symbol_requests
-          || bundle.assets.iter().any(|i| changed_assets.contains(i))
+          || bundle.assets.iter().any(|i| changed.contains(i.index()))
+          || (!changed.is_clear()
+            && bundle_content(&bundle_graph, bundle).is_some_and(|content| {
+              content
+                .embedded_assets(&bundle_graph, bundle)
+                .iter()
+                .any(|i| changed.contains(i.index()))
+            }))
       }
     };
 
     if bundle.bundle_behavior == BundleBehavior::Inline {
-      new_prev_inline.insert(bundle.id, (assets.clone(), symbol_requests));
+      new_prev_inline.insert(bundle.id, assets.clone());
     }
-    sorted_assets.push((assets, symbol_requests));
+    sorted_assets.push(assets);
   }
 
   // An inline bundle's content is embedded in the bundles referencing it rather than written
@@ -630,12 +644,11 @@ fn bundle_and_package<'a>(
     .zip(sorted_assets)
     .zip(content_hashes)
     .filter(|((bundle, _), _)| bundle.bundle_behavior != BundleBehavior::Inline)
-    .map(|((bundle, (assets, symbol_requests)), content_hash)| {
+    .map(|((bundle, assets), content_hash)| {
       (
         bundle.dist_path.unwrap(),
         PrevBundle {
           assets,
-          symbol_requests,
           final_path: bundle.dist_path(),
           content_hash,
         },
@@ -644,27 +657,6 @@ fn bundle_and_package<'a>(
     .collect();
 
   Ok((bundle_graph, output_paths_changed))
-}
-
-/// A hash of which symbols are requested from a bundle's (sorted) assets. Packagers remove
-/// unrequested ones, e.g. unused CSS module classes or SVG elements, and other bundles can
-/// change their requests without any of this bundle's assets changing.
-pub(crate) fn symbol_requests_hash(asset_graph: &AssetGraph, assets: &[AssetIndex]) -> u64 {
-  let mut hasher = DefaultHasher::new();
-  for &asset in assets {
-    let symbols = &asset_graph.asset(asset).symbols;
-    symbols.used_namespace.hash(&mut hasher);
-    for export in &symbols.exports {
-      export.requested.hash(&mut hasher);
-    }
-    for export in &symbols.indirect {
-      export.requested.hash(&mut hasher);
-    }
-    for export in &symbols.star {
-      export.requested.hash(&mut hasher);
-    }
-  }
-  hasher.finish()
 }
 
 pub fn build(

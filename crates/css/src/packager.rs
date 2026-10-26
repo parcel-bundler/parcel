@@ -697,18 +697,12 @@ fn inline(
       .iter()
       .filter_map(|(k, v)| {
         if let SymbolResolution::Export {
-          asset_index,
-          export_index,
+          asset_index, name, ..
         } = &asset.symbols.imports[*v].resolved
         {
-          let asset = &bundle_graph.asset_graph.asset(*asset_index);
-          if let Some(res) = resolve_css_module_export(
-            &bundle_graph.asset_graph,
-            *asset_index,
-            &asset.symbols.exports[*export_index as usize]
-              .exported
-              .as_str(),
-          ) {
+          if let Some(res) =
+            resolve_css_module_export(&bundle_graph.asset_graph, *asset_index, name.as_str())
+          {
             return Some((k.clone(), res));
           }
         }

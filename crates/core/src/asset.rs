@@ -363,6 +363,8 @@ pub enum SymbolResolution {
   Export {
     asset_index: AssetIndex,
     export_index: u32,
+    /// The export's name, which outlives `export_index` if the asset is re-transformed.
+    name: SymbolName,
   },
   Namespace {
     asset_index: AssetIndex,
@@ -383,20 +385,18 @@ impl SymbolResolution {
     }
   }
 
-  pub fn name(&self, asset_graph: &AssetGraph) -> Option<SymbolName> {
+  pub fn name(&self) -> Option<&SymbolName> {
     match self {
       SymbolResolution::None | SymbolResolution::Ambiguous => None,
-      SymbolResolution::Export {
-        asset_index,
-        export_index,
-      } => {
-        let asset = asset_graph.asset(*asset_index);
-        let export = &asset.symbols.exports[*export_index as usize];
-        Some(export.exported.clone())
-      }
-      SymbolResolution::Namespace { .. } => Some(SymbolName::Namespace),
-      SymbolResolution::Runtime { name, .. } => Some(name.clone()),
+      SymbolResolution::Namespace { .. } => Some(&SymbolName::Namespace),
+      SymbolResolution::Export { name, .. } | SymbolResolution::Runtime { name, .. } => Some(name),
     }
+  }
+
+  /// The asset and name the symbol is read from, which is what packagers emit for it, regardless
+  /// of how it resolved there (e.g. through an export that moved, or at runtime).
+  pub fn target(&self) -> Option<(AssetIndex, &SymbolName)> {
+    Some((self.asset_index()?, self.name()?))
   }
 
   pub fn is_used(&self, asset_graph: &AssetGraph) -> bool {
@@ -404,6 +404,7 @@ impl SymbolResolution {
       SymbolResolution::Export {
         asset_index,
         export_index,
+        ..
       } => asset_graph.asset(*asset_index).symbols.exports[*export_index as usize].requested,
       SymbolResolution::Runtime { asset_index, name } => {
         let symbols = &asset_graph.asset(*asset_index).symbols;

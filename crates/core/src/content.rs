@@ -2,7 +2,9 @@ use std::{any::Any, borrow::Cow, hash::Hash, sync::Arc};
 
 use xxhash_rust::xxh3::{Xxh3, xxh3_128};
 
-use crate::{Bundle, BundleGraph, Diagnostic, DiagnosticList, FileSystem, ParcelOptions, PathId};
+use crate::{
+  AssetIndex, Bundle, BundleGraph, Diagnostic, DiagnosticList, FileSystem, ParcelOptions, PathId,
+};
 
 #[derive(Hash, PartialEq, Eq, Clone, Debug)]
 pub struct ContentType(u128);
@@ -87,6 +89,14 @@ pub trait Content: Any + Send + Sync {
   /// override this too. The default `package` accesses nothing.
   #[allow(unused_variables)]
   fn bundle_dependencies(&self, bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+    Vec::new()
+  }
+
+  /// Assets outside `bundle` whose content or symbols `package` reads for it, e.g. the class
+  /// names of a CSS module that a JS bundle imports. Incremental builds re-package `bundle` when
+  /// they change. It may over-approximate, at the cost of re-packaging more often.
+  #[allow(unused_variables)]
+  fn embedded_assets(&self, bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<AssetIndex> {
     Vec::new()
   }
 

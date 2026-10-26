@@ -2592,3 +2592,68 @@ fn svg_fragment_reference_change_repackages_svg() {
   assert!(sprite.contains("second"), "got: {sprite}");
   assert!(!sprite.contains("first"), "got: {sprite}");
 }
+
+#[test]
+fn css_module_classes_requested_by_another_bundle_repackage_importers() {
+  // A JS bundle embeds the classes requested from a CSS module by all of its importers, so
+  // another bundle importing a different class must re-package it.
+  for mode in [BuildMode::Development, BuildMode::Production] {
+    let mut t = IncrementalTest::with_entries_mode(
+      &[
+        (
+          "/project/a.js",
+          "import {a} from './style.module.css';\noutput(a);",
+        ),
+        (
+          "/project/b.js",
+          "import {b} from './style.module.css';\noutput(b);",
+        ),
+        (
+          "/project/style.module.css",
+          ".a { color: red } .b { color: blue } .c { color: green }",
+        ),
+      ],
+      &["/project/a.js", "/project/b.js"],
+      mode,
+    );
+    t.change(
+      &[(
+        "/project/b.js",
+        "import {c} from './style.module.css';\noutput(c);",
+      )],
+      &[],
+    );
+  }
+}
+
+#[test]
+fn css_module_composes_change_repackages_js_importer() {
+  // A JS bundle embeds the class names of the CSS modules it imports, including those they
+  // compose, from stylesheets in other bundles.
+  let mut t = IncrementalTest::with_entries_mode(
+    &[
+      (
+        "/project/index.js",
+        "import {a} from './a.module.css';\noutput(a);",
+      ),
+      ("/project/a.module.css", ".a { color: red }"),
+      ("/project/b.module.css", ".b { color: blue }"),
+    ],
+    &["/project/index.js"],
+    BuildMode::Development,
+  );
+  t.change(
+    &[(
+      "/project/a.module.css",
+      ".a { composes: b from './b.module.css'; color: red }",
+    )],
+    &[],
+  );
+  t.change(
+    &[(
+      "/project/b.module.css",
+      ".b { composes: c; color: blue } .c { color: green }",
+    )],
+    &[],
+  );
+}

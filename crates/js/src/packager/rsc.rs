@@ -1049,7 +1049,7 @@ fn resolved_exports<'a>(
 ) -> impl Iterator<Item = (&'a SymbolName, &'a Asset, SymbolName)> {
   exports.iter().filter_map(|(export_as, resolution)| {
     let asset_index = resolution.asset_index()?;
-    let export_name = resolution.name(&bundle_graph.asset_graph)?;
+    let export_name = resolution.name()?.clone();
     Some((
       export_as,
       bundle_graph.asset_graph.asset(asset_index),

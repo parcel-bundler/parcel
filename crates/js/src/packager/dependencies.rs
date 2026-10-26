@@ -2,7 +2,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use indexmap::{IndexMap, IndexSet};
 use parcel_core::*;
-use parcel_css::resolve_css_module_export;
+use parcel_css::{css_module_export_sources, resolve_css_module_export};
 
 use super::{
   Resolution, rsc,
@@ -99,6 +99,45 @@ pub(crate) fn bundle_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -
   }
 
   dependencies
+}
+
+/// CSS modules outside `bundle` whose class names packaging it embeds, and the modules they
+/// compose from (see `Content::embedded_assets`). Mirrors where `asset_dependencies` creates
+/// `SyntheticAsset::CssModuleExports` and `Resolution::CssModule`.
+pub(crate) fn embedded_assets(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<AssetIndex> {
+  let is_library = bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY);
+  let mut assets = Vec::new();
+  for &asset_index in &bundle.assets {
+    let asset = bundle_graph.asset_graph.asset(asset_index);
+    for dep_index in 0..asset.dependencies.len() {
+      let css_module = match bundle_graph.dependency_resolution(asset_index, dep_index) {
+        // A side-effect import doesn't embed the CSS module's class names.
+        BundleGraphDependencyResolution::Asset(resolved)
+          if bundle_graph.asset_graph.asset(resolved).ty != AssetType::Js
+            && asset
+              .symbols
+              .imports
+              .iter()
+              .any(|import| import.dep_index == dep_index as u32) =>
+        {
+          resolved
+        }
+        BundleGraphDependencyResolution::Bundle {
+          bundle_index,
+          asset_index: resolved,
+        } if is_library && bundle_graph.bundles[bundle_index as usize].ty != AssetType::Js => {
+          resolved
+        }
+        _ => continue,
+      };
+      for source in css_module_export_sources(&bundle_graph.asset_graph, css_module) {
+        if !assets.contains(&source) {
+          assets.push(source);
+        }
+      }
+    }
+  }
+  assets
 }
 
 /// Whether `bundle`'s runtime holds its context's manifest. Roots that are only loaded by pages get
@@ -283,20 +322,18 @@ pub fn asset_dependencies<'a>(
             if import.dep_index == dep_index as u32 {
               match &import.resolved {
                 SymbolResolution::Export {
-                  asset_index,
-                  export_index,
+                  asset_index, name, ..
                 } => {
                   let asset = &bundle_graph.asset_graph.asset(*asset_index);
-                  let export = &asset.symbols.exports[*export_index as usize];
                   resolutions.push((
                     import.symbol.as_str(),
                     asset.id(project_root),
-                    export.exported.as_str(),
+                    name.as_str(),
                   ));
                   if first_asset.is_none() {
                     first_asset = Some(*asset_index);
                   }
-                  if first_asset != Some(*asset_index) || import.symbol != export.exported {
+                  if first_asset != Some(*asset_index) || import.symbol != *name {
                     all_assets_match = false;
                   }
                 }

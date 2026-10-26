@@ -91,6 +91,10 @@ impl Content for JsContent {
     packager::bundle_dependencies(bundle_graph, bundle)
   }
 
+  fn embedded_assets(&self, bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<AssetIndex> {
+    packager::embedded_assets(bundle_graph, bundle)
+  }
+
   fn package(
     &self,
     bundle_graph: &BundleGraph,
