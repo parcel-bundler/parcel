@@ -1,0 +1,3 @@
+.faded {
+  mask: url(masks.svg#fade);
+}

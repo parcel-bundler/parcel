@@ -68,6 +68,28 @@ impl Content for CssContent {
   }
 }
 
+/// The assets whose content `resolve_css_module_export` may read for `asset_index`: the CSS
+/// module itself, and the modules its classes compose from, transitively.
+pub fn css_module_export_sources(
+  asset_graph: &AssetGraph,
+  asset_index: AssetIndex,
+) -> Vec<AssetIndex> {
+  let mut sources = vec![asset_index];
+  let mut index = 0;
+  while let Some(&asset_index) = sources.get(index) {
+    index += 1;
+    for dep in &asset_graph.asset(asset_index).dependencies {
+      if dep.specifier_type == SpecifierType::Esm
+        && let Some((resolved, _)) = asset_graph.resolved_asset(dep)
+        && !sources.contains(&resolved)
+      {
+        sources.push(resolved);
+      }
+    }
+  }
+  sources
+}
+
 pub fn resolve_css_module_export(
   asset_graph: &AssetGraph,
   asset_index: AssetIndex,

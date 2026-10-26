@@ -19,8 +19,8 @@ mod synthetic;
 pub mod tree_shake;
 
 pub use dependencies::asset_dependencies;
-pub(crate) use dependencies::bundle_dependencies;
 use dependencies::{awaited_bundles, manifest_entries, static_import_ids, static_imports};
+pub(crate) use dependencies::{bundle_dependencies, embedded_assets, embedded_css_modules};
 pub use rsc::RscModule;
 use synthetic::AsyncRegistration;
 pub use synthetic::{BundleShim, SyntheticAsset};

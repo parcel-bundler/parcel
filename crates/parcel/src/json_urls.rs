@@ -3,8 +3,8 @@ use std::sync::Arc;
 use parcel_core::{
   Asset, BufferContent, Bundle, BundleBehavior, BundleGraph, BundleGraphDependencyResolution,
   Content, ContentType, Dependency, DependencyFlags, DependencyResolution, Diagnostic,
-  DiagnosticList, ExportsCondition, ImportType, ParcelOptions, Priority, SourceLocation,
-  SpecifierType,
+  DiagnosticList, ExportsCondition, ImportType, ImportedSymbol, ParcelOptions, Priority,
+  SourceLocation, SpecifierType, SymbolResolution, UrlReference,
 };
 use serde_json::Value;
 
@@ -20,8 +20,9 @@ pub struct JsonUrlContent {
 impl JsonUrlContent {
   pub fn add_url(&mut self, asset: &mut Asset, pointer: String, loc: Option<SourceLocation>) {
     let specifier = self.json.pointer(&pointer).unwrap().as_str().unwrap();
-    self.urls.push((pointer, asset.dependencies.len()));
-    asset.dependencies.push(Dependency {
+    let dep_index = asset.dependencies.len();
+    self.urls.push((pointer, dep_index));
+    let dep = Dependency {
       specifier: specifier.into(),
       specifier_type: SpecifierType::Url,
       priority: Priority::Lazy,
@@ -37,7 +38,16 @@ impl JsonUrlContent {
       range: None,
       conditions: ExportsCondition::empty(),
       resolution: DependencyResolution::None,
-    });
+    };
+    // Icons, screenshots and the like are rendered as whole documents.
+    for symbol in dep.url_reference_symbols(UrlReference::Document) {
+      asset.symbols.imports.push(ImportedSymbol {
+        dep_index: dep_index as u32,
+        symbol,
+        resolved: SymbolResolution::None,
+      });
+    }
+    asset.dependencies.push(dep);
   }
 }
 

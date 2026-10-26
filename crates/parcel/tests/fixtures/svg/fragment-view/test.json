@@ -1,0 +1,9 @@
+{
+  "description": "should keep the view an image references by fragment, and the rendered document",
+  "input": "index.html",
+  "options": {"mode": "production", "contentHash": false},
+  "bundles": [
+    {"type": "html", "assets": ["index.html"], "contains": [".svg#left"]},
+    {"type": "svg", "assets": ["stack.svg"]}
+  ]
+}

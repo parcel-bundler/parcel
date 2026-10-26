@@ -1,0 +1,10 @@
+{
+  "description": "should support transforming css modules (import default from a side-effect-free stylesheet)",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"assets": ["esmodule-helpers.js", "index.js"]},
+    {"assets": ["style.module.css"]}
+  ],
+  "output": "_kFmYa_b-2"
+}

@@ -1,4 +1,7 @@
-use std::{collections::HashMap, fmt::Write};
+use std::{
+  collections::{HashMap, HashSet},
+  fmt::Write,
+};
 
 use indexmap::{IndexMap, IndexSet};
 use parcel_core::{
@@ -7,6 +10,7 @@ use parcel_core::{
 };
 
 use crate::transformer::Ast;
+use parcel_css::css_module_export_sources;
 use swc_core::{
   common::{DUMMY_SP, SyntaxContext},
   ecma::{
@@ -19,7 +23,8 @@ use swc_core::{
 use crate::{
   JsContent,
   packager::{
-    BundleShim, Resolution, SyntheticAsset, asset_dependencies, insert_hot_update_node_replacements,
+    BundleShim, Resolution, SyntheticAsset, asset_dependencies, embedded_css_modules,
+    insert_hot_update_node_replacements,
   },
 };
 
@@ -73,6 +78,30 @@ pub fn get_hmr_update<'a>(
     .any(|(id, _)| bundle_graph.is_async_asset(*id))
   {
     return HmrUpdate::Reload;
+  }
+
+  // JS bundles embed the class names of the CSS modules they import, so a change to a CSS module,
+  // or to one it composes from, updates their exports even if no JS changed.
+  if changed_assets
+    .iter()
+    .any(|(_, asset)| asset.ty != AssetType::Js && asset.symbols.exports.iter().any(|e| e.requested))
+  {
+    let changed: HashSet<AssetIndex> = changed_assets.iter().map(|&(id, _)| id).collect();
+    let mut checked = HashSet::new();
+    for bundle in &bundle_graph.bundles {
+      if bundle.ty != AssetType::Js {
+        continue;
+      }
+      for css_module in embedded_css_modules(bundle_graph, bundle) {
+        if checked.insert(css_module)
+          && css_module_export_sources(&bundle_graph.asset_graph, css_module)
+            .iter()
+            .any(|source| changed.contains(source))
+        {
+          synthetic_assets.insert(SyntheticAsset::CssModuleExports(css_module));
+        }
+      }
+    }
   }
 
   let mut assets = Vec::with_capacity(changed_assets.len());

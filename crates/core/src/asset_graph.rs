@@ -8,9 +8,10 @@ use fixedbitset::FixedBitSet;
 use serde::Serialize;
 
 use crate::{
-  Asset, AssetFlags, AssetKey, AssetRequest, AssetRequestKey, AssetType, Dependency,
-  DependencyFlags, DependencyResolution, DiagnosticList, Entry, Environment, EnvironmentFlags,
-  FileContent, InvalidationMap, ParcelOptions, PathId, Priority, SourceLocation, SymbolName,
+  Asset, AssetFlags, AssetKey, AssetRequest, AssetRequestKey, AssetType, BundleBehavior, CodeFrame,
+  Dependency, DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList,
+  DiagnosticSeverity, Entry, Environment, EnvironmentFlags, FileContent, ImportType,
+  InvalidationMap, LogLevel, ParcelOptions, PathId, Priority, SourceLocation, SymbolName,
   SymbolResolution,
   config::ParcelConfig,
   request::{RequestResult, TransformQueue},
@@ -148,7 +149,12 @@ pub struct AssetGraph<'a> {
 #[derive(Debug, Clone)]
 pub struct AssetGraphBuildResult<'a> {
   pub asset_graph: AssetGraph<'a>,
+  /// Assets transformed during this build, and those whose imported symbols resolve differently
+  /// than in the previous build. Either changes the asset's packaged code.
   pub changed_assets: Vec<AssetIndex>,
+  /// Assets not in `changed_assets` whose requested symbols changed, e.g. because another asset
+  /// started importing one of their exports. Only packagers that remove unused symbols read them.
+  pub changed_requests: Vec<AssetIndex>,
 }
 
 /// Stateful builder for the asset graph, enabling incremental rebuilds.
@@ -170,6 +176,8 @@ pub struct AssetGraphBuilder {
   entries: Vec<Entry>,
   options: Arc<ParcelOptions>,
   queue: TransformQueue,
+  /// The symbols requested from each asset at the end of the last successful build.
+  requests: RequestSnapshot,
 }
 
 impl AssetGraphBuilder {
@@ -188,6 +196,7 @@ impl AssetGraphBuilder {
       entries,
       queue: TransformQueue::new(config, options.clone()),
       options,
+      requests: RequestSnapshot::default(),
     }
   }
 
@@ -277,6 +286,11 @@ impl AssetGraphBuilder {
     }
 
     let mut reachable;
+    let mut missing_symbols = Vec::new();
+    // Importers whose symbols resolve to a different asset or name than in the previous build.
+    // When the graph is derived more than once, a difference in any derivation is recorded,
+    // which may over-report but never misses a change from the previous build.
+    let mut resolutions_changed = FixedBitSet::new();
     loop {
       while let Some(request_result) = queue.receive() {
         match request_result {
@@ -470,7 +484,9 @@ impl AssetGraphBuilder {
       }
 
       // Finalize symbol resolutions for each imported symbol. Because the request state was
-      // reset above, resolving here also re-marks the requested flags for every import.
+      // reset above, resolving here also re-marks the requested flags for every import, and
+      // finds the names that the assets they're imported from don't export.
+      missing_symbols.clear();
       for node_offset in 0..self.asset_nodes.len() {
         if !reachable.contains(&AssetNodeIndex::from_index(node_offset)) {
           continue;
@@ -481,19 +497,24 @@ impl AssetGraphBuilder {
             let asset_index = self.asset_nodes[node_offset].asset.unwrap();
             let asset = &self.assets[asset_index.index()];
             let symbol = &asset.symbols.imports[import_index];
-            let dep = &asset.dependencies[symbol.dep_index as usize];
+            let dep_index = symbol.dep_index;
+            let dep = &asset.dependencies[dep_index as usize];
             if let DependencyResolution::Asset(resolved_node_index) = dep.resolution {
               let name = symbol.symbol.clone();
               let environment = asset.target.environment;
               let priority = dep.priority;
-              let requested = request_symbol(
-                &mut self.asset_nodes,
-                &mut self.assets,
+              let requested = resolve_symbol(
+                &mut RequestSymbols {
+                  asset_nodes: &mut self.asset_nodes,
+                  assets: &mut self.assets,
+                  queue,
+                  missing: Some(&mut missing_symbols),
+                },
                 resolved_node_index,
                 name.clone(),
                 Some(environment),
+                Some((asset_index, dep_index)),
                 &mut HashSet::new(),
-                &mut queue,
               );
               // Lazy imports resolve at runtime, but the request above still marks the
               // target's symbols as used so its dependencies are packaged.
@@ -517,6 +538,9 @@ impl AssetGraphBuilder {
               let asset_index = self.asset_nodes[node_offset].asset.unwrap();
               let asset = &mut self.assets[asset_index.index()];
               let symbol = &mut asset.symbols.imports[import_index];
+              if symbol.resolved.target() != resolution.target() {
+                resolutions_changed.grow_and_insert(asset_index.index());
+              }
               symbol.resolved = resolution;
             }
           }
@@ -549,6 +573,17 @@ impl AssetGraphBuilder {
       }
     }
 
+    self.warn_missing_symbols(missing_symbols);
+
+    let mut changed = FixedBitSet::with_capacity(self.assets.len());
+    changed.extend(changed_assets.iter().map(|asset| asset.index()));
+    for index in resolutions_changed.ones() {
+      if !changed.put(index) {
+        changed_assets.push(AssetIndex::from_index(index));
+      }
+    }
+    let changed_requests = self.requests.update(&self.assets, &changed);
+
     Ok(AssetGraphBuildResult {
       asset_graph: AssetGraph {
         asset_nodes: Cow::Borrowed(&self.asset_nodes),
@@ -556,6 +591,7 @@ impl AssetGraphBuilder {
         entries: Cow::Borrowed(&self.entries),
       },
       changed_assets,
+      changed_requests,
     })
   }
 
@@ -571,7 +607,8 @@ impl AssetGraphBuilder {
   pub fn build_owned_with_changes(
     mut self,
   ) -> Result<AssetGraphBuildResult<'static>, DiagnosticList> {
-    let changed_assets = self.build_with_changes()?.changed_assets;
+    let result = self.build_with_changes()?;
+    let (changed_assets, changed_requests) = (result.changed_assets, result.changed_requests);
     Ok(AssetGraphBuildResult {
       asset_graph: AssetGraph {
         asset_nodes: Cow::Owned(self.asset_nodes),
@@ -579,8 +616,112 @@ impl AssetGraphBuilder {
         entries: Cow::Owned(self.entries),
       },
       changed_assets,
+      changed_requests,
     })
   }
+}
+
+/// Which symbols were requested from each asset, as of the end of a build.
+///
+/// Request state is recomputed from scratch every build, and propagation while transforms drain
+/// marks it before that, so a build can't tell which requests changed from its own state. This
+/// keeps a copy to compare against instead.
+#[derive(Default)]
+struct RequestSnapshot {
+  /// Each asset's `used_namespace` flag, then the requested flags of its exports, indirect
+  /// exports and star re-exports.
+  requested: FixedBitSet,
+  /// The start of each asset's flags in `requested`, followed by the end of the last asset's.
+  offsets: Vec<usize>,
+}
+
+impl RequestSnapshot {
+  /// Records the request state of `assets`, returning those not in `changed` whose requests
+  /// differ from the previous snapshot.
+  fn update(&mut self, assets: &[Asset], changed: &FixedBitSet) -> Vec<AssetIndex> {
+    let mut capacity = 0;
+    for asset in assets.iter() {
+      let symbols = &asset.symbols;
+      capacity += 1 + symbols.exports.len() + symbols.indirect.len() + symbols.star.len();
+    }
+    let mut requested = FixedBitSet::with_capacity(capacity);
+    let mut len = 0;
+    let mut offsets = Vec::with_capacity(assets.len() + 1);
+    let mut changed_requests = Vec::new();
+    for (index, asset) in assets.iter().enumerate() {
+      let symbols = &asset.symbols;
+      let start = len;
+      offsets.push(start);
+      let flags = std::iter::once(symbols.used_namespace)
+        .chain(symbols.exports.iter().map(|export| export.requested))
+        .chain(symbols.indirect.iter().map(|export| export.requested))
+        .chain(symbols.star.iter().map(|export| export.requested));
+      for (offset, flag) in flags.enumerate() {
+        requested.set(start + offset, flag);
+        len += 1;
+      }
+
+      if changed.contains(index) {
+        continue;
+      }
+      let len = len - start;
+      let differs = match (self.offsets.get(index), self.offsets.get(index + 1)) {
+        (Some(&prev_start), Some(&prev_end)) if prev_end - prev_start == len => {
+          !ranges_equal(&requested, start, &self.requested, prev_start, len)
+        }
+        _ => true,
+      };
+      if differs {
+        changed_requests.push(AssetIndex::from_index(index));
+      }
+    }
+    offsets.push(requested.len());
+    self.requested = requested;
+    self.offsets = offsets;
+    changed_requests
+  }
+}
+
+/// Compares two equal-length ranges between two FixedBitSets at different offsets.
+#[inline]
+fn ranges_equal(
+  a: &FixedBitSet,
+  a_start: usize,
+  b: &FixedBitSet,
+  b_start: usize,
+  len: usize,
+) -> bool {
+  const BITS: usize = usize::BITS as usize;
+  let a_blocks = a.as_slice();
+  let b_blocks = b.as_slice();
+
+  // Extract up to one machine word starting at an arbitrary bit.
+  #[inline]
+  fn extract(blocks: &[usize], start: usize) -> usize {
+    let i = start / BITS;
+    let offset = start % BITS;
+    let mut word = blocks[i] >> offset;
+    if offset != 0 {
+      let next = blocks.get(i + 1).copied().unwrap_or(0);
+      word |= next << (BITS - offset);
+    }
+    word
+  }
+
+  let mut offset = 0;
+  while offset < len {
+    let count = (len - offset).min(BITS);
+    let mask = usize::MAX >> (BITS - count);
+    let x = extract(a_blocks, a_start + offset);
+    let y = extract(b_blocks, b_start + offset);
+    if (x ^ y) & mask != 0 {
+      return false;
+    }
+
+    offset += count;
+  }
+
+  true
 }
 
 /// The set of asset nodes reachable from the entries through resolved dependencies.
@@ -606,6 +747,77 @@ fn reachable_nodes(
   visited
 }
 
+impl AssetGraphBuilder {
+  /// Warns about names imported from assets that don't export them, e.g. a misspelled icon in
+  /// `<use href="sprite.svg#hom">` or a misspelled import in JS.
+  fn warn_missing_symbols(&self, missing: Vec<MissingSymbol>) {
+    for MissingSymbol {
+      importer: (asset_index, dep_index),
+      name,
+    } in missing
+    {
+      let dep = &self.assets[asset_index.index()].dependencies[dep_index as usize];
+      let DependencyResolution::Asset(node_index) = dep.resolution else {
+        continue;
+      };
+      let Some(resolved) = self.asset_nodes[node_index.index()].asset else {
+        continue;
+      };
+      let resolved = &self.assets[resolved.index()];
+      if provided_by_interop(resolved, dep, &name) {
+        continue;
+      }
+      let url = &resolved.loc.url;
+      let file = url.to_file_path().map_or_else(
+        |_| url.to_string(),
+        |path| {
+          path
+            .relative(&self.options.project_root)
+            .to_string_lossy()
+            .into_owned()
+        },
+      );
+      self.options.log_diagnostic(
+        LogLevel::Warn,
+        Diagnostic {
+          message: format!("{file} does not export '{}'.", name.as_str()),
+          origin: Some("@parcel/core".into()),
+          severity: DiagnosticSeverity::Warning,
+          code_frames: dep
+            .loc
+            .iter()
+            .map(|loc| CodeFrame::from_loc(loc, None))
+            .collect(),
+          documentation_url: None,
+          hints: Vec::new(),
+        },
+      );
+    }
+  }
+}
+
+/// Whether JS module interop provides a name that `asset` doesn't export to an importer
+/// requesting it through `dep`.
+fn provided_by_interop(asset: &Asset, dep: &Dependency, name: &SymbolName) -> bool {
+  match name {
+    // An ES module imported as a URL or its content resolves to that rather than its exports,
+    // e.g. `import url from 'url:./worker.js'` or `import text from './a.js' with {type: 'text'}`.
+    SymbolName::Default => {
+      dep.import_type != ImportType::JavaScript || asset.bundle_behavior != BundleBehavior::None
+    }
+    // Defined on ES modules for CommonJS importers.
+    SymbolName::Name(name) if name == "__esModule" => true,
+    // A JS module without any exports is used through CommonJS for its side effects, or is the
+    // empty module that modules aliased to `false` resolve to, which provides nothing on purpose.
+    _ => {
+      asset.ty == AssetType::Js
+        && !asset
+          .flags
+          .intersects(AssetFlags::IS_ESM | AssetFlags::HAS_CJS_EXPORTS)
+    }
+  }
+}
+
 /// Abstracts the side effects of symbol resolution so a single ResolveExport traversal
 /// can drive both the mutating build-time pass (which marks symbols as requested and
 /// queues deferred assets for transformation) and read-only resolution on a completed
@@ -621,6 +833,18 @@ trait SymbolGraph {
   fn mark_export_requested(&mut self, _node_index: AssetNodeIndex, _export_index: usize) {}
   fn mark_indirect_requested(&mut self, _node_index: AssetNodeIndex, _indirect_index: usize) {}
   fn request_all(&mut self, _node_index: AssetNodeIndex) {}
+  /// Called when an importer requests a name through a dependency whose asset's exports are all
+  /// known, but none of them provide it.
+  fn missing_symbol(&mut self, _importer: Importer, _name: &SymbolName) {}
+}
+
+/// An asset and the index of a dependency it requests symbols through.
+type Importer = (AssetIndex, u32);
+
+/// A name an importer requests that its dependency's asset doesn't export.
+struct MissingSymbol {
+  importer: Importer,
+  name: SymbolName,
 }
 
 /// Build-time resolution over a graph that is still being constructed.
@@ -628,6 +852,7 @@ struct RequestSymbols<'a> {
   asset_nodes: &'a mut [AssetNode],
   assets: &'a mut [Asset],
   queue: &'a mut TransformQueue,
+  missing: Option<&'a mut Vec<MissingSymbol>>,
 }
 
 impl SymbolGraph for RequestSymbols<'_> {
@@ -665,6 +890,19 @@ impl SymbolGraph for RequestSymbols<'_> {
 
   fn request_all(&mut self, node_index: AssetNodeIndex) {
     request_all(self.asset_nodes, self.assets, node_index, self.queue);
+  }
+
+  fn missing_symbol(&mut self, importer: Importer, name: &SymbolName) {
+    if let Some(missing) = &mut self.missing
+      && !missing
+        .iter()
+        .any(|symbol| symbol.importer == importer && symbol.name == *name)
+    {
+      missing.push(MissingSymbol {
+        importer,
+        name: name.clone(),
+      });
+    }
   }
 }
 
@@ -708,20 +946,25 @@ fn request_symbol(
       asset_nodes,
       assets,
       queue,
+      missing: None,
     },
     node_index,
     name,
     boundary_environment,
+    None,
     resolve_set,
   )
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#sec-resolveexport
+// `importer` is the dependency the name is requested through, reported if no export provides it.
+// Lookups through `export *` pass None, since another star re-export may provide the name.
 fn resolve_symbol<G: SymbolGraph>(
   graph: &mut G,
   asset_node_index: AssetNodeIndex,
   name: SymbolName,
   boundary_environment: Option<Environment>,
+  importer: Option<Importer>,
   resolve_set: &mut HashSet<(AssetNodeIndex, SymbolName)>,
 ) -> SymbolResolution {
   if !resolve_set.insert((asset_node_index, name.clone())) {
@@ -752,6 +995,7 @@ fn resolve_symbol<G: SymbolGraph>(
     return SymbolResolution::Export {
       asset_index,
       export_index: export_index as u32,
+      name,
     };
   }
 
@@ -776,6 +1020,7 @@ fn resolve_symbol<G: SymbolGraph>(
         resolved_asset_index,
         imported,
         boundary_environment,
+        Some((asset_index, dep_index)),
         resolve_set,
       );
 
@@ -792,18 +1037,22 @@ fn resolve_symbol<G: SymbolGraph>(
   }
 
   let mut star_resolution = SymbolResolution::None;
+  // Whether an `export *` re-exports a module whose exports are unknown, e.g. an external one.
+  let mut unresolved_star = false;
 
   // A default export cannot be provided by an export * from "mod" declaration.
   if name != SymbolName::Default {
     for i in 0..asset.symbols.star.len() {
       let asset = graph.asset(asset_index);
       let dep = &asset.dependencies[asset.symbols.star[i].dep_index as usize];
+      unresolved_star |= !matches!(dep.resolution, DependencyResolution::Asset(_));
       if let DependencyResolution::Asset(resolved_asset_index) = dep.resolution {
         let res = resolve_symbol(
           graph,
           resolved_asset_index,
           name.clone(),
           boundary_environment,
+          None,
           resolve_set,
         );
 
@@ -826,6 +1075,24 @@ fn resolve_symbol<G: SymbolGraph>(
   }
 
   let flags = graph.asset(asset_index).flags;
+
+  // The default export of anything but an ES module is the whole module: a CommonJS module's
+  // exports object, or the URL or content of another type of asset.
+  if star_resolution == SymbolResolution::None
+    && name == SymbolName::Default
+    && !flags.contains(AssetFlags::IS_ESM)
+  {
+    graph.request_all(asset_node_index);
+    return SymbolResolution::Runtime { asset_index, name };
+  }
+
+  if star_resolution == SymbolResolution::None
+    && !unresolved_star
+    && flags.contains(AssetFlags::STATIC_EXPORTS)
+    && let Some(importer) = importer
+  {
+    graph.missing_symbol(importer, &name);
+  }
 
   // If the asset has side effects or non-static exports, resolve at runtime.
   if star_resolution == SymbolResolution::None
@@ -975,6 +1242,7 @@ fn request_runtime_star_exports(
       },
       target,
       name.clone(),
+      None,
       None,
       &mut HashSet::new(),
     ) != SymbolResolution::None;
@@ -1144,6 +1412,7 @@ impl<'a> AssetGraph<'a> {
           SymbolResolution::Export {
             asset_index,
             export_index: index as u32,
+            name: export.exported.clone(),
           },
         ));
       }
@@ -1226,6 +1495,7 @@ impl<'a> AssetGraph<'a> {
       asset_index,
       name,
       Some(boundary_environment),
+      None,
       &mut HashSet::new(),
     )
   }

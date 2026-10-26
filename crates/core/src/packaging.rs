@@ -53,23 +53,26 @@ impl Drop for PackagingGuard<'_> {
   }
 }
 
+/// The content that packages `bundle`: its first asset's. Entry facades contain no modules of
+/// their own but use the entry's packager to load the shared payload and execute the requested
+/// entry module.
+pub(crate) fn bundle_content<'a>(
+  bundle_graph: &'a BundleGraph,
+  bundle: &Bundle,
+) -> Option<&'a Arc<dyn Content>> {
+  let first_asset = bundle.assets.first().copied().or(bundle.main_entry_asset)?;
+  Some(&bundle_graph.asset_graph.asset(first_asset).content)
+}
+
 /// The optimizers that run on `bundle`, and the bundles its packager and optimizers declared.
 fn packaging_plan(
   config: &ParcelConfig,
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
 ) -> Result<(Arc<dyn Content>, Vec<Arc<dyn Optimizer>>, Vec<usize>), DiagnosticList> {
-  // Entry facades contain no modules of their own but use the entry's packager
-  // to load the shared payload and execute the requested entry module.
-  let first_asset = bundle
-    .assets
-    .first()
-    .copied()
-    .or(bundle.main_entry_asset)
-    .ok_or_else(|| {
-      Diagnostic::from_message("Cannot package a bundle with no assets".to_string())
-    })?;
-  let content = bundle_graph.asset_graph.asset(first_asset).content.clone();
+  let content = bundle_content(bundle_graph, bundle)
+    .ok_or_else(|| Diagnostic::from_message("Cannot package a bundle with no assets".to_string()))?
+    .clone();
 
   let mut pipeline = None;
   if let Some(main) = bundle.main_entry_asset {

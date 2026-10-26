@@ -1,0 +1,10 @@
+{
+  "description": "should keep the rendered document of an SVG used as a web manifest icon, alongside the elements referenced by fragment",
+  "input": "index.html",
+  "options": {"mode": "production", "contentHash": false},
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "webmanifest", "assets": ["manifest.webmanifest"]},
+    {"type": "svg", "assets": ["sprite.svg"]}
+  ]
+}

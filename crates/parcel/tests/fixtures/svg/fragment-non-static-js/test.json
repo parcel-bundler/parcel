@@ -1,0 +1,10 @@
+{
+  "description": "should keep every element of an SVG referenced with new URL() from JS whose symbols can't be statically analyzed",
+  "input": "index.html",
+  "options": {"mode": "production", "contentHash": false},
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "js", "assets": ["index.js"]},
+    {"type": "svg", "assets": ["sprite.svg"]}
+  ]
+}

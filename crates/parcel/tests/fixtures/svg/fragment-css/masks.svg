@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <mask id="fade"><rect width="10" height="10" fill="white"/></mask>
+  <mask id="unused"><rect width="10" height="10" fill="gray"/></mask>
+</svg>

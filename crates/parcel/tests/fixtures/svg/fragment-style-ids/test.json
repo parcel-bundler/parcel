@@ -1,0 +1,10 @@
+{
+  "description": "should keep the id of an element referenced from another file when inlining a style that selects it",
+  "input": "index.html",
+  "options": {"mode": "production", "contentHash": false},
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "svg", "assets": ["icons.svg"]},
+    {"type": "css", "assets": ["icons.svg"]}
+  ]
+}

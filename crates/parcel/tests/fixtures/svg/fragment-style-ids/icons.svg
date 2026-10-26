@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <style>#home { fill: red }</style>
+  <symbol id="home" viewBox="0 0 10 10"><path d="M0 5L5 0L10 5Z"/></symbol>
+</svg>

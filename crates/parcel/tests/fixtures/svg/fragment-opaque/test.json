@@ -1,0 +1,10 @@
+{
+  "description": "should keep every element of an SVG referenced without a fragment from JS, which may reference any of them",
+  "input": "index.html",
+  "options": {"mode": "production", "contentHash": false},
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "js", "assets": ["index.js"]},
+    {"type": "svg", "assets": ["sprite.svg"]}
+  ]
+}

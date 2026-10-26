@@ -6,7 +6,7 @@ use xml5ever::tendril::StrTendril;
 
 use crate::{
   arena::{Node, NodeData, Ref},
-  oxvg::{OxvgConfig, OxvgKind},
+  oxvg::{OxvgConfig, OxvgKind, SvgUsage},
 };
 
 #[derive(serde::Deserialize, Debug, Clone)]
@@ -391,7 +391,7 @@ pub fn optimize<'arena>(
 
           if should_optimize_svg {
             let jobs = options.minify_svg.into_jobs(OxvgKind::Html, path);
-            let _ = crate::oxvg::optimize(arena, node, &jobs);
+            let _ = crate::oxvg::optimize(arena, node, &jobs, None);
           }
         }
         _ => {
@@ -447,10 +447,11 @@ pub fn optimize_svg<'arena>(
   dom: &'arena Node<'arena>,
   options: &OxvgConfig,
   path: &str,
+  usage: Option<&SvgUsage>,
 ) {
   if options.has_any_jobs() {
     let jobs = options.into_jobs(OxvgKind::Svg, path);
-    let _ = crate::oxvg::optimize(arena, dom, &jobs);
+    let _ = crate::oxvg::optimize(arena, dom, &jobs, usage);
   }
 
   dom.walk(&mut |node| match &node.data {

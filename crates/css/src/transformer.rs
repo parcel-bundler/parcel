@@ -175,6 +175,7 @@ impl Transformer for CssTransformer {
     let unconditional_target = unconditional(&asset.target);
     let mut collector = DependencyCollector {
       dependencies: &mut asset.dependencies,
+      imports: &mut asset.symbols.imports,
       target: asset.target.clone(),
       unconditional_target: unconditional_target.clone(),
       import_index: 0,
@@ -323,6 +324,8 @@ impl Transformer for CssTransformer {
         pseudo_classes: self.pseudo_classes.clone(),
       });
     }
+    // CSS module exports are all known; other stylesheets export nothing.
+    asset.flags |= AssetFlags::STATIC_EXPORTS;
 
     Ok(asset)
   }
@@ -344,6 +347,7 @@ fn unconditional(target: &Arc<Target>) -> Arc<Target> {
 
 struct DependencyCollector<'a> {
   dependencies: &'a mut Vec<Dependency>,
+  imports: &'a mut Vec<ImportedSymbol>,
   target: Arc<Target>,
   unconditional_target: Arc<Target>,
   import_index: usize,
@@ -547,7 +551,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
       });
     }
 
-    self.dependencies.push(Dependency {
+    let dep = Dependency {
       specifier: url.url.to_string().into_boxed_str(),
       specifier_type: SpecifierType::Url,
       priority: Priority::Lazy,
@@ -573,7 +577,19 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
       resolution: DependencyResolution::None,
       concurrent_group: 0,
       custom_conditions: Default::default(),
-    });
+    };
+
+    // Whether the url() is an image or references an element (e.g. a mask or filter) depends on
+    // the property, which isn't known here, so an SVG keeps both the document and the element.
+    let dep_index = self.dependencies.len() as u32;
+    for symbol in dep.url_reference_symbols(UrlReference::Document) {
+      self.imports.push(ImportedSymbol {
+        dep_index,
+        symbol,
+        resolved: parcel_core::SymbolResolution::None,
+      });
+    }
+    self.dependencies.push(dep);
 
     Ok(())
   }
@@ -624,6 +640,7 @@ impl Transformer for StyleAttrTransformer {
 
     attr.visit(&mut DependencyCollector {
       dependencies: &mut asset.dependencies,
+      imports: &mut asset.symbols.imports,
       target: asset.target.clone(),
       unconditional_target: asset.target.clone(),
       import_index: 0,
