@@ -539,5 +539,6 @@ pub extern "C" fn parcel_asset_add_export_symbol(asset: Asset, name: *const u8, 
   asset.symbols.exports.push(LocalSymbol {
     exported: SymbolName::from(name),
     requested: false,
+    self_referenced: false,
   });
 }

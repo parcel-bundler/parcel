@@ -255,7 +255,20 @@ impl Transformer for JsTransformer {
         symbol.dep_index += offset;
         symbol
       }));
+    let export_offset = asset.symbols.exports.len() as u32;
     asset.symbols.exports.extend(symbols.exports);
+    asset
+      .symbols
+      .local_references
+      .extend(
+        symbols
+          .local_references
+          .into_iter()
+          .map(|reference| LocalReference {
+            from: reference.from + export_offset,
+            to: reference.to + export_offset,
+          }),
+      );
     asset.flags.insert(res.flags);
     let rsc_runtime_dep = res.rsc_runtime_dep.map(|index| index + offset);
 

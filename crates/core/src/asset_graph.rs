@@ -450,16 +450,7 @@ impl AssetGraphBuilder {
       // build (see the TODO on `replace_request` above), the reset could move to the start of
       // the build and the library entry re-request could merge into the entry loop.
       for asset in self.assets.iter_mut() {
-        asset.symbols.used_namespace = false;
-        for export in &mut asset.symbols.exports {
-          export.requested = false;
-        }
-        for indirect in &mut asset.symbols.indirect {
-          indirect.requested = false;
-        }
-        for star in &mut asset.symbols.star {
-          star.requested = false;
-        }
+        asset.symbols.reset_requested();
       }
 
       // Library entries request their entire namespace (originally requested via the entry
@@ -879,7 +870,7 @@ impl SymbolGraph for RequestSymbols<'_> {
   fn mark_export_requested(&mut self, node_index: AssetNodeIndex, export_index: usize) {
     let asset_index = self.asset_nodes[node_index.index()].asset.unwrap();
     let asset = &mut self.assets[asset_index.index()];
-    asset.symbols.exports[export_index].requested = true;
+    asset.symbols.request_export(export_index);
   }
 
   fn mark_indirect_requested(&mut self, node_index: AssetNodeIndex, indirect_index: usize) {

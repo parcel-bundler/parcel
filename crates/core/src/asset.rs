@@ -347,6 +347,65 @@ pub struct AssetSymbols {
   pub exports: Vec<LocalSymbol>,
   pub indirect: Vec<IndirectSymbol>,
   pub star: Vec<StarSymbol>,
+  /// Exports that use other exports of the same asset, e.g. a CommonJS function reading
+  /// `exports.foo`, a CSS module class that composes another, or an SVG element that uses another.
+  pub local_references: Vec<LocalReference>,
+}
+
+/// Export `to` must be kept whenever export `from` is requested. Both are indices into
+/// `AssetSymbols::exports`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct LocalReference {
+  pub from: u32,
+  pub to: u32,
+}
+
+impl AssetSymbols {
+  /// Marks an export as requested, along with the exports it references, recursively.
+  pub fn request_export(&mut self, export_index: usize) {
+    // An export that is already requested had its references requested along with it.
+    if !std::mem::replace(&mut self.exports[export_index].requested, true) {
+      self.request_references(export_index);
+    }
+  }
+
+  /// Marks the exports `export_index` references as requested, recursively.
+  fn request_references(&mut self, export_index: usize) {
+    let mut stack = vec![export_index as u32];
+    while let Some(from) = stack.pop() {
+      for reference in &self.local_references {
+        if reference.from == from
+          && let Some(export) = self.exports.get_mut(reference.to as usize)
+          && !export.requested
+        {
+          export.requested = true;
+          stack.push(reference.to);
+        }
+      }
+    }
+  }
+
+  /// Resets every requested flag, except those of the exports the asset references itself (and
+  /// the exports they reference), which are requested regardless of importers.
+  pub fn reset_requested(&mut self) {
+    self.used_namespace = false;
+    for export in &mut self.exports {
+      export.requested = export.self_referenced;
+    }
+    for indirect in &mut self.indirect {
+      indirect.requested = false;
+    }
+    for star in &mut self.star {
+      star.requested = false;
+    }
+    if !self.local_references.is_empty() {
+      for export_index in 0..self.exports.len() {
+        if self.exports[export_index].self_referenced {
+          self.request_references(export_index);
+        }
+      }
+    }
+  }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -436,6 +495,9 @@ impl SymbolResolution {
 pub struct LocalSymbol {
   pub exported: SymbolName,
   pub requested: bool,
+  /// Whether the asset uses this export itself outside of other exports, e.g. a CommonJS module
+  /// reading `exports.foo` at the top level, so that it is requested even if no importer uses it.
+  pub self_referenced: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -502,5 +564,56 @@ impl SymbolName {
       SymbolName::Name(name) => &*name,
       SymbolName::Document => "#document",
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  /// Symbols exporting `names`, with `references` between them by index.
+  fn symbols(names: &[&str], self_referenced: &[usize], references: &[(u32, u32)]) -> AssetSymbols {
+    AssetSymbols {
+      exports: names
+        .iter()
+        .enumerate()
+        .map(|(index, name)| LocalSymbol {
+          exported: SymbolName::from(*name),
+          requested: false,
+          self_referenced: self_referenced.contains(&index),
+        })
+        .collect(),
+      local_references: references
+        .iter()
+        .map(|&(from, to)| LocalReference { from, to })
+        .collect(),
+      ..Default::default()
+    }
+  }
+
+  fn requested(symbols: &AssetSymbols) -> Vec<&str> {
+    symbols
+      .exports
+      .iter()
+      .filter(|export| export.requested)
+      .map(|export| export.exported.as_str())
+      .collect()
+  }
+
+  #[test]
+  fn requesting_an_export_requests_what_it_references() {
+    let mut symbols = symbols(&["a", "b", "c", "d"], &[], &[(0, 1), (1, 2), (2, 0)]);
+    symbols.request_export(0);
+    assert_eq!(requested(&symbols), ["a", "b", "c"]);
+  }
+
+  #[test]
+  fn resetting_keeps_self_referenced_exports_and_what_they_reference() {
+    let mut symbols = symbols(&["a", "b", "c", "d"], &[1], &[(1, 2), (3, 0)]);
+    symbols.request_export(3);
+    symbols.used_namespace = true;
+    symbols.reset_requested();
+    assert!(!symbols.used_namespace);
+    assert_eq!(requested(&symbols), ["b", "c"]);
   }
 }
