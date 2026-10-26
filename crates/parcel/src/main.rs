@@ -100,6 +100,7 @@ fn help(command: Option<Command>) -> String {
     "  --detailed-report [count]  Print the sizes of the largest assets in each bundle in\n",
     "                        production builds (default count: 10)\n",
     "  -h, --help            Show help\n",
+    "  -V, --version         Show the version number\n",
   ));
   if command.is_none() || command == Some(Command::Serve) {
     help.push_str(concat!(
@@ -129,6 +130,7 @@ fn help(command: Option<Command>) -> String {
 
 enum CliAction {
   Help(Option<Command>),
+  Version,
   Trust {
     remove: bool,
   },
@@ -156,6 +158,9 @@ fn parse_args(
     }
     return Ok(CliAction::Help(command));
   }
+  if matches!(command.as_str(), "--version" | "-V") {
+    return Ok(CliAction::Version);
+  }
   let command = Command::parse(&command)?;
   if command == Command::Trust {
     let mut remove = false;
@@ -163,6 +168,7 @@ fn parse_args(
       match arg.as_str() {
         "--remove" => remove = true,
         "--help" | "-h" => return Ok(CliAction::Help(Some(command))),
+        "--version" | "-V" => return Ok(CliAction::Version),
         arg => return Err(format!("Unknown argument {arg}")),
       }
     }
@@ -215,6 +221,7 @@ fn parse_args(
     if arg.starts_with('-') {
       match arg.as_str() {
         "--help" | "-h" => return Ok(CliAction::Help(Some(command))),
+        "--version" | "-V" => return Ok(CliAction::Version),
         "--" => {
           entries.extend(args);
           break;
@@ -424,6 +431,7 @@ pub fn main() -> ExitCode {
   else {
     match action {
       CliAction::Help(command) => print!("{}", help(command)),
+      CliAction::Version => println!("{}", parcel::PARCEL_VERSION),
       CliAction::Trust { remove } => {
         if parcel::trust(
           remove,
@@ -592,6 +600,22 @@ mod tests {
         ..
       }) => (entries, server_options),
       _ => panic!("expected serve"),
+    }
+  }
+
+  #[test]
+  fn parses_version() {
+    for args in [
+      &["--version"][..],
+      &["-V"],
+      &["build", "src/index.html", "--version"],
+      &["trust", "-V"],
+    ] {
+      let args = args.iter().map(|arg| arg.to_string());
+      assert!(matches!(
+        parse_args(args, HashMap::new(), PathId::new(Path::new("/project"))),
+        Ok(CliAction::Version)
+      ));
     }
   }
 

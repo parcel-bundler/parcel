@@ -33,7 +33,7 @@ use crate::{
 /// Release builds are given the version they are published as. Any other build
 /// counts as the earliest 3.0.0 prerelease, so it accepts plugins that accept
 /// every Parcel 3 prerelease, as `^3.0.0-0` does.
-const PARCEL_VERSION: &str = match option_env!("PARCEL_VERSION") {
+pub const PARCEL_VERSION: &str = match option_env!("PARCEL_VERSION") {
   Some(version) if !version.is_empty() => version,
   _ => "3.0.0-0",
 };

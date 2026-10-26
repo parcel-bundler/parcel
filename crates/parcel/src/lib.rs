@@ -13,6 +13,7 @@ use crate::{
 };
 
 pub use open_browser::is_browser_name;
+pub use plugin_factory::PARCEL_VERSION;
 pub use server::{HttpsOptions, ServerOptions};
 
 mod bundler;
