@@ -272,6 +272,7 @@ fn dependency_environment(attributes: Option<&JsValue>) -> Option<Environment> {
   match import_attribute(attributes?, "env")? {
     JsValue::String(value) if value == "react-server" => Some(Environment::ReactServer),
     JsValue::String(value) if value == "react-client" => Some(Environment::ReactClient),
+    JsValue::String(value) if value == "worklet" => Some(Environment::Worklet),
     _ => None,
   }
 }
@@ -435,8 +436,16 @@ impl<'a> DependencyCollector<'a> {
     if kind == DependencyKind::DynamicImport {
       dependency.concurrent_group = self.concurrent_group;
     }
-    if let Some(environment) = dependency_environment(attributes.as_ref()) {
-      dependency.target = react_target(&self.config.target, environment);
+    match dependency_environment(attributes.as_ref()) {
+      // The same target as `CSS.paintWorklet.addModule(new URL(...))`, e.g. for an audio worklet
+      // imported with `{type: 'url', env: 'worklet'}`.
+      Some(Environment::Worklet) => {
+        dependency.target = self
+          .config
+          .dependency_target(&DependencyKind::Worklet, SourceType::Module);
+      }
+      Some(environment) => dependency.target = react_target(&self.config.target, environment),
+      None => {}
     }
     if let Some(import_type) = dependency_import_type(attributes.as_ref()) {
       dependency.import_type = import_type;

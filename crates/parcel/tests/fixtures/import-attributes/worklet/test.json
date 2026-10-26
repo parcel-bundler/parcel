@@ -1,0 +1,36 @@
+[
+  {
+    "description": "should build a self-contained worklet module for a URL import with `env: 'worklet'`",
+    "input": "index.js",
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": [
+          "esmodule-helpers.js",
+          "gain.js",
+          "index.js"
+        ]
+      },
+      {
+        "assets": [
+          "esmodule-helpers.js",
+          "gain.js",
+          "worklet.js",
+          "worklet.js"
+        ],
+        "environment": "worklet",
+        "outputFormat": "esmodule",
+        "contains": [
+          "worklet-dsp"
+        ],
+        "notContains": [
+          "default-dsp"
+        ]
+      }
+    ],
+    "sideEffects": [
+      true,
+      0.5
+    ]
+  }
+]
