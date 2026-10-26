@@ -102,11 +102,24 @@ pub(crate) fn bundle_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -
 }
 
 /// CSS modules outside `bundle` whose class names packaging it embeds, and the modules they
-/// compose from (see `Content::embedded_assets`). Mirrors where `asset_dependencies` creates
-/// `SyntheticAsset::CssModuleExports` and `Resolution::CssModule`.
+/// compose from (see `Content::embedded_assets`).
 pub(crate) fn embedded_assets(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<AssetIndex> {
-  let is_library = bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY);
   let mut assets = Vec::new();
+  for css_module in embedded_css_modules(bundle_graph, bundle) {
+    for source in css_module_export_sources(&bundle_graph.asset_graph, css_module) {
+      if !assets.contains(&source) {
+        assets.push(source);
+      }
+    }
+  }
+  assets
+}
+
+/// CSS modules outside `bundle` whose class names packaging it embeds. Mirrors where
+/// `asset_dependencies` creates `SyntheticAsset::CssModuleExports` and `Resolution::CssModule`.
+pub(crate) fn embedded_css_modules(bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<AssetIndex> {
+  let is_library = bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY);
+  let mut css_modules = Vec::new();
   for &asset_index in &bundle.assets {
     let asset = bundle_graph.asset_graph.asset(asset_index);
     for dep_index in 0..asset.dependencies.len() {
@@ -130,14 +143,12 @@ pub(crate) fn embedded_assets(bundle_graph: &BundleGraph, bundle: &Bundle) -> Ve
         }
         _ => continue,
       };
-      for source in css_module_export_sources(&bundle_graph.asset_graph, css_module) {
-        if !assets.contains(&source) {
-          assets.push(source);
-        }
+      if !css_modules.contains(&css_module) {
+        css_modules.push(css_module);
       }
     }
   }
-  assets
+  css_modules
 }
 
 /// Whether `bundle`'s runtime holds its context's manifest. Roots that are only loaded by pages get

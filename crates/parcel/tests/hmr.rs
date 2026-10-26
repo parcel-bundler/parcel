@@ -621,8 +621,10 @@ impl HmrRuntimeTest {
       )?;
       globals.set("location", location)?;
 
+      // Reloading stylesheets is a no-op without a DOM.
       ctx.eval::<(), _>(
-        "globalThis.document = {
+        "globalThis.setTimeout = function () {};
+        globalThis.document = {
           createElement() { return {}; },
           getElementById() { return null; },
           body: {
@@ -1702,4 +1704,65 @@ if (module.hot) module.hot.accept();",
       serde_json::json!(["index", "from-b"]),
     ]
   );
+}
+
+#[test]
+fn hmr_runtime_updates_css_module_class_names_when_the_stylesheet_changes() {
+  // JS bundles embed the class names of the CSS modules they import, so changing a stylesheet
+  // must update them even though no JS changed.
+  let mut hmr = HmrRuntimeTest::new(&[
+    (
+      "/project/index.js",
+      "import {a} from './a.module.css';
+output(['index', a]);
+if (module.hot) module.hot.accept();",
+    ),
+    (
+      "/project/a.module.css",
+      ".a { color: red } .b { color: blue }",
+    ),
+  ]);
+
+  hmr.update(&[(
+    "/project/a.module.css",
+    ".a { composes: b; color: red } .b { color: blue }",
+  )]);
+
+  assert!(!hmr.reloaded());
+  let outputs = hmr.outputs();
+  assert_eq!(outputs.len(), 2, "{outputs:?}");
+  let before = outputs[0][1].as_str().unwrap();
+  let after: Vec<&str> = outputs[1][1].as_str().unwrap().split(' ').collect();
+  assert_eq!(after.len(), 2, "{outputs:?}");
+  assert_eq!(after[0], before);
+  assert!(after[1].ends_with("_b"), "{outputs:?}");
+}
+
+#[test]
+fn hmr_runtime_updates_css_module_class_names_when_a_composed_stylesheet_changes() {
+  let mut hmr = HmrRuntimeTest::new(&[
+    (
+      "/project/index.js",
+      "import {a} from './a.module.css';
+output(['index', a]);
+if (module.hot) module.hot.accept();",
+    ),
+    (
+      "/project/a.module.css",
+      ".a { composes: b from './b.module.css'; color: red }",
+    ),
+    ("/project/b.module.css", ".b { color: blue }"),
+  ]);
+
+  hmr.update(&[(
+    "/project/b.module.css",
+    ".b { composes: c; color: blue } .c { color: green }",
+  )]);
+
+  assert!(!hmr.reloaded());
+  let outputs = hmr.outputs();
+  assert_eq!(outputs.len(), 2, "{outputs:?}");
+  let after: Vec<&str> = outputs[1][1].as_str().unwrap().split(' ').collect();
+  assert_eq!(after.len(), 3, "{outputs:?}");
+  assert!(after[2].ends_with("_c"), "{outputs:?}");
 }
