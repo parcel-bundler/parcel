@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 
-// @flow
-/* eslint-disable no-console */
-
-// $FlowFixMe
 import fs from 'fs/promises';
 import {readdirSync} from 'fs';
 import path from 'path';
-import {spawn as _spawn} from 'child_process';
-// $FlowFixMe
-import {parseArgs, styleText} from 'util';
+import {fileURLToPath} from 'url';
+import {spawn as _spawn, type SpawnOptions} from 'child_process';
+import * as util from 'util';
+
+const {parseArgs} = util;
+const templatesDir = fileURLToPath(new URL('../templates', import.meta.url));
 
 const supportsEmoji = isUnicodeSupported();
 
@@ -49,7 +48,7 @@ install(template, name).then(
 );
 
 async function install(template: string, name: string) {
-  let templateDir = path.join(__dirname, '..', 'templates', template);
+  let templateDir = path.join(templatesDir, template);
   try {
     await fs.stat(templateDir);
   } catch {
@@ -130,8 +129,8 @@ async function install(template: string, name: string) {
   console.log('');
 }
 
-function spawn(cmd, args, opts) {
-  return new Promise((resolve, reject) => {
+function spawn(cmd: string, args: string[], opts: SpawnOptions) {
+  return new Promise<void>((resolve, reject) => {
     let p = _spawn(cmd, args, {...opts, shell: process.platform === 'win32'});
     p.on('close', (code, signal) => {
       if (code || signal) {
@@ -144,8 +143,8 @@ function spawn(cmd, args, opts) {
 }
 
 function getCurrentPackageManager(
-  userAgent: ?string = process.env.npm_config_user_agent,
-): ?{|name: string, version: string|} {
+  userAgent: string | undefined = process.env.npm_config_user_agent,
+): {name: string; version: string} | undefined {
   if (!userAgent) {
     return undefined;
   }
@@ -161,7 +160,7 @@ function getCurrentPackageManager(
 
 function printAvailableTemplates() {
   console.error('Available templates:\n');
-  for (let dir of readdirSync(path.join(__dirname, '..', 'templates'))) {
+  for (let dir of readdirSync(templatesDir)) {
     console.error(`  • ${dir}`);
   }
 }
@@ -183,9 +182,10 @@ function isUnicodeSupported() {
   );
 }
 
-function style(format, text) {
-  if (styleText) {
-    return styleText(format, text);
+function style(format: Parameters<typeof util.styleText>[0], text: string) {
+  // styleText was added in Node 20.12.
+  if (util.styleText) {
+    return util.styleText(format, text);
   } else {
     return text;
   }

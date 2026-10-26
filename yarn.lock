@@ -2756,6 +2756,14 @@ __metadata:
   languageName: node
   linkType: hard
 
+"create-parcel@workspace:packages-v3/create-parcel":
+  version: 0.0.0-use.local
+  resolution: "create-parcel@workspace:packages-v3/create-parcel"
+  bin:
+    create-parcel: lib/create-parcel.js
+  languageName: unknown
+  linkType: soft
+
 "cross-spawn@npm:^7.0.0":
   version: 7.0.6
   resolution: "cross-spawn@npm:7.0.6"

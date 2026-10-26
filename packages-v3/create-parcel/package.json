@@ -1,18 +1,23 @@
 {
   "name": "create-parcel",
-  "version": "2.16.3",
+  "version": "3.0.0",
+  "type": "module",
   "bin": "lib/create-parcel.js",
-  "main": "src/create-parcel.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git",
-    "directory": "packages/utils/create-parcel"
+    "directory": "packages-v3/create-parcel"
   },
-  "source": "src/create-parcel.js",
   "files": [
     "templates",
     "lib"
   ],
+  "scripts": {
+    "prepack": "node scripts/update-template-versions.mjs"
+  },
+  "engines": {
+    "node": ">= 18.3.0"
+  },
   "license": "MIT",
   "publishConfig": {
     "access": "public"

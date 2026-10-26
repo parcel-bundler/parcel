@@ -2,10 +2,9 @@
   "name": "parcel-react-server-starter",
   "private": true,
   "version": "0.0.0",
-  "server": "dist/server.js",
+  "source": "src/server.tsx",
   "targets": {
-    "server": {
-      "source": "src/server.tsx",
+    "default": {
       "context": "react-server",
       "includeNodeModules": {
         "express": false
@@ -13,11 +12,11 @@
     }
   },
   "scripts": {
-    "start": "parcel",
+    "start": "parcel run",
     "build": "parcel build"
   },
   "dependencies": {
-    "@parcel/rsc": "^2.14.3",
+    "@parcel/rsc": "^3.0.0",
     "express": "^4.21.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
@@ -28,6 +27,6 @@
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "parcel": "^2.14.0"
+    "parcel": "^3.0.0"
   }
 }
