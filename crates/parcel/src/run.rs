@@ -22,6 +22,40 @@ const UPDATE_TIMEOUT: Duration = Duration::from_secs(10);
 /// How often to check whether the process exited while waiting for it.
 const POLL_INTERVAL: Duration = Duration::from_millis(50);
 
+/// The id of the running process, for the signal handler to stop. 0 when there is none.
+#[cfg(unix)]
+static CHILD_PID: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(0);
+
+/// Stops the running process when Parcel is terminated by a signal, which skips `Drop`. Otherwise
+/// it would keep running (and holding its server's port) after Parcel exits, e.g. when a process
+/// manager sends SIGTERM or the terminal closes. Ctrl+C reaches both processes on its own.
+#[cfg(unix)]
+fn install_signal_handlers() {
+  extern "C" fn handle(signal: libc::c_int) {
+    let pid = CHILD_PID.load(std::sync::atomic::Ordering::SeqCst);
+    unsafe {
+      if pid > 0 {
+        libc::kill(pid, libc::SIGTERM);
+      }
+      // Then exit the way the signal would have, so the exit status still reports it.
+      libc::signal(signal, libc::SIG_DFL);
+      libc::raise(signal);
+    }
+  }
+
+  static INSTALL: std::sync::Once = std::sync::Once::new();
+  INSTALL.call_once(|| {
+    for signal in [libc::SIGTERM, libc::SIGHUP, libc::SIGINT] {
+      unsafe {
+        libc::signal(
+          signal,
+          handle as extern "C" fn(libc::c_int) as libc::sighandler_t,
+        )
+      };
+    }
+  });
+}
+
 /// Runs the Node entry of a build. With HMR, updates are applied to the running process, which is
 /// restarted when it doesn't accept them. Otherwise it is restarted whenever code it runs changes.
 pub struct NodeRunner {
@@ -44,6 +78,8 @@ impl NodeRunner {
     hmr: Option<(HmrServer, SocketAddr, Receiver<RunnerEvent>)>,
     node_env: Option<String>,
   ) -> Self {
+    #[cfg(unix)]
+    install_signal_handlers();
     NodeRunner {
       child: None,
       node_env,
@@ -75,7 +111,11 @@ impl NodeRunner {
       );
     }
     match self.command(entry).spawn() {
-      Ok(child) => self.child = Some(child),
+      Ok(child) => {
+        #[cfg(unix)]
+        CHILD_PID.store(child.id() as i32, std::sync::atomic::Ordering::SeqCst);
+        self.child = Some(child);
+      }
       Err(err) => {
         eprintln!("Could not start node: {err}");
         return;
@@ -161,6 +201,8 @@ impl NodeRunner {
     let Some(mut child) = self.child.take() else {
       return;
     };
+    #[cfg(unix)]
+    CHILD_PID.store(0, std::sync::atomic::Ordering::SeqCst);
     if let Ok(Some(_)) = child.try_wait() {
       return;
     }
