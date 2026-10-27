@@ -169,12 +169,14 @@ public struct Asset {
     priority: Priority = .sync,
     bundleBehavior: BundleBehavior = .none,
     flags: DependencyFlags = [],
-    conditions: ExportsConditions = []
+    conditions: ExportsConditions = [],
+    importType: ImportType = .javaScript
   ) {
     addDependency(
       DependencyOptions(
         specifier, specifierType: specifierType, priority: priority,
-        bundleBehavior: bundleBehavior, flags: flags, conditions: conditions))
+        bundleBehavior: bundleBehavior, flags: flags, conditions: conditions,
+        importType: importType))
   }
 
   /// Resolves `dependency` with the configured resolvers, exactly as if it had

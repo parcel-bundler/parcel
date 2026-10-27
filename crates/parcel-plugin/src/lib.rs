@@ -222,6 +222,18 @@ impl Default for Priority {
   }
 }
 
+/// What a dependency evaluates to in the code that imports it.
+///
+/// A file imported as `Javascript`, the default, must have a transformer that turns it into
+/// JavaScript, or it is an error. Other import types, such as `Url`, can reference any file.
+pub use ffi::ImportType;
+
+impl Default for ImportType {
+  fn default() -> Self {
+    Self::Javascript
+  }
+}
+
 /// Controls how the asset's output bundle is handled.
 pub use ffi::BundleBehavior;
 
@@ -326,6 +338,7 @@ pub struct DependencyOptions {
   pub bundle_behavior: BundleBehavior,
   pub flags: DependencyFlags,
   pub conditions: ExportsConditions,
+  pub import_type: ImportType,
 }
 
 impl DependencyOptions {
@@ -920,6 +933,7 @@ impl<'a> Asset<'a> {
       bundle_behavior: dep.bundle_behavior,
       flags: dep.flags,
       conditions: dep.conditions,
+      import_type: dep.import_type,
     };
     unsafe { host!(asset_add_dependency)(self.raw, &raw) };
   }
@@ -948,6 +962,7 @@ impl<'a> Asset<'a> {
       bundle_behavior: dep.bundle_behavior,
       flags: dep.flags,
       conditions: dep.conditions,
+      import_type: dep.import_type,
     };
     let from = from.unwrap_or("").as_bytes();
     let mut result = ffi::ResolveResult {

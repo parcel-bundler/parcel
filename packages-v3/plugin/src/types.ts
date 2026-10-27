@@ -695,6 +695,14 @@ export type ResolveOptions = {
    */
   readonly specifierType?: SpecifierType;
 
+  /**
+   * How the resolved file is used, as for a dependency. A file resolved as `javascript` must have a
+   * transformer that turns it into JavaScript, or resolving it fails. Use `url` to resolve any file,
+   * e.g. to read it yourself.
+   * @default 'javascript'
+   */
+  readonly importType?: ImportType;
+
   /** A list of custom conditions to use when resolving package.json "exports" and "imports". */
   readonly packageConditions?: Array<string>;
 };

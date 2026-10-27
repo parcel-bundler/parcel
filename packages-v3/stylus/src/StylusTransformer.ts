@@ -64,6 +64,7 @@ function attemptResolve(
           .filter(e => nativeFS.statSync(path.join(cwd, e)).isFile())
           .map(entry =>
             resolve(filepath, './' + entry, {
+              importType: 'stylesheet',
               packageConditions: ['stylus', 'style'],
             }),
           ),
@@ -76,6 +77,7 @@ function attemptResolve(
     deps.set(
       importedPath,
       resolve(filepath, relative, {
+        importType: 'stylesheet',
         packageConditions: ['stylus', 'style'],
       }),
     );

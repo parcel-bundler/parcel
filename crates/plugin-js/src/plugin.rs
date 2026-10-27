@@ -379,10 +379,12 @@ fn resolve<'js>(
   target: &Arc<Target>,
 ) -> rquickjs::Result<rquickjs::Promise<'js>> {
   let mut specifier_type = SpecifierType::Esm;
+  let mut import_type = ImportType::JavaScript;
   let mut conditions = ExportsCondition::empty();
   let mut custom_conditions = Vec::new();
   if let Some(options) = options.0 {
     specifier_type = dependency_enum(&ctx, &options, "specifierType", SpecifierType::Esm)?;
+    import_type = self::import_type(&ctx, &options, ImportType::JavaScript)?;
     if let Ok(package_conditions) = options.get::<_, Array>("packageConditions") {
       for cond in package_conditions.iter() {
         let cond: String = cond?;
@@ -400,7 +402,7 @@ fn resolve<'js>(
     specifier_type,
     priority: Priority::Sync,
     bundle_behavior: BundleBehavior::None,
-    import_type: ImportType::JavaScript,
+    import_type,
     flags: DependencyFlags::empty(),
     concurrent_group: 0,
     target: target.clone(),
@@ -773,6 +775,30 @@ fn dependency_enum<'js, T: serde::de::DeserializeOwned>(
     .map_err(|_| rquickjs::Exception::throw_type(ctx, &format!("Invalid {name}: {value}")))
 }
 
+/// The `importType` option of a dependency, or `default` when it isn't given.
+fn import_type<'js>(
+  ctx: &Ctx<'js>,
+  options: &Object<'js>,
+  default: ImportType,
+) -> rquickjs::Result<ImportType> {
+  Ok(
+    match options.get::<_, Option<String>>("importType")?.as_deref() {
+      None => default,
+      Some("javascript") => ImportType::JavaScript,
+      Some("url") => ImportType::Url,
+      Some("stylesheet") => ImportType::StyleSheet,
+      Some("text") => ImportType::Text,
+      Some("bytes") => ImportType::Bytes,
+      Some(value) => {
+        return Err(rquickjs::Exception::throw_type(
+          ctx,
+          &format!("Invalid importType: {value}"),
+        ));
+      }
+    },
+  )
+}
+
 fn source_url(ctx: &Ctx<'_>, value: &str) -> rquickjs::Result<SourceUrl> {
   if Path::new(value).is_absolute() {
     Ok(SourceUrl::from_path(&PathId::new(Path::new(value))))
@@ -835,20 +861,15 @@ fn dependency_from_js<'js>(
   } else {
     None
   };
-  let import_type = match options.get::<_, Option<String>>("importType")?.as_deref() {
-    None if url => ImportType::Url,
-    None | Some("javascript") => ImportType::JavaScript,
-    Some("url") => ImportType::Url,
-    Some("stylesheet") => ImportType::StyleSheet,
-    Some("text") => ImportType::Text,
-    Some("bytes") => ImportType::Bytes,
-    Some(value) => {
-      return Err(rquickjs::Exception::throw_type(
-        ctx,
-        &format!("Invalid importType: {value}"),
-      ));
-    }
-  };
+  let import_type = import_type(
+    ctx,
+    options,
+    if url {
+      ImportType::Url
+    } else {
+      ImportType::JavaScript
+    },
+  )?;
   let mut dep = parcel_core::Dependency {
     specifier: specifier.into_boxed_str(),
     specifier_type: dependency_enum(

@@ -92,6 +92,12 @@ func TestConstantsMatchHeader(t *testing.T) {
 		{"PrioritySync", "PARCEL_PRIORITY_SYNC", int(parcel.PrioritySync)},
 		{"PriorityParallel", "PARCEL_PRIORITY_PARALLEL", int(parcel.PriorityParallel)},
 		{"PriorityLazy", "PARCEL_PRIORITY_LAZY", int(parcel.PriorityLazy)},
+		// ImportType
+		{"ImportTypeJavaScript", "PARCEL_IMPORT_TYPE_JAVASCRIPT", int(parcel.ImportTypeJavaScript)},
+		{"ImportTypeStyleSheet", "PARCEL_IMPORT_TYPE_STYLESHEET", int(parcel.ImportTypeStyleSheet)},
+		{"ImportTypeUrl", "PARCEL_IMPORT_TYPE_URL", int(parcel.ImportTypeUrl)},
+		{"ImportTypeText", "PARCEL_IMPORT_TYPE_TEXT", int(parcel.ImportTypeText)},
+		{"ImportTypeBytes", "PARCEL_IMPORT_TYPE_BYTES", int(parcel.ImportTypeBytes)},
 		// BundleBehavior
 		{"BundleBehaviorNone", "PARCEL_BUNDLE_BEHAVIOR_NONE", int(parcel.BundleBehaviorNone)},
 		{"BundleBehaviorInline", "PARCEL_BUNDLE_BEHAVIOR_INLINE", int(parcel.BundleBehaviorInline)},

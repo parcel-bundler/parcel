@@ -607,6 +607,7 @@ func (dep *DependencySpec) raw() C.DependencyOptions {
 		bundle_behavior: C.uint8_t(dep.BundleBehavior),
 		flags:           C.uint8_t(dep.Flags),
 		conditions:      C.uint32_t(dep.Conditions),
+		import_type:     C.uint8_t(dep.ImportType),
 	}
 }
 
@@ -891,6 +892,20 @@ const (
 	PriorityLazy     Priority = 2
 )
 
+// ImportType is what a dependency evaluates to in the code that imports it. A file
+// imported as ImportTypeJavaScript, the default, must have a transformer that turns it
+// into JavaScript, or it is an error. Other import types, such as ImportTypeUrl, can
+// reference any file.
+type ImportType uint8
+
+const (
+	ImportTypeJavaScript ImportType = 0
+	ImportTypeStyleSheet ImportType = 1
+	ImportTypeUrl        ImportType = 2
+	ImportTypeText       ImportType = 3
+	ImportTypeBytes      ImportType = 4
+)
+
 // AssetFlags is a bitfield of asset state flags.
 type AssetFlags uint32
 
@@ -955,6 +970,7 @@ type DependencySpec struct {
 	BundleBehavior BundleBehavior
 	Flags          DependencyFlags
 	Conditions     ExportsConditions
+	ImportType     ImportType
 }
 
 // Environment represents the target execution environment.

@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use parcel_plugin::{
-  Asset, DependencyOptions, Diagnostic, ExportsConditions, FileKind, Options, Plugin,
+  Asset, DependencyOptions, Diagnostic, ExportsConditions, FileKind, ImportType, Options, Plugin,
   ResolveResult, register_plugin,
 };
 use sasso::{CanonicalUrl, CanonicalizeContext, Importer, ImporterError, ImporterResult, Syntax};
@@ -124,6 +124,8 @@ impl<'a> Importer for ParcelImporter<'a> {
       };
       let dep = DependencyOptions {
         conditions: ExportsConditions::SASS | ExportsConditions::STYLE,
+        // Loaded by Sass itself, so it doesn't need a transformer to become JavaScript.
+        import_type: ImportType::Stylesheet,
         ..DependencyOptions::new(specifier)
       };
       if let Some(ResolveResult::Resolved { file_path, .. }) =

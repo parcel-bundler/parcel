@@ -15,6 +15,12 @@ import Testing
     #expect(Priority.parallel.rawValue == PARCEL_PRIORITY_PARALLEL.rawValue)
     #expect(Priority.lazy.rawValue == PARCEL_PRIORITY_LAZY.rawValue)
 
+    #expect(ImportType.javaScript.rawValue == PARCEL_IMPORT_TYPE_JAVASCRIPT.rawValue)
+    #expect(ImportType.styleSheet.rawValue == PARCEL_IMPORT_TYPE_STYLESHEET.rawValue)
+    #expect(ImportType.url.rawValue == PARCEL_IMPORT_TYPE_URL.rawValue)
+    #expect(ImportType.text.rawValue == PARCEL_IMPORT_TYPE_TEXT.rawValue)
+    #expect(ImportType.bytes.rawValue == PARCEL_IMPORT_TYPE_BYTES.rawValue)
+
     #expect(BundleBehavior.none.rawValue == PARCEL_BUNDLE_BEHAVIOR_NONE.rawValue)
     #expect(BundleBehavior.inline.rawValue == PARCEL_BUNDLE_BEHAVIOR_INLINE.rawValue)
     #expect(BundleBehavior.isolated.rawValue == PARCEL_BUNDLE_BEHAVIOR_ISOLATED.rawValue)

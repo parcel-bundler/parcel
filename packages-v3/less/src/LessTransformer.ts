@@ -124,6 +124,7 @@ function resolvePathPlugin({
 
           if (!contents) {
             filePath = await resolve(asset.filePath, filename, {
+              importType: 'stylesheet',
               packageConditions: ['less', 'style'],
             });
             contents = fs.readFileSync(filePath, 'utf8');

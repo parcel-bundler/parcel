@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use parcel_core::{
   Asset as CoreAsset, Dependency as CoreDependency, DependencyFlags as CoreDependencyFlags,
-  DependencyResolution, ExportsCondition as CoreExportsCondition, ImportType,
+  DependencyResolution, ExportsCondition as CoreExportsCondition, ImportType as CoreImportType,
   Priority as CorePriority, SourceUrl, SpecifierType as CoreSpecifierType,
 };
 
@@ -38,6 +38,33 @@ impl_enum_conversion! {
     CoreSpecifierType::Commonjs => SpecifierType::PARCEL_SPECIFIER_COMMONJS,
     CoreSpecifierType::Url => SpecifierType::PARCEL_SPECIFIER_URL,
     CoreSpecifierType::Custom => SpecifierType::PARCEL_SPECIFIER_CUSTOM,
+  }
+}
+
+// ImportType — what a dependency evaluates to in the code that imports it
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum ImportType {
+  /// The module's exports. A file imported this way must have a transformer that turns it into
+  /// JavaScript, or it is an error.
+  PARCEL_IMPORT_TYPE_JAVASCRIPT = 0,
+  /// A `CSSStyleSheet`.
+  PARCEL_IMPORT_TYPE_STYLESHEET = 1,
+  /// The URL of the file. Any file can be referenced this way, transformed or not.
+  PARCEL_IMPORT_TYPE_URL = 2,
+  /// The bundle's contents as a string.
+  PARCEL_IMPORT_TYPE_TEXT = 3,
+  /// The bundle's contents as bytes.
+  PARCEL_IMPORT_TYPE_BYTES = 4,
+}
+
+impl_enum_conversion! {
+  CoreImportType => ImportType {
+    CoreImportType::JavaScript => ImportType::PARCEL_IMPORT_TYPE_JAVASCRIPT,
+    CoreImportType::StyleSheet => ImportType::PARCEL_IMPORT_TYPE_STYLESHEET,
+    CoreImportType::Url => ImportType::PARCEL_IMPORT_TYPE_URL,
+    CoreImportType::Text => ImportType::PARCEL_IMPORT_TYPE_TEXT,
+    CoreImportType::Bytes => ImportType::PARCEL_IMPORT_TYPE_BYTES,
   }
 }
 
@@ -129,8 +156,9 @@ assert_flag_values! {
   }
 }
 
-/// Dependency descriptor passed to `parcel_asset_add_dependency()`.
-/// Use `PARCEL_SPECIFIER_ESM` / `PARCEL_PRIORITY_SYNC` / `PARCEL_BUNDLE_BEHAVIOR_NONE` as defaults.
+/// Dependency descriptor passed to `parcel_asset_add_dependency()` and `parcel_asset_resolve()`.
+/// Use `PARCEL_SPECIFIER_ESM` / `PARCEL_PRIORITY_SYNC` / `PARCEL_BUNDLE_BEHAVIOR_NONE` /
+/// `PARCEL_IMPORT_TYPE_JAVASCRIPT` as defaults.
 #[repr(C)]
 pub struct DependencyOptions {
   /// Module specifier bytes (e.g. `"./foo.js"`). Required.
@@ -147,6 +175,8 @@ pub struct DependencyOptions {
   pub flags: DependencyFlagsFFI,
   /// `PARCEL_EXPORTS_CONDITION_*` bits
   pub conditions: ExportsConditionsFFI,
+  /// `PARCEL_IMPORT_TYPE_*`
+  pub import_type: ImportType,
 }
 // ── Dependencies ──────────────────────────────────────────────────────────────
 
@@ -193,7 +223,7 @@ impl DependencyOptions {
       specifier_type: self.specifier_type.into(),
       priority: self.priority.into(),
       bundle_behavior: self.bundle_behavior.into(),
-      import_type: ImportType::JavaScript, // TODO
+      import_type: self.import_type.into(),
       flags: CoreDependencyFlags::from_bits_truncate(self.flags),
       target: asset.target.clone(),
       loc: None,

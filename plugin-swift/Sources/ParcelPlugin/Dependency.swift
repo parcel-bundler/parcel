@@ -8,6 +8,7 @@ public struct DependencyOptions: Hashable, Sendable {
   public var bundleBehavior: BundleBehavior
   public var flags: DependencyFlags
   public var conditions: ExportsConditions
+  public var importType: ImportType
 
   public init(
     _ specifier: String,
@@ -15,7 +16,8 @@ public struct DependencyOptions: Hashable, Sendable {
     priority: Priority = .sync,
     bundleBehavior: BundleBehavior = .none,
     flags: DependencyFlags = [],
-    conditions: ExportsConditions = []
+    conditions: ExportsConditions = [],
+    importType: ImportType = .javaScript
   ) {
     self.specifier = specifier
     self.specifierType = specifierType
@@ -23,6 +25,7 @@ public struct DependencyOptions: Hashable, Sendable {
     self.bundleBehavior = bundleBehavior
     self.flags = flags
     self.conditions = conditions
+    self.importType = importType
   }
 
   func withRaw<R>(_ body: (UnsafePointer<CParcelABI.DependencyOptions>) -> R) -> R {
@@ -34,7 +37,8 @@ public struct DependencyOptions: Hashable, Sendable {
         priority: priority.rawValue,
         bundle_behavior: bundleBehavior.rawValue,
         flags: flags.rawValue,
-        conditions: conditions.rawValue)
+        conditions: conditions.rawValue,
+        import_type: importType.rawValue)
       return body(&raw)
     }
   }

@@ -117,6 +117,41 @@ typedef uint8_t Priority;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
+enum ImportType
+#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+  : uint8_t
+#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+ {
+  /**
+   * The module's exports. A file imported this way must have a transformer that turns it into
+   * JavaScript, or it is an error.
+   */
+  PARCEL_IMPORT_TYPE_JAVASCRIPT = 0,
+  /**
+   * A `CSSStyleSheet`.
+   */
+  PARCEL_IMPORT_TYPE_STYLESHEET = 1,
+  /**
+   * The URL of the file. Any file can be referenced this way, transformed or not.
+   */
+  PARCEL_IMPORT_TYPE_URL = 2,
+  /**
+   * The bundle's contents as a string.
+   */
+  PARCEL_IMPORT_TYPE_TEXT = 3,
+  /**
+   * The bundle's contents as bytes.
+   */
+  PARCEL_IMPORT_TYPE_BYTES = 4,
+};
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef enum ImportType ImportType;
+#else
+typedef uint8_t ImportType;
+#endif // __STDC_VERSION__ >= 202311L
+#endif // __cplusplus
+
 enum Environment
 #if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
   : uint8_t
@@ -539,8 +574,9 @@ typedef struct BundleGraphDependencyResolution {
 typedef uint64_t Dependency;
 
 /**
- * Dependency descriptor passed to `parcel_asset_add_dependency()`.
- * Use `PARCEL_SPECIFIER_ESM` / `PARCEL_PRIORITY_SYNC` / `PARCEL_BUNDLE_BEHAVIOR_NONE` as defaults.
+ * Dependency descriptor passed to `parcel_asset_add_dependency()` and `parcel_asset_resolve()`.
+ * Use `PARCEL_SPECIFIER_ESM` / `PARCEL_PRIORITY_SYNC` / `PARCEL_BUNDLE_BEHAVIOR_NONE` /
+ * `PARCEL_IMPORT_TYPE_JAVASCRIPT` as defaults.
  */
 typedef struct DependencyOptions {
   /**
@@ -571,6 +607,10 @@ typedef struct DependencyOptions {
    * `PARCEL_EXPORTS_CONDITION_*` bits
    */
   ExportsConditions conditions;
+  /**
+   * `PARCEL_IMPORT_TYPE_*`
+   */
+  ImportType import_type;
 } DependencyOptions;
 
 /**

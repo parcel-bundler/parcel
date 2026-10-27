@@ -1266,6 +1266,8 @@ fn asset_resolve(
     bundle_behavior: BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_NONE,
     flags: 0,
     conditions: CoreExportsCondition::SASS.bits(),
+    // A stylesheet the plugin loads itself, which needs no transformer to become JavaScript.
+    import_type: crate::ImportType::PARCEL_IMPORT_TYPE_STYLESHEET,
   };
   let mut result = ResolveResult {
     resolution_type: ResolutionType::PARCEL_RESOLUTION_NONE,
@@ -1341,6 +1343,7 @@ fn asset_resolve_runs_the_resolver_chain() {
   let seen = recorder.seen.lock().unwrap();
   assert!(Arc::ptr_eq(&seen[0].target, &asset.target));
   assert_eq!(seen[0].conditions, CoreExportsCondition::SASS);
+  assert_eq!(seen[0].import_type, ImportType::StyleSheet);
   assert_eq!(
     seen[1].resolve_from,
     Some(SourceUrl::from_path(&path(

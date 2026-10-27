@@ -46,6 +46,20 @@ pub enum Priority {
 }
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum ImportType {
+  #[doc = " The module's exports. A file imported this way must have a transformer that turns it into\n JavaScript, or it is an error."]
+  Javascript = 0,
+  #[doc = " A `CSSStyleSheet`."]
+  Stylesheet = 1,
+  #[doc = " The URL of the file. Any file can be referenced this way, transformed or not."]
+  Url = 2,
+  #[doc = " The bundle's contents as a string."]
+  Text = 3,
+  #[doc = " The bundle's contents as bytes."]
+  Bytes = 4,
+}
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum Environment {
   Browser = 0,
   WebWorker = 1,
@@ -457,7 +471,7 @@ const _: () = {
 };
 #[doc = " Opaque handle to a Parcel dependency. Passed to `parcel_plugin_resolve()`."]
 pub type Dependency = u64;
-#[doc = " Dependency descriptor passed to `parcel_asset_add_dependency()`.\n Use `PARCEL_SPECIFIER_ESM` / `PARCEL_PRIORITY_SYNC` / `PARCEL_BUNDLE_BEHAVIOR_NONE` as defaults."]
+#[doc = " Dependency descriptor passed to `parcel_asset_add_dependency()` and `parcel_asset_resolve()`.\n Use `PARCEL_SPECIFIER_ESM` / `PARCEL_PRIORITY_SYNC` / `PARCEL_BUNDLE_BEHAVIOR_NONE` /\n `PARCEL_IMPORT_TYPE_JAVASCRIPT` as defaults."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct DependencyOptions {
@@ -475,10 +489,12 @@ pub struct DependencyOptions {
   pub flags: DependencyFlags,
   #[doc = " `PARCEL_EXPORTS_CONDITION_*` bits"]
   pub conditions: ExportsConditions,
+  #[doc = " `PARCEL_IMPORT_TYPE_*`"]
+  pub import_type: ImportType,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of DependencyOptions"][::std::mem::size_of::<DependencyOptions>() - 24usize];
+  ["Size of DependencyOptions"][::std::mem::size_of::<DependencyOptions>() - 32usize];
   ["Alignment of DependencyOptions"][::std::mem::align_of::<DependencyOptions>() - 8usize];
   ["Offset of field: DependencyOptions::specifier"]
     [::std::mem::offset_of!(DependencyOptions, specifier) - 0usize];
@@ -494,6 +510,8 @@ const _: () = {
     [::std::mem::offset_of!(DependencyOptions, flags) - 19usize];
   ["Offset of field: DependencyOptions::conditions"]
     [::std::mem::offset_of!(DependencyOptions, conditions) - 20usize];
+  ["Offset of field: DependencyOptions::import_type"]
+    [::std::mem::offset_of!(DependencyOptions, import_type) - 24usize];
 };
 #[doc = " Opaque handle to the diagnostics attached to a reporter event. Pass to the\n `parcel_diagnostics_*` and `parcel_diagnostic_*` functions."]
 pub type Diagnostics = u64;

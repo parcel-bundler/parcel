@@ -32,6 +32,21 @@ public struct Priority: RawRepresentable, Hashable, Sendable {
   public static let lazy = Self(rawValue: 2)
 }
 
+/// What a dependency evaluates to in the code that imports it. A file imported
+/// as ``javaScript``, the default, must have a transformer that turns it into
+/// JavaScript, or it is an error. Other import types, such as ``url``, can
+/// reference any file.
+public struct ImportType: RawRepresentable, Hashable, Sendable {
+  public var rawValue: UInt8
+  public init(rawValue: UInt8) { self.rawValue = rawValue }
+
+  public static let javaScript = Self(rawValue: 0)
+  public static let styleSheet = Self(rawValue: 1)
+  public static let url = Self(rawValue: 2)
+  public static let text = Self(rawValue: 3)
+  public static let bytes = Self(rawValue: 4)
+}
+
 /// How an asset's or dependency's bundle is output.
 public struct BundleBehavior: RawRepresentable, Hashable, Sendable {
   public var rawValue: UInt8

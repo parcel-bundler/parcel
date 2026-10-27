@@ -200,6 +200,7 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
         "PARCEL_INIT_",
         "PARCEL_SPECIFIER_",
         "PARCEL_PRIORITY_",
+        "PARCEL_IMPORT_TYPE_",
         "PARCEL_BUNDLE_BEHAVIOR_",
         "PARCEL_ENV_",
         "PARCEL_OUTPUT_FORMAT_",
@@ -243,11 +244,12 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
     .allowlist_function("parcel_.*")
     .allowlist_var("PARCEL_.*")
     .allowlist_type(
-      "ParcelApi|InitStatus|SpecifierType|Priority|BundleBehavior|Environment|OutputFormat|SourceType|Diagnostic|DiagnosticSeverity|Diagnostics|ResolveResult|OptimizeResult|ReportEvent|ReportEventType|LogLevel|ResolutionType|DependencyFlags|ExportsConditions|AssetFlags|EnvironmentFlags|BundleFlags|BundleGraphResolutionType|BundleGraphDependencyResolution|AssetIndex|BundleIndex|IoStatus|FileKind",
+      "ParcelApi|InitStatus|SpecifierType|Priority|ImportType|BundleBehavior|Environment|OutputFormat|SourceType|Diagnostic|DiagnosticSeverity|Diagnostics|ResolveResult|OptimizeResult|ReportEvent|ReportEventType|LogLevel|ResolutionType|DependencyFlags|ExportsConditions|AssetFlags|EnvironmentFlags|BundleFlags|BundleGraphResolutionType|BundleGraphDependencyResolution|AssetIndex|BundleIndex|IoStatus|FileKind",
     )
     .rustified_enum("InitStatus")
     .rustified_enum("SpecifierType")
     .rustified_enum("Priority")
+    .rustified_enum("ImportType")
     .rustified_enum("BundleBehavior")
     .rustified_enum("Environment")
     .rustified_enum("OutputFormat")
