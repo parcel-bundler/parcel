@@ -285,7 +285,8 @@ fn console_logs_from_javascript_called_back_by_a_plugin_are_delivered_in_order()
     export default {[Symbol.for('parcel-plugin-config')]: {
       async transform({asset, resolve}) {
         console.log('before');
-        await resolve(asset.filePath, './dep');
+        // A URL, so that the empty transformer config is allowed.
+        await resolve(asset.filePath, './dep', {importType: 'url'});
         console.log('after');
       }
     }};

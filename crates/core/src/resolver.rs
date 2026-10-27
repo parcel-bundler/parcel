@@ -2,7 +2,7 @@ use std::{path::Path, sync::Arc};
 
 use crate::{
   CodeFrame, Dependency, DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList,
-  ImportType, PluginContext,
+  PluginContext, transformer::relative_path,
 };
 
 pub trait Resolver: Send + Sync {
@@ -48,20 +48,28 @@ pub(crate) fn resolve(
       Ok(res) => match res {
         DependencyResolution::None => continue,
         DependencyResolution::Deferred(mut req) => {
-          // TODO: is this how we want to handle special case transformations like JSON that only apply when importing from JS?
-          if req.pipeline.is_none() && dep.import_type == ImportType::JavaScript {
-            let path = req.loc.url.to_file_path()?;
-            let matches = transformers.is_some_and(|transformers| {
-              path.with_relative(options.project_root, |relative_path| {
-                transformers
-                  .get(relative_path.to_string_lossy(), &Some("js"), false)
-                  .next()
-                  .is_some()
-              })
-            });
-            if matches {
-              let inner = Arc::make_mut(&mut req);
-              inner.pipeline = Some("js".into());
+          if let Some(transformers) = transformers {
+            let path = relative_path(&req.loc.url, &options.project_root, &req.ty)?;
+            let pipeline = transformers
+              .import_pipeline(&path, req.pipeline.clone(), dep.import_type)
+              .map_err(|diagnostic| Diagnostic {
+                code_frames: dep
+                  .loc
+                  .iter()
+                  .map(|loc| CodeFrame::from_loc(loc, None))
+                  .collect(),
+                // A named pipeline was chosen on purpose, so a URL would not be the answer.
+                hints: if req.pipeline.is_none() {
+                  vec![
+                    "Add a transformer for this file type to .parcelrc, or import it as a URL using the import attribute `with {type: 'url'}`.".into(),
+                  ]
+                } else {
+                  vec![]
+                },
+                ..diagnostic
+              })?;
+            if pipeline != req.pipeline {
+              Arc::make_mut(&mut req).pipeline = pipeline;
             }
           }
 
@@ -137,8 +145,8 @@ mod tests {
   use std::sync::Arc;
 
   use crate::{
-    AssetRequest, AssetType, ExportsCondition, FileContent, FileSystem, OsFileSystem, PathId,
-    SourceLocation, SourceUrl,
+    AssetRequest, AssetType, ExportsCondition, FileContent, FileSystem, ImportType, OsFileSystem,
+    PathId, SourceLocation, SourceUrl,
   };
 
   use super::*;
@@ -223,7 +231,8 @@ mod tests {
         url: SourceUrl::parse("file:///test.js").unwrap(),
         ..Default::default()
       }),
-      import_type: ImportType::JavaScript,
+      // A URL, so that the empty transformer config is allowed.
+      import_type: ImportType::Url,
       placeholder: None,
       resolve_from: None,
       range: None,
@@ -288,7 +297,8 @@ mod tests {
       flags: DependencyFlags::empty(),
       target: Arc::new(Default::default()),
       loc: None,
-      import_type: ImportType::JavaScript,
+      // A URL, so that the empty transformer config is allowed.
+      import_type: ImportType::Url,
       placeholder: None,
       resolve_from: None,
       range: None,

@@ -1,10 +1,7 @@
 {
-  "description": "should error when an entry has no transformers",
+  "description": "should copy an entry with no transformers as is",
   "input": "archive.zip",
-  "diagnostics": [
-    {
-      "message": "No transformers found for crates/parcel/tests/fixtures/config/no-transformers-entry/archive.zip.",
-      "origin": "@parcel/core"
-    }
+  "bundles": [
+    {"name": "archive.zip", "type": "zip", "assets": ["archive.zip"]}
   ]
 }

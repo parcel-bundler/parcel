@@ -1,10 +1,10 @@
 use std::{borrow::Cow, sync::Arc};
 
 use crate::{
-  Asset, AssetFlags, AssetNodeIndex, AssetRequest, AssetSymbols, AssetType, CodeFrame, Dependency,
-  DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList, FileContent, FileSystem,
-  ImportType, Invalidations, ParcelOptions, PathId, Pipeline, PluginContext, SourceUrl, Target,
-  TrackingFileSystem, config::ParcelConfig,
+  Asset, AssetFlags, AssetNodeIndex, AssetRequest, AssetSymbols, AssetType, DependencyFlags,
+  DependencyResolution, Diagnostic, DiagnosticList, FileContent, FileSystem, Invalidations,
+  ParcelOptions, PathId, Pipeline, PluginContext, SourceUrl, Target, TrackingFileSystem,
+  config::ParcelConfig,
 };
 
 pub trait Transformer: Send + Sync {
@@ -75,11 +75,10 @@ impl TransformRequest {
   fn transform(&self, invalidations: &mut Invalidations) -> Result<Asset, DiagnosticList> {
     let req = &self.req;
     let relative_path = relative_path(&req.loc.url, &self.options.project_root, &req.ty)?;
-    let transformer_pipeline =
-      self
-        .config
-        .transformers
-        .get(Cow::Borrowed(&relative_path), &req.pipeline, false);
+    let transformer_pipeline = self
+      .config
+      .transformers
+      .get(Cow::Borrowed(&relative_path), &req.pipeline);
 
     let mut flags = AssetFlags::empty();
     flags.set(AssetFlags::SIDE_EFFECTS, req.side_effects);
@@ -119,7 +118,6 @@ impl TransformRequest {
       for dep in &mut asset.dependencies {
         if dep.resolution == DependencyResolution::None {
           dep.resolution = ctx.resolve(dep)?;
-          check_transformers(dep, &self.config, &self.options)?;
         }
 
         if let DependencyResolution::Deferred(req) = &dep.resolution {
@@ -164,70 +162,6 @@ fn transform(
   }
 
   Ok(input)
-}
-
-/// Without a transformer, a file imported from JavaScript becomes an empty module. Other
-/// kinds of dependencies, such as URLs, can reference any file as is.
-fn check_transformers(
-  dep: &Dependency,
-  config: &ParcelConfig,
-  options: &ParcelOptions,
-) -> Result<(), Diagnostic> {
-  let DependencyResolution::Deferred(req) = &dep.resolution else {
-    return Ok(());
-  };
-  if dep.import_type != ImportType::JavaScript {
-    return Ok(());
-  }
-
-  check_pipeline(req, config, options).map_err(|diagnostic| Diagnostic {
-    code_frames: dep
-      .loc
-      .iter()
-      .map(|loc| CodeFrame::from_loc(loc, None))
-      .collect(),
-    // A named pipeline was chosen on purpose, so "url:" would not be the answer.
-    hints: if req.pipeline.is_none() {
-      vec![format!(
-        "Add a transformer for this file type to .parcelrc, or import it as a URL with \"url:{}\".",
-        dep.specifier
-      )]
-    } else {
-      vec![]
-    },
-    ..diagnostic
-  })
-}
-
-/// Errors when no transformer applies to the request, as in Parcel 2. A pattern that is
-/// configured with an empty pipeline, e.g. `"*.zip": []`, doesn't count.
-pub(crate) fn check_pipeline(
-  req: &AssetRequest,
-  config: &ParcelConfig,
-  options: &ParcelOptions,
-) -> Result<(), Diagnostic> {
-  let path = relative_path(&req.loc.url, &options.project_root, &req.ty)?;
-  if config
-    .transformers
-    .get(Cow::Borrowed(&path), &req.pipeline, false)
-    .next()
-    .is_some()
-  {
-    return Ok(());
-  }
-
-  Err(Diagnostic {
-    origin: Some("@parcel/core".into()),
-    ..Diagnostic::from_message(format!(
-      "No transformers found for {}{}.",
-      path,
-      req
-        .pipeline
-        .as_ref()
-        .map(|pipeline| format!(" with pipeline: '{}'", pipeline))
-        .unwrap_or_default()
-    ))
-  })
 }
 
 pub(crate) fn relative_path(

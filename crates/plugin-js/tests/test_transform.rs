@@ -682,6 +682,26 @@ fn test_transform_throws_diagnostics() {
   );
 }
 
+/// A transformer config with a no-op transformer for files matching `glob`. Files resolved as
+/// JavaScript must have a transformer.
+fn transformers(glob: &str) -> parcel_core::PipelineMap<dyn Transformer> {
+  struct Noop;
+  impl Transformer for Noop {
+    fn transform(
+      &self,
+      asset: Asset,
+      _ctx: &parcel_core::PluginContext,
+    ) -> Result<Asset, DiagnosticList> {
+      Ok(asset)
+    }
+  }
+
+  parcel_core::PipelineMap(vec![(
+    glob.into(),
+    vec![parcel_core::PipelineNode::Plugin(Arc::new(Noop))],
+  )])
+}
+
 /// Resolves the way Parcel's default resolver does, from what the dependency carries, so tests
 /// can see that `resolve` passes the specifier type and conditions through the resolver chain.
 /// Custom specifiers, which only a plugin could resolve, go to `custom.js`.
@@ -722,7 +742,7 @@ impl parcel_core::Resolver for NodeResolver {
         url: SourceUrl::from_path(&path),
         ..Default::default()
       },
-      ty: AssetType::Js,
+      ty: AssetType::from_extension(path.extension().unwrap_or_default()),
       pipeline: None,
       target: dep.target.clone(),
       content: Arc::new(BufferContent::new_string(String::new())),
@@ -750,6 +770,11 @@ fn test_resolve_uses_the_resolver_chain() {
   fs.write(from, &b"".to_vec()).unwrap();
   fs.write(root.join(Path::new("resolve-fixture/pkg")), &b"".to_vec())
     .unwrap();
+  fs.write(
+    root.join(Path::new("resolve-fixture/data.txt")),
+    &b"".to_vec(),
+  )
+  .unwrap();
 
   let plugin_path = root.join(Path::new("resolve-specifier-type.mjs"));
   fs.write(
@@ -763,7 +788,11 @@ fn test_resolve_uses_the_resolver_chain() {
           assert.match(await resolve(from, 'pkg', {specifierType: 'esm'}), /node_modules\/pkg\/esm\.js$/);
           assert.match(await resolve(from, 'pkg', {specifierType: 'commonjs'}), /node_modules\/pkg\/cjs\.js$/);
           // A bare URL is relative, so this is the sibling file rather than the package.
-          assert.match(await resolve(from, 'pkg', {specifierType: 'url'}), /resolve-fixture\/pkg$/);
+          assert.match(await resolve(from, 'pkg', {specifierType: 'url', importType: 'url'}), /resolve-fixture\/pkg$/);
+          // Only files with a transformer can be resolved as JavaScript.
+          await assert.rejects(resolve(from, './data.txt'), /No transformers found for .*data\.txt/);
+          assert.match(await resolve(from, './data.txt', {importType: 'url'}), /resolve-fixture\/data\.txt$/);
+          assert.throws(() => resolve(from, './data.txt', {importType: 'nope'}), /Invalid importType/);
           // Conditions Parcel has no flag for still reach the resolvers.
           assert.match(await resolve(from, 'pkg', {packageConditions: ['my-condition']}), /custom-condition\.js$/);
           // Custom specifiers are for resolver plugins to interpret.
@@ -786,7 +815,7 @@ fn test_resolve_uses_the_resolver_chain() {
     ..Default::default()
   };
   let resolvers: Vec<Arc<dyn parcel_core::Resolver>> = vec![Arc::new(NodeResolver)];
-  let transformers = Default::default();
+  let transformers = transformers("*.js");
   let context =
     parcel_core::PluginContext::new(&options, &dyn_fs).with_resolvers(&resolvers, &transformers);
   plugin.transform(asset, &context).unwrap();
@@ -843,7 +872,7 @@ fn test_resolve_runs_javascript_resolvers() {
     "test-resolver",
     None,
   ))];
-  let transformers = Default::default();
+  let transformers = transformers("*");
   let context =
     parcel_core::PluginContext::new(&options, &dyn_fs).with_resolvers(&resolvers, &transformers);
   let asset = plugin.transform(test_asset(), &context).unwrap();

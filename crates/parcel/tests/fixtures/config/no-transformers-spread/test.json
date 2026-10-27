@@ -14,7 +14,7 @@
         }
       ],
       "hints": [
-        "Add a transformer for this file type to .parcelrc, or import it as a URL with \"url:./archive.zip\"."
+        "Add a transformer for this file type to .parcelrc, or import it as a URL using the import attribute `with {type: 'url'}`."
       ]
     }
   ]

@@ -83,7 +83,7 @@ fn packaging_plan(
   let name = bundle.dist_path.unwrap().relative(&bundle.target.dist_dir);
   let optimizers: Vec<_> = config
     .optimizers
-    .get(Cow::Borrowed(name.to_str().unwrap()), &pipeline, false)
+    .get(Cow::Borrowed(name.to_str().unwrap()), &pipeline)
     .collect();
 
   let mut declared = content.bundle_dependencies(bundle_graph, bundle);

@@ -5,8 +5,9 @@ use serde::Deserialize;
 use std::{borrow::Cow, collections::HashSet, ffi::OsStr, path::Path, slice, sync::Arc};
 
 use crate::{
-  Diagnostic, DiagnosticList, FileSystem, PathId, SourceUrl, bundler::Bundler, namer::Namer,
-  optimizer::Optimizer, reporter::Reporter, resolver::Resolver, transformer::Transformer,
+  Diagnostic, DiagnosticList, FileSystem, ImportType, PathId, SourceUrl, bundler::Bundler,
+  namer::Namer, optimizer::Optimizer, reporter::Reporter, resolver::Resolver,
+  transformer::Transformer,
 };
 
 pub struct ParcelConfig {
@@ -89,7 +90,6 @@ impl<T: ?Sized> PipelineMap<T> {
     &'a self,
     path: Cow<'a, str>,
     pipeline: &Option<P>,
-    _allow_empty: bool,
   ) -> Pipeline<'a, T> {
     let basename = Path::new(&*path)
       .file_name()
@@ -120,6 +120,43 @@ impl<T: ?Sized> PipelineMap<T> {
       stack: Vec::new(),
       seen: HashSet::new(),
     }
+  }
+
+  /// The pipeline to transform the file at `path` with when it is imported as `import_type`, given
+  /// the `pipeline` it was resolved with. A JavaScript import without a named pipeline uses the
+  /// `js` pipeline where one applies, e.g. to turn JSON into a module. A JavaScript import must
+  /// also have a transformer, or the file would become an empty module, so it is an error if the
+  /// pipeline has none. That includes a pattern configured with no plugins, e.g. `"*.zip": []`.
+  /// Other imports, such as URLs, can reference any file as is.
+  pub fn import_pipeline(
+    &self,
+    path: &str,
+    pipeline: Option<hstr::Atom>,
+    import_type: ImportType,
+  ) -> Result<Option<hstr::Atom>, Diagnostic> {
+    if import_type != ImportType::JavaScript {
+      return Ok(pipeline);
+    }
+
+    let has_plugins =
+      |pipeline: &Option<&str>| self.get(Cow::Borrowed(path), pipeline).next().is_some();
+    if pipeline.is_none() && has_plugins(&Some("js")) {
+      return Ok(Some("js".into()));
+    }
+    if has_plugins(&pipeline.as_deref()) {
+      return Ok(pipeline);
+    }
+
+    Err(Diagnostic {
+      origin: Some("@parcel/core".into()),
+      ..Diagnostic::from_message(format!(
+        "No transformers found for {}{}.",
+        path,
+        pipeline
+          .map(|pipeline| format!(" with pipeline: '{}'", pipeline))
+          .unwrap_or_default()
+      ))
+    })
   }
 
   pub fn named_pipelines(&self) -> impl Iterator<Item = &str> {
@@ -513,7 +550,7 @@ mod tests {
     ]);
 
     assert_eq!(
-      names(pipelines.get::<&str>("src/app.js".into(), &None, false)),
+      names(pipelines.get::<&str>("src/app.js".into(), &None)),
       ["first", "second", "third", "fourth", "last"]
     );
   }
@@ -529,15 +566,43 @@ mod tests {
     ]);
 
     assert_eq!(
-      names(pipelines.get("app.js".into(), &Some("custom"), false)),
+      names(pipelines.get("app.js".into(), &Some("custom"))),
       ["named", "default"]
     );
     assert!(
       pipelines
-        .get("app.js".into(), &Some("missing"), false)
+        .get("app.js".into(), &Some("missing"))
         .next()
         .is_none()
     );
+  }
+
+  #[test]
+  fn import_pipeline_requires_a_transformer_for_javascript_imports() {
+    let pipelines = PipelineMap(vec![
+      ("js:*.json".into(), vec![plugin("json")]),
+      ("*.js".into(), vec![plugin("js")]),
+      ("*.zip".into(), vec![]),
+    ]);
+    let import = |path: &str, import_type| pipelines.import_pipeline(path, None, import_type);
+
+    // JSON imported from JavaScript becomes a module; as a URL it is referenced as is.
+    assert_eq!(
+      import("data.json", ImportType::JavaScript).unwrap(),
+      Some("js".into())
+    );
+    assert_eq!(import("data.json", ImportType::Url).unwrap(), None);
+    assert_eq!(import("app.js", ImportType::JavaScript).unwrap(), None);
+
+    // An empty pipeline, or no pattern at all, can't turn a file into JavaScript.
+    assert_eq!(
+      import("archive.zip", ImportType::JavaScript)
+        .unwrap_err()
+        .message,
+      "No transformers found for archive.zip."
+    );
+    assert!(import("image.png", ImportType::JavaScript).is_err());
+    assert_eq!(import("archive.zip", ImportType::Url).unwrap(), None);
   }
 
   #[test]
@@ -546,7 +611,7 @@ mod tests {
       "*.{js,css}".into(),
       vec![plugin("type-changer"), plugin("after")],
     )]);
-    let mut pipeline = pipelines.get::<&str>("app.js".into(), &None, false);
+    let mut pipeline = pipelines.get::<&str>("app.js".into(), &None);
 
     assert_eq!(pipeline.next().unwrap().as_ref(), "type-changer");
     pipeline.change_type("app.css".into(), &mut None);
@@ -564,7 +629,7 @@ mod tests {
       ("*.js".into(), vec![plugin("type-changer")]),
       ("*.css".into(), vec![plugin("default")]),
     ]);
-    let mut pipeline = pipelines.get::<&str>("app.js".into(), &None, false);
+    let mut pipeline = pipelines.get::<&str>("app.js".into(), &None);
     pipeline.next();
 
     let mut named_pipeline = Some(hstr::Atom::from("custom"));
@@ -579,7 +644,7 @@ mod tests {
       ("*.js".into(), vec![plugin("type-changer")]),
       ("*.css".into(), vec![plugin("default")]),
     ]);
-    let mut pipeline = pipelines.get::<&str>("app.js".into(), &None, false);
+    let mut pipeline = pipelines.get::<&str>("app.js".into(), &None);
     pipeline.next();
 
     let mut named_pipeline = Some(hstr::Atom::from("missing"));
