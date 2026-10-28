@@ -886,7 +886,7 @@ fn bundle_graph_accessors_cover_every_dependency_resolution() {
     BundleGraphResolutionType::PARCEL_BUNDLE_GRAPH_RESOLUTION_BUNDLE,
   ];
   for (dependency_index, resolution_type) in expected.into_iter().enumerate() {
-    let result = parcel_bundle_graph_get_dependency_resolution(handle, 0, dependency_index);
+    let result = dependency_resolution(handle, 0, dependency_index);
     assert_eq!(result.resolution_type, resolution_type);
     if dependency_index == 4 {
       assert_eq!(result.asset, 1);
@@ -901,17 +901,65 @@ fn bundle_graph_accessors_cover_every_dependency_resolution() {
   assert_eq!(parcel_bundle_graph_get_bundle_count(0), 0);
   assert_eq!(parcel_bundle_graph_get_bundle(0, 0), 0);
   assert_eq!(
-    parcel_bundle_graph_get_dependency_resolution(0, 0, 0).resolution_type,
+    dependency_resolution(0, 0, 0).resolution_type,
     BundleGraphResolutionType::PARCEL_BUNDLE_GRAPH_RESOLUTION_INVALID
   );
   assert_eq!(
-    parcel_bundle_graph_get_dependency_resolution(handle, 2, 0).resolution_type,
+    dependency_resolution(handle, 2, 0).resolution_type,
     BundleGraphResolutionType::PARCEL_BUNDLE_GRAPH_RESOLUTION_INVALID
   );
   assert_eq!(
-    parcel_bundle_graph_get_dependency_resolution(handle, 0, 6).resolution_type,
+    dependency_resolution(handle, 0, 6).resolution_type,
     BundleGraphResolutionType::PARCEL_BUNDLE_GRAPH_RESOLUTION_INVALID
   );
+
+  // A plugin built against a newer header passes a larger struct. Parcel fills in
+  // what it knows and leaves the rest alone.
+  #[repr(C)]
+  struct Newer {
+    resolution: BundleGraphDependencyResolution,
+    extra: u64,
+  }
+  let mut newer = Newer {
+    resolution: BundleGraphDependencyResolution {
+      size: size_of::<Newer>(),
+      ..Default::default()
+    },
+    extra: 7,
+  };
+  parcel_bundle_graph_get_dependency_resolution(&mut newer.resolution, handle, 0, 4);
+  assert_eq!(newer.resolution.size, size_of::<Newer>());
+  assert_eq!(
+    newer.resolution.resolution_type,
+    BundleGraphResolutionType::PARCEL_BUNDLE_GRAPH_RESOLUTION_ASSET
+  );
+  assert_eq!(newer.resolution.asset, 1);
+  assert_eq!(newer.extra, 7);
+
+  // One that forgot to set `size` gets nothing written, rather than an overrun.
+  let mut unsized_resolution = BundleGraphDependencyResolution {
+    size: 0,
+    asset: 42,
+    ..Default::default()
+  };
+  parcel_bundle_graph_get_dependency_resolution(&mut unsized_resolution, handle, 0, 4);
+  assert_eq!(unsized_resolution.size, 0);
+  assert_eq!(unsized_resolution.asset, 42);
+}
+
+fn dependency_resolution(
+  bundle_graph: BundleGraph,
+  asset: AssetIndex,
+  dependency_index: usize,
+) -> BundleGraphDependencyResolution {
+  let mut resolution = BundleGraphDependencyResolution::default();
+  parcel_bundle_graph_get_dependency_resolution(
+    &mut resolution,
+    bundle_graph,
+    asset,
+    dependency_index,
+  );
+  resolution
 }
 
 #[test]
@@ -1087,12 +1135,20 @@ fn plugins_log_messages_through_the_options_handle() {
   let message = b"a message from a plugin";
   parcel_options_log(
     handle,
-    LogLevel::PARCEL_LOG_WARN,
+    LogLevel::PARCEL_LOG_WARN as u8,
     message.as_ptr(),
     message.len(),
   );
+  // A level from a newer plugin is still logged, at the default level.
+  parcel_options_log(handle, 200, message.as_ptr(), message.len());
 
-  assert_eq!(*events.lock().unwrap(), ["warn: a message from a plugin"]);
+  assert_eq!(
+    *events.lock().unwrap(),
+    [
+      "warn: a message from a plugin",
+      "info: a message from a plugin"
+    ]
+  );
 }
 
 #[test]
@@ -1104,7 +1160,7 @@ fn plugins_log_diagnostics_without_giving_up_their_buffers() {
   let message = b"a warning worth surfacing";
   let mut diagnostic = Diagnostic {
     message: parcel_buffer_alloc(message.as_ptr(), message.len()),
-    severity: DiagnosticSeverity::PARCEL_SEVERITY_WARNING,
+    severity: DiagnosticSeverity::PARCEL_SEVERITY_WARNING as u8,
     ..Default::default()
   };
 
@@ -1261,19 +1317,12 @@ fn asset_resolve(
   let dep = DependencyOptions {
     specifier: specifier.as_ptr(),
     specifier_len: specifier.len(),
-    specifier_type: SpecifierType::PARCEL_SPECIFIER_ESM,
-    priority: Priority::PARCEL_PRIORITY_SYNC,
-    bundle_behavior: BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_NONE,
-    flags: 0,
     conditions: CoreExportsCondition::SASS.bits(),
     // A stylesheet the plugin loads itself, which needs no transformer to become JavaScript.
-    import_type: crate::ImportType::PARCEL_IMPORT_TYPE_STYLESHEET,
+    import_type: crate::ImportType::PARCEL_IMPORT_TYPE_STYLESHEET as u8,
+    ..Default::default()
   };
-  let mut result = ResolveResult {
-    resolution_type: ResolutionType::PARCEL_RESOLUTION_NONE,
-    file_path: Buffer::default(),
-    pipeline: Buffer::default(),
-  };
+  let mut result = ResolveResult::default();
   let resolved = parcel_asset_resolve(
     asset as *const CoreAsset as Asset,
     handle,
@@ -1292,7 +1341,7 @@ fn asset_resolve(
   };
   resolved.then(|| {
     (
-      result.resolution_type,
+      ResolutionType::try_from(result.resolution_type).unwrap(),
       take(&mut result.file_path),
       take(&mut result.pipeline),
     )
@@ -1340,6 +1389,28 @@ fn asset_resolve_runs_the_resolver_chain() {
   // Nothing in the chain resolves it.
   assert_eq!(asset_resolve(&asset, context.handle(), "missing", ""), None);
 
+  // A result with `size` unset is never written to, and nothing is resolved for it.
+  let specifier = "pkg";
+  let dep = DependencyOptions {
+    specifier: specifier.as_ptr(),
+    specifier_len: specifier.len(),
+    ..Default::default()
+  };
+  let mut result = ResolveResult {
+    size: 0,
+    ..Default::default()
+  };
+  let resolved = parcel_asset_resolve(
+    asset_handle(&asset),
+    context.handle(),
+    &dep,
+    ptr::null(),
+    0,
+    &mut result,
+  );
+  assert!(!resolved);
+  assert!(result.file_path.data.is_null());
+
   let seen = recorder.seen.lock().unwrap();
   assert!(Arc::ptr_eq(&seen[0].target, &asset.target));
   assert_eq!(seen[0].conditions, CoreExportsCondition::SASS);
@@ -1384,4 +1455,257 @@ fn fs_rejects_relative_paths() {
   let (status, message) = read_file(context.handle(), "src/index.scss");
   assert_eq!(status, IoStatus::PARCEL_IO_ERROR);
   assert_eq!(message.as_deref(), Some("Expected an absolute path"));
+}
+
+// ── Extensible structs and enums from plugins ───────────────────────────────
+
+fn dependency_options(specifier: &'static str) -> DependencyOptions {
+  DependencyOptions {
+    specifier: specifier.as_ptr(),
+    specifier_len: specifier.len(),
+    ..Default::default()
+  }
+}
+
+/// A struct as a plugin built against a newer header, with one more field, would
+/// pass it.
+#[repr(C)]
+struct Newer<T> {
+  current: T,
+  extra: u64,
+}
+
+impl<T: crate::extensible::Extensible> Newer<T> {
+  fn new(current: T, extra: u64) -> Self {
+    let mut newer = Newer { current, extra };
+    newer.current_mut_size(size_of::<Self>());
+    newer
+  }
+
+  fn current_mut_size(&mut self, size: usize) {
+    unsafe { (&mut self.current as *mut T).cast::<usize>().write(size) };
+  }
+
+  /// A pointer to the whole struct, as the plugin's own pointer would be.
+  fn as_ptr(&self) -> *const T {
+    (self as *const Self).cast()
+  }
+}
+
+#[test]
+fn add_dependency_reads_what_the_plugin_passed() {
+  let mut asset = asset_fixture(target_fixture());
+  let before = asset.dependencies.len();
+  let handle = asset_mut_handle(&mut asset);
+
+  let dep = DependencyOptions {
+    priority: Priority::PARCEL_PRIORITY_LAZY as u8,
+    import_type: crate::ImportType::PARCEL_IMPORT_TYPE_URL as u8,
+    // Unknown bits are dropped, as they always have been.
+    flags: 0xff,
+    ..dependency_options("./a.js")
+  };
+  assert!(parcel_asset_add_dependency(handle, &dep));
+
+  assert_eq!(asset.dependencies.len(), before + 1);
+  let added = asset.dependencies.last().unwrap();
+  assert_eq!(&*added.specifier, "./a.js");
+  assert_eq!(added.specifier_type, CoreSpecifierType::Esm);
+  assert_eq!(added.priority, CorePriority::Lazy);
+  assert_eq!(added.import_type, ImportType::Url);
+  assert_eq!(
+    added.flags.bits(),
+    CoreDependencyFlags::from_bits_truncate(0xff).bits()
+  );
+}
+
+#[test]
+fn add_dependency_rejects_what_it_cannot_honor() {
+  let mut asset = asset_fixture(target_fixture());
+  let before = asset.dependencies.len();
+  let handle = asset_mut_handle(&mut asset);
+
+  let rejected = [
+    // `size` left unset, as a C plugin that forgot it would.
+    DependencyOptions {
+      size: 0,
+      ..dependency_options("./a.js")
+    },
+    // Too small to hold every field of the first layout.
+    DependencyOptions {
+      size: <DependencyOptions as crate::extensible::Extensible>::MIN_SIZE - 1,
+      ..dependency_options("./a.js")
+    },
+    DependencyOptions {
+      specifier: ptr::null(),
+      ..dependency_options("./a.js")
+    },
+    // Variants only a newer Parcel knows.
+    DependencyOptions {
+      specifier_type: 200,
+      ..dependency_options("./a.js")
+    },
+    DependencyOptions {
+      priority: 200,
+      ..dependency_options("./a.js")
+    },
+    DependencyOptions {
+      bundle_behavior: 200,
+      ..dependency_options("./a.js")
+    },
+    DependencyOptions {
+      import_type: 200,
+      ..dependency_options("./a.js")
+    },
+  ];
+  for dep in &rejected {
+    assert!(!parcel_asset_add_dependency(handle, dep));
+  }
+  assert!(!parcel_asset_add_dependency(handle, ptr::null()));
+  assert_eq!(asset.dependencies.len(), before);
+}
+
+#[test]
+fn add_dependency_accepts_a_newer_layout_unless_it_uses_what_is_new() {
+  let mut asset = asset_fixture(target_fixture());
+  let before = asset.dependencies.len();
+  let handle = asset_mut_handle(&mut asset);
+
+  // Every field the newer plugin knows and this build does not is at its default.
+  let newer = Newer::new(dependency_options("./a.js"), 0);
+  assert!(parcel_asset_add_dependency(handle, newer.as_ptr()));
+  assert_eq!(asset.dependencies.len(), before + 1);
+
+  // Ignoring a field that was set would build something other than what the
+  // plugin asked for.
+  let newer = Newer::new(dependency_options("./b.js"), 1);
+  assert!(!parcel_asset_add_dependency(handle, newer.as_ptr()));
+  assert_eq!(asset.dependencies.len(), before + 1);
+}
+
+#[test]
+fn set_bundle_behavior_ignores_unknown_values() {
+  let mut asset = asset_fixture(target_fixture());
+  let handle = asset_mut_handle(&mut asset);
+
+  parcel_asset_set_bundle_behavior(handle, 200);
+  assert_eq!(asset.bundle_behavior, CoreBundleBehavior::Isolated);
+
+  parcel_asset_set_bundle_behavior(handle, BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_INLINE as u8);
+  assert_eq!(asset.bundle_behavior, CoreBundleBehavior::Inline);
+}
+
+#[test]
+fn logged_diagnostics_tolerate_newer_layouts_and_unknown_severities() {
+  let (options, events) = options_with_recorder();
+  let context = OptionsContext::new(&options);
+  let handle = context.handle();
+
+  // A newer plugin's extra fields are dropped, since the message is still worth
+  // showing, and a severity this build does not know is an error.
+  let message = b"from a newer plugin";
+  let mut newer = Newer::new(
+    Diagnostic {
+      message: parcel_buffer_alloc(message.as_ptr(), message.len()),
+      severity: 200,
+      ..Default::default()
+    },
+    7,
+  );
+  parcel_options_log_diagnostic(handle, newer.as_ptr());
+
+  // Without `size`, there is no telling what the rest of it holds.
+  let unset = b"no size";
+  let mut unset = Diagnostic {
+    size: 0,
+    message: parcel_buffer_alloc(unset.as_ptr(), unset.len()),
+    ..Default::default()
+  };
+  parcel_options_log_diagnostic(handle, &unset);
+
+  assert_eq!(*events.lock().unwrap(), ["error: from a newer plugin"]);
+  parcel_free_buffer(&mut newer.current.message);
+  parcel_free_buffer(&mut unset.message);
+}
+
+/// The first published layout of every struct passed by pointer.
+///
+/// These may only grow, by appending fields. A failure here means an existing
+/// field moved, which breaks every plugin built against the old layout.
+#[cfg(target_pointer_width = "64")]
+#[test]
+fn struct_layouts_only_grow() {
+  use std::mem::offset_of;
+
+  use crate::extensible::Extensible;
+
+  assert_eq!(offset_of!(DependencyOptions, size), 0);
+  assert_eq!(offset_of!(DependencyOptions, specifier), 8);
+  assert_eq!(offset_of!(DependencyOptions, specifier_len), 16);
+  assert_eq!(offset_of!(DependencyOptions, specifier_type), 24);
+  assert_eq!(offset_of!(DependencyOptions, priority), 25);
+  assert_eq!(offset_of!(DependencyOptions, bundle_behavior), 26);
+  assert_eq!(offset_of!(DependencyOptions, flags), 27);
+  assert_eq!(offset_of!(DependencyOptions, conditions), 28);
+  assert_eq!(offset_of!(DependencyOptions, import_type), 32);
+  assert_eq!(DependencyOptions::MIN_SIZE, 33);
+
+  assert_eq!(size_of::<Buffer>(), 32);
+  assert_eq!(offset_of!(Diagnostic, size), 0);
+  assert_eq!(offset_of!(Diagnostic, message), 8);
+  assert_eq!(offset_of!(Diagnostic, file_path), 40);
+  assert_eq!(offset_of!(Diagnostic, line), 72);
+  assert_eq!(offset_of!(Diagnostic, column), 76);
+  assert_eq!(offset_of!(Diagnostic, hint), 80);
+  assert_eq!(offset_of!(Diagnostic, severity), 112);
+  assert_eq!(Diagnostic::MIN_SIZE, 113);
+
+  assert_eq!(offset_of!(ResolveResult, size), 0);
+  assert_eq!(offset_of!(ResolveResult, resolution_type), 8);
+  assert_eq!(offset_of!(ResolveResult, file_path), 16);
+  assert_eq!(offset_of!(ResolveResult, pipeline), 48);
+  assert_eq!(ResolveResult::MIN_SIZE, 80);
+
+  assert_eq!(offset_of!(OptimizeResult, size), 0);
+  assert_eq!(offset_of!(OptimizeResult, contents), 8);
+  assert_eq!(offset_of!(OptimizeResult, source_map), 40);
+  assert_eq!(OptimizeResult::MIN_SIZE, 72);
+
+  assert_eq!(offset_of!(BundleGraphDependencyResolution, size), 0);
+  assert_eq!(
+    offset_of!(BundleGraphDependencyResolution, resolution_type),
+    8
+  );
+  assert_eq!(offset_of!(BundleGraphDependencyResolution, asset), 12);
+  assert_eq!(offset_of!(BundleGraphDependencyResolution, bundle), 16);
+  assert_eq!(BundleGraphDependencyResolution::MIN_SIZE, 24);
+
+  assert_eq!(offset_of!(ReportEvent, size), 0);
+  assert_eq!(offset_of!(ReportEvent, event_type), 8);
+  assert_eq!(offset_of!(ReportEvent, level), 9);
+  assert_eq!(offset_of!(ReportEvent, message), 16);
+  assert_eq!(offset_of!(ReportEvent, message_len), 24);
+  assert_eq!(offset_of!(ReportEvent, diagnostics), 32);
+  assert_eq!(offset_of!(ReportEvent, bundle_graph), 40);
+  assert_eq!(offset_of!(ReportEvent, build_time_ms), 48);
+  assert_eq!(offset_of!(ReportEvent, changed_assets), 56);
+  assert_eq!(offset_of!(ReportEvent, changed_asset_count), 64);
+}
+
+#[test]
+fn raw_enum_conversion_accepts_exactly_the_declared_variants() {
+  for value in 0..=u8::MAX {
+    assert_eq!(
+      SpecifierType::try_from(value).map(|v| v as u8),
+      if value <= 3 { Ok(value) } else { Err(value) }
+    );
+    assert_eq!(
+      ResolutionType::try_from(value).map(|v| v as u8),
+      if value <= 3 { Ok(value) } else { Err(value) }
+    );
+    assert_eq!(
+      LogLevel::try_from(value).map(|v| v as u8),
+      if value <= 4 { Ok(value) } else { Err(value) }
+    );
+  }
 }

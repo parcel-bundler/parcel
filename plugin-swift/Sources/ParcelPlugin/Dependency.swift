@@ -30,16 +30,17 @@ public struct DependencyOptions: Hashable, Sendable {
 
   func withRaw<R>(_ body: (UnsafePointer<CParcelABI.DependencyOptions>) -> R) -> R {
     withBytes(specifier) { pointer, count in
-      var raw = CParcelABI.DependencyOptions(
-        specifier: pointer,
-        specifier_len: UInt(count),
-        specifier_type: specifierType.rawValue,
-        priority: priority.rawValue,
-        bundle_behavior: bundleBehavior.rawValue,
-        flags: flags.rawValue,
-        conditions: conditions.rawValue,
-        import_type: importType.rawValue)
-      return body(&raw)
+      withSized(CParcelABI.DependencyOptions.self) { raw in
+        raw.pointee.specifier = pointer
+        raw.pointee.specifier_len = UInt(count)
+        raw.pointee.specifier_type = specifierType.rawValue
+        raw.pointee.priority = priority.rawValue
+        raw.pointee.bundle_behavior = bundleBehavior.rawValue
+        raw.pointee.flags = flags.rawValue
+        raw.pointee.conditions = conditions.rawValue
+        raw.pointee.import_type = importType.rawValue
+        return body(raw)
+      }
     }
   }
 }

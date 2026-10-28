@@ -79,7 +79,17 @@ fn add_api_shims(header: &str) -> String {
      \x20* every function the plugin can reach has been filled in.\n */\n\
      static inline bool parcel_api_compatible(const struct ParcelApiHeader *api) {\n\
      \x20 return api && api->abi == PARCEL_ABI_VERSION &&\n\
-     \x20        api->size >= sizeof(struct ParcelApi);\n}\n",
+     \x20        api->size >= sizeof(struct ParcelApi);\n}\n\n\
+     /**\n * Whether `ptr`, a struct of type `type` that starts with `size`, has room for\n\
+     \x20* `field` according to that `size`.\n\
+     \x20*\n\
+     \x20* Whoever allocates such a struct sets `size` to the size it was built with. Check\n\
+     \x20* this before writing a field to one Parcel allocated, such as a `Diagnostic` or\n\
+     \x20* `ResolveResult` out-param, and before reading a field from one Parcel filled in,\n\
+     \x20* such as a `ReportEvent`, when an older Parcel might not have that field. Fields\n\
+     \x20* in the struct's first layout are always there.\n */\n\
+     #define PARCEL_HAS_FIELD(ptr, type, field) \\\n\
+     \x20 ((ptr)->size >= offsetof(type, field) + sizeof(((type *)0)->field))\n",
   );
 
   for field in split_top_level(body, ';') {
@@ -246,20 +256,23 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
     .allowlist_type(
       "ParcelApi|InitStatus|SpecifierType|Priority|ImportType|BundleBehavior|Environment|OutputFormat|SourceType|Diagnostic|DiagnosticSeverity|Diagnostics|ResolveResult|OptimizeResult|ReportEvent|ReportEventType|LogLevel|ResolutionType|DependencyFlags|ExportsConditions|AssetFlags|EnvironmentFlags|BundleFlags|BundleGraphResolutionType|BundleGraphDependencyResolution|AssetIndex|BundleIndex|IoStatus|FileKind",
     )
-    .rustified_enum("InitStatus")
-    .rustified_enum("SpecifierType")
-    .rustified_enum("Priority")
-    .rustified_enum("ImportType")
-    .rustified_enum("BundleBehavior")
-    .rustified_enum("Environment")
-    .rustified_enum("OutputFormat")
-    .rustified_enum("SourceType")
-    .rustified_enum("DiagnosticSeverity")
-    .rustified_enum("ResolutionType")
-    .rustified_enum("BundleGraphResolutionType")
-    .rustified_enum("ReportEventType")
-    .rustified_enum("LogLevel")
-    .rustified_enum("IoStatus")
+    // Newtypes rather than Rust enums: Parcel can be newer than the plugin, and
+    // hand it a value the plugin has never heard of, which would be undefined
+    // behavior to read as a Rust enum. Each variant is an associated constant.
+    .newtype_enum("InitStatus")
+    .newtype_enum("SpecifierType")
+    .newtype_enum("Priority")
+    .newtype_enum("ImportType")
+    .newtype_enum("BundleBehavior")
+    .newtype_enum("Environment")
+    .newtype_enum("OutputFormat")
+    .newtype_enum("SourceType")
+    .newtype_enum("DiagnosticSeverity")
+    .newtype_enum("ResolutionType")
+    .newtype_enum("BundleGraphResolutionType")
+    .newtype_enum("ReportEventType")
+    .newtype_enum("LogLevel")
+    .newtype_enum("IoStatus")
     .bitfield_enum("DependencyFlags")
     .bitfield_enum("ExportsConditions")
     .bitfield_enum("AssetFlags")

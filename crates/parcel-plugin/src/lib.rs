@@ -47,6 +47,8 @@ use std::path::PathBuf;
 use std::ptr;
 
 pub mod api;
+// Variants of the newtype enums keep the names they had as Rust enums.
+#[allow(non_upper_case_globals)]
 pub mod ffi;
 
 use api::host;
@@ -93,6 +95,55 @@ impl Buffer {
       return None;
     }
     Some(unsafe { std::slice::from_raw_parts(self.data as *const u8, self.len) }.to_vec())
+  }
+}
+
+// ── Structs that carry their size ──────────────────────────────────────────
+//
+// Every struct passed to or from Parcel by pointer starts with `size`, set by
+// whoever allocates it, so either side can append fields without breaking the
+// other. Parcel may be newer or older than this SDK:
+//
+// - A struct this SDK hands Parcel is zeroed in full, padding included, before
+//   its fields are set. A newer field lands where an older Parcel only expects
+//   zero bytes, and it rejects anything else there rather than ignore a setting
+//   it does not understand.
+// - A struct Parcel filled in is read up to its `size`, with any field past it
+//   left zeroed.
+// - A struct Parcel allocated is written field by field, never wholesale, so
+//   only the fields Parcel declared are touched. Fields appended to the first
+//   layout must check `size` before writing.
+
+/// Calls `f` with a zeroed `T` whose `size` is set, built in place so its
+/// padding stays zeroed. `T` must be one of the ABI structs, for which every
+/// field is valid zeroed.
+fn with_sized<T, R>(f: impl FnOnce(&mut T) -> R) -> R {
+  let mut value = std::mem::MaybeUninit::<T>::zeroed();
+  unsafe { value.as_mut_ptr().cast::<usize>().write(size_of::<T>()) };
+  f(unsafe { value.assume_init_mut() })
+}
+
+/// Reads a struct Parcel filled in, up to the `size` it reported, leaving any
+/// field past that zeroed. `None` when `size` is too small to be any version of
+/// the struct, i.e. smaller than `min_size`.
+///
+/// # Safety
+///
+/// `raw` must be non-null and point to `(*raw).size` readable bytes, and every
+/// field of `T` must be valid zeroed and for any bit pattern.
+unsafe fn read_sized<T>(raw: *const T, min_size: usize) -> Option<T> {
+  let size = unsafe { raw.cast::<usize>().read() };
+  if size < min_size {
+    return None;
+  }
+  let mut value = std::mem::MaybeUninit::<T>::zeroed();
+  unsafe {
+    ptr::copy_nonoverlapping(
+      raw.cast::<u8>(),
+      value.as_mut_ptr().cast::<u8>(),
+      size.min(size_of::<T>()),
+    );
+    Some(value.assume_init())
   }
 }
 
@@ -144,16 +195,11 @@ impl<'a> Options<'a> {
     // Filled and dropped here: the host copies what it needs rather than taking
     // ownership, unlike the diagnostic a plugin method returns. Dropping the
     // `Buffer`s is what frees them.
-    let mut raw = ffi::Diagnostic {
-      message: Buffer::default(),
-      file_path: Buffer::default(),
-      line: 0,
-      column: 0,
-      hint: Buffer::default(),
-      severity: DiagnosticSeverity::default(),
-    };
-    diagnostic.write_to_raw(&mut raw);
-    unsafe { host!(options_log_diagnostic)(self.raw, &raw) };
+    with_sized(|raw: &mut ffi::Diagnostic| {
+      diagnostic.write_to_raw(raw);
+      unsafe { host!(options_log_diagnostic)(self.raw, raw) };
+      unsafe { ptr::drop_in_place(raw) };
+    })
   }
 
   /// Reads the file at the absolute `path`.
@@ -349,6 +395,21 @@ impl DependencyOptions {
       ..Default::default()
     }
   }
+
+  fn with_raw<R>(&self, f: impl FnOnce(*const ffi::DependencyOptions) -> R) -> R {
+    let specifier = self.specifier.as_bytes();
+    with_sized(|raw: &mut ffi::DependencyOptions| {
+      raw.specifier = specifier.as_ptr();
+      raw.specifier_len = specifier.len();
+      raw.specifier_type = self.specifier_type;
+      raw.priority = self.priority;
+      raw.bundle_behavior = self.bundle_behavior;
+      raw.flags = self.flags;
+      raw.conditions = self.conditions;
+      raw.import_type = self.import_type;
+      f(raw)
+    })
+  }
 }
 
 // ── Diagnostic ─────────────────────────────────────────────────────────────
@@ -423,7 +484,8 @@ impl Diagnostic {
     self
   }
 
-  /// Writes this diagnostic into a host-allocated [`ffi::Diagnostic`].
+  /// Writes this diagnostic into a host-allocated [`ffi::Diagnostic`], field by
+  /// field, leaving its `size` alone.
   /// Intended for use inside macro-generated entry points only.
   pub fn write_to_raw(&self, raw: *mut ffi::Diagnostic) {
     if raw.is_null() {
@@ -515,7 +577,13 @@ impl<'a> ReportEvent<'a> {
     if raw.is_null() {
       return None;
     }
-    let event = unsafe { &*raw };
+    // Every field here is in the first layout, so none needs a `size` check.
+    let event = unsafe {
+      read_sized(
+        raw,
+        std::mem::offset_of!(ffi::ReportEvent, changed_asset_count) + size_of::<usize>(),
+      )
+    }?;
 
     let diagnostics = (event.diagnostics != 0).then(|| Diagnostics {
       raw: event.diagnostics,
@@ -546,6 +614,7 @@ impl<'a> ReportEvent<'a> {
         }),
         diagnostics,
       },
+      _ => return None,
     })
   }
 }
@@ -923,19 +992,20 @@ impl<'a> Asset<'a> {
   // ── Dependencies ─────────────────────────────────────────────────────────
 
   /// Appends a dependency.  The dependency inherits the asset's target.
-  pub fn add_dependency(&mut self, dep: DependencyOptions) {
-    let b = dep.specifier.as_bytes();
-    let raw = ffi::DependencyOptions {
-      specifier: b.as_ptr(),
-      specifier_len: b.len(),
-      specifier_type: dep.specifier_type,
-      priority: dep.priority,
-      bundle_behavior: dep.bundle_behavior,
-      flags: dep.flags,
-      conditions: dep.conditions,
-      import_type: dep.import_type,
-    };
-    unsafe { host!(asset_add_dependency)(self.raw, &raw) };
+  ///
+  /// Fails when Parcel cannot honor `dep`, e.g. because it uses a
+  /// [`SpecifierType`], [`Priority`], [`BundleBehavior`], or [`ImportType`]
+  /// value this version of Parcel does not support.
+  pub fn add_dependency(&mut self, dep: DependencyOptions) -> Result<(), Diagnostic> {
+    let added = dep.with_raw(|raw| unsafe { host!(asset_add_dependency)(self.raw, raw) });
+    if added {
+      Ok(())
+    } else {
+      Err(Diagnostic::new(format!(
+        "Parcel could not add the dependency {:?}: it uses an option this version of Parcel does not support.",
+        dep.specifier
+      )))
+    }
   }
 
   /// Resolves `dep` with the configured resolver plugins, exactly as if it had been added with
@@ -945,54 +1015,44 @@ impl<'a> Asset<'a> {
   /// itself, e.g. a Sass partial the asset pulled in. Every file the resolvers read or probe
   /// invalidates the asset, so the transform re-runs when the result would change.
   ///
-  /// Returns `None` when the dependency could not be resolved. Only available while
-  /// transforming.
+  /// Returns `None` when the dependency could not be resolved, or Parcel cannot honor `dep`. Only
+  /// available while transforming.
   pub fn resolve(
     &self,
     dep: &DependencyOptions,
     from: Option<&str>,
     options: &Options,
   ) -> Option<ResolveResult> {
-    let specifier = dep.specifier.as_bytes();
-    let raw = ffi::DependencyOptions {
-      specifier: specifier.as_ptr(),
-      specifier_len: specifier.len(),
-      specifier_type: dep.specifier_type,
-      priority: dep.priority,
-      bundle_behavior: dep.bundle_behavior,
-      flags: dep.flags,
-      conditions: dep.conditions,
-      import_type: dep.import_type,
-    };
     let from = from.unwrap_or("").as_bytes();
-    let mut result = ffi::ResolveResult {
-      resolution_type: ffi::ResolutionType::None,
-      file_path: Buffer::default(),
-      pipeline: Buffer::default(),
-    };
-    let resolved = unsafe {
-      host!(asset_resolve)(
-        self.raw,
-        options.raw,
-        &raw,
-        from.as_ptr(),
-        from.len(),
-        &mut result,
-      )
-    };
-    if !resolved {
-      return None;
-    }
+    with_sized(|result: &mut ffi::ResolveResult| {
+      let resolved = dep.with_raw(|raw| unsafe {
+        host!(asset_resolve)(
+          self.raw,
+          options.raw,
+          raw,
+          from.as_ptr(),
+          from.len(),
+          result,
+        )
+      });
+      // Dropping the buffers frees them.
+      let file_path = std::mem::take(&mut result.file_path);
+      let pipeline = std::mem::take(&mut result.pipeline);
+      if !resolved {
+        return None;
+      }
 
-    // Dropping the buffers frees them.
-    Some(match result.resolution_type {
-      ffi::ResolutionType::FilePath => ResolveResult::Resolved {
-        file_path: PathBuf::from(result.file_path.to_string()?),
-        pipeline: result.pipeline.to_string(),
-      },
-      ffi::ResolutionType::External => ResolveResult::External,
-      ffi::ResolutionType::Excluded => ResolveResult::Excluded,
-      ffi::ResolutionType::None => ResolveResult::None,
+      Some(match result.resolution_type {
+        ffi::ResolutionType::FilePath => ResolveResult::Resolved {
+          file_path: PathBuf::from(file_path.to_string()?),
+          pipeline: pipeline.to_string(),
+        },
+        ffi::ResolutionType::External => ResolveResult::External,
+        ffi::ResolutionType::Excluded => ResolveResult::Excluded,
+        ffi::ResolutionType::None => ResolveResult::None,
+        // A kind of resolution this SDK predates, which a plugin cannot act on.
+        _ => return None,
+      })
     })
   }
 
@@ -1188,15 +1248,22 @@ impl<'a> BundleGraph<'a> {
     (0..self.bundle_count()).filter_map(|index| self.bundle(index))
   }
 
+  /// The resolution of one of `asset`'s dependencies. [`Invalid`] for an index
+  /// out of range, and for a kind of resolution this SDK predates.
+  ///
+  /// [`Invalid`]: BundleGraphDependencyResolution::Invalid
   pub fn dependency_resolution(
     &self,
     asset: AssetIndex,
     dependency_index: usize,
   ) -> BundleGraphDependencyResolution {
-    let resolution =
-      unsafe { host!(bundle_graph_get_dependency_resolution)(self.raw, asset, dependency_index) };
+    let resolution = with_sized(|resolution: &mut ffi::BundleGraphDependencyResolution| {
+      unsafe {
+        host!(bundle_graph_get_dependency_resolution)(resolution, self.raw, asset, dependency_index)
+      };
+      *resolution
+    });
     match resolution.resolution_type {
-      ffi::BundleGraphResolutionType::Invalid => BundleGraphDependencyResolution::Invalid,
       ffi::BundleGraphResolutionType::None => BundleGraphDependencyResolution::None,
       ffi::BundleGraphResolutionType::Deferred => BundleGraphDependencyResolution::Deferred,
       ffi::BundleGraphResolutionType::External => BundleGraphDependencyResolution::External,
@@ -1211,6 +1278,7 @@ impl<'a> BundleGraph<'a> {
       ffi::BundleGraphResolutionType::Internalized => {
         BundleGraphDependencyResolution::Internalized(resolution.asset)
       }
+      _ => BundleGraphDependencyResolution::Invalid,
     }
   }
 }
@@ -1616,40 +1684,35 @@ pub enum ResolveResult {
   Excluded,
 }
 
-impl From<ResolveResult> for ffi::ResolveResult {
-  fn from(result: ResolveResult) -> Self {
-    let mut ffi_result = ffi::ResolveResult {
-      resolution_type: ffi::ResolutionType::None,
-      file_path: Buffer::default(),
-      pipeline: Buffer::default(),
-    };
-
-    match result {
-      ResolveResult::None => {}
-      ResolveResult::Resolved {
-        file_path,
-        pipeline,
-      } => {
-        ffi_result.resolution_type = ffi::ResolutionType::FilePath;
-        let path_bytes = file_path.as_os_str().as_encoded_bytes();
-        unsafe {
-          host!(buffer_write)(
-            &mut ffi_result.file_path,
-            path_bytes.as_ptr(),
-            path_bytes.len(),
-          )
-        };
-        if let Some(pipeline) = pipeline {
-          unsafe {
-            host!(buffer_write_utf8)(&mut ffi_result.pipeline, pipeline.as_ptr(), pipeline.len())
-          };
+impl ResolveResult {
+  /// Writes this result into the [`ffi::ResolveResult`] Parcel allocated, field
+  /// by field, leaving its `size` alone.
+  /// Intended for use inside macro-generated entry points only.
+  ///
+  /// # Safety
+  ///
+  /// `raw` must be the zeroed result Parcel passed to `parcel_plugin_resolve`.
+  pub unsafe fn write_to_raw(self, raw: *mut ffi::ResolveResult) {
+    // Through field places rather than a `&mut` to the whole struct, which would
+    // claim more than Parcel allocated once this SDK's struct outgrows it.
+    unsafe {
+      match self {
+        ResolveResult::None => (*raw).resolution_type = ffi::ResolutionType::None,
+        ResolveResult::Resolved {
+          file_path,
+          pipeline,
+        } => {
+          (*raw).resolution_type = ffi::ResolutionType::FilePath;
+          let path_bytes = file_path.as_os_str().as_encoded_bytes();
+          host!(buffer_write)(&mut (*raw).file_path, path_bytes.as_ptr(), path_bytes.len());
+          if let Some(pipeline) = pipeline {
+            host!(buffer_write_utf8)(&mut (*raw).pipeline, pipeline.as_ptr(), pipeline.len());
+          }
         }
+        ResolveResult::External => (*raw).resolution_type = ffi::ResolutionType::External,
+        ResolveResult::Excluded => (*raw).resolution_type = ffi::ResolutionType::Excluded,
       }
-      ResolveResult::External => ffi_result.resolution_type = ffi::ResolutionType::External,
-      ResolveResult::Excluded => ffi_result.resolution_type = ffi::ResolutionType::Excluded,
     }
-
-    ffi_result
   }
 }
 
@@ -1901,12 +1964,7 @@ macro_rules! register_plugin {
       match result {
         Ok(Ok(result)) => {
           if raw_result != 0 {
-            unsafe {
-              ::core::ptr::write(
-                raw_result as *mut $crate::ffi::ResolveResult,
-                $crate::ffi::ResolveResult::from(result),
-              )
-            };
+            unsafe { result.write_to_raw(raw_result as *mut $crate::ffi::ResolveResult) };
           }
         }
         Ok(Err(e)) => e.write_to_raw(raw_diagnostic),

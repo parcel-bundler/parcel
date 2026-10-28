@@ -7,7 +7,7 @@ use parcel_core::{
   DiagnosticSeverity as CoreDiagnosticSeverity, Location, PathId, SourceUrl,
 };
 
-use crate::{Buffer, parcel_free_buffer};
+use crate::{Buffer, extensible::read_extensible, parcel_free_buffer};
 
 // DiagnosticSeverity — CDiagnostic.severity field
 #[repr(u8)]
@@ -20,6 +20,16 @@ pub enum DiagnosticSeverity {
   PARCEL_SEVERITY_INFO = 3,
 }
 
+pub type DiagnosticSeverityFFI = u8;
+
+impl DiagnosticSeverity {
+  /// The severity a plugin wrote. One this version of Parcel does not know is an
+  /// error: a diagnostic is still worth showing when its severity is unclear.
+  pub(crate) fn from_raw(severity: DiagnosticSeverityFFI) -> Self {
+    Self::try_from(severity).unwrap_or(Self::PARCEL_SEVERITY_ERROR)
+  }
+}
+
 impl_enum_conversion! {
   CoreDiagnosticSeverity => DiagnosticSeverity {
     CoreDiagnosticSeverity::Error => DiagnosticSeverity::PARCEL_SEVERITY_ERROR,
@@ -30,20 +40,31 @@ impl_enum_conversion! {
 }
 
 /// Diagnostic written by a plugin to report an error or warning.
-/// The host zero-initialises this before every plugin call.
+/// The host zero-initialises this before every plugin call, apart from `size`.
 /// Fill via `parcel_buffer_alloc()`; host frees all `Buffer` fields after the call.
 /// If `message.data == NULL` after the call, no diagnostic was set.
+///
+/// Only write fields that fit within `size`, which an older Parcel sets lower than
+/// `sizeof(Diagnostic)`; `PARCEL_HAS_FIELD()` checks. To log one with
+/// `parcel_options_log_diagnostic()`, initialize it as `Diagnostic d = {.size = sizeof(Diagnostic)};`.
+/// Parcel ignores fields it does not know in a diagnostic, since the rest is still worth showing.
 #[repr(C)]
-#[derive(Default)]
 pub struct Diagnostic {
+  /// `sizeof(Diagnostic)` as whoever allocated it was built. Always the first member.
+  pub size: usize,
   pub message: Buffer,
   pub file_path: Buffer,
   pub line: u32,
   pub column: u32,
   pub hint: Buffer,
   /// `PARCEL_SEVERITY_*`
-  pub severity: DiagnosticSeverity,
+  pub severity: DiagnosticSeverityFFI,
 }
+
+impl_extensible!(
+  Diagnostic,
+  min_size = std::mem::offset_of!(Diagnostic, severity) + size_of::<DiagnosticSeverityFFI>()
+);
 
 // ── Internal diagnostic helpers ───────────────────────────────────────────────
 
@@ -67,6 +88,20 @@ pub(crate) fn read_cdiagnostic(
   diagnostic
 }
 
+/// Reads a diagnostic a plugin allocated, e.g. to log it, without taking ownership of its buffers.
+/// `None` when it has no message, or its `size` is unset.
+///
+/// # Safety
+///
+/// `diag` must be non-null and point to `(*diag).size` readable bytes.
+pub(crate) unsafe fn copy_plugin_cdiagnostic(
+  diag: *const Diagnostic,
+  project_root: Option<&PathId>,
+) -> Option<CoreDiagnostic> {
+  let (diag, _) = unsafe { read_extensible(diag) }?;
+  copy_cdiagnostic(&diag, project_root)
+}
+
 /// Reads a diagnostic a plugin wrote without taking ownership of its buffers.
 pub(crate) fn copy_cdiagnostic(
   diag: &Diagnostic,
@@ -85,7 +120,7 @@ pub(crate) fn copy_cdiagnostic(
   };
 
   let message = read_buf(&diag.message);
-  let severity = CoreDiagnosticSeverity::from(diag.severity);
+  let severity = CoreDiagnosticSeverity::from(DiagnosticSeverity::from_raw(diag.severity));
 
   let code_frames = if !diag.file_path.data.is_null() {
     let path_str = read_buf(&diag.file_path);

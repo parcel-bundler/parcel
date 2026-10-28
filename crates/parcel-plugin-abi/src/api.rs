@@ -15,6 +15,9 @@
 //!   a plugin entry point — is invisible to the size check. That is what the
 //!   version number is for, and why both checks are needed.
 //!
+//! The structs these functions exchange evolve the same way, each through its own
+//! `size` field; see the `extensible` module.
+//!
 //! Adding a host function means adding it here too. The test at the bottom of
 //! this file fails if the table and the crate's exported functions drift apart.
 //! The C wrappers in `plugin.h` and the Go SDK are generated from this struct by
@@ -36,6 +39,9 @@ use crate::*;
 /// pointing at a shim: `abi` stays put and existing plugins keep working across
 /// the upgrade. That leaves plugin entry point signatures, which are not in this
 /// table, as about the only thing a bump is genuinely needed for.
+///
+/// Structs passed by pointer do not need a bump either: each starts with its own
+/// `size`, so fields can be appended to them too.
 ///
 /// A published plugin repeats this in its package.json as `parcel.abi`, which
 /// lets Parcel reject a mismatch before opening the library. That copy is
@@ -91,7 +97,7 @@ pub struct ParcelApi {
   pub asset_set_pipeline:
     unsafe extern "C" fn(asset: Asset, pipeline: *const u8, pipeline_len: usize),
   pub asset_get_bundle_behavior: unsafe extern "C" fn(asset: Asset) -> BundleBehavior,
-  pub asset_set_bundle_behavior: unsafe extern "C" fn(asset: Asset, behavior: BundleBehavior),
+  pub asset_set_bundle_behavior: unsafe extern "C" fn(asset: Asset, behavior: BundleBehaviorFFI),
   pub asset_get_flags: unsafe extern "C" fn(asset: Asset) -> AssetFlagsFFI,
   pub asset_set_flags: unsafe extern "C" fn(asset: Asset, flags: AssetFlagsFFI),
   pub asset_get_unique_key: unsafe extern "C" fn(buf: *mut Buffer, asset: Asset),
@@ -122,15 +128,16 @@ pub struct ParcelApi {
   pub bundle_graph_get_bundle_count: unsafe extern "C" fn(bundle_graph: BundleGraph) -> usize,
   pub bundle_graph_get_bundle:
     unsafe extern "C" fn(bundle_graph: BundleGraph, index: BundleIndex) -> Bundle,
-  pub bundle_graph_get_dependency_resolution:
-    unsafe extern "C" fn(
-      bundle_graph: BundleGraph,
-      asset: AssetIndex,
-      dependency_index: usize,
-    ) -> BundleGraphDependencyResolution,
+  pub bundle_graph_get_dependency_resolution: unsafe extern "C" fn(
+    resolution: *mut BundleGraphDependencyResolution,
+    bundle_graph: BundleGraph,
+    asset: AssetIndex,
+    dependency_index: usize,
+  ),
   pub asset_get_dependency_count: unsafe extern "C" fn(asset: Asset) -> usize,
   pub asset_get_dependency: unsafe extern "C" fn(asset: Asset, index: usize) -> Dependency,
-  pub asset_add_dependency: unsafe extern "C" fn(asset: Asset, dep: *const DependencyOptions),
+  pub asset_add_dependency:
+    unsafe extern "C" fn(asset: Asset, dep: *const DependencyOptions) -> bool,
   pub dep_get_specifier: unsafe extern "C" fn(buf: *mut Buffer, dep: Dependency),
   pub dep_get_specifier_type: unsafe extern "C" fn(dep: Dependency) -> SpecifierType,
   pub dep_get_priority: unsafe extern "C" fn(dep: Dependency) -> Priority,
@@ -165,8 +172,12 @@ pub struct ParcelApi {
     unsafe extern "C" fn(diagnostics: Diagnostics, index: usize) -> usize,
   pub diagnostic_get_hint:
     unsafe extern "C" fn(buf: *mut Buffer, diagnostics: Diagnostics, index: usize, hint: usize),
-  pub options_log:
-    unsafe extern "C" fn(options: Options, level: LogLevel, message: *const u8, message_len: usize),
+  pub options_log: unsafe extern "C" fn(
+    options: Options,
+    level: LogLevelFFI,
+    message: *const u8,
+    message_len: usize,
+  ),
   pub options_log_diagnostic: unsafe extern "C" fn(options: Options, diagnostic: *const Diagnostic),
   pub bundle_get_stable_key: unsafe extern "C" fn(buf: *mut Buffer, bundle: Bundle),
   pub bundle_get_hash_reference: unsafe extern "C" fn(buf: *mut Buffer, bundle: Bundle),

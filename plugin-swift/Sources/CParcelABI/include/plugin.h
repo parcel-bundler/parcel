@@ -1,6 +1,7 @@
 #ifndef PARCEL_PLUGIN_H
 #define PARCEL_PLUGIN_H
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -18,30 +19,15 @@
  * the upgrade. That leaves plugin entry point signatures, which are not in this
  * table, as about the only thing a bump is genuinely needed for.
  *
+ * Structs passed by pointer do not need a bump either: each starts with its own
+ * `size`, so fields can be appended to them too.
+ *
  * A published plugin repeats this in its package.json as `parcel.abi`, which
  * lets Parcel reject a mismatch before opening the library. That copy is
  * human-written metadata; the authoritative check is the one the plugin makes
  * against this field.
  */
 #define PARCEL_ABI_VERSION 1
-
-enum DiagnosticSeverity
-#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
-  : uint8_t
-#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
- {
-  PARCEL_SEVERITY_ERROR = 0,
-  PARCEL_SEVERITY_WARNING = 1,
-  PARCEL_SEVERITY_SOURCE_ERROR = 2,
-  PARCEL_SEVERITY_INFO = 3,
-};
-#ifndef __cplusplus
-#if __STDC_VERSION__ >= 202311L
-typedef enum DiagnosticSeverity DiagnosticSeverity;
-#else
-typedef uint8_t DiagnosticSeverity;
-#endif // __STDC_VERSION__ >= 202311L
-#endif // __cplusplus
 
 enum BundleBehavior
 #if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
@@ -117,41 +103,6 @@ typedef uint8_t Priority;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
-enum ImportType
-#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
-  : uint8_t
-#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
- {
-  /**
-   * The module's exports. A file imported this way must have a transformer that turns it into
-   * JavaScript, or it is an error.
-   */
-  PARCEL_IMPORT_TYPE_JAVASCRIPT = 0,
-  /**
-   * A `CSSStyleSheet`.
-   */
-  PARCEL_IMPORT_TYPE_STYLESHEET = 1,
-  /**
-   * The URL of the file. Any file can be referenced this way, transformed or not.
-   */
-  PARCEL_IMPORT_TYPE_URL = 2,
-  /**
-   * The bundle's contents as a string.
-   */
-  PARCEL_IMPORT_TYPE_TEXT = 3,
-  /**
-   * The bundle's contents as bytes.
-   */
-  PARCEL_IMPORT_TYPE_BYTES = 4,
-};
-#ifndef __cplusplus
-#if __STDC_VERSION__ >= 202311L
-typedef enum ImportType ImportType;
-#else
-typedef uint8_t ImportType;
-#endif // __STDC_VERSION__ >= 202311L
-#endif // __cplusplus
-
 enum Environment
 #if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
   : uint8_t
@@ -208,25 +159,21 @@ typedef uint8_t SourceType;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
-/**
- * The level of a log event, and of a message passed to `parcel_options_log()`.
- */
-enum LogLevel
+enum DiagnosticSeverity
 #if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
   : uint8_t
 #endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
  {
-  PARCEL_LOG_NONE = 0,
-  PARCEL_LOG_ERROR = 1,
-  PARCEL_LOG_WARN = 2,
-  PARCEL_LOG_INFO = 3,
-  PARCEL_LOG_VERBOSE = 4,
+  PARCEL_SEVERITY_ERROR = 0,
+  PARCEL_SEVERITY_WARNING = 1,
+  PARCEL_SEVERITY_SOURCE_ERROR = 2,
+  PARCEL_SEVERITY_INFO = 3,
 };
 #ifndef __cplusplus
 #if __STDC_VERSION__ >= 202311L
-typedef enum LogLevel LogLevel;
+typedef enum DiagnosticSeverity DiagnosticSeverity;
 #else
-typedef uint8_t LogLevel;
+typedef uint8_t DiagnosticSeverity;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
@@ -256,24 +203,6 @@ enum IoStatus
 typedef enum IoStatus IoStatus;
 #else
 typedef uint8_t IoStatus;
-#endif // __STDC_VERSION__ >= 202311L
-#endif // __cplusplus
-
-enum ResolutionType
-#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
-  : uint8_t
-#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
- {
-  PARCEL_RESOLUTION_NONE = 0,
-  PARCEL_RESOLUTION_FILE_PATH = 1,
-  PARCEL_RESOLUTION_EXTERNAL = 2,
-  PARCEL_RESOLUTION_EXCLUDED = 3,
-};
-#ifndef __cplusplus
-#if __STDC_VERSION__ >= 202311L
-typedef enum ResolutionType ResolutionType;
-#else
-typedef uint8_t ResolutionType;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
@@ -312,6 +241,24 @@ typedef uint8_t InitStatus;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
+enum ResolutionType
+#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+  : uint8_t
+#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+ {
+  PARCEL_RESOLUTION_NONE = 0,
+  PARCEL_RESOLUTION_FILE_PATH = 1,
+  PARCEL_RESOLUTION_EXTERNAL = 2,
+  PARCEL_RESOLUTION_EXCLUDED = 3,
+};
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef enum ResolutionType ResolutionType;
+#else
+typedef uint8_t ResolutionType;
+#endif // __STDC_VERSION__ >= 202311L
+#endif // __cplusplus
+
 /**
  * The kind of event passed to `parcel_plugin_report()`.
  */
@@ -330,6 +277,63 @@ enum ReportEventType
 typedef enum ReportEventType ReportEventType;
 #else
 typedef uint8_t ReportEventType;
+#endif // __STDC_VERSION__ >= 202311L
+#endif // __cplusplus
+
+/**
+ * The level of a log event, and of a message passed to `parcel_options_log()`.
+ */
+enum LogLevel
+#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+  : uint8_t
+#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+ {
+  PARCEL_LOG_NONE = 0,
+  PARCEL_LOG_ERROR = 1,
+  PARCEL_LOG_WARN = 2,
+  PARCEL_LOG_INFO = 3,
+  PARCEL_LOG_VERBOSE = 4,
+};
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef enum LogLevel LogLevel;
+#else
+typedef uint8_t LogLevel;
+#endif // __STDC_VERSION__ >= 202311L
+#endif // __cplusplus
+
+enum ImportType
+#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+  : uint8_t
+#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+ {
+  /**
+   * The module's exports. A file imported this way must have a transformer that turns it into
+   * JavaScript, or it is an error.
+   */
+  PARCEL_IMPORT_TYPE_JAVASCRIPT = 0,
+  /**
+   * A `CSSStyleSheet`.
+   */
+  PARCEL_IMPORT_TYPE_STYLESHEET = 1,
+  /**
+   * The URL of the file. Any file can be referenced this way, transformed or not.
+   */
+  PARCEL_IMPORT_TYPE_URL = 2,
+  /**
+   * The bundle's contents as a string.
+   */
+  PARCEL_IMPORT_TYPE_TEXT = 3,
+  /**
+   * The bundle's contents as bytes.
+   */
+  PARCEL_IMPORT_TYPE_BYTES = 4,
+};
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef enum ImportType ImportType;
+#else
+typedef uint8_t ImportType;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
@@ -512,11 +516,20 @@ typedef uint64_t Asset;
 
 /**
  * Diagnostic written by a plugin to report an error or warning.
- * The host zero-initialises this before every plugin call.
+ * The host zero-initialises this before every plugin call, apart from `size`.
  * Fill via `parcel_buffer_alloc()`; host frees all `Buffer` fields after the call.
  * If `message.data == NULL` after the call, no diagnostic was set.
+ *
+ * Only write fields that fit within `size`, which an older Parcel sets lower than
+ * `sizeof(Diagnostic)`; `PARCEL_HAS_FIELD()` checks. To log one with
+ * `parcel_options_log_diagnostic()`, initialize it as `Diagnostic d = {.size = sizeof(Diagnostic)};`.
+ * Parcel ignores fields it does not know in a diagnostic, since the rest is still worth showing.
  */
 typedef struct Diagnostic {
+  /**
+   * `sizeof(Diagnostic)` as whoever allocated it was built. Always the first member.
+   */
+  uintptr_t size;
   struct Buffer message;
   struct Buffer file_path;
   uint32_t line;
@@ -553,7 +566,17 @@ typedef uint64_t Target;
  */
 typedef uintptr_t BundleIndex;
 
+/**
+ * The resolution of a dependency in the bundle graph, written by
+ * `parcel_bundle_graph_get_dependency_resolution()`.
+ *
+ * Initialize it as `BundleGraphDependencyResolution resolution = {.size = sizeof(resolution)};`.
+ */
 typedef struct BundleGraphDependencyResolution {
+  /**
+   * `sizeof(BundleGraphDependencyResolution)`, set by the caller. Always the first member.
+   */
+  uintptr_t size;
   /**
    * `PARCEL_BUNDLE_GRAPH_RESOLUTION_*`
    */
@@ -575,10 +598,19 @@ typedef uint64_t Dependency;
 
 /**
  * Dependency descriptor passed to `parcel_asset_add_dependency()` and `parcel_asset_resolve()`.
- * Use `PARCEL_SPECIFIER_ESM` / `PARCEL_PRIORITY_SYNC` / `PARCEL_BUNDLE_BEHAVIOR_NONE` /
- * `PARCEL_IMPORT_TYPE_JAVASCRIPT` as defaults.
+ *
+ * Initialize it as `DependencyOptions dep = {.size = sizeof(DependencyOptions)};`, which zeroes the rest:
+ * `PARCEL_SPECIFIER_ESM` / `PARCEL_PRIORITY_SYNC` / `PARCEL_BUNDLE_BEHAVIOR_NONE` /
+ * `PARCEL_IMPORT_TYPE_JAVASCRIPT` and no flags are the defaults. Zero any padding too, e.g. with
+ * `memset`, if you fill it in some other way: a field a newer header adds lands where an older
+ * Parcel sees only bytes it expects to be zero, and it rejects a dependency that sets anything it
+ * does not understand rather than silently ignoring it.
  */
 typedef struct DependencyOptions {
+  /**
+   * `sizeof(DependencyOptions)`. Always the first member.
+   */
+  uintptr_t size;
   /**
    * Module specifier bytes (e.g. `"./foo.js"`). Required.
    */
@@ -620,12 +652,21 @@ typedef struct DependencyOptions {
 typedef uint64_t Diagnostics;
 
 /**
- * Result filled by a resolver plugin's `parcel_plugin_resolve()`.
- * The struct is zero-initialised by the host before the call.
+ * Result filled by a resolver plugin's `parcel_plugin_resolve()`, or by Parcel in
+ * `parcel_asset_resolve()`.
+ *
+ * Whoever allocates it zero-initializes it and sets `size`: Parcel before calling
+ * `parcel_plugin_resolve()`, so a resolver only writes fields that fit within
+ * `size` (`PARCEL_HAS_FIELD()` checks), and the plugin before calling
+ * `parcel_asset_resolve()`, as `ResolveResult result = {.size = sizeof(ResolveResult)};`.
  *
  * When type == PARCEL_RESOLUTION_FILE_PATH, fill `file_path` (and optionally `pipeline`) via `parcel_buffer_alloc()`.
  */
 typedef struct ResolveResult {
+  /**
+   * `sizeof(ResolveResult)` as whoever allocated it was built. Always the first member.
+   */
+  uintptr_t size;
   /**
    * `PARCEL_RESOLUTION_*`
    */
@@ -694,12 +735,13 @@ typedef struct ParcelApi {
   Asset (*bundle_graph_get_asset)(BundleGraph bundle_graph, AssetIndex index);
   uintptr_t (*bundle_graph_get_bundle_count)(BundleGraph bundle_graph);
   Bundle (*bundle_graph_get_bundle)(BundleGraph bundle_graph, BundleIndex index);
-  struct BundleGraphDependencyResolution (*bundle_graph_get_dependency_resolution)(BundleGraph bundle_graph,
-                                                                                   AssetIndex asset,
-                                                                                   uintptr_t dependency_index);
+  void (*bundle_graph_get_dependency_resolution)(struct BundleGraphDependencyResolution *resolution,
+                                                 BundleGraph bundle_graph,
+                                                 AssetIndex asset,
+                                                 uintptr_t dependency_index);
   uintptr_t (*asset_get_dependency_count)(Asset asset);
   Dependency (*asset_get_dependency)(Asset asset, uintptr_t index);
-  void (*asset_add_dependency)(Asset asset, const struct DependencyOptions *dep);
+  bool (*asset_add_dependency)(Asset asset, const struct DependencyOptions *dep);
   void (*dep_get_specifier)(struct Buffer *buf, Dependency dep);
   SpecifierType (*dep_get_specifier_type)(Dependency dep);
   Priority (*dep_get_priority)(Dependency dep);
@@ -762,11 +804,16 @@ typedef struct ParcelApi {
 
 /**
  * Result filled by an optimizer plugin's `parcel_plugin_optimize()`.
- * The struct is zero-initialised by the host before the call. Fill `contents`
- * and optionally `source_map` using `parcel_buffer_write()` or
- * `parcel_buffer_write_utf8()`.
+ * The struct is zero-initialised by the host before the call, apart from `size`.
+ * Fill `contents` and optionally `source_map` using `parcel_buffer_write()` or
+ * `parcel_buffer_write_utf8()`, and only write fields that fit within `size`
+ * (`PARCEL_HAS_FIELD()` checks).
  */
 typedef struct OptimizeResult {
+  /**
+   * `sizeof(OptimizeResult)` as Parcel was built. Always the first member.
+   */
+  uintptr_t size;
   struct Buffer contents;
   /**
    * Leave empty to remove the source map from the optimized output.
@@ -780,9 +827,10 @@ typedef struct OptimizeResult {
  * Which fields are filled in depends on `event_type`; the rest are zeroed.
  * Every handle and pointer here is valid only for the duration of the call.
  *
- * Check `size` before reading a field this header declares but an older Parcel
- * may not have written. Unlike `ParcelApi`, whose `size` a plugin verifies once
- * at startup, this struct is filled in per call and carries its own.
+ * Check `size` with `PARCEL_HAS_FIELD()` before reading a field this header
+ * declares but an older Parcel may not have written. Unlike `ParcelApi`, whose
+ * `size` a plugin verifies once at startup, this struct is filled in per call
+ * and carries its own.
  */
 typedef struct ReportEvent {
   /**
@@ -843,6 +891,19 @@ static inline bool parcel_api_compatible(const struct ParcelApiHeader *api) {
   return api && api->abi == PARCEL_ABI_VERSION &&
          api->size >= sizeof(struct ParcelApi);
 }
+
+/**
+ * Whether `ptr`, a struct of type `type` that starts with `size`, has room for
+ * `field` according to that `size`.
+ *
+ * Whoever allocates such a struct sets `size` to the size it was built with. Check
+ * this before writing a field to one Parcel allocated, such as a `Diagnostic` or
+ * `ResolveResult` out-param, and before reading a field from one Parcel filled in,
+ * such as a `ReportEvent`, when an older Parcel might not have that field. Fields
+ * in the struct's first layout are always there.
+ */
+#define PARCEL_HAS_FIELD(ptr, type, field) \
+  ((ptr)->size >= offsetof(type, field) + sizeof(((type *)0)->field))
 
 static inline void parcel_asset_get_content(struct Buffer *buf, Asset asset) {
   parcel_api->asset_get_content(buf, asset);
@@ -1004,8 +1065,8 @@ static inline Bundle parcel_bundle_graph_get_bundle(BundleGraph bundle_graph, Bu
   return parcel_api->bundle_graph_get_bundle(bundle_graph, index);
 }
 
-static inline struct BundleGraphDependencyResolution parcel_bundle_graph_get_dependency_resolution(BundleGraph bundle_graph, AssetIndex asset, uintptr_t dependency_index) {
-  return parcel_api->bundle_graph_get_dependency_resolution(bundle_graph, asset, dependency_index);
+static inline void parcel_bundle_graph_get_dependency_resolution(struct BundleGraphDependencyResolution *resolution, BundleGraph bundle_graph, AssetIndex asset, uintptr_t dependency_index) {
+  parcel_api->bundle_graph_get_dependency_resolution(resolution, bundle_graph, asset, dependency_index);
 }
 
 static inline uintptr_t parcel_asset_get_dependency_count(Asset asset) {
@@ -1016,8 +1077,8 @@ static inline Dependency parcel_asset_get_dependency(Asset asset, uintptr_t inde
   return parcel_api->asset_get_dependency(asset, index);
 }
 
-static inline void parcel_asset_add_dependency(Asset asset, const struct DependencyOptions *dep) {
-  parcel_api->asset_add_dependency(asset, dep);
+static inline bool parcel_asset_add_dependency(Asset asset, const struct DependencyOptions *dep) {
+  return parcel_api->asset_add_dependency(asset, dep);
 }
 
 static inline void parcel_dep_get_specifier(struct Buffer *buf, Dependency dep) {

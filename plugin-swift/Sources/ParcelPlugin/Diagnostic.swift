@@ -87,7 +87,12 @@ public struct Diagnostic: Error, Hashable, Sendable, CustomStringConvertible {
     }
   }
 
-  /// Fills a host diagnostic. The host frees its buffers, except where noted.
+  /// Fills a diagnostic, field by field, leaving its `size` alone: either one
+  /// Parcel allocated, or one from ``withSized(_:_:)``. The host frees its
+  /// buffers, except where noted.
+  ///
+  /// Every field here is in the first layout. One added later must only be written when
+  /// `raw.pointee.size` has room for it, since an older Parcel allocates less.
   func write(to raw: UnsafeMutablePointer<CParcelABI.Diagnostic>) {
     // The host reads a null message as "no diagnostic", which would turn a
     // failure into a success.

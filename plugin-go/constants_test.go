@@ -110,6 +110,7 @@ func TestConstantsMatchHeader(t *testing.T) {
 		{"BundleGraphResolutionExcluded", "PARCEL_BUNDLE_GRAPH_RESOLUTION_EXCLUDED", int(parcel.BundleGraphResolutionExcluded)},
 		{"BundleGraphResolutionAsset", "PARCEL_BUNDLE_GRAPH_RESOLUTION_ASSET", int(parcel.BundleGraphResolutionAsset)},
 		{"BundleGraphResolutionBundle", "PARCEL_BUNDLE_GRAPH_RESOLUTION_BUNDLE", int(parcel.BundleGraphResolutionBundle)},
+		{"BundleGraphResolutionInternalized", "PARCEL_BUNDLE_GRAPH_RESOLUTION_INTERNALIZED", int(parcel.BundleGraphResolutionInternalized)},
 		// DependencyFlags
 		{"DependencyFlagEntry", "PARCEL_DEP_ENTRY", int(parcel.DependencyFlagEntry)},
 		{"DependencyFlagOptional", "PARCEL_DEP_OPTIONAL", int(parcel.DependencyFlagOptional)},

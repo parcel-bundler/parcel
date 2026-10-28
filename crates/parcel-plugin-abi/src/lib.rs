@@ -2,6 +2,8 @@
 
 #[macro_use]
 mod macros;
+#[macro_use]
+mod extensible;
 
 mod api;
 mod asset;

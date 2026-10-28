@@ -37,6 +37,58 @@ func installAPI(_ api: UnsafeRawPointer?) -> Bool {
   return true
 }
 
+// ── Structs that carry their size ───────────────────────────────────────────
+//
+// Every struct passed to or from Parcel by pointer starts with `size`, set by
+// whoever allocates it, so either side can append fields without breaking the
+// other. Parcel may be newer or older than this SDK:
+//
+// - A struct this SDK hands Parcel is zeroed in full, padding included, before
+//   its fields are set. A newer field lands where an older Parcel only expects
+//   zero bytes, and it rejects anything else there rather than ignore a setting
+//   it does not understand.
+// - A struct Parcel filled in is read up to its `size`, with any field past it
+//   left zeroed.
+// - A struct Parcel allocated is written field by field through its pointer,
+//   never wholesale, so only the fields Parcel declared are touched. Fields
+//   appended to the first layout must check `size` before writing.
+
+/// Calls `body` with a zeroed `T` whose `size` is set, in memory Swift does not
+/// copy, so its padding stays zeroed. Set fields through the pointer.
+///
+/// `T` must be one of the ABI structs, which start with `size` and are valid
+/// zeroed. For these, `MemoryLayout<T>.size` is C's `sizeof`, tail padding
+/// included.
+func withSized<T, R>(_ type: T.Type, _ body: (UnsafeMutablePointer<T>) throws -> R) rethrows -> R
+{
+  try withUnsafeTemporaryAllocation(
+    byteCount: MemoryLayout<T>.stride, alignment: MemoryLayout<T>.alignment
+  ) { bytes in
+    bytes.initializeMemory(as: UInt8.self, repeating: 0)
+    bytes.storeBytes(of: UInt(MemoryLayout<T>.size), as: UInt.self)
+    return try body(bytes.baseAddress!.bindMemory(to: T.self, capacity: 1))
+  }
+}
+
+/// Reads a struct Parcel filled in, up to the `size` it reported, leaving any
+/// field past that zeroed. `nil` when `size` is too small to be any version of
+/// the struct, i.e. smaller than `minSize`.
+///
+/// `raw` must point to `size` readable bytes, and `T` must be one of the ABI
+/// structs, for which any bit pattern is valid.
+func readSized<T>(_ raw: UnsafeRawPointer, as type: T.Type, minSize: Int) -> T? {
+  let size = raw.loadUnaligned(as: UInt.self)
+  guard size >= UInt(minSize) else { return nil }
+  return withUnsafeTemporaryAllocation(
+    byteCount: MemoryLayout<T>.stride, alignment: MemoryLayout<T>.alignment
+  ) { bytes in
+    bytes.initializeMemory(as: UInt8.self, repeating: 0)
+    bytes.baseAddress!.copyMemory(
+      from: raw, byteCount: Int(min(size, UInt(MemoryLayout<T>.size))))
+    return bytes.load(as: T.self)
+  }
+}
+
 // ── Buffers ─────────────────────────────────────────────────────────────────
 
 /// Calls `fill` with an empty host buffer, and copies out and frees whatever the

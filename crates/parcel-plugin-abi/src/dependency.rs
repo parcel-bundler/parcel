@@ -9,8 +9,10 @@ use parcel_core::{
 };
 
 use crate::{
-  Asset, Buffer, BundleBehavior, Dependency, Options, ResolutionType, ResolveResult, Target,
-  bytes_to_str, options_context, path_arg, write_buffer,
+  Asset, Buffer, BundleBehavior, BundleBehaviorFFI, Dependency, Options, ResolutionType,
+  ResolveResult, Target, bytes_to_str,
+  extensible::{Extensible, read_extensible, unknown_fields_are_zero, write_extensible},
+  options_context, path_arg, write_buffer,
 };
 
 // SpecifierType — how a dependency specifier is interpreted
@@ -23,6 +25,8 @@ pub enum SpecifierType {
   PARCEL_SPECIFIER_CUSTOM = 3,
 }
 
+pub type SpecifierTypeFFI = u8;
+
 // Priority — when a dependency is loaded
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -31,6 +35,8 @@ pub enum Priority {
   PARCEL_PRIORITY_PARALLEL = 1,
   PARCEL_PRIORITY_LAZY = 2,
 }
+
+pub type PriorityFFI = u8;
 
 impl_enum_conversion! {
   CoreSpecifierType => SpecifierType {
@@ -57,6 +63,8 @@ pub enum ImportType {
   /// The bundle's contents as bytes.
   PARCEL_IMPORT_TYPE_BYTES = 4,
 }
+
+pub type ImportTypeFFI = u8;
 
 impl_enum_conversion! {
   CoreImportType => ImportType {
@@ -157,27 +165,40 @@ assert_flag_values! {
 }
 
 /// Dependency descriptor passed to `parcel_asset_add_dependency()` and `parcel_asset_resolve()`.
-/// Use `PARCEL_SPECIFIER_ESM` / `PARCEL_PRIORITY_SYNC` / `PARCEL_BUNDLE_BEHAVIOR_NONE` /
-/// `PARCEL_IMPORT_TYPE_JAVASCRIPT` as defaults.
+///
+/// Initialize it as `DependencyOptions dep = {.size = sizeof(DependencyOptions)};`, which zeroes the rest:
+/// `PARCEL_SPECIFIER_ESM` / `PARCEL_PRIORITY_SYNC` / `PARCEL_BUNDLE_BEHAVIOR_NONE` /
+/// `PARCEL_IMPORT_TYPE_JAVASCRIPT` and no flags are the defaults. Zero any padding too, e.g. with
+/// `memset`, if you fill it in some other way: a field a newer header adds lands where an older
+/// Parcel sees only bytes it expects to be zero, and it rejects a dependency that sets anything it
+/// does not understand rather than silently ignoring it.
 #[repr(C)]
 pub struct DependencyOptions {
+  /// `sizeof(DependencyOptions)`. Always the first member.
+  pub size: usize,
   /// Module specifier bytes (e.g. `"./foo.js"`). Required.
   pub specifier: *const u8,
   /// Byte length of `specifier`.
   pub specifier_len: usize,
   /// `PARCEL_SPECIFIER_*`
-  pub specifier_type: SpecifierType,
+  pub specifier_type: SpecifierTypeFFI,
   /// `PARCEL_PRIORITY_*`
-  pub priority: Priority,
+  pub priority: PriorityFFI,
   /// `PARCEL_BUNDLE_BEHAVIOR_*`
-  pub bundle_behavior: BundleBehavior,
+  pub bundle_behavior: BundleBehaviorFFI,
   /// `PARCEL_DEP_*` bits
   pub flags: DependencyFlagsFFI,
   /// `PARCEL_EXPORTS_CONDITION_*` bits
   pub conditions: ExportsConditionsFFI,
   /// `PARCEL_IMPORT_TYPE_*`
-  pub import_type: ImportType,
+  pub import_type: ImportTypeFFI,
 }
+
+impl_extensible!(
+  DependencyOptions,
+  min_size = std::mem::offset_of!(DependencyOptions, import_type) + size_of::<ImportTypeFFI>()
+);
+
 // ── Dependencies ──────────────────────────────────────────────────────────────
 
 /// Returns the number of dependencies belonging to an asset.
@@ -202,35 +223,45 @@ pub extern "C" fn parcel_asset_get_dependency(asset: Asset, index: usize) -> Dep
 }
 
 impl DependencyOptions {
-  /// The dependency these options describe, imported by `asset` from `resolve_from`. It inherits
-  /// the asset's target. `None` when no specifier was given.
+  /// The dependency described by the options a plugin passed, imported by `asset` from
+  /// `resolve_from`. It inherits the asset's target.
+  ///
+  /// `None` when the options cannot be honored: no specifier, a `size` no version of the ABI
+  /// produces, an enum value this build does not know, or a field it does not know set to anything
+  /// but its default. Each of those means a plugin asked for something other than what it would
+  /// get, so it is an error rather than a fallback. Unknown flag bits are the exception, and are
+  /// dropped, as they always have been.
   ///
   /// # Safety
   ///
-  /// `specifier` must point to `specifier_len` readable bytes.
-  unsafe fn to_dependency(
-    &self,
+  /// `raw` must be non-null and point to `(*raw).size` readable bytes, and its `specifier` to
+  /// `specifier_len` readable bytes.
+  unsafe fn read(
+    raw: *const DependencyOptions,
     asset: &CoreAsset,
     resolve_from: SourceUrl,
   ) -> Option<CoreDependency> {
-    if self.specifier.is_null() {
+    let (options, size) = unsafe { read_extensible(raw) }?;
+    if !unsafe { unknown_fields_are_zero(raw, size) } || options.specifier.is_null() {
       return None;
     }
-    let specifier = unsafe { bytes_to_str(self.specifier, self.specifier_len) };
+    let specifier = unsafe { bytes_to_str(options.specifier, options.specifier_len) };
 
     Some(CoreDependency {
       specifier: specifier.into(),
-      specifier_type: self.specifier_type.into(),
-      priority: self.priority.into(),
-      bundle_behavior: self.bundle_behavior.into(),
-      import_type: self.import_type.into(),
-      flags: CoreDependencyFlags::from_bits_truncate(self.flags),
+      specifier_type: SpecifierType::try_from(options.specifier_type).ok()?.into(),
+      priority: Priority::try_from(options.priority).ok()?.into(),
+      bundle_behavior: BundleBehavior::try_from(options.bundle_behavior)
+        .ok()?
+        .into(),
+      import_type: ImportType::try_from(options.import_type).ok()?.into(),
+      flags: CoreDependencyFlags::from_bits_truncate(options.flags),
       target: asset.target.clone(),
       loc: None,
       placeholder: None,
       resolve_from: Some(resolve_from),
       range: None,
-      conditions: CoreExportsCondition::from_bits_truncate(self.conditions),
+      conditions: CoreExportsCondition::from_bits_truncate(options.conditions),
       resolution: DependencyResolution::None,
       concurrent_group: 0,
       custom_conditions: Default::default(),
@@ -239,15 +270,20 @@ impl DependencyOptions {
 }
 
 /// Appends a dependency to the asset. The new dependency inherits the asset's target.
-pub extern "C" fn parcel_asset_add_dependency(asset: Asset, dep: *const DependencyOptions) {
+///
+/// Returns false, adding nothing, when Parcel cannot honor `dep`: it has no specifier, or its
+/// `size` is unset, or it uses a value or field this version of Parcel does not support.
+pub extern "C" fn parcel_asset_add_dependency(asset: Asset, dep: *const DependencyOptions) -> bool {
   if asset == 0 || dep.is_null() {
-    return;
+    return false;
   }
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
   let from = asset.loc.url.clone();
-  if let Some(dep) = unsafe { (*dep).to_dependency(asset, from) } {
-    asset.dependencies.push(dep);
-  }
+  let Some(dep) = (unsafe { DependencyOptions::read(dep, asset, from) }) else {
+    return false;
+  };
+  asset.dependencies.push(dep);
+  true
 }
 
 /// Resolves a dependency of `asset` with the configured resolver plugins, exactly as one added
@@ -259,7 +295,8 @@ pub extern "C" fn parcel_asset_add_dependency(asset: Asset, dep: *const Dependen
 /// Every file the resolvers read or probe is recorded as an invalidation of the asset, so the
 /// transform re-runs when the result would change. Only available while transforming.
 ///
-/// Returns false when the dependency could not be resolved. Otherwise fills `*result`: for
+/// Returns false when the dependency could not be resolved, or when Parcel cannot honor `dep` (see
+/// `parcel_asset_add_dependency()`). Otherwise fills `*result`, whose `size` the caller sets: for
 /// `PARCEL_RESOLUTION_FILE_PATH`, `file_path` and, when the resolver chose one, `pipeline`. The
 /// caller must `parcel_free_buffer()` both.
 pub extern "C" fn parcel_asset_resolve(
@@ -271,6 +308,10 @@ pub extern "C" fn parcel_asset_resolve(
   result: *mut ResolveResult,
 ) -> bool {
   if asset == 0 || options == 0 || dep.is_null() || result.is_null() {
+    return false;
+  }
+  // Checked up front, so a resolution is never computed only to be dropped.
+  if unsafe { result.cast::<usize>().read() } < ResolveResult::MIN_SIZE {
     return false;
   }
   let Some(plugin) = unsafe { options_context(options) }.plugin else {
@@ -285,7 +326,7 @@ pub extern "C" fn parcel_asset_resolve(
       None => return false,
     }
   };
-  let Some(dep) = (unsafe { (*dep).to_dependency(asset, resolve_from) }) else {
+  let Some(dep) = (unsafe { DependencyOptions::read(dep, asset, resolve_from) }) else {
     return false;
   };
 
@@ -293,32 +334,29 @@ pub extern "C" fn parcel_asset_resolve(
     return false;
   };
 
-  let result = unsafe { &mut *result };
-  result.resolution_type = ResolutionType::PARCEL_RESOLUTION_NONE;
-  result.file_path = Buffer::default();
-  result.pipeline = Buffer::default();
+  let mut resolved = ResolveResult::default();
   match resolution {
     DependencyResolution::Deferred(req) => {
       // A request for something other than a file, e.g. a virtual module, has no path to hand
       // back.
       if let Ok(path) = req.loc.url.to_file_path() {
         let path = path.to_path_buf().to_string_lossy().into_owned();
-        result.resolution_type = ResolutionType::PARCEL_RESOLUTION_FILE_PATH;
-        unsafe { write_buffer(&mut result.file_path, path.into_bytes(), true) };
+        resolved.resolution_type = ResolutionType::PARCEL_RESOLUTION_FILE_PATH as u8;
+        unsafe { write_buffer(&mut resolved.file_path, path.into_bytes(), true) };
         if let Some(pipeline) = &req.pipeline {
-          unsafe { write_buffer(&mut result.pipeline, pipeline.as_bytes().to_vec(), true) };
+          unsafe { write_buffer(&mut resolved.pipeline, pipeline.as_bytes().to_vec(), true) };
         }
       }
     }
     DependencyResolution::External => {
-      result.resolution_type = ResolutionType::PARCEL_RESOLUTION_EXTERNAL;
+      resolved.resolution_type = ResolutionType::PARCEL_RESOLUTION_EXTERNAL as u8;
     }
     DependencyResolution::Excluded => {
-      result.resolution_type = ResolutionType::PARCEL_RESOLUTION_EXCLUDED;
+      resolved.resolution_type = ResolutionType::PARCEL_RESOLUTION_EXCLUDED as u8;
     }
     DependencyResolution::None | DependencyResolution::Asset(_) => {}
   }
-  true
+  unsafe { write_extensible(result, resolved) }
 }
 
 // ── Dependency accessors (read-only) ──────────────────────────────────────────

@@ -158,11 +158,21 @@ public struct Asset {
   // ── Dependencies and symbols ─────────────────────────────────────────────
 
   /// Adds a dependency to the asset. It inherits the asset's target.
-  public func addDependency(_ dependency: DependencyOptions) {
-    host { dependency.withRaw { parcel_asset_add_dependency(raw, $0) } }
+  ///
+  /// Throws when Parcel cannot honor `dependency`, e.g. because it uses a
+  /// ``SpecifierType``, ``Priority``, ``BundleBehavior``, or ``ImportType``
+  /// value this version of Parcel does not support.
+  public func addDependency(_ dependency: DependencyOptions) throws(Diagnostic) {
+    let added = host { dependency.withRaw { parcel_asset_add_dependency(raw, $0) } }
+    guard added else {
+      let specifier = String(reflecting: dependency.specifier)
+      throw Diagnostic(
+        "Parcel could not add the dependency \(specifier): it uses an option this version of "
+          + "Parcel does not support.")
+    }
   }
 
-  /// Adds a dependency on `specifier` to the asset.
+  /// Adds a dependency on `specifier` to the asset. See ``addDependency(_:)``.
   public func addDependency(
     _ specifier: String,
     specifierType: SpecifierType = .esm,
@@ -171,8 +181,8 @@ public struct Asset {
     flags: DependencyFlags = [],
     conditions: ExportsConditions = [],
     importType: ImportType = .javaScript
-  ) {
-    addDependency(
+  ) throws(Diagnostic) {
+    try addDependency(
       DependencyOptions(
         specifier, specifierType: specifierType, priority: priority,
         bundleBehavior: bundleBehavior, flags: flags, conditions: conditions,
@@ -187,21 +197,25 @@ public struct Asset {
   /// the resolvers read or probe invalidates the asset, so the transform re-runs
   /// when the result would change.
   ///
-  /// Returns `nil` when the dependency could not be resolved to anything.
+  /// Returns `nil` when the dependency could not be resolved to anything, or
+  /// Parcel cannot honor `dependency` (see ``addDependency(_:)``).
   public func resolve(_ dependency: DependencyOptions, from: String? = nil) -> ResolveResult? {
     host {
-      var result = CParcelABI.ResolveResult()
-      let resolved = dependency.withRaw { dep in
-        withBytes(from ?? "") { parcel_asset_resolve(raw, options.raw, dep, $0, $1, &result) }
-      }
-      let filePath = takeString(&result.file_path)
-      let pipeline = takeString(&result.pipeline)
-      guard resolved else { return nil }
-      switch result.resolution_type {
-      case 1: return filePath.map { .resolved(filePath: $0, pipeline: pipeline) }
-      case 2: return .external
-      case 3: return .excluded
-      default: return nil
+      withSized(CParcelABI.ResolveResult.self) { result in
+        let resolved = dependency.withRaw { dep in
+          withBytes(from ?? "") { parcel_asset_resolve(raw, options.raw, dep, $0, $1, result) }
+        }
+        let filePath = takeString(&result.pointee.file_path)
+        let pipeline = takeString(&result.pointee.pipeline)
+        guard resolved else { return nil }
+        switch result.pointee.resolution_type {
+        case 1: return filePath.map { .resolved(filePath: $0, pipeline: pipeline) }
+        case 2: return .external
+        case 3: return .excluded
+        // Unresolved, or a kind of resolution this SDK predates, which a plugin
+        // cannot act on.
+        default: return nil
+        }
       }
     }
   }

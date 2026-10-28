@@ -11,9 +11,8 @@ use parcel_core::{
 };
 
 use crate::{
-  Asset, AssetIndex, Buffer, Bundle, BundleGraph, Dependency, Diagnostic, DiagnosticSeverity,
-  Diagnostics, Options, OptionsContext, diagnostics::DiagnosticsView, parcel_free_buffer,
-  read_cdiagnostic,
+  Asset, AssetIndex, Buffer, Bundle, BundleGraph, Dependency, Diagnostic, Diagnostics, Options,
+  OptionsContext, diagnostics::DiagnosticsView, parcel_free_buffer, read_cdiagnostic,
 };
 
 /// Result of a plugin's `parcel_plugin_init()`.
@@ -34,6 +33,12 @@ pub enum InitStatus {
   PARCEL_INIT_INCOMPATIBLE = 2,
 }
 
+impl_raw_enum!(InitStatus {
+  PARCEL_INIT_OK,
+  PARCEL_INIT_ERROR,
+  PARCEL_INIT_INCOMPATIBLE,
+});
+
 // ResolveResult.resolution_type field
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -44,17 +49,38 @@ pub enum ResolutionType {
   PARCEL_RESOLUTION_EXCLUDED = 3,
 }
 
-/// Result filled by a resolver plugin's `parcel_plugin_resolve()`.
-/// The struct is zero-initialised by the host before the call.
+pub type ResolutionTypeFFI = u8;
+
+impl_raw_enum!(ResolutionType {
+  PARCEL_RESOLUTION_NONE,
+  PARCEL_RESOLUTION_FILE_PATH,
+  PARCEL_RESOLUTION_EXTERNAL,
+  PARCEL_RESOLUTION_EXCLUDED,
+});
+
+/// Result filled by a resolver plugin's `parcel_plugin_resolve()`, or by Parcel in
+/// `parcel_asset_resolve()`.
+///
+/// Whoever allocates it zero-initializes it and sets `size`: Parcel before calling
+/// `parcel_plugin_resolve()`, so a resolver only writes fields that fit within
+/// `size` (`PARCEL_HAS_FIELD()` checks), and the plugin before calling
+/// `parcel_asset_resolve()`, as `ResolveResult result = {.size = sizeof(ResolveResult)};`.
 ///
 /// When type == PARCEL_RESOLUTION_FILE_PATH, fill `file_path` (and optionally `pipeline`) via `parcel_buffer_alloc()`.
 #[repr(C)]
 pub struct ResolveResult {
+  /// `sizeof(ResolveResult)` as whoever allocated it was built. Always the first member.
+  pub size: usize,
   /// `PARCEL_RESOLUTION_*`
-  pub resolution_type: ResolutionType,
+  pub resolution_type: ResolutionTypeFFI,
   pub file_path: Buffer,
   pub pipeline: Buffer,
 }
+
+impl_extensible!(
+  ResolveResult,
+  min_size = std::mem::offset_of!(ResolveResult, pipeline) + size_of::<Buffer>()
+);
 
 // ── Reporter events ───────────────────────────────────────────────────────────
 
@@ -80,6 +106,8 @@ pub enum LogLevel {
   PARCEL_LOG_VERBOSE = 4,
 }
 
+pub type LogLevelFFI = u8;
+
 impl_enum_conversion! {
   CoreLogLevel => LogLevel {
     CoreLogLevel::None => LogLevel::PARCEL_LOG_NONE,
@@ -95,9 +123,10 @@ impl_enum_conversion! {
 /// Which fields are filled in depends on `event_type`; the rest are zeroed.
 /// Every handle and pointer here is valid only for the duration of the call.
 ///
-/// Check `size` before reading a field this header declares but an older Parcel
-/// may not have written. Unlike `ParcelApi`, whose `size` a plugin verifies once
-/// at startup, this struct is filled in per call and carries its own.
+/// Check `size` with `PARCEL_HAS_FIELD()` before reading a field this header
+/// declares but an older Parcel may not have written. Unlike `ParcelApi`, whose
+/// `size` a plugin verifies once at startup, this struct is filled in per call
+/// and carries its own.
 #[repr(C)]
 pub struct ReportEvent {
   /// `sizeof(struct ReportEvent)` as the host was built.
@@ -123,16 +152,23 @@ pub struct ReportEvent {
 }
 
 /// Result filled by an optimizer plugin's `parcel_plugin_optimize()`.
-/// The struct is zero-initialised by the host before the call. Fill `contents`
-/// and optionally `source_map` using `parcel_buffer_write()` or
-/// `parcel_buffer_write_utf8()`.
+/// The struct is zero-initialised by the host before the call, apart from `size`.
+/// Fill `contents` and optionally `source_map` using `parcel_buffer_write()` or
+/// `parcel_buffer_write_utf8()`, and only write fields that fit within `size`
+/// (`PARCEL_HAS_FIELD()` checks).
 #[repr(C)]
-#[derive(Default)]
 pub struct OptimizeResult {
+  /// `sizeof(OptimizeResult)` as Parcel was built. Always the first member.
+  pub size: usize,
   pub contents: Buffer,
   /// Leave empty to remove the source map from the optimized output.
   pub source_map: Buffer,
 }
+
+impl_extensible!(
+  OptimizeResult,
+  min_size = std::mem::offset_of!(OptimizeResult, source_map) + size_of::<Buffer>()
+);
 
 // ── CPlugin ───────────────────────────────────────────────────────────────────
 
@@ -234,14 +270,14 @@ impl CPlugin {
       &mut diagnostic,
     );
 
-    match status {
+    match InitStatus::try_from(status) {
       // A plugin may legitimately have no state, so `state` says nothing about
       // whether initialization succeeded. Only the status does.
-      s if s == InitStatus::PARCEL_INIT_OK as u8 => Ok(state),
+      Ok(InitStatus::PARCEL_INIT_OK) => Ok(state),
 
       // Every SDK writes a diagnostic along with this status, so a missing one
       // also suggests a library built against something else.
-      s if s == InitStatus::PARCEL_INIT_ERROR as u8 => Err(
+      Ok(InitStatus::PARCEL_INIT_ERROR) => Err(
         read_cdiagnostic(&mut diagnostic, None)
           .map(|diag| DiagnosticList(vec![diag]))
           .unwrap_or_else(|| {
@@ -347,44 +383,8 @@ impl Resolver for CPlugin {
       })?
     };
 
-    let mut result = ResolveResult {
-      resolution_type: ResolutionType::PARCEL_RESOLUTION_NONE,
-      file_path: Buffer {
-        data: ptr::null_mut(),
-        len: 0,
-        cap: 0,
-        is_utf8: false,
-      },
-      pipeline: Buffer {
-        data: ptr::null_mut(),
-        len: 0,
-        cap: 0,
-        is_utf8: false,
-      },
-    };
-    let mut diagnostic = Diagnostic {
-      message: Buffer {
-        data: ptr::null_mut(),
-        len: 0,
-        cap: 0,
-        is_utf8: false,
-      },
-      file_path: Buffer {
-        data: ptr::null_mut(),
-        len: 0,
-        cap: 0,
-        is_utf8: false,
-      },
-      line: 0,
-      column: 0,
-      hint: Buffer {
-        data: ptr::null_mut(),
-        len: 0,
-        cap: 0,
-        is_utf8: false,
-      },
-      severity: DiagnosticSeverity::PARCEL_SEVERITY_ERROR,
-    };
+    let mut result = ResolveResult::default();
+    let mut diagnostic = Diagnostic::default();
 
     let pipeline_bytes = pipeline.map(|p| p.as_bytes());
     let context = OptionsContext::with_plugin(ctx);
@@ -405,9 +405,17 @@ impl Resolver for CPlugin {
       return Err(diagnostics);
     }
 
-    match result.resolution_type {
-      ResolutionType::PARCEL_RESOLUTION_FILE_PATH => {
+    let resolution_type = ResolutionType::try_from(result.resolution_type);
+    if resolution_type != Ok(ResolutionType::PARCEL_RESOLUTION_FILE_PATH) {
+      // A resolver may have filled these in regardless.
+      parcel_free_buffer(&mut result.file_path);
+      parcel_free_buffer(&mut result.pipeline);
+    }
+
+    match resolution_type {
+      Ok(ResolutionType::PARCEL_RESOLUTION_FILE_PATH) => {
         if result.file_path.data.is_null() {
+          parcel_free_buffer(&mut result.pipeline);
           return Ok(DependencyResolution::None);
         }
         let file_path = {
@@ -428,14 +436,14 @@ impl Resolver for CPlugin {
           let s = unsafe {
             let slice = std::slice::from_raw_parts(result.pipeline.data, result.pipeline.len);
             if result.pipeline.is_utf8 {
-              std::str::from_utf8_unchecked(slice)
+              Ok(std::str::from_utf8_unchecked(slice))
             } else {
-              std::str::from_utf8(slice)?
+              std::str::from_utf8(slice)
             }
           };
-          let atom = Some(hstr::Atom::from(s));
+          let atom = s.map(hstr::Atom::from);
           parcel_free_buffer(&mut result.pipeline);
-          atom
+          Some(atom?)
         };
 
         let url = SourceUrl::from_path(&PathId::new(&file_path));
@@ -458,9 +466,20 @@ impl Resolver for CPlugin {
           unique_key: None,
         })))
       }
-      ResolutionType::PARCEL_RESOLUTION_EXTERNAL => Ok(DependencyResolution::External),
-      ResolutionType::PARCEL_RESOLUTION_EXCLUDED => Ok(DependencyResolution::Excluded),
-      ResolutionType::PARCEL_RESOLUTION_NONE => Ok(DependencyResolution::None),
+      Ok(ResolutionType::PARCEL_RESOLUTION_EXTERNAL) => Ok(DependencyResolution::External),
+      Ok(ResolutionType::PARCEL_RESOLUTION_EXCLUDED) => Ok(DependencyResolution::Excluded),
+      Ok(ResolutionType::PARCEL_RESOLUTION_NONE) => Ok(DependencyResolution::None),
+      // Guessing what a resolution this build has never heard of meant would
+      // build the wrong thing.
+      Err(resolution_type) => Err(
+        CoreDiagnostic {
+          origin: Some(self.origin.clone()),
+          ..CoreDiagnostic::from_message(format!(
+            "Resolved {specifier:?} with resolution type {resolution_type}, which this version of Parcel does not support."
+          ))
+        }
+        .into(),
+      ),
     }
   }
 }

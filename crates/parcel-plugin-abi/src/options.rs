@@ -1,8 +1,14 @@
 //! Read-only Parcel option accessors.
 
-use parcel_core::{FileSystem, LogLevel as CoreLogLevel, ParcelOptions, PluginContext};
+use parcel_core::{
+  DiagnosticSeverity as CoreDiagnosticSeverity, FileSystem, LogLevel as CoreLogLevel,
+  ParcelOptions, PluginContext,
+};
 
-use crate::{Buffer, Diagnostic, LogLevel, Options, bytes_to_str, copy_cdiagnostic, write_buffer};
+use crate::{
+  Buffer, Diagnostic, LogLevel, LogLevelFFI, Options, bytes_to_str, copy_plugin_cdiagnostic,
+  write_buffer,
+};
 
 /// What an [`Options`] handle points to.
 ///
@@ -103,10 +109,11 @@ pub extern "C" fn parcel_options_get_env(
 ///
 /// Available from every plugin entry point, since they all receive `options`.
 /// The message is dropped when the build has no reporters, or when `level` is
-/// below the build's configured log level.
+/// below the build's configured log level. A `level` this version of Parcel does
+/// not know is logged as `PARCEL_LOG_INFO`.
 pub extern "C" fn parcel_options_log(
   options: Options,
-  level: LogLevel,
+  level: LogLevelFFI,
   message: *const u8,
   message_len: usize,
 ) {
@@ -115,6 +122,7 @@ pub extern "C" fn parcel_options_log(
   }
   let options = unsafe { options_context(options) }.options;
   let message = unsafe { bytes_to_str(message, message_len) };
+  let level = LogLevel::try_from(level).unwrap_or(LogLevel::PARCEL_LOG_INFO);
   options.log(CoreLogLevel::from(level), message);
 }
 
@@ -124,21 +132,22 @@ pub extern "C" fn parcel_options_log(
 ///
 /// The log level comes from the diagnostic's own severity, so the two cannot
 /// contradict each other. The host copies what it needs: the plugin still owns
-/// the buffers and should free them as usual.
+/// the buffers and should free them as usual. Dropped when the diagnostic's
+/// `size` is unset.
 pub extern "C" fn parcel_options_log_diagnostic(options: Options, diagnostic: *const Diagnostic) {
   if options == 0 || diagnostic.is_null() {
     return;
   }
   let options = unsafe { options_context(options) }.options;
-  let diagnostic = unsafe { &*diagnostic };
-  let level = match diagnostic.severity {
-    crate::DiagnosticSeverity::PARCEL_SEVERITY_ERROR => CoreLogLevel::Error,
-    crate::DiagnosticSeverity::PARCEL_SEVERITY_SOURCE_ERROR => CoreLogLevel::Error,
-    crate::DiagnosticSeverity::PARCEL_SEVERITY_WARNING => CoreLogLevel::Warn,
-    crate::DiagnosticSeverity::PARCEL_SEVERITY_INFO => CoreLogLevel::Info,
+  let Some(diagnostic) =
+    (unsafe { copy_plugin_cdiagnostic(diagnostic, Some(&options.project_root)) })
+  else {
+    return;
   };
-
-  if let Some(diagnostic) = copy_cdiagnostic(diagnostic, Some(&options.project_root)) {
-    options.log_diagnostic(level, diagnostic);
-  }
+  let level = match diagnostic.severity {
+    CoreDiagnosticSeverity::Error | CoreDiagnosticSeverity::SourceError => CoreLogLevel::Error,
+    CoreDiagnosticSeverity::Warning => CoreLogLevel::Warn,
+    CoreDiagnosticSeverity::Info => CoreLogLevel::Info,
+  };
+  options.log_diagnostic(level, diagnostic);
 }
