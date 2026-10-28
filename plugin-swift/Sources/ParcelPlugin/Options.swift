@@ -37,16 +37,17 @@ public struct Options: Sendable {
   /// The log level follows the diagnostic's ``Diagnostic/severity``.
   public func log(_ diagnostic: Diagnostic) {
     scope.shared("Options") {
-      var raw = CParcelABI.Diagnostic()
-      diagnostic.write(to: &raw)
-      // The host copies what it needs rather than taking ownership, unlike a
-      // diagnostic returned from an entry point, so these are ours to free.
-      defer {
-        parcel_free_buffer(&raw.message)
-        parcel_free_buffer(&raw.file_path)
-        parcel_free_buffer(&raw.hint)
+      withSized(CParcelABI.Diagnostic.self) { raw in
+        diagnostic.write(to: raw)
+        // The host copies what it needs rather than taking ownership, unlike a
+        // diagnostic returned from an entry point, so these are ours to free.
+        defer {
+          parcel_free_buffer(&raw.pointee.message)
+          parcel_free_buffer(&raw.pointee.file_path)
+          parcel_free_buffer(&raw.pointee.hint)
+        }
+        parcel_options_log_diagnostic(self.raw, raw)
       }
-      parcel_options_log_diagnostic(self.raw, &raw)
     }
   }
 
@@ -125,6 +126,7 @@ public struct FileSystem: Sendable {
       return
     case 1:
       throw .notFound(path: path)
+    // PARCEL_IO_ERROR, or a status this SDK predates.
     default:
       throw .failed(path: path, message: takeString(&buffer) ?? "unknown error")
     }

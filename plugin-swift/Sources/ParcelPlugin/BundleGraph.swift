@@ -53,11 +53,18 @@ public struct BundleGraph: Sendable {
   }
 
   /// What the dependency at `dependencyIndex` of the asset at `asset` resolved to.
+  /// ``DependencyResolution/invalid`` for an index out of range, and for a kind
+  /// of resolution this SDK predates.
   public func resolution(ofDependency dependencyIndex: Int, of asset: AssetIndex)
     -> DependencyResolution
   {
+    guard dependencyIndex >= 0 else { return .invalid }
     let resolution = host {
-      parcel_bundle_graph_get_dependency_resolution(raw, asset, UInt(dependencyIndex))
+      withSized(CParcelABI.BundleGraphDependencyResolution.self) { resolution in
+        parcel_bundle_graph_get_dependency_resolution(
+          resolution, raw, asset, UInt(dependencyIndex))
+        return resolution.pointee
+      }
     }
     switch resolution.resolution_type {
     case 1: return .none
@@ -65,7 +72,7 @@ public struct BundleGraph: Sendable {
     case 3: return .external
     case 4: return .excluded
     case 5: return .asset(resolution.asset)
-    case 6: return .bundle(BundleIndex(resolution.bundle))
+    case 6: return BundleIndex(exactly: resolution.bundle).map { .bundle($0) } ?? .invalid
     case 7: return .internalized
     default: return .invalid
     }
@@ -74,7 +81,8 @@ public struct BundleGraph: Sendable {
 
 /// What a dependency in a ``BundleGraph`` resolved to.
 public enum DependencyResolution: Hashable, Sendable {
-  /// The asset or dependency index was out of range.
+  /// The asset or dependency index was out of range, or the dependency resolved
+  /// to something this SDK predates.
   case invalid
   /// Not resolved to anything.
   case none

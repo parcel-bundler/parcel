@@ -9,8 +9,8 @@ use parcel_core::{
 };
 
 use crate::{
-  Asset, Buffer, Bundle, BundleBehavior, BundleGraph, Diagnostic, Options, OptionsContext,
-  bytes_to_str, read_cdiagnostic, write_buffer,
+  Asset, Buffer, Bundle, BundleBehavior, BundleBehaviorFFI, BundleGraph, Diagnostic, Options,
+  OptionsContext, bytes_to_str, read_cdiagnostic, write_buffer,
 };
 
 #[repr(u32)]
@@ -481,10 +481,13 @@ pub extern "C" fn parcel_asset_get_bundle_behavior(asset: Asset) -> BundleBehavi
   asset.bundle_behavior.into()
 }
 
-/// Sets the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`).
-pub extern "C" fn parcel_asset_set_bundle_behavior(asset: Asset, behavior: BundleBehavior) {
+/// Sets the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`). A value this version of Parcel does not
+/// know is ignored, leaving the asset's bundle behavior unchanged.
+pub extern "C" fn parcel_asset_set_bundle_behavior(asset: Asset, behavior: BundleBehaviorFFI) {
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
-  asset.bundle_behavior = behavior.into();
+  if let Ok(behavior) = BundleBehavior::try_from(behavior) {
+    asset.bundle_behavior = behavior.into();
+  }
 }
 
 // ── Flags ─────────────────────────────────────────────────────────────────────

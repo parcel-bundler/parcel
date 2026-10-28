@@ -95,7 +95,7 @@ fn write_plugin_package(root: &Path, artifact: &str) {
   fs::write(
     root.join("node_modules").join(PLUGIN).join("package.json"),
     format!(
-      r#"{{"name":"{PLUGIN}","version":"1.0.0","parcel":{{"abi":1,"artifacts":{{"{TARGET}":"{artifact}"}}}}}}"#
+      r#"{{"name":"{PLUGIN}","version":"1.0.0","parcel":{{"abi":2,"artifacts":{{"{TARGET}":"{artifact}"}}}}}}"#
     ),
   )
   .expect("write plugin package.json");
@@ -159,7 +159,7 @@ fn test_artifact_in_a_platform_package() {
   fs::write(
     artifact_dir.join("package.json"),
     format!(
-      r#"{{"name":"{ARTIFACT}","version":"1.0.0","parcel":{{"abi":1,"library":"plugin.{LIB_EXT}"}}}}"#
+      r#"{{"name":"{ARTIFACT}","version":"1.0.0","parcel":{{"abi":2,"library":"plugin.{LIB_EXT}"}}}}"#
     ),
   )
   .expect("write artifact package.json");
@@ -228,7 +228,7 @@ fn write_plugin_package_with_dev_library(root: &Path, dev_library: &str) {
   fs::write(
     root.join("node_modules").join(PLUGIN).join("package.json"),
     format!(
-      r#"{{"name":"{PLUGIN}","version":"1.0.0","parcel":{{"abi":1,"artifacts":{{"{TARGET}":"{ARTIFACT}"}},"devLibrary":"{dev_library}"}}}}"#
+      r#"{{"name":"{PLUGIN}","version":"1.0.0","parcel":{{"abi":2,"artifacts":{{"{TARGET}":"{ARTIFACT}"}},"devLibrary":"{dev_library}"}}}}"#
     ),
   )
   .expect("write plugin package.json");

@@ -2525,7 +2525,7 @@ fn native_plugin_file_reads_invalidate() {
   });
   let library = library.to_str().unwrap();
   let package = format!(
-    r#"{{"name": "@parcel/transformer-sass", "parcel": {{"abi": 1, "artifacts": {{"none": "none"}}, "devLibrary": {library:?}}}}}"#
+    r#"{{"name": "@parcel/transformer-sass", "parcel": {{"abi": 2, "artifacts": {{"none": "none"}}, "devLibrary": {library:?}}}}}"#
   );
 
   let mut t = IncrementalTest::with_entries(

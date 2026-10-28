@@ -282,8 +282,9 @@ const (
 )
 
 // BundleGraphDependencyResolution is the resolved graph target of a dependency.
-// Asset is valid for BundleGraphResolutionAsset and BundleGraphResolutionType;
-// Bundle is valid for BundleGraphResolutionBundle.
+// Asset is valid for BundleGraphResolutionAsset, BundleGraphResolutionBundle,
+// and BundleGraphResolutionInternalized; Bundle is valid for
+// BundleGraphResolutionBundle.
 type BundleGraphDependencyResolution struct {
 	Type   BundleGraphResolutionType
 	Asset  AssetIndex
@@ -291,16 +292,34 @@ type BundleGraphDependencyResolution struct {
 }
 
 // DependencyResolution returns the graph resolution for an asset dependency.
+// Its Type is BundleGraphResolutionInvalid for an index out of range, and for a
+// kind of resolution this SDK predates.
 func (g *BundleGraph) DependencyResolution(asset AssetIndex, dependencyIndex int) BundleGraphDependencyResolution {
-	resolution := C.parcel_bundle_graph_get_dependency_resolution(
+	// Ours to allocate: zeroed, with the size this SDK was built with, so Parcel
+	// writes only the fields both sides know.
+	var resolution C.BundleGraphDependencyResolution
+	resolution.size = C.sizeof_BundleGraphDependencyResolution
+	C.parcel_bundle_graph_get_dependency_resolution(
+		&resolution,
 		g.ptr,
 		C.AssetIndex(asset),
 		C.uintptr_t(dependencyIndex),
 	)
-	return BundleGraphDependencyResolution{
-		Type:   BundleGraphResolutionType(resolution.resolution_type),
-		Asset:  AssetIndex(resolution.asset),
-		Bundle: BundleIndex(resolution.bundle),
+	switch ty := BundleGraphResolutionType(resolution.resolution_type); ty {
+	case BundleGraphResolutionNone,
+		BundleGraphResolutionDeferred,
+		BundleGraphResolutionExternal,
+		BundleGraphResolutionExcluded,
+		BundleGraphResolutionAsset,
+		BundleGraphResolutionBundle,
+		BundleGraphResolutionInternalized:
+		return BundleGraphDependencyResolution{
+			Type:   ty,
+			Asset:  AssetIndex(resolution.asset),
+			Bundle: BundleIndex(resolution.bundle),
+		}
+	default:
+		return BundleGraphDependencyResolution{Type: BundleGraphResolutionInvalid, Asset: InvalidAssetIndex}
 	}
 }
 

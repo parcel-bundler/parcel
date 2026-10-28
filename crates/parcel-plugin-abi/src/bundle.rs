@@ -15,6 +15,8 @@ pub enum BundleBehavior {
   PARCEL_BUNDLE_BEHAVIOR_ISOLATED = 2,
 }
 
+pub type BundleBehaviorFFI = u8;
+
 impl_enum_conversion! {
   CoreBundleBehavior => BundleBehavior {
     CoreBundleBehavior::None => BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_NONE,

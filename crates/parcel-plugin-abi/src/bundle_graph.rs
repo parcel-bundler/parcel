@@ -5,7 +5,10 @@ use parcel_core::{
   BundleGraphDependencyResolution as CoreBundleGraphDependencyResolution,
 };
 
-use crate::{Asset, AssetIndex, Bundle, BundleGraph, BundleIndex, PARCEL_INVALID_ASSET_INDEX};
+use crate::{
+  Asset, AssetIndex, Bundle, BundleGraph, BundleIndex, PARCEL_INVALID_ASSET_INDEX,
+  extensible::{Extensible, write_extensible},
+};
 
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Default)]
@@ -21,9 +24,15 @@ pub enum BundleGraphResolutionType {
   PARCEL_BUNDLE_GRAPH_RESOLUTION_INTERNALIZED = 7,
 }
 
+/// The resolution of a dependency in the bundle graph, written by
+/// `parcel_bundle_graph_get_dependency_resolution()`.
+///
+/// Initialize it as `BundleGraphDependencyResolution resolution = {.size = sizeof(resolution)};`.
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct BundleGraphDependencyResolution {
+  /// `sizeof(BundleGraphDependencyResolution)`, set by the caller. Always the first member.
+  pub size: usize,
   /// `PARCEL_BUNDLE_GRAPH_RESOLUTION_*`
   pub resolution_type: BundleGraphResolutionType,
   /// Valid only when `resolution_type == PARCEL_BUNDLE_GRAPH_RESOLUTION_ASSET`.
@@ -35,11 +44,18 @@ pub struct BundleGraphDependencyResolution {
 impl Default for BundleGraphDependencyResolution {
   fn default() -> Self {
     Self {
+      size: size_of::<Self>(),
       resolution_type: BundleGraphResolutionType::PARCEL_BUNDLE_GRAPH_RESOLUTION_INVALID,
       asset: PARCEL_INVALID_ASSET_INDEX,
       bundle: 0,
     }
   }
+}
+
+// Only Parcel writes this struct, so its enum field can stay typed.
+unsafe impl Extensible for BundleGraphDependencyResolution {
+  const MIN_SIZE: usize =
+    std::mem::offset_of!(BundleGraphDependencyResolution, bundle) + size_of::<BundleIndex>();
 }
 
 // ── Bundle graph (read-only) ─────────────────────────────────────────────────
@@ -99,9 +115,23 @@ pub extern "C" fn parcel_bundle_graph_get_bundle(
     .map_or(0, |bundle| bundle as *const parcel_core::Bundle as Bundle)
 }
 
-/// Returns the resolution of one dependency belonging to an asset.
-/// Returns `PARCEL_BUNDLE_GRAPH_RESOLUTION_INVALID` for invalid indices.
+/// Writes the resolution of one dependency belonging to an asset into `*resolution`, whose `size`
+/// the caller sets. Writes `PARCEL_BUNDLE_GRAPH_RESOLUTION_INVALID` for invalid indices, and
+/// nothing at all when `size` is unset.
 pub extern "C" fn parcel_bundle_graph_get_dependency_resolution(
+  resolution: *mut BundleGraphDependencyResolution,
+  bundle_graph: BundleGraph,
+  asset: AssetIndex,
+  dependency_index: usize,
+) {
+  if resolution.is_null() {
+    return;
+  }
+  let value = dependency_resolution(bundle_graph, asset, dependency_index);
+  unsafe { write_extensible(resolution, value) };
+}
+
+fn dependency_resolution(
   bundle_graph: BundleGraph,
   asset: AssetIndex,
   dependency_index: usize,

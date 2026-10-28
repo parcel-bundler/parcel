@@ -11,7 +11,7 @@
 //! {
 //!   "name": "@devongovett/parcel-transformer-ts-doc",
 //!   "parcel": {
-//!     "abi": 1,
+//!     "abi": 2,
 //!     "artifacts": {
 //!       "aarch64-apple-darwin": "@devongovett/parcel-transformer-ts-doc-darwin-arm64"
 //!     }
@@ -24,7 +24,7 @@
 //! beats installing one of several:
 //!
 //! ```json
-//! {"parcel": {"abi": 1, "artifacts": {"aarch64-apple-darwin": "./plugin-darwin-arm64.dylib"}}}
+//! {"parcel": {"abi": 2, "artifacts": {"aarch64-apple-darwin": "./plugin-darwin-arm64.dylib"}}}
 //! ```
 //!
 //! Unknown keys are ignored throughout. The `parcel` key is shared with unrelated
@@ -141,7 +141,7 @@ mod tests {
     "description": "ignored",
     "engines": {"node": ">= 16", "parcel": "^3.0.0-0"},
     "parcel": {
-      "abi": 1,
+      "abi": 2,
       "artifacts": {
         "aarch64-apple-darwin": "@acme/plugin-darwin-arm64",
         "x86_64-unknown-linux-gnu": "@acme/plugin-linux-x64-gnu"
@@ -165,7 +165,7 @@ mod tests {
   #[test]
   fn reads_an_artifact_package() {
     let package = PluginPackage::parse(
-      r#"{"name":"@acme/plugin-darwin-arm64","parcel":{"abi":1,"library":"plugin.dylib"}}"#,
+      r#"{"name":"@acme/plugin-darwin-arm64","parcel":{"abi":2,"library":"plugin.dylib"}}"#,
     )
     .unwrap();
     assert_eq!(package.parcel.library.as_deref(), Some("plugin.dylib"));

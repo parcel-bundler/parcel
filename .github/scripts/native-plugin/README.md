@@ -22,7 +22,7 @@ seven. The workflow derives all of that from a single `parcel` key in your packa
     "parcel": "^3.0.0-0"
   },
   "parcel": {
-    "abi": 1,
+    "abi": 2,
     "artifacts": {
       "aarch64-apple-darwin": "@devongovett/parcel-transformer-ts-doc-darwin-arm64",
       "x86_64-apple-darwin": "@devongovett/parcel-transformer-ts-doc-darwin-x64",
@@ -266,7 +266,7 @@ package.json from yours: same metadata, the artifact package's name, and the npm
   "cpu": ["arm64"],
   "files": ["plugin.dylib"],
   "parcel": {
-    "abi": 1,
+    "abi": 2,
     "library": "plugin.dylib"
   }
 }

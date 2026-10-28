@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"runtime"
 	"runtime/cgo"
 	"time"
 	"unsafe"
@@ -241,6 +242,8 @@ func parcel_plugin_optimize(rawGraph C.BundleGraph, rawBundle C.Bundle, contents
 	if rawResult == nil {
 		return
 	}
+	// Parcel allocated rawResult and set its size, so write it field by field.
+	// Both fields were in ABI 2; a field added later must check rawResult.size.
 	if err := writeContentBuffer(&rawResult.contents, result.Contents); err != nil {
 		writeDiagnostic(diag, err)
 		return
@@ -259,7 +262,11 @@ func parcel_plugin_report(rawEvent *C.ReportEvent, rawOptions C.Options, state u
 		writeDiagnostic(diag, errors.New("plugin not registered: call parcel.RegisterPlugin in init()"))
 		return
 	}
-	if rawEvent == nil {
+	// Parcel may be older or newer than this SDK, so the event is only as large
+	// as its size says. Every field read below was in ABI 2, which ends at
+	// changed_asset_count; a smaller event is not one this SDK can make sense of.
+	// A field added later needs its own size check before it is read.
+	if rawEvent == nil || uintptr(rawEvent.size) < unsafe.Offsetof(rawEvent.changed_asset_count)+unsafe.Sizeof(rawEvent.changed_asset_count) {
 		return
 	}
 
@@ -336,6 +343,12 @@ func recoverCleanupPanic() {
 
 // writeDiagnostic fills a Diagnostic from an error. If err is a *Diagnostic,
 // all fields are copied; otherwise only the message is set.
+//
+// raw is usually one Parcel allocated, whose size Parcel set to the struct it
+// was built with, so it is written field by field and its size left alone:
+// assigning the whole struct would overwrite size, and run past the end of an
+// older Parcel's smaller struct. Every field written here was in ABI 2; a field
+// added later must check raw.size before writing it.
 func writeDiagnostic(raw *C.Diagnostic, err error) {
 	if raw == nil || err == nil {
 		return
@@ -569,10 +582,21 @@ func (a *Asset) Target() *Target {
 	return &Target{ptr: C.parcel_asset_get_target(a.ptr), options: a.options}
 }
 
-// AddDependency appends a dependency to the asset.
-func (a *Asset) AddDependency(dep DependencySpec) {
-	cDep := dep.raw()
-	C.parcel_asset_add_dependency(a.ptr, &cDep)
+// AddDependency appends a dependency to the asset. The dependency inherits the
+// asset's target.
+//
+// It fails when Parcel cannot honor dep, e.g. because it uses a [SpecifierType],
+// [Priority], [BundleBehavior], or [ImportType] value this version of Parcel does
+// not support.
+func (a *Asset) AddDependency(dep DependencySpec) error {
+	var cDep C.DependencyOptions
+	var pinner runtime.Pinner
+	defer pinner.Unpin()
+	dep.writeRaw(&cDep, &pinner)
+	if !C.parcel_asset_add_dependency(a.ptr, &cDep) {
+		return fmt.Errorf("Parcel could not add the dependency %q: it uses an option this version of Parcel does not support.", dep.Specifier)
+	}
+	return nil
 }
 
 // Resolve resolves dep with the configured resolver plugins, exactly as if it
@@ -583,32 +607,60 @@ func (a *Asset) AddDependency(dep DependencySpec) {
 // from the asset. Every file the resolvers read or probe invalidates the asset,
 // so the transform re-runs when the result would change.
 //
-// It returns false when the dependency could not be resolved. Only available
-// while transforming.
+// It returns false when the dependency could not be resolved, or Parcel cannot
+// honor dep. Only available while transforming.
 func (a *Asset) Resolve(dep DependencySpec, from string) (ResolveResult, bool) {
-	cDep := dep.raw()
+	var cDep C.DependencyOptions
+	var pinner runtime.Pinner
+	defer pinner.Unpin()
+	dep.writeRaw(&cDep, &pinner)
+	// The result is ours to allocate: zeroed, with the size this SDK was built
+	// with, so Parcel writes only the fields both sides know.
 	var raw C.ResolveResult
-	if !C.parcel_asset_resolve(a.ptr, a.options, &cDep, stringPtr(from), C.uintptr_t(len(from)), &raw) {
+	raw.size = C.sizeof_ResolveResult
+	resolved := C.parcel_asset_resolve(a.ptr, a.options, &cDep, stringPtr(from), C.uintptr_t(len(from)), &raw)
+	// Taken whatever the outcome, so the buffers are always freed.
+	filePath := string(bufferBytes(&raw.file_path))
+	pipeline := string(bufferBytes(&raw.pipeline))
+	if !resolved {
 		return ResolveResult{}, false
 	}
-	return ResolveResult{
-		kind:     resolveResultKind(raw.resolution_type),
-		filePath: string(bufferBytes(&raw.file_path)),
-		pipeline: string(bufferBytes(&raw.pipeline)),
-	}, true
+
+	switch raw.resolution_type {
+	case C.PARCEL_RESOLUTION_FILE_PATH:
+		return Resolved(filePath, pipeline), true
+	case C.PARCEL_RESOLUTION_EXTERNAL:
+		return External(), true
+	case C.PARCEL_RESOLUTION_EXCLUDED:
+		return Excluded(), true
+	case C.PARCEL_RESOLUTION_NONE:
+		return ResolveResult{}, true
+	default:
+		// A kind of resolution this SDK predates, which a plugin cannot act on.
+		return ResolveResult{}, false
+	}
 }
 
-func (dep *DependencySpec) raw() C.DependencyOptions {
-	return C.DependencyOptions{
-		specifier:       stringPtr(dep.Specifier),
-		specifier_len:   C.uintptr_t(len(dep.Specifier)),
-		specifier_type:  C.uint8_t(dep.SpecifierType),
-		priority:        C.uint8_t(dep.Priority),
-		bundle_behavior: C.uint8_t(dep.BundleBehavior),
-		flags:           C.uint8_t(dep.Flags),
-		conditions:      C.uint32_t(dep.Conditions),
-		import_type:     C.uint8_t(dep.ImportType),
+// writeRaw fills raw, which must be zeroed, with dep. It sets size to what this
+// SDK was built with: a field a newer SDK adds lands where an older Parcel
+// expects zero bytes, and it rejects anything else there rather than ignore a
+// setting it does not understand. Go's zero value covers padding too.
+//
+// The specifier is pinned, since cgo forbids passing C a struct that holds an
+// unpinned pointer into the Go heap.
+func (dep *DependencySpec) writeRaw(raw *C.DependencyOptions, pinner *runtime.Pinner) {
+	raw.size = C.sizeof_DependencyOptions
+	if len(dep.Specifier) > 0 {
+		pinner.Pin(unsafe.StringData(dep.Specifier))
 	}
+	raw.specifier = stringPtr(dep.Specifier)
+	raw.specifier_len = C.uintptr_t(len(dep.Specifier))
+	raw.specifier_type = C.uint8_t(dep.SpecifierType)
+	raw.priority = C.uint8_t(dep.Priority)
+	raw.bundle_behavior = C.uint8_t(dep.BundleBehavior)
+	raw.flags = C.uint8_t(dep.Flags)
+	raw.conditions = C.uint32_t(dep.Conditions)
+	raw.import_type = C.uint8_t(dep.ImportType)
 }
 
 // AddExportSymbol registers an exported symbol name (e.g. "default", "foo", "*").
@@ -756,6 +808,9 @@ func writeResolveResult(raw *C.ResolveResult, result ResolveResult) {
 		return
 	}
 
+	// Parcel allocated raw and set its size, so it is written field by field,
+	// leaving size alone. Every field here was in ABI 2; a field added later must
+	// check raw.size before writing it.
 	raw.resolution_type = C.ResolutionType(result.kind)
 	writeBuffer := func(buf *C.Buffer, value string) {
 		if len(value) == 0 {
@@ -1223,7 +1278,9 @@ func (o *Options) LogDiagnostic(diagnostic *Diagnostic) {
 	if diagnostic == nil {
 		return
 	}
+	// Ours to allocate this time: zeroed, with the size this SDK was built with.
 	var raw C.Diagnostic
+	raw.size = C.sizeof_Diagnostic
 	writeDiagnostic(&raw, diagnostic)
 	// The host copies what it needs rather than taking ownership, unlike the
 	// diagnostic a plugin returns as an error, so these are ours to free.
@@ -1251,7 +1308,10 @@ const (
 func (o *Options) ReadFile(path string) ([]byte, error) {
 	var buf C.Buffer
 	status := C.parcel_fs_read_file(&buf, o.ptr, stringPtr(path), C.uintptr_t(len(path)))
-	return bufferBytes(&buf), ioError(status, &buf, path)
+	if err := ioError(status, &buf, path); err != nil {
+		return nil, err
+	}
+	return bufferBytes(&buf), nil
 }
 
 // FileKind returns what the absolute path refers to, or zero when it does not
@@ -1265,7 +1325,10 @@ func (o *Options) FileKind(path string) FileKind {
 func (o *Options) Canonicalize(path string) (string, error) {
 	var buf C.Buffer
 	status := C.parcel_fs_canonicalize(&buf, o.ptr, stringPtr(path), C.uintptr_t(len(path)))
-	return string(bufferBytes(&buf)), ioError(status, &buf, path)
+	if err := ioError(status, &buf, path); err != nil {
+		return "", err
+	}
+	return string(bufferBytes(&buf)), nil
 }
 
 // stringPtr returns a pointer to the bytes of s, or nil when it is empty.
@@ -1276,25 +1339,36 @@ func stringPtr(s string) *C.uint8_t {
 	return (*C.uint8_t)(unsafe.Pointer(unsafe.StringData(s)))
 }
 
-// bufferBytes copies a host-filled buffer into Go memory and frees it.
+// bufferBytes copies a host-filled buffer into Go memory and frees it, leaving
+// it empty so it cannot be freed twice.
 func bufferBytes(buf *C.Buffer) []byte {
 	if buf.data == nil {
 		return nil
 	}
-	defer C.parcel_free_buffer(buf)
+	defer func() {
+		C.parcel_free_buffer(buf)
+		*buf = C.Buffer{}
+	}()
 	return C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.len))
 }
 
-// ioError converts the status of a host file system call. On PARCEL_IO_ERROR the
-// buffer holds the message, and is consumed here.
+// ioError converts the status of a host file system call, and consumes the
+// buffer unless it is PARCEL_IO_OK. On PARCEL_IO_ERROR the buffer holds the
+// message. Any other status is one this SDK predates, reported as a generic
+// error with whatever message the buffer holds.
 func ioError(status C.IoStatus, buf *C.Buffer, path string) error {
 	switch status {
 	case C.PARCEL_IO_OK:
 		return nil
 	case C.PARCEL_IO_NOT_FOUND:
+		bufferBytes(buf)
 		return &fs.PathError{Op: "open", Path: path, Err: fs.ErrNotExist}
 	default:
-		return errors.New(string(bufferBytes(buf)))
+		message := string(bufferBytes(buf))
+		if message == "" {
+			return &fs.PathError{Op: "open", Path: path, Err: fmt.Errorf("file system error %d", status)}
+		}
+		return errors.New(message)
 	}
 }
 

@@ -205,7 +205,7 @@ fn assert_sass_source_map(mode: BuildMode, minify: Option<bool>) {
       std::env::consts::DLL_EXTENSION
     ));
   let package = format!(
-    r#"{{"name": "@parcel/transformer-sass", "parcel": {{"abi": 1, "artifacts": {{"none": "none"}}, "devLibrary": {:?}}}}}"#,
+    r#"{{"name": "@parcel/transformer-sass", "parcel": {{"abi": 2, "artifacts": {{"none": "none"}}, "devLibrary": {:?}}}}}"#,
     library.to_str().unwrap()
   );
   let bundles = build_outputs(

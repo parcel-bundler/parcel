@@ -106,6 +106,8 @@ public enum PluginExports<P: Plugin> {
       guard let output = output?.assumingMemoryBound(to: CParcelABI.ResolveResult.self) else {
         return
       }
+      // Parcel allocated and sized this, so it is written field by field. Every
+      // field here was in ABI 2; one added later must check `size` first.
       switch resolution {
       case nil:
         output.pointee.resolution_type = 0
@@ -193,6 +195,8 @@ public enum PluginExports<P: Plugin> {
       guard let output = output?.assumingMemoryBound(to: CParcelABI.OptimizeResult.self) else {
         return
       }
+      // Parcel allocated and sized this, so it is written field by field. Every
+      // field here was in ABI 2; one added later must check `size` first.
       write(optimized.contents, to: &output.pointee.contents)
       if let sourceMap = optimized.sourceMap {
         withBytes(sourceMap) { parcel_buffer_write(&output.pointee.source_map, $0, $1) }
@@ -210,7 +214,13 @@ public enum PluginExports<P: Plugin> {
     _ state: UnsafeMutableRawPointer?,
     _ diagnostic: UnsafeMutableRawPointer?
   ) {
-    guard let event = event?.assumingMemoryBound(to: CParcelABI.ReportEvent.self).pointee else {
+    // Read up to the size Parcel reported. Every field read here was in ABI 2,
+    // so an event too small to hold them all is not one this SDK can read.
+    let minSize =
+      MemoryLayout<CParcelABI.ReportEvent>.offset(of: \.changed_asset_count)!
+      + MemoryLayout<UInt>.size
+    guard let event, let event = readSized(event, as: CParcelABI.ReportEvent.self, minSize: minSize)
+    else {
       return
     }
     guard let reporter = role(state, diagnostic, \.reporter, "a reporter") else { return }
