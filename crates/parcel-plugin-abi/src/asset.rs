@@ -9,8 +9,9 @@ use parcel_core::{
 };
 
 use crate::{
-  Asset, AssetRef, Buffer, Bundle, BundleBehavior, BundleBehaviorFFI, BundleGraph, Diagnostic,
-  Options, OptionsContext, plugin_str, read_cdiagnostic, trusted_utf8, write_buffer,
+  Asset, AssetRef, Buffer, Bundle, BundleBehavior, BundleBehaviorFFI, BundleGraph,
+  DiagnosticOptions, Options, OptionsContext, plugin_str, read_cdiagnostic, trusted_utf8,
+  write_buffer,
 };
 
 #[repr(u32)]
@@ -188,7 +189,7 @@ struct CContent {
   source_size: Result<usize, CoreDiagnostic>,
   ty: [u8; 16],
   ptr: *mut c_void,
-  read: extern "C" fn(content: *const c_void, buf: *mut Buffer, diagnostic: *mut Diagnostic),
+  read: extern "C" fn(content: *const c_void, buf: *mut Buffer, diagnostic: *mut DiagnosticOptions),
   package: Option<
     extern "C" fn(
       content: *const c_void,
@@ -196,7 +197,7 @@ struct CContent {
       bundle: Bundle,
       options: Options,
       buf: *mut Buffer,
-      diagnostic: *mut Diagnostic,
+      diagnostic: *mut DiagnosticOptions,
     ),
   >,
   free: extern "C" fn(content: *mut c_void),
@@ -222,7 +223,7 @@ impl Content for CContent {
 
   fn read(&self) -> Result<Vec<u8>, CoreDiagnostic> {
     let mut buf = Buffer::default();
-    let mut diagnostic = Diagnostic::default();
+    let mut diagnostic = DiagnosticOptions::default();
 
     (self.read)(self.ptr, &mut buf, &mut diagnostic);
 
@@ -232,7 +233,7 @@ impl Content for CContent {
       Vec::new()
     };
 
-    if let Some(diag) = read_cdiagnostic(&mut diagnostic, None) {
+    if let Some(diag) = read_cdiagnostic(&mut diagnostic, None).into_iter().next() {
       return Err(diag);
     }
 
@@ -241,7 +242,7 @@ impl Content for CContent {
 
   fn read_string(&self) -> Result<Cow<'_, str>, CoreDiagnostic> {
     let mut buf = Buffer::default();
-    let mut diagnostic = Diagnostic::default();
+    let mut diagnostic = DiagnosticOptions::default();
 
     (self.read)(self.ptr, &mut buf, &mut diagnostic);
 
@@ -251,7 +252,7 @@ impl Content for CContent {
       Vec::new()
     };
 
-    if let Some(diag) = read_cdiagnostic(&mut diagnostic, None) {
+    if let Some(diag) = read_cdiagnostic(&mut diagnostic, None).into_iter().next() {
       return Err(diag);
     }
 
@@ -291,7 +292,7 @@ impl Content for CContent {
     if let Some(package) = self.package {
       let context = OptionsContext::new(options);
       let mut buf = Buffer::default();
-      let mut diagnostic = Diagnostic::default();
+      let mut diagnostic = DiagnosticOptions::default();
 
       (package)(
         self.ptr,
@@ -308,8 +309,9 @@ impl Content for CContent {
         Vec::new()
       };
 
-      if let Some(diag) = read_cdiagnostic(&mut diagnostic, None) {
-        return Err(DiagnosticList(vec![diag]));
+      let diagnostics = read_cdiagnostic(&mut diagnostic, Some(&context));
+      if !diagnostics.is_empty() {
+        return Err(DiagnosticList(diagnostics));
       }
 
       let content = if buf.is_utf8 {
@@ -342,7 +344,7 @@ pub extern "C" fn parcel_asset_set_custom_content(
   content: *mut c_void,
   // Callback to read the content to a buffer. Bytes should be written into the buffer using parcel_buffer_write.
   read: Option<
-    extern "C" fn(content: *const c_void, buf: *mut Buffer, diagnostic: *mut Diagnostic),
+    extern "C" fn(content: *const c_void, buf: *mut Buffer, diagnostic: *mut DiagnosticOptions),
   >,
   package: Option<
     extern "C" fn(
@@ -351,7 +353,7 @@ pub extern "C" fn parcel_asset_set_custom_content(
       bundle: Bundle,
       options: Options,
       buf: *mut Buffer,
-      diagnostic: *mut Diagnostic,
+      diagnostic: *mut DiagnosticOptions,
     ),
   >,
   free: Option<extern "C" fn(content: *mut c_void)>,

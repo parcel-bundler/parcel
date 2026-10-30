@@ -243,7 +243,7 @@ private func setContent(_ body: (ParcelPlugin.Asset) -> Void) -> SetContentCall?
     #expect(matches(CParcelABI.DependencyOptions.self))
     #expect(matches(CParcelABI.ResolveResult.self))
     #expect(matches(CParcelABI.OptimizeResult.self))
-    #expect(matches(CParcelABI.Diagnostic.self))
+    #expect(matches(CParcelABI.DiagnosticOptions.self))
     #expect(matches(CParcelABI.BundleGraphDependencyResolution.self))
     #expect(matches(CParcelABI.ReportEvent.self))
     #if arch(arm64) || arch(x86_64)
@@ -317,16 +317,16 @@ private func setContent(_ body: (ParcelPlugin.Asset) -> Void) -> SetContentCall?
 
   /// A struct Parcel filled in is read up to its `size`.
   @Test func readSizedHonorsTheReportedSize() {
-    let full = MemoryLayout<CParcelABI.Diagnostic>.size
-    let line = MemoryLayout<CParcelABI.Diagnostic>.offset(of: \.line)!
+    let full = MemoryLayout<CParcelABI.DiagnosticOptions>.size
+    let line = MemoryLayout<CParcelABI.DiagnosticOptions>.offset(of: \.line)!
     // Twice the size, as a newer Parcel with more fields might pass.
     var bytes = [UInt8](repeating: 0xab, count: full * 2)
 
-    func read(size: Int, minSize: Int) -> CParcelABI.Diagnostic? {
+    func read(size: Int, minSize: Int) -> CParcelABI.DiagnosticOptions? {
       bytes.withUnsafeMutableBytes { buffer in
         buffer.storeBytes(of: UInt(size), as: UInt.self)
         return readSized(
-          UnsafeRawPointer(buffer.baseAddress!), as: CParcelABI.Diagnostic.self, minSize: minSize)
+          UnsafeRawPointer(buffer.baseAddress!), as: CParcelABI.DiagnosticOptions.self, minSize: minSize)
       }
     }
 

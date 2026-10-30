@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use parcel_plugin::{Diagnostic, Options, Plugin, ReportEvent, register_plugin};
+use parcel_plugin::{Diagnostic, Diagnostics, Options, Plugin, ReportEvent, register_plugin};
 
 struct CustomReporter {
   builds: AtomicUsize,
@@ -13,7 +13,7 @@ impl Plugin for CustomReporter {
     })
   }
 
-  fn report(&self, event: &ReportEvent, _options: &Options) -> Result<(), Diagnostic> {
+  fn report(&self, event: &ReportEvent, options: &Options) -> Result<(), Diagnostic> {
     match event {
       ReportEvent::BuildStart => {
         let build = self.builds.fetch_add(1, Ordering::Relaxed) + 1;
@@ -34,9 +34,15 @@ impl Plugin for CustomReporter {
       }
 
       ReportEvent::BuildFailure { diagnostics } => {
-        println!("build failed with {} diagnostics:", diagnostics.len());
-        for diagnostic in diagnostics.iter() {
-          println!("{}", diagnostic.message());
+        let summary = summarize(diagnostics);
+        // Written to a file when the build's environment names one, e.g. for CI.
+        match options.env("REPORT_SUMMARY") {
+          Some(path) => std::fs::write(path, summary)
+            .map_err(|error| Diagnostic::new(format!("could not write the summary: {error}")))?,
+          None => print!(
+            "build failed with {} diagnostics:\n{summary}",
+            diagnostics.len()
+          ),
         }
       }
 
@@ -59,6 +65,35 @@ impl Plugin for CustomReporter {
 
     Ok(())
   }
+}
+
+/// Describes each diagnostic, with where it points and what to read about it.
+fn summarize(diagnostics: &Diagnostics) -> String {
+  let mut summary = String::new();
+  for diagnostic in diagnostics.iter() {
+    summary += &format!("message: {}\n", diagnostic.message());
+    if let Some(url) = diagnostic.documentation_url() {
+      summary += &format!("docs: {url}\n");
+    }
+    for frame in diagnostic.code_frames() {
+      summary += &format!(
+        "frame: {} {}\n",
+        frame.file_path.or(frame.url).unwrap_or_default(),
+        frame.language.unwrap_or_default()
+      );
+      for highlight in frame.highlights {
+        summary += &format!(
+          "highlight: {}:{}-{}:{} {}\n",
+          highlight.start_line,
+          highlight.start_column,
+          highlight.end_line,
+          highlight.end_column,
+          highlight.message.unwrap_or_default()
+        );
+      }
+    }
+  }
+  summary
 }
 
 register_plugin!(CustomReporter);

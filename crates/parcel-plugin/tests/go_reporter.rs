@@ -1,3 +1,5 @@
+mod common;
+
 use std::{path::Path, sync::Arc};
 
 use parcel_core::{
@@ -98,6 +100,8 @@ fn test_go_reporter_receives_every_event_kind() {
       &options,
     )
     .expect("log with diagnostics");
+
+  common::assert_reporter_summarizes_failures("go", &plugin);
 }
 
 /// A Go plugin that is not a reporter reaches [`parcel.DefaultPlugin`]'s

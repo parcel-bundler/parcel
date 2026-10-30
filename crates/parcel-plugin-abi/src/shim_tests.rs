@@ -72,11 +72,11 @@ const struct ParcelApi *parcel_api;
 /* Every entry point, defined against the prototypes plugin.h declares: a
    signature that drifted from the types Parcel loads them as would not compile. */
 InitStatus parcel_plugin_init(const struct ParcelApi *api, const uint8_t *config,
-                              uintptr_t config_len, void **state, Diagnostic *diagnostic) {
+                              uintptr_t config_len, void **state, DiagnosticOptions *diagnostic) {
   return parcel_api_compatible(&api->header) ? PARCEL_INIT_OK : PARCEL_INIT_INCOMPATIBLE;
 }
 void parcel_plugin_deinit(void *state) {}
-void parcel_plugin_transform(Asset asset, Options options, void *state, Diagnostic *diagnostic) {
+void parcel_plugin_transform(Asset asset, Options options, void *state, DiagnosticOptions *diagnostic) {
   /* A transformer's own asset is readable through the AssetRef getters. */
   Buffer buf = {0};
   parcel_asset_get_type(&buf, asset);
@@ -84,18 +84,18 @@ void parcel_plugin_transform(Asset asset, Options options, void *state, Diagnost
 void parcel_plugin_resolve(Dependency dependency, const uint8_t *specifier,
                            uintptr_t specifier_len, const uint8_t *pipeline,
                            uintptr_t pipeline_len, Options options, ResolveResult *result,
-                           void *state, Diagnostic *diagnostic) {}
+                           void *state, DiagnosticOptions *diagnostic) {}
 void parcel_plugin_name(BundleGraph bundle_graph, Bundle bundle, Options options, Buffer *name,
-                        void *state, Diagnostic *diagnostic) {
+                        void *state, DiagnosticOptions *diagnostic) {
   AssetRef asset = parcel_bundle_graph_get_asset(bundle_graph, 0);
   parcel_asset_get_flags(asset);
 }
 void parcel_plugin_optimize(BundleGraph bundle_graph, Bundle bundle, const uint8_t *contents,
                             uintptr_t contents_len, const uint8_t *source_map,
                             uintptr_t source_map_len, Options options, OptimizeResult *result,
-                            void *state, Diagnostic *diagnostic) {}
+                            void *state, DiagnosticOptions *diagnostic) {}
 void parcel_plugin_report(const ReportEvent *event, Options options, void *state,
-                          Diagnostic *diagnostic) {}
+                          DiagnosticOptions *diagnostic) {}
 
 /* And each is what Parcel loads it as. */
 ParcelPluginInitFn init = parcel_plugin_init;
@@ -120,7 +120,10 @@ int main(void) {
     return;
   };
 
-  let min_size = std::mem::offset_of!(crate::ParcelApi, asset_get_map) + size_of::<*const ()>();
+  // Until the first alpha is released the first layout is the whole table, so
+  // FIRST_LAYOUT_END must move with every function added. From the alpha on,
+  // the table grows past it, and this compares against the alpha's last function.
+  let min_size = size_of::<crate::ParcelApi>();
   assert_eq!(
     output.trim(),
     format!("{min_size} {} 1 0 0", size_of::<crate::ParcelApi>())
@@ -170,7 +173,7 @@ typedef void (*ParcelPluginTransformFn)(Asset asset,
 /// reaches them, and otherwise do nothing and return zero.
 #[test]
 fn appended_functions_are_checked_against_the_table_size() {
-  let header = shims::add_api_shims(SYNTHETIC_HEADER);
+  let header = shims::add_api_shims_ending_at(SYNTHETIC_HEADER, "asset_get_map");
   let main = r#"
 #include <stdio.h>
 #include "plugin.h"
@@ -229,7 +232,7 @@ int main(void) {
 /// First-layout functions keep their plain wrappers, with no check to pay for.
 #[test]
 fn first_layout_functions_are_called_unchecked() {
-  let header = shims::add_api_shims(SYNTHETIC_HEADER);
+  let header = shims::add_api_shims_ending_at(SYNTHETIC_HEADER, "asset_get_map");
   assert!(header.contains(
     "static inline void parcel_asset_get_map(struct Buffer *buf, Asset asset) {\n  \
      parcel_api->asset_get_map(buf, asset);\n}"
@@ -242,7 +245,7 @@ fn first_layout_functions_are_called_unchecked() {
 /// plugin defines.
 #[test]
 fn entry_point_typedefs_become_prototypes() {
-  let header = shims::add_api_shims(SYNTHETIC_HEADER);
+  let header = shims::add_api_shims_ending_at(SYNTHETIC_HEADER, "asset_get_map");
   assert!(header.contains(
     "#ifndef PARCEL_NO_ENTRY_POINT_PROTOTYPES\n\nvoid parcel_plugin_transform(Asset asset, uintptr_t *out);\n"
   ));

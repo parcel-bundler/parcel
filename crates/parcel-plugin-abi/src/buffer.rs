@@ -103,7 +103,7 @@ pub extern "C" fn parcel_free_buffer(buf: *mut Buffer) {
 }
 
 /// Allocates a new `Buffer` containing a copy of `[data, data+len)`.
-/// The plugin calls this to fill `ResolveResult` or `Diagnostic` fields.
+/// The plugin calls this to fill `ResolveResult` or `DiagnosticOptions` fields.
 /// Returns a zero `Buffer` when `data` is NULL or `len` is 0.
 pub extern "C" fn parcel_buffer_alloc(data: *const u8, len: usize) -> Buffer {
   let mut buf = Buffer::default();

@@ -1,5 +1,9 @@
-//! Shared by the SDKs' prepend-transformer tests, which check that a native
-//! transformer can read the source map an earlier transformer attached.
+//! Shared by the SDKs' tests, so each SDK is held to the same behavior: the
+//! prepend-transformer tests check that a native transformer can read the source
+//! map an earlier transformer attached, and the reporter tests that a native
+//! reporter can read every part of a diagnostic. Each test file uses only some
+//! of this.
+#![allow(dead_code)]
 
 use std::{path::Path, sync::Arc};
 
@@ -153,4 +157,66 @@ fn original_line(map: &str, line: u32, column: u32) -> Option<(String, u32)> {
     }
   }
   best.map(|(_, source, line)| (source, line))
+}
+
+/// A failed build's diagnostic with every part a native reporter can read: a
+/// documentation URL, and a code frame with a ranged, labelled highlight.
+fn failed_build_diagnostics() -> parcel_core::DiagnosticList {
+  parcel_core::DiagnosticList(vec![parcel_core::Diagnostic {
+    message: "it did not work".into(),
+    origin: Some("@acme/plugin".into()),
+    hints: vec!["try something else".into()],
+    code_frames: vec![parcel_core::CodeFrame {
+      url: Some(parcel_core::SourceUrl::from_path(&PathId::new(Path::new(
+        "/project/src/a.js",
+      )))),
+      language: Some(AssetType::Js),
+      code_highlights: vec![parcel_core::CodeHighlight {
+        start: parcel_core::Location { line: 1, column: 9 },
+        end: parcel_core::Location {
+          line: 1,
+          column: 12,
+        },
+        message: Some("expected an expression".into()),
+      }],
+      ..Default::default()
+    }],
+    documentation_url: Some("https://parceljs.org/errors/example".into()),
+    ..parcel_core::Diagnostic::from_message(String::new())
+  }])
+}
+
+/// Reports a failed build to `plugin`, one of the SDKs' custom-reporter
+/// examples, which writes a summary of the diagnostics to the file the build's
+/// `REPORT_SUMMARY` names. Every SDK's summary must be the same.
+pub fn assert_reporter_summarizes_failures(name: &str, plugin: &parcel_plugin_abi::CPlugin) {
+  use parcel_core::Reporter;
+
+  let summary = std::env::temp_dir().join(format!("parcel-{name}-report-summary.txt"));
+  let _ = std::fs::remove_file(&summary);
+  let options = parcel_core::ParcelOptions {
+    env: [(
+      "REPORT_SUMMARY".to_string(),
+      summary.to_string_lossy().into_owned(),
+    )]
+    .into(),
+    ..Default::default()
+  };
+
+  plugin
+    .report(
+      &parcel_core::ReporterEvent::BuildFailure {
+        diagnostics: &failed_build_diagnostics(),
+      },
+      &options,
+    )
+    .expect("buildFailure");
+
+  assert_eq!(
+    std::fs::read_to_string(&summary).expect("read the summary"),
+    "message: it did not work\n\
+     docs: https://parceljs.org/errors/example\n\
+     frame: /project/src/a.js js\n\
+     highlight: 1:9-1:12 expected an expression\n"
+  );
 }

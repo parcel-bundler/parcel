@@ -26,7 +26,16 @@ public struct Diagnostic: Error, Hashable, Sendable, CustomStringConvertible {
   public var line: UInt32
   /// 1-based column of the code frame's highlight, or 0 for none.
   public var column: UInt32
+  /// 1-based line of the highlight's last character, or 0 to highlight just the
+  /// one at ``line`` and ``column``.
+  public var endLine: UInt32
+  /// 1-based column of the highlight's last character.
+  public var endColumn: UInt32
+  /// A message shown at the highlight.
+  public var highlightMessage: String?
   public var hint: String?
+  /// A URL to documentation about the diagnostic.
+  public var documentationURL: String?
 
   public init(
     _ message: String,
@@ -34,23 +43,34 @@ public struct Diagnostic: Error, Hashable, Sendable, CustomStringConvertible {
     filePath: String? = nil,
     line: UInt32 = 0,
     column: UInt32 = 0,
-    hint: String? = nil
+    endLine: UInt32 = 0,
+    endColumn: UInt32 = 0,
+    highlightMessage: String? = nil,
+    hint: String? = nil,
+    documentationURL: String? = nil
   ) {
     self.message = message
     self.severity = severity
     self.filePath = filePath
     self.line = line
     self.column = column
+    self.endLine = endLine
+    self.endColumn = endColumn
+    self.highlightMessage = highlightMessage
     self.hint = hint
+    self.documentationURL = documentationURL
   }
 
   /// A diagnostic with ``Severity/warning`` severity.
   public static func warning(
     _ message: String, filePath: String? = nil, line: UInt32 = 0, column: UInt32 = 0,
-    hint: String? = nil
+    endLine: UInt32 = 0, endColumn: UInt32 = 0, highlightMessage: String? = nil,
+    hint: String? = nil, documentationURL: String? = nil
   ) -> Diagnostic {
     Diagnostic(
-      message, severity: .warning, filePath: filePath, line: line, column: column, hint: hint)
+      message, severity: .warning, filePath: filePath, line: line, column: column,
+      endLine: endLine, endColumn: endColumn, highlightMessage: highlightMessage, hint: hint,
+      documentationURL: documentationURL)
   }
 
   public var description: String { message }
@@ -91,9 +111,10 @@ public struct Diagnostic: Error, Hashable, Sendable, CustomStringConvertible {
   /// Parcel allocated, or one from ``withSized(_:_:)``. The host frees its
   /// buffers, except where noted.
   ///
-  /// Every field here is in the first layout. One added later must only be written when
-  /// `raw.pointee.size` has room for it, since an older Parcel allocates less.
-  func write(to raw: UnsafeMutablePointer<CParcelABI.Diagnostic>) {
+  /// Every field here is in the first layout. One appended after the first alpha
+  /// must only be written when `raw.pointee.size` has room for it, since an older
+  /// Parcel allocates less.
+  func write(to raw: UnsafeMutablePointer<CParcelABI.DiagnosticOptions>) {
     // The host reads a null message as "no diagnostic", which would turn a
     // failure into a success.
     raw.pointee.message = allocBuffer(message.isEmpty ? "unknown error" : message)
@@ -106,11 +127,20 @@ public struct Diagnostic: Error, Hashable, Sendable, CustomStringConvertible {
     if let hint, !hint.isEmpty {
       raw.pointee.hint = allocBuffer(hint)
     }
+
+    raw.pointee.end_line = endLine
+    raw.pointee.end_column = endColumn
+    if let highlightMessage, !highlightMessage.isEmpty {
+      raw.pointee.highlight_message = allocBuffer(highlightMessage)
+    }
+    if let documentationURL, !documentationURL.isEmpty {
+      raw.pointee.documentation_url = allocBuffer(documentationURL)
+    }
   }
 }
 
 /// Writes `error` to an entry point's diagnostic out-param.
 func reportError(_ error: any Error, to raw: UnsafeMutableRawPointer?) {
   guard let raw else { return }
-  Diagnostic(error).write(to: raw.assumingMemoryBound(to: CParcelABI.Diagnostic.self))
+  Diagnostic(error).write(to: raw.assumingMemoryBound(to: CParcelABI.DiagnosticOptions.self))
 }

@@ -12,9 +12,9 @@
 //! catches it.
 //!
 //! `size` is checked per function instead. Every host passes at least the first
-//! layout, which ends at `asset_get_map` (`PARCEL_API_MIN_SIZE` in plugin.h, and
-//! `FIRST_LAYOUT_END` in build/shims.rs), and plugins call those functions
-//! unchecked. A function appended after it is only called once the plugin has
+//! layout (`PARCEL_API_MIN_SIZE` in plugin.h, ending at `FIRST_LAYOUT_END` in
+//! build/shims.rs), and plugins call those functions unchecked. Until the first
+//! alpha is released that is the whole table, which can still grow freely. A function appended after it is only called once the plugin has
 //! checked that `size` covers it, which the SDKs and plugin.h's wrappers do on
 //! every call. So a plugin built against a newer SDK still loads on an older
 //! Parcel, and only fails if it actually calls something that Parcel lacks.
@@ -78,7 +78,7 @@ pub struct ParcelApi {
     ty: *const [u8; 16],
     content: *mut c_void,
     read: Option<
-      extern "C" fn(content: *const c_void, buf: *mut Buffer, diagnostic: *mut Diagnostic),
+      extern "C" fn(content: *const c_void, buf: *mut Buffer, diagnostic: *mut DiagnosticOptions),
     >,
     package: Option<
       extern "C" fn(
@@ -87,7 +87,7 @@ pub struct ParcelApi {
         bundle: Bundle,
         options: Options,
         buf: *mut Buffer,
-        diagnostic: *mut Diagnostic,
+        diagnostic: *mut DiagnosticOptions,
       ),
     >,
     free: Option<extern "C" fn(content: *mut c_void)>,
@@ -166,24 +166,25 @@ pub struct ParcelApi {
   pub target_get_dist_dir:
     unsafe extern "C" fn(buf: *mut Buffer, target: Target, _options: Options),
   pub asset_get_query: unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef),
-  pub diagnostics_get_count: unsafe extern "C" fn(diagnostics: Diagnostics) -> usize,
+  pub diagnostics_get_count: unsafe extern "C" fn(diagnostics: DiagnosticsRef) -> usize,
   pub diagnostic_get_message:
-    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: Diagnostics, index: usize),
+    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: DiagnosticsRef, index: usize),
   pub diagnostic_get_severity:
-    unsafe extern "C" fn(diagnostics: Diagnostics, index: usize) -> DiagnosticSeverity,
+    unsafe extern "C" fn(diagnostics: DiagnosticsRef, index: usize) -> DiagnosticSeverity,
   pub diagnostic_get_origin:
-    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: Diagnostics, index: usize),
+    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: DiagnosticsRef, index: usize),
   pub diagnostic_get_hint_count:
-    unsafe extern "C" fn(diagnostics: Diagnostics, index: usize) -> usize,
+    unsafe extern "C" fn(diagnostics: DiagnosticsRef, index: usize) -> usize,
   pub diagnostic_get_hint:
-    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: Diagnostics, index: usize, hint: usize),
+    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: DiagnosticsRef, index: usize, hint: usize),
   pub options_log: unsafe extern "C" fn(
     options: Options,
     level: LogLevelFFI,
     message: *const u8,
     message_len: usize,
   ),
-  pub options_log_diagnostic: unsafe extern "C" fn(options: Options, diagnostic: *const Diagnostic),
+  pub options_log_diagnostic:
+    unsafe extern "C" fn(options: Options, diagnostic: *const DiagnosticOptions),
   pub bundle_get_stable_key: unsafe extern "C" fn(buf: *mut Buffer, bundle: Bundle),
   pub bundle_get_hash_reference: unsafe extern "C" fn(buf: *mut Buffer, bundle: Bundle),
   pub fs_read_file: unsafe extern "C" fn(
@@ -213,6 +214,23 @@ pub struct ParcelApi {
   pub asset_set_content_utf8_with_map:
     unsafe extern "C" fn(asset: Asset, data: *const u8, len: usize, map: *const u8, map_len: usize),
   pub asset_get_map: unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef),
+  pub diagnostic_get_documentation_url:
+    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: DiagnosticsRef, index: usize),
+  pub diagnostic_get_code_frame_count:
+    unsafe extern "C" fn(diagnostics: DiagnosticsRef, index: usize) -> usize,
+  pub diagnostic_get_code_frame: unsafe extern "C" fn(
+    out: *mut CodeFrameInfo,
+    diagnostics: DiagnosticsRef,
+    index: usize,
+    frame: usize,
+  ) -> bool,
+  pub diagnostic_get_code_highlight: unsafe extern "C" fn(
+    out: *mut CodeHighlightInfo,
+    diagnostics: DiagnosticsRef,
+    index: usize,
+    frame: usize,
+    highlight: usize,
+  ) -> bool,
 }
 
 /// The instance passed to every plugin. Const-initialized, so it is in the
@@ -303,6 +321,10 @@ pub static PARCEL_API: ParcelApi = ParcelApi {
   asset_set_content_with_map: parcel_asset_set_content_with_map,
   asset_set_content_utf8_with_map: parcel_asset_set_content_utf8_with_map,
   asset_get_map: parcel_asset_get_map,
+  diagnostic_get_documentation_url: parcel_diagnostic_get_documentation_url,
+  diagnostic_get_code_frame_count: parcel_diagnostic_get_code_frame_count,
+  diagnostic_get_code_frame: parcel_diagnostic_get_code_frame,
+  diagnostic_get_code_highlight: parcel_diagnostic_get_code_highlight,
 };
 
 #[cfg(test)]

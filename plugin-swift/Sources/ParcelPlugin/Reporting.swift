@@ -69,4 +69,59 @@ public struct DiagnosticInfo: Sendable {
       }
     }
   }
+
+  /// A URL to documentation about the diagnostic, if it has one.
+  public var documentationURL: String? {
+    host { raw in hostString { parcel_diagnostic_get_documentation_url($0, raw, index) } }
+  }
+
+  /// Excerpts of the files the diagnostic is about, with parts of them
+  /// highlighted. Empty when it has none.
+  public var codeFrames: [CodeFrame] {
+    host { raw in
+      (0..<parcel_diagnostic_get_code_frame_count(raw, index)).compactMap { frame in
+        withSized(CodeFrameInfo.self) { info -> CodeFrame? in
+          guard parcel_diagnostic_get_code_frame(info, raw, index, frame) else { return nil }
+          let highlights = (0..<info.pointee.highlight_count).compactMap { highlight in
+            withSized(CodeHighlightInfo.self) { info -> CodeHighlight? in
+              guard parcel_diagnostic_get_code_highlight(info, raw, index, frame, highlight)
+              else { return nil }
+              return CodeHighlight(
+                startLine: info.pointee.start_line, startColumn: info.pointee.start_column,
+                endLine: info.pointee.end_line, endColumn: info.pointee.end_column,
+                message: takeString(&info.pointee.message))
+            }
+          }
+          return CodeFrame(
+            filePath: takeString(&info.pointee.file_path), url: takeString(&info.pointee.url),
+            code: takeString(&info.pointee.code), language: takeString(&info.pointee.language),
+            highlights: highlights)
+        }
+      }
+    }
+  }
+}
+
+/// An excerpt of a file a diagnostic is about, with parts of it highlighted.
+public struct CodeFrame: Hashable, Sendable {
+  /// The absolute path of the file, when it is one on disk.
+  public var filePath: String?
+  /// The URL of the file, e.g. a `file:` URL, when the frame names one.
+  public var url: String?
+  /// The code to show, when it differs from the file's contents.
+  public var code: String?
+  /// The code's language, as a file extension, when known.
+  public var language: String?
+  public var highlights: [CodeHighlight]
+}
+
+/// A highlighted range in a ``CodeFrame``. Lines and columns are 1-based, and
+/// the end is the last highlighted character.
+public struct CodeHighlight: Hashable, Sendable {
+  public var startLine: UInt32
+  public var startColumn: UInt32
+  public var endLine: UInt32
+  public var endColumn: UInt32
+  /// A message shown at the highlight.
+  public var message: String?
 }

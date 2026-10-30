@@ -427,33 +427,61 @@ const _: () = {
 pub type AssetRef = u64;
 #[doc = " Opaque handle to the asset a transformer is transforming, which it may change.\n Only `parcel_plugin_transform()` hands one out, and it is valid until that call\n returns. It can be passed anywhere an `AssetRef` is expected."]
 pub type Asset = u64;
-#[doc = " Diagnostic written by a plugin to report an error or warning.\n The host zero-initialises this before every plugin call, apart from `size`.\n Fill via `parcel_buffer_alloc()`; host frees all `Buffer` fields after the call.\n If `message.data == NULL` after the call, no diagnostic was set.\n\n Only write fields that fit within `size`, which an older Parcel sets lower than\n `sizeof(Diagnostic)`; `PARCEL_HAS_FIELD()` checks. To log one with\n `parcel_options_log_diagnostic()`, initialize it as `Diagnostic d = {.size = sizeof(Diagnostic)};`.\n Parcel ignores fields it does not know in a diagnostic, since the rest is still worth showing."]
+#[doc = " Opaque handle to a list of diagnostics Parcel handed the plugin during the\n current call, such as those a failed read reports. Readable anywhere a\n `DiagnosticsRef` is expected, and reported as they were by setting\n `DiagnosticOptions.diagnostics` to it. Parcel frees it when the call returns."]
+pub type Diagnostics = u64;
+#[doc = " Describes a diagnostic a plugin reports: the error an entry point fails with,\n or a warning it logs with `parcel_options_log_diagnostic()`.\n\n Parcel allocates the one each entry point receives, zeroed apart from `size`,\n and frees every `Buffer` in it once the call returns; fill them with\n `parcel_buffer_alloc()`. The call fails when `message` or `diagnostics` is set.\n To log one, initialize it as `DiagnosticOptions d = {.size = sizeof(DiagnosticOptions)};`,\n and free its buffers after the call: Parcel copies what it needs.\n\n It describes one diagnostic with at most one code frame, highlight and hint.\n To report diagnostics Parcel handed the plugin, such as those of a failed read,\n set `diagnostics` to their list. Parcel reports them exactly as they were, after\n the diagnostic `message` describes, if it is set too.\n\n Only write fields that fit within `size`, which an older Parcel sets lower than\n `sizeof(DiagnosticOptions)`; `PARCEL_HAS_FIELD()` checks. Parcel ignores fields it\n does not know, since the rest is still worth showing."]
 #[repr(C)]
 #[derive(Debug)]
-pub struct Diagnostic {
-  #[doc = " `sizeof(Diagnostic)` as whoever allocated it was built. Always the first member."]
+pub struct DiagnosticOptions {
+  #[doc = " `sizeof(DiagnosticOptions)` as whoever allocated it was built. Always the first member."]
   pub size: usize,
   pub message: Buffer,
+  #[doc = " Absolute path of the file the diagnostic's code frame shows, if it has one."]
   pub file_path: Buffer,
+  #[doc = " 1-based line and column of the first highlighted character in `file_path`, or 0 for no\n highlight."]
   pub line: u32,
   pub column: u32,
   pub hint: Buffer,
   #[doc = " `PARCEL_SEVERITY_*`"]
   pub severity: DiagnosticSeverity,
+  #[doc = " A message shown at the highlight."]
+  pub highlight_message: Buffer,
+  #[doc = " 1-based line and column of the last highlighted character, or 0 to highlight just the one at\n `line` and `column`."]
+  pub end_line: u32,
+  pub end_column: u32,
+  #[doc = " A URL to documentation about the diagnostic."]
+  pub documentation_url: Buffer,
+  #[doc = " Diagnostics Parcel handed the plugin during this call, to report as well, or 0. A list from\n any other call is ignored."]
+  pub diagnostics: Diagnostics,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of Diagnostic"][::std::mem::size_of::<Diagnostic>() - 120usize];
-  ["Alignment of Diagnostic"][::std::mem::align_of::<Diagnostic>() - 8usize];
-  ["Offset of field: Diagnostic::size"][::std::mem::offset_of!(Diagnostic, size) - 0usize];
-  ["Offset of field: Diagnostic::message"][::std::mem::offset_of!(Diagnostic, message) - 8usize];
-  ["Offset of field: Diagnostic::file_path"]
-    [::std::mem::offset_of!(Diagnostic, file_path) - 40usize];
-  ["Offset of field: Diagnostic::line"][::std::mem::offset_of!(Diagnostic, line) - 72usize];
-  ["Offset of field: Diagnostic::column"][::std::mem::offset_of!(Diagnostic, column) - 76usize];
-  ["Offset of field: Diagnostic::hint"][::std::mem::offset_of!(Diagnostic, hint) - 80usize];
-  ["Offset of field: Diagnostic::severity"]
-    [::std::mem::offset_of!(Diagnostic, severity) - 112usize];
+  ["Size of DiagnosticOptions"][::std::mem::size_of::<DiagnosticOptions>() - 200usize];
+  ["Alignment of DiagnosticOptions"][::std::mem::align_of::<DiagnosticOptions>() - 8usize];
+  ["Offset of field: DiagnosticOptions::size"]
+    [::std::mem::offset_of!(DiagnosticOptions, size) - 0usize];
+  ["Offset of field: DiagnosticOptions::message"]
+    [::std::mem::offset_of!(DiagnosticOptions, message) - 8usize];
+  ["Offset of field: DiagnosticOptions::file_path"]
+    [::std::mem::offset_of!(DiagnosticOptions, file_path) - 40usize];
+  ["Offset of field: DiagnosticOptions::line"]
+    [::std::mem::offset_of!(DiagnosticOptions, line) - 72usize];
+  ["Offset of field: DiagnosticOptions::column"]
+    [::std::mem::offset_of!(DiagnosticOptions, column) - 76usize];
+  ["Offset of field: DiagnosticOptions::hint"]
+    [::std::mem::offset_of!(DiagnosticOptions, hint) - 80usize];
+  ["Offset of field: DiagnosticOptions::severity"]
+    [::std::mem::offset_of!(DiagnosticOptions, severity) - 112usize];
+  ["Offset of field: DiagnosticOptions::highlight_message"]
+    [::std::mem::offset_of!(DiagnosticOptions, highlight_message) - 120usize];
+  ["Offset of field: DiagnosticOptions::end_line"]
+    [::std::mem::offset_of!(DiagnosticOptions, end_line) - 152usize];
+  ["Offset of field: DiagnosticOptions::end_column"]
+    [::std::mem::offset_of!(DiagnosticOptions, end_column) - 156usize];
+  ["Offset of field: DiagnosticOptions::documentation_url"]
+    [::std::mem::offset_of!(DiagnosticOptions, documentation_url) - 160usize];
+  ["Offset of field: DiagnosticOptions::diagnostics"]
+    [::std::mem::offset_of!(DiagnosticOptions, diagnostics) - 192usize];
 };
 #[doc = " Opaque handle to Parcel bundle graph."]
 pub type BundleGraph = u64;
@@ -541,8 +569,8 @@ const _: () = {
   ["Offset of field: DependencyOptions::import_type"]
     [::std::mem::offset_of!(DependencyOptions, import_type) - 32usize];
 };
-#[doc = " Opaque handle to the diagnostics attached to a reporter event. Pass to the\n `parcel_diagnostics_*` and `parcel_diagnostic_*` functions."]
-pub type Diagnostics = u64;
+#[doc = " Opaque, read-only handle to a list of diagnostics: those a reporter event\n carries, or a `Diagnostics` list. Pass to the `parcel_diagnostics_*` and\n `parcel_diagnostic_*` getters. Valid until the call that received it returns."]
+pub type DiagnosticsRef = u64;
 #[doc = " Result filled by a resolver plugin's `parcel_plugin_resolve()`, or by Parcel in\n `parcel_asset_resolve()`.\n\n Whoever allocates it zero-initializes it and sets `size`: Parcel before calling\n `parcel_plugin_resolve()`, so a resolver only writes fields that fit within\n `size` (`PARCEL_HAS_FIELD()` checks), and the plugin before calling\n `parcel_asset_resolve()`, as `ResolveResult result = {.size = sizeof(ResolveResult)};`.\n\n When type == PARCEL_RESOLUTION_FILE_PATH, fill `file_path` (and optionally `pipeline`) via `parcel_buffer_alloc()`."]
 #[repr(C)]
 #[derive(Debug)]
@@ -565,6 +593,67 @@ const _: () = {
     [::std::mem::offset_of!(ResolveResult, file_path) - 16usize];
   ["Offset of field: ResolveResult::pipeline"]
     [::std::mem::offset_of!(ResolveResult, pipeline) - 48usize];
+};
+#[doc = " One of a diagnostic's code frames, filled in by\n `parcel_diagnostic_get_code_frame()`.\n\n Set `size` before the call, as `CodeFrameInfo info = {.size = sizeof(CodeFrameInfo)};`;\n Parcel writes only the fields that fit. Free each buffer after."]
+#[repr(C)]
+#[derive(Debug)]
+pub struct CodeFrameInfo {
+  #[doc = " `sizeof(CodeFrameInfo)` as the caller was built. Always the first member."]
+  pub size: usize,
+  #[doc = " The absolute path of the file, when the frame is about one on disk."]
+  pub file_path: Buffer,
+  #[doc = " The URL of the file, e.g. a `file:` URL, when the frame names one."]
+  pub url: Buffer,
+  #[doc = " The code to show, when it differs from the file's contents. Empty to read the file."]
+  pub code: Buffer,
+  #[doc = " The code's language, as a file extension, for syntax highlighting. Empty when unknown."]
+  pub language: Buffer,
+  #[doc = " How many highlights the frame has, for `parcel_diagnostic_get_code_highlight()`."]
+  pub highlight_count: usize,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+  ["Size of CodeFrameInfo"][::std::mem::size_of::<CodeFrameInfo>() - 144usize];
+  ["Alignment of CodeFrameInfo"][::std::mem::align_of::<CodeFrameInfo>() - 8usize];
+  ["Offset of field: CodeFrameInfo::size"][::std::mem::offset_of!(CodeFrameInfo, size) - 0usize];
+  ["Offset of field: CodeFrameInfo::file_path"]
+    [::std::mem::offset_of!(CodeFrameInfo, file_path) - 8usize];
+  ["Offset of field: CodeFrameInfo::url"][::std::mem::offset_of!(CodeFrameInfo, url) - 40usize];
+  ["Offset of field: CodeFrameInfo::code"][::std::mem::offset_of!(CodeFrameInfo, code) - 72usize];
+  ["Offset of field: CodeFrameInfo::language"]
+    [::std::mem::offset_of!(CodeFrameInfo, language) - 104usize];
+  ["Offset of field: CodeFrameInfo::highlight_count"]
+    [::std::mem::offset_of!(CodeFrameInfo, highlight_count) - 136usize];
+};
+#[doc = " One highlighted range in a code frame, filled in by\n `parcel_diagnostic_get_code_highlight()`. Lines and columns are 1-based, and\n the end is the last highlighted character.\n\n Set `size` before the call, as `CodeHighlightInfo info = {.size = sizeof(CodeHighlightInfo)};`;\n Parcel writes only the fields that fit. Free `message` after."]
+#[repr(C)]
+#[derive(Debug)]
+pub struct CodeHighlightInfo {
+  #[doc = " `sizeof(CodeHighlightInfo)` as the caller was built. Always the first member."]
+  pub size: usize,
+  pub start_line: u32,
+  pub start_column: u32,
+  pub end_line: u32,
+  pub end_column: u32,
+  #[doc = " A message shown at the highlight. Empty when it has none."]
+  pub message: Buffer,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+  ["Size of CodeHighlightInfo"][::std::mem::size_of::<CodeHighlightInfo>() - 56usize];
+  ["Alignment of CodeHighlightInfo"][::std::mem::align_of::<CodeHighlightInfo>() - 8usize];
+  ["Offset of field: CodeHighlightInfo::size"]
+    [::std::mem::offset_of!(CodeHighlightInfo, size) - 0usize];
+  ["Offset of field: CodeHighlightInfo::start_line"]
+    [::std::mem::offset_of!(CodeHighlightInfo, start_line) - 8usize];
+  ["Offset of field: CodeHighlightInfo::start_column"]
+    [::std::mem::offset_of!(CodeHighlightInfo, start_column) - 12usize];
+  ["Offset of field: CodeHighlightInfo::end_line"]
+    [::std::mem::offset_of!(CodeHighlightInfo, end_line) - 16usize];
+  ["Offset of field: CodeHighlightInfo::end_column"]
+    [::std::mem::offset_of!(CodeHighlightInfo, end_column) - 20usize];
+  ["Offset of field: CodeHighlightInfo::message"]
+    [::std::mem::offset_of!(CodeHighlightInfo, message) - 24usize];
 };
 #[doc = " The host functions available to a plugin."]
 #[repr(C)]
@@ -589,7 +678,7 @@ pub struct ParcelApi {
         unsafe extern "C" fn(
           content: *const ::std::os::raw::c_void,
           buf: *mut Buffer,
-          diagnostic: *mut Diagnostic,
+          diagnostic: *mut DiagnosticOptions,
         ),
       >,
       package: ::std::option::Option<
@@ -599,7 +688,7 @@ pub struct ParcelApi {
           bundle: Bundle,
           options: Options,
           buf: *mut Buffer,
-          diagnostic: *mut Diagnostic,
+          diagnostic: *mut DiagnosticOptions,
         ),
       >,
       free: ::std::option::Option<unsafe extern "C" fn(content: *mut ::std::os::raw::c_void)>,
@@ -733,26 +822,27 @@ pub struct ParcelApi {
   pub asset_get_query:
     ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef)>,
   pub diagnostics_get_count:
-    ::std::option::Option<unsafe extern "C" fn(diagnostics: Diagnostics) -> usize>,
+    ::std::option::Option<unsafe extern "C" fn(diagnostics: DiagnosticsRef) -> usize>,
   pub diagnostic_get_message: ::std::option::Option<
-    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: Diagnostics, index: usize),
+    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: DiagnosticsRef, index: usize),
   >,
   pub diagnostic_get_severity: ::std::option::Option<
-    unsafe extern "C" fn(diagnostics: Diagnostics, index: usize) -> DiagnosticSeverity,
+    unsafe extern "C" fn(diagnostics: DiagnosticsRef, index: usize) -> DiagnosticSeverity,
   >,
   pub diagnostic_get_origin: ::std::option::Option<
-    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: Diagnostics, index: usize),
+    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: DiagnosticsRef, index: usize),
   >,
   pub diagnostic_get_hint_count:
-    ::std::option::Option<unsafe extern "C" fn(diagnostics: Diagnostics, index: usize) -> usize>,
+    ::std::option::Option<unsafe extern "C" fn(diagnostics: DiagnosticsRef, index: usize) -> usize>,
   pub diagnostic_get_hint: ::std::option::Option<
-    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: Diagnostics, index: usize, hint: usize),
+    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: DiagnosticsRef, index: usize, hint: usize),
   >,
   pub options_log: ::std::option::Option<
     unsafe extern "C" fn(options: Options, level: LogLevel, message: *const u8, message_len: usize),
   >,
-  pub options_log_diagnostic:
-    ::std::option::Option<unsafe extern "C" fn(options: Options, diagnostic: *const Diagnostic)>,
+  pub options_log_diagnostic: ::std::option::Option<
+    unsafe extern "C" fn(options: Options, diagnostic: *const DiagnosticOptions),
+  >,
   pub bundle_get_stable_key:
     ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, bundle: Bundle)>,
   pub bundle_get_hash_reference:
@@ -793,10 +883,32 @@ pub struct ParcelApi {
     unsafe extern "C" fn(asset: Asset, data: *const u8, len: usize, map: *const u8, map_len: usize),
   >,
   pub asset_get_map: ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef)>,
+  pub diagnostic_get_documentation_url: ::std::option::Option<
+    unsafe extern "C" fn(buf: *mut Buffer, diagnostics: DiagnosticsRef, index: usize),
+  >,
+  pub diagnostic_get_code_frame_count:
+    ::std::option::Option<unsafe extern "C" fn(diagnostics: DiagnosticsRef, index: usize) -> usize>,
+  pub diagnostic_get_code_frame: ::std::option::Option<
+    unsafe extern "C" fn(
+      out: *mut CodeFrameInfo,
+      diagnostics: DiagnosticsRef,
+      index: usize,
+      frame: usize,
+    ) -> bool,
+  >,
+  pub diagnostic_get_code_highlight: ::std::option::Option<
+    unsafe extern "C" fn(
+      out: *mut CodeHighlightInfo,
+      diagnostics: DiagnosticsRef,
+      index: usize,
+      frame: usize,
+      highlight: usize,
+    ) -> bool,
+  >,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 656usize];
+  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 688usize];
   ["Alignment of ParcelApi"][::std::mem::align_of::<ParcelApi>() - 8usize];
   ["Offset of field: ParcelApi::header"][::std::mem::offset_of!(ParcelApi, header) - 0usize];
   ["Offset of field: ParcelApi::asset_get_content"]
@@ -959,6 +1071,14 @@ const _: () = {
     [::std::mem::offset_of!(ParcelApi, asset_set_content_utf8_with_map) - 640usize];
   ["Offset of field: ParcelApi::asset_get_map"]
     [::std::mem::offset_of!(ParcelApi, asset_get_map) - 648usize];
+  ["Offset of field: ParcelApi::diagnostic_get_documentation_url"]
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_documentation_url) - 656usize];
+  ["Offset of field: ParcelApi::diagnostic_get_code_frame_count"]
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_frame_count) - 664usize];
+  ["Offset of field: ParcelApi::diagnostic_get_code_frame"]
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_frame) - 672usize];
+  ["Offset of field: ParcelApi::diagnostic_get_code_highlight"]
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_highlight) - 680usize];
 };
 #[doc = " Result filled by an optimizer plugin's `parcel_plugin_optimize()`.\n The struct is zero-initialised by the host before the call, apart from `size`.\n Fill `contents` and optionally `source_map` using `parcel_buffer_write()` or\n `parcel_buffer_write_utf8()`, and only write fields that fit within `size`\n (`PARCEL_HAS_FIELD()` checks)."]
 #[repr(C)]
@@ -993,7 +1113,7 @@ pub struct ReportEvent {
   pub message: *const u8,
   pub message_len: usize,
   #[doc = " `PARCEL_EVENT_BUILD_FAILURE` and `PARCEL_EVENT_LOG`. 0 when the event\n carries no diagnostics."]
-  pub diagnostics: Diagnostics,
+  pub diagnostics: DiagnosticsRef,
   #[doc = " `PARCEL_EVENT_BUILD_SUCCESS` only; 0 otherwise."]
   pub bundle_graph: BundleGraph,
   #[doc = " `PARCEL_EVENT_BUILD_SUCCESS` only. How long the build took."]
@@ -1027,6 +1147,6 @@ const _: () = {
 
 /// The end of the last function in [`ParcelApi`]'s first published layout, and so
 /// the smallest table any Parcel implementing this ABI passes. Functions after
-/// `asset_get_map` were appended later, and an older Parcel's table ends before them.
+/// `diagnostic_get_code_highlight` were appended later, and an older Parcel's table ends before them.
 pub const PARCEL_API_MIN_SIZE: usize =
-    ::core::mem::offset_of!(ParcelApi, asset_get_map) + ::core::mem::size_of::<usize>();
+    ::core::mem::offset_of!(ParcelApi, diagnostic_get_code_highlight) + ::core::mem::size_of::<usize>();

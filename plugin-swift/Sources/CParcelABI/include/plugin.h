@@ -549,23 +549,46 @@ typedef uint64_t AssetRef;
 typedef uint64_t Asset;
 
 /**
- * Diagnostic written by a plugin to report an error or warning.
- * The host zero-initialises this before every plugin call, apart from `size`.
- * Fill via `parcel_buffer_alloc()`; host frees all `Buffer` fields after the call.
- * If `message.data == NULL` after the call, no diagnostic was set.
+ * Opaque handle to a list of diagnostics Parcel handed the plugin during the
+ * current call, such as those a failed read reports. Readable anywhere a
+ * `DiagnosticsRef` is expected, and reported as they were by setting
+ * `DiagnosticOptions.diagnostics` to it. Parcel frees it when the call returns.
+ */
+typedef uint64_t Diagnostics;
+
+/**
+ * Describes a diagnostic a plugin reports: the error an entry point fails with,
+ * or a warning it logs with `parcel_options_log_diagnostic()`.
+ *
+ * Parcel allocates the one each entry point receives, zeroed apart from `size`,
+ * and frees every `Buffer` in it once the call returns; fill them with
+ * `parcel_buffer_alloc()`. The call fails when `message` or `diagnostics` is set.
+ * To log one, initialize it as `DiagnosticOptions d = {.size = sizeof(DiagnosticOptions)};`,
+ * and free its buffers after the call: Parcel copies what it needs.
+ *
+ * It describes one diagnostic with at most one code frame, highlight and hint.
+ * To report diagnostics Parcel handed the plugin, such as those of a failed read,
+ * set `diagnostics` to their list. Parcel reports them exactly as they were, after
+ * the diagnostic `message` describes, if it is set too.
  *
  * Only write fields that fit within `size`, which an older Parcel sets lower than
- * `sizeof(Diagnostic)`; `PARCEL_HAS_FIELD()` checks. To log one with
- * `parcel_options_log_diagnostic()`, initialize it as `Diagnostic d = {.size = sizeof(Diagnostic)};`.
- * Parcel ignores fields it does not know in a diagnostic, since the rest is still worth showing.
+ * `sizeof(DiagnosticOptions)`; `PARCEL_HAS_FIELD()` checks. Parcel ignores fields it
+ * does not know, since the rest is still worth showing.
  */
-typedef struct Diagnostic {
+typedef struct DiagnosticOptions {
   /**
-   * `sizeof(Diagnostic)` as whoever allocated it was built. Always the first member.
+   * `sizeof(DiagnosticOptions)` as whoever allocated it was built. Always the first member.
    */
   uintptr_t size;
   struct Buffer message;
+  /**
+   * Absolute path of the file the diagnostic's code frame shows, if it has one.
+   */
   struct Buffer file_path;
+  /**
+   * 1-based line and column of the first highlighted character in `file_path`, or 0 for no
+   * highlight.
+   */
   uint32_t line;
   uint32_t column;
   struct Buffer hint;
@@ -573,7 +596,26 @@ typedef struct Diagnostic {
    * `PARCEL_SEVERITY_*`
    */
   DiagnosticSeverity severity;
-} Diagnostic;
+  /**
+   * A message shown at the highlight.
+   */
+  struct Buffer highlight_message;
+  /**
+   * 1-based line and column of the last highlighted character, or 0 to highlight just the one at
+   * `line` and `column`.
+   */
+  uint32_t end_line;
+  uint32_t end_column;
+  /**
+   * A URL to documentation about the diagnostic.
+   */
+  struct Buffer documentation_url;
+  /**
+   * Diagnostics Parcel handed the plugin during this call, to report as well, or 0. A list from
+   * any other call is ignored.
+   */
+  Diagnostics diagnostics;
+} DiagnosticOptions;
 
 /**
  * Opaque handle to Parcel bundle graph.
@@ -686,10 +728,11 @@ typedef struct DependencyOptions {
 } DependencyOptions;
 
 /**
- * Opaque handle to the diagnostics attached to a reporter event. Pass to the
- * `parcel_diagnostics_*` and `parcel_diagnostic_*` functions.
+ * Opaque, read-only handle to a list of diagnostics: those a reporter event
+ * carries, or a `Diagnostics` list. Pass to the `parcel_diagnostics_*` and
+ * `parcel_diagnostic_*` getters. Valid until the call that received it returns.
  */
-typedef uint64_t Diagnostics;
+typedef uint64_t DiagnosticsRef;
 
 /**
  * Result filled by a resolver plugin's `parcel_plugin_resolve()`, or by Parcel in
@@ -716,6 +759,63 @@ typedef struct ResolveResult {
 } ResolveResult;
 
 /**
+ * One of a diagnostic's code frames, filled in by
+ * `parcel_diagnostic_get_code_frame()`.
+ *
+ * Set `size` before the call, as `CodeFrameInfo info = {.size = sizeof(CodeFrameInfo)};`;
+ * Parcel writes only the fields that fit. Free each buffer after.
+ */
+typedef struct CodeFrameInfo {
+  /**
+   * `sizeof(CodeFrameInfo)` as the caller was built. Always the first member.
+   */
+  uintptr_t size;
+  /**
+   * The absolute path of the file, when the frame is about one on disk.
+   */
+  struct Buffer file_path;
+  /**
+   * The URL of the file, e.g. a `file:` URL, when the frame names one.
+   */
+  struct Buffer url;
+  /**
+   * The code to show, when it differs from the file's contents. Empty to read the file.
+   */
+  struct Buffer code;
+  /**
+   * The code's language, as a file extension, for syntax highlighting. Empty when unknown.
+   */
+  struct Buffer language;
+  /**
+   * How many highlights the frame has, for `parcel_diagnostic_get_code_highlight()`.
+   */
+  uintptr_t highlight_count;
+} CodeFrameInfo;
+
+/**
+ * One highlighted range in a code frame, filled in by
+ * `parcel_diagnostic_get_code_highlight()`. Lines and columns are 1-based, and
+ * the end is the last highlighted character.
+ *
+ * Set `size` before the call, as `CodeHighlightInfo info = {.size = sizeof(CodeHighlightInfo)};`;
+ * Parcel writes only the fields that fit. Free `message` after.
+ */
+typedef struct CodeHighlightInfo {
+  /**
+   * `sizeof(CodeHighlightInfo)` as the caller was built. Always the first member.
+   */
+  uintptr_t size;
+  uint32_t start_line;
+  uint32_t start_column;
+  uint32_t end_line;
+  uint32_t end_column;
+  /**
+   * A message shown at the highlight. Empty when it has none.
+   */
+  struct Buffer message;
+} CodeHighlightInfo;
+
+/**
  * The host functions available to a plugin.
  */
 typedef struct ParcelApi {
@@ -732,13 +832,13 @@ typedef struct ParcelApi {
                                    void *content,
                                    void (*read)(const void *content,
                                                 struct Buffer *buf,
-                                                struct Diagnostic *diagnostic),
+                                                struct DiagnosticOptions *diagnostic),
                                    void (*package)(const void *content,
                                                    BundleGraph bundle_graph,
                                                    Bundle bundle,
                                                    Options options,
                                                    struct Buffer *buf,
-                                                   struct Diagnostic *diagnostic),
+                                                   struct DiagnosticOptions *diagnostic),
                                    void (*free)(void *content));
   bool (*asset_get_custom_content)(uint8_t (*ty)[16], void **content, AssetRef asset);
   void (*asset_get_type)(struct Buffer *buf, AssetRef asset);
@@ -801,17 +901,17 @@ typedef struct ParcelApi {
   void (*target_get_public_url)(struct Buffer *buf, Target target);
   void (*target_get_dist_dir)(struct Buffer *buf, Target target, Options _options);
   void (*asset_get_query)(struct Buffer *buf, AssetRef asset);
-  uintptr_t (*diagnostics_get_count)(Diagnostics diagnostics);
-  void (*diagnostic_get_message)(struct Buffer *buf, Diagnostics diagnostics, uintptr_t index);
-  DiagnosticSeverity (*diagnostic_get_severity)(Diagnostics diagnostics, uintptr_t index);
-  void (*diagnostic_get_origin)(struct Buffer *buf, Diagnostics diagnostics, uintptr_t index);
-  uintptr_t (*diagnostic_get_hint_count)(Diagnostics diagnostics, uintptr_t index);
+  uintptr_t (*diagnostics_get_count)(DiagnosticsRef diagnostics);
+  void (*diagnostic_get_message)(struct Buffer *buf, DiagnosticsRef diagnostics, uintptr_t index);
+  DiagnosticSeverity (*diagnostic_get_severity)(DiagnosticsRef diagnostics, uintptr_t index);
+  void (*diagnostic_get_origin)(struct Buffer *buf, DiagnosticsRef diagnostics, uintptr_t index);
+  uintptr_t (*diagnostic_get_hint_count)(DiagnosticsRef diagnostics, uintptr_t index);
   void (*diagnostic_get_hint)(struct Buffer *buf,
-                              Diagnostics diagnostics,
+                              DiagnosticsRef diagnostics,
                               uintptr_t index,
                               uintptr_t hint);
   void (*options_log)(Options options, LogLevel level, const uint8_t *message, uintptr_t message_len);
-  void (*options_log_diagnostic)(Options options, const struct Diagnostic *diagnostic);
+  void (*options_log_diagnostic)(Options options, const struct DiagnosticOptions *diagnostic);
   void (*bundle_get_stable_key)(struct Buffer *buf, Bundle bundle);
   void (*bundle_get_hash_reference)(struct Buffer *buf, Bundle bundle);
   IoStatus (*fs_read_file)(struct Buffer *buf,
@@ -840,6 +940,19 @@ typedef struct ParcelApi {
                                           const uint8_t *map,
                                           uintptr_t map_len);
   void (*asset_get_map)(struct Buffer *buf, AssetRef asset);
+  void (*diagnostic_get_documentation_url)(struct Buffer *buf,
+                                           DiagnosticsRef diagnostics,
+                                           uintptr_t index);
+  uintptr_t (*diagnostic_get_code_frame_count)(DiagnosticsRef diagnostics, uintptr_t index);
+  bool (*diagnostic_get_code_frame)(struct CodeFrameInfo *out,
+                                    DiagnosticsRef diagnostics,
+                                    uintptr_t index,
+                                    uintptr_t frame);
+  bool (*diagnostic_get_code_highlight)(struct CodeHighlightInfo *out,
+                                        DiagnosticsRef diagnostics,
+                                        uintptr_t index,
+                                        uintptr_t frame,
+                                        uintptr_t highlight);
 } ParcelApi;
 
 /**
@@ -892,7 +1005,7 @@ typedef struct ReportEvent {
    * `PARCEL_EVENT_BUILD_FAILURE` and `PARCEL_EVENT_LOG`. 0 when the event
    * carries no diagnostics.
    */
-  Diagnostics diagnostics;
+  DiagnosticsRef diagnostics;
   /**
    * `PARCEL_EVENT_BUILD_SUCCESS` only; 0 otherwise.
    */
@@ -924,7 +1037,7 @@ typedef InitStatus (*ParcelPluginInitFn)(const struct ParcelApi *api,
                                          const uint8_t *config,
                                          uintptr_t config_len,
                                          void **state,
-                                         struct Diagnostic *diagnostic);
+                                         struct DiagnosticOptions *diagnostic);
 
 /**
  * `parcel_plugin_deinit()`: releases `state` once Parcel is done with the
@@ -942,7 +1055,7 @@ typedef void (*ParcelPluginDeinitFn)(void *state);
 typedef void (*ParcelPluginTransformFn)(Asset asset,
                                         Options options,
                                         void *state,
-                                        struct Diagnostic *diagnostic);
+                                        struct DiagnosticOptions *diagnostic);
 
 /**
  * `parcel_plugin_resolve()`: resolves `specifier` (not NUL-terminated), as
@@ -959,7 +1072,7 @@ typedef void (*ParcelPluginResolveFn)(Dependency dependency,
                                       Options options,
                                       struct ResolveResult *result,
                                       void *state,
-                                      struct Diagnostic *diagnostic);
+                                      struct DiagnosticOptions *diagnostic);
 
 /**
  * `parcel_plugin_name()`: writes `bundle`'s name, relative to its target's dist
@@ -971,7 +1084,7 @@ typedef void (*ParcelPluginNameFn)(BundleGraph bundle_graph,
                                    Options options,
                                    struct Buffer *name,
                                    void *state,
-                                   struct Diagnostic *diagnostic);
+                                   struct DiagnosticOptions *diagnostic);
 
 /**
  * `parcel_plugin_optimize()`: optimizes `bundle`'s packaged `contents`, along
@@ -987,7 +1100,7 @@ typedef void (*ParcelPluginOptimizeFn)(BundleGraph bundle_graph,
                                        Options options,
                                        struct OptimizeResult *result,
                                        void *state,
-                                       struct Diagnostic *diagnostic);
+                                       struct DiagnosticOptions *diagnostic);
 
 /**
  * `parcel_plugin_report()`: handles a build event. Log events can arrive from
@@ -997,7 +1110,7 @@ typedef void (*ParcelPluginOptimizeFn)(BundleGraph bundle_graph,
 typedef void (*ParcelPluginReportFn)(const struct ReportEvent *event,
                                      Options options,
                                      void *state,
-                                     struct Diagnostic *diagnostic);
+                                     struct DiagnosticOptions *diagnostic);
 
 #define PARCEL_INVALID_ASSET_INDEX 4294967295
 
@@ -1011,10 +1124,10 @@ extern const struct ParcelApi *parcel_api;
 /**
  * The end of the last function in the table's first published layout, and so the
  * smallest table any Parcel implementing this ABI passes. Functions declared after
- * `asset_get_map` were appended later, and an older Parcel's table ends before them.
+ * `diagnostic_get_code_highlight` were appended later, and an older Parcel's table ends before them.
  */
 #define PARCEL_API_MIN_SIZE \
-  (offsetof(struct ParcelApi, asset_get_map) + sizeof(((struct ParcelApi *)0)->asset_get_map))
+  (offsetof(struct ParcelApi, diagnostic_get_code_highlight) + sizeof(((struct ParcelApi *)0)->diagnostic_get_code_highlight))
 
 /**
  * Whether `api` is usable by a plugin built against this header. Check it in
@@ -1068,7 +1181,7 @@ static inline void parcel_asset_set_content_utf8(Asset asset, const uint8_t *dat
   parcel_api->asset_set_content_utf8(asset, data, len);
 }
 
-static inline void parcel_asset_set_custom_content(Asset asset, const uint8_t (*ty)[16], void *content, void (*read)(const void *content, struct Buffer *buf, struct Diagnostic *diagnostic), void (*package)(const void *content, BundleGraph bundle_graph, Bundle bundle, Options options, struct Buffer *buf, struct Diagnostic *diagnostic), void (*free)(void *content)) {
+static inline void parcel_asset_set_custom_content(Asset asset, const uint8_t (*ty)[16], void *content, void (*read)(const void *content, struct Buffer *buf, struct DiagnosticOptions *diagnostic), void (*package)(const void *content, BundleGraph bundle_graph, Bundle bundle, Options options, struct Buffer *buf, struct DiagnosticOptions *diagnostic), void (*free)(void *content)) {
   parcel_api->asset_set_custom_content(asset, ty, content, read, package, free);
 }
 
@@ -1304,27 +1417,27 @@ static inline void parcel_asset_get_query(struct Buffer *buf, AssetRef asset) {
   parcel_api->asset_get_query(buf, asset);
 }
 
-static inline uintptr_t parcel_diagnostics_get_count(Diagnostics diagnostics) {
+static inline uintptr_t parcel_diagnostics_get_count(DiagnosticsRef diagnostics) {
   return parcel_api->diagnostics_get_count(diagnostics);
 }
 
-static inline void parcel_diagnostic_get_message(struct Buffer *buf, Diagnostics diagnostics, uintptr_t index) {
+static inline void parcel_diagnostic_get_message(struct Buffer *buf, DiagnosticsRef diagnostics, uintptr_t index) {
   parcel_api->diagnostic_get_message(buf, diagnostics, index);
 }
 
-static inline DiagnosticSeverity parcel_diagnostic_get_severity(Diagnostics diagnostics, uintptr_t index) {
+static inline DiagnosticSeverity parcel_diagnostic_get_severity(DiagnosticsRef diagnostics, uintptr_t index) {
   return parcel_api->diagnostic_get_severity(diagnostics, index);
 }
 
-static inline void parcel_diagnostic_get_origin(struct Buffer *buf, Diagnostics diagnostics, uintptr_t index) {
+static inline void parcel_diagnostic_get_origin(struct Buffer *buf, DiagnosticsRef diagnostics, uintptr_t index) {
   parcel_api->diagnostic_get_origin(buf, diagnostics, index);
 }
 
-static inline uintptr_t parcel_diagnostic_get_hint_count(Diagnostics diagnostics, uintptr_t index) {
+static inline uintptr_t parcel_diagnostic_get_hint_count(DiagnosticsRef diagnostics, uintptr_t index) {
   return parcel_api->diagnostic_get_hint_count(diagnostics, index);
 }
 
-static inline void parcel_diagnostic_get_hint(struct Buffer *buf, Diagnostics diagnostics, uintptr_t index, uintptr_t hint) {
+static inline void parcel_diagnostic_get_hint(struct Buffer *buf, DiagnosticsRef diagnostics, uintptr_t index, uintptr_t hint) {
   parcel_api->diagnostic_get_hint(buf, diagnostics, index, hint);
 }
 
@@ -1332,7 +1445,7 @@ static inline void parcel_options_log(Options options, LogLevel level, const uin
   parcel_api->options_log(options, level, message, message_len);
 }
 
-static inline void parcel_options_log_diagnostic(Options options, const struct Diagnostic *diagnostic) {
+static inline void parcel_options_log_diagnostic(Options options, const struct DiagnosticOptions *diagnostic) {
   parcel_api->options_log_diagnostic(options, diagnostic);
 }
 
@@ -1372,6 +1485,22 @@ static inline void parcel_asset_get_map(struct Buffer *buf, AssetRef asset) {
   parcel_api->asset_get_map(buf, asset);
 }
 
+static inline void parcel_diagnostic_get_documentation_url(struct Buffer *buf, DiagnosticsRef diagnostics, uintptr_t index) {
+  parcel_api->diagnostic_get_documentation_url(buf, diagnostics, index);
+}
+
+static inline uintptr_t parcel_diagnostic_get_code_frame_count(DiagnosticsRef diagnostics, uintptr_t index) {
+  return parcel_api->diagnostic_get_code_frame_count(diagnostics, index);
+}
+
+static inline bool parcel_diagnostic_get_code_frame(struct CodeFrameInfo *out, DiagnosticsRef diagnostics, uintptr_t index, uintptr_t frame) {
+  return parcel_api->diagnostic_get_code_frame(out, diagnostics, index, frame);
+}
+
+static inline bool parcel_diagnostic_get_code_highlight(struct CodeHighlightInfo *out, DiagnosticsRef diagnostics, uintptr_t index, uintptr_t frame, uintptr_t highlight) {
+  return parcel_api->diagnostic_get_code_highlight(out, diagnostics, index, frame, highlight);
+}
+
 /**
  * The entry points a plugin defines, matching the `ParcelPlugin*Fn` types Parcel loads
  * them as. Define those your plugin implements: `parcel_plugin_init()` always, and the
@@ -1383,19 +1512,19 @@ static inline void parcel_asset_get_map(struct Buffer *buf, AssetRef asset) {
  */
 #ifndef PARCEL_NO_ENTRY_POINT_PROTOTYPES
 
-InitStatus parcel_plugin_init(const struct ParcelApi *api, const uint8_t *config, uintptr_t config_len, void **state, struct Diagnostic *diagnostic);
+InitStatus parcel_plugin_init(const struct ParcelApi *api, const uint8_t *config, uintptr_t config_len, void **state, struct DiagnosticOptions *diagnostic);
 
 void parcel_plugin_deinit(void *state);
 
-void parcel_plugin_transform(Asset asset, Options options, void *state, struct Diagnostic *diagnostic);
+void parcel_plugin_transform(Asset asset, Options options, void *state, struct DiagnosticOptions *diagnostic);
 
-void parcel_plugin_resolve(Dependency dependency, const uint8_t *specifier, uintptr_t specifier_len, const uint8_t *pipeline, uintptr_t pipeline_len, Options options, struct ResolveResult *result, void *state, struct Diagnostic *diagnostic);
+void parcel_plugin_resolve(Dependency dependency, const uint8_t *specifier, uintptr_t specifier_len, const uint8_t *pipeline, uintptr_t pipeline_len, Options options, struct ResolveResult *result, void *state, struct DiagnosticOptions *diagnostic);
 
-void parcel_plugin_name(BundleGraph bundle_graph, Bundle bundle, Options options, struct Buffer *name, void *state, struct Diagnostic *diagnostic);
+void parcel_plugin_name(BundleGraph bundle_graph, Bundle bundle, Options options, struct Buffer *name, void *state, struct DiagnosticOptions *diagnostic);
 
-void parcel_plugin_optimize(BundleGraph bundle_graph, Bundle bundle, const uint8_t *contents, uintptr_t contents_len, const uint8_t *source_map, uintptr_t source_map_len, Options options, struct OptimizeResult *result, void *state, struct Diagnostic *diagnostic);
+void parcel_plugin_optimize(BundleGraph bundle_graph, Bundle bundle, const uint8_t *contents, uintptr_t contents_len, const uint8_t *source_map, uintptr_t source_map_len, Options options, struct OptimizeResult *result, void *state, struct DiagnosticOptions *diagnostic);
 
-void parcel_plugin_report(const struct ReportEvent *event, Options options, void *state, struct Diagnostic *diagnostic);
+void parcel_plugin_report(const struct ReportEvent *event, Options options, void *state, struct DiagnosticOptions *diagnostic);
 
 #endif
 

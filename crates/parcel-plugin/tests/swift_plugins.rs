@@ -335,6 +335,8 @@ fn swift_reporter_receives_every_event_kind() {
       &options,
     )
     .expect("log with diagnostics");
+
+  common::assert_reporter_summarizes_failures("swift", &plugin);
 }
 
 /// A library used for a role its plugin type does not conform to says so.

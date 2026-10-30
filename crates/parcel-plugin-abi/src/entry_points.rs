@@ -8,7 +8,7 @@
 use std::ffi::c_void;
 
 use crate::{
-  Asset, Bundle, BundleGraph, Dependency, Diagnostic, OptimizeResult, Options, ParcelApi,
+  Asset, Bundle, BundleGraph, Dependency, DiagnosticOptions, OptimizeResult, Options, ParcelApi,
   ReportEvent, ResolveResult,
 };
 
@@ -31,7 +31,7 @@ pub type ParcelPluginInitFn = extern "C" fn(
   config: *const u8,
   config_len: usize,
   state: *mut *mut c_void,
-  diagnostic: *mut Diagnostic,
+  diagnostic: *mut DiagnosticOptions,
 ) -> InitStatusFFI;
 
 /// `parcel_plugin_deinit()`: releases `state` once Parcel is done with the
@@ -43,8 +43,12 @@ pub type ParcelPluginDeinitFn = extern "C" fn(state: *mut c_void);
 /// `parcel_plugin_transform()`: transforms `asset` in place. The only entry
 /// point that receives a mutable `Asset`, valid until it returns. Fill in
 /// `diagnostic` to fail.
-pub type ParcelPluginTransformFn =
-  extern "C" fn(asset: Asset, options: Options, state: *mut c_void, diagnostic: *mut Diagnostic);
+pub type ParcelPluginTransformFn = extern "C" fn(
+  asset: Asset,
+  options: Options,
+  state: *mut c_void,
+  diagnostic: *mut DiagnosticOptions,
+);
 
 /// `parcel_plugin_resolve()`: resolves `specifier` (not NUL-terminated), as
 /// imported by `dependency`. `pipeline` is the named pipeline from the
@@ -60,7 +64,7 @@ pub type ParcelPluginResolveFn = extern "C" fn(
   options: Options,
   result: *mut ResolveResult,
   state: *mut c_void,
-  diagnostic: *mut Diagnostic,
+  diagnostic: *mut DiagnosticOptions,
 );
 
 /// `parcel_plugin_name()`: writes `bundle`'s name, relative to its target's dist
@@ -72,7 +76,7 @@ pub type ParcelPluginNameFn = extern "C" fn(
   options: Options,
   name: *mut crate::Buffer,
   state: *mut c_void,
-  diagnostic: *mut Diagnostic,
+  diagnostic: *mut DiagnosticOptions,
 );
 
 /// `parcel_plugin_optimize()`: optimizes `bundle`'s packaged `contents`, along
@@ -88,7 +92,7 @@ pub type ParcelPluginOptimizeFn = extern "C" fn(
   options: Options,
   result: *mut OptimizeResult,
   state: *mut c_void,
-  diagnostic: *mut Diagnostic,
+  diagnostic: *mut DiagnosticOptions,
 );
 
 /// `parcel_plugin_report()`: handles a build event. Log events can arrive from
@@ -98,5 +102,5 @@ pub type ParcelPluginReportFn = extern "C" fn(
   event: *const ReportEvent,
   options: Options,
   state: *mut c_void,
-  diagnostic: *mut Diagnostic,
+  diagnostic: *mut DiagnosticOptions,
 );

@@ -1,6 +1,7 @@
 //! Dynamic plugin loading and Parcel plugin trait adapters.
 
 use std::{
+  borrow::Cow,
   ffi::c_void,
   mem::ManuallyDrop,
   path::{Path, PathBuf},
@@ -17,7 +18,7 @@ use parcel_core::{
 };
 
 use crate::{
-  Asset, AssetIndex, Buffer, Bundle, BundleGraph, Dependency, Diagnostic, Diagnostics,
+  Asset, AssetIndex, Buffer, Bundle, BundleGraph, Dependency, DiagnosticOptions, DiagnosticsRef,
   OptionsContext, ParcelPluginDeinitFn, ParcelPluginInitFn, ParcelPluginNameFn,
   ParcelPluginOptimizeFn, ParcelPluginReportFn, ParcelPluginResolveFn, ParcelPluginTransformFn,
   diagnostics::DiagnosticsView, parcel_free_buffer, plugin_path, read_cdiagnostic, trusted_str,
@@ -149,7 +150,7 @@ pub struct ReportEvent {
   pub message_len: usize,
   /// `PARCEL_EVENT_BUILD_FAILURE` and `PARCEL_EVENT_LOG`. 0 when the event
   /// carries no diagnostics.
-  pub diagnostics: Diagnostics,
+  pub diagnostics: DiagnosticsRef,
   /// `PARCEL_EVENT_BUILD_SUCCESS` only; 0 otherwise.
   pub bundle_graph: BundleGraph,
   /// `PARCEL_EVENT_BUILD_SUCCESS` only. How long the build took.
@@ -214,15 +215,21 @@ impl CPlugin {
     })
   }
 
-  /// Reads the diagnostic the plugin returned from a call, if any, attributed to the plugin.
+  /// Reads the diagnostics the plugin failed a call with, if any. Its own are
+  /// attributed to it; those it passed on from Parcel keep their origin.
   fn read_diagnostic(
     &self,
-    diagnostic: &mut Diagnostic,
-    options: &ParcelOptions,
+    diagnostic: &mut DiagnosticOptions,
+    context: &OptionsContext,
   ) -> Option<DiagnosticList> {
-    let mut diagnostic = read_cdiagnostic(diagnostic, Some(&options.project_root))?;
-    diagnostic.origin = Some(self.origin.clone());
-    Some(DiagnosticList(vec![diagnostic]))
+    let mut diagnostics = read_cdiagnostic(diagnostic, Some(context));
+    if diagnostics.is_empty() {
+      return None;
+    }
+    for diagnostic in &mut diagnostics {
+      diagnostic.origin.get_or_insert_with(|| self.origin.clone());
+    }
+    Some(DiagnosticList(diagnostics))
   }
 
   fn load(
@@ -263,7 +270,7 @@ impl CPlugin {
       .unwrap_or_default();
 
     let mut state = ptr::null_mut();
-    let mut diagnostic = Diagnostic::default();
+    let mut diagnostic = DiagnosticOptions::default();
     let status = init_fn(
       &crate::PARCEL_API,
       config_bytes.as_ptr(),
@@ -279,16 +286,17 @@ impl CPlugin {
 
       // Every SDK writes a diagnostic along with this status, so a missing one
       // also suggests a library built against something else.
-      Ok(InitStatus::PARCEL_INIT_ERROR) => Err(
-        read_cdiagnostic(&mut diagnostic, None)
-          .map(|diag| DiagnosticList(vec![diag]))
-          .unwrap_or_else(|| {
-            incompatible_library(format!(
-              "{} failed to initialize, without reporting why.",
-              path.to_path_buf().display()
-            ))
-          }),
-      ),
+      Ok(InitStatus::PARCEL_INIT_ERROR) => Err({
+        let diagnostics = read_cdiagnostic(&mut diagnostic, None);
+        if diagnostics.is_empty() {
+          incompatible_library(format!(
+            "{} failed to initialize, without reporting why.",
+            path.to_path_buf().display()
+          ))
+        } else {
+          DiagnosticList(diagnostics)
+        }
+      }),
 
       // The plugin rejected our function table, which is also the only way it
       // could have allocated a diagnostic. Describe the mismatch here instead.
@@ -335,7 +343,6 @@ impl Transformer for CPlugin {
     mut asset: CoreAsset,
     ctx: &parcel_core::PluginContext,
   ) -> Result<CoreAsset, DiagnosticList> {
-    let options = ctx.options;
     let transform: Symbol<ParcelPluginTransformFn> = unsafe {
       self.lib.get(b"parcel_plugin_transform").map_err(|_| {
         CoreDiagnostic::from_message("Failed to find parcel_plugin_transform symbol".into())
@@ -343,7 +350,7 @@ impl Transformer for CPlugin {
     };
 
     let context = OptionsContext::with_plugin(ctx);
-    let mut diagnostic = Diagnostic::default();
+    let mut diagnostic = DiagnosticOptions::default();
     transform(
       &mut asset as *mut CoreAsset as Asset,
       context.handle(),
@@ -351,7 +358,7 @@ impl Transformer for CPlugin {
       &mut diagnostic,
     );
 
-    if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, options) {
+    if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, &context) {
       return Err(diagnostics);
     }
     Ok(asset)
@@ -374,7 +381,7 @@ impl Resolver for CPlugin {
     };
 
     let mut result = ResolveResult::default();
-    let mut diagnostic = Diagnostic::default();
+    let mut diagnostic = DiagnosticOptions::default();
 
     let pipeline_bytes = pipeline.map(|p| p.as_bytes());
     let context = OptionsContext::with_plugin(ctx);
@@ -391,7 +398,7 @@ impl Resolver for CPlugin {
       &mut diagnostic,
     );
 
-    if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, options) {
+    if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, &context) {
       return Err(diagnostics);
     }
 
@@ -519,7 +526,7 @@ impl parcel_core::Namer for CPlugin {
 
     let context = OptionsContext::new(options);
     let mut name = Buffer::default();
-    let mut diagnostic = Diagnostic::default();
+    let mut diagnostic = DiagnosticOptions::default();
     name_fn(
       bundle_graph as *const parcel_core::BundleGraph as BundleGraph,
       bundle as *const parcel_core::Bundle as Bundle,
@@ -529,7 +536,7 @@ impl parcel_core::Namer for CPlugin {
       &mut diagnostic,
     );
 
-    if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, options) {
+    if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, &context) {
       parcel_free_buffer(&mut name);
       return Err(diagnostics);
     }
@@ -569,10 +576,12 @@ impl Reporter for CPlugin {
     // Both of these are borrowed by `c_event` below, so they have to outlive it.
     let diagnostics = match event {
       ReporterEvent::BuildFailure { diagnostics } => Some(DiagnosticsView {
-        diagnostics: &diagnostics.0,
+        diagnostics: Cow::Borrowed(&diagnostics.0),
       }),
       ReporterEvent::Log(log) => match log.message {
-        LogMessage::Diagnostics(diagnostics) => Some(DiagnosticsView { diagnostics }),
+        LogMessage::Diagnostics(diagnostics) => Some(DiagnosticsView {
+          diagnostics: Cow::Borrowed(diagnostics),
+        }),
         LogMessage::Text(_) => None,
       },
       _ => None,
@@ -594,7 +603,7 @@ impl Reporter for CPlugin {
       message_len: 0,
       diagnostics: diagnostics
         .as_ref()
-        .map_or(0, |view| view as *const DiagnosticsView as Diagnostics),
+        .map_or(0, |view| view as *const DiagnosticsView as DiagnosticsRef),
       bundle_graph: 0,
       build_time_ms: 0,
       changed_assets: changed_assets.as_ptr(),
@@ -626,10 +635,10 @@ impl Reporter for CPlugin {
     }
 
     let context = OptionsContext::new(options);
-    let mut diagnostic = Diagnostic::default();
+    let mut diagnostic = DiagnosticOptions::default();
     report(&c_event, context.handle(), self.state, &mut diagnostic);
 
-    if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, options) {
+    if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, &context) {
       return Err(diagnostics);
     }
     Ok(())
@@ -655,7 +664,7 @@ impl Optimizer for CPlugin {
       .map(|contents| contents.source_map().to_vec());
     let contents = contents.read()?;
     let mut result = OptimizeResult::default();
-    let mut diagnostic = Diagnostic::default();
+    let mut diagnostic = DiagnosticOptions::default();
     let context = OptionsContext::new(options);
 
     optimize(
@@ -671,7 +680,7 @@ impl Optimizer for CPlugin {
       &mut diagnostic,
     );
 
-    if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, options) {
+    if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, &context) {
       parcel_free_buffer(&mut result.contents);
       parcel_free_buffer(&mut result.source_map);
       return Err(diagnostics);

@@ -196,7 +196,7 @@ impl<'a> Options<'a> {
     // Filled and dropped here: the host copies what it needs rather than taking
     // ownership, unlike the diagnostic a plugin method returns. Dropping the
     // `Buffer`s is what frees them.
-    with_sized(|raw: &mut ffi::Diagnostic| {
+    with_sized(|raw: &mut ffi::DiagnosticOptions| {
       diagnostic.write_to_raw(raw);
       unsafe { host!(options_log_diagnostic)(self.raw, raw) };
       unsafe { ptr::drop_in_place(raw) };
@@ -446,8 +446,16 @@ pub struct Diagnostic {
   pub line: u32,
   /// 1-based start column (0 = not set).
   pub column: u32,
+  /// 1-based line of the last highlighted character (0 = just the start).
+  pub end_line: u32,
+  /// 1-based column of the last highlighted character.
+  pub end_column: u32,
+  /// A message shown at the code highlight (optional).
+  pub highlight_message: Option<String>,
   /// A single hint string (optional).
   pub hint: Option<String>,
+  /// A URL to documentation about the diagnostic (optional).
+  pub documentation_url: Option<String>,
 }
 
 impl Diagnostic {
@@ -479,16 +487,36 @@ impl Diagnostic {
     self
   }
 
+  /// Extends the code highlight to the 1-based line and column of its last
+  /// character. Without this, it highlights just the one at [`at`](Self::at).
+  pub fn to(mut self, end_line: u32, end_column: u32) -> Self {
+    self.end_line = end_line;
+    self.end_column = end_column;
+    self
+  }
+
+  /// Attaches a message shown at the code highlight.
+  pub fn with_highlight_message(mut self, message: impl Into<String>) -> Self {
+    self.highlight_message = Some(message.into());
+    self
+  }
+
   /// Attaches a hint string.
   pub fn with_hint(mut self, hint: impl Into<String>) -> Self {
     self.hint = Some(hint.into());
     self
   }
 
-  /// Writes this diagnostic into a host-allocated [`ffi::Diagnostic`], field by
+  /// Attaches a URL to documentation about the diagnostic.
+  pub fn with_documentation_url(mut self, url: impl Into<String>) -> Self {
+    self.documentation_url = Some(url.into());
+    self
+  }
+
+  /// Writes this diagnostic into a host-allocated [`ffi::DiagnosticOptions`], field by
   /// field, leaving its `size` alone.
   /// Intended for use inside macro-generated entry points only.
-  pub fn write_to_raw(&self, raw: *mut ffi::Diagnostic) {
+  pub fn write_to_raw(&self, raw: *mut ffi::DiagnosticOptions) {
     if raw.is_null() {
       return;
     }
@@ -502,6 +530,14 @@ impl Diagnostic {
       (*raw).column = self.column;
       if let Some(hint) = &self.hint {
         (*raw).hint = host!(buffer_alloc)(hint.as_ptr(), hint.len());
+      }
+      (*raw).end_line = self.end_line;
+      (*raw).end_column = self.end_column;
+      if let Some(message) = &self.highlight_message {
+        (*raw).highlight_message = host!(buffer_alloc)(message.as_ptr(), message.len());
+      }
+      if let Some(url) = &self.documentation_url {
+        (*raw).documentation_url = host!(buffer_alloc)(url.as_ptr(), url.len());
       }
     }
   }
@@ -681,6 +717,91 @@ impl DiagnosticInfo<'_> {
       })
       .collect()
   }
+
+  /// A URL to documentation about the diagnostic, if it has one.
+  pub fn documentation_url(&self) -> Option<String> {
+    let mut buf = Buffer::default();
+    unsafe { host!(diagnostic_get_documentation_url)(&mut buf, self.diagnostics.raw, self.index) };
+    buf.to_string()
+  }
+
+  /// Excerpts of the files the diagnostic is about, with parts of them
+  /// highlighted. Empty when it has none.
+  pub fn code_frames(&self) -> Vec<CodeFrame> {
+    let count = host!(diagnostic_get_code_frame_count);
+    let get_frame = host!(diagnostic_get_code_frame);
+    let get_highlight = host!(diagnostic_get_code_highlight);
+    let raw = self.diagnostics.raw;
+    let index = self.index;
+
+    (0..unsafe { count(raw, index) })
+      .filter_map(|frame| {
+        let (mut code_frame, highlight_count) = with_sized(|info: &mut ffi::CodeFrameInfo| {
+          if !unsafe { get_frame(info, raw, index, frame) } {
+            return None;
+          }
+          let code_frame = CodeFrame {
+            file_path: info.file_path.to_string(),
+            url: info.url.to_string(),
+            code: info.code.to_string(),
+            language: info.language.to_string(),
+            highlights: Vec::new(),
+          };
+          let highlight_count = info.highlight_count;
+          unsafe { ptr::drop_in_place(info) };
+          Some((code_frame, highlight_count))
+        })?;
+
+        code_frame.highlights = (0..highlight_count)
+          .filter_map(|highlight| {
+            with_sized(|info: &mut ffi::CodeHighlightInfo| {
+              if !unsafe { get_highlight(info, raw, index, frame, highlight) } {
+                return None;
+              }
+              let highlight = CodeHighlight {
+                start_line: info.start_line,
+                start_column: info.start_column,
+                end_line: info.end_line,
+                end_column: info.end_column,
+                message: info.message.to_string(),
+              };
+              unsafe { ptr::drop_in_place(info) };
+              Some(highlight)
+            })
+          })
+          .collect();
+        Some(code_frame)
+      })
+      .collect()
+  }
+}
+
+/// An excerpt of a file a diagnostic is about, with parts of it highlighted.
+#[non_exhaustive]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct CodeFrame {
+  /// The absolute path of the file, when it is one on disk.
+  pub file_path: Option<String>,
+  /// The URL of the file, e.g. a `file:` URL, when the frame names one.
+  pub url: Option<String>,
+  /// The code to show, when it differs from the file's contents.
+  pub code: Option<String>,
+  /// The code's language, as a file extension, when known.
+  pub language: Option<String>,
+  pub highlights: Vec<CodeHighlight>,
+}
+
+/// A highlighted range in a [`CodeFrame`]. Lines and columns are 1-based, and
+/// the end is the last highlighted character.
+#[non_exhaustive]
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct CodeHighlight {
+  pub start_line: u32,
+  pub start_column: u32,
+  pub end_line: u32,
+  pub end_column: u32,
+  /// A message shown at the highlight.
+  pub message: Option<String>,
 }
 
 // ── Asset ──────────────────────────────────────────────────────────────────
@@ -794,7 +915,7 @@ impl<'a> Asset<'a> {
     unsafe extern "C" fn read_content<T: AssetContent>(
       content: *const c_void,
       buf: *mut Buffer,
-      diagnostic: *mut ffi::Diagnostic,
+      diagnostic: *mut ffi::DiagnosticOptions,
     ) {
       let content = unsafe { &(*(content as *const ContentBox<T>)).content };
       let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| content.read()));
@@ -822,7 +943,7 @@ impl<'a> Asset<'a> {
       bundle: ffi::Bundle,
       options: ffi::Options,
       buf: *mut Buffer,
-      diagnostic: *mut ffi::Diagnostic,
+      diagnostic: *mut ffi::DiagnosticOptions,
     ) {
       let content = unsafe { &(*(content as *const ContentBox<T>)).content };
       let bundle_graph = unsafe { BundleGraph::from_raw(bundle_graph, options) };
@@ -1842,7 +1963,7 @@ macro_rules! register_plugin {
       config: *const u8,
       config_len: usize,
       out_state: *mut *mut ::core::ffi::c_void,
-      raw_diagnostic: *mut $crate::ffi::Diagnostic,
+      raw_diagnostic: *mut $crate::ffi::DiagnosticOptions,
     ) -> $crate::ffi::InitStatus {
       // Must come first: every other SDK call, including writing a diagnostic,
       // goes through this table. Returning Incompatible rather than a message is
@@ -1906,7 +2027,7 @@ macro_rules! register_plugin {
       raw_asset: u64,
       raw_options: u64,
       state: *mut ::core::ffi::c_void,
-      raw_diagnostic: *mut $crate::ffi::Diagnostic,
+      raw_diagnostic: *mut $crate::ffi::DiagnosticOptions,
     ) {
       let mut asset = unsafe { $crate::Asset::from_raw(raw_asset, raw_options) };
       let options = unsafe { $crate::Options::from_raw(raw_options) };
@@ -1945,7 +2066,7 @@ macro_rules! register_plugin {
       raw_options: u64,
       raw_result: u64,
       state: *mut ::core::ffi::c_void,
-      raw_diagnostic: *mut $crate::ffi::Diagnostic,
+      raw_diagnostic: *mut $crate::ffi::DiagnosticOptions,
     ) {
       let specifier = unsafe {
         ::core::str::from_utf8(::core::slice::from_raw_parts(specifier, specifier_len))
@@ -1995,7 +2116,7 @@ macro_rules! register_plugin {
       raw_options: u64,
       raw_name: *mut $crate::ffi::Buffer,
       state: *mut ::core::ffi::c_void,
-      raw_diagnostic: *mut $crate::ffi::Diagnostic,
+      raw_diagnostic: *mut $crate::ffi::DiagnosticOptions,
     ) {
       let bundle_graph = unsafe { $crate::BundleGraph::from_raw(raw_bundle_graph, raw_options) };
       let bundle = unsafe { $crate::Bundle::from_raw(raw_bundle, raw_options) };
@@ -2041,7 +2162,7 @@ macro_rules! register_plugin {
       raw_options: u64,
       raw_result: *mut $crate::ffi::OptimizeResult,
       state: *mut ::core::ffi::c_void,
-      raw_diagnostic: *mut $crate::ffi::Diagnostic,
+      raw_diagnostic: *mut $crate::ffi::DiagnosticOptions,
     ) {
       let bundle_graph = unsafe { $crate::BundleGraph::from_raw(raw_bundle_graph, raw_options) };
       let bundle = unsafe { $crate::Bundle::from_raw(raw_bundle, raw_options) };
@@ -2123,7 +2244,7 @@ macro_rules! register_plugin {
       raw_event: *const $crate::ffi::ReportEvent,
       raw_options: u64,
       state: *mut ::core::ffi::c_void,
-      raw_diagnostic: *mut $crate::ffi::Diagnostic,
+      raw_diagnostic: *mut $crate::ffi::DiagnosticOptions,
     ) {
       // An event kind this SDK predates. Reporting nothing is the only correct
       // thing to do with it.

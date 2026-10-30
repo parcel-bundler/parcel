@@ -1,13 +1,18 @@
 //! Generates the C wrappers around `ParcelApi` that plugin.h ends with.
 //!
 //! Shared by build.rs and the crate's tests, which run it on a synthetic table
-//! with functions appended past the first layout: the real table has none yet.
+//! with functions appended past the first layout: the real table has none until
+//! the first alpha is released.
 
 /// The last function in `ParcelApi`'s first published layout. Every host
 /// implementing this ABI passes a table at least this long, so plugins call these
 /// functions unchecked, while those appended after it are checked against the
-/// table's `size` on each call. Never change it.
-pub const FIRST_LAYOUT_END: &str = "asset_get_map";
+/// table's `size` on each call.
+///
+/// Until the first alpha is released, no plugin has been built against an older
+/// table, so this moves to the end of the table with every function added. From
+/// the alpha on, it never changes.
+pub const FIRST_LAYOUT_END: &str = "diagnostic_get_code_highlight";
 
 /// Appends a `static inline` wrapper for every `ParcelApi` field, so C and Go
 /// plugins call `parcel_asset_get_content(...)` exactly as they did when the host
@@ -19,6 +24,11 @@ pub const FIRST_LAYOUT_END: &str = "asset_get_map";
 /// `parcel_api_has_*()` predicate that Go and Swift can call where C would use
 /// `PARCEL_API_HAS()`.
 pub fn add_api_shims(header: &str) -> String {
+  add_api_shims_ending_at(header, FIRST_LAYOUT_END)
+}
+
+/// [`add_api_shims`], with the first layout ending at `first_layout_end`.
+pub fn add_api_shims_ending_at(header: &str, first_layout_end: &str) -> String {
   let body = {
     let start = header
       .find("typedef struct ParcelApi {")
@@ -38,9 +48,9 @@ pub fn add_api_shims(header: &str) -> String {
   shims.push_str(&format!(
     "/**\n * The end of the last function in the table's first published layout, and so the\n\
      \x20* smallest table any Parcel implementing this ABI passes. Functions declared after\n\
-     \x20* `{FIRST_LAYOUT_END}` were appended later, and an older Parcel's table ends before them.\n */\n\
+     \x20* `{first_layout_end}` were appended later, and an older Parcel's table ends before them.\n */\n\
      #define PARCEL_API_MIN_SIZE \\\n\
-     \x20 (offsetof(struct ParcelApi, {FIRST_LAYOUT_END}) + sizeof(((struct ParcelApi *)0)->{FIRST_LAYOUT_END}))\n\n"
+     \x20 (offsetof(struct ParcelApi, {first_layout_end}) + sizeof(((struct ParcelApi *)0)->{first_layout_end}))\n\n"
   ));
   shims.push_str(
     "/**\n * Whether `api` is usable by a plugin built against this header. Check it in\n\
@@ -115,14 +125,14 @@ pub fn add_api_shims(header: &str) -> String {
       ));
     }
 
-    if name == FIRST_LAYOUT_END {
+    if name == first_layout_end {
       found_first_layout_end = true;
       appended = true;
     }
   }
   assert!(
     found_first_layout_end,
-    "ParcelApi has no {FIRST_LAYOUT_END}, the end of its first layout"
+    "ParcelApi has no {first_layout_end}, the end of its first layout"
   );
 
   shims.push_str(&entry_point_prototypes(header));

@@ -165,7 +165,7 @@ func writeContentBuffer(buf *C.Buffer, content Content) error {
 }
 
 //export parcel_go_content_read
-func parcel_go_content_read(rawContent unsafe.Pointer, buf *C.Buffer, diagnostic *C.Diagnostic) {
+func parcel_go_content_read(rawContent unsafe.Pointer, buf *C.Buffer, diagnostic *C.DiagnosticOptions) {
 	defer recoverDiagnostic("custom content read", diagnostic)
 	content, _, ok := contentForPointer(rawContent)
 	if !ok {
@@ -183,7 +183,7 @@ func parcel_go_content_read(rawContent unsafe.Pointer, buf *C.Buffer, diagnostic
 }
 
 //export parcel_go_content_package
-func parcel_go_content_package(rawContent unsafe.Pointer, rawGraph C.BundleGraph, rawBundle C.Bundle, rawOptions C.Options, buf *C.Buffer, diagnostic *C.Diagnostic) {
+func parcel_go_content_package(rawContent unsafe.Pointer, rawGraph C.BundleGraph, rawBundle C.Bundle, rawOptions C.Options, buf *C.Buffer, diagnostic *C.DiagnosticOptions) {
 	defer recoverDiagnostic("custom content package", diagnostic)
 	content, _, ok := contentForPointer(rawContent)
 	if !ok {

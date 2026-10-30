@@ -8,6 +8,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"strings"
 	"sync/atomic"
 
 	parcel "github.com/parcel-bundler/parcel/plugin-go"
@@ -18,7 +20,7 @@ type CustomReporter struct {
 	builds atomic.Int32
 }
 
-func (r *CustomReporter) Report(event parcel.ReportEvent, _ *parcel.Options) error {
+func (r *CustomReporter) Report(event parcel.ReportEvent, options *parcel.Options) error {
 	switch event := event.(type) {
 	case *parcel.BuildStart:
 		r.builds.Add(1)
@@ -33,10 +35,12 @@ func (r *CustomReporter) Report(event parcel.ReportEvent, _ *parcel.Options) err
 		)
 
 	case *parcel.BuildFailure:
-		fmt.Printf("build failed with %d diagnostics:\n", event.Diagnostics.Len())
-		for _, diagnostic := range event.Diagnostics.All() {
-			fmt.Println(diagnostic.Message())
+		summary := summarize(event.Diagnostics)
+		// Written to a file when the build's environment names one, e.g. for CI.
+		if path, ok := options.Env("REPORT_SUMMARY"); ok {
+			return os.WriteFile(path, []byte(summary), 0o644)
 		}
+		fmt.Printf("build failed with %d diagnostics:\n%s", event.Diagnostics.Len(), summary)
 
 	case *parcel.Log:
 		if event.Message != "" {
@@ -48,6 +52,31 @@ func (r *CustomReporter) Report(event parcel.ReportEvent, _ *parcel.Options) err
 	}
 
 	return nil
+}
+
+// summarize describes each diagnostic, with where it points and what to read
+// about it.
+func summarize(diagnostics *parcel.Diagnostics) string {
+	var summary strings.Builder
+	for _, diagnostic := range diagnostics.All() {
+		fmt.Fprintf(&summary, "message: %s\n", diagnostic.Message())
+		if url := diagnostic.DocumentationURL(); url != "" {
+			fmt.Fprintf(&summary, "docs: %s\n", url)
+		}
+		for _, frame := range diagnostic.CodeFrames() {
+			file := frame.FilePath
+			if file == "" {
+				file = frame.URL
+			}
+			fmt.Fprintf(&summary, "frame: %s %s\n", file, frame.Language)
+			for _, highlight := range frame.Highlights {
+				fmt.Fprintf(&summary, "highlight: %d:%d-%d:%d %s\n",
+					highlight.StartLine, highlight.StartColumn,
+					highlight.EndLine, highlight.EndColumn, highlight.Message)
+			}
+		}
+	}
+	return summary.String()
 }
 
 func init() {

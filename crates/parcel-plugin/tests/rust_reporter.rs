@@ -1,3 +1,5 @@
+mod common;
+
 use std::{path::Path, sync::Arc};
 
 use parcel_core::{
@@ -92,6 +94,8 @@ fn test_rust_reporter_receives_every_event_kind() {
       &options,
     )
     .expect("log with diagnostics");
+
+  common::assert_reporter_summarizes_failures("rust", &plugin);
 }
 
 /// A plugin configured as a reporter that does not act as one must say so

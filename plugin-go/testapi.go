@@ -81,7 +81,7 @@ static void test_bundle_graph_get_dependency_resolution(struct BundleGraphDepend
   resolution->bundle = 6;
 }
 
-static void test_options_log_diagnostic(Options options, const struct Diagnostic *diagnostic) {
+static void test_options_log_diagnostic(Options options, const struct DiagnosticOptions *diagnostic) {
   test_diagnostic_size = diagnostic->size;
 }
 
@@ -150,6 +150,12 @@ func hostAPI(sizeDelta, abiDelta int) *C.struct_ParcelApi {
 	return api
 }
 
+// firstLayoutDelta is the sizeDelta for [hostAPI] that makes a table end where
+// the first published layout does, as the oldest Parcel's would.
+func firstLayoutDelta() int {
+	return int(C.PARCEL_API_MIN_SIZE) - int(C.sizeof_struct_ParcelApi)
+}
+
 // freeHostAPI releases a table returned by [hostAPI].
 func freeHostAPI(api *C.struct_ParcelApi) {
 	C.free(unsafe.Pointer(api))
@@ -166,7 +172,7 @@ func incompatibleStatus() C.InitStatus {
 }
 
 // diagnosticWritten reports whether a plugin filled in a diagnostic.
-func diagnosticWritten(diag *C.Diagnostic) bool {
+func diagnosticWritten(diag *C.DiagnosticOptions) bool {
 	return diag != nil && diag.message.data != nil
 }
 
@@ -202,7 +208,7 @@ const (
 	dependencyOptionsSize = C.sizeof_DependencyOptions
 	resolveResultSize     = C.sizeof_ResolveResult
 	resolutionSize        = C.sizeof_BundleGraphDependencyResolution
-	diagnosticSize        = C.sizeof_Diagnostic
+	diagnosticSize        = C.sizeof_DiagnosticOptions
 	reportEventSize       = C.sizeof_ReportEvent
 )
 
@@ -244,8 +250,8 @@ func assetWithHandle(handle uint64) *Asset {
 
 // sizedDiagnostic returns a zeroed Diagnostic whose size is set, as Parcel passes
 // one to an entry point, and a function that frees it.
-func sizedDiagnostic(size uintptr) (*C.Diagnostic, func()) {
-	diag := (*C.Diagnostic)(C.calloc(1, C.sizeof_Diagnostic))
+func sizedDiagnostic(size uintptr) (*C.DiagnosticOptions, func()) {
+	diag := (*C.DiagnosticOptions)(C.calloc(1, C.sizeof_DiagnosticOptions))
 	diag.size = C.uintptr_t(size)
 	return diag, func() {
 		C.test_free_buffer(&diag.message)
@@ -253,8 +259,21 @@ func sizedDiagnostic(size uintptr) (*C.Diagnostic, func()) {
 	}
 }
 
+// rangeAndLinks reports what a plugin wrote to a diagnostic's highlight end,
+// highlight message and documentation URL, freeing the buffers among them.
+func rangeAndLinks(diag *C.DiagnosticOptions) (endLine, endColumn uint32, highlightMessage, documentationURL string) {
+	read := func(buf *C.Buffer) string {
+		if buf.data == nil {
+			return ""
+		}
+		defer C.test_free_buffer(buf)
+		return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	}
+	return uint32(diag.end_line), uint32(diag.end_column), read(&diag.highlight_message), read(&diag.documentation_url)
+}
+
 // diagnosticSizeField returns the size a Diagnostic holds.
-func diagnosticSizeField(diag *C.Diagnostic) uintptr {
+func diagnosticSizeField(diag *C.DiagnosticOptions) uintptr {
 	return uintptr(diag.size)
 }
 

@@ -143,7 +143,7 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
     .allowlist_function("parcel_.*")
     .allowlist_var("PARCEL_.*")
     .allowlist_type(
-      "ParcelApi|InitStatus|SpecifierType|Priority|ImportType|BundleBehavior|Environment|OutputFormat|SourceType|Diagnostic|DiagnosticSeverity|Diagnostics|ResolveResult|OptimizeResult|ReportEvent|ReportEventType|LogLevel|ResolutionType|DependencyFlags|ExportsConditions|AssetFlags|EnvironmentFlags|BundleFlags|BundleGraphResolutionType|BundleGraphDependencyResolution|AssetIndex|BundleIndex|IoStatus|FileKind",
+      "ParcelApi|InitStatus|SpecifierType|Priority|ImportType|BundleBehavior|Environment|OutputFormat|SourceType|DiagnosticOptions|DiagnosticSeverity|Diagnostics|DiagnosticsRef|CodeFrameInfo|CodeHighlightInfo|ResolveResult|OptimizeResult|ReportEvent|ReportEventType|LogLevel|ResolutionType|DependencyFlags|ExportsConditions|AssetFlags|EnvironmentFlags|BundleFlags|BundleGraphResolutionType|BundleGraphDependencyResolution|AssetIndex|BundleIndex|IoStatus|FileKind",
     )
     // Newtypes rather than Rust enums: Parcel can be newer than the plugin, and
     // hand it a value the plugin has never heard of, which would be undefined

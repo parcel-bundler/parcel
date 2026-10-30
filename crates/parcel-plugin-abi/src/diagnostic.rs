@@ -7,7 +7,7 @@ use parcel_core::{
   DiagnosticSeverity as CoreDiagnosticSeverity, Location, PathId, SourceUrl,
 };
 
-use crate::{Buffer, extensible::read_extensible, parcel_free_buffer};
+use crate::{Buffer, Diagnostics, OptionsContext, extensible::read_extensible, parcel_free_buffer};
 
 // DiagnosticSeverity — CDiagnostic.severity field
 #[repr(u8)]
@@ -39,132 +39,165 @@ impl_enum_conversion! {
   }
 }
 
-/// Diagnostic written by a plugin to report an error or warning.
-/// The host zero-initialises this before every plugin call, apart from `size`.
-/// Fill via `parcel_buffer_alloc()`; host frees all `Buffer` fields after the call.
-/// If `message.data == NULL` after the call, no diagnostic was set.
+/// Describes a diagnostic a plugin reports: the error an entry point fails with,
+/// or a warning it logs with `parcel_options_log_diagnostic()`.
+///
+/// Parcel allocates the one each entry point receives, zeroed apart from `size`,
+/// and frees every `Buffer` in it once the call returns; fill them with
+/// `parcel_buffer_alloc()`. The call fails when `message` or `diagnostics` is set.
+/// To log one, initialize it as `DiagnosticOptions d = {.size = sizeof(DiagnosticOptions)};`,
+/// and free its buffers after the call: Parcel copies what it needs.
+///
+/// It describes one diagnostic with at most one code frame, highlight and hint.
+/// To report diagnostics Parcel handed the plugin, such as those of a failed read,
+/// set `diagnostics` to their list. Parcel reports them exactly as they were, after
+/// the diagnostic `message` describes, if it is set too.
 ///
 /// Only write fields that fit within `size`, which an older Parcel sets lower than
-/// `sizeof(Diagnostic)`; `PARCEL_HAS_FIELD()` checks. To log one with
-/// `parcel_options_log_diagnostic()`, initialize it as `Diagnostic d = {.size = sizeof(Diagnostic)};`.
-/// Parcel ignores fields it does not know in a diagnostic, since the rest is still worth showing.
+/// `sizeof(DiagnosticOptions)`; `PARCEL_HAS_FIELD()` checks. Parcel ignores fields it
+/// does not know, since the rest is still worth showing.
 #[repr(C)]
-pub struct Diagnostic {
-  /// `sizeof(Diagnostic)` as whoever allocated it was built. Always the first member.
+pub struct DiagnosticOptions {
+  /// `sizeof(DiagnosticOptions)` as whoever allocated it was built. Always the first member.
   pub size: usize,
   pub message: Buffer,
+  /// Absolute path of the file the diagnostic's code frame shows, if it has one.
   pub file_path: Buffer,
+  /// 1-based line and column of the first highlighted character in `file_path`, or 0 for no
+  /// highlight.
   pub line: u32,
   pub column: u32,
   pub hint: Buffer,
   /// `PARCEL_SEVERITY_*`
   pub severity: DiagnosticSeverityFFI,
+  /// A message shown at the highlight.
+  pub highlight_message: Buffer,
+  /// 1-based line and column of the last highlighted character, or 0 to highlight just the one at
+  /// `line` and `column`.
+  pub end_line: u32,
+  pub end_column: u32,
+  /// A URL to documentation about the diagnostic.
+  pub documentation_url: Buffer,
+  /// Diagnostics Parcel handed the plugin during this call, to report as well, or 0. A list from
+  /// any other call is ignored.
+  pub diagnostics: Diagnostics,
 }
 
+// Every field is in the first layout: none was published before the first alpha.
 impl_extensible!(
-  Diagnostic,
-  min_size = std::mem::offset_of!(Diagnostic, severity) + size_of::<DiagnosticSeverityFFI>()
+  DiagnosticOptions,
+  min_size = std::mem::offset_of!(DiagnosticOptions, diagnostics) + size_of::<Diagnostics>()
 );
 
 // ── Internal diagnostic helpers ───────────────────────────────────────────────
 
-/// Reads a diagnostic a plugin wrote, then frees the buffers it allocated.
+/// Reads the diagnostics a plugin wrote into an entry point's out-param, then
+/// frees the buffers it allocated. Empty when it reported none.
 ///
-/// Used for the `Diagnostic` out-param of an entry point, which the host takes
-/// ownership of. To read one the plugin still owns — a logged diagnostic, say —
-/// use [`copy_cdiagnostic`].
+/// `context` is the call's, which an attached `diagnostics` list must belong to.
+/// Without one, as during init or a custom content read, only the diagnostic the
+/// struct itself describes is read.
+///
+/// To read one the plugin still owns — a logged diagnostic, say — use
+/// [`copy_cdiagnostic`].
 pub(crate) fn read_cdiagnostic(
-  diag: &mut Diagnostic,
-  project_root: Option<&PathId>,
-) -> Option<CoreDiagnostic> {
-  let diagnostic = copy_cdiagnostic(diag, project_root);
+  diag: &mut DiagnosticOptions,
+  context: Option<&OptionsContext>,
+) -> Vec<CoreDiagnostic> {
+  let diagnostics = copy_cdiagnostic(diag, context);
 
   // Unconditionally, including when there was no message to read: a plugin that
   // filled in a file path but no message would otherwise leak it.
-  parcel_free_buffer(&mut diag.message);
-  parcel_free_buffer(&mut diag.file_path);
-  parcel_free_buffer(&mut diag.hint);
+  for buffer in [
+    &mut diag.message,
+    &mut diag.file_path,
+    &mut diag.hint,
+    &mut diag.highlight_message,
+    &mut diag.documentation_url,
+  ] {
+    parcel_free_buffer(buffer);
+  }
 
-  diagnostic
+  diagnostics
 }
 
 /// Reads a diagnostic a plugin allocated, e.g. to log it, without taking ownership of its buffers.
-/// `None` when it has no message, or its `size` is unset.
+/// Empty when it describes none, or its `size` is unset.
 ///
 /// # Safety
 ///
 /// `diag` must be non-null and point to `(*diag).size` readable bytes.
 pub(crate) unsafe fn copy_plugin_cdiagnostic(
-  diag: *const Diagnostic,
-  project_root: Option<&PathId>,
-) -> Option<CoreDiagnostic> {
-  let (diag, _) = unsafe { read_extensible(diag) }?;
-  copy_cdiagnostic(&diag, project_root)
+  diag: *const DiagnosticOptions,
+  context: Option<&OptionsContext>,
+) -> Vec<CoreDiagnostic> {
+  match unsafe { read_extensible(diag) } {
+    Some((diag, _)) => copy_cdiagnostic(&diag, context),
+    None => Vec::new(),
+  }
 }
 
-/// Reads a diagnostic a plugin wrote without taking ownership of its buffers.
+/// Reads the diagnostics a plugin wrote without taking ownership of its buffers:
+/// the one the struct describes, if it has a message, then those of the attached
+/// list, if `context` handed it out.
 pub(crate) fn copy_cdiagnostic(
-  diag: &Diagnostic,
-  project_root: Option<&PathId>,
-) -> Option<CoreDiagnostic> {
-  if diag.message.data.is_null() {
-    return None;
+  diag: &DiagnosticOptions,
+  context: Option<&OptionsContext>,
+) -> Vec<CoreDiagnostic> {
+  let mut diagnostics = Vec::new();
+
+  if !diag.message.data.is_null() {
+    let read_buf = |buf: &Buffer| -> Option<String> {
+      (!buf.data.is_null()).then(|| unsafe {
+        String::from_utf8_lossy(std::slice::from_raw_parts(buf.data, buf.len)).into_owned()
+      })
+    };
+
+    let code_frames = read_buf(&diag.file_path)
+      .map(|path| {
+        let url = Some(SourceUrl::from_path(&PathId::new(Path::new(&path))));
+        let code_highlights = if diag.line > 0 {
+          let start = Location {
+            line: diag.line,
+            column: diag.column.max(1),
+          };
+          let end = if diag.end_line > 0 {
+            Location {
+              line: diag.end_line,
+              column: diag.end_column.max(1),
+            }
+          } else {
+            start.clone()
+          };
+          vec![CodeHighlight {
+            start,
+            end,
+            message: read_buf(&diag.highlight_message),
+          }]
+        } else {
+          vec![]
+        };
+        vec![CodeFrame {
+          url,
+          code_highlights,
+          ..Default::default()
+        }]
+      })
+      .unwrap_or_default();
+
+    diagnostics.push(CoreDiagnostic {
+      message: read_buf(&diag.message).unwrap_or_default(),
+      severity: CoreDiagnosticSeverity::from(DiagnosticSeverity::from_raw(diag.severity)),
+      code_frames,
+      hints: read_buf(&diag.hint).into_iter().collect(),
+      origin: None,
+      documentation_url: read_buf(&diag.documentation_url),
+    });
   }
 
-  let read_buf = |buf: &Buffer| -> String {
-    unsafe {
-      std::str::from_utf8(std::slice::from_raw_parts(buf.data, buf.len))
-        .unwrap_or("")
-        .to_owned()
-    }
-  };
+  if let Some(attached) = context.and_then(|context| context.call_diagnostics(diag.diagnostics)) {
+    diagnostics.extend(attached);
+  }
 
-  let message = read_buf(&diag.message);
-  let severity = CoreDiagnosticSeverity::from(DiagnosticSeverity::from_raw(diag.severity));
-
-  let code_frames = if !diag.file_path.data.is_null() {
-    let path_str = read_buf(&diag.file_path);
-    if project_root.is_some() {
-      let url = Some(SourceUrl::from_path(&PathId::new(Path::new(&path_str))));
-      let code_highlights = if diag.line > 0 {
-        vec![CodeHighlight {
-          start: Location {
-            line: diag.line,
-            column: diag.column.max(1),
-          },
-          end: Location {
-            line: diag.line,
-            column: diag.column.max(1),
-          },
-          message: None,
-        }]
-      } else {
-        vec![]
-      };
-      vec![CodeFrame {
-        url,
-        code_highlights,
-        ..Default::default()
-      }]
-    } else {
-      vec![]
-    }
-  } else {
-    vec![]
-  };
-
-  let hints = if !diag.hint.data.is_null() {
-    vec![read_buf(&diag.hint)]
-  } else {
-    vec![]
-  };
-
-  Some(CoreDiagnostic {
-    message,
-    severity,
-    code_frames,
-    hints,
-    origin: None,
-    documentation_url: None,
-  })
+  diagnostics
 }

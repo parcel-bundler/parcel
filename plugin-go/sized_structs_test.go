@@ -106,6 +106,27 @@ func TestWriteDiagnosticLeavesParcelsSize(t *testing.T) {
 	})
 }
 
+func TestWriteDiagnosticWritesTheRangeAndLinks(t *testing.T) {
+	withSizedStructHost(func(sizedHost) {
+		diag, free := sizedDiagnostic(diagnosticSize)
+		defer free()
+		writeDiagnostic(diag, &Diagnostic{
+			Message:          "unexpected token",
+			FilePath:         "/project/a.js",
+			Line:             1,
+			Column:           9,
+			EndLine:          1,
+			EndColumn:        12,
+			HighlightMessage: "expected an expression",
+			DocumentationURL: "https://parceljs.org/errors/example",
+		})
+		endLine, endColumn, highlight, docs := rangeAndLinks(diag)
+		if endLine != 1 || endColumn != 12 || highlight != "expected an expression" || docs != "https://parceljs.org/errors/example" {
+			t.Fatalf("not written: %d:%d %q %q", endLine, endColumn, highlight, docs)
+		}
+	})
+}
+
 type recordingReporter struct {
 	DefaultPlugin
 	events []ReportEvent

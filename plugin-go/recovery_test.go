@@ -60,9 +60,10 @@ func TestIncompatibleHostAPIIsRejected(t *testing.T) {
 		return nil, nil
 	}
 
-	// A Parcel older than this SDK: the table is missing fields the SDK would
-	// otherwise read straight past the end of.
-	truncated := hostAPI(-8, 0)
+	// Shorter than any Parcel's table: it is missing functions every plugin may
+	// call unchecked. (A table that ends after the first layout, as an older
+	// Parcel's does, is compatible: functions appended since are checked per call.)
+	truncated := hostAPI(firstLayoutDelta()-8, 0)
 	defer freeHostAPI(truncated)
 	assertIncompatible(t, truncated, "a truncated host API table")
 
@@ -83,7 +84,7 @@ func TestIncompatibleHostAPIIsRejected(t *testing.T) {
 func assertIncompatible(t *testing.T, api *_Ctype_struct_ParcelApi, what string) {
 	t.Helper()
 	var state unsafe.Pointer
-	var diag _Ctype_Diagnostic
+	var diag _Ctype_DiagnosticOptions
 
 	status := parcel_plugin_init(api, nil, 0, &state, &diag)
 

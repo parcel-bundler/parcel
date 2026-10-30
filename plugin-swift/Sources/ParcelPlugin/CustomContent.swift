@@ -149,7 +149,7 @@ final class CustomContentBox: @unchecked Sendable {
 
 private func readContent(
   _ pointer: UnsafeRawPointer?, _ buffer: UnsafeMutablePointer<CParcelABI.Buffer>?,
-  _ diagnostic: UnsafeMutablePointer<CParcelABI.Diagnostic>?
+  _ diagnostic: UnsafeMutablePointer<CParcelABI.DiagnosticOptions>?
 ) {
   guard let box = CustomContentBox.box(pointer) else {
     reportError(Diagnostic("custom content is no longer valid"), to: diagnostic)
@@ -167,7 +167,7 @@ private func readContent(
 private func packageContent(
   _ pointer: UnsafeRawPointer?, _ graph: UInt64, _ bundle: UInt64, _ options: UInt64,
   _ buffer: UnsafeMutablePointer<CParcelABI.Buffer>?,
-  _ diagnostic: UnsafeMutablePointer<CParcelABI.Diagnostic>?
+  _ diagnostic: UnsafeMutablePointer<CParcelABI.DiagnosticOptions>?
 ) {
   guard let box = CustomContentBox.box(pointer) else {
     reportError(Diagnostic("custom content is no longer valid"), to: diagnostic)
@@ -210,6 +210,6 @@ func write(_ content: Content, to buffer: UnsafeMutablePointer<CParcelABI.Buffer
   }
 }
 
-func reportError(_ error: any Error, to diagnostic: UnsafeMutablePointer<CParcelABI.Diagnostic>?) {
+func reportError(_ error: any Error, to diagnostic: UnsafeMutablePointer<CParcelABI.DiagnosticOptions>?) {
   reportError(error, to: UnsafeMutableRawPointer(diagnostic))
 }

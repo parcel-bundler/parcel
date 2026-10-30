@@ -114,7 +114,7 @@ func RegisterPlugin(factory func([]byte) (Plugin, error)) {
 }
 
 //export parcel_plugin_init
-func parcel_plugin_init(api *C.struct_ParcelApi, config *C.uint8_t, configLen C.uintptr_t, outState *unsafe.Pointer, diag *C.Diagnostic) (status C.InitStatus) {
+func parcel_plugin_init(api *C.struct_ParcelApi, config *C.uint8_t, configLen C.uintptr_t, outState *unsafe.Pointer, diag *C.DiagnosticOptions) (status C.InitStatus) {
 	defer func() {
 		if value := recover(); value != nil {
 			status = C.InitStatus(C.PARCEL_INIT_ERROR)
@@ -166,7 +166,7 @@ func parcel_plugin_deinit(state unsafe.Pointer) {
 }
 
 //export parcel_plugin_transform
-func parcel_plugin_transform(asset C.Asset, rawOptions C.Options, state unsafe.Pointer, diag *C.Diagnostic) {
+func parcel_plugin_transform(asset C.Asset, rawOptions C.Options, state unsafe.Pointer, diag *C.DiagnosticOptions) {
 	defer recoverDiagnostic("transform", diag)
 	if state == nil {
 		writeDiagnostic(diag, errors.New("plugin not registered: call parcel.RegisterPlugin in init()"))
@@ -181,7 +181,7 @@ func parcel_plugin_transform(asset C.Asset, rawOptions C.Options, state unsafe.P
 }
 
 //export parcel_plugin_resolve
-func parcel_plugin_resolve(dep C.Dependency, specifier *C.uint8_t, specifierLen C.uintptr_t, pipeline *C.uint8_t, pipelineLen C.uintptr_t, rawOptions C.Options, result *C.ResolveResult, state unsafe.Pointer, diag *C.Diagnostic) {
+func parcel_plugin_resolve(dep C.Dependency, specifier *C.uint8_t, specifierLen C.uintptr_t, pipeline *C.uint8_t, pipelineLen C.uintptr_t, rawOptions C.Options, result *C.ResolveResult, state unsafe.Pointer, diag *C.DiagnosticOptions) {
 	defer recoverDiagnostic("resolve", diag)
 	if state == nil {
 		writeDiagnostic(diag, errors.New("plugin not registered: call parcel.RegisterPlugin in init()"))
@@ -201,7 +201,7 @@ func parcel_plugin_resolve(dep C.Dependency, specifier *C.uint8_t, specifierLen 
 }
 
 //export parcel_plugin_name
-func parcel_plugin_name(rawGraph C.BundleGraph, rawBundle C.Bundle, rawOptions C.Options, result *C.Buffer, state unsafe.Pointer, diag *C.Diagnostic) {
+func parcel_plugin_name(rawGraph C.BundleGraph, rawBundle C.Bundle, rawOptions C.Options, result *C.Buffer, state unsafe.Pointer, diag *C.DiagnosticOptions) {
 	defer recoverDiagnostic("name", diag)
 	if state == nil {
 		writeDiagnostic(diag, errors.New("plugin not registered: call parcel.RegisterPlugin in init()"))
@@ -230,7 +230,7 @@ func parcel_plugin_name(rawGraph C.BundleGraph, rawBundle C.Bundle, rawOptions C
 }
 
 //export parcel_plugin_optimize
-func parcel_plugin_optimize(rawGraph C.BundleGraph, rawBundle C.Bundle, contents *C.uint8_t, contentsLen C.uintptr_t, sourceMap *C.uint8_t, sourceMapLen C.uintptr_t, rawOptions C.Options, rawResult *C.OptimizeResult, state unsafe.Pointer, diag *C.Diagnostic) {
+func parcel_plugin_optimize(rawGraph C.BundleGraph, rawBundle C.Bundle, contents *C.uint8_t, contentsLen C.uintptr_t, sourceMap *C.uint8_t, sourceMapLen C.uintptr_t, rawOptions C.Options, rawResult *C.OptimizeResult, state unsafe.Pointer, diag *C.DiagnosticOptions) {
 	defer recoverDiagnostic("optimize", diag)
 	if state == nil {
 		writeDiagnostic(diag, errors.New("plugin not registered: call parcel.RegisterPlugin in init()"))
@@ -276,7 +276,7 @@ func parcel_plugin_optimize(rawGraph C.BundleGraph, rawBundle C.Bundle, contents
 }
 
 //export parcel_plugin_report
-func parcel_plugin_report(rawEvent *C.ReportEvent, rawOptions C.Options, state unsafe.Pointer, diag *C.Diagnostic) {
+func parcel_plugin_report(rawEvent *C.ReportEvent, rawOptions C.Options, state unsafe.Pointer, diag *C.DiagnosticOptions) {
 	defer recoverDiagnostic("report", diag)
 	if state == nil {
 		writeDiagnostic(diag, errors.New("plugin not registered: call parcel.RegisterPlugin in init()"))
@@ -351,7 +351,7 @@ func panicError(scope string, value any) error {
 	return fmt.Errorf("plugin panicked in %s: %s", scope, message)
 }
 
-func recoverDiagnostic(scope string, diagnostic *C.Diagnostic) {
+func recoverDiagnostic(scope string, diagnostic *C.DiagnosticOptions) {
 	if value := recover(); value != nil {
 		writeDiagnostic(diagnostic, panicError(scope, value))
 	}
@@ -369,7 +369,7 @@ func recoverCleanupPanic() {
 // assigning the whole struct would overwrite size, and run past the end of an
 // older Parcel's smaller struct. Every field written here is in the first layout; a field
 // added later must check raw.size before writing it.
-func writeDiagnostic(raw *C.Diagnostic, err error) {
+func writeDiagnostic(raw *C.DiagnosticOptions, err error) {
 	if raw == nil || err == nil {
 		return
 	}
@@ -390,6 +390,10 @@ func writeDiagnostic(raw *C.Diagnostic, err error) {
 	raw.line = C.uint32_t(d.Line)
 	raw.column = C.uint32_t(d.Column)
 	writeBuffer(&raw.hint, d.Hint)
+	raw.end_line = C.uint32_t(d.EndLine)
+	raw.end_column = C.uint32_t(d.EndColumn)
+	writeBuffer(&raw.highlight_message, d.HighlightMessage)
+	writeBuffer(&raw.documentation_url, d.DocumentationURL)
 }
 
 // Asset represents the asset being transformed. All methods translate directly
@@ -941,8 +945,16 @@ type Diagnostic struct {
 	Line uint32
 	// Column is the 1-based start column (0 = not set).
 	Column uint32
+	// EndLine and EndColumn are the 1-based position of the last highlighted
+	// character (0 = highlight just the start).
+	EndLine   uint32
+	EndColumn uint32
+	// HighlightMessage is an optional message shown at the code highlight.
+	HighlightMessage string
 	// Hint is an optional hint string.
 	Hint string
+	// DocumentationURL optionally links to documentation about the diagnostic.
+	DocumentationURL string
 }
 
 // Error implements the error interface.
@@ -1175,7 +1187,7 @@ func (*Log) isReportEvent()          {}
 
 // Diagnostics is the list of diagnostics a [ReportEvent] carries.
 type Diagnostics struct {
-	ptr C.Diagnostics
+	ptr C.DiagnosticsRef
 }
 
 // Len returns how many diagnostics the event carries.
@@ -1208,7 +1220,7 @@ func (d *Diagnostics) All() []DiagnosticInfo {
 
 // DiagnosticInfo is one diagnostic within a [Diagnostics] list.
 type DiagnosticInfo struct {
-	diagnostics C.Diagnostics
+	diagnostics C.DiagnosticsRef
 	index       C.uintptr_t
 }
 
@@ -1242,6 +1254,76 @@ func (d DiagnosticInfo) Hints() []string {
 		out = append(out, takeBufferString(&buf))
 	}
 	return out
+}
+
+// DocumentationURL returns a URL to documentation about the diagnostic, or ""
+// when it has none.
+func (d DiagnosticInfo) DocumentationURL() string {
+	var buf C.Buffer
+	C.parcel_diagnostic_get_documentation_url(&buf, d.diagnostics, d.index)
+	return takeBufferString(&buf)
+}
+
+// CodeFrame is an excerpt of a file a diagnostic is about, with parts of it
+// highlighted.
+type CodeFrame struct {
+	// FilePath is the absolute path of the file, when it is one on disk.
+	FilePath string
+	// URL is the URL of the file, e.g. a file: URL, when the frame names one.
+	URL string
+	// Code is the code to show, when it differs from the file's contents.
+	Code string
+	// Language is the code's language, as a file extension, when known.
+	Language   string
+	Highlights []CodeHighlight
+}
+
+// CodeHighlight is a highlighted range in a [CodeFrame]. Lines and columns are
+// 1-based, and the end is the last highlighted character.
+type CodeHighlight struct {
+	StartLine   uint32
+	StartColumn uint32
+	EndLine     uint32
+	EndColumn   uint32
+	// Message is shown at the highlight, when set.
+	Message string
+}
+
+// CodeFrames returns excerpts of the files the diagnostic is about, with parts
+// of them highlighted. Empty when it has none.
+func (d DiagnosticInfo) CodeFrames() []CodeFrame {
+	count := int(C.parcel_diagnostic_get_code_frame_count(d.diagnostics, d.index))
+	frames := make([]CodeFrame, 0, count)
+	for frame := 0; frame < count; frame++ {
+		var info C.CodeFrameInfo
+		info.size = C.sizeof_CodeFrameInfo
+		if !C.parcel_diagnostic_get_code_frame(&info, d.diagnostics, d.index, C.uintptr_t(frame)) {
+			continue
+		}
+		codeFrame := CodeFrame{
+			FilePath:   takeBufferString(&info.file_path),
+			URL:        takeBufferString(&info.url),
+			Code:       takeBufferString(&info.code),
+			Language:   takeBufferString(&info.language),
+			Highlights: make([]CodeHighlight, 0, int(info.highlight_count)),
+		}
+		for highlight := 0; highlight < int(info.highlight_count); highlight++ {
+			var raw C.CodeHighlightInfo
+			raw.size = C.sizeof_CodeHighlightInfo
+			if !C.parcel_diagnostic_get_code_highlight(&raw, d.diagnostics, d.index, C.uintptr_t(frame), C.uintptr_t(highlight)) {
+				continue
+			}
+			codeFrame.Highlights = append(codeFrame.Highlights, CodeHighlight{
+				StartLine:   uint32(raw.start_line),
+				StartColumn: uint32(raw.start_column),
+				EndLine:     uint32(raw.end_line),
+				EndColumn:   uint32(raw.end_column),
+				Message:     takeBufferString(&raw.message),
+			})
+		}
+		frames = append(frames, codeFrame)
+	}
+	return frames
 }
 
 // takeBufferString copies a host-filled buffer into a Go string and frees it.
@@ -1310,14 +1392,16 @@ func (o *Options) LogDiagnostic(diagnostic *Diagnostic) {
 		return
 	}
 	// Ours to allocate this time: zeroed, with the size this SDK was built with.
-	var raw C.Diagnostic
-	raw.size = C.sizeof_Diagnostic
+	var raw C.DiagnosticOptions
+	raw.size = C.sizeof_DiagnosticOptions
 	writeDiagnostic(&raw, diagnostic)
 	// The host copies what it needs rather than taking ownership, unlike the
 	// diagnostic a plugin returns as an error, so these are ours to free.
 	defer C.parcel_free_buffer(&raw.message)
 	defer C.parcel_free_buffer(&raw.file_path)
 	defer C.parcel_free_buffer(&raw.hint)
+	defer C.parcel_free_buffer(&raw.highlight_message)
+	defer C.parcel_free_buffer(&raw.documentation_url)
 	C.parcel_options_log_diagnostic(o.ptr, &raw)
 }
 

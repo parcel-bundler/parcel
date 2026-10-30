@@ -28,8 +28,14 @@ pub type Options = u64;
 pub type BundleGraph = u64;
 /// Opaque handle to Parcel bundle.
 pub type Bundle = u64;
-/// Opaque handle to the diagnostics attached to a reporter event. Pass to the
-/// `parcel_diagnostics_*` and `parcel_diagnostic_*` functions.
+/// Opaque, read-only handle to a list of diagnostics: those a reporter event
+/// carries, or a `Diagnostics` list. Pass to the `parcel_diagnostics_*` and
+/// `parcel_diagnostic_*` getters. Valid until the call that received it returns.
+pub type DiagnosticsRef = u64;
+/// Opaque handle to a list of diagnostics Parcel handed the plugin during the
+/// current call, such as those a failed read reports. Readable anywhere a
+/// `DiagnosticsRef` is expected, and reported as they were by setting
+/// `DiagnosticOptions.diagnostics` to it. Parcel frees it when the call returns.
 pub type Diagnostics = u64;
 /// Index of an asset within the bundle graph.
 pub type AssetIndex = u32;

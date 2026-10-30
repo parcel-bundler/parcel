@@ -348,7 +348,7 @@ fn asset_accessors_return_content_metadata_and_optional_values() {
 extern "C" fn read_custom_content(
   content: *const c_void,
   buffer: *mut Buffer,
-  _diagnostic: *mut Diagnostic,
+  _diagnostic: *mut DiagnosticOptions,
 ) {
   let value = unsafe { &*(content as *const String) };
   parcel_buffer_write_utf8(buffer, value.as_ptr(), value.len());
@@ -1009,9 +1009,11 @@ fn diagnostics_fixture() -> Vec<parcel_core::Diagnostic> {
 }
 
 /// Builds a handle the way `CPlugin::report` does, and runs `call` against it.
-fn with_diagnostics(diagnostics: &[parcel_core::Diagnostic], call: impl FnOnce(Diagnostics)) {
-  let view = crate::diagnostics::DiagnosticsView { diagnostics };
-  call(&view as *const crate::diagnostics::DiagnosticsView as Diagnostics);
+fn with_diagnostics(diagnostics: &[parcel_core::Diagnostic], call: impl FnOnce(DiagnosticsRef)) {
+  let view = crate::diagnostics::DiagnosticsView {
+    diagnostics: Cow::Borrowed(diagnostics),
+  };
+  call(&view as *const crate::diagnostics::DiagnosticsView as DiagnosticsRef);
 }
 
 #[test]
@@ -1158,7 +1160,7 @@ fn plugins_log_diagnostics_without_giving_up_their_buffers() {
   let handle = context.handle();
 
   let message = b"a warning worth surfacing";
-  let mut diagnostic = Diagnostic {
+  let mut diagnostic = DiagnosticOptions {
     message: parcel_buffer_alloc(message.as_ptr(), message.len()),
     severity: DiagnosticSeverity::PARCEL_SEVERITY_WARNING as u8,
     ..Default::default()
@@ -1605,7 +1607,7 @@ fn logged_diagnostics_tolerate_newer_layouts_and_unknown_severities() {
   // showing, and a severity this build does not know is an error.
   let message = b"from a newer plugin";
   let mut newer = Newer::new(
-    Diagnostic {
+    DiagnosticOptions {
       message: parcel_buffer_alloc(message.as_ptr(), message.len()),
       severity: 200,
       ..Default::default()
@@ -1616,7 +1618,7 @@ fn logged_diagnostics_tolerate_newer_layouts_and_unknown_severities() {
 
   // Without `size`, there is no telling what the rest of it holds.
   let unset = b"no size";
-  let mut unset = Diagnostic {
+  let mut unset = DiagnosticOptions {
     size: 0,
     message: parcel_buffer_alloc(unset.as_ptr(), unset.len()),
     ..Default::default()
@@ -1651,14 +1653,35 @@ fn struct_layouts_only_grow() {
   assert_eq!(DependencyOptions::MIN_SIZE, 33);
 
   assert_eq!(size_of::<Buffer>(), 32);
-  assert_eq!(offset_of!(Diagnostic, size), 0);
-  assert_eq!(offset_of!(Diagnostic, message), 8);
-  assert_eq!(offset_of!(Diagnostic, file_path), 40);
-  assert_eq!(offset_of!(Diagnostic, line), 72);
-  assert_eq!(offset_of!(Diagnostic, column), 76);
-  assert_eq!(offset_of!(Diagnostic, hint), 80);
-  assert_eq!(offset_of!(Diagnostic, severity), 112);
-  assert_eq!(Diagnostic::MIN_SIZE, 113);
+  assert_eq!(offset_of!(DiagnosticOptions, size), 0);
+  assert_eq!(offset_of!(DiagnosticOptions, message), 8);
+  assert_eq!(offset_of!(DiagnosticOptions, file_path), 40);
+  assert_eq!(offset_of!(DiagnosticOptions, line), 72);
+  assert_eq!(offset_of!(DiagnosticOptions, column), 76);
+  assert_eq!(offset_of!(DiagnosticOptions, hint), 80);
+  assert_eq!(offset_of!(DiagnosticOptions, severity), 112);
+  assert_eq!(offset_of!(DiagnosticOptions, highlight_message), 120);
+  assert_eq!(offset_of!(DiagnosticOptions, end_line), 152);
+  assert_eq!(offset_of!(DiagnosticOptions, end_column), 156);
+  assert_eq!(offset_of!(DiagnosticOptions, documentation_url), 160);
+  assert_eq!(offset_of!(DiagnosticOptions, diagnostics), 192);
+  assert_eq!(DiagnosticOptions::MIN_SIZE, 200);
+
+  assert_eq!(offset_of!(CodeFrameInfo, size), 0);
+  assert_eq!(offset_of!(CodeFrameInfo, file_path), 8);
+  assert_eq!(offset_of!(CodeFrameInfo, url), 40);
+  assert_eq!(offset_of!(CodeFrameInfo, code), 72);
+  assert_eq!(offset_of!(CodeFrameInfo, language), 104);
+  assert_eq!(offset_of!(CodeFrameInfo, highlight_count), 136);
+  assert_eq!(CodeFrameInfo::MIN_SIZE, 144);
+
+  assert_eq!(offset_of!(CodeHighlightInfo, size), 0);
+  assert_eq!(offset_of!(CodeHighlightInfo, start_line), 8);
+  assert_eq!(offset_of!(CodeHighlightInfo, start_column), 12);
+  assert_eq!(offset_of!(CodeHighlightInfo, end_line), 16);
+  assert_eq!(offset_of!(CodeHighlightInfo, end_column), 20);
+  assert_eq!(offset_of!(CodeHighlightInfo, message), 24);
+  assert_eq!(CodeHighlightInfo::MIN_SIZE, 56);
 
   assert_eq!(offset_of!(ResolveResult, size), 0);
   assert_eq!(offset_of!(ResolveResult, resolution_type), 8);
@@ -1898,4 +1921,308 @@ fn resolvers_may_return_non_utf8_paths_on_unix() {
       .as_bytes(),
     bytes
   );
+}
+
+/// A diagnostic with everything core can express: several code frames, a
+/// ranged highlight with a message, hints and a documentation URL.
+fn rich_diagnostic() -> parcel_core::Diagnostic {
+  parcel_core::Diagnostic {
+    message: "unexpected token".into(),
+    origin: Some("@acme/parser".into()),
+    code_frames: vec![
+      parcel_core::CodeFrame {
+        url: Some(SourceUrl::from_path(&path("/project/src/a.js"))),
+        code: Some("let x = ;".into()),
+        language: Some(AssetType::Js),
+        code_highlights: vec![
+          parcel_core::CodeHighlight {
+            start: parcel_core::Location { line: 1, column: 9 },
+            end: parcel_core::Location { line: 1, column: 9 },
+            message: Some("expected an expression".into()),
+          },
+          parcel_core::CodeHighlight {
+            start: parcel_core::Location { line: 1, column: 1 },
+            end: parcel_core::Location { line: 1, column: 3 },
+            message: None,
+          },
+        ],
+      },
+      parcel_core::CodeFrame {
+        url: Some(SourceUrl::from_path(&path("/project/src/b.js"))),
+        ..Default::default()
+      },
+    ],
+    hints: vec!["add a value".into(), "or remove the =".into()],
+    severity: parcel_core::DiagnosticSeverity::Error,
+    documentation_url: Some("https://parceljs.org/errors/syntax".into()),
+  }
+}
+
+fn take_string(buffer: &mut Buffer) -> Option<String> {
+  if buffer.data.is_null() {
+    return None;
+  }
+  let string =
+    String::from_utf8(unsafe { std::slice::from_raw_parts(buffer.data, buffer.len) }.to_vec())
+      .unwrap();
+  parcel_free_buffer(buffer);
+  Some(string)
+}
+
+#[test]
+fn diagnostic_getters_read_code_frames_and_documentation() {
+  let diagnostics = vec![rich_diagnostic()];
+  with_diagnostics(&diagnostics, |handle| {
+    assert_eq!(
+      string_output(|buffer| parcel_diagnostic_get_documentation_url(buffer, handle, 0)).as_deref(),
+      Some("https://parceljs.org/errors/syntax")
+    );
+    assert_eq!(parcel_diagnostic_get_code_frame_count(handle, 0), 2);
+
+    let mut frame = CodeFrameInfo::default();
+    assert!(parcel_diagnostic_get_code_frame(&mut frame, handle, 0, 0));
+    assert_eq!(
+      take_string(&mut frame.file_path).as_deref(),
+      Some("/project/src/a.js")
+    );
+    assert_eq!(
+      take_string(&mut frame.url).as_deref(),
+      Some("file:///project/src/a.js")
+    );
+    assert_eq!(take_string(&mut frame.code).as_deref(), Some("let x = ;"));
+    assert_eq!(take_string(&mut frame.language).as_deref(), Some("js"));
+    assert_eq!(frame.highlight_count, 2);
+
+    let mut highlight = CodeHighlightInfo::default();
+    assert!(parcel_diagnostic_get_code_highlight(
+      &mut highlight,
+      handle,
+      0,
+      0,
+      0
+    ));
+    assert_eq!(
+      (
+        highlight.start_line,
+        highlight.start_column,
+        highlight.end_line,
+        highlight.end_column
+      ),
+      (1, 9, 1, 9)
+    );
+    assert_eq!(
+      take_string(&mut highlight.message).as_deref(),
+      Some("expected an expression")
+    );
+
+    let mut highlight = CodeHighlightInfo::default();
+    assert!(parcel_diagnostic_get_code_highlight(
+      &mut highlight,
+      handle,
+      0,
+      0,
+      1
+    ));
+    assert_eq!((highlight.end_line, highlight.end_column), (1, 3));
+    assert_eq!(take_string(&mut highlight.message), None);
+
+    // The second frame names only a file.
+    let mut frame = CodeFrameInfo::default();
+    assert!(parcel_diagnostic_get_code_frame(&mut frame, handle, 0, 1));
+    assert_eq!(
+      take_string(&mut frame.file_path).as_deref(),
+      Some("/project/src/b.js")
+    );
+    take_string(&mut frame.url);
+    assert_eq!(take_string(&mut frame.code), None);
+    assert_eq!(take_string(&mut frame.language), None);
+    assert_eq!(frame.highlight_count, 0);
+  });
+}
+
+#[test]
+fn diagnostic_getters_reject_what_is_not_there() {
+  let diagnostics = vec![rich_diagnostic()];
+  with_diagnostics(&diagnostics, |handle| {
+    let mut frame = CodeFrameInfo::default();
+    assert!(!parcel_diagnostic_get_code_frame(&mut frame, handle, 0, 2));
+    assert!(!parcel_diagnostic_get_code_frame(&mut frame, handle, 1, 0));
+    assert!(!parcel_diagnostic_get_code_frame(&mut frame, 0, 0, 0));
+    assert!(!parcel_diagnostic_get_code_frame(
+      ptr::null_mut(),
+      handle,
+      0,
+      0
+    ));
+    assert!(frame.file_path.data.is_null());
+
+    let mut highlight = CodeHighlightInfo::default();
+    assert!(!parcel_diagnostic_get_code_highlight(
+      &mut highlight,
+      handle,
+      0,
+      0,
+      2
+    ));
+    assert!(!parcel_diagnostic_get_code_highlight(
+      &mut highlight,
+      handle,
+      0,
+      1,
+      0
+    ));
+
+    // A caller that forgot its `size` gets nothing, and nothing leaks.
+    let mut unset = CodeFrameInfo {
+      size: 0,
+      ..Default::default()
+    };
+    assert!(!parcel_diagnostic_get_code_frame(&mut unset, handle, 0, 0));
+    assert!(unset.file_path.data.is_null());
+
+    assert_eq!(parcel_diagnostic_get_code_frame_count(handle, 1), 0);
+    assert_eq!(
+      string_output(|buffer| parcel_diagnostic_get_documentation_url(buffer, handle, 1)),
+      None
+    );
+  });
+}
+
+fn alloc(value: &str) -> Buffer {
+  parcel_buffer_alloc(value.as_ptr(), value.len())
+}
+
+/// Everything the flat struct can describe reaches core: a ranged highlight
+/// with a message, and a documentation URL.
+#[test]
+fn diagnostic_options_convert_to_a_full_diagnostic() {
+  let (options, _) = options_with_recorder();
+  let context = OptionsContext::new(&options);
+  let mut diagnostic = DiagnosticOptions {
+    message: alloc("unexpected token"),
+    file_path: alloc("/project/src/a.js"),
+    line: 1,
+    column: 9,
+    end_line: 1,
+    end_column: 12,
+    highlight_message: alloc("expected an expression"),
+    hint: alloc("add a value"),
+    documentation_url: alloc("https://parceljs.org/errors/syntax"),
+    ..Default::default()
+  };
+
+  let diagnostics = read_cdiagnostic(&mut diagnostic, Some(&context));
+  assert_eq!(
+    diagnostics,
+    [parcel_core::Diagnostic {
+      message: "unexpected token".into(),
+      origin: None,
+      code_frames: vec![parcel_core::CodeFrame {
+        url: Some(SourceUrl::from_path(&path("/project/src/a.js"))),
+        code_highlights: vec![parcel_core::CodeHighlight {
+          start: parcel_core::Location { line: 1, column: 9 },
+          end: parcel_core::Location {
+            line: 1,
+            column: 12
+          },
+          message: Some("expected an expression".into()),
+        }],
+        ..Default::default()
+      }],
+      hints: vec!["add a value".into()],
+      severity: parcel_core::DiagnosticSeverity::Error,
+      documentation_url: Some("https://parceljs.org/errors/syntax".into()),
+    }]
+  );
+
+  // Without an end, the highlight covers just its start, as before.
+  let mut diagnostic = DiagnosticOptions {
+    message: alloc("unexpected token"),
+    file_path: alloc("/project/src/a.js"),
+    line: 2,
+    column: 3,
+    ..Default::default()
+  };
+  let diagnostics = read_cdiagnostic(&mut diagnostic, Some(&context));
+  let highlight = &diagnostics[0].code_frames[0].code_highlights[0];
+  assert_eq!((highlight.end.line, highlight.end.column), (2, 3));
+}
+
+/// A list Parcel handed the plugin during the call comes back exactly as it
+/// was, after the plugin's own diagnostic, when the plugin attaches it.
+#[test]
+fn attached_diagnostics_round_trip_losslessly() {
+  let (options, _) = options_with_recorder();
+  let context = OptionsContext::new(&options);
+  let handed_out = context.hand_out(vec![rich_diagnostic()]);
+
+  // A plugin can read it like any other list.
+  assert_eq!(parcel_diagnostics_get_count(handed_out), 1);
+  assert_eq!(parcel_diagnostic_get_code_frame_count(handed_out, 0), 2);
+
+  // Passed on as is.
+  let mut diagnostic = DiagnosticOptions {
+    diagnostics: handed_out,
+    ..Default::default()
+  };
+  assert_eq!(
+    read_cdiagnostic(&mut diagnostic, Some(&context)),
+    [rich_diagnostic()]
+  );
+
+  // Or wrapped in one of the plugin's own.
+  let mut diagnostic = DiagnosticOptions {
+    message: alloc("could not load the config"),
+    diagnostics: handed_out,
+    ..Default::default()
+  };
+  let diagnostics = read_cdiagnostic(&mut diagnostic, Some(&context));
+  assert_eq!(diagnostics.len(), 2);
+  assert_eq!(diagnostics[0].message, "could not load the config");
+  assert_eq!(diagnostics[1], rich_diagnostic());
+}
+
+/// Only lists the current call handed out are read: a handle from another call
+/// may already be freed.
+#[test]
+fn attached_diagnostics_from_another_call_are_ignored() {
+  let (options, _) = options_with_recorder();
+  let earlier = OptionsContext::new(&options);
+  let stale = earlier.hand_out(vec![rich_diagnostic()]);
+  let context = OptionsContext::new(&options);
+
+  for handle in [stale, 0, 12345] {
+    let mut diagnostic = DiagnosticOptions {
+      diagnostics: handle,
+      ..Default::default()
+    };
+    assert!(read_cdiagnostic(&mut diagnostic, Some(&context)).is_empty());
+    // Nor without a context to check it against.
+    assert!(read_cdiagnostic(&mut diagnostic, None).is_empty());
+  }
+}
+
+#[test]
+fn logged_diagnostics_include_an_attached_list() {
+  let (options, events) = options_with_recorder();
+  let context = OptionsContext::new(&options);
+  let handed_out = context.hand_out(vec![parcel_core::Diagnostic {
+    severity: parcel_core::DiagnosticSeverity::Warning,
+    ..parcel_core::Diagnostic::from_message("from Parcel".into())
+  }]);
+
+  let mut diagnostic = DiagnosticOptions {
+    message: alloc("from the plugin"),
+    severity: DiagnosticSeverity::PARCEL_SEVERITY_INFO as u8,
+    diagnostics: handed_out,
+    ..Default::default()
+  };
+  parcel_options_log_diagnostic(context.handle(), &diagnostic);
+
+  // Each at the level of its own severity.
+  assert_eq!(
+    *events.lock().unwrap(),
+    ["info: from the plugin", "warn: from Parcel"]
+  );
+  parcel_free_buffer(&mut diagnostic.message);
 }
