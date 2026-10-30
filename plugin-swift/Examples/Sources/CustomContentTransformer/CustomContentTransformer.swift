@@ -8,6 +8,10 @@ import ParcelPlugin
 /// A small stand-in for an AST. Parcel keeps it as the asset's content until
 /// packaging.
 struct UppercaseContent: AssetContent {
+  /// Identifies this type of content to Parcel. Keep it the same across builds:
+  /// changing it changes the ids of the bundles it ends up in.
+  static let contentTypeID = ContentTypeID("UppercaseContent")
+
   var source: String
   var words: [String]
 

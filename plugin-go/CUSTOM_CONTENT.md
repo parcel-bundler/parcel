@@ -75,9 +75,10 @@ it with `handle.Value()`.
 
 `Asset.SetCustomContent` calls `registerContent`, which:
 
-1. Creates a `cgo.Handle` for the `AssetContent` object.
-2. Allocates a small stable token with `C.malloc`.
-3. Generates a 16-byte identifier for the concrete Go content type.
+1. Derives a 16-byte identifier for the content's type (see below), panicking
+   if the type has no name and no `ContentTypeName` method.
+2. Creates a `cgo.Handle` for the `AssetContent` object.
+3. Allocates a small stable token with `C.malloc`.
 4. Stores the token address, handle, and type identifier in
    `registeredContents`.
 5. Passes the token and callback functions to `parcel_asset_set_custom_content`.
@@ -89,6 +90,21 @@ object alive.
 The numeric handle is also written into the C allocation. The current callback
 path performs lookup through `registeredContents`, so the allocation primarily
 serves as a stable C-owned identity token.
+
+## Content type identifiers
+
+Parcel groups assets by their content type identifier to package them, and
+hashes it into bundle IDs, so it must be unique to the plugin and stable across
+builds. Every SDK derives it the same way: the first 16 bytes of the SHA-256 of
+`"parcel.content.v1\0" + namespace + "\0" + name`.
+
+- The namespace is the plugin's module path, from `debug.ReadBuildInfo()`.
+  Every Go plugin's types live in package `main`, so the type name alone would
+  collide between plugins.
+- The name is the type's package path and name, e.g. `main.AST`, looking
+  through a pointer, or whatever `ContentTypeName()` returns when the content
+  implements `ContentTypeNamer`. Implement it to keep the identifier when
+  renaming the type.
 
 ## Why `registeredContents` is needed
 

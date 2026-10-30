@@ -9,8 +9,10 @@ import "C"
 import (
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"reflect"
 	"runtime/cgo"
+	"runtime/debug"
 	"sync"
 	"unicode/utf8"
 	"unsafe"
@@ -55,19 +57,65 @@ type registeredContent struct {
 
 var registeredContents sync.Map
 
-func assetContentTypeID(content AssetContent) [16]byte {
-	t := reflect.TypeOf(content)
-	name := "<nil>"
-	if t != nil {
-		name = t.PkgPath() + "\x00" + t.String()
+// ContentTypeNamer is implemented by AssetContent whose type ID should be
+// derived from a name of its own choosing, rather than from its Go type's name:
+// to keep the ID when the type is renamed or moved, or for content whose type
+// has no name.
+type ContentTypeNamer interface {
+	ContentTypeName() string
+}
+
+// contentNamespace distinguishes this plugin's content types from every other
+// plugin's: the path of the module the plugin was built from. Every Go plugin's
+// content types live in package main, so the type alone would not.
+var contentNamespace = sync.OnceValue(func() string {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		return info.Main.Path
 	}
-	sum := sha256.Sum256([]byte(name))
+	return ""
+})
+
+// assetContentTypeID derives the 16-byte ID Parcel identifies content's type
+// by, the same way every SDK does: the first 16 bytes of the SHA-256 of
+// "parcel.content.v1", the plugin's namespace, and the type's name, separated
+// by NUL bytes. Parcel groups assets by it to package them, and hashes it into
+// bundle IDs, so it must be unique to the plugin and stable across builds.
+func assetContentTypeID(content AssetContent) ([16]byte, error) {
+	name, err := contentTypeName(content)
+	if err != nil {
+		return [16]byte{}, err
+	}
+	return contentTypeID(contentNamespace(), name), nil
+}
+
+func contentTypeID(namespace, name string) [16]byte {
+	sum := sha256.Sum256([]byte("parcel.content.v1\x00" + namespace + "\x00" + name))
 	var id [16]byte
 	copy(id[:], sum[:16])
 	return id
 }
 
+// contentTypeName is the name ContentTypeName returns, or else the content's
+// package path and type name, e.g. "main.AST", looking through a pointer.
+func contentTypeName(content AssetContent) (string, error) {
+	if namer, ok := content.(ContentTypeNamer); ok {
+		return namer.ContentTypeName(), nil
+	}
+	t := reflect.TypeOf(content)
+	if t.Kind() == reflect.Pointer && t.Name() == "" {
+		t = t.Elem()
+	}
+	if t.Name() == "" {
+		return "", fmt.Errorf("parcel: custom content of unnamed type %s needs a ContentTypeName method", t)
+	}
+	return t.PkgPath() + "." + t.Name(), nil
+}
+
 func registerContent(content AssetContent) (unsafe.Pointer, [16]byte) {
+	typeID, err := assetContentTypeID(content)
+	if err != nil {
+		panic(err)
+	}
 	handle := cgo.NewHandle(content)
 	p := C.malloc(C.size_t(unsafe.Sizeof(C.uintptr_t(0))))
 	if p == nil {
@@ -75,7 +123,6 @@ func registerContent(content AssetContent) (unsafe.Pointer, [16]byte) {
 		panic("parcel: could not allocate custom content handle")
 	}
 	*(*C.uintptr_t)(p) = C.uintptr_t(handle)
-	typeID := assetContentTypeID(content)
 	registeredContents.Store(uintptr(p), registeredContent{handle: handle, typeID: typeID})
 	return p, typeID
 }
@@ -171,6 +218,11 @@ func parcel_go_content_free(rawContent unsafe.Pointer) {
 
 // SetCustomContent replaces the asset content with plugin-owned arbitrary data.
 // Parcel retains the content until the asset is dropped or its content is replaced.
+//
+// Parcel tells content types apart by an ID derived from the plugin's module
+// path and the content's type name, so renaming the type changes it, and with it
+// the IDs of the bundles it ends up in. Implement [ContentTypeNamer] to choose
+// the name yourself; content whose type has no name must.
 func (a *Asset) SetCustomContent(content AssetContent) {
 	if content == nil {
 		panic("parcel: custom content must not be nil")

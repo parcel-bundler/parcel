@@ -121,6 +121,12 @@ on an asset in place of its content. Parcel calls the value's `read()` and
 `package(_:in:options:)` later, from any thread, so it must be `Sendable`. See
 the [CustomContentTransformer example](Examples/Sources/CustomContentTransformer).
 
+Each content type declares a `contentTypeID`, e.g.
+`static let contentTypeID = ContentTypeID("UppercaseContent")`. Parcel groups
+assets by it to package them and hashes it into bundle ids, so keep it the same
+across builds. It is namespaced by your module, so other plugins can use the
+same name.
+
 ## Without the macro
 
 `#parcelPlugin` depends on swift-syntax. Its expansion is simple: one `@_cdecl`

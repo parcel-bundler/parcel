@@ -150,28 +150,29 @@ import Testing
     #expect(long.prefix(4) == [0x41, 0xed, 0xec, 0xe4])
   }
 
-  /// If this changes, every user's cache and bundle ids change with it.
-  @Test func derivationIsStable() {
-    let id = ContentTypeID("Example.UppercaseContent")
+  /// Every SDK derives ids the same way. This is the id the Rust SDK gives a
+  /// type named TestContent in its own package (see the golden value in
+  /// crates/parcel-plugin/src/lib.rs), so the derivations cannot drift apart.
+  /// If it changes, every plugin's cache and bundle ids change with it.
+  @Test func derivationMatchesTheOtherSDKs() {
+    let id = ContentTypeID("TestContent", fileID: "parcel-plugin/lib.swift")
     #expect(ContentTypeID(bytes: id.bytes) == id)
     #expect(
-      id.bytes
-        == Array(
-          SHA256.hash(Array("parcel.content.v1\0swift\0Example.UppercaseContent".utf8)).prefix(16)))
+      id.bytes == [
+        0xd8, 0x71, 0x00, 0x6b, 0x60, 0x16, 0x0e, 0x55, 0xaf, 0xdc, 0xbb, 0x06, 0x0b, 0x0d, 0xb0,
+        0xd2,
+      ])
   }
 
-  struct Content: AssetContent {
-    func read() async throws -> ParcelPlugin.Content { .string("") }
-    func package(
-      _ bundle: OutputBundle, in bundleGraph: ParcelPlugin.BundleGraph,
-      options: ParcelPlugin.Options
-    ) async throws
-      -> ParcelPlugin.Content
-    { .string("") }
-  }
-
-  @Test func defaultIDIsTheQualifiedTypeName() {
-    #expect(Content.contentTypeID == ContentTypeID("ParcelPluginTests.ContentTypeIDTests.Content"))
+  /// The same name in two plugins is two content types.
+  @Test func namesAreNamespacedByTheCallersModule() {
+    #expect(
+      ContentTypeID("AST", fileID: "PluginA/AST.swift")
+        != ContentTypeID("AST", fileID: "PluginB/AST.swift"))
+    #expect(
+      ContentTypeID("AST", fileID: "PluginA/AST.swift")
+        == ContentTypeID("AST", fileID: "PluginA/Other.swift"))
+    #expect(ContentTypeID("AST") == ContentTypeID(namespace: "ParcelPluginTests", name: "AST"))
   }
 }
 

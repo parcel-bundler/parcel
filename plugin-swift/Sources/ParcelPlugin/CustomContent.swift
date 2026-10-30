@@ -17,8 +17,13 @@ import Synchronization
 /// called long after the transform that set the content returned, from any
 /// thread, and concurrently — hence `Sendable`.
 public protocol AssetContent: Sendable {
-  /// A stable id for this type of content. Defaults to one derived from the
-  /// type's fully qualified name.
+  /// A stable id for this type of content, unique to the plugin, such as
+  /// `static let contentTypeID = ContentTypeID("UppercaseContent")`.
+  ///
+  /// Parcel groups assets by it to package them and hashes it into bundle ids,
+  /// so it must not change between builds. There is no default: a type's
+  /// reflected name is not stable for private and local types, whose names
+  /// embed an address that changes on every run.
   static var contentTypeID: ContentTypeID { get }
 
   /// The content as source, for anything that needs it before packaging.
@@ -29,23 +34,30 @@ public protocol AssetContent: Sendable {
     -> Content
 }
 
-extension AssetContent {
-  public static var contentTypeID: ContentTypeID {
-    ContentTypeID.cached(for: Self.self)
-  }
-}
-
 /// A stable 16-byte id for a type of ``AssetContent``.
 ///
 /// Parcel compares ids rather than types, and they are part of its cache, so an
 /// id must not change between builds of the plugin.
+///
+/// Every SDK derives ids the same way: the first 16 bytes of the SHA-256 of
+/// `"parcel.content.v1"`, a namespace unique to the plugin, and the name,
+/// separated by NUL bytes. In Swift the namespace is the module that creates
+/// the id.
 public struct ContentTypeID: Hashable, Sendable {
   let high: UInt64
   let low: UInt64
 
   /// The id for `name`, which must be unique among the plugin's content types.
-  public init(_ name: String) {
-    let digest = SHA256.hash(Array("parcel.content.v1\0swift\0\(name)".utf8))
+  /// It is namespaced by the module of the code calling this initializer, taken
+  /// from `fileID`, so two plugins can use the same name.
+  public init(_ name: String, fileID: StaticString = #fileID) {
+    let fileID = fileID.description
+    let module = fileID.firstIndex(of: "/").map { String(fileID[..<$0]) } ?? fileID
+    self.init(namespace: module, name: name)
+  }
+
+  init(namespace: String, name: String) {
+    let digest = SHA256.hash(Array("parcel.content.v1\0\(namespace)\0\(name)".utf8))
     high = digest[0..<8].reduce(0) { $0 << 8 | UInt64($1) }
     low = digest[8..<16].reduce(0) { $0 << 8 | UInt64($1) }
   }
@@ -59,17 +71,6 @@ public struct ContentTypeID: Hashable, Sendable {
   public var bytes: [UInt8] {
     (0..<8).map { UInt8(truncatingIfNeeded: high >> UInt64(56 - $0 * 8)) }
       + (0..<8).map { UInt8(truncatingIfNeeded: low >> UInt64(56 - $0 * 8)) }
-  }
-
-  private static let cache = Mutex<[ObjectIdentifier: ContentTypeID]>([:])
-
-  static func cached(for type: Any.Type) -> ContentTypeID {
-    if let id = cache.withLock({ $0[ObjectIdentifier(type)] }) {
-      return id
-    }
-    let id = ContentTypeID(String(reflecting: type))
-    cache.withLock { $0[ObjectIdentifier(type)] = id }
-    return id
   }
 }
 
