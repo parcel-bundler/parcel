@@ -190,7 +190,7 @@ impl Content for XmlContent {
     get_inline: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
     options: &ParcelOptions,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
-    let (code, bundles, inline_bundles, stylesheet_media, element_refs, element_scripts) =
+    let (code, bundles, inline_bundles, stylesheet_media, element_refs) =
       prepare_to_package(graph, bundle, get_inline)?;
     let arena = Arena::new();
     let dom = xml5ever::driver::parse_document(Sink::new(&arena), Default::default())
@@ -207,7 +207,6 @@ impl Content for XmlContent {
       inline_bundles,
       &stylesheet_media,
       &element_refs,
-      &element_scripts,
       &reference_scopes,
       Default::default(),
       None,
@@ -389,7 +388,6 @@ mod tests {
       dom,
       Vec::new(),
       replacements,
-      &Default::default(),
       &Default::default(),
       &Default::default(),
       &[],

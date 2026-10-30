@@ -317,9 +317,8 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
       if !found.not_contains.is_empty() {
         let contents = output_fs.read_to_string(bundle.dist_path()).unwrap();
         for substring in &found.not_contains {
-          let substring = expand_bundle_urls(substring, &bundle_graph);
           assert!(
-            !contents.contains(&substring),
+            !contents.contains(substring),
             "Bundle {:?} contained unexpected substring {:?}\n\nBundle contents: {}",
             bundle.dist_path(),
             substring,
@@ -812,7 +811,7 @@ struct TestBundle {
   #[serde(rename = "outputFormat")]
   output_format: Option<OutputFormat>,
   #[serde(default)]
-  /// Substrings may use {{bundle:asset-name}} for generated public URLs, as may `not_contains`.
+  /// Substrings may use {{bundle:asset-name}} for generated public URLs.
   contains: Vec<String>,
   #[serde(default)]
   not_contains: Vec<String>,
