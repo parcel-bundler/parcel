@@ -133,7 +133,7 @@ func parcel_plugin_init(api *C.struct_ParcelApi, config *C.uint8_t, configLen C.
 	}
 	var data []byte
 	if configLen > 0 && config != nil {
-		data = C.GoBytes(unsafe.Pointer(config), C.int(configLen))
+		data = goBytes(unsafe.Pointer(config), uintptr(configLen))
 	}
 	plugin, err := pluginFactory(data)
 	if err != nil {
@@ -189,8 +189,8 @@ func parcel_plugin_resolve(dep C.Dependency, specifier *C.uint8_t, specifierLen 
 	}
 	plugin := cgo.Handle(*(*C.uintptr_t)(state)).Value().(Plugin)
 	d := &Dependency{ptr: C.Dependency(dep), options: rawOptions}
-	spec := C.GoStringN((*C.char)(unsafe.Pointer(specifier)), C.int(specifierLen))
-	pipe := C.GoStringN((*C.char)(unsafe.Pointer(pipeline)), C.int(pipelineLen))
+	spec := goString(unsafe.Pointer(specifier), uintptr(specifierLen))
+	pipe := goString(unsafe.Pointer(pipeline), uintptr(pipelineLen))
 	opts := &Options{ptr: rawOptions}
 	resolution, err := plugin.Resolve(d, spec, pipe, opts)
 	if err != nil {
@@ -239,11 +239,11 @@ func parcel_plugin_optimize(rawGraph C.BundleGraph, rawBundle C.Bundle, contents
 
 	var contentBytes []byte
 	if contents != nil && contentsLen > 0 {
-		contentBytes = C.GoBytes(unsafe.Pointer(contents), C.int(contentsLen))
+		contentBytes = goBytes(unsafe.Pointer(contents), uintptr(contentsLen))
 	}
 	var sourceMapBytes []byte
 	if sourceMap != nil {
-		sourceMapBytes = C.GoBytes(unsafe.Pointer(sourceMap), C.int(sourceMapLen))
+		sourceMapBytes = goBytes(unsafe.Pointer(sourceMap), uintptr(sourceMapLen))
 	}
 
 	plugin := cgo.Handle(*(*C.uintptr_t)(state)).Value().(Plugin)
@@ -322,7 +322,7 @@ func parcel_plugin_report(rawEvent *C.ReportEvent, rawOptions C.Options, state u
 	case C.ReportEventType(C.PARCEL_EVENT_LOG):
 		log := &Log{Level: LogLevel(rawEvent.level), Diagnostics: diagnostics}
 		if rawEvent.message != nil {
-			log.Message = C.GoStringN((*C.char)(unsafe.Pointer(rawEvent.message)), C.int(rawEvent.message_len))
+			log.Message = goString(unsafe.Pointer(rawEvent.message), uintptr(rawEvent.message_len))
 		}
 		event = log
 
@@ -373,9 +373,13 @@ func writeDiagnostic(raw *C.DiagnosticOptions, err error) {
 	if raw == nil || err == nil {
 		return
 	}
-	d, ok := err.(*Diagnostic)
-	if !ok {
+	var d *Diagnostic
+	if !errors.As(err, &d) {
 		d = &Diagnostic{Message: err.Error()}
+	}
+	if d.parcelDiagnostics != 0 {
+		raw.diagnostics = d.parcelDiagnostics
+		return
 	}
 	writeBuffer := func(buf *C.Buffer, s string) {
 		if len(s) == 0 {
@@ -403,26 +407,38 @@ type Asset struct {
 	options C.Options
 }
 
-// Content returns the asset's source bytes as a UTF-8 string.
-func (a *Asset) Content() string {
-	var buf C.Buffer
-	C.parcel_asset_get_content_utf8(&buf, a.ptr)
-	if buf.data == nil {
-		return ""
-	}
-	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+// Content reads the asset's content as text. It fails when the content cannot
+// be read, or is not valid UTF-8, with an error to return as is: Parcel then
+// reports why exactly as it determined it.
+func (a *Asset) Content() (string, error) {
+	return readContentString(a.ptr, a.options)
 }
 
-// ContentBytes returns a copy of the asset's raw source bytes.
-func (a *Asset) ContentBytes() []byte {
+// ContentBytes reads the asset's content as bytes. It fails when the content
+// cannot be read, with an error to return as is.
+func (a *Asset) ContentBytes() ([]byte, error) {
+	return readContentBytes(a.ptr, a.options)
+}
+
+// readContentString reads an asset's content as UTF-8 text.
+func readContentString(asset C.Asset, options C.Options) (string, error) {
 	var buf C.Buffer
-	C.parcel_asset_get_content(&buf, a.ptr)
-	if buf.data == nil {
-		return nil
+	var diagnostics C.Diagnostics
+	if !C.parcel_asset_get_content_utf8(&buf, asset, options, &diagnostics) {
+		return "", parcelDiagnosticsError(diagnostics)
+	}
+	return takeBufferString(&buf), nil
+}
+
+// readContentBytes reads an asset's content as bytes.
+func readContentBytes(asset C.Asset, options C.Options) ([]byte, error) {
+	var buf C.Buffer
+	var diagnostics C.Diagnostics
+	if !C.parcel_asset_get_content(&buf, asset, options, &diagnostics) {
+		return nil, parcelDiagnosticsError(diagnostics)
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.len))
+	return goBytes(unsafe.Pointer(buf.data), uintptr(buf.len)), nil
 }
 
 // SetContent replaces the asset content with the given string.
@@ -433,21 +449,16 @@ func (a *Asset) SetContent(content string) {
 	// Parcel trusts content passed as UTF-8 without checking it, so only
 	// validated content may be.
 	if !utf8.ValidString(content) {
-		C.parcel_asset_set_content(a.ptr, nonNullPtr(content), C.uint32_t(len(content)))
+		C.parcel_asset_set_content(a.ptr, nonNullPtr(content), C.uintptr_t(len(content)), nil, 0)
 		return
 	}
-	C.parcel_asset_set_content_utf8(a.ptr, nonNullPtr(content), C.uint32_t(len(content)))
+	C.parcel_asset_set_content_utf8(a.ptr, nonNullPtr(content), C.uintptr_t(len(content)), nil, 0)
 }
 
 // SetContentBytes replaces the asset content with the given byte slice.
 func (a *Asset) SetContentBytes(content []byte) {
-	if len(content) == 0 {
-		empty := byte(0)
-		C.parcel_asset_set_content(a.ptr, (*C.uint8_t)(unsafe.Pointer(&empty)), 0)
-		return
-	}
-	ptr := (*C.uint8_t)(unsafe.Pointer(&content[0]))
-	C.parcel_asset_set_content(a.ptr, ptr, C.uint32_t(len(content)))
+	ptr := nonNullPtr(unsafe.String(unsafe.SliceData(content), len(content)))
+	C.parcel_asset_set_content(a.ptr, ptr, C.uintptr_t(len(content)), nil, 0)
 }
 
 // SetContentWithMap replaces the asset content, along with a JSON (v3) source
@@ -462,16 +473,16 @@ func (a *Asset) SetContentWithMap(content string, sourceMap string) {
 	// Parcel trusts content passed as UTF-8 without checking it, so only
 	// validated content may be.
 	if !utf8.ValidString(content) {
-		C.parcel_asset_set_content_with_map(a.ptr, nonNullPtr(content), C.uintptr_t(len(content)), stringPtr(sourceMap), C.uintptr_t(len(sourceMap)))
+		C.parcel_asset_set_content(a.ptr, nonNullPtr(content), C.uintptr_t(len(content)), stringPtr(sourceMap), C.uintptr_t(len(sourceMap)))
 		return
 	}
-	C.parcel_asset_set_content_utf8_with_map(a.ptr, nonNullPtr(content), C.uintptr_t(len(content)), stringPtr(sourceMap), C.uintptr_t(len(sourceMap)))
+	C.parcel_asset_set_content_utf8(a.ptr, nonNullPtr(content), C.uintptr_t(len(content)), stringPtr(sourceMap), C.uintptr_t(len(sourceMap)))
 }
 
 // SetContentBytesWithMap replaces the asset content with the given bytes, along
 // with a JSON (v3) source map describing them. See [Asset.SetContentWithMap].
 func (a *Asset) SetContentBytesWithMap(content []byte, sourceMap string) {
-	C.parcel_asset_set_content_with_map(a.ptr, nonNullPtr(unsafe.String(unsafe.SliceData(content), len(content))), C.uintptr_t(len(content)), stringPtr(sourceMap), C.uintptr_t(len(sourceMap)))
+	C.parcel_asset_set_content(a.ptr, nonNullPtr(unsafe.String(unsafe.SliceData(content), len(content))), C.uintptr_t(len(content)), stringPtr(sourceMap), C.uintptr_t(len(sourceMap)))
 }
 
 // SourceMap returns the JSON (v3) source map describing the current content, or
@@ -490,7 +501,7 @@ func (a *Asset) SourceMap() string {
 		return ""
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // nonNullPtr is like stringPtr, but never nil: the content setters ignore a null
@@ -511,7 +522,7 @@ func (a *Asset) Type() string {
 		return ""
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // SetType changes the asset type to the given file extension.
@@ -531,7 +542,7 @@ func (a *Asset) FilePath() string {
 		return ""
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // Query returns the query string from the asset's source URL.
@@ -542,7 +553,7 @@ func (a *Asset) Query() string {
 		return ""
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // Pipeline returns the named pipeline (empty string if not set).
@@ -553,7 +564,7 @@ func (a *Asset) Pipeline() string {
 		return ""
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // SetPipeline sets the named pipeline. Pass an empty string to clear.
@@ -599,7 +610,7 @@ func (a *Asset) UniqueKey() string {
 		return ""
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // SetUniqueKey sets the asset's unique key. Pass an empty string to clear.
@@ -723,7 +734,7 @@ func (d *Dependency) Specifier() string {
 		return ""
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // SpecifierType returns the specifier type.
@@ -759,7 +770,7 @@ func (d *Dependency) SourcePath() string {
 		return ""
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // ResolveFrom returns the base path for resolving the specifier.
@@ -770,7 +781,7 @@ func (d *Dependency) ResolveFrom() string {
 		return ""
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // Target returns the target configuration for this dependency.
@@ -897,7 +908,7 @@ func (t *Target) PublicUrl() string {
 		return ""
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // DistDir returns the absolute path of the dist directory.
@@ -908,7 +919,7 @@ func (t *Target) DistDir() string {
 		return ""
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // ── Diagnostic ─────────────────────────────────────────────────────────────
@@ -955,6 +966,23 @@ type Diagnostic struct {
 	Hint string
 	// DocumentationURL optionally links to documentation about the diagnostic.
 	DocumentationURL string
+
+	// parcelDiagnostics are diagnostics Parcel reported during this call, such
+	// as why a read failed, which this diagnostic stands for. Returned from a
+	// plugin method, it fails with exactly those, and none of its other fields
+	// are reported.
+	parcelDiagnostics C.Diagnostics
+}
+
+// parcelDiagnosticsError stands for the diagnostics Parcel reported in list. Its
+// message is the first one's, for printing.
+func parcelDiagnosticsError(list C.Diagnostics) *Diagnostic {
+	if list == 0 {
+		return &Diagnostic{Message: "Parcel could not read the asset's content"}
+	}
+	var buf C.Buffer
+	C.parcel_diagnostic_get_message(&buf, list, 0)
+	return &Diagnostic{Message: takeBufferString(&buf), parcelDiagnostics: list}
 }
 
 // Error implements the error interface.
@@ -1327,12 +1355,30 @@ func (d DiagnosticInfo) CodeFrames() []CodeFrame {
 }
 
 // takeBufferString copies a host-filled buffer into a Go string and frees it.
+// goString copies n bytes at p into a Go string. Unlike C.GoStringN, whose
+// length is a C int, it copies content of any size.
+func goString(p unsafe.Pointer, n uintptr) string {
+	if p == nil || n == 0 {
+		return ""
+	}
+	return string(unsafe.Slice((*byte)(p), n))
+}
+
+// goBytes copies n bytes at p into a Go slice. Unlike C.GoBytes, whose length is
+// a C int, it copies content of any size.
+func goBytes(p unsafe.Pointer, n uintptr) []byte {
+	if p == nil {
+		return nil
+	}
+	return append([]byte(nil), unsafe.Slice((*byte)(p), n)...)
+}
+
 func takeBufferString(buf *C.Buffer) string {
 	if buf.data == nil {
 		return ""
 	}
 	defer C.parcel_free_buffer(buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // ── Options ─────────────────────────────────────────────────────────────────
@@ -1351,7 +1397,7 @@ func (o *Options) ProjectRoot() string {
 		return ""
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // Env looks up key in the build environment map. Returns an empty string and
@@ -1367,7 +1413,7 @@ func (o *Options) Env(key string) (string, bool) {
 		return "", false
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len)), true
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len)), true
 }
 
 // Log sends a message to whatever reporters the build has configured.
@@ -1464,7 +1510,7 @@ func bufferBytes(buf *C.Buffer) []byte {
 		C.parcel_free_buffer(buf)
 		*buf = C.Buffer{}
 	}()
-	return C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.len))
+	return goBytes(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // ioError converts the status of a host file system call, and consumes the

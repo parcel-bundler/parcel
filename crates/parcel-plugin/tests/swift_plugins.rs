@@ -420,9 +420,17 @@ fn swift_transform_error_becomes_diagnostic() {
 
 #[test]
 fn swift_custom_content_read_error_becomes_diagnostic() {
-  assert_build_fails(
+  let (result, _) = require_swift!(build(
+    "custom-content-plugin",
     "panic-read.js",
     "read-error",
+    CUSTOM_CONTENT_PARCELRC,
+  ));
+  let Err(diagnostics) = result else {
+    panic!("expected the build to fail");
+  };
+  common::assert_read_error_passes_through_the_plugin(
+    &diagnostics,
     "example custom content read error",
   );
 }

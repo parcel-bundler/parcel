@@ -187,8 +187,8 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
     "{generated}\n/// The end of the last function in [`ParcelApi`]'s first published layout, and so\n\
      /// the smallest table any Parcel implementing this ABI passes. Functions after\n\
      /// `{end}` were appended later, and an older Parcel's table ends before them.\n\
-     pub const PARCEL_API_MIN_SIZE: usize =\n    \
-     ::core::mem::offset_of!(ParcelApi, {end}) + ::core::mem::size_of::<usize>();\n",
+     pub const PARCEL_API_MIN_SIZE: usize =\n  \
+     ::core::mem::offset_of!(ParcelApi, {end})\n    + ::core::mem::size_of::<usize>();\n",
     end = shims::FIRST_LAYOUT_END,
   );
 

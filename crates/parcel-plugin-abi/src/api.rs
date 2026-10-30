@@ -69,10 +69,22 @@ pub struct ParcelApiHeader {
 pub struct ParcelApi {
   /// Size and abi version. Always the first member.
   pub header: ParcelApiHeader,
-  pub asset_get_content: unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef),
-  pub asset_get_content_utf8: unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef),
-  pub asset_set_content: unsafe extern "C" fn(asset: Asset, data: *const u8, len: u32),
-  pub asset_set_content_utf8: unsafe extern "C" fn(asset: Asset, data: *const u8, len: u32),
+  pub asset_get_content: unsafe extern "C" fn(
+    buf: *mut Buffer,
+    asset: AssetRef,
+    options: Options,
+    diagnostics: *mut Diagnostics,
+  ) -> bool,
+  pub asset_get_content_utf8: unsafe extern "C" fn(
+    buf: *mut Buffer,
+    asset: AssetRef,
+    options: Options,
+    diagnostics: *mut Diagnostics,
+  ) -> bool,
+  pub asset_set_content:
+    unsafe extern "C" fn(asset: Asset, data: *const u8, len: usize, map: *const u8, map_len: usize),
+  pub asset_set_content_utf8:
+    unsafe extern "C" fn(asset: Asset, data: *const u8, len: usize, map: *const u8, map_len: usize),
   pub asset_set_custom_content: unsafe extern "C" fn(
     asset: Asset,
     ty: *const [u8; 16],
@@ -209,10 +221,6 @@ pub struct ParcelApi {
     from_len: usize,
     result: *mut ResolveResult,
   ) -> bool,
-  pub asset_set_content_with_map:
-    unsafe extern "C" fn(asset: Asset, data: *const u8, len: usize, map: *const u8, map_len: usize),
-  pub asset_set_content_utf8_with_map:
-    unsafe extern "C" fn(asset: Asset, data: *const u8, len: usize, map: *const u8, map_len: usize),
   pub asset_get_map: unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef),
   pub diagnostic_get_documentation_url:
     unsafe extern "C" fn(buf: *mut Buffer, diagnostics: DiagnosticsRef, index: usize),
@@ -318,8 +326,6 @@ pub static PARCEL_API: ParcelApi = ParcelApi {
   fs_get_kind: parcel_fs_get_kind,
   fs_canonicalize: parcel_fs_canonicalize,
   asset_resolve: parcel_asset_resolve,
-  asset_set_content_with_map: parcel_asset_set_content_with_map,
-  asset_set_content_utf8_with_map: parcel_asset_set_content_utf8_with_map,
   asset_get_map: parcel_asset_get_map,
   diagnostic_get_documentation_url: parcel_diagnostic_get_documentation_url,
   diagnostic_get_code_frame_count: parcel_diagnostic_get_code_frame_count,

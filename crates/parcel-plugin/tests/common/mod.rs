@@ -220,3 +220,21 @@ pub fn assert_reporter_summarizes_failures(name: &str, plugin: &parcel_plugin_ab
      highlight: 1:9-1:12 expected an expression\n"
   );
 }
+
+/// Checks that a failed custom content read reached the build as one
+/// diagnostic, attributed to the plugin. The SDKs' custom-content examples read
+/// their content back, so the read's diagnostic travels from Parcel to the plugin
+/// and back through its error. Had it been rebuilt or dropped on the way, it
+/// would be missing, duplicated, or lack the plugin's origin.
+pub fn assert_read_error_passes_through_the_plugin(
+  diagnostics: &parcel_core::DiagnosticList,
+  expected: &str,
+) {
+  let reported: Vec<_> = diagnostics
+    .0
+    .iter()
+    .filter(|diagnostic| diagnostic.message.contains(expected))
+    .collect();
+  assert_eq!(reported.len(), 1, "got: {diagnostics:?}");
+  assert!(reported[0].origin.is_some(), "got: {diagnostics:?}");
+}

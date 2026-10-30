@@ -25,8 +25,8 @@ func TestOnlyValidUTF8IsPassedAsUTF8(t *testing.T) {
 			{"SetContent with text", func() { asset.SetContent("héllo") }, "asset_set_content_utf8"},
 			{"SetContent with invalid UTF-8", func() { asset.SetContent("h\xffllo") }, "asset_set_content"},
 			{"SetContent with nothing", func() { asset.SetContent("") }, "asset_set_content_utf8"},
-			{"SetContentWithMap with text", func() { asset.SetContentWithMap("héllo", "{}") }, "asset_set_content_utf8_with_map"},
-			{"SetContentWithMap with invalid UTF-8", func() { asset.SetContentWithMap("h\xffllo", "{}") }, "asset_set_content_with_map"},
+			{"SetContentWithMap with text", func() { asset.SetContentWithMap("héllo", "{}") }, "asset_set_content_utf8+map"},
+			{"SetContentWithMap with invalid UTF-8", func() { asset.SetContentWithMap("h\xffllo", "{}") }, "asset_set_content+map"},
 			{"a name", func() { callName(t, "héllo.js") }, "buffer_write_utf8"},
 			{"a name with invalid UTF-8", func() { callName(t, "h\xffllo.js") }, "buffer_write"},
 		} {

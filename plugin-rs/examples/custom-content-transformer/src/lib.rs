@@ -73,16 +73,16 @@ impl Plugin for CustomContentTransformer {
   }
 
   fn transform(&self, asset: &mut Asset, _options: &Options) -> Result<(), Diagnostic> {
-    let source = asset.content().trim().to_owned();
+    let source = asset.content()?.trim().to_owned();
     let words = source.split_whitespace().map(str::to_owned).collect();
     asset.set_custom_content(UppercaseContent { source, words });
     if asset
       .custom_content::<UppercaseContent>()
       .is_some_and(|content| content.source == "PANIC_READ")
     {
-      // Changing type causes the normal JS transformer to request the custom
-      // content's string representation, exercising the read callback.
-      asset.set_type("js");
+      // Reading the content back runs the read callback. When it fails, `?`
+      // returns Parcel's diagnostic for it unchanged.
+      asset.content()?;
     }
     Ok(())
   }

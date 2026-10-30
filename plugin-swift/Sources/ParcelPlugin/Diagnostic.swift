@@ -36,6 +36,10 @@ public struct Diagnostic: Error, Hashable, Sendable, CustomStringConvertible {
   public var hint: String?
   /// A URL to documentation about the diagnostic.
   public var documentationURL: String?
+  /// Diagnostics Parcel reported during this call, such as why a read failed,
+  /// which this diagnostic stands for. Thrown from a plugin method, it fails
+  /// with exactly those, and none of its other fields are reported. 0 for none.
+  var parcelDiagnostics: UInt64 = 0
 
   public init(
     _ message: String,
@@ -74,6 +78,17 @@ public struct Diagnostic: Error, Hashable, Sendable, CustomStringConvertible {
   }
 
   public var description: String { message }
+
+  /// Stands for the diagnostics Parcel reported in `list`. Its message is the
+  /// first one's, for printing.
+  init(parcelDiagnostics list: UInt64) {
+    guard list != 0 else {
+      self.init("Parcel could not read the asset's content")
+      return
+    }
+    self.init(hostString { parcel_diagnostic_get_message($0, list, 0) } ?? "")
+    parcelDiagnostics = list
+  }
 
   /// The diagnostic Parcel reports for an error a plugin threw.
   init(_ error: any Error) {
@@ -115,6 +130,10 @@ public struct Diagnostic: Error, Hashable, Sendable, CustomStringConvertible {
   /// must only be written when `raw.pointee.size` has room for it, since an older
   /// Parcel allocates less.
   func write(to raw: UnsafeMutablePointer<CParcelABI.DiagnosticOptions>) {
+    if parcelDiagnostics != 0 {
+      raw.pointee.diagnostics = parcelDiagnostics
+      return
+    }
     // The host reads a null message as "no diagnostic", which would turn a
     // failure into a success.
     raw.pointee.message = allocBuffer(message.isEmpty ? "unknown error" : message)

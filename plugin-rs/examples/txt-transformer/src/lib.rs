@@ -32,7 +32,7 @@ impl Plugin for TxtTransformer {
     // Emit an ES module that default-exports the text content.
     asset.set_content(format!(
       "export default {:?};\n",
-      format!("{}{}", self.prefix, asset.content())
+      format!("{}{}", self.prefix, asset.content()?)
     ));
     asset.set_type("js");
     Ok(())

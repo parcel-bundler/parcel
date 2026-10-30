@@ -542,11 +542,12 @@ typedef struct Buffer {
 typedef uint64_t AssetRef;
 
 /**
- * Opaque handle to the asset a transformer is transforming, which it may change.
- * Only `parcel_plugin_transform()` hands one out, and it is valid until that call
- * returns. It can be passed anywhere an `AssetRef` is expected.
+ * Opaque handle to the context of the current call into the plugin: the build's
+ * options, and whatever the call may do, such as reading files. Every entry
+ * point receives one. It is valid only until that call returns, so never store
+ * it, in plugin state or custom content.
  */
-typedef uint64_t Asset;
+typedef uint64_t Options;
 
 /**
  * Opaque handle to a list of diagnostics Parcel handed the plugin during the
@@ -555,6 +556,13 @@ typedef uint64_t Asset;
  * `DiagnosticOptions.diagnostics` to it. Parcel frees it when the call returns.
  */
 typedef uint64_t Diagnostics;
+
+/**
+ * Opaque handle to the asset a transformer is transforming, which it may change.
+ * Only `parcel_plugin_transform()` hands one out, and it is valid until that call
+ * returns. It can be passed anywhere an `AssetRef` is expected.
+ */
+typedef uint64_t Asset;
 
 /**
  * Describes a diagnostic a plugin reports: the error an entry point fails with,
@@ -626,14 +634,6 @@ typedef uint64_t BundleGraph;
  * Opaque handle to Parcel bundle.
  */
 typedef uint64_t Bundle;
-
-/**
- * Opaque handle to the context of the current call into the plugin: the build's
- * options, and whatever the call may do, such as reading files. Every entry
- * point receives one. It is valid only until that call returns, so never store
- * it, in plugin state or custom content.
- */
-typedef uint64_t Options;
 
 /**
  * Opaque handle to a Parcel target. Obtained via `parcel_asset_get_target()`.
@@ -823,10 +823,24 @@ typedef struct ParcelApi {
    * Size and abi version. Always the first member.
    */
   struct ParcelApiHeader header;
-  void (*asset_get_content)(struct Buffer *buf, AssetRef asset);
-  void (*asset_get_content_utf8)(struct Buffer *buf, AssetRef asset);
-  void (*asset_set_content)(Asset asset, const uint8_t *data, uint32_t len);
-  void (*asset_set_content_utf8)(Asset asset, const uint8_t *data, uint32_t len);
+  bool (*asset_get_content)(struct Buffer *buf,
+                            AssetRef asset,
+                            Options options,
+                            Diagnostics *diagnostics);
+  bool (*asset_get_content_utf8)(struct Buffer *buf,
+                                 AssetRef asset,
+                                 Options options,
+                                 Diagnostics *diagnostics);
+  void (*asset_set_content)(Asset asset,
+                            const uint8_t *data,
+                            uintptr_t len,
+                            const uint8_t *map,
+                            uintptr_t map_len);
+  void (*asset_set_content_utf8)(Asset asset,
+                                 const uint8_t *data,
+                                 uintptr_t len,
+                                 const uint8_t *map,
+                                 uintptr_t map_len);
   void (*asset_set_custom_content)(Asset asset,
                                    const uint8_t (*ty)[16],
                                    void *content,
@@ -929,16 +943,6 @@ typedef struct ParcelApi {
                         const uint8_t *from,
                         uintptr_t from_len,
                         struct ResolveResult *result);
-  void (*asset_set_content_with_map)(Asset asset,
-                                     const uint8_t *data,
-                                     uintptr_t len,
-                                     const uint8_t *map,
-                                     uintptr_t map_len);
-  void (*asset_set_content_utf8_with_map)(Asset asset,
-                                          const uint8_t *data,
-                                          uintptr_t len,
-                                          const uint8_t *map,
-                                          uintptr_t map_len);
   void (*asset_get_map)(struct Buffer *buf, AssetRef asset);
   void (*diagnostic_get_documentation_url)(struct Buffer *buf,
                                            DiagnosticsRef diagnostics,
@@ -1165,20 +1169,20 @@ static inline bool parcel_api_compatible(const struct ParcelApiHeader *api) {
 #define PARCEL_HAS_FIELD(ptr, type, field) \
   ((ptr)->size >= offsetof(type, field) + sizeof(((type *)0)->field))
 
-static inline void parcel_asset_get_content(struct Buffer *buf, AssetRef asset) {
-  parcel_api->asset_get_content(buf, asset);
+static inline bool parcel_asset_get_content(struct Buffer *buf, AssetRef asset, Options options, Diagnostics *diagnostics) {
+  return parcel_api->asset_get_content(buf, asset, options, diagnostics);
 }
 
-static inline void parcel_asset_get_content_utf8(struct Buffer *buf, AssetRef asset) {
-  parcel_api->asset_get_content_utf8(buf, asset);
+static inline bool parcel_asset_get_content_utf8(struct Buffer *buf, AssetRef asset, Options options, Diagnostics *diagnostics) {
+  return parcel_api->asset_get_content_utf8(buf, asset, options, diagnostics);
 }
 
-static inline void parcel_asset_set_content(Asset asset, const uint8_t *data, uint32_t len) {
-  parcel_api->asset_set_content(asset, data, len);
+static inline void parcel_asset_set_content(Asset asset, const uint8_t *data, uintptr_t len, const uint8_t *map, uintptr_t map_len) {
+  parcel_api->asset_set_content(asset, data, len, map, map_len);
 }
 
-static inline void parcel_asset_set_content_utf8(Asset asset, const uint8_t *data, uint32_t len) {
-  parcel_api->asset_set_content_utf8(asset, data, len);
+static inline void parcel_asset_set_content_utf8(Asset asset, const uint8_t *data, uintptr_t len, const uint8_t *map, uintptr_t map_len) {
+  parcel_api->asset_set_content_utf8(asset, data, len, map, map_len);
 }
 
 static inline void parcel_asset_set_custom_content(Asset asset, const uint8_t (*ty)[16], void *content, void (*read)(const void *content, struct Buffer *buf, struct DiagnosticOptions *diagnostic), void (*package)(const void *content, BundleGraph bundle_graph, Bundle bundle, Options options, struct Buffer *buf, struct DiagnosticOptions *diagnostic), void (*free)(void *content)) {
@@ -1471,14 +1475,6 @@ static inline IoStatus parcel_fs_canonicalize(struct Buffer *buf, Options option
 
 static inline bool parcel_asset_resolve(Asset asset, Options options, const struct DependencyOptions *dep, const uint8_t *from, uintptr_t from_len, struct ResolveResult *result) {
   return parcel_api->asset_resolve(asset, options, dep, from, from_len, result);
-}
-
-static inline void parcel_asset_set_content_with_map(Asset asset, const uint8_t *data, uintptr_t len, const uint8_t *map, uintptr_t map_len) {
-  parcel_api->asset_set_content_with_map(asset, data, len, map, map_len);
-}
-
-static inline void parcel_asset_set_content_utf8_with_map(Asset asset, const uint8_t *data, uintptr_t len, const uint8_t *map, uintptr_t map_len) {
-  parcel_api->asset_set_content_utf8_with_map(asset, data, len, map, map_len);
 }
 
 static inline void parcel_asset_get_map(struct Buffer *buf, AssetRef asset) {

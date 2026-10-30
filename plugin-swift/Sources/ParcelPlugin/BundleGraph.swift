@@ -42,6 +42,7 @@ public struct BundleGraph: Sendable {
 
   /// The bundle at `index`, or `nil` when it is out of range.
   public func bundle(at index: BundleIndex) -> OutputBundle? {
+    guard index >= 0 else { return nil }
     let bundle = host { parcel_bundle_graph_get_bundle(raw, UInt(index)) }
     guard bundle != 0 else { return nil }
     return OutputBundle(raw: bundle, options: options)
@@ -116,12 +117,14 @@ public struct AssetView: Sendable {
     options.scope.shared("AssetView", body)
   }
 
-  public var content: String {
-    host { hostString { parcel_asset_get_content_utf8($0, raw) } ?? "" }
+  /// Reads the asset's content as UTF-8 text. See ``Asset/content()``.
+  public func content() throws -> String {
+    try host { Result { try readContent(raw, options: options.raw) } }.get()
   }
 
-  public var contentBytes: [UInt8] {
-    host { hostBytes { parcel_asset_get_content($0, raw) } ?? [] }
+  /// Reads the asset's content as bytes. See ``Asset/contentBytes()``.
+  public func contentBytes() throws -> [UInt8] {
+    try host { Result { try readContentBytes(raw, options: options.raw) } }.get()
   }
 
   /// The asset's custom content, when this plugin set it.
@@ -172,6 +175,7 @@ public struct AssetView: Sendable {
 
   /// The dependency at `index`, or `nil` when it is out of range.
   public func dependency(at index: Int) -> Dependency? {
+    guard index >= 0 else { return nil }
     let dependency = host { parcel_asset_get_dependency(raw, UInt(index)) }
     guard dependency != 0 else { return nil }
     return Dependency(raw: dependency, options: options)

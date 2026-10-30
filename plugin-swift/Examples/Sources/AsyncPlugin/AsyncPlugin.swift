@@ -26,7 +26,7 @@ struct AsyncPlugin: Transformer, Resolver {
   init(config: NoConfig) async {}
 
   func transform(_ asset: Asset, options: Options) async throws {
-    let lines = asset.content.split(separator: "\n").map(String.init)
+    let lines = try asset.content().split(separator: "\n").map(String.init)
 
     // Hops to the actor, then resumes on the thread Parcel called in on.
     let order = await counter.next()
@@ -52,13 +52,13 @@ struct AsyncPlugin: Transformer, Resolver {
     }
     let suffixFile = suffixPath.split(separator: "/").last.map(String.init) ?? suffixPath
 
-    asset.content = """
+    asset.setContent("""
       import suffix from "greeting:suffix";
       export const transform = \(order);
       export const resolved = "\(suffixFile)";
       export default "\(shouted)" + suffix;
 
-      """
+      """)
     asset.type = "js"
   }
 

@@ -14,7 +14,7 @@
 //!         Ok(MyPlugin)
 //!     }
 //!     fn transform(&self, asset: &mut Asset, _options: &Options) -> Result<(), Diagnostic> {
-//!         asset.set_content(format!("export default {:?};\n", asset.content()));
+//!         asset.set_content(format!("export default {:?};\n", asset.content()?));
 //!         asset.set_type("js");
 //!         Ok(())
 //!     }
@@ -456,7 +456,17 @@ pub struct Diagnostic {
   pub hint: Option<String>,
   /// A URL to documentation about the diagnostic (optional).
   pub documentation_url: Option<String>,
+  /// Diagnostics Parcel reported during this call, such as why a read failed,
+  /// which this diagnostic stands for. Returned from a plugin method, it fails
+  /// with exactly those, and none of its other fields are reported.
+  pub parcel_diagnostics: Option<ParcelDiagnostics>,
 }
+
+/// Diagnostics Parcel reported to the plugin during the current call, such as
+/// why [`Asset::content`] failed. Opaque: a [`Diagnostic`] carrying them reports
+/// them exactly as Parcel produced them. Parcel ignores them in any later call.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ParcelDiagnostics(ffi::Diagnostics);
 
 impl Diagnostic {
   pub fn new(message: impl Into<String>) -> Self {
@@ -513,11 +523,30 @@ impl Diagnostic {
     self
   }
 
+  /// Stands for the diagnostics Parcel reported in `diagnostics`, or for a
+  /// diagnostic saying `fallback` when Parcel had nothing to report. Its message
+  /// is the first diagnostic's.
+  fn from_parcel(diagnostics: ffi::Diagnostics, fallback: &str) -> Self {
+    if diagnostics == 0 {
+      return Diagnostic::new(fallback);
+    }
+    let mut buf = Buffer::default();
+    unsafe { host!(diagnostic_get_message)(&mut buf, diagnostics, 0) };
+    Diagnostic {
+      parcel_diagnostics: Some(ParcelDiagnostics(diagnostics)),
+      ..Diagnostic::new(buf.to_string().unwrap_or_else(|| fallback.to_owned()))
+    }
+  }
+
   /// Writes this diagnostic into a host-allocated [`ffi::DiagnosticOptions`], field by
   /// field, leaving its `size` alone.
   /// Intended for use inside macro-generated entry points only.
   pub fn write_to_raw(&self, raw: *mut ffi::DiagnosticOptions) {
     if raw.is_null() {
+      return;
+    }
+    if let Some(ParcelDiagnostics(diagnostics)) = self.parcel_diagnostics {
+      unsafe { (*raw).diagnostics = diagnostics };
       return;
     }
     unsafe {
@@ -609,8 +638,9 @@ impl<'a> ReportEvent<'a> {
   ///
   /// # Safety
   ///
-  /// `raw` must be the event pointer Parcel supplied, valid for the call.
-  pub unsafe fn from_raw(raw: *const ffi::ReportEvent) -> Option<ReportEvent<'a>> {
+  /// `raw` must be the event pointer Parcel supplied, valid for the call, and
+  /// `options` the options handle supplied alongside it.
+  pub unsafe fn from_raw(raw: *const ffi::ReportEvent, options: u64) -> Option<ReportEvent<'a>> {
     if raw.is_null() {
       return None;
     }
@@ -630,7 +660,7 @@ impl<'a> ReportEvent<'a> {
     Some(match event.event_type {
       ffi::ReportEventType::BuildStart => ReportEvent::BuildStart,
       ffi::ReportEventType::BuildSuccess => ReportEvent::BuildSuccess {
-        bundle_graph: unsafe { BundleGraph::from_raw(event.bundle_graph, 0) },
+        bundle_graph: unsafe { BundleGraph::from_raw(event.bundle_graph, options) },
         build_time: std::time::Duration::from_millis(event.build_time_ms),
         changed_assets: if event.changed_assets.is_null() {
           &[]
@@ -816,6 +846,25 @@ pub struct Asset<'a> {
   lifetime: PhantomData<&'a ()>,
 }
 
+/// Reads an asset's content, as UTF-8 text when `text` is set.
+fn read_content(raw: u64, options: u64, text: bool) -> Result<Buffer, Diagnostic> {
+  let read = if text {
+    host!(asset_get_content_utf8)
+  } else {
+    host!(asset_get_content)
+  };
+  let mut buf = Buffer::default();
+  let mut diagnostics = 0;
+  if unsafe { read(&mut buf, raw, options, &mut diagnostics) } {
+    Ok(buf)
+  } else {
+    Err(Diagnostic::from_parcel(
+      diagnostics,
+      "Parcel could not read the asset's content",
+    ))
+  }
+}
+
 impl<'a> Asset<'a> {
   /// Wraps the raw Parcel asset handle. Called by [`register_plugin!`].
   ///
@@ -833,18 +882,16 @@ impl<'a> Asset<'a> {
 
   // ── Content ──────────────────────────────────────────────────────────────
 
-  /// Returns the asset source content as a UTF-8 string.
-  pub fn content(&self) -> String {
-    let mut buf = Buffer::default();
-    unsafe { host!(asset_get_content)(&mut buf, self.raw) };
-    buf.to_string().unwrap_or_default()
+  /// Reads the asset's content as text. Fails when it cannot be read, or is
+  /// not valid UTF-8, with a diagnostic to return as is: `asset.content()?`.
+  pub fn content(&self) -> Result<String, Diagnostic> {
+    read_content(self.raw, self.options, true).map(|buf| buf.to_string().unwrap_or_default())
   }
 
-  /// Returns the asset source content as raw bytes.
-  pub fn content_bytes(&self) -> Vec<u8> {
-    let mut buf = Buffer::default();
-    unsafe { host!(asset_get_content)(&mut buf, self.raw) };
-    buf.to_bytes().unwrap_or_default()
+  /// Reads the asset's content as bytes. Fails when it cannot be read, with a
+  /// diagnostic to return as is.
+  pub fn content_bytes(&self) -> Result<Vec<u8>, Diagnostic> {
+    read_content(self.raw, self.options, false).map(|buf| buf.to_bytes().unwrap_or_default())
   }
 
   /// Replaces the asset content with a UTF-8 string.
@@ -854,12 +901,12 @@ impl<'a> Asset<'a> {
     // made with the bytes of a `str`, which is always valid UTF-8, and that is
     // what keeps them sound.
     let bytes = content.as_ref().as_bytes();
-    unsafe { host!(asset_set_content_utf8)(self.raw, bytes.as_ptr(), bytes.len() as u32) };
+    unsafe { host!(asset_set_content_utf8)(self.raw, bytes.as_ptr(), bytes.len(), ptr::null(), 0) };
   }
 
   /// Replaces the asset content with raw bytes.
   pub fn set_content_bytes(&mut self, bytes: &[u8]) {
-    unsafe { host!(asset_set_content)(self.raw, bytes.as_ptr(), bytes.len() as u32) };
+    unsafe { host!(asset_set_content)(self.raw, bytes.as_ptr(), bytes.len(), ptr::null(), 0) };
   }
 
   /// Replaces the asset content, along with a JSON (v3) source map describing it.
@@ -871,7 +918,7 @@ impl<'a> Asset<'a> {
     let content = content.as_ref().as_bytes();
     let map = map.as_ref().as_bytes();
     unsafe {
-      host!(asset_set_content_utf8_with_map)(
+      host!(asset_set_content_utf8)(
         self.raw,
         content.as_ptr(),
         content.len(),
@@ -886,7 +933,7 @@ impl<'a> Asset<'a> {
   pub fn set_content_bytes_with_map(&mut self, bytes: &[u8], map: impl AsRef<str>) {
     let map = map.as_ref().as_bytes();
     unsafe {
-      host!(asset_set_content_with_map)(
+      host!(asset_set_content)(
         self.raw,
         bytes.as_ptr(),
         bytes.len(),
@@ -1422,16 +1469,14 @@ impl<'a> AssetRef<'a> {
     self.index
   }
 
-  pub fn content(&self) -> String {
-    let mut buf = Buffer::default();
-    unsafe { host!(asset_get_content)(&mut buf, self.raw) };
-    buf.to_string().unwrap_or_default()
+  /// Reads the asset's content as text. See [`Asset::content`].
+  pub fn content(&self) -> Result<String, Diagnostic> {
+    read_content(self.raw, self.options, true).map(|buf| buf.to_string().unwrap_or_default())
   }
 
-  pub fn content_bytes(&self) -> Vec<u8> {
-    let mut buf = Buffer::default();
-    unsafe { host!(asset_get_content)(&mut buf, self.raw) };
-    buf.to_bytes().unwrap_or_default()
+  /// Reads the asset's content as bytes. See [`Asset::content_bytes`].
+  pub fn content_bytes(&self) -> Result<Vec<u8>, Diagnostic> {
+    read_content(self.raw, self.options, false).map(|buf| buf.to_bytes().unwrap_or_default())
   }
 
   pub fn custom_content<T: AssetContent>(&self) -> Option<&'a T> {
@@ -1875,7 +1920,7 @@ impl ResolveResult {
 ///         Ok(MyPlugin { prefix: "hello".into() })
 ///     }
 ///     fn transform(&self, asset: &mut Asset, _options: &Options) -> Result<(), Diagnostic> {
-///         asset.set_content(format!("{}: {}", self.prefix, asset.content()));
+///         asset.set_content(format!("{}: {}", self.prefix, asset.content()?));
 ///         Ok(())
 ///     }
 /// }
@@ -2248,7 +2293,7 @@ macro_rules! register_plugin {
     ) {
       // An event kind this SDK predates. Reporting nothing is the only correct
       // thing to do with it.
-      let Some(event) = (unsafe { $crate::ReportEvent::from_raw(raw_event) }) else {
+      let Some(event) = (unsafe { $crate::ReportEvent::from_raw(raw_event, raw_options) }) else {
         return;
       };
       let options = unsafe { $crate::Options::from_raw(raw_options) };

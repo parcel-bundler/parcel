@@ -425,10 +425,12 @@ const _: () = {
 };
 #[doc = " Opaque handle to an asset that may only be read, such as one from\n `parcel_bundle_graph_get_asset()`. Pass to the `parcel_asset_get_*` functions.\n Passing one where an `Asset` is expected, to a function that changes the\n asset, is undefined behavior: other threads may be reading it."]
 pub type AssetRef = u64;
-#[doc = " Opaque handle to the asset a transformer is transforming, which it may change.\n Only `parcel_plugin_transform()` hands one out, and it is valid until that call\n returns. It can be passed anywhere an `AssetRef` is expected."]
-pub type Asset = u64;
+#[doc = " Opaque handle to the context of the current call into the plugin: the build's\n options, and whatever the call may do, such as reading files. Every entry\n point receives one. It is valid only until that call returns, so never store\n it, in plugin state or custom content."]
+pub type Options = u64;
 #[doc = " Opaque handle to a list of diagnostics Parcel handed the plugin during the\n current call, such as those a failed read reports. Readable anywhere a\n `DiagnosticsRef` is expected, and reported as they were by setting\n `DiagnosticOptions.diagnostics` to it. Parcel frees it when the call returns."]
 pub type Diagnostics = u64;
+#[doc = " Opaque handle to the asset a transformer is transforming, which it may change.\n Only `parcel_plugin_transform()` hands one out, and it is valid until that call\n returns. It can be passed anywhere an `AssetRef` is expected."]
+pub type Asset = u64;
 #[doc = " Describes a diagnostic a plugin reports: the error an entry point fails with,\n or a warning it logs with `parcel_options_log_diagnostic()`.\n\n Parcel allocates the one each entry point receives, zeroed apart from `size`,\n and frees every `Buffer` in it once the call returns; fill them with\n `parcel_buffer_alloc()`. The call fails when `message` or `diagnostics` is set.\n To log one, initialize it as `DiagnosticOptions d = {.size = sizeof(DiagnosticOptions)};`,\n and free its buffers after the call: Parcel copies what it needs.\n\n It describes one diagnostic with at most one code frame, highlight and hint.\n To report diagnostics Parcel handed the plugin, such as those of a failed read,\n set `diagnostics` to their list. Parcel reports them exactly as they were, after\n the diagnostic `message` describes, if it is set too.\n\n Only write fields that fit within `size`, which an older Parcel sets lower than\n `sizeof(DiagnosticOptions)`; `PARCEL_HAS_FIELD()` checks. Parcel ignores fields it\n does not know, since the rest is still worth showing."]
 #[repr(C)]
 #[derive(Debug)]
@@ -487,8 +489,6 @@ const _: () = {
 pub type BundleGraph = u64;
 #[doc = " Opaque handle to Parcel bundle."]
 pub type Bundle = u64;
-#[doc = " Opaque handle to the context of the current call into the plugin: the build's\n options, and whatever the call may do, such as reading files. Every entry\n point receives one. It is valid only until that call returns, so never store\n it, in plugin state or custom content."]
-pub type Options = u64;
 #[doc = " Opaque handle to a Parcel target. Obtained via `parcel_asset_get_target()`."]
 pub type Target = u64;
 #[doc = " Index of a bundle within the bundle graph."]
@@ -661,14 +661,28 @@ const _: () = {
 pub struct ParcelApi {
   #[doc = " Size and abi version. Always the first member."]
   pub header: ParcelApiHeader,
-  pub asset_get_content:
-    ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef)>,
-  pub asset_get_content_utf8:
-    ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef)>,
-  pub asset_set_content:
-    ::std::option::Option<unsafe extern "C" fn(asset: Asset, data: *const u8, len: u32)>,
-  pub asset_set_content_utf8:
-    ::std::option::Option<unsafe extern "C" fn(asset: Asset, data: *const u8, len: u32)>,
+  pub asset_get_content: ::std::option::Option<
+    unsafe extern "C" fn(
+      buf: *mut Buffer,
+      asset: AssetRef,
+      options: Options,
+      diagnostics: *mut Diagnostics,
+    ) -> bool,
+  >,
+  pub asset_get_content_utf8: ::std::option::Option<
+    unsafe extern "C" fn(
+      buf: *mut Buffer,
+      asset: AssetRef,
+      options: Options,
+      diagnostics: *mut Diagnostics,
+    ) -> bool,
+  >,
+  pub asset_set_content: ::std::option::Option<
+    unsafe extern "C" fn(asset: Asset, data: *const u8, len: usize, map: *const u8, map_len: usize),
+  >,
+  pub asset_set_content_utf8: ::std::option::Option<
+    unsafe extern "C" fn(asset: Asset, data: *const u8, len: usize, map: *const u8, map_len: usize),
+  >,
   pub asset_set_custom_content: ::std::option::Option<
     unsafe extern "C" fn(
       asset: Asset,
@@ -876,12 +890,6 @@ pub struct ParcelApi {
       result: *mut ResolveResult,
     ) -> bool,
   >,
-  pub asset_set_content_with_map: ::std::option::Option<
-    unsafe extern "C" fn(asset: Asset, data: *const u8, len: usize, map: *const u8, map_len: usize),
-  >,
-  pub asset_set_content_utf8_with_map: ::std::option::Option<
-    unsafe extern "C" fn(asset: Asset, data: *const u8, len: usize, map: *const u8, map_len: usize),
-  >,
   pub asset_get_map: ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef)>,
   pub diagnostic_get_documentation_url: ::std::option::Option<
     unsafe extern "C" fn(buf: *mut Buffer, diagnostics: DiagnosticsRef, index: usize),
@@ -908,7 +916,7 @@ pub struct ParcelApi {
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 688usize];
+  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 672usize];
   ["Alignment of ParcelApi"][::std::mem::align_of::<ParcelApi>() - 8usize];
   ["Offset of field: ParcelApi::header"][::std::mem::offset_of!(ParcelApi, header) - 0usize];
   ["Offset of field: ParcelApi::asset_get_content"]
@@ -1065,20 +1073,16 @@ const _: () = {
     [::std::mem::offset_of!(ParcelApi, fs_canonicalize) - 616usize];
   ["Offset of field: ParcelApi::asset_resolve"]
     [::std::mem::offset_of!(ParcelApi, asset_resolve) - 624usize];
-  ["Offset of field: ParcelApi::asset_set_content_with_map"]
-    [::std::mem::offset_of!(ParcelApi, asset_set_content_with_map) - 632usize];
-  ["Offset of field: ParcelApi::asset_set_content_utf8_with_map"]
-    [::std::mem::offset_of!(ParcelApi, asset_set_content_utf8_with_map) - 640usize];
   ["Offset of field: ParcelApi::asset_get_map"]
-    [::std::mem::offset_of!(ParcelApi, asset_get_map) - 648usize];
+    [::std::mem::offset_of!(ParcelApi, asset_get_map) - 632usize];
   ["Offset of field: ParcelApi::diagnostic_get_documentation_url"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_documentation_url) - 656usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_documentation_url) - 640usize];
   ["Offset of field: ParcelApi::diagnostic_get_code_frame_count"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_frame_count) - 664usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_frame_count) - 648usize];
   ["Offset of field: ParcelApi::diagnostic_get_code_frame"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_frame) - 672usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_frame) - 656usize];
   ["Offset of field: ParcelApi::diagnostic_get_code_highlight"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_highlight) - 680usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_highlight) - 664usize];
 };
 #[doc = " Result filled by an optimizer plugin's `parcel_plugin_optimize()`.\n The struct is zero-initialised by the host before the call, apart from `size`.\n Fill `contents` and optionally `source_map` using `parcel_buffer_write()` or\n `parcel_buffer_write_utf8()`, and only write fields that fit within `size`\n (`PARCEL_HAS_FIELD()` checks)."]
 #[repr(C)]
@@ -1149,4 +1153,5 @@ const _: () = {
 /// the smallest table any Parcel implementing this ABI passes. Functions after
 /// `diagnostic_get_code_highlight` were appended later, and an older Parcel's table ends before them.
 pub const PARCEL_API_MIN_SIZE: usize =
-    ::core::mem::offset_of!(ParcelApi, diagnostic_get_code_highlight) + ::core::mem::size_of::<usize>();
+  ::core::mem::offset_of!(ParcelApi, diagnostic_get_code_highlight)
+    + ::core::mem::size_of::<usize>();

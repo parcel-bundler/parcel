@@ -89,19 +89,14 @@ static void test_options_log_diagnostic(Options options, const struct Diagnostic
 static const char *test_last_call = "";
 static const char *test_get_last_call(void) { return test_last_call; }
 
-static void test_set_content(Asset asset, const uint8_t *data, uint32_t len) {
-  test_last_call = "asset_set_content";
+// Records "+map" after the setter's name when it was given a source map.
+static void test_set_content(Asset asset, const uint8_t *data, uintptr_t len,
+                             const uint8_t *map, uintptr_t map_len) {
+  test_last_call = map ? "asset_set_content+map" : "asset_set_content";
 }
-static void test_set_content_utf8(Asset asset, const uint8_t *data, uint32_t len) {
-  test_last_call = "asset_set_content_utf8";
-}
-static void test_set_content_with_map(Asset asset, const uint8_t *data, uintptr_t len,
-                                      const uint8_t *map, uintptr_t map_len) {
-  test_last_call = "asset_set_content_with_map";
-}
-static void test_set_content_utf8_with_map(Asset asset, const uint8_t *data, uintptr_t len,
-                                           const uint8_t *map, uintptr_t map_len) {
-  test_last_call = "asset_set_content_utf8_with_map";
+static void test_set_content_utf8(Asset asset, const uint8_t *data, uintptr_t len,
+                                  const uint8_t *map, uintptr_t map_len) {
+  test_last_call = map ? "asset_set_content_utf8+map" : "asset_set_content_utf8";
 }
 static void test_buffer_write(struct Buffer *buf, const uint8_t *data, uintptr_t len) {
   test_last_call = "buffer_write";
@@ -114,8 +109,6 @@ static void install_utf8_api(struct ParcelApi *api) {
   test_last_call = "";
   api->asset_set_content = test_set_content;
   api->asset_set_content_utf8 = test_set_content_utf8;
-  api->asset_set_content_with_map = test_set_content_with_map;
-  api->asset_set_content_utf8_with_map = test_set_content_utf8_with_map;
   api->buffer_write = test_buffer_write;
   api->buffer_write_utf8 = test_buffer_write_utf8;
 }

@@ -34,13 +34,9 @@ nonisolated(unsafe) private let mockAPI: UnsafeMutablePointer<ParcelApi> = {
   api.initialize(to: ParcelApi())
   api.pointee.header.size = UInt(MemoryLayout<ParcelApi>.size)
   api.pointee.header.abi = UInt32(PARCEL_ABI_VERSION)
-  api.pointee.asset_set_content = { record("set_content", $0, $1, Int($2)) }
-  api.pointee.asset_set_content_utf8 = { record("set_content_utf8", $0, $1, Int($2)) }
-  api.pointee.asset_set_content_with_map = {
-    record("set_content_with_map", $0, $1, Int($2), $3, Int($4))
-  }
-  api.pointee.asset_set_content_utf8_with_map = {
-    record("set_content_utf8_with_map", $0, $1, Int($2), $3, Int($4))
+  api.pointee.asset_set_content = { record("set_content", $0, $1, Int($2), $3, Int($4)) }
+  api.pointee.asset_set_content_utf8 = {
+    record("set_content_utf8", $0, $1, Int($2), $3, Int($4))
   }
   api.pointee.asset_get_map = { buffer, asset in
     guard let buffer, let map = sourceMaps.withLock({ $0[asset] }) else { return }
@@ -177,7 +173,7 @@ private func setContent(_ body: (ParcelPlugin.Asset) -> Void) -> SetContentCall?
     #expect(
       setContent { $0.setContent(Data(bytes), sourceMap: "{}") }
         == SetContentCall(
-          function: "set_content_with_map", content: bytes, sourceMap: Array("{}".utf8)))
+          function: "set_content", content: bytes, sourceMap: Array("{}".utf8)))
   }
 
   @Test func emptyBytesStillEmptyTheAsset() {
@@ -190,23 +186,14 @@ private func setContent(_ body: (ParcelPlugin.Asset) -> Void) -> SetContentCall?
     #expect(
       setContent { $0.setContent("héllo") }
         == SetContentCall(function: "set_content_utf8", content: Array("héllo".utf8)))
-    #expect(
-      setContent { $0.content = "héllo" }
-        == SetContentCall(function: "set_content_utf8", content: Array("héllo".utf8)))
   }
 
   @Test func textWithASourceMap() {
     #expect(
       setContent { $0.setContent("a", sourceMap: "{}") }
         == SetContentCall(
-          function: "set_content_utf8_with_map", content: Array("a".utf8),
+          function: "set_content_utf8", content: Array("a".utf8),
           sourceMap: Array("{}".utf8)))
-  }
-
-  @Test func contentBytesProperty() {
-    #expect(
-      setContent { $0.contentBytes = bytes }
-        == SetContentCall(function: "set_content", content: bytes))
   }
 }
 

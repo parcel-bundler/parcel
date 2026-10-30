@@ -27,7 +27,7 @@ impl Plugin for PrependTransformer {
     asset: &mut Asset,
     _options: &parcel_plugin::Options,
   ) -> Result<(), Diagnostic> {
-    let content = format!("{}\n{}", self.line, asset.content());
+    let content = format!("{}\n{}", self.line, asset.content()?);
 
     // Without a map, Parcel maps the asset as if this content were its source.
     let Some(map) = asset.source_map() else {

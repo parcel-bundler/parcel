@@ -111,7 +111,9 @@ fn bundle_handle(bundle: &CoreBundle) -> Bundle {
   bundle as *const CoreBundle as Bundle
 }
 
-fn buffer_output(call: impl FnOnce(*mut Buffer)) -> Option<(Vec<u8>, bool)> {
+/// Runs `call` with a fresh buffer and takes what it wrote. Whatever `call`
+/// returns, such as a getter's success flag, is ignored.
+fn buffer_output<R>(call: impl FnOnce(*mut Buffer) -> R) -> Option<(Vec<u8>, bool)> {
   let mut buffer = Buffer::default();
   call(&mut buffer);
   if buffer.data.is_null() {
@@ -124,7 +126,7 @@ fn buffer_output(call: impl FnOnce(*mut Buffer)) -> Option<(Vec<u8>, bool)> {
   Some((bytes, is_utf8))
 }
 
-fn string_output(call: impl FnOnce(*mut Buffer)) -> Option<String> {
+fn string_output<R>(call: impl FnOnce(*mut Buffer) -> R) -> Option<String> {
   buffer_output(call).map(|(bytes, _)| String::from_utf8(bytes).unwrap())
 }
 
@@ -164,13 +166,7 @@ fn asset_content_setters_attach_source_maps() {
   let map = br#"{"version":3,"sources":["a.scss"],"mappings":"AAAA"}"#;
 
   let code = b".a{}";
-  parcel_asset_set_content_utf8_with_map(
-    handle,
-    code.as_ptr(),
-    code.len(),
-    map.as_ptr(),
-    map.len(),
-  );
+  parcel_asset_set_content_utf8(handle, code.as_ptr(), code.len(), map.as_ptr(), map.len());
   let content = asset
     .content
     .downcast_ref::<ContentWithSourceMap>()
@@ -179,20 +175,21 @@ fn asset_content_setters_attach_source_maps() {
   assert_eq!(content.source_map(), map);
   // Still readable as UTF-8 without a copy, like BufferContent::new_string.
   assert_eq!(
-    string_output(|buffer| parcel_asset_get_content_utf8(buffer, handle)).as_deref(),
+    string_output(|buffer| parcel_asset_get_content_utf8(buffer, handle, 0, ptr::null_mut()))
+      .as_deref(),
     Some(".a{}")
   );
 
   let bytes = [0u8, 159, 146, 150];
-  parcel_asset_set_content_with_map(handle, bytes.as_ptr(), bytes.len(), map.as_ptr(), map.len());
+  parcel_asset_set_content(handle, bytes.as_ptr(), bytes.len(), map.as_ptr(), map.len());
   let content = asset
     .content
     .downcast_ref::<ContentWithSourceMap>()
     .expect("content with a source map");
   assert_eq!(content.read().unwrap(), bytes);
 
-  // Without a map they behave like the plain setters, dropping the previous map.
-  parcel_asset_set_content_utf8_with_map(handle, code.as_ptr(), code.len(), ptr::null(), 0);
+  // Without a map they replace the content without one, dropping the previous map.
+  parcel_asset_set_content_utf8(handle, code.as_ptr(), code.len(), ptr::null(), 0);
   assert!(
     asset
       .content
@@ -200,7 +197,7 @@ fn asset_content_setters_attach_source_maps() {
       .is_none()
   );
   assert_eq!(asset.content.read().unwrap(), code);
-  parcel_asset_set_content_with_map(handle, bytes.as_ptr(), bytes.len(), map.as_ptr(), 0);
+  parcel_asset_set_content(handle, bytes.as_ptr(), bytes.len(), map.as_ptr(), 0);
   assert!(
     asset
       .content
@@ -222,13 +219,7 @@ fn asset_map_getter_returns_the_map_set_with_the_content() {
   );
 
   let code = b"a();";
-  parcel_asset_set_content_utf8_with_map(
-    handle,
-    code.as_ptr(),
-    code.len(),
-    map.as_ptr(),
-    map.len(),
-  );
+  parcel_asset_set_content_utf8(handle, code.as_ptr(), code.len(), map.as_ptr(), map.len());
   // Exactly as set, sources and all. Not marked UTF-8: native setters don't validate the map.
   assert_eq!(
     buffer_output(|buffer| parcel_asset_get_map(buffer, handle)),
@@ -243,7 +234,7 @@ fn asset_map_getter_returns_the_map_set_with_the_content() {
   );
 
   // Replacing the content without a map drops it.
-  parcel_asset_set_content_utf8(handle, code.as_ptr(), code.len() as u32);
+  parcel_asset_set_content_utf8(handle, code.as_ptr(), code.len(), ptr::null(), 0);
   assert_eq!(
     buffer_output(|buffer| parcel_asset_get_map(buffer, handle)),
     None
@@ -270,12 +261,13 @@ fn asset_accessors_return_content_metadata_and_optional_values() {
   let handle = asset_handle(&asset);
 
   let (content, is_utf8) =
-    buffer_output(|buffer| parcel_asset_get_content(buffer, handle)).unwrap();
+    buffer_output(|buffer| parcel_asset_get_content(buffer, handle, 0, ptr::null_mut())).unwrap();
   assert_eq!(content, b"hello ABI");
   assert!(!is_utf8);
 
   let (content, is_utf8) =
-    buffer_output(|buffer| parcel_asset_get_content_utf8(buffer, handle)).unwrap();
+    buffer_output(|buffer| parcel_asset_get_content_utf8(buffer, handle, 0, ptr::null_mut()))
+      .unwrap();
   assert_eq!(content, b"hello ABI");
   assert!(is_utf8);
 
@@ -337,7 +329,7 @@ fn asset_accessors_return_content_metadata_and_optional_values() {
   assert!(string_output(|buffer| parcel_asset_get_pipeline(buffer, handle)).is_none());
   assert!(string_output(|buffer| parcel_asset_get_unique_key(buffer, handle)).is_none());
 
-  parcel_asset_get_content(ptr::null_mut(), handle);
+  parcel_asset_get_content(ptr::null_mut(), handle, 0, ptr::null_mut());
   parcel_asset_get_type(ptr::null_mut(), handle);
   parcel_asset_get_file_path(ptr::null_mut(), handle, 0);
   parcel_asset_get_query(ptr::null_mut(), handle);
@@ -398,7 +390,13 @@ fn custom_content_accessor_distinguishes_and_returns_custom_content() {
   // Opaque content keeps the input estimate, even when its printed size differs.
   assert_eq!(asset.content.estimate_size().unwrap(), b"hello ABI".len());
   assert_eq!(
-    string_output(|buffer| parcel_asset_get_content_utf8(buffer, asset_handle(&asset))).as_deref(),
+    string_output(|buffer| parcel_asset_get_content_utf8(
+      buffer,
+      asset_handle(&asset),
+      0,
+      ptr::null_mut()
+    ))
+    .as_deref(),
     Some("custom value")
   );
 }
@@ -1738,8 +1736,12 @@ fn raw_enum_conversion_accepts_exactly_the_declared_variants() {
 #[test]
 fn zero_handles_read_as_zero() {
   for read in [
-    |buf| parcel_asset_get_content(buf, 0),
-    |buf| parcel_asset_get_content_utf8(buf, 0),
+    |buf| {
+      parcel_asset_get_content(buf, 0, 0, ptr::null_mut());
+    },
+    |buf| {
+      parcel_asset_get_content_utf8(buf, 0, 0, ptr::null_mut());
+    },
     |buf| parcel_asset_get_map(buf, 0),
     |buf| parcel_asset_get_type(buf, 0),
     |buf| parcel_asset_get_file_path(buf, 0, 0),
@@ -1779,8 +1781,8 @@ fn zero_handles_read_as_zero() {
 
   // Setters on no asset do nothing.
   let data = b"x";
-  parcel_asset_set_content(0, data.as_ptr(), 1);
-  parcel_asset_set_content_utf8(0, data.as_ptr(), 1);
+  parcel_asset_set_content(0, data.as_ptr(), 1, ptr::null(), 0);
+  parcel_asset_set_content_utf8(0, data.as_ptr(), 1, ptr::null(), 0);
   parcel_asset_set_type(0, data.as_ptr(), 1);
   parcel_asset_set_pipeline(0, data.as_ptr(), 1);
   parcel_asset_set_unique_key(0, data.as_ptr(), 1);
@@ -2225,4 +2227,90 @@ fn logged_diagnostics_include_an_attached_list() {
     ["info: from the plugin", "warn: from Parcel"]
   );
   parcel_free_buffer(&mut diagnostic.message);
+}
+
+/// A custom content `read` callback that fails, as a plugin's would.
+extern "C" fn fail_custom_content_read(
+  _content: *const c_void,
+  _buffer: *mut Buffer,
+  diagnostic: *mut DiagnosticOptions,
+) {
+  let message = "the AST could not be printed";
+  unsafe { (*diagnostic).message = parcel_buffer_alloc(message.as_ptr(), message.len()) };
+}
+
+/// A content read that fails says why, as a list the plugin can pass on
+/// unchanged, rather than reading as empty content.
+#[test]
+fn failed_content_reads_hand_out_their_diagnostics() {
+  let (options, _) = options_with_recorder();
+  let context = OptionsContext::new(&options);
+  let mut asset = asset_fixture(target_fixture());
+  let ty = *b"parcel-test-type";
+  parcel_asset_set_custom_content(
+    asset_mut_handle(&mut asset),
+    &ty,
+    Box::into_raw(Box::new(String::new())) as *mut c_void,
+    Some(fail_custom_content_read),
+    None,
+    Some(free_custom_content),
+  );
+  let handle = asset_handle(&asset);
+
+  for get in [parcel_asset_get_content, parcel_asset_get_content_utf8] {
+    let mut buffer = Buffer::default();
+    let mut diagnostics: Diagnostics = 0;
+    assert!(!get(
+      &mut buffer,
+      handle,
+      context.handle(),
+      &mut diagnostics
+    ));
+    assert!(buffer.data.is_null());
+    assert_eq!(
+      string_output(|buffer| parcel_diagnostic_get_message(buffer, diagnostics, 0)).as_deref(),
+      Some("the AST could not be printed")
+    );
+
+    // Passed on as the plugin's own failure, exactly as it was.
+    let mut failure = DiagnosticOptions {
+      diagnostics,
+      ..Default::default()
+    };
+    let reported = read_cdiagnostic(&mut failure, Some(&context));
+    assert_eq!(reported.len(), 1);
+    assert_eq!(reported[0].message, "the AST could not be printed");
+
+    // Without a call to scope a list to, it still fails, just without saying why.
+    let mut diagnostics: Diagnostics = 0;
+    assert!(!get(&mut buffer, handle, 0, &mut diagnostics));
+    assert_eq!(diagnostics, 0);
+    assert!(!get(&mut buffer, handle, context.handle(), ptr::null_mut()));
+  }
+}
+
+/// Content that is not text reads as bytes, and fails as text.
+#[test]
+fn binary_content_fails_to_read_as_text() {
+  let (options, _) = options_with_recorder();
+  let context = OptionsContext::new(&options);
+  let mut asset = asset_fixture(target_fixture());
+  let bytes = [0u8, 159, 146, 150];
+  let handle = asset_mut_handle(&mut asset);
+  parcel_asset_set_content(handle, bytes.as_ptr(), bytes.len(), ptr::null(), 0);
+
+  assert_eq!(
+    buffer_output(|buffer| parcel_asset_get_content(buffer, handle, 0, ptr::null_mut())),
+    Some((bytes.to_vec(), false))
+  );
+
+  let mut buffer = Buffer::default();
+  let mut diagnostics: Diagnostics = 0;
+  assert!(!parcel_asset_get_content_utf8(
+    &mut buffer,
+    handle,
+    context.handle(),
+    &mut diagnostics
+  ));
+  assert_eq!(parcel_diagnostics_get_count(diagnostics), 1);
 }

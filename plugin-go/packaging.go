@@ -385,26 +385,14 @@ type AssetRef struct {
 // Index returns the asset's stable graph index.
 func (a *AssetRef) Index() AssetIndex { return a.index }
 
-// Content returns the asset content as a string.
-func (a *AssetRef) Content() string {
-	var buf C.Buffer
-	C.parcel_asset_get_content_utf8(&buf, a.ptr)
-	if buf.data == nil {
-		return ""
-	}
-	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+// Content reads the asset's content as text. See [Asset.Content].
+func (a *AssetRef) Content() (string, error) {
+	return readContentString(a.ptr, a.options)
 }
 
-// ContentBytes returns a copy of the raw asset content.
-func (a *AssetRef) ContentBytes() []byte {
-	var buf C.Buffer
-	C.parcel_asset_get_content(&buf, a.ptr)
-	if buf.data == nil {
-		return nil
-	}
-	defer C.parcel_free_buffer(&buf)
-	return C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.len))
+// ContentBytes reads the asset's content as bytes. See [Asset.ContentBytes].
+func (a *AssetRef) ContentBytes() ([]byte, error) {
+	return readContentBytes(a.ptr, a.options)
 }
 
 // CustomContent returns custom content created by this Go SDK.
@@ -420,7 +408,7 @@ func (a *AssetRef) Type() string {
 		return ""
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // FilePath returns the absolute filesystem path of the source asset.
@@ -431,7 +419,7 @@ func (a *AssetRef) FilePath() string {
 		return ""
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // Query returns the query string from the asset's source URL.
@@ -442,7 +430,7 @@ func (a *AssetRef) Query() string {
 		return ""
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // Pipeline returns the named pipeline, or an empty string if absent.
@@ -453,7 +441,7 @@ func (a *AssetRef) Pipeline() string {
 		return ""
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // BundleBehavior returns the asset's bundle behavior.
@@ -479,7 +467,7 @@ func (a *AssetRef) UniqueKey() string {
 		return ""
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // Target returns the asset target.
@@ -527,7 +515,7 @@ func (b *Bundle) Type() string {
 		return ""
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
 // Target returns the bundle target.
@@ -568,7 +556,7 @@ func (b *Bundle) DistPath() (string, bool) {
 		return "", false
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len)), true
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len)), true
 }
 
 // AssetCount returns the number of assets in the bundle.
@@ -630,7 +618,7 @@ func bundleString(call func(*C.Buffer)) (string, bool) {
 		return "", false
 	}
 	defer C.parcel_free_buffer(&buf)
-	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len)), true
+	return goString(unsafe.Pointer(buf.data), uintptr(buf.len)), true
 }
 
 // Name returns the dist-relative bundle name, if named.

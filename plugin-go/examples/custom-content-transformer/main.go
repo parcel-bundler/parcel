@@ -76,7 +76,11 @@ type CustomContentTransformer struct {
 }
 
 func (t *CustomContentTransformer) Transform(asset *parcel.Asset, _ *parcel.Options) error {
-	source := strings.TrimSpace(asset.Content())
+	content, err := asset.Content()
+	if err != nil {
+		return err
+	}
+	source := strings.TrimSpace(content)
 	if source == "PANIC_TRANSFORM" {
 		panic("example transform panic")
 	}
@@ -85,9 +89,12 @@ func (t *CustomContentTransformer) Transform(asset *parcel.Asset, _ *parcel.Opti
 		Words:  strings.Fields(source),
 	})
 	if source == "PANIC_READ" {
-		// Changing type causes the normal JS transformer to request the custom
-		// content's string representation, exercising the read callback.
-		asset.SetType("js")
+		// Reading the content back runs the read callback. When it fails, the
+		// error carries Parcel's diagnostic for it, which returning it reports
+		// unchanged.
+		if _, err := asset.Content(); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -31,7 +31,7 @@ impl Plugin for SassTransformer {
   }
 
   fn transform(&self, asset: &mut Asset, options: &Options) -> Result<(), Diagnostic> {
-    let code = asset.content();
+    let code = asset.content()?;
     let file_path = asset.file_path();
 
     // The plugin is not told where the config that names it lives, so relative

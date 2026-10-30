@@ -1,3 +1,5 @@
+mod common;
+
 use std::{
   path::{Path, PathBuf},
   sync::{Arc, OnceLock},
@@ -143,8 +145,11 @@ fn assert_build_diagnostic(entry: &str, expected: &str) {
 
 #[test]
 fn custom_content_read_panic_becomes_diagnostic() {
-  assert_build_diagnostic(
-    "panic-read.js",
+  let Err(diagnostics) = build_fixture("panic-read.js", Arc::new(OverlayFileSystem::new())) else {
+    panic!("expected the build to fail");
+  };
+  common::assert_read_error_passes_through_the_plugin(
+    &diagnostics,
     "plugin panicked in custom content read: example custom content read panic",
   );
 }

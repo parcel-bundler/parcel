@@ -17,7 +17,10 @@ type TxtTransformer struct {
 }
 
 func (t *TxtTransformer) Transform(asset *parcel.Asset, _ *parcel.Options) error {
-	content := asset.Content()
+	content, err := asset.Content()
+	if err != nil {
+		return err
+	}
 	// Emit an ES module that default-exports the text content.
 	asset.SetContent(fmt.Sprintf("export default %q;\n", content))
 	asset.SetType("js")

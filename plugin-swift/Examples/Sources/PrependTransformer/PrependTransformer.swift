@@ -20,13 +20,13 @@ struct PrependTransformer: Transformer {
   }
 
   func transform(_ asset: Asset, options: Options) async throws {
-    let content = line + "\n" + asset.content
+    let content = line + "\n" + (try asset.content())
 
     // Without a map, Parcel maps the asset as if this content were its source.
     guard let sourceMap = asset.sourceMap,
       var map = try JSONSerialization.jsonObject(with: Data(sourceMap.utf8)) as? [String: Any]
     else {
-      asset.content = content
+      asset.setContent(content)
       return
     }
 

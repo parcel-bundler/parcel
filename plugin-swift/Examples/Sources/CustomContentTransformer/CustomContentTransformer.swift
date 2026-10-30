@@ -60,7 +60,7 @@ struct CustomContentTransformer: Transformer {
   init(config: NoConfig) {}
 
   func transform(_ asset: Asset, options: Options) async throws {
-    let source = asset.content.trimmingWhitespace()
+    let source = try asset.content().trimmingWhitespace()
     // Swift cannot recover from a trap, so unlike the Go example these throw.
     if source == "PANIC_TRANSFORM" {
       throw Diagnostic("example transform error")
@@ -68,9 +68,10 @@ struct CustomContentTransformer: Transformer {
     asset.setCustomContent(
       UppercaseContent(source: source, words: source.split(separator: " ").map(String.init)))
     if source == "PANIC_READ" {
-      // A JS asset has its content read by the JS transformer, which exercises
-      // the read callback.
-      asset.type = "js"
+      // Reading the content back runs the read callback. When it fails, the
+      // error carries Parcel's diagnostic for it, which rethrowing reports
+      // unchanged.
+      _ = try asset.content()
     }
   }
 }

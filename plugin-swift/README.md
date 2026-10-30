@@ -41,7 +41,7 @@ struct TxtTransformer: Transformer {
 
   func transform(_ asset: Asset, options: Options) async throws {
     // javaScriptString escapes a string literal; see Examples/Sources/TxtTransformer.
-    asset.content = "export default \(javaScriptString(prefix + asset.content));"
+    asset.setContent("export default \(javaScriptString(prefix + (try asset.content())));")
     asset.type = "js"
   }
 }

@@ -20,7 +20,11 @@ type PrependTransformer struct {
 }
 
 func (t *PrependTransformer) Transform(asset *parcel.Asset, _ *parcel.Options) error {
-	content := t.line + "\n" + asset.Content()
+	source, err := asset.Content()
+	if err != nil {
+		return err
+	}
+	content := t.line + "\n" + source
 
 	// Without a map, Parcel maps the asset as if this content were its source.
 	sourceMap := asset.SourceMap()

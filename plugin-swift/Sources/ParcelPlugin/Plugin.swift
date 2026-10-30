@@ -5,16 +5,17 @@
 /// ``parcelPlugin(_:)`` once, at file scope:
 ///
 /// ```swift
-/// struct TxtTransformer: Transformer {
+/// struct LineCounter: Transformer {
 ///   init(config: NoConfig) {}
 ///
 ///   func transform(_ asset: Asset, options: Options) async throws {
-///     asset.content = "export default \(jsonString(asset.content));"
+///     let lines = try asset.content().split(separator: "\n").count
+///     asset.setContent("export default \(lines);")
 ///     asset.type = "js"
 ///   }
 /// }
 ///
-/// #parcelPlugin(TxtTransformer.self)
+/// #parcelPlugin(LineCounter.self)
 /// ```
 ///
 /// ## Concurrency

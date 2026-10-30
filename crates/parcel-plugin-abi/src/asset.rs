@@ -10,8 +10,8 @@ use parcel_core::{
 
 use crate::{
   Asset, AssetRef, Buffer, Bundle, BundleBehavior, BundleBehaviorFFI, BundleGraph,
-  DiagnosticOptions, Options, OptionsContext, plugin_str, read_cdiagnostic, trusted_utf8,
-  write_buffer,
+  DiagnosticOptions, Diagnostics, Options, OptionsContext, options_context, plugin_str,
+  read_cdiagnostic, trusted_utf8, write_buffer,
 };
 
 #[repr(u32)]
@@ -58,62 +58,80 @@ assert_flag_values! {
 
 // ── Content ───────────────────────────────────────────────────────────────────
 
-/// Returns the asset content into `*buf`. Caller must `parcel_free_buffer(buf)`.
-pub extern "C" fn parcel_asset_get_content(buf: *mut Buffer, asset: AssetRef) {
+/// Reads the asset's content into `*buf`. Caller must `parcel_free_buffer(buf)`.
+///
+/// Returns false when it cannot be read, e.g. a file that went missing or custom content whose
+/// `read` callback failed. Then, if `options` is the current call's handle, `*diagnostics` is set
+/// to a list saying why: read it, or fail with it unchanged by setting
+/// `DiagnosticOptions.diagnostics`.
+pub extern "C" fn parcel_asset_get_content(
+  buf: *mut Buffer,
+  asset: AssetRef,
+  options: Options,
+  diagnostics: *mut Diagnostics,
+) -> bool {
   if buf.is_null() || asset == 0 {
-    return;
+    return false;
   }
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
-  let Ok(content) = asset.content.read() else {
-    return;
-  };
-  unsafe { write_buffer(buf, content, false) };
+  match asset.content.read() {
+    Ok(content) => {
+      unsafe { write_buffer(buf, content, false) };
+      true
+    }
+    Err(diagnostic) => {
+      unsafe { hand_out(options, diagnostics, diagnostic) };
+      false
+    }
+  }
 }
 
-/// Returns the asset content as a UTF-8 string into `*buf`. Caller must `parcel_free_buffer(buf)`.
-pub extern "C" fn parcel_asset_get_content_utf8(buf: *mut Buffer, asset: AssetRef) {
+/// Reads the asset's content as UTF-8 text into `*buf`. Caller must `parcel_free_buffer(buf)`.
+///
+/// Like `parcel_asset_get_content()`, and also fails for content that is not valid UTF-8.
+pub extern "C" fn parcel_asset_get_content_utf8(
+  buf: *mut Buffer,
+  asset: AssetRef,
+  options: Options,
+  diagnostics: *mut Diagnostics,
+) -> bool {
   if buf.is_null() || asset == 0 {
-    return;
+    return false;
   }
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
-  let Ok(content) = asset.content.read_string() else {
-    return;
-  };
-  unsafe { write_buffer(buf, content.into_owned().into_bytes(), true) };
+  match asset.content.read_string() {
+    Ok(content) => {
+      unsafe { write_buffer(buf, content.into_owned().into_bytes(), true) };
+      true
+    }
+    Err(diagnostic) => {
+      unsafe { hand_out(options, diagnostics, diagnostic) };
+      false
+    }
+  }
 }
 
-/// Replaces the asset content with the given bytes.
-pub extern "C" fn parcel_asset_set_content(asset: Asset, data: *const u8, len: u32) {
-  if data.is_null() || asset == 0 {
+/// Hands the plugin `diagnostic` in `*diagnostics`, as a list living until the call `options`
+/// belongs to returns. Does nothing without a call to scope it to.
+///
+/// # Safety
+///
+/// `options` must be 0 or a live call's handle, and `diagnostics` NULL or writable.
+unsafe fn hand_out(options: Options, diagnostics: *mut Diagnostics, diagnostic: CoreDiagnostic) {
+  if options == 0 || diagnostics.is_null() {
     return;
   }
-  let asset = unsafe { &mut *(asset as *mut CoreAsset) };
-  let vec = unsafe { std::slice::from_raw_parts(data, len as usize).to_vec() };
-  asset.content = Arc::new(BufferContent::new(vec));
+  let context = unsafe { options_context(options) };
+  unsafe { *diagnostics = context.hand_out(vec![diagnostic]) };
 }
 
-/// Replaces the asset content with the given UTF-8 bytes.
+/// Replaces the asset's content with the given bytes, along with the source map describing them,
+/// or none when `map` is NULL.
 ///
-/// `data` must be valid UTF-8. Parcel does not check, and passing anything else is undefined
-/// behavior. Use `parcel_asset_set_content()` for bytes you have not validated.
-pub extern "C" fn parcel_asset_set_content_utf8(asset: Asset, data: *const u8, len: u32) {
-  if data.is_null() || asset == 0 {
-    return;
-  }
-  let asset = unsafe { &mut *(asset as *mut CoreAsset) };
-  let bytes = unsafe { std::slice::from_raw_parts(data, len as usize).to_vec() };
-  let string = unsafe { trusted_utf8(bytes, "parcel_asset_set_content_utf8") };
-  asset.content = Arc::new(BufferContent::new_string(string));
-}
-
-/// Replaces the asset content with the given bytes, and the source map describing them.
-///
-/// `map` is a JSON source map (v3) for the new content, as `parcel_asset_set_content()` callers
-/// would otherwise lose. Its `sources` may be absolute paths, `file://` URLs, or paths relative to
-/// the asset's directory (after `sourceRoot`). Parcel composes it with the maps of later
-/// transformers, so the final bundle maps back to the original files. A null `map` is the same as
-/// `parcel_asset_set_content()`.
-pub extern "C" fn parcel_asset_set_content_with_map(
+/// `map` is a JSON source map (v3) for the new content. Its `sources` may be absolute paths,
+/// `file://` URLs, or paths relative to the asset's directory (after `sourceRoot`). Parcel composes
+/// it with the maps of later transformers, so the final bundle maps back to the original files.
+pub extern "C" fn parcel_asset_set_content(
   asset: Asset,
   data: *const u8,
   len: usize,
@@ -131,11 +149,11 @@ pub extern "C" fn parcel_asset_set_content_with_map(
   };
 }
 
-/// Like `parcel_asset_set_content_with_map()`, for UTF-8 content.
+/// Like `parcel_asset_set_content()`, for UTF-8 text.
 ///
 /// `data` must be valid UTF-8. Parcel does not check, and passing anything else is undefined
-/// behavior. Use `parcel_asset_set_content_with_map()` for bytes you have not validated.
-pub extern "C" fn parcel_asset_set_content_utf8_with_map(
+/// behavior. Use `parcel_asset_set_content()` for bytes you have not validated.
+pub extern "C" fn parcel_asset_set_content_utf8(
   asset: Asset,
   data: *const u8,
   len: usize,
@@ -147,7 +165,7 @@ pub extern "C" fn parcel_asset_set_content_utf8_with_map(
   }
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
   let bytes = unsafe { std::slice::from_raw_parts(data, len).to_vec() };
-  let string = unsafe { trusted_utf8(bytes, "parcel_asset_set_content_utf8_with_map") };
+  let string = unsafe { trusted_utf8(bytes, "parcel_asset_set_content_utf8") };
   asset.content = match unsafe { source_map_arg(map, map_len) } {
     Some(map) => Arc::new(ContentWithSourceMap::new_string(string, map)),
     None => Arc::new(BufferContent::new_string(string)),
@@ -157,12 +175,11 @@ pub extern "C" fn parcel_asset_set_content_utf8_with_map(
 /// Returns the asset's source map into `*buf`, or leaves `buf->data == NULL` if it has none.
 /// Caller must `parcel_free_buffer(buf)` when `data != NULL`.
 ///
-/// This is the JSON (v3) source map an earlier transformer attached with one of the `*_with_map`
-/// setters (or a JS transformer's `setCode(code, map)`), exactly as it was set: its `sources` may be
+/// This is the JSON (v3) source map an earlier transformer attached with a content setter (or a JS transformer's `setCode(code, map)`), exactly as it was set: its `sources` may be
 /// absolute paths, `file://` URLs, or paths relative to the asset's directory (after `sourceRoot`).
 /// It describes the current content, and is dropped whenever the content is replaced without one.
 /// A transformer that edits the content and wants the final bundle to keep mapping back to the
-/// original files reads it here, updates it, and passes it to `parcel_asset_set_content_with_map()`.
+/// original files reads it here, updates it, and passes it to `parcel_asset_set_content()`.
 pub extern "C" fn parcel_asset_get_map(buf: *mut Buffer, asset: AssetRef) {
   if buf.is_null() || asset == 0 {
     return;
@@ -178,7 +195,7 @@ pub extern "C" fn parcel_asset_get_map(buf: *mut Buffer, asset: AssetRef) {
   unsafe { write_buffer(buf, map.to_vec(), false) };
 }
 
-/// The source map passed to a `*_with_map` setter, or `None` when there is none.
+/// The source map passed to a content setter, or `None` when there is none.
 unsafe fn source_map_arg(map: *const u8, map_len: usize) -> Option<Vec<u8>> {
   (!map.is_null() && map_len > 0)
     .then(|| unsafe { std::slice::from_raw_parts(map, map_len).to_vec() })

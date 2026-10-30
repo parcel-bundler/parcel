@@ -18,7 +18,7 @@ struct TxtTransformer: Transformer {
   }
 
   func transform(_ asset: Asset, options: Options) async throws {
-    asset.content = "export default \(javaScriptString(prefix + asset.content));\n"
+    asset.setContent("export default \(javaScriptString(prefix + (try asset.content())));\n")
     asset.type = "js"
   }
 }

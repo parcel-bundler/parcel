@@ -16,7 +16,7 @@ internal import CParcelABI
 /// Its properties are `nonmutating`, so they can be set on the parameter itself:
 ///
 /// ```swift
-/// asset.content = "export default 42;"
+/// asset.setContent("export default 42;")
 /// asset.type = "js"
 /// ```
 public struct Asset {
@@ -35,21 +35,17 @@ public struct Asset {
 
   // ── Content ──────────────────────────────────────────────────────────────
 
-  /// The asset's source as UTF-8 text.
-  public var content: String {
-    get { host { hostString { parcel_asset_get_content_utf8($0, raw) } ?? "" } }
-    nonmutating set {
-      host { withBytes(newValue) { parcel_asset_set_content_utf8(raw, $0, UInt32($1)) } }
-    }
+  /// Reads the asset's content as UTF-8 text. Throws when it cannot be read, or
+  /// is not valid UTF-8, a ``Diagnostic`` to rethrow as is: Parcel then reports
+  /// why exactly as it determined it. Set it with ``setContent(_:sourceMap:)-(String,_)``.
+  public func content() throws -> String {
+    try host { Result { try readContent(raw, options: options.raw) } }.get()
   }
 
-  /// The asset's source as raw bytes. To set it from `Data` or other bytes, use
+  /// Reads the asset's content as bytes. Throws like ``content()``. Set it with
   /// ``setContent(_:sourceMap:)-(DataProtocol,_)``.
-  public var contentBytes: [UInt8] {
-    get { host { hostBytes { parcel_asset_get_content($0, raw) } ?? [] } }
-    nonmutating set {
-      host { withBytes(newValue) { parcel_asset_set_content(raw, $0, UInt32($1)) } }
-    }
+  public func contentBytes() throws -> [UInt8] {
+    try host { Result { try readContentBytes(raw, options: options.raw) } }.get()
   }
 
   /// Replaces the content with text, optionally along with a JSON (v3) source
@@ -59,14 +55,14 @@ public struct Asset {
   /// to the asset's directory. Parcel composes it with the maps of later
   /// transformers, so the final bundle maps back to the files this one read.
   public func setContent(_ content: String, sourceMap: String? = nil) {
-    guard let sourceMap else {
-      self.content = content
-      return
-    }
     host {
       withBytes(content) { data, count in
-        withBytes(sourceMap) { map, mapCount in
-          parcel_asset_set_content_utf8_with_map(raw, data, count, map, mapCount)
+        if let sourceMap {
+          withBytes(sourceMap) { map, mapCount in
+            parcel_asset_set_content_utf8(raw, data, count, map, mapCount)
+          }
+        } else {
+          parcel_asset_set_content_utf8(raw, data, count, nil, 0)
         }
       }
     }
@@ -80,10 +76,10 @@ public struct Asset {
       withBytes(bytes) { data, count in
         if let sourceMap {
           withBytes(sourceMap) { map, mapCount in
-            parcel_asset_set_content_with_map(raw, data, count, map, mapCount)
+            parcel_asset_set_content(raw, data, count, map, mapCount)
           }
         } else {
-          parcel_asset_set_content(raw, data, UInt32(count))
+          parcel_asset_set_content(raw, data, count, nil, 0)
         }
       }
     }
@@ -252,3 +248,25 @@ public struct Asset {
 
 @available(*, unavailable, message: "an Asset may only be used from the transform call's own task")
 extension Asset: Sendable {}
+
+/// Reads an asset's content as UTF-8 text, throwing the diagnostics Parcel
+/// reported when it cannot.
+func readContent(_ asset: UInt64, options: UInt64) throws -> String {
+  var buffer = CParcelABI.Buffer()
+  var diagnostics: UInt64 = 0
+  guard parcel_asset_get_content_utf8(&buffer, asset, options, &diagnostics) else {
+    throw Diagnostic(parcelDiagnostics: diagnostics)
+  }
+  return takeString(&buffer) ?? ""
+}
+
+/// Reads an asset's content as bytes, throwing the diagnostics Parcel reported
+/// when it cannot.
+func readContentBytes(_ asset: UInt64, options: UInt64) throws -> [UInt8] {
+  var buffer = CParcelABI.Buffer()
+  var diagnostics: UInt64 = 0
+  guard parcel_asset_get_content(&buffer, asset, options, &diagnostics) else {
+    throw Diagnostic(parcelDiagnostics: diagnostics)
+  }
+  return takeBytes(&buffer) ?? []
+}
