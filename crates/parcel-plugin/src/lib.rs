@@ -1,4 +1,6 @@
-//! Rust SDK for building Parcel transformer, resolver, namer, and optimizer plugins.
+//! Rust SDK for building Parcel transformer, resolver, namer, optimizer, and
+//! reporter plugins, including transformers that keep their own data on an
+//! asset until it is packaged ([`AssetContent`]).
 //!
 //! Plugins are compiled as `cdylib` crates.  Implement the [`Plugin`] trait on
 //! a struct that holds your parsed config, then call [`register_plugin!`] once
@@ -44,20 +46,21 @@
 use std::any::{Any, TypeId};
 use std::marker::PhantomData;
 use std::os::raw::c_void;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::ptr;
 
-pub mod api;
-// Variants of the newtype enums keep the names they had as Rust enums.
-#[allow(non_upper_case_globals)]
-pub mod ffi;
+mod api;
+mod entry;
+// Generated from plugin.h, which declares more than the SDK uses. Variants of
+// the newtype enums keep the names they had as Rust enums.
+#[allow(non_upper_case_globals, dead_code)]
+mod ffi;
 
 use api::host;
-pub use api::init_api;
 
 // ── Buffer ─────────────────────────────────────────────────────────────────
 
-pub use ffi::Buffer;
+use ffi::Buffer;
 
 impl Default for Buffer {
   fn default() -> Self {
@@ -150,14 +153,16 @@ unsafe fn read_sized<T>(raw: *const T, min_size: usize) -> Option<T> {
 
 // ── Options ────────────────────────────────────────────────────────────────
 
-/// Read-only view of the Parcel build options. Passed to every plugin call.
+/// The context of the current plugin call: the build's options, and what the
+/// call may do, such as read files Parcel tracks. Every plugin method receives
+/// one, borrowed for the call: it cannot be kept for a later one.
 pub struct Options<'a> {
   raw: u64,
   lifetime: PhantomData<&'a ()>,
 }
 
 impl<'a> Options<'a> {
-  pub unsafe fn from_raw(raw: u64) -> Self {
+  pub(crate) unsafe fn from_raw(raw: u64) -> Self {
     Options {
       raw,
       lifetime: PhantomData,
@@ -165,10 +170,10 @@ impl<'a> Options<'a> {
   }
 
   /// Returns the absolute project root path.
-  pub fn project_root(&self) -> String {
+  pub fn project_root(&self) -> PathBuf {
     let mut buf = Buffer::default();
     unsafe { host!(options_get_project_root)(&mut buf, self.raw) };
-    buf.to_string().unwrap_or_default()
+    PathBuf::from(buf.to_string().unwrap_or_default())
   }
 
   /// Looks up `key` in the build environment map. Returns `None` if not set.
@@ -197,7 +202,7 @@ impl<'a> Options<'a> {
     // ownership, unlike the diagnostic a plugin method returns. Dropping the
     // `Buffer`s is what frees them.
     with_sized(|raw: &mut ffi::DiagnosticOptions| {
-      diagnostic.write_to_raw(raw);
+      unsafe { diagnostic.write_to_raw(raw) };
       unsafe { host!(options_log_diagnostic)(self.raw, raw) };
       unsafe { ptr::drop_in_place(raw) };
     })
@@ -209,7 +214,8 @@ impl<'a> Options<'a> {
   /// a change to the file re-runs the transform that read it, and a file that was
   /// missing re-runs it when created. Only available while transforming or
   /// resolving.
-  pub fn read_file(&self, path: &str) -> std::io::Result<Vec<u8>> {
+  pub fn read_file(&self, path: impl AsRef<Path>) -> std::io::Result<Vec<u8>> {
+    let path = path_arg(path.as_ref())?;
     let mut buf = Buffer::default();
     let status = unsafe { host!(fs_read_file)(&mut buf, self.raw, path.as_ptr(), path.len()) };
     match status {
@@ -219,7 +225,7 @@ impl<'a> Options<'a> {
   }
 
   /// Reads the file at the absolute `path` as UTF-8. See [`Options::read_file`].
-  pub fn read_to_string(&self, path: &str) -> std::io::Result<String> {
+  pub fn read_to_string(&self, path: impl AsRef<Path>) -> std::io::Result<String> {
     String::from_utf8(self.read_file(path)?)
       .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err))
   }
@@ -227,18 +233,52 @@ impl<'a> Options<'a> {
   /// Returns what the absolute `path` refers to, or no flags when it does not
   /// exist. Tracked like [`Options::read_file`]: a missing path re-runs the
   /// transform when created, an existing one when deleted.
-  pub fn file_kind(&self, path: &str) -> FileKind {
+  pub fn file_kind(&self, path: impl AsRef<Path>) -> FileKind {
+    // A path Parcel cannot be asked about is not one of its files.
+    let Ok(path) = path_arg(path.as_ref()) else {
+      return FileKind::empty();
+    };
     unsafe { host!(fs_get_kind)(self.raw, path.as_ptr(), path.len()) }
   }
 
   /// Returns the absolute `path` with every symlink resolved.
-  pub fn canonicalize(&self, path: &str) -> std::io::Result<String> {
+  pub fn canonicalize(&self, path: impl AsRef<Path>) -> std::io::Result<PathBuf> {
+    let path = path_arg(path.as_ref())?;
     let mut buf = Buffer::default();
     let status = unsafe { host!(fs_canonicalize)(&mut buf, self.raw, path.as_ptr(), path.len()) };
     match status {
-      IoStatus::Ok => Ok(buf.to_string().unwrap_or_default()),
+      IoStatus::Ok => Ok(PathBuf::from(buf.to_string().unwrap_or_default())),
       status => Err(io_error(status, buf)),
     }
+  }
+}
+
+/// `path` as Parcel's path arguments take it: UTF-8, which every path Parcel
+/// hands out is.
+fn path_arg(path: &Path) -> std::io::Result<&str> {
+  path.to_str().ok_or_else(|| {
+    std::io::Error::new(
+      std::io::ErrorKind::InvalidInput,
+      format!("{} is not valid UTF-8", path.display()),
+    )
+  })
+}
+
+/// `path` as a resolver returns it: UTF-8 when it can be, the `bool`, and
+/// otherwise, on Unix, where paths are bytes, its bytes. `None` for a path
+/// Parcel cannot represent.
+fn resolved_path_bytes(path: &Path) -> Option<(&[u8], bool)> {
+  if let Some(path) = path.to_str() {
+    return Some((path.as_bytes(), true));
+  }
+  #[cfg(unix)]
+  {
+    use std::os::unix::ffi::OsStrExt;
+    Some((path.as_os_str().as_bytes(), false))
+  }
+  #[cfg(not(unix))]
+  {
+    None
   }
 }
 
@@ -271,13 +311,13 @@ impl Default for Priority {
 
 /// What a dependency evaluates to in the code that imports it.
 ///
-/// A file imported as `Javascript`, the default, must have a transformer that turns it into
+/// A file imported as `JavaScript`, the default, must have a transformer that turns it into
 /// JavaScript, or it is an error. Other import types, such as `Url`, can reference any file.
 pub use ffi::ImportType;
 
 impl Default for ImportType {
   fn default() -> Self {
-    Self::Javascript
+    Self::JavaScript
   }
 }
 
@@ -302,29 +342,11 @@ pub use ffi::SourceType;
 /// Bitfield of target environment flags (read-only from a transformer).
 pub use ffi::EnvironmentFlags;
 
-impl EnvironmentFlags {
-  pub fn contains(self, other: EnvironmentFlags) -> bool {
-    self.0 & other.0 == other.0
-  }
-}
-
 /// Bitfield of asset state flags.
 pub use ffi::AssetFlags;
 
-impl AssetFlags {
-  pub fn contains(self, other: AssetFlags) -> bool {
-    self.0 & other.0 == other.0
-  }
-}
-
 /// Bitfield describing bundle state.
 pub use ffi::BundleFlags;
-
-impl BundleFlags {
-  pub fn contains(self, other: BundleFlags) -> bool {
-    self.0 & other.0 == other.0
-  }
-}
 
 pub type AssetIndex = ffi::AssetIndex;
 pub type BundleIndex = ffi::BundleIndex;
@@ -332,51 +354,86 @@ pub type BundleIndex = ffi::BundleIndex;
 /// Bitfield of dependency flags.
 pub use ffi::DependencyFlags;
 
-impl DependencyFlags {
-  pub fn contains(self, other: DependencyFlags) -> bool {
-    self.0 & other.0 == other.0
-  }
-}
-
-impl Default for DependencyFlags {
-  fn default() -> Self {
-    DependencyFlags(0)
-  }
-}
-
 /// What a path refers to, as returned by [`Options::file_kind`]. Empty when the
 /// path does not exist.
 pub use ffi::FileKind;
-
-impl FileKind {
-  pub fn contains(self, other: FileKind) -> bool {
-    self.0 & other.0 == other.0
-  }
-
-  pub fn is_empty(self) -> bool {
-    self.0 == 0
-  }
-}
 
 use ffi::IoStatus;
 
 /// Conditions used when resolving package `exports` and `imports` fields.
 pub use ffi::ExportsConditions;
 
-impl ExportsConditions {
-  pub fn contains(self, other: ExportsConditions) -> bool {
-    self.0 & other.0 == other.0
-  }
+/// Set operations for the bitfield newtypes, like a `bitflags` type's. Each is a
+/// `u8` or `u32` newtype with one associated constant per flag, and `|` / `&`.
+macro_rules! flags {
+  ($($ty:ident),+ $(,)?) => {$(
+    impl $ty {
+      /// No flags.
+      pub const fn empty() -> Self {
+        Self(0)
+      }
+
+      /// Whether every flag in `other` is set.
+      pub const fn contains(self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+      }
+
+      /// Whether no flag is set.
+      pub const fn is_empty(self) -> bool {
+        self.0 == 0
+      }
+
+      /// Sets the flags in `other`.
+      pub fn insert(&mut self, other: Self) {
+        self.0 |= other.0;
+      }
+
+      /// Clears the flags in `other`.
+      pub fn remove(&mut self, other: Self) {
+        self.0 &= !other.0;
+      }
+
+      /// Sets the flags in `other` when `value`, and clears them otherwise.
+      pub fn set(&mut self, other: Self, value: bool) {
+        if value {
+          self.insert(other);
+        } else {
+          self.remove(other);
+        }
+      }
+    }
+
+    impl Default for $ty {
+      fn default() -> Self {
+        Self::empty()
+      }
+    }
+
+    impl std::ops::Not for $ty {
+      type Output = Self;
+
+      fn not(self) -> Self {
+        Self(!self.0)
+      }
+    }
+  )+};
 }
 
-impl Default for ExportsConditions {
-  fn default() -> Self {
-    ExportsConditions(0)
-  }
-}
+flags!(
+  EnvironmentFlags,
+  AssetFlags,
+  BundleFlags,
+  DependencyFlags,
+  FileKind,
+  ExportsConditions,
+);
 
 /// A dependency to be added to an asset from a transformer.
+///
+/// Non-exhaustive, so Parcel can add options: build one with [`new`](Self::new)
+/// and the builder methods, or set its public fields.
 #[derive(Default, Debug)]
+#[non_exhaustive]
 pub struct DependencyOptions {
   /// Module specifier (e.g. `"./foo.js"` or `"react"`).
   pub specifier: String,
@@ -395,6 +452,43 @@ impl DependencyOptions {
       specifier: specifier.into(),
       ..Default::default()
     }
+  }
+
+  /// How the specifier is interpreted.
+  pub fn specifier_type(mut self, specifier_type: SpecifierType) -> Self {
+    self.specifier_type = specifier_type;
+    self
+  }
+
+  /// When the dependency is loaded relative to the importing asset.
+  pub fn priority(mut self, priority: Priority) -> Self {
+    self.priority = priority;
+    self
+  }
+
+  /// How the dependency's bundle is output.
+  pub fn bundle_behavior(mut self, bundle_behavior: BundleBehavior) -> Self {
+    self.bundle_behavior = bundle_behavior;
+    self
+  }
+
+  /// Sets `flags`, in addition to any already set.
+  pub fn flags(mut self, flags: DependencyFlags) -> Self {
+    self.flags.insert(flags);
+    self
+  }
+
+  /// Sets `conditions` for resolving package `exports`, in addition to any
+  /// already set.
+  pub fn conditions(mut self, conditions: ExportsConditions) -> Self {
+    self.conditions.insert(conditions);
+    self
+  }
+
+  /// What the dependency evaluates to in the code that imports it.
+  pub fn import_type(mut self, import_type: ImportType) -> Self {
+    self.import_type = import_type;
+    self
   }
 
   fn with_raw<R>(&self, f: impl FnOnce(*const ffi::DependencyOptions) -> R) -> R {
@@ -436,12 +530,17 @@ impl Default for DiagnosticSeverity {
 ///     .at(10, 5)
 ///     .with_hint("check the syntax"));
 /// ```
+///
+/// Non-exhaustive, so Parcel can add fields: build one with [`new`](Self::new)
+/// or [`warning`](Self::warning) and the builder methods, or set its public
+/// fields.
 #[derive(Default, Debug)]
+#[non_exhaustive]
 pub struct Diagnostic {
   pub message: String,
   pub severity: DiagnosticSeverity,
   /// Absolute file path for a source code frame (optional).
-  pub file_path: Option<String>,
+  pub file_path: Option<PathBuf>,
   /// 1-based start line for the code highlight (0 = not set).
   pub line: u32,
   /// 1-based start column (0 = not set).
@@ -469,6 +568,7 @@ pub struct Diagnostic {
 pub struct ParcelDiagnostics(ffi::Diagnostics);
 
 impl Diagnostic {
+  /// An error saying `message`. Returning it from a plugin method fails the call.
   pub fn new(message: impl Into<String>) -> Self {
     Diagnostic {
       message: message.into(),
@@ -476,6 +576,9 @@ impl Diagnostic {
     }
   }
 
+  /// A warning saying `message`. Returning it from a plugin method still fails
+  /// the call, with this severity; to warn without failing, pass it to
+  /// [`Options::log_diagnostic`] instead.
   pub fn warning(message: impl Into<String>) -> Self {
     Diagnostic {
       message: message.into(),
@@ -485,7 +588,7 @@ impl Diagnostic {
   }
 
   /// Attaches a source file path for a code frame.
-  pub fn with_file(mut self, file_path: impl Into<String>) -> Self {
+  pub fn with_file(mut self, file_path: impl Into<PathBuf>) -> Self {
     self.file_path = Some(file_path.into());
     self
   }
@@ -541,7 +644,11 @@ impl Diagnostic {
   /// Writes this diagnostic into a host-allocated [`ffi::DiagnosticOptions`], field by
   /// field, leaving its `size` alone.
   /// Intended for use inside macro-generated entry points only.
-  pub fn write_to_raw(&self, raw: *mut ffi::DiagnosticOptions) {
+  ///
+  /// # Safety
+  ///
+  /// `raw` must be NULL or a diagnostic Parcel allocated, or one from `with_sized`.
+  pub(crate) unsafe fn write_to_raw(&self, raw: *mut ffi::DiagnosticOptions) {
     if raw.is_null() {
       return;
     }
@@ -552,8 +659,10 @@ impl Diagnostic {
     unsafe {
       (*raw).message = host!(buffer_alloc)(self.message.as_ptr(), self.message.len());
       (*raw).severity = self.severity;
-      if let Some(fp) = &self.file_path {
-        (*raw).file_path = host!(buffer_alloc)(fp.as_ptr(), fp.len());
+      if let Some(path) = &self.file_path {
+        // Parcel reads it lossily, so a path that is not UTF-8 still points somewhere close.
+        let path = path.to_string_lossy();
+        (*raw).file_path = host!(buffer_alloc)(path.as_ptr(), path.len());
       }
       (*raw).line = self.line;
       (*raw).column = self.column;
@@ -611,6 +720,7 @@ impl Default for LogLevel {
 pub enum ReportEvent<'a> {
   /// A build is about to start. Emitted once per build, including rebuilds.
   BuildStart,
+  #[non_exhaustive]
   BuildSuccess {
     bundle_graph: BundleGraph<'a>,
     /// How long the build took.
@@ -619,9 +729,9 @@ pub enum ReportEvent<'a> {
     /// which transformed all of them.
     changed_assets: &'a [AssetIndex],
   },
-  BuildFailure {
-    diagnostics: Diagnostics<'a>,
-  },
+  #[non_exhaustive]
+  BuildFailure { diagnostics: Diagnostics<'a> },
+  #[non_exhaustive]
   Log {
     level: LogLevel,
     /// `None` when the event carries diagnostics instead.
@@ -640,7 +750,10 @@ impl<'a> ReportEvent<'a> {
   ///
   /// `raw` must be the event pointer Parcel supplied, valid for the call, and
   /// `options` the options handle supplied alongside it.
-  pub unsafe fn from_raw(raw: *const ffi::ReportEvent, options: u64) -> Option<ReportEvent<'a>> {
+  pub(crate) unsafe fn from_raw(
+    raw: *const ffi::ReportEvent,
+    options: u64,
+  ) -> Option<ReportEvent<'a>> {
     if raw.is_null() {
       return None;
     }
@@ -872,7 +985,7 @@ impl<'a> Asset<'a> {
   ///
   /// `raw` must be the opaque asset pointer supplied by Parcel, and
   /// `options` must be the opaque options handle supplied alongside it.
-  pub unsafe fn from_raw(raw: u64, options: u64) -> Self {
+  pub(crate) unsafe fn from_raw(raw: u64, options: u64) -> Self {
     Asset {
       raw,
       options,
@@ -965,22 +1078,8 @@ impl<'a> Asset<'a> {
       diagnostic: *mut ffi::DiagnosticOptions,
     ) {
       let content = unsafe { &(*(content as *const ContentBox<T>)).content };
-      let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| content.read()));
-      match result {
-        Ok(Ok(ContentBuffer::Bytes(b))) => {
-          unsafe { host!(buffer_write)(buf, b.as_ptr(), b.len()) };
-        }
-        Ok(Ok(ContentBuffer::String(s))) => {
-          unsafe { host!(buffer_write_utf8)(buf, s.as_bytes().as_ptr(), s.len()) };
-        }
-        Ok(Err(e)) => {
-          e.write_to_raw(diagnostic);
-        }
-        Err(payload) => Diagnostic::new(format!(
-          "plugin panicked in custom content read: {}",
-          panic_message(payload)
-        ))
-        .write_to_raw(diagnostic),
+      if let Some(read) = entry::guard("custom content read", diagnostic, || content.read()) {
+        unsafe { write_content(buf, read) };
       }
     }
 
@@ -996,29 +1095,31 @@ impl<'a> Asset<'a> {
       let bundle_graph = unsafe { BundleGraph::from_raw(bundle_graph, options) };
       let bundle = unsafe { Bundle::from_raw(bundle, options) };
       let options = unsafe { Options::from_raw(options) };
-      let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+      if let Some(packaged) = entry::guard("custom content package", diagnostic, || {
         content.package(&bundle_graph, &bundle, &options)
-      }));
-      match result {
-        Ok(Ok(ContentBuffer::Bytes(b))) => {
-          unsafe { host!(buffer_write)(buf, b.as_ptr(), b.len()) };
-        }
-        Ok(Ok(ContentBuffer::String(s))) => {
-          unsafe { host!(buffer_write_utf8)(buf, s.as_bytes().as_ptr(), s.len()) };
-        }
-        Ok(Err(e)) => {
-          e.write_to_raw(diagnostic);
-        }
-        Err(payload) => Diagnostic::new(format!(
-          "plugin panicked in custom content package: {}",
-          panic_message(payload)
-        ))
-        .write_to_raw(diagnostic),
+      }) {
+        unsafe { write_content(buf, packaged) };
       }
     }
 
     unsafe extern "C" fn free_content<T: AssetContent>(content: *mut c_void) {
-      drop(unsafe { Box::from_raw(content as *mut ContentBox<T>) })
+      // A panic in the content's `Drop` must not unwind into Parcel, and there
+      // is no diagnostic to report it through.
+      let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        drop(unsafe { Box::from_raw(content as *mut ContentBox<T>) })
+      }));
+    }
+
+    /// Writes content the plugin produced into the buffer Parcel passed.
+    unsafe fn write_content(buf: *mut Buffer, content: ContentBuffer) {
+      match content {
+        ContentBuffer::Bytes(bytes) => unsafe {
+          host!(buffer_write)(buf, bytes.as_ptr(), bytes.len())
+        },
+        ContentBuffer::String(string) => unsafe {
+          host!(buffer_write_utf8)(buf, string.as_ptr(), string.len())
+        },
+      }
     }
 
     let content = Box::leak(Box::new(ContentBox {
@@ -1073,10 +1174,10 @@ impl<'a> Asset<'a> {
   // ── File path (read-only) ─────────────────────────────────────────────────
 
   /// Returns the absolute filesystem path of the source asset.
-  pub fn file_path(&self) -> String {
+  pub fn file_path(&self) -> PathBuf {
     let mut buf = Buffer::default();
     unsafe { host!(asset_get_file_path)(&mut buf, self.raw, self.options) };
-    buf.to_string().unwrap_or_default()
+    PathBuf::from(buf.to_string().unwrap_or_default())
   }
 
   /// Returns the query string from the asset's source URL.
@@ -1188,20 +1289,23 @@ impl<'a> Asset<'a> {
   /// itself, e.g. a Sass partial the asset pulled in. Every file the resolvers read or probe
   /// invalidates the asset, so the transform re-runs when the result would change.
   ///
-  /// Returns `None` when the dependency could not be resolved, or Parcel cannot honor `dep`. Only
-  /// available while transforming.
+  /// Returns [`ResolveResult::None`] when no resolver claimed the dependency, and fails when one
+  /// failed, or Parcel cannot honor `dep`. Only available while transforming.
   pub fn resolve(
     &self,
     dep: &DependencyOptions,
-    from: Option<&str>,
-    options: &Options,
-  ) -> Option<ResolveResult> {
-    let from = from.unwrap_or("").as_bytes();
+    from: Option<&Path>,
+  ) -> Result<ResolveResult, Diagnostic> {
+    let failed = || Diagnostic::new(format!("Could not resolve {:?}", dep.specifier));
+    let from = match from {
+      Some(from) => path_arg(from).map_err(|_| failed())?,
+      None => "",
+    };
     with_sized(|result: &mut ffi::ResolveResult| {
       let resolved = dep.with_raw(|raw| unsafe {
         host!(asset_resolve)(
           self.raw,
-          options.raw,
+          self.options,
           raw,
           from.as_ptr(),
           from.len(),
@@ -1212,19 +1316,19 @@ impl<'a> Asset<'a> {
       let file_path = std::mem::take(&mut result.file_path);
       let pipeline = std::mem::take(&mut result.pipeline);
       if !resolved {
-        return None;
+        return Err(failed());
       }
 
-      Some(match result.resolution_type {
+      Ok(match result.resolution_type {
         ffi::ResolutionType::FilePath => ResolveResult::Resolved {
-          file_path: PathBuf::from(file_path.to_string()?),
+          file_path: PathBuf::from(file_path.to_string().ok_or_else(failed)?),
           pipeline: pipeline.to_string(),
         },
         ffi::ResolutionType::External => ResolveResult::External,
         ffi::ResolutionType::Excluded => ResolveResult::Excluded,
         ffi::ResolutionType::None => ResolveResult::None,
         // A kind of resolution this SDK predates, which a plugin cannot act on.
-        _ => return None,
+        _ => return Err(failed()),
       })
     })
   }
@@ -1293,6 +1397,9 @@ pub enum ContentBuffer {
 }
 
 /// Output returned by an optimizer plugin.
+///
+/// Non-exhaustive: build one with [`new`](Self::new) or from a [`ContentBuffer`].
+#[non_exhaustive]
 pub struct OptimizeResult {
   pub contents: ContentBuffer,
   /// A replacement source map, or `None` to remove the source map.
@@ -1332,7 +1439,7 @@ macro_rules! type_id {
   };
 }
 
-/// Derives the stable 16-byte content type id for an [`AssetContent::NAME`].
+/// Derives the stable 16-byte content type id for an [`AssetContent::TYPE_ID`].
 pub const fn content_type_id(name: &str) -> [u8; 16] {
   let digest = sha2_const_stable::Sha256::new()
     .update(name.as_bytes())
@@ -1378,7 +1485,7 @@ impl<'a> BundleGraph<'a> {
   ///
   /// # Safety
   /// `raw` and `options` must be the handles supplied to the package callback.
-  pub unsafe fn from_raw(raw: ffi::BundleGraph, options: ffi::Options) -> Self {
+  pub(crate) unsafe fn from_raw(raw: ffi::BundleGraph, options: ffi::Options) -> Self {
     Self {
       raw,
       options,
@@ -1503,10 +1610,10 @@ impl<'a> AssetRef<'a> {
     buf.to_string().unwrap_or_default()
   }
 
-  pub fn file_path(&self) -> String {
+  pub fn file_path(&self) -> PathBuf {
     let mut buf = Buffer::default();
     unsafe { host!(asset_get_file_path)(&mut buf, self.raw, self.options) };
-    buf.to_string().unwrap_or_default()
+    PathBuf::from(buf.to_string().unwrap_or_default())
   }
 
   pub fn query(&self) -> String {
@@ -1565,7 +1672,12 @@ impl<'a> AssetRef<'a> {
   }
 }
 
+/// What a dependency resolved to in the bundle graph.
+///
+/// Non-exhaustive, as is [`Bundle`](Self::Bundle): match with a catch-all, so a
+/// plugin keeps working when Parcel adds a kind of resolution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum BundleGraphDependencyResolution {
   Invalid,
   None,
@@ -1573,6 +1685,7 @@ pub enum BundleGraphDependencyResolution {
   External,
   Excluded,
   Asset(AssetIndex),
+  #[non_exhaustive]
   Bundle {
     bundle_index: BundleIndex,
     asset_index: AssetIndex,
@@ -1594,7 +1707,7 @@ impl<'a> Bundle<'a> {
   ///
   /// # Safety
   /// `raw` and `options` must be the handles supplied to the package callback.
-  pub unsafe fn from_raw(raw: ffi::Bundle, options: ffi::Options) -> Self {
+  pub(crate) unsafe fn from_raw(raw: ffi::Bundle, options: ffi::Options) -> Self {
     Self {
       raw,
       options,
@@ -1628,10 +1741,10 @@ impl<'a> Bundle<'a> {
     self.flags().contains(flag)
   }
 
-  pub fn dist_path(&self) -> Option<String> {
+  pub fn dist_path(&self) -> Option<PathBuf> {
     let mut buf = Buffer::default();
     unsafe { host!(bundle_get_dist_path)(&mut buf, self.raw) };
-    buf.to_string()
+    buf.to_string().map(PathBuf::from)
   }
 
   pub fn asset_count(&self) -> usize {
@@ -1746,10 +1859,10 @@ impl<'a> Target<'a> {
   }
 
   /// Returns the absolute path of the dist directory.
-  pub fn dist_dir(&self) -> String {
+  pub fn dist_dir(&self) -> PathBuf {
     let mut buf = Buffer::default();
     unsafe { host!(target_get_dist_dir)(&mut buf, self.raw, self.options) };
-    buf.to_string().unwrap_or_default()
+    PathBuf::from(buf.to_string().unwrap_or_default())
   }
 }
 
@@ -1757,8 +1870,7 @@ impl<'a> Target<'a> {
 
 /// Read-only view of a Parcel dependency.
 ///
-/// Passed to the function registered with [`register_resolver!`] and returned
-/// by [`AssetRef::dependency`].
+/// Passed to [`Plugin::resolve`] and returned by [`AssetRef::dependency`].
 pub struct Dependency<'a> {
   raw: u64,
   options: u64,
@@ -1771,7 +1883,7 @@ impl<'a> Dependency<'a> {
   /// # Safety
   /// `raw` must be the pointer supplied by Parcel and `options` must be the
   /// opaque options handle supplied alongside it.
-  pub unsafe fn from_raw(raw: u64, options: u64) -> Self {
+  pub(crate) unsafe fn from_raw(raw: u64, options: u64) -> Self {
     Dependency {
       raw,
       options,
@@ -1811,19 +1923,20 @@ impl<'a> Dependency<'a> {
     unsafe { host!(dep_get_conditions)(self.raw) }
   }
 
-  /// Returns the absolute path of the file that contains this import.
-  pub fn source_path(&self) -> String {
+  /// Returns the absolute path of the file that contains this import, if it
+  /// came from one.
+  pub fn source_path(&self) -> Option<PathBuf> {
     let mut buf = Buffer::default();
     unsafe { host!(dep_get_source_path)(&mut buf, self.raw, self.options) };
-    buf.to_string().unwrap_or_default()
+    buf.to_string().map(PathBuf::from)
   }
 
-  /// Returns the base path for resolving the specifier (falls back to the
-  /// source file path when `resolve_from` is not explicitly set).
-  pub fn resolve_from(&self) -> String {
+  /// Returns the path to resolve the specifier from: the one set explicitly,
+  /// or else the file that contains the import.
+  pub fn resolve_from(&self) -> Option<PathBuf> {
     let mut buf = Buffer::default();
     unsafe { host!(dep_get_resolve_from)(&mut buf, self.raw, self.options) };
-    buf.to_string().unwrap_or_default()
+    buf.to_string().map(PathBuf::from)
   }
 
   /// Returns the target configuration for this dependency.
@@ -1839,12 +1952,17 @@ impl<'a> Dependency<'a> {
 // ── ResolveResult ──────────────────────────────────────────────────────────
 
 /// The outcome of resolving a dependency.
+///
+/// Non-exhaustive, as is [`Resolved`](Self::Resolved): match with a catch-all,
+/// and build one with [`ResolveResult::file`].
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ResolveResult {
-  /// Continue to the next resolver.
+  /// Not resolved: continue to the next resolver.
   #[default]
   None,
   /// Resolve to an absolute file path, optionally using a transformer pipeline.
+  #[non_exhaustive]
   Resolved {
     file_path: PathBuf,
     pipeline: Option<String>,
@@ -1856,14 +1974,31 @@ pub enum ResolveResult {
 }
 
 impl ResolveResult {
+  /// Resolves to the file at the absolute `path`.
+  pub fn file(path: impl Into<PathBuf>) -> Self {
+    ResolveResult::Resolved {
+      file_path: path.into(),
+      pipeline: None,
+    }
+  }
+
+  /// Transforms the resolved file with the named `pipeline`. Only meaningful for
+  /// a file; any other result is returned unchanged.
+  pub fn with_pipeline(mut self, name: impl Into<String>) -> Self {
+    if let ResolveResult::Resolved { pipeline, .. } = &mut self {
+      *pipeline = Some(name.into());
+    }
+    self
+  }
+
   /// Writes this result into the [`ffi::ResolveResult`] Parcel allocated, field
-  /// by field, leaving its `size` alone.
-  /// Intended for use inside macro-generated entry points only.
+  /// by field, leaving its `size` alone. Fails for a path Parcel cannot
+  /// represent.
   ///
   /// # Safety
   ///
   /// `raw` must be the zeroed result Parcel passed to `parcel_plugin_resolve`.
-  pub unsafe fn write_to_raw(self, raw: *mut ffi::ResolveResult) {
+  pub(crate) unsafe fn write_to_raw(self, raw: *mut ffi::ResolveResult) -> Result<(), Diagnostic> {
     // Through field places rather than a `&mut` to the whole struct, which would
     // claim more than Parcel allocated once this SDK's struct outgrows it.
     unsafe {
@@ -1873,9 +2008,19 @@ impl ResolveResult {
           file_path,
           pipeline,
         } => {
+          let Some((bytes, is_utf8)) = resolved_path_bytes(&file_path) else {
+            return Err(Diagnostic::new(format!(
+              "Resolved to {}, which is not valid UTF-8",
+              file_path.display()
+            )));
+          };
           (*raw).resolution_type = ffi::ResolutionType::FilePath;
-          let path_bytes = file_path.as_os_str().as_encoded_bytes();
-          host!(buffer_write)(&mut (*raw).file_path, path_bytes.as_ptr(), path_bytes.len());
+          let write = if is_utf8 {
+            host!(buffer_write_utf8)
+          } else {
+            host!(buffer_write)
+          };
+          write(&mut (*raw).file_path, bytes.as_ptr(), bytes.len());
           if let Some(pipeline) = pipeline {
             host!(buffer_write_utf8)(&mut (*raw).pipeline, pipeline.as_ptr(), pipeline.len());
           }
@@ -1884,6 +2029,7 @@ impl ResolveResult {
         ResolveResult::Excluded => (*raw).resolution_type = ffi::ResolutionType::Excluded,
       }
     }
+    Ok(())
   }
 }
 
@@ -1928,8 +2074,9 @@ impl ResolveResult {
 /// register_plugin!(MyPlugin);
 /// ```
 pub trait Plugin: Sized + Send + Sync {
-  /// Called once when the plugin is loaded.  `config` is the UTF-8 JSON bytes
-  /// of the plugin's config object (empty slice when no config was provided).
+  /// Called once for each `.parcelrc` entry naming the plugin, which may name it
+  /// more than once with different configs, before any other method. `config`
+  /// is that entry's config as UTF-8 JSON (empty when it has none).
   fn new(config: &[u8]) -> Result<Self, Diagnostic>;
 
   /// Called once per asset that matches the plugin's configured glob.
@@ -1996,332 +2143,125 @@ pub trait Plugin: Sized + Send + Sync {
 /// ```
 ///
 /// `parcel_plugin_init` calls [`Plugin::new`] and boxes the result as the
-/// per-instance state pointer.  `parcel_plugin_deinit` drops the box.
-/// The transform and resolve exports borrow the box as `&MyPlugin` and
-/// delegate to the corresponding trait method.
+/// per-entry state pointer, and `parcel_plugin_deinit` drops the box. The other
+/// five borrow it as `&MyPlugin` and call the corresponding trait method. Each
+/// catches panics, reporting them as diagnostics rather than unwinding into
+/// Parcel.
 #[macro_export]
 macro_rules! register_plugin {
   ($type:ty) => {
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn parcel_plugin_init(
-      api: *const $crate::ffi::ParcelApi,
+      api: *const ::core::ffi::c_void,
       config: *const u8,
       config_len: usize,
-      out_state: *mut *mut ::core::ffi::c_void,
-      raw_diagnostic: *mut $crate::ffi::DiagnosticOptions,
-    ) -> $crate::ffi::InitStatus {
-      // Must come first: every other SDK call, including writing a diagnostic,
-      // goes through this table. Returning Incompatible rather than a message is
-      // what keeps that from being circular — Parcel writes the message.
-      if !unsafe { $crate::init_api(api) } {
-        return $crate::ffi::InitStatus::Incompatible;
-      }
-
-      let config = if config.is_null() || config_len == 0 {
-        &[] as &[u8]
-      } else {
-        unsafe { ::core::slice::from_raw_parts(config, config_len) }
-      };
-      let __parcel_panic_message =
-        |payload: ::std::boxed::Box<dyn ::std::any::Any + Send>| -> String {
-          if let Some(s) = payload.downcast_ref::<&str>() {
-            (*s).to_string()
-          } else if let Some(s) = payload.downcast_ref::<String>() {
-            s.clone()
-          } else {
-            "unknown panic".to_string()
-          }
-        };
-      let result = ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {
-        <$type as $crate::Plugin>::new(config)
-      }));
-      match result {
-        Ok(Ok(plugin)) => {
-          if !out_state.is_null() {
-            unsafe {
-              *out_state = ::std::boxed::Box::into_raw(::std::boxed::Box::new(plugin))
-                as *mut ::core::ffi::c_void
-            };
-          }
-          $crate::ffi::InitStatus::Ok
-        }
-        Ok(Err(e)) => {
-          e.write_to_raw(raw_diagnostic);
-          $crate::ffi::InitStatus::Error
-        }
-        Err(payload) => {
-          $crate::Diagnostic::new(format!(
-            "plugin panicked in init: {}",
-            __parcel_panic_message(payload)
-          ))
-          .write_to_raw(raw_diagnostic);
-          $crate::ffi::InitStatus::Error
-        }
-      }
+      state: *mut *mut ::core::ffi::c_void,
+      diagnostic: *mut ::core::ffi::c_void,
+    ) -> u8 {
+      unsafe { $crate::__private::init::<$type>(api, config, config_len, state, diagnostic) }
     }
 
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn parcel_plugin_deinit(state: *mut ::core::ffi::c_void) {
-      if !state.is_null() {
-        drop(unsafe { ::std::boxed::Box::from_raw(state as *mut $type) });
-      }
+      unsafe { $crate::__private::deinit::<$type>(state) }
     }
 
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn parcel_plugin_transform(
-      raw_asset: u64,
-      raw_options: u64,
+      asset: u64,
+      options: u64,
       state: *mut ::core::ffi::c_void,
-      raw_diagnostic: *mut $crate::ffi::DiagnosticOptions,
+      diagnostic: *mut ::core::ffi::c_void,
     ) {
-      let mut asset = unsafe { $crate::Asset::from_raw(raw_asset, raw_options) };
-      let options = unsafe { $crate::Options::from_raw(raw_options) };
-      let plugin = unsafe { &*(state as *const $type) };
-      let __parcel_panic_message =
-        |payload: ::std::boxed::Box<dyn ::std::any::Any + Send>| -> String {
-          if let Some(s) = payload.downcast_ref::<&str>() {
-            (*s).to_string()
-          } else if let Some(s) = payload.downcast_ref::<String>() {
-            s.clone()
-          } else {
-            "unknown panic".to_string()
-          }
-        };
-      let result = ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {
-        $crate::Plugin::transform(plugin, &mut asset, &options)
-      }));
-      match result {
-        Ok(Ok(())) => {}
-        Ok(Err(e)) => e.write_to_raw(raw_diagnostic),
-        Err(payload) => $crate::Diagnostic::new(format!(
-          "plugin panicked in transform: {}",
-          __parcel_panic_message(payload)
-        ))
-        .write_to_raw(raw_diagnostic),
-      }
+      unsafe { $crate::__private::transform::<$type>(asset, options, state, diagnostic) }
     }
 
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn parcel_plugin_resolve(
-      raw_dep: u64,
+      dependency: u64,
       specifier: *const u8,
       specifier_len: usize,
       pipeline: *const u8,
       pipeline_len: usize,
-      raw_options: u64,
-      raw_result: u64,
+      options: u64,
+      result: *mut ::core::ffi::c_void,
       state: *mut ::core::ffi::c_void,
-      raw_diagnostic: *mut $crate::ffi::DiagnosticOptions,
+      diagnostic: *mut ::core::ffi::c_void,
     ) {
-      let specifier = unsafe {
-        ::core::str::from_utf8(::core::slice::from_raw_parts(specifier, specifier_len))
-          .unwrap_or("")
-      };
-      let pipeline = if pipeline.is_null() || pipeline_len == 0 {
-        None
-      } else {
-        unsafe { ::core::str::from_utf8(::core::slice::from_raw_parts(pipeline, pipeline_len)) }
-          .ok()
-      };
-      let dep = unsafe { $crate::Dependency::from_raw(raw_dep, raw_options) };
-      let options = unsafe { $crate::Options::from_raw(raw_options) };
-      let plugin = unsafe { &*(state as *const $type) };
-      let __parcel_panic_message =
-        |payload: ::std::boxed::Box<dyn ::std::any::Any + Send>| -> String {
-          if let Some(s) = payload.downcast_ref::<&str>() {
-            (*s).to_string()
-          } else if let Some(s) = payload.downcast_ref::<String>() {
-            s.clone()
-          } else {
-            "unknown panic".to_string()
-          }
-        };
-      let result = ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {
-        $crate::Plugin::resolve(plugin, &dep, specifier, pipeline, &options)
-      }));
-      match result {
-        Ok(Ok(result)) => {
-          if raw_result != 0 {
-            unsafe { result.write_to_raw(raw_result as *mut $crate::ffi::ResolveResult) };
-          }
-        }
-        Ok(Err(e)) => e.write_to_raw(raw_diagnostic),
-        Err(payload) => $crate::Diagnostic::new(format!(
-          "plugin panicked in resolve: {}",
-          __parcel_panic_message(payload)
-        ))
-        .write_to_raw(raw_diagnostic),
+      unsafe {
+        $crate::__private::resolve::<$type>(
+          dependency,
+          specifier,
+          specifier_len,
+          pipeline,
+          pipeline_len,
+          options,
+          result,
+          state,
+          diagnostic,
+        )
       }
     }
 
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn parcel_plugin_name(
-      raw_bundle_graph: u64,
-      raw_bundle: u64,
-      raw_options: u64,
-      raw_name: *mut $crate::ffi::Buffer,
+      bundle_graph: u64,
+      bundle: u64,
+      options: u64,
+      name: *mut ::core::ffi::c_void,
       state: *mut ::core::ffi::c_void,
-      raw_diagnostic: *mut $crate::ffi::DiagnosticOptions,
+      diagnostic: *mut ::core::ffi::c_void,
     ) {
-      let bundle_graph = unsafe { $crate::BundleGraph::from_raw(raw_bundle_graph, raw_options) };
-      let bundle = unsafe { $crate::Bundle::from_raw(raw_bundle, raw_options) };
-      let options = unsafe { $crate::Options::from_raw(raw_options) };
-      let plugin = unsafe { &*(state as *const $type) };
-      let __parcel_panic_message =
-        |payload: ::std::boxed::Box<dyn ::std::any::Any + Send>| -> String {
-          if let Some(s) = payload.downcast_ref::<&str>() {
-            (*s).to_string()
-          } else if let Some(s) = payload.downcast_ref::<String>() {
-            s.clone()
-          } else {
-            "unknown panic".to_string()
-          }
-        };
-      let result = ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {
-        $crate::Plugin::name(plugin, &bundle_graph, &bundle, &options)
-      }));
-      match result {
-        Ok(Ok(Some(name))) => {
-          if !raw_name.is_null() {
-            unsafe { $crate::api::buffer_write_utf8(raw_name, name.as_ptr(), name.len()) };
-          }
-        }
-        Ok(Ok(None)) => {}
-        Ok(Err(e)) => e.write_to_raw(raw_diagnostic),
-        Err(payload) => $crate::Diagnostic::new(format!(
-          "plugin panicked in name: {}",
-          __parcel_panic_message(payload)
-        ))
-        .write_to_raw(raw_diagnostic),
+      unsafe {
+        $crate::__private::name::<$type>(bundle_graph, bundle, options, name, state, diagnostic)
       }
     }
 
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn parcel_plugin_optimize(
-      raw_bundle_graph: u64,
-      raw_bundle: u64,
-      raw_contents: *const u8,
-      raw_contents_len: usize,
-      raw_source_map: *const u8,
-      raw_source_map_len: usize,
-      raw_options: u64,
-      raw_result: *mut $crate::ffi::OptimizeResult,
+      bundle_graph: u64,
+      bundle: u64,
+      contents: *const u8,
+      contents_len: usize,
+      source_map: *const u8,
+      source_map_len: usize,
+      options: u64,
+      result: *mut ::core::ffi::c_void,
       state: *mut ::core::ffi::c_void,
-      raw_diagnostic: *mut $crate::ffi::DiagnosticOptions,
+      diagnostic: *mut ::core::ffi::c_void,
     ) {
-      let bundle_graph = unsafe { $crate::BundleGraph::from_raw(raw_bundle_graph, raw_options) };
-      let bundle = unsafe { $crate::Bundle::from_raw(raw_bundle, raw_options) };
-      let contents = if raw_contents.is_null() || raw_contents_len == 0 {
-        &[]
-      } else {
-        unsafe { ::core::slice::from_raw_parts(raw_contents, raw_contents_len) }
-      };
-      let source_map = if raw_source_map.is_null() {
-        None
-      } else if raw_source_map_len == 0 {
-        Some(&[][..])
-      } else {
-        Some(unsafe { ::core::slice::from_raw_parts(raw_source_map, raw_source_map_len) })
-      };
-      let options = unsafe { $crate::Options::from_raw(raw_options) };
-      let plugin = unsafe { &*(state as *const $type) };
-      let __parcel_panic_message =
-        |payload: ::std::boxed::Box<dyn ::std::any::Any + Send>| -> String {
-          if let Some(s) = payload.downcast_ref::<&str>() {
-            (*s).to_string()
-          } else if let Some(s) = payload.downcast_ref::<String>() {
-            s.clone()
-          } else {
-            "unknown panic".to_string()
-          }
-        };
-      let result = ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {
-        $crate::Plugin::optimize(
-          plugin,
-          &bundle_graph,
-          &bundle,
+      unsafe {
+        $crate::__private::optimize::<$type>(
+          bundle_graph,
+          bundle,
           contents,
+          contents_len,
           source_map,
-          &options,
+          source_map_len,
+          options,
+          result,
+          state,
+          diagnostic,
         )
-      }));
-      match result {
-        Ok(Ok(result)) => {
-          if !raw_result.is_null() {
-            match result.contents {
-              $crate::ContentBuffer::Bytes(contents) => unsafe {
-                $crate::api::buffer_write(
-                  &mut (*raw_result).contents,
-                  contents.as_ptr(),
-                  contents.len(),
-                )
-              },
-              $crate::ContentBuffer::String(contents) => unsafe {
-                $crate::api::buffer_write_utf8(
-                  &mut (*raw_result).contents,
-                  contents.as_ptr(),
-                  contents.len(),
-                )
-              },
-            }
-            if let Some(source_map) = result.source_map {
-              unsafe {
-                $crate::api::buffer_write(
-                  &mut (*raw_result).source_map,
-                  source_map.as_ptr(),
-                  source_map.len(),
-                )
-              };
-            }
-          }
-        }
-        Ok(Err(e)) => e.write_to_raw(raw_diagnostic),
-        Err(payload) => $crate::Diagnostic::new(format!(
-          "plugin panicked in optimize: {}",
-          __parcel_panic_message(payload)
-        ))
-        .write_to_raw(raw_diagnostic),
       }
     }
 
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn parcel_plugin_report(
-      raw_event: *const $crate::ffi::ReportEvent,
-      raw_options: u64,
+      event: *const ::core::ffi::c_void,
+      options: u64,
       state: *mut ::core::ffi::c_void,
-      raw_diagnostic: *mut $crate::ffi::DiagnosticOptions,
+      diagnostic: *mut ::core::ffi::c_void,
     ) {
-      // An event kind this SDK predates. Reporting nothing is the only correct
-      // thing to do with it.
-      let Some(event) = (unsafe { $crate::ReportEvent::from_raw(raw_event, raw_options) }) else {
-        return;
-      };
-      let options = unsafe { $crate::Options::from_raw(raw_options) };
-      let plugin = unsafe { &*(state as *const $type) };
-      let __parcel_panic_message =
-        |payload: ::std::boxed::Box<dyn ::std::any::Any + Send>| -> String {
-          if let Some(s) = payload.downcast_ref::<&str>() {
-            (*s).to_string()
-          } else if let Some(s) = payload.downcast_ref::<String>() {
-            s.clone()
-          } else {
-            "unknown panic".to_string()
-          }
-        };
-      let result = ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {
-        $crate::Plugin::report(plugin, &event, &options)
-      }));
-      match result {
-        Ok(Ok(())) => {}
-        Ok(Err(e)) => e.write_to_raw(raw_diagnostic),
-        Err(payload) => $crate::Diagnostic::new(format!(
-          "plugin panicked in report: {}",
-          __parcel_panic_message(payload)
-        ))
-        .write_to_raw(raw_diagnostic),
-      }
+      unsafe { $crate::__private::report::<$type>(event, options, state, diagnostic) }
     }
   };
+}
+
+/// What [`register_plugin!`] expands to calls. Not part of the SDK's API.
+#[doc(hidden)]
+pub mod __private {
+  pub use crate::entry::*;
 }
 
 #[cfg(test)]
@@ -2345,6 +2285,55 @@ mod tests {
     ) -> Result<ContentBuffer, Diagnostic> {
       Ok(ContentBuffer::Bytes(Vec::new()))
     }
+  }
+
+  #[test]
+  fn flags_set_and_clear() {
+    let mut flags = AssetFlags::empty();
+    assert!(flags.is_empty());
+    assert_eq!(flags, AssetFlags::default());
+
+    flags.insert(AssetFlags::IS_SOURCE | AssetFlags::SIDE_EFFECTS);
+    assert!(flags.contains(AssetFlags::IS_SOURCE | AssetFlags::SIDE_EFFECTS));
+
+    flags.remove(AssetFlags::SIDE_EFFECTS);
+    assert!(flags.contains(AssetFlags::IS_SOURCE));
+    assert!(!flags.contains(AssetFlags::SIDE_EFFECTS));
+
+    flags.set(AssetFlags::IS_ESM, true);
+    flags.set(AssetFlags::IS_SOURCE, false);
+    assert_eq!(flags, AssetFlags::IS_ESM);
+    assert!(!(!AssetFlags::IS_ESM).contains(AssetFlags::IS_ESM));
+  }
+
+  #[test]
+  fn builders_set_what_they_name() {
+    let dep = DependencyOptions::new("./a.css")
+      .priority(Priority::Lazy)
+      .conditions(ExportsConditions::SASS)
+      .conditions(ExportsConditions::STYLE)
+      .import_type(ImportType::StyleSheet);
+    assert_eq!(dep.specifier, "./a.css");
+    assert_eq!(dep.priority, Priority::Lazy);
+    assert!(
+      dep
+        .conditions
+        .contains(ExportsConditions::SASS | ExportsConditions::STYLE)
+    );
+    assert_eq!(dep.import_type, ImportType::StyleSheet);
+
+    assert_eq!(
+      ResolveResult::file("/a.js").with_pipeline("url"),
+      ResolveResult::Resolved {
+        file_path: "/a.js".into(),
+        pipeline: Some("url".into()),
+      }
+    );
+    // Only a file has a pipeline.
+    assert_eq!(
+      ResolveResult::External.with_pipeline("url"),
+      ResolveResult::External
+    );
   }
 
   #[test]

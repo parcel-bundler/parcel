@@ -229,7 +229,7 @@ typedef uint8_t IoStatus;
 /**
  * Result of a plugin's `parcel_plugin_init()`.
  *
- * A plugin that cannot use the [`ParcelApi`](crate::ParcelApi) table it was
+ * A plugin that cannot use the `ParcelApi` table it was
  * handed returns `PARCEL_INIT_INCOMPATIBLE` without writing a diagnostic — it
  * has no way to allocate one, since allocating goes through the very table it
  * just rejected. Parcel writes that diagnostic instead.

@@ -112,6 +112,13 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
       .iter()
       .find_map(|prefix| original_variant_name.strip_prefix(prefix));
 
+      // Spelled as core spells them, which a mechanical conversion would not.
+      match original_variant_name {
+        "PARCEL_IMPORT_TYPE_JAVASCRIPT" => return Some("JavaScript".into()),
+        "PARCEL_IMPORT_TYPE_STYLESHEET" => return Some("StyleSheet".into()),
+        _ => {}
+      }
+
       if let Some(name) = name {
         return Some(
           name

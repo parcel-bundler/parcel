@@ -32,7 +32,8 @@ impl Plugin for SassTransformer {
 
   fn transform(&self, asset: &mut Asset, options: &Options) -> Result<(), Diagnostic> {
     let code = asset.content()?;
-    let file_path = asset.file_path();
+    // Sass works with URLs, which for files on disk are their paths.
+    let file_path = asset.file_path().to_string_lossy().into_owned();
 
     // The plugin is not told where the config that names it lives, so relative
     // load paths are taken relative to the project root.
@@ -105,10 +106,10 @@ impl<'a> Importer for ParcelImporter<'a> {
             continue;
           };
           if self.options.file_kind(path).contains(FileKind::FILE) {
-            let key = self
-              .options
-              .canonicalize(path)
-              .unwrap_or_else(|_| path.to_owned());
+            let key = self.options.canonicalize(path).map_or_else(
+              |_| path.to_owned(),
+              |path| path.to_string_lossy().into_owned(),
+            );
             return Ok(Some(CanonicalUrl::new(key)));
           }
         }
@@ -122,14 +123,12 @@ impl<'a> Importer for ParcelImporter<'a> {
         Some(rest) if !rest.starts_with('/') => rest,
         _ => url.as_str(),
       };
-      let dep = DependencyOptions {
-        conditions: ExportsConditions::SASS | ExportsConditions::STYLE,
+      let dep = DependencyOptions::new(specifier)
+        .conditions(ExportsConditions::SASS | ExportsConditions::STYLE)
         // Loaded by Sass itself, so it doesn't need a transformer to become JavaScript.
-        import_type: ImportType::Stylesheet,
-        ..DependencyOptions::new(specifier)
-      };
-      if let Some(ResolveResult::Resolved { file_path, .. }) =
-        self.asset.resolve(&dep, Some(from), self.options)
+        .import_type(ImportType::StyleSheet);
+      if let Ok(ResolveResult::Resolved { file_path, .. }) =
+        self.asset.resolve(&dep, Some(Path::new(from)))
       {
         return Ok(Some(CanonicalUrl::new(file_path.to_string_lossy())));
       }

@@ -24,6 +24,7 @@ impl Plugin for CustomReporter {
         bundle_graph,
         build_time,
         changed_assets,
+        ..
       } => {
         println!(
           "built {} bundles in {:?} ({} assets changed)",
@@ -33,7 +34,7 @@ impl Plugin for CustomReporter {
         );
       }
 
-      ReportEvent::BuildFailure { diagnostics } => {
+      ReportEvent::BuildFailure { diagnostics, .. } => {
         let summary = summarize(diagnostics);
         // Written to a file when the build's environment names one, e.g. for CI.
         match options.env("REPORT_SUMMARY") {
@@ -50,6 +51,7 @@ impl Plugin for CustomReporter {
         level,
         message,
         diagnostics,
+        ..
       } => {
         if let Some(message) = message {
           println!("[{level:?}] {message}");

@@ -28,9 +28,10 @@ impl Plugin for CustomOptimizer {
       contents,
     );
 
-    Ok(OptimizeResult {
-      contents: ContentBuffer::String(contents),
-      source_map: source_map.map(<[u8]>::to_vec),
+    let result = OptimizeResult::new(ContentBuffer::String(contents));
+    Ok(match source_map {
+      Some(source_map) => result.with_source_map(source_map),
+      None => result,
     })
   }
 }

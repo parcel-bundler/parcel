@@ -99,7 +99,7 @@ impl InitStatus {
   pub const Incompatible: InitStatus = InitStatus(2);
 }
 #[repr(transparent)]
-#[doc = " Result of a plugin's `parcel_plugin_init()`.\n\n A plugin that cannot use the [`ParcelApi`](crate::ParcelApi) table it was\n handed returns `PARCEL_INIT_INCOMPATIBLE` without writing a diagnostic — it\n has no way to allocate one, since allocating goes through the very table it\n just rejected. Parcel writes that diagnostic instead."]
+#[doc = " Result of a plugin's `parcel_plugin_init()`.\n\n A plugin that cannot use the `ParcelApi` table it was\n handed returns `PARCEL_INIT_INCOMPATIBLE` without writing a diagnostic — it\n has no way to allocate one, since allocating goes through the very table it\n just rejected. Parcel writes that diagnostic instead."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct InitStatus(pub u8);
 impl ResolutionType {
@@ -134,9 +134,9 @@ impl LogLevel {
 pub struct LogLevel(pub u8);
 impl ImportType {
   #[doc = " The module's exports. A file imported this way must have a transformer that turns it into\n JavaScript, or it is an error."]
-  pub const Javascript: ImportType = ImportType(0);
+  pub const JavaScript: ImportType = ImportType(0);
   #[doc = " A `CSSStyleSheet`."]
-  pub const Stylesheet: ImportType = ImportType(1);
+  pub const StyleSheet: ImportType = ImportType(1);
   #[doc = " The URL of the file. Any file can be referenced this way, transformed or not."]
   pub const Url: ImportType = ImportType(2);
   #[doc = " The bundle's contents as a string."]

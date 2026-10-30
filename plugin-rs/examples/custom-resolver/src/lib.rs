@@ -18,12 +18,9 @@ impl Plugin for CustomResolver {
     let Some(name) = specifier.strip_prefix("custom:") else {
       return Ok(ResolveResult::None);
     };
-    let resolve_from = dep.resolve_from();
-    let dir = Path::new(&resolve_from).parent().unwrap_or(Path::new("."));
-    Ok(ResolveResult::Resolved {
-      file_path: dir.join(format!("{}.js", name)),
-      pipeline: None,
-    })
+    let resolve_from = dep.resolve_from().unwrap_or_default();
+    let dir = resolve_from.parent().unwrap_or(Path::new("."));
+    Ok(ResolveResult::file(dir.join(format!("{name}.js"))))
   }
 }
 
