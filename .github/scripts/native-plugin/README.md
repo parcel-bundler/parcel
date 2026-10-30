@@ -66,7 +66,7 @@ still writing the plugin. Point `parcel.devLibrary` at your local build instead:
 
 ```json
 "parcel": {
-  "abi": 2,
+  "abi": 1,
   "artifacts": { "…": "…" },
   "devLibrary": "./target/debug/libmy_plugin"
 }

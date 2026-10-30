@@ -33,85 +33,109 @@ import (
 	"io/fs"
 	"runtime"
 	"runtime/cgo"
+	"sync"
 	"time"
 	"unicode/utf8"
 	"unsafe"
 )
 
-// Plugin is the interface that transformer, resolver, namer, optimizer, and
-// reporter plugins implement.
-// Override Transform to act as a transformer, Resolve to act as a resolver,
-// Name to act as a namer, Optimize to act as an optimizer, Report to act as a
-// reporter, or any combination.
-// Embed [DefaultPlugin] to get error-returning defaults for methods you don't need.
+// A plugin is any value implementing one or more of [Transformer], [Resolver],
+// [Namer], [Optimizer] and [Reporter], returned by the factory passed to
+// [RegisterPlugin]. Parcel calls the method for the role its .parcelrc entry
+// gives it, and a plugin used in a role it does not implement fails with a
+// diagnostic saying so. A kind of plugin Parcel adds later is a new interface,
+// so existing plugins keep compiling.
 //
-// Parcel calls one Plugin from many goroutines at once: transforms and resolves
+// Parcel calls one plugin from many goroutines at once: transforms and resolves
 // run in parallel, as do optimizers, and log events reach Report from whichever
 // thread logged them. Guard any state that changes with a mutex or atomics.
 //
 // The values a method receives, such as *Asset, *Options, *BundleGraph and
 // everything obtained from them, are valid only until the method returns. Never
 // keep one, in the plugin or in custom content, or use it from a goroutine that
-// outlives the call.
-type Plugin interface {
+// outlives the call. Inputs Parcel adds later arrive through *Options, which is
+// the context of the current call.
+
+// Transformer transforms assets, in place.
+type Transformer interface {
 	Transform(asset *Asset, options *Options) error
-	Resolve(dep *Dependency, specifier, pipeline string, options *Options) (ResolveResult, error)
+}
+
+// Resolver resolves dependency specifiers. pipeline is the named pipeline in
+// the specifier, or "" when it has none. Return the zero ResolveResult to let
+// the next resolver try.
+type Resolver interface {
+	Resolve(dependency *Dependency, specifier, pipeline string, options *Options) (ResolveResult, error)
+}
+
+// Namer names bundles. Return a path relative to the bundle target's dist
+// directory, or "" to let the next namer try.
+type Namer interface {
 	Name(bundleGraph *BundleGraph, bundle *Bundle, options *Options) (string, error)
-	Optimize(bundleGraph *BundleGraph, bundle *Bundle, contents, sourceMap []byte, options *Options) (OptimizeResult, error)
+}
+
+// Optimizer optimizes packaged bundles. sourceMap is the bundle's JSON (v3)
+// source map, or "" when it has none.
+type Optimizer interface {
+	Optimize(bundleGraph *BundleGraph, bundle *Bundle, contents []byte, sourceMap string, options *Options) (OptimizeResult, error)
+}
+
+// Reporter handles build events. A returned error is printed rather than
+// failing the build: a reporter cannot fail a build that produced its output.
+type Reporter interface {
 	Report(event ReportEvent, options *Options) error
 }
 
-// DefaultPlugin provides error-returning default implementations of [Plugin].
-// Embed it in your plugin struct to avoid implementing methods you don't need:
-//
-//	type MyPlugin struct {
-//	    parcel.DefaultPlugin
-//	    prefix string
-//	}
-//
-//	func (p *MyPlugin) Transform(asset *parcel.Asset) error { ... }
-type DefaultPlugin struct{}
-
-func (DefaultPlugin) Transform(*Asset, *Options) error {
-	return errors.New("transform not implemented")
-}
-
-func (DefaultPlugin) Resolve(*Dependency, string, string, *Options) (ResolveResult, error) {
-	return ResolveResult{}, errors.New("resolve not implemented")
-}
-
-// Name returns a path relative to the bundle target's dist directory. An empty
-// string allows the next namer in the configured pipeline to run.
-func (DefaultPlugin) Name(*BundleGraph, *Bundle, *Options) (string, error) {
-	return "", errors.New("name not implemented")
-}
-
 // OptimizeResult is the content and optional source map returned by an optimizer.
-// A nil SourceMap removes the source map from the optimized output.
 type OptimizeResult struct {
-	Contents  Content
-	SourceMap []byte
-}
-
-func (DefaultPlugin) Optimize(*BundleGraph, *Bundle, []byte, []byte, *Options) (OptimizeResult, error) {
-	return OptimizeResult{}, errors.New("optimize not implemented")
-}
-
-func (DefaultPlugin) Report(ReportEvent, *Options) error {
-	return errors.New("report not implemented")
+	Contents Content
+	// SourceMap is a JSON (v3) source map for Contents. "" removes the bundle's
+	// source map.
+	SourceMap string
 }
 
 // pluginFactory is the registered plugin factory function.
-var pluginFactory func([]byte) (Plugin, error)
+var pluginFactory func(config []byte) (any, error)
 
-// RegisterPlugin sets the factory that Parcel calls once when the plugin is
-// loaded.  The factory receives the JSON-encoded plugin config and returns a
-// Plugin instance whose method Parcel calls for each matching asset, dependency,
-// or bundle.
-// Call RegisterPlugin once from an init() function in your plugin's main package.
-func RegisterPlugin(factory func([]byte) (Plugin, error)) {
+// RegisterPlugin sets the factory Parcel calls for each .parcelrc entry naming
+// the plugin, with that entry's config as JSON (nil when it has none). The
+// factory returns the plugin: a value implementing at least one of
+// [Transformer], [Resolver], [Namer], [Optimizer] and [Reporter].
+//
+// Call RegisterPlugin once, from an init() function in the plugin's main package.
+func RegisterPlugin(factory func(config []byte) (any, error)) {
 	pluginFactory = factory
 }
+
+var errNotRegistered = errors.New("plugin not registered: call parcel.RegisterPlugin in init()")
+
+// pluginAs returns the plugin behind state as a T, the interface for the role
+// Parcel is calling it in, or an error naming that role's method when the
+// plugin does not implement it.
+func pluginAs[T any](state unsafe.Pointer, method string) (T, error) {
+	var role T
+	if state == nil {
+		return role, errNotRegistered
+	}
+	role, ok := cgo.Handle(*(*C.uintptr_t)(state)).Value().(T)
+	if !ok {
+		return role, fmt.Errorf("plugin does not implement %s, so it cannot be used in that role", method)
+	}
+	return role, nil
+}
+
+// hasRole reports whether plugin implements any role Parcel can call it in.
+func hasRole(plugin any) bool {
+	switch plugin.(type) {
+	case Transformer, Resolver, Namer, Optimizer, Reporter:
+		return true
+	}
+	return false
+}
+
+// installAPI guards installing the host table: Parcel may initialize several
+// .parcelrc entries naming this library at once.
+var installAPI sync.Mutex
 
 //export parcel_plugin_init
 func parcel_plugin_init(api *C.struct_ParcelApi, config *C.uint8_t, configLen C.uintptr_t, outState *unsafe.Pointer, diag *C.DiagnosticOptions) (status C.InitStatus) {
@@ -122,13 +146,20 @@ func parcel_plugin_init(api *C.struct_ParcelApi, config *C.uint8_t, configLen C.
 		}
 	}()
 
-	if api == nil || !C.parcel_api_compatible(&api.header) || (C.parcel_api != nil && C.parcel_api != api) {
+	// A different table means two Parcel instances share this library, which
+	// cannot work: whichever lost would be calling the other's functions.
+	installAPI.Lock()
+	compatible := api != nil && bool(C.parcel_api_compatible(&api.header)) && (C.parcel_api == nil || C.parcel_api == api)
+	if compatible {
+		C.parcel_api = api
+	}
+	installAPI.Unlock()
+	if !compatible {
 		return C.InitStatus(C.PARCEL_INIT_INCOMPATIBLE)
 	}
-	C.parcel_api = api
 
 	if pluginFactory == nil {
-		writeDiagnostic(diag, errors.New("plugin not registered: call parcel.RegisterPlugin in init()"))
+		writeDiagnostic(diag, errNotRegistered)
 		return C.InitStatus(C.PARCEL_INIT_ERROR)
 	}
 	var data []byte
@@ -136,11 +167,14 @@ func parcel_plugin_init(api *C.struct_ParcelApi, config *C.uint8_t, configLen C.
 		data = goBytes(unsafe.Pointer(config), uintptr(configLen))
 	}
 	plugin, err := pluginFactory(data)
+	if err == nil && !hasRole(plugin) {
+		err = fmt.Errorf("the plugin factory returned %T, which implements none of Transformer, Resolver, Namer, Optimizer and Reporter", plugin)
+	}
 	if err != nil {
 		writeDiagnostic(diag, err)
 		return C.InitStatus(C.PARCEL_INIT_ERROR)
 	}
-	// Store the Plugin interface value in a cgo.Handle so it can safely
+	// Store the plugin in a cgo.Handle so it can safely
 	// round-trip through C memory. The handle ID lives in a C-allocated block
 	// to avoid go vet's uintptr→unsafe.Pointer warning (cgo.Handle is an
 	// integer, not a GC pointer, but the tool cannot distinguish the two).
@@ -168,11 +202,11 @@ func parcel_plugin_deinit(state unsafe.Pointer) {
 //export parcel_plugin_transform
 func parcel_plugin_transform(asset C.Asset, rawOptions C.Options, state unsafe.Pointer, diag *C.DiagnosticOptions) {
 	defer recoverDiagnostic("transform", diag)
-	if state == nil {
-		writeDiagnostic(diag, errors.New("plugin not registered: call parcel.RegisterPlugin in init()"))
+	plugin, err := pluginAs[Transformer](state, "Transform")
+	if err != nil {
+		writeDiagnostic(diag, err)
 		return
 	}
-	plugin := cgo.Handle(*(*C.uintptr_t)(state)).Value().(Plugin)
 	a := &Asset{ptr: asset, options: rawOptions}
 	opts := &Options{ptr: rawOptions}
 	if err := plugin.Transform(a, opts); err != nil {
@@ -183,11 +217,11 @@ func parcel_plugin_transform(asset C.Asset, rawOptions C.Options, state unsafe.P
 //export parcel_plugin_resolve
 func parcel_plugin_resolve(dep C.Dependency, specifier *C.uint8_t, specifierLen C.uintptr_t, pipeline *C.uint8_t, pipelineLen C.uintptr_t, rawOptions C.Options, result *C.ResolveResult, state unsafe.Pointer, diag *C.DiagnosticOptions) {
 	defer recoverDiagnostic("resolve", diag)
-	if state == nil {
-		writeDiagnostic(diag, errors.New("plugin not registered: call parcel.RegisterPlugin in init()"))
+	plugin, err := pluginAs[Resolver](state, "Resolve")
+	if err != nil {
+		writeDiagnostic(diag, err)
 		return
 	}
-	plugin := cgo.Handle(*(*C.uintptr_t)(state)).Value().(Plugin)
 	d := &Dependency{ptr: C.Dependency(dep), options: rawOptions}
 	spec := goString(unsafe.Pointer(specifier), uintptr(specifierLen))
 	pipe := goString(unsafe.Pointer(pipeline), uintptr(pipelineLen))
@@ -203,11 +237,11 @@ func parcel_plugin_resolve(dep C.Dependency, specifier *C.uint8_t, specifierLen 
 //export parcel_plugin_name
 func parcel_plugin_name(rawGraph C.BundleGraph, rawBundle C.Bundle, rawOptions C.Options, result *C.Buffer, state unsafe.Pointer, diag *C.DiagnosticOptions) {
 	defer recoverDiagnostic("name", diag)
-	if state == nil {
-		writeDiagnostic(diag, errors.New("plugin not registered: call parcel.RegisterPlugin in init()"))
+	plugin, err := pluginAs[Namer](state, "Name")
+	if err != nil {
+		writeDiagnostic(diag, err)
 		return
 	}
-	plugin := cgo.Handle(*(*C.uintptr_t)(state)).Value().(Plugin)
 	name, err := plugin.Name(
 		&BundleGraph{ptr: rawGraph, options: rawOptions},
 		&Bundle{ptr: rawBundle, options: rawOptions},
@@ -232,8 +266,9 @@ func parcel_plugin_name(rawGraph C.BundleGraph, rawBundle C.Bundle, rawOptions C
 //export parcel_plugin_optimize
 func parcel_plugin_optimize(rawGraph C.BundleGraph, rawBundle C.Bundle, contents *C.uint8_t, contentsLen C.uintptr_t, sourceMap *C.uint8_t, sourceMapLen C.uintptr_t, rawOptions C.Options, rawResult *C.OptimizeResult, state unsafe.Pointer, diag *C.DiagnosticOptions) {
 	defer recoverDiagnostic("optimize", diag)
-	if state == nil {
-		writeDiagnostic(diag, errors.New("plugin not registered: call parcel.RegisterPlugin in init()"))
+	plugin, err := pluginAs[Optimizer](state, "Optimize")
+	if err != nil {
+		writeDiagnostic(diag, err)
 		return
 	}
 
@@ -241,17 +276,11 @@ func parcel_plugin_optimize(rawGraph C.BundleGraph, rawBundle C.Bundle, contents
 	if contents != nil && contentsLen > 0 {
 		contentBytes = goBytes(unsafe.Pointer(contents), uintptr(contentsLen))
 	}
-	var sourceMapBytes []byte
-	if sourceMap != nil {
-		sourceMapBytes = goBytes(unsafe.Pointer(sourceMap), uintptr(sourceMapLen))
-	}
-
-	plugin := cgo.Handle(*(*C.uintptr_t)(state)).Value().(Plugin)
 	result, err := plugin.Optimize(
 		&BundleGraph{ptr: rawGraph, options: rawOptions},
 		&Bundle{ptr: rawBundle, options: rawOptions},
 		contentBytes,
-		sourceMapBytes,
+		goString(unsafe.Pointer(sourceMap), uintptr(sourceMapLen)),
 		&Options{ptr: rawOptions},
 	)
 	if err != nil {
@@ -268,7 +297,7 @@ func parcel_plugin_optimize(rawGraph C.BundleGraph, rawBundle C.Bundle, contents
 		writeDiagnostic(diag, err)
 		return
 	}
-	if result.SourceMap != nil {
+	if result.SourceMap != "" {
 		if err := writeContentBuffer(&rawResult.source_map, BytesContent(result.SourceMap)); err != nil {
 			writeDiagnostic(diag, err)
 		}
@@ -278,8 +307,9 @@ func parcel_plugin_optimize(rawGraph C.BundleGraph, rawBundle C.Bundle, contents
 //export parcel_plugin_report
 func parcel_plugin_report(rawEvent *C.ReportEvent, rawOptions C.Options, state unsafe.Pointer, diag *C.DiagnosticOptions) {
 	defer recoverDiagnostic("report", diag)
-	if state == nil {
-		writeDiagnostic(diag, errors.New("plugin not registered: call parcel.RegisterPlugin in init()"))
+	plugin, err := pluginAs[Reporter](state, "Report")
+	if err != nil {
+		writeDiagnostic(diag, err)
 		return
 	}
 	// Parcel may be older or newer than this SDK, so the event is only as large
@@ -332,7 +362,6 @@ func parcel_plugin_report(rawEvent *C.ReportEvent, rawOptions C.Options, state u
 		return
 	}
 
-	plugin := cgo.Handle(*(*C.uintptr_t)(state)).Value().(Plugin)
 	if err := plugin.Report(event, &Options{ptr: rawOptions}); err != nil {
 		writeDiagnostic(diag, err)
 	}
@@ -381,6 +410,12 @@ func writeDiagnostic(raw *C.DiagnosticOptions, err error) {
 		raw.diagnostics = d.parcelDiagnostics
 		return
 	}
+	message := d.Message
+	if message == "" {
+		// Parcel reads a missing message as no diagnostic at all, which would
+		// turn this failure into a success.
+		message = "unknown error"
+	}
 	writeBuffer := func(buf *C.Buffer, s string) {
 		if len(s) == 0 {
 			return
@@ -388,7 +423,7 @@ func writeDiagnostic(raw *C.DiagnosticOptions, err error) {
 		data := []byte(s)
 		*buf = C.parcel_buffer_alloc((*C.uint8_t)(unsafe.Pointer(&data[0])), C.uintptr_t(len(data)))
 	}
-	writeBuffer(&raw.message, d.Message)
+	writeBuffer(&raw.message, message)
 	raw.severity = C.uint8_t(d.Severity)
 	writeBuffer(&raw.file_path, d.FilePath)
 	raw.line = C.uint32_t(d.Line)
@@ -634,7 +669,7 @@ func (a *Asset) Target() *Target {
 // It fails when Parcel cannot honor dep, e.g. because it uses a [SpecifierType],
 // [Priority], [BundleBehavior], or [ImportType] value this version of Parcel does
 // not support.
-func (a *Asset) AddDependency(dep DependencySpec) error {
+func (a *Asset) AddDependency(dep DependencyOptions) error {
 	var cDep C.DependencyOptions
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
@@ -653,9 +688,11 @@ func (a *Asset) AddDependency(dep DependencySpec) error {
 // from the asset. Every file the resolvers read or probe invalidates the asset,
 // so the transform re-runs when the result would change.
 //
-// It returns false when the dependency could not be resolved, or Parcel cannot
-// honor dep. Only available while transforming.
-func (a *Asset) Resolve(dep DependencySpec, from string) (ResolveResult, bool) {
+// It returns the zero ResolveResult when no resolver claimed the dependency, and
+// an error when one failed, or Parcel cannot honor dep. Only available while
+// transforming.
+func (a *Asset) Resolve(dep DependencyOptions, from string) (ResolveResult, error) {
+	failed := fmt.Errorf("could not resolve %q", dep.Specifier)
 	var cDep C.DependencyOptions
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
@@ -669,21 +706,21 @@ func (a *Asset) Resolve(dep DependencySpec, from string) (ResolveResult, bool) {
 	filePath := string(bufferBytes(&raw.file_path))
 	pipeline := string(bufferBytes(&raw.pipeline))
 	if !resolved {
-		return ResolveResult{}, false
+		return ResolveResult{}, failed
 	}
 
 	switch raw.resolution_type {
 	case C.PARCEL_RESOLUTION_FILE_PATH:
-		return Resolved(filePath, pipeline), true
+		return Resolved(filePath, pipeline), nil
 	case C.PARCEL_RESOLUTION_EXTERNAL:
-		return External(), true
+		return External(), nil
 	case C.PARCEL_RESOLUTION_EXCLUDED:
-		return Excluded(), true
+		return Excluded(), nil
 	case C.PARCEL_RESOLUTION_NONE:
-		return ResolveResult{}, true
+		return ResolveResult{}, nil
 	default:
 		// A kind of resolution this SDK predates, which a plugin cannot act on.
-		return ResolveResult{}, false
+		return ResolveResult{}, failed
 	}
 }
 
@@ -694,7 +731,7 @@ func (a *Asset) Resolve(dep DependencySpec, from string) (ResolveResult, bool) {
 //
 // The specifier is pinned, since cgo forbids passing C a struct that holds an
 // unpinned pointer into the Go heap.
-func (dep *DependencySpec) writeRaw(raw *C.DependencyOptions, pinner *runtime.Pinner) {
+func (dep *DependencyOptions) writeRaw(raw *C.DependencyOptions, pinner *runtime.Pinner) {
 	raw.size = C.sizeof_DependencyOptions
 	if len(dep.Specifier) > 0 {
 		pinner.Pin(unsafe.StringData(dep.Specifier))
@@ -900,8 +937,8 @@ func (t *Target) EnvFlags() EnvironmentFlags {
 	return EnvironmentFlags(C.parcel_target_get_env_flags(t.ptr))
 }
 
-// PublicUrl returns the public URL (e.g. "/" or "https://cdn.example.com/").
-func (t *Target) PublicUrl() string {
+// PublicURL returns the public URL (e.g. "/" or "https://cdn.example.com/").
+func (t *Target) PublicURL() string {
 	var buf C.Buffer
 	C.parcel_target_get_public_url(&buf, t.ptr)
 	if buf.data == nil {
@@ -1003,9 +1040,9 @@ const (
 type SpecifierType uint8
 
 const (
-	SpecifierTypeEsm      SpecifierType = 0
-	SpecifierTypeCommonjs SpecifierType = 1
-	SpecifierTypeUrl      SpecifierType = 2
+	SpecifierTypeESM      SpecifierType = 0
+	SpecifierTypeCommonJS SpecifierType = 1
+	SpecifierTypeURL      SpecifierType = 2
 	SpecifierTypeCustom   SpecifierType = 3
 )
 
@@ -1020,14 +1057,14 @@ const (
 
 // ImportType is what a dependency evaluates to in the code that imports it. A file
 // imported as ImportTypeJavaScript, the default, must have a transformer that turns it
-// into JavaScript, or it is an error. Other import types, such as ImportTypeUrl, can
+// into JavaScript, or it is an error. Other import types, such as ImportTypeURL, can
 // reference any file.
 type ImportType uint8
 
 const (
 	ImportTypeJavaScript ImportType = 0
 	ImportTypeStyleSheet ImportType = 1
-	ImportTypeUrl        ImportType = 2
+	ImportTypeURL        ImportType = 2
 	ImportTypeText       ImportType = 3
 	ImportTypeBytes      ImportType = 4
 )
@@ -1040,15 +1077,15 @@ const (
 	AssetFlagSideEffects         AssetFlags = 1 << 1
 	AssetFlagIsBundleSplittable  AssetFlags = 1 << 2
 	AssetFlagLargeBlob           AssetFlags = 1 << 3
-	AssetFlagHasCjsExports       AssetFlags = 1 << 4
+	AssetFlagHasCJSExports       AssetFlags = 1 << 4
 	AssetFlagStaticExports       AssetFlags = 1 << 5
 	AssetFlagShouldWrap          AssetFlags = 1 << 6
 	AssetFlagIsConstantModule    AssetFlags = 1 << 7
 	AssetFlagHasNodeReplacements AssetFlags = 1 << 8
 	AssetFlagHasSymbols          AssetFlags = 1 << 9
-	AssetFlagIsHtmlAttr          AssetFlags = 1 << 10
-	AssetFlagIsHtmlTag           AssetFlags = 1 << 11
-	AssetFlagIsEsm               AssetFlags = 1 << 12
+	AssetFlagIsHTMLAttr          AssetFlags = 1 << 10
+	AssetFlagIsHTMLTag           AssetFlags = 1 << 11
+	AssetFlagIsESM               AssetFlags = 1 << 12
 )
 
 // DependencyFlags is a bitfield of dependency flags.
@@ -1058,7 +1095,7 @@ const (
 	DependencyFlagEntry           DependencyFlags = 1 << 0
 	DependencyFlagOptional        DependencyFlags = 1 << 1
 	DependencyFlagNeedsStableName DependencyFlags = 1 << 2
-	DependencyFlagIsWebworker     DependencyFlags = 1 << 3
+	DependencyFlagIsWebWorker     DependencyFlags = 1 << 3
 	DependencyFlagSideEffects     DependencyFlags = 1 << 4
 	DependencyFlagMacro           DependencyFlags = 1 << 5
 )
@@ -1088,8 +1125,8 @@ const (
 	ExportsConditionSource      ExportsConditions = 1 << 17
 )
 
-// DependencySpec describes a dependency to be added from a transformer.
-type DependencySpec struct {
+// DependencyOptions describes a dependency to be added from a transformer.
+type DependencyOptions struct {
 	Specifier      string
 	SpecifierType  SpecifierType
 	Priority       Priority
@@ -1119,8 +1156,8 @@ type OutputFormat uint8
 
 const (
 	OutputFormatGlobal   OutputFormat = 0
-	OutputFormatCommonjs OutputFormat = 1
-	OutputFormatEsmodule OutputFormat = 2
+	OutputFormatCommonJS OutputFormat = 1
+	OutputFormatESModule OutputFormat = 2
 )
 
 // SourceType indicates whether the target expects ES module or script source.
@@ -1383,8 +1420,9 @@ func takeBufferString(buf *C.Buffer) string {
 
 // ── Options ─────────────────────────────────────────────────────────────────
 
-// Options provides read-only access to the Parcel build options.
-// Passed to every Transform and Resolve call.
+// Options is the context of the current plugin call: the build's options, and
+// what the call may do, such as read files Parcel tracks. Every plugin method
+// receives one, valid until the method returns.
 type Options struct {
 	ptr C.Options
 }

@@ -16,9 +16,12 @@ import (
 )
 
 type CustomReporter struct {
-	parcel.DefaultPlugin
 	builds atomic.Int32
 }
+
+// Fails to compile if CustomReporter stops implementing parcel.Reporter, which would
+// otherwise only show up as an error when Parcel calls it.
+var _ parcel.Reporter = (*CustomReporter)(nil)
 
 func (r *CustomReporter) Report(event parcel.ReportEvent, options *parcel.Options) error {
 	switch event := event.(type) {
@@ -80,7 +83,7 @@ func summarize(diagnostics *parcel.Diagnostics) string {
 }
 
 func init() {
-	parcel.RegisterPlugin(func(_ []byte) (parcel.Plugin, error) {
+	parcel.RegisterPlugin(func(_ []byte) (any, error) {
 		return &CustomReporter{}, nil
 	})
 }

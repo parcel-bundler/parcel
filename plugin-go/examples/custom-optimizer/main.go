@@ -12,17 +12,19 @@ import (
 	parcel "github.com/parcel-bundler/parcel/plugin-go"
 )
 
-type CustomOptimizer struct {
-	parcel.DefaultPlugin
-}
+type CustomOptimizer struct{}
 
-func (*CustomOptimizer) Optimize(bundleGraph *parcel.BundleGraph, bundle *parcel.Bundle, contents, sourceMap []byte, _ *parcel.Options) (parcel.OptimizeResult, error) {
+// Fails to compile if CustomOptimizer stops implementing parcel.Optimizer, which would
+// otherwise only show up as an error when Parcel calls it.
+var _ parcel.Optimizer = (*CustomOptimizer)(nil)
+
+func (*CustomOptimizer) Optimize(bundleGraph *parcel.BundleGraph, bundle *parcel.Bundle, contents []byte, sourceMap string, _ *parcel.Options) (parcel.OptimizeResult, error) {
 	optimized := fmt.Sprintf(
 		"/* optimized by Go: assets=%d bundles=%d type=%s map=%t */\n%s",
 		bundleGraph.AssetCount(),
 		bundleGraph.BundleCount(),
 		bundle.Type(),
-		sourceMap != nil,
+		sourceMap != "",
 		contents,
 	)
 	return parcel.OptimizeResult{
@@ -32,7 +34,7 @@ func (*CustomOptimizer) Optimize(bundleGraph *parcel.BundleGraph, bundle *parcel
 }
 
 func init() {
-	parcel.RegisterPlugin(func(_ []byte) (parcel.Plugin, error) {
+	parcel.RegisterPlugin(func(_ []byte) (any, error) {
 		return &CustomOptimizer{}, nil
 	})
 }

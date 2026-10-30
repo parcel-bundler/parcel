@@ -7,6 +7,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -59,9 +60,13 @@ func (c *UppercaseContent) Package(graph *parcel.BundleGraph, bundle *parcel.Bun
 		return nil, fmt.Errorf("custom content was not accessible through BundleGraph")
 	}
 
-	value := strings.ToUpper(strings.Join(c.Words, " "))
+	// A JSON string is a JavaScript string literal; Go's %q escapes are not.
+	value, err := json.Marshal(strings.ToUpper(strings.Join(c.Words, " ")))
+	if err != nil {
+		return nil, err
+	}
 	code := fmt.Sprintf(
-		"// custom-content assets=%d bundles=%d dependencies=%d type=%s\nexport default %q;\n",
+		"// custom-content assets=%d bundles=%d dependencies=%d type=%s\nexport default %s;\n",
 		graph.AssetCount(),
 		graph.BundleCount(),
 		dependencyCount,
@@ -71,9 +76,11 @@ func (c *UppercaseContent) Package(graph *parcel.BundleGraph, bundle *parcel.Bun
 	return parcel.StringContent(code), nil
 }
 
-type CustomContentTransformer struct {
-	parcel.DefaultPlugin
-}
+type CustomContentTransformer struct{}
+
+// Fails to compile if CustomContentTransformer stops implementing parcel.Transformer, which would
+// otherwise only show up as an error when Parcel calls it.
+var _ parcel.Transformer = (*CustomContentTransformer)(nil)
 
 func (t *CustomContentTransformer) Transform(asset *parcel.Asset, _ *parcel.Options) error {
 	content, err := asset.Content()
@@ -100,7 +107,7 @@ func (t *CustomContentTransformer) Transform(asset *parcel.Asset, _ *parcel.Opti
 }
 
 func init() {
-	parcel.RegisterPlugin(func(_ []byte) (parcel.Plugin, error) {
+	parcel.RegisterPlugin(func(_ []byte) (any, error) {
 		return &CustomContentTransformer{}, nil
 	})
 }

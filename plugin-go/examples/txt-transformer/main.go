@@ -7,14 +7,17 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 
 	parcel "github.com/parcel-bundler/parcel/plugin-go"
 )
 
-type TxtTransformer struct {
-	parcel.DefaultPlugin
-}
+type TxtTransformer struct{}
+
+// Fails to compile if TxtTransformer stops implementing parcel.Transformer, which would
+// otherwise only show up as an error when Parcel calls it.
+var _ parcel.Transformer = (*TxtTransformer)(nil)
 
 func (t *TxtTransformer) Transform(asset *parcel.Asset, _ *parcel.Options) error {
 	content, err := asset.Content()
@@ -22,13 +25,18 @@ func (t *TxtTransformer) Transform(asset *parcel.Asset, _ *parcel.Options) error
 		return err
 	}
 	// Emit an ES module that default-exports the text content.
-	asset.SetContent(fmt.Sprintf("export default %q;\n", content))
+	// A JSON string is a JavaScript string literal; Go's %q escapes are not.
+	literal, err := json.Marshal(content)
+	if err != nil {
+		return err
+	}
+	asset.SetContent(fmt.Sprintf("export default %s;\n", literal))
 	asset.SetType("js")
 	return nil
 }
 
 func init() {
-	parcel.RegisterPlugin(func(_ []byte) (parcel.Plugin, error) {
+	parcel.RegisterPlugin(func(_ []byte) (any, error) {
 		return &TxtTransformer{}, nil
 	})
 }

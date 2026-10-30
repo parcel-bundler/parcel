@@ -1,3 +1,5 @@
+//go:build parceltest
+
 package parcel
 
 import (
@@ -13,7 +15,7 @@ func TestAddDependencySetsSizeAndReportsRejection(t *testing.T) {
 		// an unpinned pointer inside the struct passed to C.
 		specifier := strings.Repeat("./dep", 2) + ".js"
 
-		if err := assetWithHandle(1).AddDependency(DependencySpec{Specifier: specifier}); err != nil {
+		if err := assetWithHandle(1).AddDependency(DependencyOptions{Specifier: specifier}); err != nil {
 			t.Fatalf("accepted dependency returned %v", err)
 		}
 		if host.dependencySize() != dependencyOptionsSize {
@@ -23,7 +25,7 @@ func TestAddDependencySetsSizeAndReportsRejection(t *testing.T) {
 			t.Fatalf("expected specifier %q, got %q", specifier, host.specifier())
 		}
 
-		err := assetWithHandle(0).AddDependency(DependencySpec{Specifier: specifier})
+		err := assetWithHandle(0).AddDependency(DependencyOptions{Specifier: specifier})
 		if err == nil || !strings.Contains(err.Error(), `"./dep./dep.js"`) {
 			t.Fatalf("expected a rejection naming the specifier, got %v", err)
 		}
@@ -47,9 +49,9 @@ func TestResolveSetsSizesAndRejectsUnknownKinds(t *testing.T) {
 			// A kind of resolution a newer Parcel added.
 			{200, false, nil},
 		} {
-			result, ok := assetWithHandle(test.kind).Resolve(DependencySpec{Specifier: "./a"}, "")
-			if ok != test.ok {
-				t.Fatalf("resolution type %d: expected ok=%v, got %v", test.kind, test.ok, ok)
+			result, err := assetWithHandle(test.kind).Resolve(DependencyOptions{Specifier: "./a"}, "")
+			if (err == nil) != test.ok {
+				t.Fatalf("resolution type %d: expected ok=%v, got %v", test.kind, test.ok, err)
 			}
 			if test.check != nil && !test.check(result) {
 				t.Fatalf("resolution type %d: unexpected result %+v", test.kind, result)
@@ -128,7 +130,6 @@ func TestWriteDiagnosticWritesTheRangeAndLinks(t *testing.T) {
 }
 
 type recordingReporter struct {
-	DefaultPlugin
 	events []ReportEvent
 }
 
@@ -141,7 +142,7 @@ func TestReportSkipsUndersizedAndUnknownEvents(t *testing.T) {
 	previousFactory := pluginFactory
 	defer func() { pluginFactory = previousFactory }()
 	reporter := &recordingReporter{}
-	pluginFactory = func([]byte) (Plugin, error) { return reporter, nil }
+	pluginFactory = func([]byte) (any, error) { return reporter, nil }
 
 	withSizedStructHost(func(sizedHost) {
 		var state unsafe.Pointer

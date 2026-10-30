@@ -1,3 +1,5 @@
+//go:build parceltest
+
 package parcel_test
 
 import (
@@ -84,9 +86,9 @@ func TestConstantsMatchHeader(t *testing.T) {
 	}{
 		{"InvalidAssetIndex", "PARCEL_INVALID_ASSET_INDEX", int(parcel.InvalidAssetIndex)},
 		// SpecifierType
-		{"SpecifierTypeEsm", "PARCEL_SPECIFIER_ESM", int(parcel.SpecifierTypeEsm)},
-		{"SpecifierTypeCommonjs", "PARCEL_SPECIFIER_COMMONJS", int(parcel.SpecifierTypeCommonjs)},
-		{"SpecifierTypeUrl", "PARCEL_SPECIFIER_URL", int(parcel.SpecifierTypeUrl)},
+		{"SpecifierTypeESM", "PARCEL_SPECIFIER_ESM", int(parcel.SpecifierTypeESM)},
+		{"SpecifierTypeCommonJS", "PARCEL_SPECIFIER_COMMONJS", int(parcel.SpecifierTypeCommonJS)},
+		{"SpecifierTypeURL", "PARCEL_SPECIFIER_URL", int(parcel.SpecifierTypeURL)},
 		{"SpecifierTypeCustom", "PARCEL_SPECIFIER_CUSTOM", int(parcel.SpecifierTypeCustom)},
 		// Priority
 		{"PrioritySync", "PARCEL_PRIORITY_SYNC", int(parcel.PrioritySync)},
@@ -95,7 +97,7 @@ func TestConstantsMatchHeader(t *testing.T) {
 		// ImportType
 		{"ImportTypeJavaScript", "PARCEL_IMPORT_TYPE_JAVASCRIPT", int(parcel.ImportTypeJavaScript)},
 		{"ImportTypeStyleSheet", "PARCEL_IMPORT_TYPE_STYLESHEET", int(parcel.ImportTypeStyleSheet)},
-		{"ImportTypeUrl", "PARCEL_IMPORT_TYPE_URL", int(parcel.ImportTypeUrl)},
+		{"ImportTypeURL", "PARCEL_IMPORT_TYPE_URL", int(parcel.ImportTypeURL)},
 		{"ImportTypeText", "PARCEL_IMPORT_TYPE_TEXT", int(parcel.ImportTypeText)},
 		{"ImportTypeBytes", "PARCEL_IMPORT_TYPE_BYTES", int(parcel.ImportTypeBytes)},
 		// BundleBehavior
@@ -115,7 +117,7 @@ func TestConstantsMatchHeader(t *testing.T) {
 		{"DependencyFlagEntry", "PARCEL_DEP_ENTRY", int(parcel.DependencyFlagEntry)},
 		{"DependencyFlagOptional", "PARCEL_DEP_OPTIONAL", int(parcel.DependencyFlagOptional)},
 		{"DependencyFlagNeedsStableName", "PARCEL_DEP_NEEDS_STABLE_NAME", int(parcel.DependencyFlagNeedsStableName)},
-		{"DependencyFlagIsWebworker", "PARCEL_DEP_IS_WEBWORKER", int(parcel.DependencyFlagIsWebworker)},
+		{"DependencyFlagIsWebWorker", "PARCEL_DEP_IS_WEBWORKER", int(parcel.DependencyFlagIsWebWorker)},
 		{"DependencyFlagSideEffects", "PARCEL_DEP_SIDE_EFFECTS", int(parcel.DependencyFlagSideEffects)},
 		{"DependencyFlagMacro", "PARCEL_DEP_MACRO", int(parcel.DependencyFlagMacro)},
 		// ExportsConditions
@@ -146,15 +148,15 @@ func TestConstantsMatchHeader(t *testing.T) {
 		{"AssetFlagSideEffects", "PARCEL_ASSET_SIDE_EFFECTS", int(parcel.AssetFlagSideEffects)},
 		{"AssetFlagIsBundleSplittable", "PARCEL_ASSET_IS_BUNDLE_SPLITTABLE", int(parcel.AssetFlagIsBundleSplittable)},
 		{"AssetFlagLargeBlob", "PARCEL_ASSET_LARGE_BLOB", int(parcel.AssetFlagLargeBlob)},
-		{"AssetFlagHasCjsExports", "PARCEL_ASSET_HAS_CJS_EXPORTS", int(parcel.AssetFlagHasCjsExports)},
+		{"AssetFlagHasCJSExports", "PARCEL_ASSET_HAS_CJS_EXPORTS", int(parcel.AssetFlagHasCJSExports)},
 		{"AssetFlagStaticExports", "PARCEL_ASSET_STATIC_EXPORTS", int(parcel.AssetFlagStaticExports)},
 		{"AssetFlagShouldWrap", "PARCEL_ASSET_SHOULD_WRAP", int(parcel.AssetFlagShouldWrap)},
 		{"AssetFlagIsConstantModule", "PARCEL_ASSET_IS_CONSTANT_MODULE", int(parcel.AssetFlagIsConstantModule)},
 		{"AssetFlagHasNodeReplacements", "PARCEL_ASSET_HAS_NODE_REPLACEMENTS", int(parcel.AssetFlagHasNodeReplacements)},
 		{"AssetFlagHasSymbols", "PARCEL_ASSET_HAS_SYMBOLS", int(parcel.AssetFlagHasSymbols)},
-		{"AssetFlagIsHtmlAttr", "PARCEL_ASSET_IS_HTML_ATTR", int(parcel.AssetFlagIsHtmlAttr)},
-		{"AssetFlagIsHtmlTag", "PARCEL_ASSET_IS_HTML_TAG", int(parcel.AssetFlagIsHtmlTag)},
-		{"AssetFlagIsEsm", "PARCEL_ASSET_IS_ESM", int(parcel.AssetFlagIsEsm)},
+		{"AssetFlagIsHTMLAttr", "PARCEL_ASSET_IS_HTML_ATTR", int(parcel.AssetFlagIsHTMLAttr)},
+		{"AssetFlagIsHTMLTag", "PARCEL_ASSET_IS_HTML_TAG", int(parcel.AssetFlagIsHTMLTag)},
+		{"AssetFlagIsESM", "PARCEL_ASSET_IS_ESM", int(parcel.AssetFlagIsESM)},
 		// BundleFlags
 		{"BundleFlagNeedsStableName", "PARCEL_BUNDLE_FLAG_NEEDS_STABLE_NAME", int(parcel.BundleFlagNeedsStableName)},
 		{"BundleFlagIsSplittable", "PARCEL_BUNDLE_FLAG_IS_SPLITTABLE", int(parcel.BundleFlagIsSplittable)},
@@ -172,8 +174,8 @@ func TestConstantsMatchHeader(t *testing.T) {
 		{"EnvironmentReactServer", "PARCEL_ENV_REACT_SERVER", int(parcel.EnvironmentReactServer)},
 		// OutputFormat
 		{"OutputFormatGlobal", "PARCEL_OUTPUT_FORMAT_GLOBAL", int(parcel.OutputFormatGlobal)},
-		{"OutputFormatCommonjs", "PARCEL_OUTPUT_FORMAT_COMMONJS", int(parcel.OutputFormatCommonjs)},
-		{"OutputFormatEsmodule", "PARCEL_OUTPUT_FORMAT_ESMODULE", int(parcel.OutputFormatEsmodule)},
+		{"OutputFormatCommonJS", "PARCEL_OUTPUT_FORMAT_COMMONJS", int(parcel.OutputFormatCommonJS)},
+		{"OutputFormatESModule", "PARCEL_OUTPUT_FORMAT_ESMODULE", int(parcel.OutputFormatESModule)},
 		// SourceType
 		{"SourceTypeModule", "PARCEL_SOURCE_TYPE_MODULE", int(parcel.SourceTypeModule)},
 		{"SourceTypeScript", "PARCEL_SOURCE_TYPE_SCRIPT", int(parcel.SourceTypeScript)},
@@ -190,6 +192,7 @@ func TestConstantsMatchHeader(t *testing.T) {
 		// ReportEventType is deliberately absent: the entry point switches on
 		// the C constants directly, so those values cannot drift.
 		// LogLevel
+		{"LogNone", "PARCEL_LOG_NONE", int(parcel.LogNone)},
 		{"LogError", "PARCEL_LOG_ERROR", int(parcel.LogError)},
 		{"LogWarn", "PARCEL_LOG_WARN", int(parcel.LogWarn)},
 		{"LogInfo", "PARCEL_LOG_INFO", int(parcel.LogInfo)},
@@ -197,5 +200,33 @@ func TestConstantsMatchHeader(t *testing.T) {
 	}
 	for _, p := range pairs {
 		check(p.goName, p.cName, p.goVal)
+	}
+
+	// And the other way: every constant the header declares has a Go
+	// counterpart above, or is listed here with the reason it has none, so a
+	// constant added to the ABI cannot go unnoticed by this SDK.
+	ignored := map[string]string{
+		"PARCEL_ABI_VERSION": "checked by parcel_api_compatible",
+	}
+	for _, prefix := range []string{
+		"PARCEL_INIT_",       // returned by parcel_plugin_init, never seen by plugin code
+		"PARCEL_RESOLUTION_", // switched on as C constants by writeResolveResult and Resolve
+		"PARCEL_EVENT_",      // switched on as C constants by parcel_plugin_report
+		"PARCEL_IO_",         // switched on as C constants by the file system wrappers
+	} {
+		for name := range defs {
+			if strings.HasPrefix(name, prefix) {
+				ignored[name] = prefix
+			}
+		}
+	}
+	mapped := map[string]bool{}
+	for _, p := range pairs {
+		mapped[p.cName] = true
+	}
+	for name := range defs {
+		if strings.HasPrefix(name, "PARCEL_") && !mapped[name] && ignored[name] == "" {
+			t.Errorf("plugin.h declares %s, which has no Go constant: add one, or list it as ignored", name)
+		}
 	}
 }

@@ -188,6 +188,10 @@ callback recovers the content in the same way, creates callback-scoped
 content.Package(bundleGraph, bundle, options)
 ```
 
+`Package` is called once per bundle, on the content of the bundle's first asset of
+this type, and produces the bundle's output: find the bundle's other assets through
+the graph and read their content with `AssetRef.CustomContent`.
+
 The graph, bundle, assets, dependencies, and targets obtained through these
 wrappers are borrowed views. They must not be retained after `Package` returns.
 

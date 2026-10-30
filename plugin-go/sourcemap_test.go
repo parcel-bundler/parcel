@@ -1,3 +1,5 @@
+//go:build parceltest
+
 package parcel
 
 import "testing"

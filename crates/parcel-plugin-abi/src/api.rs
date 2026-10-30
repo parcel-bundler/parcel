@@ -24,8 +24,8 @@
 //!
 //! Adding a host function means adding it here too. The test at the bottom of
 //! this file fails if the table and the crate's exported functions drift apart.
-//! The C wrappers in `plugin.h` and the Go SDK are generated from this struct by
-//! build.rs.
+//! build.rs generates `plugin.h`, including a C wrapper for each function here,
+//! and copies it into the Go and Swift SDKs, which call those wrappers.
 
 use std::ffi::c_void;
 

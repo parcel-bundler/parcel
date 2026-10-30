@@ -13,9 +13,11 @@ import (
 	parcel "github.com/parcel-bundler/parcel/plugin-go"
 )
 
-type CustomNamer struct {
-	parcel.DefaultPlugin
-}
+type CustomNamer struct{}
+
+// Fails to compile if CustomNamer stops implementing parcel.Namer, which would
+// otherwise only show up as an error when Parcel calls it.
+var _ parcel.Namer = (*CustomNamer)(nil)
 
 func (*CustomNamer) Name(bundleGraph *parcel.BundleGraph, bundle *parcel.Bundle, _ *parcel.Options) (string, error) {
 	entry, ok := bundle.MainEntryAsset()
@@ -32,7 +34,7 @@ func (*CustomNamer) Name(bundleGraph *parcel.BundleGraph, bundle *parcel.Bundle,
 }
 
 func init() {
-	parcel.RegisterPlugin(func(_ []byte) (parcel.Plugin, error) {
+	parcel.RegisterPlugin(func(_ []byte) (any, error) {
 		return &CustomNamer{}, nil
 	})
 }

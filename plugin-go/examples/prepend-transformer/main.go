@@ -15,9 +15,12 @@ import (
 )
 
 type PrependTransformer struct {
-	parcel.DefaultPlugin
 	line string
 }
+
+// Fails to compile if PrependTransformer stops implementing parcel.Transformer, which would
+// otherwise only show up as an error when Parcel calls it.
+var _ parcel.Transformer = (*PrependTransformer)(nil)
 
 func (t *PrependTransformer) Transform(asset *parcel.Asset, _ *parcel.Options) error {
 	source, err := asset.Content()
@@ -51,7 +54,7 @@ func (t *PrependTransformer) Transform(asset *parcel.Asset, _ *parcel.Options) e
 }
 
 func init() {
-	parcel.RegisterPlugin(func(config []byte) (parcel.Plugin, error) {
+	parcel.RegisterPlugin(func(config []byte) (any, error) {
 		var c struct {
 			Line *string `json:"line"`
 		}

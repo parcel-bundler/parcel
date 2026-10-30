@@ -1,3 +1,5 @@
+//go:build parceltest
+
 package parcel
 
 import (
@@ -8,7 +10,6 @@ import (
 )
 
 type panickingPlugin struct {
-	DefaultPlugin
 }
 
 func (*panickingPlugin) Transform(*Asset, *Options) error {
@@ -23,7 +24,7 @@ func (*panickingPlugin) Name(*BundleGraph, *Bundle, *Options) (string, error) {
 	panic("name panic")
 }
 
-func (*panickingPlugin) Optimize(*BundleGraph, *Bundle, []byte, []byte, *Options) (OptimizeResult, error) {
+func (*panickingPlugin) Optimize(*BundleGraph, *Bundle, []byte, string, *Options) (OptimizeResult, error) {
 	panic("optimize panic")
 }
 
@@ -55,7 +56,7 @@ func TestPanicError(t *testing.T) {
 func TestIncompatibleHostAPIIsRejected(t *testing.T) {
 	previousFactory := pluginFactory
 	defer func() { pluginFactory = previousFactory }()
-	pluginFactory = func([]byte) (Plugin, error) {
+	pluginFactory = func([]byte) (any, error) {
 		t.Fatal("plugin was constructed against an incompatible host")
 		return nil, nil
 	}
@@ -103,7 +104,7 @@ func TestPluginPanicsDoNotCrossCBoundary(t *testing.T) {
 	previousFactory := pluginFactory
 	defer func() { pluginFactory = previousFactory }()
 
-	pluginFactory = func([]byte) (Plugin, error) {
+	pluginFactory = func([]byte) (any, error) {
 		panic("init panic")
 	}
 	api := hostAPI(0, 0)
@@ -113,7 +114,7 @@ func TestPluginPanicsDoNotCrossCBoundary(t *testing.T) {
 		t.Fatal("panicking plugin factory reported success")
 	}
 
-	pluginFactory = func([]byte) (Plugin, error) {
+	pluginFactory = func([]byte) (any, error) {
 		return &panickingPlugin{}, nil
 	}
 	state = nil

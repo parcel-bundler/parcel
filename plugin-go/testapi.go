@@ -1,3 +1,11 @@
+//go:build parceltest
+
+// The package's test helpers, behind a build tag so that they, and the mock host
+// in their cgo preamble, are not compiled into every plugin. They cannot live in
+// _test.go files, which cannot use cgo. Run the tests with:
+//
+//	go test -tags parceltest ./...
+
 package parcel
 
 /*
@@ -265,6 +273,11 @@ func rangeAndLinks(diag *C.DiagnosticOptions) (endLine, endColumn uint32, highli
 	return uint32(diag.end_line), uint32(diag.end_column), read(&diag.highlight_message), read(&diag.documentation_url)
 }
 
+// diagnosticMessage returns the message a plugin wrote to diag, or "".
+func diagnosticMessage(diag *C.DiagnosticOptions) string {
+	return goString(unsafe.Pointer(diag.message.data), uintptr(diag.message.len))
+}
+
 // diagnosticSizeField returns the size a Diagnostic holds.
 func diagnosticSizeField(diag *C.DiagnosticOptions) uintptr {
 	return uintptr(diag.size)
@@ -295,7 +308,7 @@ func withUTF8Host(body func(lastCall func() string)) {
 // pluginState returns the state parcel_plugin_init would produce for plugin,
 // without installing a host table the way init does, and a function that frees
 // it.
-func pluginState(plugin Plugin) (unsafe.Pointer, func()) {
+func pluginState(plugin any) (unsafe.Pointer, func()) {
 	handle := cgo.NewHandle(plugin)
 	state := (*C.uintptr_t)(C.malloc(C.size_t(unsafe.Sizeof(C.uintptr_t(0)))))
 	*state = C.uintptr_t(handle)

@@ -16,9 +16,11 @@ import (
 	parcel "github.com/parcel-bundler/parcel/plugin-go"
 )
 
-type CustomResolver struct {
-	parcel.DefaultPlugin
-}
+type CustomResolver struct{}
+
+// Fails to compile if CustomResolver stops implementing parcel.Resolver, which would
+// otherwise only show up as an error when Parcel calls it.
+var _ parcel.Resolver = (*CustomResolver)(nil)
 
 func (r *CustomResolver) Resolve(dep *parcel.Dependency, specifier, pipeline string, _ *parcel.Options) (parcel.ResolveResult, error) {
 	if !strings.HasPrefix(specifier, "custom:") {
@@ -30,7 +32,7 @@ func (r *CustomResolver) Resolve(dep *parcel.Dependency, specifier, pipeline str
 }
 
 func init() {
-	parcel.RegisterPlugin(func(_ []byte) (parcel.Plugin, error) {
+	parcel.RegisterPlugin(func(_ []byte) (any, error) {
 		return &CustomResolver{}, nil
 	})
 }

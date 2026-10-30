@@ -1,9 +1,10 @@
+//go:build parceltest
+
 package parcel
 
 import "testing"
 
 type namingPlugin struct {
-	DefaultPlugin
 	name string
 }
 
