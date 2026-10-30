@@ -6,8 +6,8 @@ use parcel_core::{
 };
 
 use crate::{
-  Buffer, Diagnostic, LogLevel, LogLevelFFI, Options, bytes_to_str, copy_plugin_cdiagnostic,
-  write_buffer,
+  Buffer, Diagnostic, LogLevel, LogLevelFFI, Options, copy_plugin_cdiagnostic, plugin_bytes,
+  plugin_str, write_buffer,
 };
 
 /// What an [`Options`] handle points to.
@@ -66,7 +66,7 @@ pub(crate) unsafe fn options_context<'a>(options: Options) -> &'a OptionsContext
 /// Returns the project root as an absolute filesystem path into `*buf`.
 /// Caller must `parcel_free_buffer(buf)`.
 pub extern "C" fn parcel_options_get_project_root(buf: *mut Buffer, options: Options) {
-  if buf.is_null() {
+  if buf.is_null() || options == 0 {
     return;
   }
   let options = unsafe { options_context(options) }.options;
@@ -93,12 +93,14 @@ pub extern "C" fn parcel_options_get_env(
   key: *const u8,
   key_len: usize,
 ) {
-  if buf.is_null() || key.is_null() {
+  if buf.is_null() || options == 0 || key.is_null() {
     return;
   }
   let options = unsafe { options_context(options) }.options;
-  let key_str = unsafe { bytes_to_str(key, key_len) };
-  if let Some(value) = options.env.get(key_str) {
+  let Some(key) = (unsafe { plugin_str(key, key_len) }) else {
+    return;
+  };
+  if let Some(value) = options.env.get(key) {
     unsafe { write_buffer(buf, value.as_bytes().to_vec(), true) };
   }
 }
@@ -121,9 +123,10 @@ pub extern "C" fn parcel_options_log(
     return;
   }
   let options = unsafe { options_context(options) }.options;
-  let message = unsafe { bytes_to_str(message, message_len) };
+  // Lossy rather than dropped: a message with a stray invalid byte is still worth seeing.
+  let message = String::from_utf8_lossy(unsafe { plugin_bytes(message, message_len) });
   let level = LogLevel::try_from(level).unwrap_or(LogLevel::PARCEL_LOG_INFO);
-  options.log(CoreLogLevel::from(level), message);
+  options.log(CoreLogLevel::from(level), &message);
 }
 
 /// Logs a diagnostic to the build's reporters without failing the build — the

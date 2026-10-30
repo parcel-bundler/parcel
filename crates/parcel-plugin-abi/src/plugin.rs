@@ -1,6 +1,12 @@
 //! Dynamic plugin loading and Parcel plugin trait adapters.
 
-use std::{ffi::c_void, mem::ManuallyDrop, path::Path, ptr, sync::Arc};
+use std::{
+  ffi::c_void,
+  mem::ManuallyDrop,
+  path::{Path, PathBuf},
+  ptr,
+  sync::Arc,
+};
 
 use libloading::{Library, Symbol};
 use parcel_core::{
@@ -12,7 +18,8 @@ use parcel_core::{
 
 use crate::{
   Asset, AssetIndex, Buffer, Bundle, BundleGraph, Dependency, Diagnostic, Diagnostics, Options,
-  OptionsContext, diagnostics::DiagnosticsView, parcel_free_buffer, read_cdiagnostic,
+  OptionsContext, diagnostics::DiagnosticsView, parcel_free_buffer, plugin_path, read_cdiagnostic,
+  trusted_str, trusted_utf8,
 };
 
 /// Result of a plugin's `parcel_plugin_init()`.
@@ -418,16 +425,13 @@ impl Resolver for CPlugin {
           parcel_free_buffer(&mut result.pipeline);
           return Ok(DependencyResolution::None);
         }
-        let file_path = {
-          let file_path_str = unsafe {
-            std::ffi::OsStr::from_encoded_bytes_unchecked(std::slice::from_raw_parts(
-              result.file_path.data,
-              result.file_path.len,
-            ))
-          };
-          let path = Path::new(file_path_str).to_path_buf();
-          parcel_free_buffer(&mut result.file_path);
-          path
+        let file_path = match take_resolved_path(&mut result.file_path, specifier, &self.origin)
+        {
+          Ok(path) => path,
+          Err(diagnostics) => {
+            parcel_free_buffer(&mut result.pipeline);
+            return Err(diagnostics);
+          }
         };
 
         let result_pipeline = if result.pipeline.data.is_null() {
@@ -436,7 +440,7 @@ impl Resolver for CPlugin {
           let s = unsafe {
             let slice = std::slice::from_raw_parts(result.pipeline.data, result.pipeline.len);
             if result.pipeline.is_utf8 {
-              Ok(std::str::from_utf8_unchecked(slice))
+              Ok(trusted_str(slice, "A resolver's pipeline"))
             } else {
               std::str::from_utf8(slice)
             }
@@ -484,6 +488,39 @@ impl Resolver for CPlugin {
   }
 }
 
+/// Takes the path a resolver returned in `buffer`, freeing it. Resolvers must
+/// return absolute paths, in a form this platform can represent.
+pub(crate) fn take_resolved_path(
+  buffer: &mut Buffer,
+  specifier: &str,
+  origin: &str,
+) -> Result<PathBuf, DiagnosticList> {
+  let path = if buffer.data.is_null() {
+    Some(PathBuf::new())
+  } else {
+    let bytes = unsafe { std::slice::from_raw_parts(buffer.data, buffer.len) };
+    unsafe { plugin_path(bytes, buffer.is_utf8) }.map(Path::to_path_buf)
+  };
+  parcel_free_buffer(buffer);
+  *buffer = Buffer::default();
+
+  let message = match path {
+    Some(path) if path.is_absolute() => return Ok(path),
+    Some(path) => format!(
+      "Resolved {specifier:?} to the relative path {:?}. Resolvers must return absolute paths.",
+      path.display()
+    ),
+    None => format!("Resolved {specifier:?} to a path that is not valid UTF-8."),
+  };
+  Err(
+    CoreDiagnostic {
+      origin: Some(origin.to_owned()),
+      ..CoreDiagnostic::from_message(message)
+    }
+    .into(),
+  )
+}
+
 impl parcel_core::Namer for CPlugin {
   fn name(
     &self,
@@ -523,16 +560,16 @@ impl parcel_core::Namer for CPlugin {
     let relative_name = unsafe {
       let slice = std::slice::from_raw_parts(name.data, name.len);
       if name.is_utf8 {
-        std::str::from_utf8_unchecked(slice)
+        Ok(trusted_str(slice, "A namer's result"))
       } else {
-        std::str::from_utf8(slice)?
+        std::str::from_utf8(slice)
       }
     };
 
-    let res = if relative_name.is_empty() {
-      Ok(None)
-    } else {
-      Ok(Some(bundle.target.dist_dir.join(Path::new(&relative_name))))
+    let res = match relative_name {
+      Ok("") => Ok(None),
+      Ok(relative_name) => Ok(Some(bundle.target.dist_dir.join(Path::new(relative_name)))),
+      Err(err) => Err(err.into()),
     };
 
     parcel_free_buffer(&mut name);
@@ -694,7 +731,7 @@ impl Optimizer for CPlugin {
       parcel_free_buffer(&mut result.contents);
 
       if result.contents.is_utf8 {
-        let string = unsafe { String::from_utf8_unchecked(contents) };
+        let string = unsafe { trusted_utf8(contents, "An optimizer's result") };
         if let Some(source_map) = optimized_source_map {
           Ok(Arc::new(ContentWithSourceMap::new_string(
             string, source_map,

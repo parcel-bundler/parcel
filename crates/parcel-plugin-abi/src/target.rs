@@ -98,37 +98,52 @@ assert_flag_values! {
 
 /// Returns an opaque `Target` handle. Valid for the duration of the transform call.
 pub extern "C" fn parcel_asset_get_target(asset: Asset) -> Target {
+  if asset == 0 {
+    return 0;
+  }
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
   Arc::as_ptr(&asset.target) as u64
 }
 
 /// Returns the target environment (`PARCEL_ENV_*`).
 pub extern "C" fn parcel_target_get_environment(target: Target) -> Environment {
+  if target == 0 {
+    return Environment::PARCEL_ENV_BROWSER;
+  }
   let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };
   target.environment.into()
 }
 
 /// Returns the output format (`PARCEL_OUTPUT_FORMAT_*`).
 pub extern "C" fn parcel_target_get_output_format(target: Target) -> OutputFormat {
+  if target == 0 {
+    return OutputFormat::PARCEL_OUTPUT_FORMAT_GLOBAL;
+  }
   let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };
   target.output_format.into()
 }
 
 /// Returns the source type (`PARCEL_SOURCE_TYPE_*`).
 pub extern "C" fn parcel_target_get_source_type(target: Target) -> SourceType {
+  if target == 0 {
+    return SourceType::PARCEL_SOURCE_TYPE_MODULE;
+  }
   let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };
   target.source_type.into()
 }
 
 /// Returns the `EnvironmentFlags` bitfield (`PARCEL_ENV_FLAG_*` bits).
 pub extern "C" fn parcel_target_get_env_flags(target: Target) -> EnvironmentFlagsFFI {
+  if target == 0 {
+    return 0;
+  }
   let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };
   target.flags.bits()
 }
 
 /// Returns the public URL (e.g. `"/"`) into `*buf`. Caller must `parcel_free_buffer(buf)`.
 pub extern "C" fn parcel_target_get_public_url(buf: *mut Buffer, target: Target) {
-  if buf.is_null() {
+  if buf.is_null() || target == 0 {
     return;
   }
   let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };
@@ -139,7 +154,7 @@ pub extern "C" fn parcel_target_get_public_url(buf: *mut Buffer, target: Target)
 /// `options` is the handle received from `parcel_plugin_transform()`.
 /// Caller must `parcel_free_buffer(buf)`.
 pub extern "C" fn parcel_target_get_dist_dir(buf: *mut Buffer, target: Target, _options: Options) {
-  if buf.is_null() {
+  if buf.is_null() || target == 0 {
     return;
   }
   let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };

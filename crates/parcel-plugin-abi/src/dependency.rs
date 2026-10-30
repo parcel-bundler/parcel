@@ -10,9 +10,9 @@ use parcel_core::{
 
 use crate::{
   Asset, Buffer, BundleBehavior, BundleBehaviorFFI, Dependency, Options, ResolutionType,
-  ResolveResult, Target, bytes_to_str,
+  ResolveResult, Target,
   extensible::{Extensible, read_extensible, unknown_fields_are_zero, write_extensible},
-  options_context, path_arg, write_buffer,
+  options_context, path_arg, plugin_str, write_buffer,
 };
 
 // SpecifierType — how a dependency specifier is interpreted
@@ -226,7 +226,7 @@ impl DependencyOptions {
   /// The dependency described by the options a plugin passed, imported by `asset` from
   /// `resolve_from`. It inherits the asset's target.
   ///
-  /// `None` when the options cannot be honored: no specifier, a `size` no version of the ABI
+  /// `None` when the options cannot be honored: no specifier or one that is not valid UTF-8, a `size` no version of the ABI
   /// produces, an enum value this build does not know, or a field it does not know set to anything
   /// but its default. Each of those means a plugin asked for something other than what it would
   /// get, so it is an error rather than a fallback. Unknown flag bits are the exception, and are
@@ -245,7 +245,7 @@ impl DependencyOptions {
     if !unsafe { unknown_fields_are_zero(raw, size) } || options.specifier.is_null() {
       return None;
     }
-    let specifier = unsafe { bytes_to_str(options.specifier, options.specifier_len) };
+    let specifier = unsafe { plugin_str(options.specifier, options.specifier_len) }?;
 
     Some(CoreDependency {
       specifier: specifier.into(),
@@ -363,7 +363,7 @@ pub extern "C" fn parcel_asset_resolve(
 
 /// Returns the raw specifier string (e.g. `"custom:greeting"`) into `*buf`.
 pub extern "C" fn parcel_dep_get_specifier(buf: *mut Buffer, dep: Dependency) {
-  if buf.is_null() {
+  if buf.is_null() || dep == 0 {
     return;
   }
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
@@ -372,37 +372,52 @@ pub extern "C" fn parcel_dep_get_specifier(buf: *mut Buffer, dep: Dependency) {
 
 /// Returns the specifier type (`PARCEL_SPECIFIER_*`).
 pub extern "C" fn parcel_dep_get_specifier_type(dep: Dependency) -> SpecifierType {
+  if dep == 0 {
+    return SpecifierType::PARCEL_SPECIFIER_ESM;
+  }
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
   dep.specifier_type.into()
 }
 
 /// Returns the priority (`PARCEL_PRIORITY_*`).
 pub extern "C" fn parcel_dep_get_priority(dep: Dependency) -> Priority {
+  if dep == 0 {
+    return Priority::PARCEL_PRIORITY_SYNC;
+  }
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
   dep.priority.into()
 }
 
 /// Returns the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`).
 pub extern "C" fn parcel_dep_get_bundle_behavior(dep: Dependency) -> BundleBehavior {
+  if dep == 0 {
+    return BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_NONE;
+  }
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
   dep.bundle_behavior.into()
 }
 
 /// Returns the raw `DependencyFlags` bitfield (`PARCEL_DEP_*` bits).
 pub extern "C" fn parcel_dep_get_flags(dep: Dependency) -> DependencyFlagsFFI {
+  if dep == 0 {
+    return 0;
+  }
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
   dep.flags.bits()
 }
 
 /// Returns the raw `ExportsConditions` bitfield (`PARCEL_EXPORTS_CONDITION_*` bits).
 pub extern "C" fn parcel_dep_get_conditions(dep: Dependency) -> ExportsConditionsFFI {
+  if dep == 0 {
+    return 0;
+  }
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
   dep.conditions.bits()
 }
 
 /// Returns the absolute path of the file containing this import into `*buf`.
 pub extern "C" fn parcel_dep_get_source_path(buf: *mut Buffer, dep: Dependency, _options: Options) {
-  if buf.is_null() {
+  if buf.is_null() || dep == 0 {
     return;
   }
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
@@ -430,7 +445,7 @@ pub extern "C" fn parcel_dep_get_resolve_from(
   dep: Dependency,
   _options: Options,
 ) {
-  if buf.is_null() {
+  if buf.is_null() || dep == 0 {
     return;
   }
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
@@ -457,6 +472,9 @@ pub extern "C" fn parcel_dep_get_resolve_from(
 
 /// Returns an opaque `Target` handle for the dependency.
 pub extern "C" fn parcel_dep_get_target(dep: Dependency) -> Target {
+  if dep == 0 {
+    return 0;
+  }
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
   Arc::as_ptr(&dep.target) as u64
 }

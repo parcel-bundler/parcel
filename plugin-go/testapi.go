@@ -85,6 +85,41 @@ static void test_options_log_diagnostic(Options options, const struct Diagnostic
   test_diagnostic_size = diagnostic->size;
 }
 
+// The host function a plugin last called to hand over content or a name.
+static const char *test_last_call = "";
+static const char *test_get_last_call(void) { return test_last_call; }
+
+static void test_set_content(Asset asset, const uint8_t *data, uint32_t len) {
+  test_last_call = "asset_set_content";
+}
+static void test_set_content_utf8(Asset asset, const uint8_t *data, uint32_t len) {
+  test_last_call = "asset_set_content_utf8";
+}
+static void test_set_content_with_map(Asset asset, const uint8_t *data, uintptr_t len,
+                                      const uint8_t *map, uintptr_t map_len) {
+  test_last_call = "asset_set_content_with_map";
+}
+static void test_set_content_utf8_with_map(Asset asset, const uint8_t *data, uintptr_t len,
+                                           const uint8_t *map, uintptr_t map_len) {
+  test_last_call = "asset_set_content_utf8_with_map";
+}
+static void test_buffer_write(struct Buffer *buf, const uint8_t *data, uintptr_t len) {
+  test_last_call = "buffer_write";
+}
+static void test_buffer_write_utf8(struct Buffer *buf, const uint8_t *data, uintptr_t len) {
+  test_last_call = "buffer_write_utf8";
+}
+
+static void install_utf8_api(struct ParcelApi *api) {
+  test_last_call = "";
+  api->asset_set_content = test_set_content;
+  api->asset_set_content_utf8 = test_set_content_utf8;
+  api->asset_set_content_with_map = test_set_content_with_map;
+  api->asset_set_content_utf8_with_map = test_set_content_utf8_with_map;
+  api->buffer_write = test_buffer_write;
+  api->buffer_write_utf8 = test_buffer_write_utf8;
+}
+
 static void install_sized_struct_api(struct ParcelApi *api) {
   api->free_buffer = test_free_buffer;
   api->buffer_alloc = test_buffer_alloc;
@@ -96,7 +131,10 @@ static void install_sized_struct_api(struct ParcelApi *api) {
 */
 import "C"
 
-import "unsafe"
+import (
+	"runtime/cgo"
+	"unsafe"
+)
 
 // hostAPI allocates a host function table matching what this SDK was built
 // against, as Parcel would pass to parcel_plugin_init. sizeDelta and abiDelta
@@ -227,4 +265,30 @@ func newReportEvent(size uintptr, eventType uint8) (*C.ReportEvent, func()) {
 	event.size = C.uintptr_t(size)
 	event.event_type = C.ReportEventType(eventType)
 	return event, func() { C.free(unsafe.Pointer(event)) }
+}
+
+// withUTF8Host runs body with parcel_api pointing at a host table that records
+// which content setter or buffer write a plugin last called, returned by
+// lastCall: whether it handed the bytes over as UTF-8 or not.
+func withUTF8Host(body func(lastCall func() string)) {
+	api := hostAPI(0, 0)
+	defer freeHostAPI(api)
+	C.install_utf8_api(api)
+	previous := C.parcel_api
+	C.parcel_api = api
+	defer func() { C.parcel_api = previous }()
+	body(func() string { return C.GoString(C.test_get_last_call()) })
+}
+
+// pluginState returns the state parcel_plugin_init would produce for plugin,
+// without installing a host table the way init does, and a function that frees
+// it.
+func pluginState(plugin Plugin) (unsafe.Pointer, func()) {
+	handle := cgo.NewHandle(plugin)
+	state := (*C.uintptr_t)(C.malloc(C.size_t(unsafe.Sizeof(C.uintptr_t(0)))))
+	*state = C.uintptr_t(handle)
+	return unsafe.Pointer(state), func() {
+		handle.Delete()
+		C.free(unsafe.Pointer(state))
+	}
 }

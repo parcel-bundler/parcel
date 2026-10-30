@@ -728,6 +728,10 @@ impl<'a> Asset<'a> {
 
   /// Replaces the asset content with a UTF-8 string.
   pub fn set_content(&mut self, content: impl AsRef<str>) {
+    // Parcel trusts content passed to a `_utf8` function, or written with
+    // `buffer_write_utf8`, without checking it. Every such call in this SDK is
+    // made with the bytes of a `str`, which is always valid UTF-8, and that is
+    // what keeps them sound.
     let bytes = content.as_ref().as_bytes();
     unsafe { host!(asset_set_content_utf8)(self.raw, bytes.as_ptr(), bytes.len() as u32) };
   }

@@ -501,6 +501,10 @@ typedef struct ParcelApiHeader {
  * Plugins may allocate a buffer with `parcel_buffer_alloc` and release with `parcel_free_buffer()`.
  * Use `parcel_buffer_write` or `parcel_buffer_write_utf8` to copy data into an existing Buffer,
  * replacing and dropping the existing content if any. Do not set the fields in this struct manually.
+ *
+ * `is_utf8` is a promise that `data` is valid UTF-8. Parcel relies on it without checking, so a
+ * buffer a plugin returns with it set (via `parcel_buffer_write_utf8()`) must hold valid UTF-8,
+ * and returning one that does not is undefined behavior.
  */
 typedef struct Buffer {
   uint8_t *data;

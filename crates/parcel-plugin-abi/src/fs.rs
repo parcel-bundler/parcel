@@ -13,7 +13,7 @@
 
 use parcel_core::{FileKind as CoreFileKind, PathId};
 
-use crate::{Buffer, Options, bytes_to_str, options_context, write_buffer};
+use crate::{Buffer, Options, options_context, plugin_str, write_buffer};
 
 /// Outcome of a file system call.
 #[repr(u8)]
@@ -51,10 +51,9 @@ assert_flag_values! {
 
 /// Interns a plugin-supplied path, rejecting anything Parcel could not have
 /// produced itself: a relative path has no meaning without a base the host
-/// cannot guess, and an empty one is what invalid UTF-8 decodes to.
+/// cannot guess, and invalid UTF-8 is not a path Parcel ever hands out.
 pub(crate) unsafe fn path_arg(path: *const u8, path_len: usize) -> Option<PathId> {
-  let path = unsafe { bytes_to_str(path, path_len) };
-  let path = std::path::Path::new(path);
+  let path = std::path::Path::new(unsafe { plugin_str(path, path_len) }?);
   path.is_absolute().then(|| PathId::new(path))
 }
 

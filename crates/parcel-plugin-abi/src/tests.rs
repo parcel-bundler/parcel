@@ -1709,3 +1709,193 @@ fn raw_enum_conversion_accepts_exactly_the_declared_variants() {
     );
   }
 }
+
+/// The zero handle some functions return to mean "none" reads as zero
+/// everywhere, rather than crashing whatever it is passed to next.
+#[test]
+fn zero_handles_read_as_zero() {
+  for read in [
+    |buf| parcel_asset_get_content(buf, 0),
+    |buf| parcel_asset_get_content_utf8(buf, 0),
+    |buf| parcel_asset_get_map(buf, 0),
+    |buf| parcel_asset_get_type(buf, 0),
+    |buf| parcel_asset_get_file_path(buf, 0, 0),
+    |buf| parcel_asset_get_pipeline(buf, 0),
+    |buf| parcel_asset_get_query(buf, 0),
+    |buf| parcel_asset_get_unique_key(buf, 0),
+    |buf| parcel_dep_get_specifier(buf, 0),
+    |buf| parcel_dep_get_source_path(buf, 0, 0),
+    |buf| parcel_dep_get_resolve_from(buf, 0, 0),
+    |buf| parcel_target_get_public_url(buf, 0),
+    |buf| parcel_target_get_dist_dir(buf, 0, 0),
+    |buf| parcel_options_get_project_root(buf, 0),
+    |buf| parcel_options_get_env(buf, 0, b"KEY".as_ptr(), 3),
+  ] as [fn(*mut Buffer); 15]
+  {
+    assert_eq!(buffer_output(read), None);
+  }
+
+  assert_eq!(parcel_asset_get_bundle_behavior(0) as u8, 0);
+  assert_eq!(parcel_asset_get_flags(0), 0);
+  assert_eq!(parcel_asset_get_target(0), 0);
+  assert!(!parcel_asset_get_custom_content(
+    &mut [0; 16],
+    &mut ptr::null_mut(),
+    0
+  ));
+  assert_eq!(parcel_dep_get_specifier_type(0) as u8, 0);
+  assert_eq!(parcel_dep_get_priority(0) as u8, 0);
+  assert_eq!(parcel_dep_get_bundle_behavior(0) as u8, 0);
+  assert_eq!(parcel_dep_get_flags(0), 0);
+  assert_eq!(parcel_dep_get_conditions(0), 0);
+  assert_eq!(parcel_dep_get_target(0), 0);
+  assert_eq!(parcel_target_get_environment(0) as u8, 0);
+  assert_eq!(parcel_target_get_output_format(0) as u8, 0);
+  assert_eq!(parcel_target_get_source_type(0) as u8, 0);
+  assert_eq!(parcel_target_get_env_flags(0), 0);
+
+  // Setters on no asset do nothing.
+  let data = b"x";
+  parcel_asset_set_content(0, data.as_ptr(), 1);
+  parcel_asset_set_content_utf8(0, data.as_ptr(), 1);
+  parcel_asset_set_type(0, data.as_ptr(), 1);
+  parcel_asset_set_pipeline(0, data.as_ptr(), 1);
+  parcel_asset_set_unique_key(0, data.as_ptr(), 1);
+  parcel_asset_set_bundle_behavior(0, 1);
+  parcel_asset_set_flags(0, 1);
+  parcel_asset_add_export_symbol(0, data.as_ptr(), 1);
+  parcel_buffer_write(ptr::null_mut(), data.as_ptr(), 1);
+}
+
+/// String arguments carry no UTF-8 promise, so they are checked, and invalid
+/// UTF-8 makes the call do nothing rather than substitute an empty string.
+#[test]
+fn invalid_utf8_string_arguments_change_nothing() {
+  let mut asset = asset_fixture(target_fixture());
+  asset.pipeline = Some("before".into());
+  asset.unique_key = Some("key".into());
+  let ty = asset.ty.clone();
+  let exports = asset.symbols.exports.len();
+  let dependencies = asset.dependencies.len();
+  let handle = asset_mut_handle(&mut asset);
+
+  let invalid = b"\xff\xfe";
+  parcel_asset_set_type(handle, invalid.as_ptr(), invalid.len());
+  parcel_asset_set_pipeline(handle, invalid.as_ptr(), invalid.len());
+  parcel_asset_set_unique_key(handle, invalid.as_ptr(), invalid.len());
+  parcel_asset_add_export_symbol(handle, invalid.as_ptr(), invalid.len());
+  let dep = DependencyOptions {
+    specifier: invalid.as_ptr(),
+    specifier_len: invalid.len(),
+    ..Default::default()
+  };
+  assert!(!parcel_asset_add_dependency(handle, &dep));
+
+  assert_eq!(asset.ty, ty);
+  assert_eq!(asset.pipeline.as_deref(), Some("before"));
+  assert_eq!(asset.unique_key.as_deref(), Some("key"));
+  assert_eq!(asset.symbols.exports.len(), exports);
+  assert_eq!(asset.dependencies.len(), dependencies);
+}
+
+static FREED_CONTENT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+extern "C" fn count_freed_content(content: *mut c_void) {
+  drop(unsafe { Box::from_raw(content as *mut String) });
+  FREED_CONTENT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+}
+
+/// Custom content Parcel cannot use leaves the asset as it was, and is freed
+/// rather than leaked when there is a callback to free it with.
+#[test]
+fn custom_content_without_required_arguments_is_released() {
+  use std::sync::atomic::Ordering;
+
+  let mut asset = asset_fixture(target_fixture());
+  let handle = asset_mut_handle(&mut asset);
+  let ty = *b"parcel-test-type";
+  let content = || Box::into_raw(Box::new(String::from("content"))) as *mut c_void;
+
+  let before = FREED_CONTENT.load(Ordering::SeqCst);
+  parcel_asset_set_custom_content(
+    handle,
+    &ty,
+    content(),
+    None,
+    None,
+    Some(count_freed_content),
+  );
+  parcel_asset_set_custom_content(
+    handle,
+    ptr::null(),
+    content(),
+    Some(read_custom_content),
+    None,
+    Some(count_freed_content),
+  );
+  parcel_asset_set_custom_content(
+    0,
+    &ty,
+    content(),
+    Some(read_custom_content),
+    None,
+    Some(count_freed_content),
+  );
+  assert_eq!(FREED_CONTENT.load(Ordering::SeqCst) - before, 3);
+
+  // Without a free callback there is nothing to release it with.
+  let leaked = content();
+  parcel_asset_set_custom_content(handle, &ty, leaked, Some(read_custom_content), None, None);
+  drop(unsafe { Box::from_raw(leaked as *mut String) });
+
+  assert!(!parcel_asset_get_custom_content(
+    &mut [0; 16],
+    &mut ptr::null_mut(),
+    asset_handle(&asset)
+  ));
+}
+
+fn resolved_path(
+  write: extern "C" fn(*mut Buffer, *const u8, usize),
+  bytes: &[u8],
+) -> Result<std::path::PathBuf, String> {
+  let mut buffer = Buffer::default();
+  write(&mut buffer, bytes.as_ptr(), bytes.len());
+  let result = crate::plugin::take_resolved_path(&mut buffer, "./a", "resolver");
+  assert!(buffer.data.is_null(), "the buffer was not taken");
+  result.map_err(|diagnostics| {
+    assert_eq!(diagnostics.0[0].origin.as_deref(), Some("resolver"));
+    diagnostics.0[0].message.clone()
+  })
+}
+
+#[test]
+fn resolvers_must_return_absolute_paths() {
+  let absolute = std::env::temp_dir().join("a.js");
+  let bytes = absolute.to_str().unwrap().as_bytes();
+  assert_eq!(
+    resolved_path(parcel_buffer_write_utf8, bytes),
+    Ok(absolute.clone())
+  );
+  assert_eq!(resolved_path(parcel_buffer_write, bytes), Ok(absolute));
+
+  let error = resolved_path(parcel_buffer_write_utf8, b"a.js").unwrap_err();
+  assert!(error.contains("relative path"), "{error}");
+}
+
+/// Paths are bytes on Unix, so a path a resolver did not mark as UTF-8 is used
+/// as it is, rather than rejected.
+#[cfg(unix)]
+#[test]
+fn resolvers_may_return_non_utf8_paths_on_unix() {
+  use std::os::unix::ffi::OsStrExt;
+
+  let bytes = b"/project/\xff.js";
+  assert_eq!(
+    resolved_path(parcel_buffer_write, bytes)
+      .unwrap()
+      .as_os_str()
+      .as_bytes(),
+    bytes
+  );
+}

@@ -130,6 +130,12 @@ func allocBuffer(_ string: String) -> CParcelABI.Buffer {
 nonisolated(unsafe) private let emptyByte = UnsafeMutablePointer<UInt8>.allocate(capacity: 1)
 
 /// Calls `body` with a pointer to the UTF-8 bytes of `string`, never null.
+///
+/// Those bytes are always valid UTF-8: a native `String` is validated, or
+/// repaired with U+FFFD, when it is created, and `withUTF8` transcodes a bridged
+/// `NSString` to native UTF-8 the same way, unpaired surrogates included. Parcel
+/// trusts bytes passed to its `_utf8` functions without checking them, so every
+/// such call in this SDK goes through here.
 func withBytes<R>(
   _ string: String, _ body: (UnsafePointer<UInt8>, UInt) throws -> R
 ) rethrows -> R {

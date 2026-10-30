@@ -405,7 +405,7 @@ const _: () = {
   ["Offset of field: ParcelApiHeader::_reserved"]
     [::std::mem::offset_of!(ParcelApiHeader, _reserved) - 12usize];
 };
-#[doc = " Byte buffer owned by Parcel.\n Plugins may allocate a buffer with `parcel_buffer_alloc` and release with `parcel_free_buffer()`.\n Use `parcel_buffer_write` or `parcel_buffer_write_utf8` to copy data into an existing Buffer,\n replacing and dropping the existing content if any. Do not set the fields in this struct manually."]
+#[doc = " Byte buffer owned by Parcel.\n Plugins may allocate a buffer with `parcel_buffer_alloc` and release with `parcel_free_buffer()`.\n Use `parcel_buffer_write` or `parcel_buffer_write_utf8` to copy data into an existing Buffer,\n replacing and dropping the existing content if any. Do not set the fields in this struct manually.\n\n `is_utf8` is a promise that `data` is valid UTF-8. Parcel relies on it without checking, so a\n buffer a plugin returns with it set (via `parcel_buffer_write_utf8()`) must hold valid UTF-8,\n and returning one that does not is undefined behavior."]
 #[repr(C)]
 #[derive(Debug)]
 pub struct Buffer {

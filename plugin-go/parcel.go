@@ -31,6 +31,7 @@ import (
 	"runtime"
 	"runtime/cgo"
 	"time"
+	"unicode/utf8"
 	"unsafe"
 )
 
@@ -206,7 +207,13 @@ func parcel_plugin_name(rawGraph C.BundleGraph, rawBundle C.Bundle, rawOptions C
 	}
 	if len(name) > 0 && result != nil {
 		ptr := (*C.uint8_t)(unsafe.Pointer(unsafe.StringData(name)))
-		C.parcel_buffer_write_utf8(result, ptr, C.uintptr_t(len(name)))
+		// Only valid UTF-8 may be marked as such; Parcel checks anything else
+		// itself and reports a name it cannot use.
+		if utf8.ValidString(name) {
+			C.parcel_buffer_write_utf8(result, ptr, C.uintptr_t(len(name)))
+		} else {
+			C.parcel_buffer_write(result, ptr, C.uintptr_t(len(name)))
+		}
 	}
 }
 
@@ -403,14 +410,17 @@ func (a *Asset) ContentBytes() []byte {
 }
 
 // SetContent replaces the asset content with the given string.
+//
+// A Go string can hold any bytes. Content that is not valid UTF-8 is stored
+// as bytes, as SetContentBytes would, rather than as text.
 func (a *Asset) SetContent(content string) {
-	if len(content) == 0 {
-		empty := byte(0)
-		C.parcel_asset_set_content_utf8(a.ptr, (*C.uint8_t)(unsafe.Pointer(&empty)), 0)
+	// Parcel trusts content passed as UTF-8 without checking it, so only
+	// validated content may be.
+	if !utf8.ValidString(content) {
+		C.parcel_asset_set_content(a.ptr, nonNullPtr(content), C.uint32_t(len(content)))
 		return
 	}
-	ptr := (*C.uint8_t)(unsafe.Pointer(unsafe.StringData(content)))
-	C.parcel_asset_set_content_utf8(a.ptr, ptr, C.uint32_t(len(content)))
+	C.parcel_asset_set_content_utf8(a.ptr, nonNullPtr(content), C.uint32_t(len(content)))
 }
 
 // SetContentBytes replaces the asset content with the given byte slice.
@@ -430,7 +440,15 @@ func (a *Asset) SetContentBytes(content []byte) {
 // The map's sources may be absolute paths, file:// URLs, or paths relative to
 // the asset's directory. Parcel composes it with the maps of later transformers,
 // so the final bundle maps back to the files this transformer read.
+//
+// Content that is not valid UTF-8 is stored as bytes, as with SetContent.
 func (a *Asset) SetContentWithMap(content string, sourceMap string) {
+	// Parcel trusts content passed as UTF-8 without checking it, so only
+	// validated content may be.
+	if !utf8.ValidString(content) {
+		C.parcel_asset_set_content_with_map(a.ptr, nonNullPtr(content), C.uintptr_t(len(content)), stringPtr(sourceMap), C.uintptr_t(len(sourceMap)))
+		return
+	}
 	C.parcel_asset_set_content_utf8_with_map(a.ptr, nonNullPtr(content), C.uintptr_t(len(content)), stringPtr(sourceMap), C.uintptr_t(len(sourceMap)))
 }
 

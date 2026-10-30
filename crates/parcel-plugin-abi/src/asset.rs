@@ -10,7 +10,7 @@ use parcel_core::{
 
 use crate::{
   Asset, Buffer, Bundle, BundleBehavior, BundleBehaviorFFI, BundleGraph, Diagnostic, Options,
-  OptionsContext, bytes_to_str, read_cdiagnostic, write_buffer,
+  OptionsContext, plugin_str, read_cdiagnostic, trusted_utf8, write_buffer,
 };
 
 #[repr(u32)]
@@ -59,7 +59,7 @@ assert_flag_values! {
 
 /// Returns the asset content into `*buf`. Caller must `parcel_free_buffer(buf)`.
 pub extern "C" fn parcel_asset_get_content(buf: *mut Buffer, asset: Asset) {
-  if buf.is_null() {
+  if buf.is_null() || asset == 0 {
     return;
   }
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
@@ -71,7 +71,7 @@ pub extern "C" fn parcel_asset_get_content(buf: *mut Buffer, asset: Asset) {
 
 /// Returns the asset content as a UTF-8 string into `*buf`. Caller must `parcel_free_buffer(buf)`.
 pub extern "C" fn parcel_asset_get_content_utf8(buf: *mut Buffer, asset: Asset) {
-  if buf.is_null() {
+  if buf.is_null() || asset == 0 {
     return;
   }
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
@@ -83,7 +83,7 @@ pub extern "C" fn parcel_asset_get_content_utf8(buf: *mut Buffer, asset: Asset) 
 
 /// Replaces the asset content with the given bytes.
 pub extern "C" fn parcel_asset_set_content(asset: Asset, data: *const u8, len: u32) {
-  if data.is_null() {
+  if data.is_null() || asset == 0 {
     return;
   }
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
@@ -92,14 +92,16 @@ pub extern "C" fn parcel_asset_set_content(asset: Asset, data: *const u8, len: u
 }
 
 /// Replaces the asset content with the given UTF-8 bytes.
-/// It is the caller's responsibility to validate that the data is valid UTF-8.
+///
+/// `data` must be valid UTF-8. Parcel does not check, and passing anything else is undefined
+/// behavior. Use `parcel_asset_set_content()` for bytes you have not validated.
 pub extern "C" fn parcel_asset_set_content_utf8(asset: Asset, data: *const u8, len: u32) {
-  if data.is_null() {
+  if data.is_null() || asset == 0 {
     return;
   }
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
-  let string =
-    unsafe { String::from_utf8_unchecked(std::slice::from_raw_parts(data, len as usize).to_vec()) };
+  let bytes = unsafe { std::slice::from_raw_parts(data, len as usize).to_vec() };
+  let string = unsafe { trusted_utf8(bytes, "parcel_asset_set_content_utf8") };
   asset.content = Arc::new(BufferContent::new_string(string));
 }
 
@@ -129,7 +131,9 @@ pub extern "C" fn parcel_asset_set_content_with_map(
 }
 
 /// Like `parcel_asset_set_content_with_map()`, for UTF-8 content.
-/// It is the caller's responsibility to validate that the data is valid UTF-8.
+///
+/// `data` must be valid UTF-8. Parcel does not check, and passing anything else is undefined
+/// behavior. Use `parcel_asset_set_content_with_map()` for bytes you have not validated.
 pub extern "C" fn parcel_asset_set_content_utf8_with_map(
   asset: Asset,
   data: *const u8,
@@ -141,8 +145,8 @@ pub extern "C" fn parcel_asset_set_content_utf8_with_map(
     return;
   }
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
-  let string =
-    unsafe { String::from_utf8_unchecked(std::slice::from_raw_parts(data, len).to_vec()) };
+  let bytes = unsafe { std::slice::from_raw_parts(data, len).to_vec() };
+  let string = unsafe { trusted_utf8(bytes, "parcel_asset_set_content_utf8_with_map") };
   asset.content = match unsafe { source_map_arg(map, map_len) } {
     Some(map) => Arc::new(ContentWithSourceMap::new_string(string, map)),
     None => Arc::new(BufferContent::new_string(string)),
@@ -252,7 +256,9 @@ impl Content for CContent {
     }
 
     if buf.is_utf8 {
-      Ok(Cow::Owned(unsafe { String::from_utf8_unchecked(bytes) }))
+      Ok(Cow::Owned(unsafe {
+        trusted_utf8(bytes, "A custom content read callback")
+      }))
     } else {
       Ok(Cow::Owned(String::from_utf8(bytes)?))
     }
@@ -308,7 +314,7 @@ impl Content for CContent {
 
       let content = if buf.is_utf8 {
         Arc::new(BufferContent::new_string(unsafe {
-          String::from_utf8_unchecked(bytes)
+          trusted_utf8(bytes, "A custom content package callback")
         }))
       } else {
         Arc::new(BufferContent::new(bytes))
@@ -327,6 +333,9 @@ impl Content for CContent {
 }
 
 /// Replaces the asset content with a custom content type.
+///
+/// `ty`, `read` and `free` are required. Without them, or without an asset, the asset is left
+/// unchanged and `content` is released with `free`, when there is one to call.
 pub extern "C" fn parcel_asset_set_custom_content(
   asset: Asset,
   ty: *const [u8; 16],
@@ -347,15 +356,25 @@ pub extern "C" fn parcel_asset_set_custom_content(
   >,
   free: Option<extern "C" fn(content: *mut c_void)>,
 ) {
+  let (Some(read), Some(free)) = (read, free) else {
+    if let Some(free) = free {
+      free(content);
+    }
+    return;
+  };
+  if asset == 0 || ty.is_null() {
+    free(content);
+    return;
+  }
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
   let content = CContent {
     // Retain the input estimate for opaque ASTs without invoking their read callback.
     source_size: asset.content.estimate_size(),
     ty: unsafe { *ty },
     ptr: content,
-    read: read.expect("a read callback must be provided to parcel_asset_set_content"),
+    read,
     package,
-    free: free.expect("a free callback must be provided to parcel_asset_set_content"),
+    free,
   };
 
   asset.content = Arc::new(content);
@@ -367,7 +386,7 @@ pub extern "C" fn parcel_asset_get_custom_content(
   content: *mut *mut c_void,
   asset: Asset,
 ) -> bool {
-  if content.is_null() || ty.is_null() {
+  if content.is_null() || ty.is_null() || asset == 0 {
     return false;
   }
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
@@ -387,18 +406,23 @@ pub extern "C" fn parcel_asset_get_custom_content(
 /// Returns the asset type extension (e.g. `"js"`, `"css"`) into `*buf`.
 /// Caller must `parcel_free_buffer(buf)`.
 pub extern "C" fn parcel_asset_get_type(buf: *mut Buffer, asset: Asset) {
-  if buf.is_null() {
+  if buf.is_null() || asset == 0 {
     return;
   }
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
   unsafe { write_buffer(buf, asset.ty.extension().as_bytes().to_vec(), true) };
 }
 
-/// Changes the asset type to the given file-extension bytes (e.g. `"js"`).
+/// Changes the asset type to the given file-extension bytes (e.g. `"js"`). Does nothing when they
+/// are not valid UTF-8.
 pub extern "C" fn parcel_asset_set_type(asset: Asset, ty: *const u8, ty_len: usize) {
+  if asset == 0 {
+    return;
+  }
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
-  let ext = unsafe { bytes_to_str(ty, ty_len) };
-  asset.ty = AssetType::from_extension(ext);
+  if let Some(ext) = unsafe { plugin_str(ty, ty_len) } {
+    asset.ty = AssetType::from_extension(ext);
+  }
 }
 
 // ── File path (read-only) ─────────────────────────────────────────────────────
@@ -407,7 +431,7 @@ pub extern "C" fn parcel_asset_set_type(asset: Asset, ty: *const u8, ty_len: usi
 /// `options` is the handle received from `parcel_plugin_transform()`.
 /// Caller must `parcel_free_buffer(buf)`.
 pub extern "C" fn parcel_asset_get_file_path(buf: *mut Buffer, asset: Asset, _options: Options) {
-  if buf.is_null() {
+  if buf.is_null() || asset == 0 {
     return;
   }
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
@@ -432,7 +456,7 @@ pub extern "C" fn parcel_asset_get_file_path(buf: *mut Buffer, asset: Asset, _op
 /// Returns the named pipeline into `*buf`, or leaves `buf->data == NULL` if none is set.
 /// Caller must `parcel_free_buffer(buf)` when `data != NULL`.
 pub extern "C" fn parcel_asset_get_pipeline(buf: *mut Buffer, asset: Asset) {
-  if buf.is_null() {
+  if buf.is_null() || asset == 0 {
     return;
   }
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
@@ -442,18 +466,23 @@ pub extern "C" fn parcel_asset_get_pipeline(buf: *mut Buffer, asset: Asset) {
   unsafe { write_buffer(buf, pipeline.as_bytes().to_vec(), true) };
 }
 
-/// Sets the named pipeline. Pass `NULL` / `0` to clear.
+/// Sets the named pipeline. Pass `NULL` / `0` to clear. Does nothing when the name is not valid
+/// UTF-8.
 pub extern "C" fn parcel_asset_set_pipeline(
   asset: Asset,
   pipeline: *const u8,
   pipeline_len: usize,
 ) {
+  if asset == 0 {
+    return;
+  }
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
   if pipeline.is_null() {
     asset.pipeline = None;
   } else {
-    let s = unsafe { bytes_to_str(pipeline, pipeline_len) };
-    asset.pipeline = Some(s.into());
+    if let Some(pipeline) = unsafe { plugin_str(pipeline, pipeline_len) } {
+      asset.pipeline = Some(pipeline.into());
+    }
   }
 }
 
@@ -463,7 +492,7 @@ pub extern "C" fn parcel_asset_set_pipeline(
 /// `buf->data == NULL` if the URL has no query.
 /// Caller must `parcel_free_buffer(buf)` when `data != NULL`.
 pub extern "C" fn parcel_asset_get_query(buf: *mut Buffer, asset: Asset) {
-  if buf.is_null() {
+  if buf.is_null() || asset == 0 {
     return;
   }
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
@@ -477,6 +506,9 @@ pub extern "C" fn parcel_asset_get_query(buf: *mut Buffer, asset: Asset) {
 
 /// Returns the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`).
 pub extern "C" fn parcel_asset_get_bundle_behavior(asset: Asset) -> BundleBehavior {
+  if asset == 0 {
+    return BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_NONE;
+  }
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
   asset.bundle_behavior.into()
 }
@@ -484,6 +516,9 @@ pub extern "C" fn parcel_asset_get_bundle_behavior(asset: Asset) -> BundleBehavi
 /// Sets the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`). A value this version of Parcel does not
 /// know is ignored, leaving the asset's bundle behavior unchanged.
 pub extern "C" fn parcel_asset_set_bundle_behavior(asset: Asset, behavior: BundleBehaviorFFI) {
+  if asset == 0 {
+    return;
+  }
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
   if let Ok(behavior) = BundleBehavior::try_from(behavior) {
     asset.bundle_behavior = behavior.into();
@@ -494,12 +529,18 @@ pub extern "C" fn parcel_asset_set_bundle_behavior(asset: Asset, behavior: Bundl
 
 /// Returns the raw `AssetFlags` bitfield (`PARCEL_ASSET_*` bits).
 pub extern "C" fn parcel_asset_get_flags(asset: Asset) -> AssetFlagsFFI {
+  if asset == 0 {
+    return 0;
+  }
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
   asset.flags.bits()
 }
 
 /// Replaces the `AssetFlags` bitfield.
 pub extern "C" fn parcel_asset_set_flags(asset: Asset, flags: AssetFlagsFFI) {
+  if asset == 0 {
+    return;
+  }
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
   asset.flags = CoreAssetFlags::from_bits_truncate(flags);
 }
@@ -509,7 +550,7 @@ pub extern "C" fn parcel_asset_set_flags(asset: Asset, flags: AssetFlagsFFI) {
 /// Returns the unique key into `*buf`, or leaves `buf->data == NULL` if not set.
 /// Caller must `parcel_free_buffer(buf)` when `data != NULL`.
 pub extern "C" fn parcel_asset_get_unique_key(buf: *mut Buffer, asset: Asset) {
-  if buf.is_null() {
+  if buf.is_null() || asset == 0 {
     return;
   }
   let asset: &CoreAsset = unsafe { &*(asset as *const CoreAsset) };
@@ -519,26 +560,33 @@ pub extern "C" fn parcel_asset_get_unique_key(buf: *mut Buffer, asset: Asset) {
   unsafe { write_buffer(buf, key.as_bytes().to_vec(), true) };
 }
 
-/// Sets the unique key. Pass `NULL` / `0` to clear.
+/// Sets the unique key. Pass `NULL` / `0` to clear. Does nothing when the key is not valid UTF-8.
 pub extern "C" fn parcel_asset_set_unique_key(asset: Asset, key: *const u8, key_len: usize) {
+  if asset == 0 {
+    return;
+  }
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
   if key.is_null() {
     asset.unique_key = None;
   } else {
-    let s = unsafe { bytes_to_str(key, key_len) };
-    asset.unique_key = Some(s.to_owned().into());
+    if let Some(key) = unsafe { plugin_str(key, key_len) } {
+      asset.unique_key = Some(key.to_owned().into());
+    }
   }
 }
 
 // ── Symbols ───────────────────────────────────────────────────────────────────
 
-/// Registers an exported symbol name (e.g. `"default"`, `"foo"`, `"*"`).
+/// Registers an exported symbol name (e.g. `"default"`, `"foo"`, `"*"`). Does nothing when the
+/// name is not valid UTF-8.
 pub extern "C" fn parcel_asset_add_export_symbol(asset: Asset, name: *const u8, name_len: usize) {
-  if name.is_null() {
+  if name.is_null() || asset == 0 {
     return;
   }
   let asset = unsafe { &mut *(asset as *mut CoreAsset) };
-  let name = unsafe { bytes_to_str(name, name_len) };
+  let Some(name) = (unsafe { plugin_str(name, name_len) }) else {
+    return;
+  };
   asset.symbols.exports.push(LocalSymbol {
     exported: SymbolName::from(name),
     requested: false,
