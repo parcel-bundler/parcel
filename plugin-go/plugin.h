@@ -11,7 +11,7 @@
  * Bumped whenever a change would make an existing plugin binary unsafe to load:
  * a changed or removed [`ParcelApi`] field, or a changed plugin entry point
  * signature. Appending to `ParcelApi` is compatible in both directions and does
- * not bump it — the `size` field covers that case.
+ * not bump it — plugins check `size` before calling an appended function.
  *
  * Bumping this invalidates every plugin ever built, so prefer appending. To give
  * a host function a different signature, append a new field and leave the old one
@@ -879,18 +879,35 @@ typedef struct ReportEvent {
 extern const struct ParcelApi *parcel_api;
 
 /**
+ * The end of the last function in the table's first published layout, and so the
+ * smallest table any Parcel implementing this ABI passes. Functions declared after
+ * `asset_get_map` were appended later, and an older Parcel's table ends before them.
+ */
+#define PARCEL_API_MIN_SIZE \
+  (offsetof(struct ParcelApi, asset_get_map) + sizeof(((struct ParcelApi *)0)->asset_get_map))
+
+/**
  * Whether `api` is usable by a plugin built against this header. Check it in
  * `parcel_plugin_init()` before anything else.
  *
- * Two things have to hold. The ABI version must match: appending never changes
- * the size of an existing field, so a changed signature is invisible to the size
- * check. And the table must be at least as large as the one declared here, so
- * every function the plugin can reach has been filled in.
+ * The ABI version must match: appending never changes the size of an existing
+ * field, so a changed signature is invisible to `size`. The table may be smaller
+ * than the one declared here, when Parcel predates functions this header appends;
+ * their wrappers check for them on each call, so a plugin only needs a newer
+ * Parcel if it actually calls one.
  */
 static inline bool parcel_api_compatible(const struct ParcelApiHeader *api) {
-  return api && api->abi == PARCEL_ABI_VERSION &&
-         api->size >= sizeof(struct ParcelApi);
+  return api && api->abi == PARCEL_ABI_VERSION && api->size >= PARCEL_API_MIN_SIZE;
 }
+
+/**
+ * Whether the table in `parcel_api` has the function `field`. Always true for
+ * functions in the first layout. For one appended later, check it before calling,
+ * or just call the wrapper, which does nothing and returns zero when Parcel is too
+ * old to have it.
+ */
+#define PARCEL_API_HAS(field) \
+  (parcel_api->header.size >= offsetof(struct ParcelApi, field) + sizeof(parcel_api->field))
 
 /**
  * Whether `ptr`, a struct of type `type` that starts with `size`, has room for

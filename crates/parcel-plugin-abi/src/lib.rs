@@ -36,4 +36,6 @@ pub use plugin::*;
 pub use target::*;
 
 #[cfg(test)]
+mod shim_tests;
+#[cfg(test)]
 mod tests;

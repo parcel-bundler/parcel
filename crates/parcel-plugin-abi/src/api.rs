@@ -5,15 +5,19 @@
 //! macOS and Linux required linker flags every plugin crate had to opt into. Parcel
 //! hands the plugin this struct instead, and the SDKs call through it.
 //!
-//! Fields are only ever appended, and a plugin verifies two things at startup:
+//! Fields are only ever appended. A plugin checks `abi` against
+//! [`PARCEL_ABI_VERSION`] at startup: appending cannot change the size of an
+//! existing field, so a changed signature — on one of these functions or on a
+//! plugin entry point — is invisible to `size`, and the version number is what
+//! catches it.
 //!
-//! - `size`, against the size of the struct the plugin itself was built against.
-//!   A plugin built for a newer Parcel refuses to load rather than reading a
-//!   field the host never wrote.
-//! - `abi`, against [`PARCEL_ABI_VERSION`]. Appending cannot change the size of
-//!   an existing field, so a changed signature — on one of these functions or on
-//!   a plugin entry point — is invisible to the size check. That is what the
-//!   version number is for, and why both checks are needed.
+//! `size` is checked per function instead. Every host passes at least the first
+//! layout, which ends at `asset_get_map` (`PARCEL_API_MIN_SIZE` in plugin.h, and
+//! `FIRST_LAYOUT_END` in build/shims.rs), and plugins call those functions
+//! unchecked. A function appended after it is only called once the plugin has
+//! checked that `size` covers it, which the SDKs and plugin.h's wrappers do on
+//! every call. So a plugin built against a newer SDK still loads on an older
+//! Parcel, and only fails if it actually calls something that Parcel lacks.
 //!
 //! The structs these functions exchange evolve the same way, each through its own
 //! `size` field; see the `extensible` module.
@@ -32,7 +36,7 @@ use crate::*;
 /// Bumped whenever a change would make an existing plugin binary unsafe to load:
 /// a changed or removed [`ParcelApi`] field, or a changed plugin entry point
 /// signature. Appending to `ParcelApi` is compatible in both directions and does
-/// not bump it — the `size` field covers that case.
+/// not bump it — plugins check `size` before calling an appended function.
 ///
 /// Bumping this invalidates every plugin ever built, so prefer appending. To give
 /// a host function a different signature, append a new field and leave the old one

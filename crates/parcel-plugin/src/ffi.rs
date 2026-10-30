@@ -1019,3 +1019,9 @@ const _: () = {
   ["Offset of field: ReportEvent::changed_asset_count"]
     [::std::mem::offset_of!(ReportEvent, changed_asset_count) - 64usize];
 };
+
+/// The end of the last function in [`ParcelApi`]'s first published layout, and so
+/// the smallest table any Parcel implementing this ABI passes. Functions after
+/// `asset_get_map` were appended later, and an older Parcel's table ends before them.
+pub const PARCEL_API_MIN_SIZE: usize =
+    ::core::mem::offset_of!(ParcelApi, asset_get_map) + ::core::mem::size_of::<usize>();

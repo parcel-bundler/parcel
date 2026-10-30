@@ -36,9 +36,10 @@
 //! time on any platform.
 //!
 //! `register_plugin!` checks at startup that Parcel implements the same plugin
-//! ABI this SDK was built against, and that its table is at least as large, so a
-//! plugin built against a newer SDK reports a version mismatch instead of
-//! reading a field Parcel never filled in.
+//! ABI this SDK was built against. Parcel may be older than the SDK and lack host
+//! functions added since; the SDK checks for each one when it is called, so a
+//! plugin only needs a newer Parcel if it uses one, and then fails with a
+//! diagnostic saying so rather than reading a field Parcel never filled in.
 
 use std::any::{Any, TypeId};
 use std::marker::PhantomData;
@@ -2005,15 +2006,7 @@ macro_rules! register_plugin {
       match result {
         Ok(Ok(Some(name))) => {
           if !raw_name.is_null() {
-            unsafe {
-              $crate::api::api()
-                .buffer_write_utf8
-                .expect("Parcel did not provide buffer_write_utf8")(
-                raw_name,
-                name.as_ptr(),
-                name.len(),
-              )
-            };
+            unsafe { $crate::api::buffer_write_utf8(raw_name, name.as_ptr(), name.len()) };
           }
         }
         Ok(Ok(None)) => {}
@@ -2080,18 +2073,14 @@ macro_rules! register_plugin {
           if !raw_result.is_null() {
             match result.contents {
               $crate::ContentBuffer::Bytes(contents) => unsafe {
-                $crate::api::api()
-                  .buffer_write
-                  .expect("Parcel did not provide buffer_write")(
+                $crate::api::buffer_write(
                   &mut (*raw_result).contents,
                   contents.as_ptr(),
                   contents.len(),
                 )
               },
               $crate::ContentBuffer::String(contents) => unsafe {
-                $crate::api::api()
-                  .buffer_write_utf8
-                  .expect("Parcel did not provide buffer_write_utf8")(
+                $crate::api::buffer_write_utf8(
                   &mut (*raw_result).contents,
                   contents.as_ptr(),
                   contents.len(),
@@ -2100,9 +2089,7 @@ macro_rules! register_plugin {
             }
             if let Some(source_map) = result.source_map {
               unsafe {
-                $crate::api::api()
-                  .buffer_write
-                  .expect("Parcel did not provide buffer_write")(
+                $crate::api::buffer_write(
                   &mut (*raw_result).source_map,
                   source_map.as_ptr(),
                   source_map.len(),
