@@ -6,7 +6,7 @@ use parcel_core::{
 };
 
 use crate::{
-  Asset, AssetIndex, Bundle, BundleGraph, BundleIndex, PARCEL_INVALID_ASSET_INDEX,
+  AssetIndex, AssetRef, Bundle, BundleGraph, BundleIndex, PARCEL_INVALID_ASSET_INDEX,
   extensible::{Extensible, write_extensible},
 };
 
@@ -76,7 +76,7 @@ pub extern "C" fn parcel_bundle_graph_get_asset_count(bundle_graph: BundleGraph)
 pub extern "C" fn parcel_bundle_graph_get_asset(
   bundle_graph: BundleGraph,
   index: AssetIndex,
-) -> Asset {
+) -> AssetRef {
   if bundle_graph == 0 {
     return 0;
   }
@@ -86,7 +86,7 @@ pub extern "C" fn parcel_bundle_graph_get_asset(
     .asset_graph
     .assets
     .get(index as usize)
-    .map_or(0, |asset| asset as *const CoreAsset as Asset)
+    .map_or(0, |asset| asset as *const CoreAsset as AssetRef)
 }
 
 /// Returns the number of bundles in the graph.

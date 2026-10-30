@@ -69,8 +69,8 @@ pub struct ParcelApiHeader {
 pub struct ParcelApi {
   /// Size and abi version. Always the first member.
   pub header: ParcelApiHeader,
-  pub asset_get_content: unsafe extern "C" fn(buf: *mut Buffer, asset: Asset),
-  pub asset_get_content_utf8: unsafe extern "C" fn(buf: *mut Buffer, asset: Asset),
+  pub asset_get_content: unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef),
+  pub asset_get_content_utf8: unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef),
   pub asset_set_content: unsafe extern "C" fn(asset: Asset, data: *const u8, len: u32),
   pub asset_set_content_utf8: unsafe extern "C" fn(asset: Asset, data: *const u8, len: u32),
   pub asset_set_custom_content: unsafe extern "C" fn(
@@ -93,18 +93,19 @@ pub struct ParcelApi {
     free: Option<extern "C" fn(content: *mut c_void)>,
   ),
   pub asset_get_custom_content:
-    unsafe extern "C" fn(ty: *mut [u8; 16], content: *mut *mut c_void, asset: Asset) -> bool,
-  pub asset_get_type: unsafe extern "C" fn(buf: *mut Buffer, asset: Asset),
+    unsafe extern "C" fn(ty: *mut [u8; 16], content: *mut *mut c_void, asset: AssetRef) -> bool,
+  pub asset_get_type: unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef),
   pub asset_set_type: unsafe extern "C" fn(asset: Asset, ty: *const u8, ty_len: usize),
-  pub asset_get_file_path: unsafe extern "C" fn(buf: *mut Buffer, asset: Asset, _options: Options),
-  pub asset_get_pipeline: unsafe extern "C" fn(buf: *mut Buffer, asset: Asset),
+  pub asset_get_file_path:
+    unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef, _options: Options),
+  pub asset_get_pipeline: unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef),
   pub asset_set_pipeline:
     unsafe extern "C" fn(asset: Asset, pipeline: *const u8, pipeline_len: usize),
-  pub asset_get_bundle_behavior: unsafe extern "C" fn(asset: Asset) -> BundleBehavior,
+  pub asset_get_bundle_behavior: unsafe extern "C" fn(asset: AssetRef) -> BundleBehavior,
   pub asset_set_bundle_behavior: unsafe extern "C" fn(asset: Asset, behavior: BundleBehaviorFFI),
-  pub asset_get_flags: unsafe extern "C" fn(asset: Asset) -> AssetFlagsFFI,
+  pub asset_get_flags: unsafe extern "C" fn(asset: AssetRef) -> AssetFlagsFFI,
   pub asset_set_flags: unsafe extern "C" fn(asset: Asset, flags: AssetFlagsFFI),
-  pub asset_get_unique_key: unsafe extern "C" fn(buf: *mut Buffer, asset: Asset),
+  pub asset_get_unique_key: unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef),
   pub asset_set_unique_key: unsafe extern "C" fn(asset: Asset, key: *const u8, key_len: usize),
   pub asset_add_export_symbol: unsafe extern "C" fn(asset: Asset, name: *const u8, name_len: usize),
   pub free_buffer: unsafe extern "C" fn(buf: *mut Buffer),
@@ -128,7 +129,7 @@ pub struct ParcelApi {
     unsafe extern "C" fn(buf: *mut Buffer, bundle: Bundle, from: Bundle),
   pub bundle_graph_get_asset_count: unsafe extern "C" fn(bundle_graph: BundleGraph) -> usize,
   pub bundle_graph_get_asset:
-    unsafe extern "C" fn(bundle_graph: BundleGraph, index: AssetIndex) -> Asset,
+    unsafe extern "C" fn(bundle_graph: BundleGraph, index: AssetIndex) -> AssetRef,
   pub bundle_graph_get_bundle_count: unsafe extern "C" fn(bundle_graph: BundleGraph) -> usize,
   pub bundle_graph_get_bundle:
     unsafe extern "C" fn(bundle_graph: BundleGraph, index: BundleIndex) -> Bundle,
@@ -138,8 +139,8 @@ pub struct ParcelApi {
     asset: AssetIndex,
     dependency_index: usize,
   ),
-  pub asset_get_dependency_count: unsafe extern "C" fn(asset: Asset) -> usize,
-  pub asset_get_dependency: unsafe extern "C" fn(asset: Asset, index: usize) -> Dependency,
+  pub asset_get_dependency_count: unsafe extern "C" fn(asset: AssetRef) -> usize,
+  pub asset_get_dependency: unsafe extern "C" fn(asset: AssetRef, index: usize) -> Dependency,
   pub asset_add_dependency:
     unsafe extern "C" fn(asset: Asset, dep: *const DependencyOptions) -> bool,
   pub dep_get_specifier: unsafe extern "C" fn(buf: *mut Buffer, dep: Dependency),
@@ -156,7 +157,7 @@ pub struct ParcelApi {
   pub options_get_project_root: unsafe extern "C" fn(buf: *mut Buffer, options: Options),
   pub options_get_env:
     unsafe extern "C" fn(buf: *mut Buffer, options: Options, key: *const u8, key_len: usize),
-  pub asset_get_target: unsafe extern "C" fn(asset: Asset) -> Target,
+  pub asset_get_target: unsafe extern "C" fn(asset: AssetRef) -> Target,
   pub target_get_environment: unsafe extern "C" fn(target: Target) -> Environment,
   pub target_get_output_format: unsafe extern "C" fn(target: Target) -> OutputFormat,
   pub target_get_source_type: unsafe extern "C" fn(target: Target) -> SourceType,
@@ -164,7 +165,7 @@ pub struct ParcelApi {
   pub target_get_public_url: unsafe extern "C" fn(buf: *mut Buffer, target: Target),
   pub target_get_dist_dir:
     unsafe extern "C" fn(buf: *mut Buffer, target: Target, _options: Options),
-  pub asset_get_query: unsafe extern "C" fn(buf: *mut Buffer, asset: Asset),
+  pub asset_get_query: unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef),
   pub diagnostics_get_count: unsafe extern "C" fn(diagnostics: Diagnostics) -> usize,
   pub diagnostic_get_message:
     unsafe extern "C" fn(buf: *mut Buffer, diagnostics: Diagnostics, index: usize),
@@ -211,7 +212,7 @@ pub struct ParcelApi {
     unsafe extern "C" fn(asset: Asset, data: *const u8, len: usize, map: *const u8, map_len: usize),
   pub asset_set_content_utf8_with_map:
     unsafe extern "C" fn(asset: Asset, data: *const u8, len: usize, map: *const u8, map_len: usize),
-  pub asset_get_map: unsafe extern "C" fn(buf: *mut Buffer, asset: Asset),
+  pub asset_get_map: unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef),
 }
 
 /// The instance passed to every plugin. Const-initialized, so it is in the

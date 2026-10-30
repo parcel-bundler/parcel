@@ -125,10 +125,56 @@ pub fn add_api_shims(header: &str) -> String {
     "ParcelApi has no {FIRST_LAYOUT_END}, the end of its first layout"
   );
 
+  shims.push_str(&entry_point_prototypes(header));
+
   let end = header
     .rfind("#endif")
     .expect("header has no include guard end");
   format!("{}{}\n{}", &header[..end], shims, &header[end..])
+}
+
+/// Declares the functions a plugin defines, one for each `ParcelPlugin*Fn`
+/// typedef: `typedef void (*ParcelPluginTransformFn)(...)` becomes
+/// `void parcel_plugin_transform(...)`. A plugin whose definition drifts from the
+/// typedef Parcel loads it as then fails to compile.
+fn entry_point_prototypes(header: &str) -> String {
+  let mut prototypes = String::new();
+  let mut rest = header;
+  while let Some(start) = rest.find("typedef ") {
+    let typedef = &rest[start..];
+    let end = typedef.find(';').expect("unterminated typedef");
+    rest = &typedef[end..];
+    let typedef = normalize_ws(&typedef["typedef ".len()..end]);
+
+    let Some(open) = typedef.find("(*ParcelPlugin") else {
+      continue;
+    };
+    let close = typedef[open..].find(')').expect("malformed typedef") + open;
+    let Some(kind) = typedef[open + "(*ParcelPlugin".len()..close].strip_suffix("Fn") else {
+      continue;
+    };
+    let ret = &typedef[..open].trim();
+    let args = &typedef[close + 1..];
+    prototypes.push_str(&format!(
+      "\n{ret} parcel_plugin_{}{args};\n",
+      kind.to_lowercase()
+    ));
+  }
+  assert!(
+    !prototypes.is_empty(),
+    "the header declares no ParcelPlugin*Fn entry points"
+  );
+
+  format!(
+    "\n/**\n * The entry points a plugin defines, matching the `ParcelPlugin*Fn` types Parcel loads\n\
+     \x20* them as. Define those your plugin implements: `parcel_plugin_init()` always, and the\n\
+     \x20* rest for each kind of plugin it is used as.\n\
+     \x20*\n\
+     \x20* Define `PARCEL_NO_ENTRY_POINT_PROTOTYPES` before including this header when the\n\
+     \x20* toolchain declares them itself, as cgo does for exported Go functions, with types it\n\
+     \x20* cannot spell the same way.\n */\n\
+     #ifndef PARCEL_NO_ENTRY_POINT_PROTOTYPES\n{prototypes}\n#endif\n"
+  )
 }
 
 /// Splits on `sep`, ignoring separators nested inside parentheses or brackets.

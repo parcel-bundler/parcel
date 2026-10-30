@@ -1,3 +1,23 @@
+/*
+ * Parcel's native plugin ABI. A plugin is a shared library that defines the
+ * parcel_plugin_* entry points declared at the end of this file, and calls back
+ * into Parcel through the ParcelApi table it receives in parcel_plugin_init().
+ *
+ * Threading: Parcel calls a plugin from many threads, and calls overlap. Every
+ * call for one .parcelrc entry receives the same `state`, so anything in it that
+ * changes needs synchronizing. Today, transforms and resolves run in parallel
+ * with each other, as do optimizers and custom content packaging, and log
+ * events reach parcel_plugin_report() on whichever thread logged them, alongside
+ * everything else. parcel_plugin_init() may run concurrently for different
+ * entries; parcel_plugin_deinit() runs once no other call for its entry is
+ * running. Custom content callbacks run on any thread, possibly in a later
+ * build, and possibly after parcel_plugin_deinit().
+ *
+ * Lifetimes: a handle is valid only until the call that received or obtained it
+ * returns, unless its documentation says otherwise. Never keep one in plugin
+ * state or custom content.
+ */
+
 #ifndef PARCEL_PLUGIN_H
 #define PARCEL_PLUGIN_H
 
@@ -514,7 +534,17 @@ typedef struct Buffer {
 } Buffer;
 
 /**
- * Opaque handle to a Parcel asset. Pass to `parcel_asset_*` functions.
+ * Opaque handle to an asset that may only be read, such as one from
+ * `parcel_bundle_graph_get_asset()`. Pass to the `parcel_asset_get_*` functions.
+ * Passing one where an `Asset` is expected, to a function that changes the
+ * asset, is undefined behavior: other threads may be reading it.
+ */
+typedef uint64_t AssetRef;
+
+/**
+ * Opaque handle to the asset a transformer is transforming, which it may change.
+ * Only `parcel_plugin_transform()` hands one out, and it is valid until that call
+ * returns. It can be passed anywhere an `AssetRef` is expected.
  */
 typedef uint64_t Asset;
 
@@ -556,7 +586,10 @@ typedef uint64_t BundleGraph;
 typedef uint64_t Bundle;
 
 /**
- * Opaque handle to Parcel build options. Passed to all plugin entry points.
+ * Opaque handle to the context of the current call into the plugin: the build's
+ * options, and whatever the call may do, such as reading files. Every entry
+ * point receives one. It is valid only until that call returns, so never store
+ * it, in plugin state or custom content.
  */
 typedef uint64_t Options;
 
@@ -596,7 +629,10 @@ typedef struct BundleGraphDependencyResolution {
 } BundleGraphDependencyResolution;
 
 /**
- * Opaque handle to a Parcel dependency. Passed to `parcel_plugin_resolve()`.
+ * Opaque, read-only handle to a Parcel dependency. Passed to
+ * `parcel_plugin_resolve()`, and returned by `parcel_asset_get_dependency()`,
+ * in which case it is valid until the next `parcel_asset_add_dependency()` on
+ * the same asset, or until the call that obtained it returns.
  */
 typedef uint64_t Dependency;
 
@@ -687,8 +723,8 @@ typedef struct ParcelApi {
    * Size and abi version. Always the first member.
    */
   struct ParcelApiHeader header;
-  void (*asset_get_content)(struct Buffer *buf, Asset asset);
-  void (*asset_get_content_utf8)(struct Buffer *buf, Asset asset);
+  void (*asset_get_content)(struct Buffer *buf, AssetRef asset);
+  void (*asset_get_content_utf8)(struct Buffer *buf, AssetRef asset);
   void (*asset_set_content)(Asset asset, const uint8_t *data, uint32_t len);
   void (*asset_set_content_utf8)(Asset asset, const uint8_t *data, uint32_t len);
   void (*asset_set_custom_content)(Asset asset,
@@ -704,17 +740,17 @@ typedef struct ParcelApi {
                                                    struct Buffer *buf,
                                                    struct Diagnostic *diagnostic),
                                    void (*free)(void *content));
-  bool (*asset_get_custom_content)(uint8_t (*ty)[16], void **content, Asset asset);
-  void (*asset_get_type)(struct Buffer *buf, Asset asset);
+  bool (*asset_get_custom_content)(uint8_t (*ty)[16], void **content, AssetRef asset);
+  void (*asset_get_type)(struct Buffer *buf, AssetRef asset);
   void (*asset_set_type)(Asset asset, const uint8_t *ty, uintptr_t ty_len);
-  void (*asset_get_file_path)(struct Buffer *buf, Asset asset, Options _options);
-  void (*asset_get_pipeline)(struct Buffer *buf, Asset asset);
+  void (*asset_get_file_path)(struct Buffer *buf, AssetRef asset, Options _options);
+  void (*asset_get_pipeline)(struct Buffer *buf, AssetRef asset);
   void (*asset_set_pipeline)(Asset asset, const uint8_t *pipeline, uintptr_t pipeline_len);
-  BundleBehavior (*asset_get_bundle_behavior)(Asset asset);
+  BundleBehavior (*asset_get_bundle_behavior)(AssetRef asset);
   void (*asset_set_bundle_behavior)(Asset asset, BundleBehavior behavior);
-  AssetFlags (*asset_get_flags)(Asset asset);
+  AssetFlags (*asset_get_flags)(AssetRef asset);
   void (*asset_set_flags)(Asset asset, AssetFlags flags);
-  void (*asset_get_unique_key)(struct Buffer *buf, Asset asset);
+  void (*asset_get_unique_key)(struct Buffer *buf, AssetRef asset);
   void (*asset_set_unique_key)(Asset asset, const uint8_t *key, uintptr_t key_len);
   void (*asset_add_export_symbol)(Asset asset, const uint8_t *name, uintptr_t name_len);
   void (*free_buffer)(struct Buffer *buf);
@@ -736,15 +772,15 @@ typedef struct ParcelApi {
   void (*bundle_get_relative_url)(struct Buffer *buf, Bundle bundle, Bundle from);
   void (*bundle_get_relative_specifier)(struct Buffer *buf, Bundle bundle, Bundle from);
   uintptr_t (*bundle_graph_get_asset_count)(BundleGraph bundle_graph);
-  Asset (*bundle_graph_get_asset)(BundleGraph bundle_graph, AssetIndex index);
+  AssetRef (*bundle_graph_get_asset)(BundleGraph bundle_graph, AssetIndex index);
   uintptr_t (*bundle_graph_get_bundle_count)(BundleGraph bundle_graph);
   Bundle (*bundle_graph_get_bundle)(BundleGraph bundle_graph, BundleIndex index);
   void (*bundle_graph_get_dependency_resolution)(struct BundleGraphDependencyResolution *resolution,
                                                  BundleGraph bundle_graph,
                                                  AssetIndex asset,
                                                  uintptr_t dependency_index);
-  uintptr_t (*asset_get_dependency_count)(Asset asset);
-  Dependency (*asset_get_dependency)(Asset asset, uintptr_t index);
+  uintptr_t (*asset_get_dependency_count)(AssetRef asset);
+  Dependency (*asset_get_dependency)(AssetRef asset, uintptr_t index);
   bool (*asset_add_dependency)(Asset asset, const struct DependencyOptions *dep);
   void (*dep_get_specifier)(struct Buffer *buf, Dependency dep);
   SpecifierType (*dep_get_specifier_type)(Dependency dep);
@@ -757,14 +793,14 @@ typedef struct ParcelApi {
   Target (*dep_get_target)(Dependency dep);
   void (*options_get_project_root)(struct Buffer *buf, Options options);
   void (*options_get_env)(struct Buffer *buf, Options options, const uint8_t *key, uintptr_t key_len);
-  Target (*asset_get_target)(Asset asset);
+  Target (*asset_get_target)(AssetRef asset);
   Environment (*target_get_environment)(Target target);
   OutputFormat (*target_get_output_format)(Target target);
   SourceType (*target_get_source_type)(Target target);
   EnvironmentFlags (*target_get_env_flags)(Target target);
   void (*target_get_public_url)(struct Buffer *buf, Target target);
   void (*target_get_dist_dir)(struct Buffer *buf, Target target, Options _options);
-  void (*asset_get_query)(struct Buffer *buf, Asset asset);
+  void (*asset_get_query)(struct Buffer *buf, AssetRef asset);
   uintptr_t (*diagnostics_get_count)(Diagnostics diagnostics);
   void (*diagnostic_get_message)(struct Buffer *buf, Diagnostics diagnostics, uintptr_t index);
   DiagnosticSeverity (*diagnostic_get_severity)(Diagnostics diagnostics, uintptr_t index);
@@ -803,7 +839,7 @@ typedef struct ParcelApi {
                                           uintptr_t len,
                                           const uint8_t *map,
                                           uintptr_t map_len);
-  void (*asset_get_map)(struct Buffer *buf, Asset asset);
+  void (*asset_get_map)(struct Buffer *buf, AssetRef asset);
 } ParcelApi;
 
 /**
@@ -873,6 +909,96 @@ typedef struct ReportEvent {
   uintptr_t changed_asset_count;
 } ReportEvent;
 
+/**
+ * `parcel_plugin_init()`: called once for each .parcelrc entry naming the
+ * plugin, with that entry's options as JSON in `config`, before any other entry
+ * point. It may be called concurrently, and always with the same `api` table.
+ *
+ * Check `parcel_api_compatible(&api->header)` first, and return
+ * `PARCEL_INIT_INCOMPATIBLE` without touching `api` if it fails. Store anything
+ * the other entry points need in `*state`, which every later call for this
+ * entry receives. On failure, return `PARCEL_INIT_ERROR` and fill in
+ * `diagnostic`.
+ */
+typedef InitStatus (*ParcelPluginInitFn)(const struct ParcelApi *api,
+                                         const uint8_t *config,
+                                         uintptr_t config_len,
+                                         void **state,
+                                         struct Diagnostic *diagnostic);
+
+/**
+ * `parcel_plugin_deinit()`: releases `state` once Parcel is done with the
+ * entry and none of its other calls is still running. Not called when `state`
+ * is NULL. Custom content the plugin created can outlive it, so content
+ * callbacks must not rely on `state`.
+ */
+typedef void (*ParcelPluginDeinitFn)(void *state);
+
+/**
+ * `parcel_plugin_transform()`: transforms `asset` in place. The only entry
+ * point that receives a mutable `Asset`, valid until it returns. Fill in
+ * `diagnostic` to fail.
+ */
+typedef void (*ParcelPluginTransformFn)(Asset asset,
+                                        Options options,
+                                        void *state,
+                                        struct Diagnostic *diagnostic);
+
+/**
+ * `parcel_plugin_resolve()`: resolves `specifier` (not NUL-terminated), as
+ * imported by `dependency`. `pipeline` is the named pipeline from the
+ * specifier, or NULL when it has none. Write the result into `*result`, whose
+ * `size` Parcel set, or leave it as `PARCEL_RESOLUTION_NONE` to let the next
+ * resolver try. Fill in `diagnostic` to fail.
+ */
+typedef void (*ParcelPluginResolveFn)(Dependency dependency,
+                                      const uint8_t *specifier,
+                                      uintptr_t specifier_len,
+                                      const uint8_t *pipeline,
+                                      uintptr_t pipeline_len,
+                                      Options options,
+                                      struct ResolveResult *result,
+                                      void *state,
+                                      struct Diagnostic *diagnostic);
+
+/**
+ * `parcel_plugin_name()`: writes `bundle`'s name, relative to its target's dist
+ * directory, into `*name`. Leave `*name` empty to let the next namer try. Fill
+ * in `diagnostic` to fail.
+ */
+typedef void (*ParcelPluginNameFn)(BundleGraph bundle_graph,
+                                   Bundle bundle,
+                                   Options options,
+                                   struct Buffer *name,
+                                   void *state,
+                                   struct Diagnostic *diagnostic);
+
+/**
+ * `parcel_plugin_optimize()`: optimizes `bundle`'s packaged `contents`, along
+ * with its JSON source map, which is NULL when it has none. Write the output
+ * into `*result`, whose `size` Parcel set. Fill in `diagnostic` to fail.
+ */
+typedef void (*ParcelPluginOptimizeFn)(BundleGraph bundle_graph,
+                                       Bundle bundle,
+                                       const uint8_t *contents,
+                                       uintptr_t contents_len,
+                                       const uint8_t *source_map,
+                                       uintptr_t source_map_len,
+                                       Options options,
+                                       struct OptimizeResult *result,
+                                       void *state,
+                                       struct Diagnostic *diagnostic);
+
+/**
+ * `parcel_plugin_report()`: handles a build event. Log events can arrive from
+ * any thread while a build runs, concurrently with each other. A diagnostic is
+ * printed rather than failing the build.
+ */
+typedef void (*ParcelPluginReportFn)(const struct ReportEvent *event,
+                                     Options options,
+                                     void *state,
+                                     struct Diagnostic *diagnostic);
+
 #define PARCEL_INVALID_ASSET_INDEX 4294967295
 
 
@@ -926,11 +1052,11 @@ static inline bool parcel_api_compatible(const struct ParcelApiHeader *api) {
 #define PARCEL_HAS_FIELD(ptr, type, field) \
   ((ptr)->size >= offsetof(type, field) + sizeof(((type *)0)->field))
 
-static inline void parcel_asset_get_content(struct Buffer *buf, Asset asset) {
+static inline void parcel_asset_get_content(struct Buffer *buf, AssetRef asset) {
   parcel_api->asset_get_content(buf, asset);
 }
 
-static inline void parcel_asset_get_content_utf8(struct Buffer *buf, Asset asset) {
+static inline void parcel_asset_get_content_utf8(struct Buffer *buf, AssetRef asset) {
   parcel_api->asset_get_content_utf8(buf, asset);
 }
 
@@ -946,11 +1072,11 @@ static inline void parcel_asset_set_custom_content(Asset asset, const uint8_t (*
   parcel_api->asset_set_custom_content(asset, ty, content, read, package, free);
 }
 
-static inline bool parcel_asset_get_custom_content(uint8_t (*ty)[16], void **content, Asset asset) {
+static inline bool parcel_asset_get_custom_content(uint8_t (*ty)[16], void **content, AssetRef asset) {
   return parcel_api->asset_get_custom_content(ty, content, asset);
 }
 
-static inline void parcel_asset_get_type(struct Buffer *buf, Asset asset) {
+static inline void parcel_asset_get_type(struct Buffer *buf, AssetRef asset) {
   parcel_api->asset_get_type(buf, asset);
 }
 
@@ -958,11 +1084,11 @@ static inline void parcel_asset_set_type(Asset asset, const uint8_t *ty, uintptr
   parcel_api->asset_set_type(asset, ty, ty_len);
 }
 
-static inline void parcel_asset_get_file_path(struct Buffer *buf, Asset asset, Options _options) {
+static inline void parcel_asset_get_file_path(struct Buffer *buf, AssetRef asset, Options _options) {
   parcel_api->asset_get_file_path(buf, asset, _options);
 }
 
-static inline void parcel_asset_get_pipeline(struct Buffer *buf, Asset asset) {
+static inline void parcel_asset_get_pipeline(struct Buffer *buf, AssetRef asset) {
   parcel_api->asset_get_pipeline(buf, asset);
 }
 
@@ -970,7 +1096,7 @@ static inline void parcel_asset_set_pipeline(Asset asset, const uint8_t *pipelin
   parcel_api->asset_set_pipeline(asset, pipeline, pipeline_len);
 }
 
-static inline BundleBehavior parcel_asset_get_bundle_behavior(Asset asset) {
+static inline BundleBehavior parcel_asset_get_bundle_behavior(AssetRef asset) {
   return parcel_api->asset_get_bundle_behavior(asset);
 }
 
@@ -978,7 +1104,7 @@ static inline void parcel_asset_set_bundle_behavior(Asset asset, BundleBehavior 
   parcel_api->asset_set_bundle_behavior(asset, behavior);
 }
 
-static inline AssetFlags parcel_asset_get_flags(Asset asset) {
+static inline AssetFlags parcel_asset_get_flags(AssetRef asset) {
   return parcel_api->asset_get_flags(asset);
 }
 
@@ -986,7 +1112,7 @@ static inline void parcel_asset_set_flags(Asset asset, AssetFlags flags) {
   parcel_api->asset_set_flags(asset, flags);
 }
 
-static inline void parcel_asset_get_unique_key(struct Buffer *buf, Asset asset) {
+static inline void parcel_asset_get_unique_key(struct Buffer *buf, AssetRef asset) {
   parcel_api->asset_get_unique_key(buf, asset);
 }
 
@@ -1074,7 +1200,7 @@ static inline uintptr_t parcel_bundle_graph_get_asset_count(BundleGraph bundle_g
   return parcel_api->bundle_graph_get_asset_count(bundle_graph);
 }
 
-static inline Asset parcel_bundle_graph_get_asset(BundleGraph bundle_graph, AssetIndex index) {
+static inline AssetRef parcel_bundle_graph_get_asset(BundleGraph bundle_graph, AssetIndex index) {
   return parcel_api->bundle_graph_get_asset(bundle_graph, index);
 }
 
@@ -1090,11 +1216,11 @@ static inline void parcel_bundle_graph_get_dependency_resolution(struct BundleGr
   parcel_api->bundle_graph_get_dependency_resolution(resolution, bundle_graph, asset, dependency_index);
 }
 
-static inline uintptr_t parcel_asset_get_dependency_count(Asset asset) {
+static inline uintptr_t parcel_asset_get_dependency_count(AssetRef asset) {
   return parcel_api->asset_get_dependency_count(asset);
 }
 
-static inline Dependency parcel_asset_get_dependency(Asset asset, uintptr_t index) {
+static inline Dependency parcel_asset_get_dependency(AssetRef asset, uintptr_t index) {
   return parcel_api->asset_get_dependency(asset, index);
 }
 
@@ -1146,7 +1272,7 @@ static inline void parcel_options_get_env(struct Buffer *buf, Options options, c
   parcel_api->options_get_env(buf, options, key, key_len);
 }
 
-static inline Target parcel_asset_get_target(Asset asset) {
+static inline Target parcel_asset_get_target(AssetRef asset) {
   return parcel_api->asset_get_target(asset);
 }
 
@@ -1174,7 +1300,7 @@ static inline void parcel_target_get_dist_dir(struct Buffer *buf, Target target,
   parcel_api->target_get_dist_dir(buf, target, _options);
 }
 
-static inline void parcel_asset_get_query(struct Buffer *buf, Asset asset) {
+static inline void parcel_asset_get_query(struct Buffer *buf, AssetRef asset) {
   parcel_api->asset_get_query(buf, asset);
 }
 
@@ -1242,8 +1368,35 @@ static inline void parcel_asset_set_content_utf8_with_map(Asset asset, const uin
   parcel_api->asset_set_content_utf8_with_map(asset, data, len, map, map_len);
 }
 
-static inline void parcel_asset_get_map(struct Buffer *buf, Asset asset) {
+static inline void parcel_asset_get_map(struct Buffer *buf, AssetRef asset) {
   parcel_api->asset_get_map(buf, asset);
 }
+
+/**
+ * The entry points a plugin defines, matching the `ParcelPlugin*Fn` types Parcel loads
+ * them as. Define those your plugin implements: `parcel_plugin_init()` always, and the
+ * rest for each kind of plugin it is used as.
+ *
+ * Define `PARCEL_NO_ENTRY_POINT_PROTOTYPES` before including this header when the
+ * toolchain declares them itself, as cgo does for exported Go functions, with types it
+ * cannot spell the same way.
+ */
+#ifndef PARCEL_NO_ENTRY_POINT_PROTOTYPES
+
+InitStatus parcel_plugin_init(const struct ParcelApi *api, const uint8_t *config, uintptr_t config_len, void **state, struct Diagnostic *diagnostic);
+
+void parcel_plugin_deinit(void *state);
+
+void parcel_plugin_transform(Asset asset, Options options, void *state, struct Diagnostic *diagnostic);
+
+void parcel_plugin_resolve(Dependency dependency, const uint8_t *specifier, uintptr_t specifier_len, const uint8_t *pipeline, uintptr_t pipeline_len, Options options, struct ResolveResult *result, void *state, struct Diagnostic *diagnostic);
+
+void parcel_plugin_name(BundleGraph bundle_graph, Bundle bundle, Options options, struct Buffer *name, void *state, struct Diagnostic *diagnostic);
+
+void parcel_plugin_optimize(BundleGraph bundle_graph, Bundle bundle, const uint8_t *contents, uintptr_t contents_len, const uint8_t *source_map, uintptr_t source_map_len, Options options, struct OptimizeResult *result, void *state, struct Diagnostic *diagnostic);
+
+void parcel_plugin_report(const struct ReportEvent *event, Options options, void *state, struct Diagnostic *diagnostic);
+
+#endif
 
 #endif  /* PARCEL_PLUGIN_H */

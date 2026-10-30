@@ -16,6 +16,9 @@ package parcel
 
 /*
 #include <stdlib.h>
+// cgo declares the //export entry points below itself, without plugin.h's
+// const qualifiers, so plugin.h must not declare them too.
+#define PARCEL_NO_ENTRY_POINT_PROTOTYPES
 #include "plugin.h"
 
 // parcel_api is defined in api.c and assigned by parcel_plugin_init below.
@@ -41,6 +44,15 @@ import (
 // Name to act as a namer, Optimize to act as an optimizer, Report to act as a
 // reporter, or any combination.
 // Embed [DefaultPlugin] to get error-returning defaults for methods you don't need.
+//
+// Parcel calls one Plugin from many goroutines at once: transforms and resolves
+// run in parallel, as do optimizers, and log events reach Report from whichever
+// thread logged them. Guard any state that changes with a mutex or atomics.
+//
+// The values a method receives, such as *Asset, *Options, *BundleGraph and
+// everything obtained from them, are valid only until the method returns. Never
+// keep one, in the plugin or in custom content, or use it from a goroutine that
+// outlives the call.
 type Plugin interface {
 	Transform(asset *Asset, options *Options) error
 	Resolve(dep *Dependency, specifier, pipeline string, options *Options) (ResolveResult, error)

@@ -13,6 +13,7 @@ mod bundle_graph;
 mod dependency;
 mod diagnostic;
 mod diagnostics;
+mod entry_points;
 mod fs;
 mod handles;
 /// cbindgen:ignore
@@ -29,6 +30,7 @@ pub use bundle_graph::*;
 pub use dependency::*;
 pub use diagnostic::*;
 pub use diagnostics::*;
+pub use entry_points::*;
 pub use fs::*;
 pub use handles::*;
 pub use options::*;

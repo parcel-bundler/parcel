@@ -7,7 +7,7 @@ use parcel_core::{
   OutputFormat as CoreOutputFormat, SourceType as CoreSourceType,
 };
 
-use crate::{Asset, Buffer, Options, Target, write_buffer};
+use crate::{AssetRef, Buffer, Options, Target, write_buffer};
 
 // Environment (target, read-only)
 #[repr(u8)]
@@ -97,7 +97,7 @@ assert_flag_values! {
 // ── Target (read-only) ────────────────────────────────────────────────────────
 
 /// Returns an opaque `Target` handle. Valid for the duration of the transform call.
-pub extern "C" fn parcel_asset_get_target(asset: Asset) -> Target {
+pub extern "C" fn parcel_asset_get_target(asset: AssetRef) -> Target {
   if asset == 0 {
     return 0;
   }

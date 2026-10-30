@@ -57,8 +57,9 @@ fn run_c(name: &str, header: &str, main: &str) -> Option<String> {
   Some(String::from_utf8(output.stdout).unwrap())
 }
 
-/// The header plugins actually build against compiles cleanly, agrees with Rust
-/// about where the first layout ends, and accepts a table that ends there.
+/// The header plugins actually build against compiles cleanly with a definition
+/// of every entry point, agrees with Rust about where the first layout ends, and
+/// accepts a table that ends there.
 #[test]
 fn real_header_accepts_a_first_layout_table() {
   let header = include_str!("../plugin.h");
@@ -67,6 +68,43 @@ fn real_header_accepts_a_first_layout_table() {
 #include "plugin.h"
 
 const struct ParcelApi *parcel_api;
+
+/* Every entry point, defined against the prototypes plugin.h declares: a
+   signature that drifted from the types Parcel loads them as would not compile. */
+InitStatus parcel_plugin_init(const struct ParcelApi *api, const uint8_t *config,
+                              uintptr_t config_len, void **state, Diagnostic *diagnostic) {
+  return parcel_api_compatible(&api->header) ? PARCEL_INIT_OK : PARCEL_INIT_INCOMPATIBLE;
+}
+void parcel_plugin_deinit(void *state) {}
+void parcel_plugin_transform(Asset asset, Options options, void *state, Diagnostic *diagnostic) {
+  /* A transformer's own asset is readable through the AssetRef getters. */
+  Buffer buf = {0};
+  parcel_asset_get_type(&buf, asset);
+}
+void parcel_plugin_resolve(Dependency dependency, const uint8_t *specifier,
+                           uintptr_t specifier_len, const uint8_t *pipeline,
+                           uintptr_t pipeline_len, Options options, ResolveResult *result,
+                           void *state, Diagnostic *diagnostic) {}
+void parcel_plugin_name(BundleGraph bundle_graph, Bundle bundle, Options options, Buffer *name,
+                        void *state, Diagnostic *diagnostic) {
+  AssetRef asset = parcel_bundle_graph_get_asset(bundle_graph, 0);
+  parcel_asset_get_flags(asset);
+}
+void parcel_plugin_optimize(BundleGraph bundle_graph, Bundle bundle, const uint8_t *contents,
+                            uintptr_t contents_len, const uint8_t *source_map,
+                            uintptr_t source_map_len, Options options, OptimizeResult *result,
+                            void *state, Diagnostic *diagnostic) {}
+void parcel_plugin_report(const ReportEvent *event, Options options, void *state,
+                          Diagnostic *diagnostic) {}
+
+/* And each is what Parcel loads it as. */
+ParcelPluginInitFn init = parcel_plugin_init;
+ParcelPluginDeinitFn deinit = parcel_plugin_deinit;
+ParcelPluginTransformFn transform = parcel_plugin_transform;
+ParcelPluginResolveFn resolve = parcel_plugin_resolve;
+ParcelPluginNameFn name = parcel_plugin_name;
+ParcelPluginOptimizeFn optimize = parcel_plugin_optimize;
+ParcelPluginReportFn report = parcel_plugin_report;
 
 int main(void) {
   struct ParcelApiHeader old = {PARCEL_API_MIN_SIZE, PARCEL_ABI_VERSION, 0};
@@ -121,6 +159,9 @@ typedef struct ParcelApi {
   struct Buffer (*asset_appended_buffer)(Asset asset);
   void (*asset_appended_void)(Asset asset, uintptr_t *out);
 } ParcelApi;
+
+typedef void (*ParcelPluginTransformFn)(Asset asset,
+                                        uintptr_t *out);
 
 #endif
 "#;
@@ -195,4 +236,14 @@ fn first_layout_functions_are_called_unchecked() {
   ));
   assert!(!header.contains("parcel_api_has_asset_get_map"));
   assert!(header.contains("parcel_api_has_asset_appended_count"));
+}
+
+/// Each `ParcelPlugin*Fn` typedef becomes a prototype for the function the
+/// plugin defines.
+#[test]
+fn entry_point_typedefs_become_prototypes() {
+  let header = shims::add_api_shims(SYNTHETIC_HEADER);
+  assert!(header.contains(
+    "#ifndef PARCEL_NO_ENTRY_POINT_PROTOTYPES\n\nvoid parcel_plugin_transform(Asset asset, uintptr_t *out);\n"
+  ));
 }

@@ -17,9 +17,11 @@ use parcel_core::{
 };
 
 use crate::{
-  Asset, AssetIndex, Buffer, Bundle, BundleGraph, Dependency, Diagnostic, Diagnostics, Options,
-  OptionsContext, diagnostics::DiagnosticsView, parcel_free_buffer, plugin_path, read_cdiagnostic,
-  trusted_str, trusted_utf8,
+  Asset, AssetIndex, Buffer, Bundle, BundleGraph, Dependency, Diagnostic, Diagnostics,
+  OptionsContext, ParcelPluginDeinitFn, ParcelPluginInitFn, ParcelPluginNameFn,
+  ParcelPluginOptimizeFn, ParcelPluginReportFn, ParcelPluginResolveFn, ParcelPluginTransformFn,
+  diagnostics::DiagnosticsView, parcel_free_buffer, plugin_path, read_cdiagnostic, trusted_str,
+  trusted_utf8,
 };
 
 /// Result of a plugin's `parcel_plugin_init()`.
@@ -248,14 +250,7 @@ impl CPlugin {
     // Returns a raw byte rather than `InitStatus`: a library built before the
     // status existed returns its state pointer here, and reading an arbitrary
     // byte as the enum would be undefined behavior.
-    type InitFn = extern "C" fn(
-      *const crate::ParcelApi,
-      *const u8,
-      usize,
-      *mut *mut c_void,
-      *mut Diagnostic,
-    ) -> u8;
-    let sym: Result<Symbol<InitFn>, _> = unsafe { lib.get(b"parcel_plugin_init") };
+    let sym: Result<Symbol<ParcelPluginInitFn>, _> = unsafe { lib.get(b"parcel_plugin_init") };
     let Ok(init_fn) = sym else {
       return Err(incompatible_library(format!(
         "{} does not export a parcel_plugin_init function, so it is not a Parcel plugin.",
@@ -326,8 +321,8 @@ impl Drop for CPlugin {
     if self.state.is_null() {
       return;
     }
-    type DeinitFn = extern "C" fn(*mut c_void);
-    let sym: Result<Symbol<DeinitFn>, _> = unsafe { self.lib.get(b"parcel_plugin_deinit") };
+    let sym: Result<Symbol<ParcelPluginDeinitFn>, _> =
+      unsafe { self.lib.get(b"parcel_plugin_deinit") };
     if let Ok(deinit_fn) = sym {
       deinit_fn(self.state);
     }
@@ -341,8 +336,7 @@ impl Transformer for CPlugin {
     ctx: &parcel_core::PluginContext,
   ) -> Result<CoreAsset, DiagnosticList> {
     let options = ctx.options;
-    type TransformFn = extern "C" fn(Asset, Options, *mut c_void, *mut Diagnostic);
-    let transform: Symbol<TransformFn> = unsafe {
+    let transform: Symbol<ParcelPluginTransformFn> = unsafe {
       self.lib.get(b"parcel_plugin_transform").map_err(|_| {
         CoreDiagnostic::from_message("Failed to find parcel_plugin_transform symbol".into())
       })?
@@ -373,18 +367,7 @@ impl Resolver for CPlugin {
     ctx: &parcel_core::PluginContext,
   ) -> Result<DependencyResolution, DiagnosticList> {
     let options = ctx.options;
-    type ResolveFn = extern "C" fn(
-      Dependency,
-      *const u8,
-      usize, // specifier
-      *const u8,
-      usize, // pipeline (null ptr = no pipeline)
-      Options,
-      *mut ResolveResult,
-      *mut c_void,
-      *mut Diagnostic,
-    );
-    let resolve: Symbol<ResolveFn> = unsafe {
+    let resolve: Symbol<ParcelPluginResolveFn> = unsafe {
       self.lib.get(b"parcel_plugin_resolve").map_err(|_| {
         CoreDiagnostic::from_message("Failed to find parcel_plugin_resolve symbol".into())
       })?
@@ -528,9 +511,7 @@ impl parcel_core::Namer for CPlugin {
     bundle: &parcel_core::Bundle,
     options: &ParcelOptions,
   ) -> Result<Option<PathId>, DiagnosticList> {
-    type NameFn =
-      extern "C" fn(BundleGraph, Bundle, Options, *mut Buffer, *mut c_void, *mut Diagnostic);
-    let name_fn: Symbol<NameFn> = unsafe {
+    let name_fn: Symbol<ParcelPluginNameFn> = unsafe {
       self.lib.get(b"parcel_plugin_name").map_err(|_| {
         CoreDiagnostic::from_message("Failed to find parcel_plugin_name symbol".into())
       })?
@@ -579,8 +560,7 @@ impl parcel_core::Namer for CPlugin {
 
 impl Reporter for CPlugin {
   fn report(&self, event: &ReporterEvent, options: &ParcelOptions) -> Result<(), DiagnosticList> {
-    type ReportFn = extern "C" fn(*const ReportEvent, Options, *mut c_void, *mut Diagnostic);
-    let report: Symbol<ReportFn> = unsafe {
+    let report: Symbol<ParcelPluginReportFn> = unsafe {
       self.lib.get(b"parcel_plugin_report").map_err(|_| {
         CoreDiagnostic::from_message("Failed to find parcel_plugin_report symbol".into())
       })?
@@ -664,19 +644,7 @@ impl Optimizer for CPlugin {
     contents: Arc<dyn Content>,
     options: &ParcelOptions,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
-    type OptimizeFn = extern "C" fn(
-      BundleGraph,
-      Bundle,
-      *const u8,
-      usize, // contents
-      *const u8,
-      usize, // source map (null ptr = no source map)
-      Options,
-      *mut OptimizeResult,
-      *mut c_void,
-      *mut Diagnostic,
-    );
-    let optimize: Symbol<OptimizeFn> = unsafe {
+    let optimize: Symbol<ParcelPluginOptimizeFn> = unsafe {
       self.lib.get(b"parcel_plugin_optimize").map_err(|_| {
         CoreDiagnostic::from_message("Failed to find parcel_plugin_optimize symbol".into())
       })?

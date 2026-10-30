@@ -1,12 +1,31 @@
 language = "C"
+header = """/*
+ * Parcel's native plugin ABI. A plugin is a shared library that defines the
+ * parcel_plugin_* entry points declared at the end of this file, and calls back
+ * into Parcel through the ParcelApi table it receives in parcel_plugin_init().
+ *
+ * Threading: Parcel calls a plugin from many threads, and calls overlap. Every
+ * call for one .parcelrc entry receives the same `state`, so anything in it that
+ * changes needs synchronizing. Today, transforms and resolves run in parallel
+ * with each other, as do optimizers and custom content packaging, and log
+ * events reach parcel_plugin_report() on whichever thread logged them, alongside
+ * everything else. parcel_plugin_init() may run concurrently for different
+ * entries; parcel_plugin_deinit() runs once no other call for its entry is
+ * running. Custom content callbacks run on any thread, possibly in a later
+ * build, and possibly after parcel_plugin_deinit().
+ *
+ * Lifetimes: a handle is valid only until the call that received or obtained it
+ * returns, unless its documentation says otherwise. Never keep one in plugin
+ * state or custom content.
+ */"""
 include_guard = "PARCEL_PLUGIN_H"
 cpp_compat = true
 no_includes = true
 sys_includes = ["stddef.h", "stdint.h", "stdbool.h"]
 
 [export]
-include = ["ParcelApi", "InitStatus", "Diagnostic", "DiagnosticSeverity", "ResolveResult", "ResolutionType", "OptimizeResult", "ReportEvent", "ReportEventType", "LogLevel", "SpecifierType", "Priority", "BundleBehavior", "ImportType", "DependencyFlags", "ExportsConditions", "AssetFlags", "EnvironmentFlags", "BundleFlags", "FileKind", "BundleGraphDependencyResolution", "PARCEL_INVALID_ASSET_INDEX"]
-exclude = ["CPlugin", "AssetFlagsFFI", "DependencyFlagsFFI", "ExportsConditionsFFI", "EnvironmentFlagsFFI", "BundleFlagsFFI", "FileKindFFI", "SpecifierTypeFFI", "PriorityFFI", "BundleBehaviorFFI", "ImportTypeFFI", "DiagnosticSeverityFFI", "ResolutionTypeFFI", "LogLevelFFI"]
+include = ["ParcelApi", "InitStatus", "Diagnostic", "DiagnosticSeverity", "ResolveResult", "ResolutionType", "OptimizeResult", "ReportEvent", "ReportEventType", "LogLevel", "SpecifierType", "Priority", "BundleBehavior", "ImportType", "DependencyFlags", "ExportsConditions", "AssetFlags", "EnvironmentFlags", "BundleFlags", "FileKind", "BundleGraphDependencyResolution", "PARCEL_INVALID_ASSET_INDEX", "AssetRef", "ParcelPluginInitFn", "ParcelPluginDeinitFn", "ParcelPluginTransformFn", "ParcelPluginResolveFn", "ParcelPluginNameFn", "ParcelPluginOptimizeFn", "ParcelPluginReportFn"]
+exclude = ["CPlugin", "AssetFlagsFFI", "DependencyFlagsFFI", "ExportsConditionsFFI", "EnvironmentFlagsFFI", "BundleFlagsFFI", "FileKindFFI", "SpecifierTypeFFI", "PriorityFFI", "BundleBehaviorFFI", "ImportTypeFFI", "DiagnosticSeverityFFI", "ResolutionTypeFFI", "LogLevelFFI", "InitStatusFFI"]
 
 [export.rename]
 "AssetFlagsFFI" = "AssetFlags"
@@ -22,3 +41,4 @@ exclude = ["CPlugin", "AssetFlagsFFI", "DependencyFlagsFFI", "ExportsConditionsF
 "DiagnosticSeverityFFI" = "DiagnosticSeverity"
 "ResolutionTypeFFI" = "ResolutionType"
 "LogLevelFFI" = "LogLevel"
+"InitStatusFFI" = "InitStatus"

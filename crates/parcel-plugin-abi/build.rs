@@ -138,6 +138,8 @@ fn generate_rust_ffi(crate_dir: &str, header: &str) {
     // Feed the already-patched header directly so we don't re-read from disk.
     .header_contents("plugin.h", header)
     .clang_arg("-std=c2x")
+    // The SDK defines the entry points itself, in `register_plugin!`.
+    .clang_arg("-DPARCEL_NO_ENTRY_POINT_PROTOTYPES")
     .allowlist_function("parcel_.*")
     .allowlist_var("PARCEL_.*")
     .allowlist_type(

@@ -423,7 +423,9 @@ const _: () = {
   ["Offset of field: Buffer::cap"][::std::mem::offset_of!(Buffer, cap) - 16usize];
   ["Offset of field: Buffer::is_utf8"][::std::mem::offset_of!(Buffer, is_utf8) - 24usize];
 };
-#[doc = " Opaque handle to a Parcel asset. Pass to `parcel_asset_*` functions."]
+#[doc = " Opaque handle to an asset that may only be read, such as one from\n `parcel_bundle_graph_get_asset()`. Pass to the `parcel_asset_get_*` functions.\n Passing one where an `Asset` is expected, to a function that changes the\n asset, is undefined behavior: other threads may be reading it."]
+pub type AssetRef = u64;
+#[doc = " Opaque handle to the asset a transformer is transforming, which it may change.\n Only `parcel_plugin_transform()` hands one out, and it is valid until that call\n returns. It can be passed anywhere an `AssetRef` is expected."]
 pub type Asset = u64;
 #[doc = " Diagnostic written by a plugin to report an error or warning.\n The host zero-initialises this before every plugin call, apart from `size`.\n Fill via `parcel_buffer_alloc()`; host frees all `Buffer` fields after the call.\n If `message.data == NULL` after the call, no diagnostic was set.\n\n Only write fields that fit within `size`, which an older Parcel sets lower than\n `sizeof(Diagnostic)`; `PARCEL_HAS_FIELD()` checks. To log one with\n `parcel_options_log_diagnostic()`, initialize it as `Diagnostic d = {.size = sizeof(Diagnostic)};`.\n Parcel ignores fields it does not know in a diagnostic, since the rest is still worth showing."]
 #[repr(C)]
@@ -457,7 +459,7 @@ const _: () = {
 pub type BundleGraph = u64;
 #[doc = " Opaque handle to Parcel bundle."]
 pub type Bundle = u64;
-#[doc = " Opaque handle to Parcel build options. Passed to all plugin entry points."]
+#[doc = " Opaque handle to the context of the current call into the plugin: the build's\n options, and whatever the call may do, such as reading files. Every entry\n point receives one. It is valid only until that call returns, so never store\n it, in plugin state or custom content."]
 pub type Options = u64;
 #[doc = " Opaque handle to a Parcel target. Obtained via `parcel_asset_get_target()`."]
 pub type Target = u64;
@@ -491,7 +493,7 @@ const _: () = {
   ["Offset of field: BundleGraphDependencyResolution::bundle"]
     [::std::mem::offset_of!(BundleGraphDependencyResolution, bundle) - 16usize];
 };
-#[doc = " Opaque handle to a Parcel dependency. Passed to `parcel_plugin_resolve()`."]
+#[doc = " Opaque, read-only handle to a Parcel dependency. Passed to\n `parcel_plugin_resolve()`, and returned by `parcel_asset_get_dependency()`,\n in which case it is valid until the next `parcel_asset_add_dependency()` on\n the same asset, or until the call that obtained it returns."]
 pub type Dependency = u64;
 #[doc = " Dependency descriptor passed to `parcel_asset_add_dependency()` and `parcel_asset_resolve()`.\n\n Initialize it as `DependencyOptions dep = {.size = sizeof(DependencyOptions)};`, which zeroes the rest:\n `PARCEL_SPECIFIER_ESM` / `PARCEL_PRIORITY_SYNC` / `PARCEL_BUNDLE_BEHAVIOR_NONE` /\n `PARCEL_IMPORT_TYPE_JAVASCRIPT` and no flags are the defaults. Zero any padding too, e.g. with\n `memset`, if you fill it in some other way: a field a newer header adds lands where an older\n Parcel sees only bytes it expects to be zero, and it rejects a dependency that sets anything it\n does not understand rather than silently ignoring it."]
 #[repr(C)]
@@ -571,9 +573,9 @@ pub struct ParcelApi {
   #[doc = " Size and abi version. Always the first member."]
   pub header: ParcelApiHeader,
   pub asset_get_content:
-    ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: Asset)>,
+    ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef)>,
   pub asset_get_content_utf8:
-    ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: Asset)>,
+    ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef)>,
   pub asset_set_content:
     ::std::option::Option<unsafe extern "C" fn(asset: Asset, data: *const u8, len: u32)>,
   pub asset_set_content_utf8:
@@ -607,27 +609,29 @@ pub struct ParcelApi {
     unsafe extern "C" fn(
       ty: *mut [u8; 16usize],
       content: *mut *mut ::std::os::raw::c_void,
-      asset: Asset,
+      asset: AssetRef,
     ) -> bool,
   >,
-  pub asset_get_type: ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: Asset)>,
+  pub asset_get_type:
+    ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef)>,
   pub asset_set_type:
     ::std::option::Option<unsafe extern "C" fn(asset: Asset, ty: *const u8, ty_len: usize)>,
-  pub asset_get_file_path:
-    ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: Asset, _options: Options)>,
+  pub asset_get_file_path: ::std::option::Option<
+    unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef, _options: Options),
+  >,
   pub asset_get_pipeline:
-    ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: Asset)>,
+    ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef)>,
   pub asset_set_pipeline: ::std::option::Option<
     unsafe extern "C" fn(asset: Asset, pipeline: *const u8, pipeline_len: usize),
   >,
   pub asset_get_bundle_behavior:
-    ::std::option::Option<unsafe extern "C" fn(asset: Asset) -> BundleBehavior>,
+    ::std::option::Option<unsafe extern "C" fn(asset: AssetRef) -> BundleBehavior>,
   pub asset_set_bundle_behavior:
     ::std::option::Option<unsafe extern "C" fn(asset: Asset, behavior: BundleBehavior)>,
-  pub asset_get_flags: ::std::option::Option<unsafe extern "C" fn(asset: Asset) -> AssetFlags>,
+  pub asset_get_flags: ::std::option::Option<unsafe extern "C" fn(asset: AssetRef) -> AssetFlags>,
   pub asset_set_flags: ::std::option::Option<unsafe extern "C" fn(asset: Asset, flags: AssetFlags)>,
   pub asset_get_unique_key:
-    ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: Asset)>,
+    ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef)>,
   pub asset_set_unique_key:
     ::std::option::Option<unsafe extern "C" fn(asset: Asset, key: *const u8, key_len: usize)>,
   pub asset_add_export_symbol:
@@ -667,7 +671,7 @@ pub struct ParcelApi {
   pub bundle_graph_get_asset_count:
     ::std::option::Option<unsafe extern "C" fn(bundle_graph: BundleGraph) -> usize>,
   pub bundle_graph_get_asset: ::std::option::Option<
-    unsafe extern "C" fn(bundle_graph: BundleGraph, index: AssetIndex) -> Asset,
+    unsafe extern "C" fn(bundle_graph: BundleGraph, index: AssetIndex) -> AssetRef,
   >,
   pub bundle_graph_get_bundle_count:
     ::std::option::Option<unsafe extern "C" fn(bundle_graph: BundleGraph) -> usize>,
@@ -683,9 +687,9 @@ pub struct ParcelApi {
     ),
   >,
   pub asset_get_dependency_count:
-    ::std::option::Option<unsafe extern "C" fn(asset: Asset) -> usize>,
+    ::std::option::Option<unsafe extern "C" fn(asset: AssetRef) -> usize>,
   pub asset_get_dependency:
-    ::std::option::Option<unsafe extern "C" fn(asset: Asset, index: usize) -> Dependency>,
+    ::std::option::Option<unsafe extern "C" fn(asset: AssetRef, index: usize) -> Dependency>,
   pub asset_add_dependency: ::std::option::Option<
     unsafe extern "C" fn(asset: Asset, dep: *const DependencyOptions) -> bool,
   >,
@@ -712,7 +716,7 @@ pub struct ParcelApi {
   pub options_get_env: ::std::option::Option<
     unsafe extern "C" fn(buf: *mut Buffer, options: Options, key: *const u8, key_len: usize),
   >,
-  pub asset_get_target: ::std::option::Option<unsafe extern "C" fn(asset: Asset) -> Target>,
+  pub asset_get_target: ::std::option::Option<unsafe extern "C" fn(asset: AssetRef) -> Target>,
   pub target_get_environment:
     ::std::option::Option<unsafe extern "C" fn(target: Target) -> Environment>,
   pub target_get_output_format:
@@ -726,7 +730,8 @@ pub struct ParcelApi {
   pub target_get_dist_dir: ::std::option::Option<
     unsafe extern "C" fn(buf: *mut Buffer, target: Target, _options: Options),
   >,
-  pub asset_get_query: ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: Asset)>,
+  pub asset_get_query:
+    ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef)>,
   pub diagnostics_get_count:
     ::std::option::Option<unsafe extern "C" fn(diagnostics: Diagnostics) -> usize>,
   pub diagnostic_get_message: ::std::option::Option<
@@ -787,7 +792,7 @@ pub struct ParcelApi {
   pub asset_set_content_utf8_with_map: ::std::option::Option<
     unsafe extern "C" fn(asset: Asset, data: *const u8, len: usize, map: *const u8, map_len: usize),
   >,
-  pub asset_get_map: ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: Asset)>,
+  pub asset_get_map: ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef)>,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {

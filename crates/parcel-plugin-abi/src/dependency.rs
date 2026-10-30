@@ -9,7 +9,7 @@ use parcel_core::{
 };
 
 use crate::{
-  Asset, Buffer, BundleBehavior, BundleBehaviorFFI, Dependency, Options, ResolutionType,
+  Asset, AssetRef, Buffer, BundleBehavior, BundleBehaviorFFI, Dependency, Options, ResolutionType,
   ResolveResult, Target,
   extensible::{Extensible, read_extensible, unknown_fields_are_zero, write_extensible},
   options_context, path_arg, plugin_str, write_buffer,
@@ -202,7 +202,7 @@ impl_extensible!(
 // ── Dependencies ──────────────────────────────────────────────────────────────
 
 /// Returns the number of dependencies belonging to an asset.
-pub extern "C" fn parcel_asset_get_dependency_count(asset: Asset) -> usize {
+pub extern "C" fn parcel_asset_get_dependency_count(asset: AssetRef) -> usize {
   if asset == 0 {
     return 0;
   }
@@ -211,8 +211,9 @@ pub extern "C" fn parcel_asset_get_dependency_count(asset: Asset) -> usize {
 }
 
 /// Returns a borrowed, read-only dependency handle, or zero when `index` is out of bounds.
-/// The handle is valid only for the lifetime of the asset.
-pub extern "C" fn parcel_asset_get_dependency(asset: Asset, index: usize) -> Dependency {
+/// The handle is valid until the next `parcel_asset_add_dependency()` on the same asset, which may
+/// move the asset's dependencies, or until the call that obtained it returns.
+pub extern "C" fn parcel_asset_get_dependency(asset: AssetRef, index: usize) -> Dependency {
   if asset == 0 {
     return 0;
   }

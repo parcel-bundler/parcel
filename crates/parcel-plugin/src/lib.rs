@@ -1736,6 +1736,13 @@ impl ResolveResult {
 /// [`optimize`]: Plugin::optimize
 /// [`report`]: Plugin::report
 ///
+/// # Threading
+///
+/// Parcel calls one instance from many threads at once: transforms and resolves
+/// run in parallel, as do optimizers, and log events reach [`report`] on
+/// whichever thread logged them. That is why the trait requires `Send + Sync`;
+/// keep any state that changes behind a `Mutex` or in atomics.
+///
 /// ```rust,ignore
 /// use parcel_plugin::{Asset, Diagnostic, Plugin, register_plugin};
 ///

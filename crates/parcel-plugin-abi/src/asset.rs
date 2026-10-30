@@ -9,8 +9,8 @@ use parcel_core::{
 };
 
 use crate::{
-  Asset, Buffer, Bundle, BundleBehavior, BundleBehaviorFFI, BundleGraph, Diagnostic, Options,
-  OptionsContext, plugin_str, read_cdiagnostic, trusted_utf8, write_buffer,
+  Asset, AssetRef, Buffer, Bundle, BundleBehavior, BundleBehaviorFFI, BundleGraph, Diagnostic,
+  Options, OptionsContext, plugin_str, read_cdiagnostic, trusted_utf8, write_buffer,
 };
 
 #[repr(u32)]
@@ -58,7 +58,7 @@ assert_flag_values! {
 // ── Content ───────────────────────────────────────────────────────────────────
 
 /// Returns the asset content into `*buf`. Caller must `parcel_free_buffer(buf)`.
-pub extern "C" fn parcel_asset_get_content(buf: *mut Buffer, asset: Asset) {
+pub extern "C" fn parcel_asset_get_content(buf: *mut Buffer, asset: AssetRef) {
   if buf.is_null() || asset == 0 {
     return;
   }
@@ -70,7 +70,7 @@ pub extern "C" fn parcel_asset_get_content(buf: *mut Buffer, asset: Asset) {
 }
 
 /// Returns the asset content as a UTF-8 string into `*buf`. Caller must `parcel_free_buffer(buf)`.
-pub extern "C" fn parcel_asset_get_content_utf8(buf: *mut Buffer, asset: Asset) {
+pub extern "C" fn parcel_asset_get_content_utf8(buf: *mut Buffer, asset: AssetRef) {
   if buf.is_null() || asset == 0 {
     return;
   }
@@ -162,7 +162,7 @@ pub extern "C" fn parcel_asset_set_content_utf8_with_map(
 /// It describes the current content, and is dropped whenever the content is replaced without one.
 /// A transformer that edits the content and wants the final bundle to keep mapping back to the
 /// original files reads it here, updates it, and passes it to `parcel_asset_set_content_with_map()`.
-pub extern "C" fn parcel_asset_get_map(buf: *mut Buffer, asset: Asset) {
+pub extern "C" fn parcel_asset_get_map(buf: *mut Buffer, asset: AssetRef) {
   if buf.is_null() || asset == 0 {
     return;
   }
@@ -384,7 +384,7 @@ pub extern "C" fn parcel_asset_set_custom_content(
 pub extern "C" fn parcel_asset_get_custom_content(
   ty: *mut [u8; 16],
   content: *mut *mut c_void,
-  asset: Asset,
+  asset: AssetRef,
 ) -> bool {
   if content.is_null() || ty.is_null() || asset == 0 {
     return false;
@@ -405,7 +405,7 @@ pub extern "C" fn parcel_asset_get_custom_content(
 
 /// Returns the asset type extension (e.g. `"js"`, `"css"`) into `*buf`.
 /// Caller must `parcel_free_buffer(buf)`.
-pub extern "C" fn parcel_asset_get_type(buf: *mut Buffer, asset: Asset) {
+pub extern "C" fn parcel_asset_get_type(buf: *mut Buffer, asset: AssetRef) {
   if buf.is_null() || asset == 0 {
     return;
   }
@@ -430,7 +430,7 @@ pub extern "C" fn parcel_asset_set_type(asset: Asset, ty: *const u8, ty_len: usi
 /// Returns the absolute filesystem path of the source asset into `*buf`.
 /// `options` is the handle received from `parcel_plugin_transform()`.
 /// Caller must `parcel_free_buffer(buf)`.
-pub extern "C" fn parcel_asset_get_file_path(buf: *mut Buffer, asset: Asset, _options: Options) {
+pub extern "C" fn parcel_asset_get_file_path(buf: *mut Buffer, asset: AssetRef, _options: Options) {
   if buf.is_null() || asset == 0 {
     return;
   }
@@ -455,7 +455,7 @@ pub extern "C" fn parcel_asset_get_file_path(buf: *mut Buffer, asset: Asset, _op
 
 /// Returns the named pipeline into `*buf`, or leaves `buf->data == NULL` if none is set.
 /// Caller must `parcel_free_buffer(buf)` when `data != NULL`.
-pub extern "C" fn parcel_asset_get_pipeline(buf: *mut Buffer, asset: Asset) {
+pub extern "C" fn parcel_asset_get_pipeline(buf: *mut Buffer, asset: AssetRef) {
   if buf.is_null() || asset == 0 {
     return;
   }
@@ -491,7 +491,7 @@ pub extern "C" fn parcel_asset_set_pipeline(
 /// Returns the query string from the asset's source URL into `*buf`, or leaves
 /// `buf->data == NULL` if the URL has no query.
 /// Caller must `parcel_free_buffer(buf)` when `data != NULL`.
-pub extern "C" fn parcel_asset_get_query(buf: *mut Buffer, asset: Asset) {
+pub extern "C" fn parcel_asset_get_query(buf: *mut Buffer, asset: AssetRef) {
   if buf.is_null() || asset == 0 {
     return;
   }
@@ -505,7 +505,7 @@ pub extern "C" fn parcel_asset_get_query(buf: *mut Buffer, asset: Asset) {
 // ── BundleBehavior ────────────────────────────────────────────────────────────
 
 /// Returns the bundle behavior (`PARCEL_BUNDLE_BEHAVIOR_*`).
-pub extern "C" fn parcel_asset_get_bundle_behavior(asset: Asset) -> BundleBehavior {
+pub extern "C" fn parcel_asset_get_bundle_behavior(asset: AssetRef) -> BundleBehavior {
   if asset == 0 {
     return BundleBehavior::PARCEL_BUNDLE_BEHAVIOR_NONE;
   }
@@ -528,7 +528,7 @@ pub extern "C" fn parcel_asset_set_bundle_behavior(asset: Asset, behavior: Bundl
 // ── Flags ─────────────────────────────────────────────────────────────────────
 
 /// Returns the raw `AssetFlags` bitfield (`PARCEL_ASSET_*` bits).
-pub extern "C" fn parcel_asset_get_flags(asset: Asset) -> AssetFlagsFFI {
+pub extern "C" fn parcel_asset_get_flags(asset: AssetRef) -> AssetFlagsFFI {
   if asset == 0 {
     return 0;
   }
@@ -549,7 +549,7 @@ pub extern "C" fn parcel_asset_set_flags(asset: Asset, flags: AssetFlagsFFI) {
 
 /// Returns the unique key into `*buf`, or leaves `buf->data == NULL` if not set.
 /// Caller must `parcel_free_buffer(buf)` when `data != NULL`.
-pub extern "C" fn parcel_asset_get_unique_key(buf: *mut Buffer, asset: Asset) {
+pub extern "C" fn parcel_asset_get_unique_key(buf: *mut Buffer, asset: AssetRef) {
   if buf.is_null() || asset == 0 {
     return;
   }
