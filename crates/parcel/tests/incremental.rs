@@ -474,6 +474,12 @@ impl IncrementalTest {
   #[track_caller]
   fn output(&self, path: &str) -> String {
     let outputs = read_all_files(&self.output_fs);
+    let path = path.replace('\\', "/");
+    let path = if cfg!(windows) {
+      path.strip_prefix("C:").unwrap_or(&path)
+    } else {
+      &path
+    };
     outputs.get(path).cloned().unwrap_or_else(|| {
       panic!(
         "no output file {path}; available outputs: {:?}",
@@ -541,7 +547,9 @@ fn read_all_files(fs: &MemoryFileSystem) -> BTreeMap<String, String> {
       } else if entry.kind.contains(FileKind::IS_FILE) {
         let bytes = fs.read(test_path_id(&path)).unwrap();
         out.insert(
-          path.to_string_lossy().into_owned(),
+          path
+            .to_string_lossy()
+            .replace(std::path::MAIN_SEPARATOR, "/"),
           String::from_utf8_lossy(&bytes).into_owned(),
         );
       }

@@ -121,7 +121,10 @@ impl Resolver for GlobResolver {
         .iter()
         .map(|file| {
           let rel = file.relative(&dir);
-          let rel = to_rel(rel.to_str().unwrap());
+          let rel = rel
+            .to_string_lossy()
+            .replace(std::path::MAIN_SEPARATOR, "/");
+          let rel = to_rel(&rel);
           match pipeline {
             Some(pipeline) => format!("{}:{}", pipeline, rel),
             None => rel.into_owned(),
@@ -140,15 +143,20 @@ impl Resolver for GlobResolver {
     let mut root = GlobEntry::new_dir();
     for file in files.iter() {
       let rel = file.relative(&dir);
-      let rel = to_rel(rel.to_str().unwrap());
+      let rel = rel
+        .to_string_lossy()
+        .replace(std::path::MAIN_SEPARATOR, "/");
+      let rel = to_rel(&rel);
       // The keys are the parts of the path that the wildcards matched, or with `flat`, the
       // whole path in the form of the glob, e.g. "/dir/a.js" for "/dir/*.js".
       let matched = file.relative(&base);
-      let matched = matched.to_str().unwrap();
+      let matched = matched
+        .to_string_lossy()
+        .replace(std::path::MAIN_SEPARATOR, "/");
       let matched = if pattern.starts_with('.') {
-        to_rel(matched)
+        to_rel(&matched)
       } else {
-        Cow::Borrowed(matched)
+        Cow::Borrowed(matched.as_str())
       };
       let flat_key = format!("{}{}", &glob[..glob.len() - pattern.len()], matched);
       let parts: Vec<&str> = if flat {

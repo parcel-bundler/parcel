@@ -276,9 +276,16 @@ impl DefaultPluginFactory {
       Diagnostic::from_message(format!("Could not find {} {}", kind.name(), name)).into()
     };
 
+    let file_url;
+    let specifier = if cfg!(windows) && Path::new(name).is_absolute() {
+      file_url = url::Url::from_file_path(name).map_err(|_| not_found())?;
+      file_url.as_str()
+    } else {
+      name
+    };
     let Ok(resolved) = self
       .resolver
-      .resolve(name, from, SpecifierType::Esm, &*self.fs)
+      .resolve(specifier, from, SpecifierType::Esm, &*self.fs)
     else {
       return Err(not_found());
     };

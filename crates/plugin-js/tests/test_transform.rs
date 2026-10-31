@@ -793,9 +793,9 @@ fn test_resolve_uses_the_resolver_chain() {
       export default {[Symbol.for('parcel.plugin.v3.transformer')]: {
         async transform({asset, resolve}) {
           let from = asset.filePath;
-          let path = async (...args) => (await resolve(...args)).filePath;
+          let path = async (...args) => (await resolve(...args)).filePath.replaceAll('\\', '/');
           let resolved = await resolve(from, 'pkg');
-          assert.match(resolved.filePath, /node_modules\/pkg\/esm\.js$/);
+          assert.match(resolved.filePath.replaceAll('\\', '/'), /node_modules\/pkg\/esm\.js$/);
           assert.equal(resolved.pipeline, null);
           assert.equal(resolved.query, null);
           assert.equal(resolved.sideEffects, true);

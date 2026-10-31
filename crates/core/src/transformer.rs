@@ -172,7 +172,11 @@ pub(crate) fn relative_path(
   let path = url.to_file_path()?;
   let mut relative_path = path.relative(project_root);
   relative_path.set_extension(ty.extension());
-  Ok(relative_path.to_string_lossy().into_owned())
+  Ok(
+    relative_path
+      .to_string_lossy()
+      .replace(std::path::MAIN_SEPARATOR, "/"),
+  )
 }
 
 // #[cfg(test)]

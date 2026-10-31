@@ -1,3 +1,6 @@
+#[path = "../../core/tests/support/mod.rs"]
+mod test_utils;
+
 use std::{
   cell::RefCell,
   collections::HashMap,
@@ -1155,10 +1158,10 @@ fn get_exports_star_dedupe() {
 fn memory_fs(files: &[(&str, &str)]) -> Arc<MemoryFileSystem> {
   let fs = Arc::new(MemoryFileSystem::new());
   for (path, contents) in files {
-    let path = Path::new(path);
+    let path = test_utils::path(path);
     fs.create_dir_all(PathId::new(path.parent().unwrap()))
       .unwrap();
-    fs.write(PathId::new(path), &contents.as_bytes().to_vec())
+    fs.write(PathId::new(&path), &contents.as_bytes().to_vec())
       .unwrap();
   }
   fs
@@ -1176,7 +1179,7 @@ fn memory_build_options(input_fs: Arc<MemoryFileSystem>, cwd: &str) -> BuildOpti
     output_fs: Arc::new(MemoryFileSystem::new()),
     log_level: parcel_core::LogLevel::Error,
     config: None,
-    cwd: PathId::new(Path::new(cwd)),
+    cwd: PathId::new(&test_utils::path(cwd)),
     dist_dir: None,
     public_url: Default::default(),
     hmr: None,
@@ -1226,7 +1229,7 @@ fn parcel_runtime_modules_are_embedded() {
   // Located where a local install would put them, though nothing is there.
   assert_eq!(
     asset_path(&graph, "esmodule-helpers.js"),
-    Some(PathBuf::from(
+    Some(test_utils::path(
       "/project/node_modules/@parcel/parcel3/src/esmodule-helpers.js"
     ))
   );
@@ -1287,13 +1290,13 @@ fn mdx_components_import_the_projects_react() {
   .unwrap();
   assert_eq!(
     asset_path(&graph, "mdx-components.jsx"),
-    Some(PathBuf::from(
+    Some(test_utils::path(
       "/project/node_modules/@parcel/parcel3/src/mdx-components.jsx"
     ))
   );
   assert_eq!(
     asset_path(&graph, "jsx-dev-runtime.js"),
-    Some(PathBuf::from(
+    Some(test_utils::path(
       "/project/node_modules/react/jsx-dev-runtime.js"
     ))
   );
@@ -1363,7 +1366,7 @@ fn react_refresh_runtime_import_is_the_projects() {
   .unwrap();
   assert_eq!(
     asset_path(&graph, "runtime.js"),
-    Some(PathBuf::from(
+    Some(test_utils::path(
       "/project/node_modules/react-refresh/runtime.js"
     ))
   );

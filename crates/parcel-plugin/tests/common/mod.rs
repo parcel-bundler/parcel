@@ -5,6 +5,9 @@
 //! of this.
 #![allow(dead_code)]
 
+#[path = "../../../core/tests/support/mod.rs"]
+mod test_utils;
+
 use std::{path::Path, sync::Arc};
 
 use parcel_core::{
@@ -167,9 +170,9 @@ fn failed_build_diagnostics() -> parcel_core::DiagnosticList {
     origin: Some("@acme/plugin".into()),
     hints: vec!["try something else".into()],
     code_frames: vec![parcel_core::CodeFrame {
-      url: Some(parcel_core::SourceUrl::from_path(&PathId::new(Path::new(
-        "/project/src/a.js",
-      )))),
+      url: Some(parcel_core::SourceUrl::from_path(&PathId::new(
+        &test_utils::path("/project/src/a.js"),
+      ))),
       language: Some(AssetType::Js),
       code_highlights: vec![parcel_core::CodeHighlight {
         start: parcel_core::Location { line: 1, column: 9 },
@@ -214,10 +217,13 @@ pub fn assert_reporter_summarizes_failures(name: &str, plugin: &parcel_plugin_ab
 
   assert_eq!(
     std::fs::read_to_string(&summary).expect("read the summary"),
-    "message: it did not work\n\
+    format!(
+      "message: it did not work\n\
      docs: https://parceljs.org/errors/example\n\
-     frame: /project/src/a.js js\n\
-     highlight: 1:9-1:12 expected an expression\n"
+     frame: {} js\n\
+     highlight: 1:9-1:12 expected an expression\n",
+      test_utils::path("/project/src/a.js").display()
+    )
   );
 }
 

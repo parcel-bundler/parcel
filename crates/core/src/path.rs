@@ -387,7 +387,15 @@ impl PathInterner {
       components.next();
       // Keep the prefix and root together. A separate RootDir node would discard
       // the drive/UNC share, and walking parents must stop at the volume root.
-      let mut root = PathBuf::from(prefix.as_os_str());
+      let mut root = match prefix.kind() {
+        std::path::Prefix::VerbatimDisk(drive) => PathBuf::from(format!("{}:", drive as char)),
+        std::path::Prefix::VerbatimUNC(server, share) => PathBuf::from(format!(
+          r"\\{}\{}",
+          server.to_string_lossy(),
+          share.to_string_lossy()
+        )),
+        _ => PathBuf::from(prefix.as_os_str()),
+      };
       if components.peek() == Some(&Component::RootDir) {
         components.next();
         root.push(Component::RootDir);
@@ -848,16 +856,18 @@ mod tests {
   #[cfg(windows)]
   fn windows_volumes_roundtrip_and_remain_distinct() {
     let interner = PathInterner::new();
-    for original in [
-      r"C:\project\src\a.js",
-      r"D:\project\src\a.js",
-      r"\\server\share\src\a.js",
-      r"\\?\C:\project\src\a.js",
+    for (original, expected) in [
+      (r"C:\project\src\a.js", r"C:\project\src\a.js"),
+      (r"D:\project\src\a.js", r"D:\project\src\a.js"),
+      (r"\\server\share\src\a.js", r"\\server\share\src\a.js"),
+      (r"\\?\C:\project\src\a.js", r"C:\project\src\a.js"),
+      (r"\\?\UNC\server\share\src\a.js", r"\\server\share\src\a.js"),
     ] {
       let path = Path::new(original);
       let id = interner.intern(path);
-      assert_eq!(interner.to_path_buf(id), path);
-      interner.with_path(id, |actual| assert_eq!(actual, path));
+      assert_eq!(interner.to_path_buf(id), Path::new(expected));
+      interner.with_path(id, |actual| assert_eq!(actual, Path::new(expected)));
+      assert_eq!(interner.intern(Path::new(expected)), id);
       assert_eq!(interner.intern(&interner.to_path_buf(id)), id);
     }
     assert_ne!(

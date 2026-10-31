@@ -72,11 +72,14 @@ impl<'de> serde::Deserialize<'de> for SourceUrl {
 impl Default for SourceUrl {
   fn default() -> Self {
     static DEFAULT_PATH: std::sync::LazyLock<PathId> = std::sync::LazyLock::new(|| {
-      PathId::new(&std::env::current_dir().unwrap())
+      #[cfg(windows)]
+      let root = PathId::new(&std::env::current_dir().unwrap())
         .ancestors()
         .last()
-        .unwrap()
-        .child("default")
+        .unwrap();
+      #[cfg(not(windows))]
+      let root = PathId::root();
+      root.child("default")
     });
     SourceUrl::from_path(&DEFAULT_PATH)
   }

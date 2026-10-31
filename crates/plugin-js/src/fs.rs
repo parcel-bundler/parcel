@@ -11,6 +11,17 @@ use rquickjs::{
 #[derive(JsLifetime, Trace, Clone)]
 pub struct FileSystemData(#[qjs(skip_trace)] pub Arc<dyn FileSystem>);
 
+fn resolve_fs_path(ctx: &Ctx<'_>, path: &str) -> rquickjs::Result<PathId> {
+  let path = Path::new(path);
+  if path.is_absolute() {
+    return Ok(PathId::new(path));
+  }
+  let process: rquickjs::Object = ctx.globals().get("process")?;
+  let cwd: Function = process.get("cwd")?;
+  let cwd: String = cwd.call((rquickjs::function::This(process),))?;
+  Ok(PathId::new(&Path::new(&cwd).join(path)))
+}
+
 #[derive(JsLifetime, Trace, Clone)]
 #[rquickjs::class]
 pub struct Fs {}
@@ -89,7 +100,7 @@ impl Fs {
     let encoding = encoding.as_ref().map(|e| e.as_str());
     match encoding {
       None => {
-        let contents = fs.read(parcel_core::PathId::new(Path::new(&path)));
+        let contents = fs.read(resolve_fs_path(&ctx, &path)?);
         match contents {
           Ok(contents) => {
             let buffer_ctor: rquickjs::Object = ctx.globals().get("Buffer")?;
@@ -102,7 +113,7 @@ impl Fs {
         }
       }
       Some("utf-8") | Some("utf8") => {
-        let contents = fs.read_to_string(parcel_core::PathId::new(Path::new(&path)));
+        let contents = fs.read_to_string(resolve_fs_path(&ctx, &path)?);
         match contents {
           Ok(contents) => Ok(Ok(rquickjs::String::from_str(ctx, &contents)?.into_value())),
           Err(err) => Ok(Err(Exception::from_message(ctx, &err.to_string())?)),
@@ -120,7 +131,7 @@ impl Fs {
     path: String,
   ) -> rquickjs::Result<Result<Stats, Exception<'js>>> {
     let fs = ctx.userdata::<FileSystemData>().unwrap().0.clone();
-    let stat = fs.stat(parcel_core::PathId::new(Path::new(&path)));
+    let stat = fs.stat(resolve_fs_path(&ctx, &path)?);
     match stat {
       Some(stat) => Ok(Ok(Stats::new(stat))),
       None => {
@@ -139,7 +150,7 @@ impl Fs {
     path: String,
   ) -> rquickjs::Result<Result<Stats, Exception<'js>>> {
     let fs = ctx.userdata::<FileSystemData>().unwrap().0.clone();
-    let stat = fs.lstat(parcel_core::PathId::new(Path::new(&path)));
+    let stat = fs.lstat(resolve_fs_path(&ctx, &path)?);
     match stat {
       Some(stat) => Ok(Ok(Stats::new(stat))),
       None => {
@@ -159,7 +170,7 @@ impl Fs {
     options: Option<&Value>,
   ) -> rquickjs::Result<Result<Vec<Value<'js>>, Exception<'js>>> {
     let fs = ctx.userdata::<FileSystemData>().unwrap().0.clone();
-    let entries = fs.read_dir(parcel_core::PathId::new(Path::new(&path)));
+    let entries = fs.read_dir(resolve_fs_path(&ctx, &path)?);
     let mut with_file_types = false;
     if let Some(options) = options {
       if let Some(obj) = options.as_object() {
@@ -212,7 +223,7 @@ impl Fs {
     path: String,
   ) -> rquickjs::Result<Result<String, Exception<'js>>> {
     let fs = ctx.userdata::<FileSystemData>().unwrap().0.clone();
-    match fs.canonicalize(parcel_core::PathId::new(Path::new(&path))) {
+    match fs.canonicalize(resolve_fs_path(&ctx, &path)?) {
       Ok(link) => Ok(Ok(link.to_path_buf().to_string_lossy().into_owned())),
       Err(e) => Ok(Err(io_exception(ctx, &e, "realpath", &path)?)),
     }
@@ -223,7 +234,7 @@ impl Fs {
     path: String,
   ) -> rquickjs::Result<Result<String, Exception<'js>>> {
     let fs = ctx.userdata::<FileSystemData>().unwrap().0.clone();
-    match fs.read_link(parcel_core::PathId::new(Path::new(&path))) {
+    match fs.read_link(resolve_fs_path(&ctx, &path)?) {
       Ok(link) => Ok(Ok(link.to_path_buf().to_string_lossy().into_owned())),
       Err(e) => Ok(Err(io_exception(ctx, &e, "readlink", &path)?)),
     }
@@ -278,8 +289,7 @@ fn io_exception<'js>(
   let Some(code) = code else {
     return Exception::from_message(ctx, &err.to_string());
   };
-  let exception =
-    Exception::from_message(ctx, &format!("{code}: {err}, {syscall} '{path}'"))?;
+  let exception = Exception::from_message(ctx, &format!("{code}: {err}, {syscall} '{path}'"))?;
   exception.set("code", code)?;
   exception.set("syscall", syscall)?;
   exception.set("path", path)?;
@@ -354,7 +364,9 @@ impl Fs {
 
   pub fn exists_sync<'js>(ctx: Ctx<'js>, path: String) -> bool {
     let fs = ctx.userdata::<FileSystemData>().unwrap().0.clone();
-    fs.stat(parcel_core::PathId::new(Path::new(&path)))
+    resolve_fs_path(&ctx, &path)
+      .ok()
+      .and_then(|path| fs.stat(path))
       .is_some()
   }
 

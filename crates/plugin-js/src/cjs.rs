@@ -204,7 +204,11 @@ impl CjsLoader {
           return globals.get("process");
         }
         "path" => {
-          return Ok(path::path_module(ctx)?.into_value());
+          let exports = path::path_module(ctx)?;
+          let module = Object::new(ctx.clone())?;
+          module.set("exports", exports.clone())?;
+          cache.set(resolved, module)?;
+          return Ok(exports.into_value());
         }
         "url" => {
           return Ok(url::url_module(ctx)?.into_value());
@@ -432,7 +436,7 @@ const MODULE_SOURCE: &str = r#"(function (requireFrom, resolveFrom, builtinModul
   function createRequire(filename) {
     let from = toPath(filename);
     // A trailing slash means a directory, so resolve from a file inside it.
-    if (from.endsWith('/')) {
+    if (from.endsWith('/') || from.endsWith('\\')) {
       from += 'index.js';
     }
     function req(id) {

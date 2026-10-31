@@ -196,6 +196,8 @@ const CJS_CASES: &[(&str, &str, &str)] = &[
     "fs.existsSync",
     "fs.js",
     r#"const fs = require('fs');
+       if (!fs.existsSync('lib/helper.js')) throw new Error('relative file');
+       if (fs.readFileSync('lib/helper.js', 'utf8') !== "module.exports = 'helper';") throw new Error('relative read');
        if (!fs.existsSync(testPath('/project/lib/helper.js'))) throw new Error('file');
        if (!fs.existsSync(testPath('/project/lib'))) throw new Error('directory');
        if (!fs.existsSync('/')) throw new Error('root');

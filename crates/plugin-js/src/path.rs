@@ -357,6 +357,12 @@ pub fn path_module<'js>(ctx: &Ctx<'js>) -> rquickjs::Result<Object<'js>> {
   module.set("delimiter", ":")?;
   module.set("win32", Null)?;
   module.set("posix", module.clone())?;
+  #[cfg(windows)]
+  {
+    let windows: Function = ctx.eval(include_str!("../builtin-src/path-win32.js"))?;
+    return windows.call((module,));
+  }
+  #[cfg(not(windows))]
   Ok(module)
 }
 

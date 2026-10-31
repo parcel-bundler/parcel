@@ -126,6 +126,20 @@ impl PluginPackage {
     Some(if has_extension {
       library.to_owned()
     } else {
+      #[cfg(windows)]
+      let library_path = std::path::Path::new(library);
+      #[cfg(windows)]
+      let library = library_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .and_then(|name| name.strip_prefix("lib"))
+        .map(|name| {
+          library_path
+            .with_file_name(name)
+            .to_string_lossy()
+            .into_owned()
+        })
+        .unwrap_or_else(|| library.to_owned());
       format!("{library}.{LIBRARY_EXTENSION}")
     })
   }

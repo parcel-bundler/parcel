@@ -412,13 +412,17 @@ fn test_path_module() {
 
     if (join !== path.join || normalize !== path.normalize || parse !== path.parse)
       throw new Error('path named exports do not match the default export');
-    if (join('/a/b', '../c') !== '/a/c') throw new Error('path.join');
-    if (normalize('/a//b/../c') !== '/a/c') throw new Error('path.normalize');
-    if (parse('/a/file.js').ext !== '.js') throw new Error('path.parse');
-    if (posix !== path || win32 !== null || sep !== '/' || delimiter !== ':')
-      throw new Error('path platform exports');
-    if (nodePath.join('/a', 'b') !== '/a/b' || nodeRelative('/a/b', '/a/c') !== '../c')
-      throw new Error('node:path import');
+    if (sep === '\\') {
+      if (path !== win32 || posix === path || delimiter !== ';') throw new Error('Windows path exports');
+      if (join('C:\\a\\b', '../c') !== 'C:\\a\\c') throw new Error('Windows path.join');
+      if (nodePath.join('C:\\a', 'b') !== 'C:\\a\\b') throw new Error('node:path import');
+    } else {
+      if (join('/a/b', '../c') !== '/a/c') throw new Error('path.join');
+      if (normalize('/a//b/../c') !== '/a/c') throw new Error('path.normalize');
+      if (parse('/a/file.js').ext !== '.js') throw new Error('path.parse');
+      if (posix !== path || win32 !== null || delimiter !== ':') throw new Error('path platform exports');
+      if (nodePath.join('/a', 'b') !== '/a/b' || nodeRelative('/a/b', '/a/c') !== '../c') throw new Error('node:path import');
+    }
     "#,
   );
 }

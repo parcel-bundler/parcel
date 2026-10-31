@@ -14,7 +14,7 @@ fn matches_node_posix_vectors() {
       ctx,
       "/path_native_test.js",
       r#"
-        const path = require('path');
+        const path = require('path').posix;
         const assertEqual = (actual, expected, label) => {
           if (actual !== expected) throw new Error(label + ': ' + JSON.stringify(actual) + ' !== ' + JSON.stringify(expected));
         };
@@ -86,7 +86,7 @@ fn matches_node_posix_vectors() {
           ['😀/é.文', {root:'', dir:'😀', base:'é.文', ext:'.文', name:'é'}]
         ]) assertEqual(JSON.stringify(path.parse(input)), JSON.stringify(expected), 'parse ' + input);
 
-        if (path.posix !== path || path.win32 !== null || path.sep !== '/' || path.delimiter !== ':')
+        if (path.posix !== path || path.sep !== '/' || path.delimiter !== ':')
           throw new Error('module identity/constants');
       "#,
     )?;
@@ -106,7 +106,7 @@ fn benchmark_native_path_resolve() {
       ctx,
       "/path_native_benchmark.js",
       r#"
-        const path = require('path');
+        const path = require('path').posix;
         let total = 0;
         for (let i = 0; i < 100000; i++) {
           total += path.resolve('/a/b', '../c', String(i)).length;
@@ -115,6 +115,42 @@ fn benchmark_native_path_resolve() {
       "#,
     )?;
     eprintln!("native path.resolve x100000: {:?}", start.elapsed());
+    Ok(())
+  })
+  .unwrap();
+}
+
+#[test]
+fn matches_node_windows_vectors() {
+  let fs: Arc<dyn FileSystem> = Arc::new(OsFileSystem {});
+  let cwd = PathId::new(&std::env::current_dir().unwrap());
+  with_js_env(fs, &HashMap::new(), cwd, |ctx| {
+    let load: rquickjs::Function = ctx.eval(include_str!("../builtin-src/path-win32.js"))?;
+    let windows: rquickjs::Object = load.call((rquickjs::Object::new(ctx.clone())?,))?;
+    ctx.globals().set("windowsPath", windows)?;
+    ctx.eval::<(), _>(
+      r#"
+      const p = windowsPath;
+      const same = (actual, expected) => {
+        if (JSON.stringify(actual) !== JSON.stringify(expected))
+          throw new Error(JSON.stringify(actual) + ' !== ' + JSON.stringify(expected));
+      };
+      same(p.resolve('C:\\a\\b', '..\\c'), 'C:\\a\\c');
+      same(p.resolve('C:\\a', '\\b'), 'C:\\b');
+      same(p.normalize('C:/a/../b/'), 'C:\\b\\');
+      same(p.join('C:\\a', 'b'), 'C:\\a\\b');
+      same(p.dirname('C:\\a\\b.js'), 'C:\\a');
+      same(p.basename('C:\\a\\b.js', '.js'), 'b');
+      same(p.extname('C:\\a.b\\c.js'), '.js');
+      same(p.relative('C:\\a', 'D:\\b'), 'D:\\b');
+      same(p.relative('C:\\a', 'C:\\b'), '..\\b');
+      same(p.isAbsolute('C:\\a'), true);
+      same(p.isAbsolute('C:a'), false);
+      same(p.parse('C:\\a\\b.js'), {root:'C:\\', dir:'C:\\a', base:'b.js', ext:'.js', name:'b'});
+      same(p.format({dir:'C:\\a', name:'b', ext:'.js'}), 'C:\\a\\b.js');
+      same(p.toNamespacedPath('C:\\a'), '\\\\?\\C:\\a');
+    "#,
+    )?;
     Ok(())
   })
   .unwrap();
