@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	parcel "github.com/parcel-bundler/parcel/plugin-go"
+	parcel "github.com/parcel-bundler/parcel/plugin-go/v3"
 )
 
 type CustomResolver struct{}

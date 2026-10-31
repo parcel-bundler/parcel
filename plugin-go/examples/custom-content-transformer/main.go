@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"strings"
 
-	parcel "github.com/parcel-bundler/parcel/plugin-go"
+	parcel "github.com/parcel-bundler/parcel/plugin-go/v3"
 )
 
 // UppercaseContent is an intentionally small stand-in for an AST. Parcel keeps

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	parcel "github.com/parcel-bundler/parcel/plugin-go"
+	parcel "github.com/parcel-bundler/parcel/plugin-go/v3"
 )
 
 // parseHeaderDefines extracts integer constants from plugin.h.

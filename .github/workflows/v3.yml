@@ -1,9 +1,9 @@
-name: core-rs3
+name: v3
 
 on:
   push:
     branches:
-      - core-rs3
+      - v3
 
 permissions:
   contents: read

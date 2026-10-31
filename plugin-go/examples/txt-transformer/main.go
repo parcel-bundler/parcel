@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	parcel "github.com/parcel-bundler/parcel/plugin-go"
+	parcel "github.com/parcel-bundler/parcel/plugin-go/v3"
 )
 
 type TxtTransformer struct{}

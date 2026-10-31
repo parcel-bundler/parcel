@@ -1,11 +1,11 @@
 # Parcel plugins in Go
 
-`github.com/parcel-bundler/parcel/plugin-go` builds native [Parcel](https://parceljs.org)
+`github.com/parcel-bundler/parcel/plugin-go/v3` builds native [Parcel](https://parceljs.org)
 plugins in Go: transformers, resolvers, namers, optimizers and reporters, compiled to a shared
 library that Parcel loads directly.
 
 ```sh
-go get github.com/parcel-bundler/parcel/plugin-go@core-rs3
+go get github.com/parcel-bundler/parcel/plugin-go/v3
 ```
 
 ## A plugin
@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	parcel "github.com/parcel-bundler/parcel/plugin-go"
+	parcel "github.com/parcel-bundler/parcel/plugin-go/v3"
 )
 
 type TxtTransformer struct{}

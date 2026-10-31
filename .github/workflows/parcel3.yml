@@ -375,3 +375,38 @@ jobs:
         env:
           TAG: ${{ inputs.tag }}
         run: node .github/scripts/native-plugin/publish.mjs --tag "$TAG" "$RUNNER_TEMP"/main/*.tgz
+
+  # Tags the commit the release was built from once everything is on npm, so
+  # the SDKs installed from git can depend on a release rather than a branch:
+  # v<version> for Cargo, SwiftPM and the native plugin workflow, and
+  # plugin-go/v<version> for the Go module, which lives in a subdirectory.
+  git-tag:
+    name: Tag release
+    if: ${{ inputs.publish }}
+    needs: [publish, publish-js]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # A retried run finds its own tags already there. A tag on a different
+      # commit means the version was already released from elsewhere.
+      - name: Push tags
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          for TAG in "v$VERSION" "plugin-go/v$VERSION"; do
+            EXISTING="$(git ls-remote --tags origin "refs/tags/$TAG" | cut -f1)"
+            if [ -z "$EXISTING" ]; then
+              git tag "$TAG" "$GITHUB_SHA"
+              git push origin "refs/tags/$TAG"
+            elif [ "$EXISTING" = "$GITHUB_SHA" ]; then
+              echo "$TAG already points at $GITHUB_SHA"
+            else
+              echo "::error::$TAG already exists at $EXISTING, not $GITHUB_SHA"
+              exit 1
+            fi
+          done

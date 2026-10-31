@@ -9,7 +9,7 @@ package main
 import (
 	"fmt"
 
-	parcel "github.com/parcel-bundler/parcel/plugin-go"
+	parcel "github.com/parcel-bundler/parcel/plugin-go/v3"
 )
 
 type CustomOptimizer struct{}

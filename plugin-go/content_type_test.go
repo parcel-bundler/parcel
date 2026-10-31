@@ -29,7 +29,7 @@ func TestContentTypeIDDerivationMatchesTheOtherSDKs(t *testing.T) {
 // plugin's types live in package main, and two plugins with a main.AST would
 // otherwise collide.
 func TestContentTypeIDsAreNamespacedByModule(t *testing.T) {
-	if namespace := contentNamespace(); namespace != "github.com/parcel-bundler/parcel/plugin-go" {
+	if namespace := contentNamespace(); namespace != "github.com/parcel-bundler/parcel/plugin-go/v3" {
 		t.Fatalf("unexpected namespace %q", namespace)
 	}
 	if contentTypeID("example.com/a", "main.AST") == contentTypeID("example.com/b", "main.AST") {
@@ -43,7 +43,7 @@ func TestContentTypeNames(t *testing.T) {
 		expected string
 	}{
 		// Through the pointer, so *T and T are the same content type.
-		{&namedContent{}, "github.com/parcel-bundler/parcel/plugin-go.namedContent"},
+		{&namedContent{}, "github.com/parcel-bundler/parcel/plugin-go/v3.namedContent"},
 		{&renamedContent{}, "Renamed"},
 	} {
 		name, err := contentTypeName(test.content)

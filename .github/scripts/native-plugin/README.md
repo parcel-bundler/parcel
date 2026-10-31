@@ -120,7 +120,7 @@ jobs:
     permissions:
       contents: read
       id-token: write # required for npm trusted publishing
-    uses: parcel-bundler/parcel/.github/workflows/native-plugin.yml@core-rs3
+    uses: parcel-bundler/parcel/.github/workflows/native-plugin.yml@v3
     with:
       paths: .
       publish: true
@@ -141,7 +141,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: parcel-bundler/parcel/.github/workflows/native-plugin.yml@core-rs3
+    uses: parcel-bundler/parcel/.github/workflows/native-plugin.yml@v3
     with:
       paths: |
         packages/transformer-a

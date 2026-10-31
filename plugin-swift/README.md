@@ -18,7 +18,7 @@ let package = Package(
   name: "TxtTransformer",
   platforms: [.macOS(.v15)],
   products: [.library(name: "TxtTransformer", type: .dynamic, targets: ["TxtTransformer"])],
-  dependencies: [.package(url: "https://github.com/parcel-bundler/parcel", branch: "core-rs3")],
+  dependencies: [.package(url: "https://github.com/parcel-bundler/parcel", branch: "v3")],
   targets: [
     .target(
       name: "TxtTransformer",

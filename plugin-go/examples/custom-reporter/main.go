@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	parcel "github.com/parcel-bundler/parcel/plugin-go"
+	parcel "github.com/parcel-bundler/parcel/plugin-go/v3"
 )
 
 type CustomReporter struct {

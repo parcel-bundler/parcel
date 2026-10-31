@@ -1,6 +1,6 @@
 # Content hashing for Parcel v3: implementation plan
 
-Status: proposed · Branch: `v3-content-hashing` · Base: `core-rs3` @ `8bb32a53a`
+Status: proposed · Branch: `v3-content-hashing` · Base: `v3` @ `8bb32a53a`
 
 ## Goal
 
@@ -821,7 +821,7 @@ build arbitrary graphs.
 - `test.rs` harness builds default to Development, so snapshot names are unaffected. Add a
   `"contentHash": true` knob to `test.json`.
 
-**Benchmark.** Run react-spectrum storybook, production, compared with base `core-rs3`: total time,
+**Benchmark.** Run react-spectrum storybook, production, compared with base `v3`: total time,
 the packaging phase, and pass-2 count (expected ≈0).
 
 ---

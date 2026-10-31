@@ -36,7 +36,7 @@ For significant changes, it is recommended that you first [propose your solution
 2. Run `yarn` in the repository root to install dependencies.
 3. If you fix a bug or introduce a new feature, add tests or ask for help if the use-case is more complex.
 4. Commit the `yarn.lock` file if it has changed.
-5. Check the steps used in [CI](.github/workflows/core-rs3.yml) pass locally.
+5. Check the steps used in [CI](.github/workflows/v3.yml) pass locally.
 
 ```sh
 $ yarn check-ts
