@@ -418,15 +418,22 @@ impl PathInterner {
         Component::RootDir => {
           // Like PathBuf::push, a rooted path without a prefix retains the
           // base's Windows volume, but replaces all directories below it.
-          cur = cur
-            .and_then(|base| self.ancestors(base).last())
-            .filter(|root| {
-              matches!(
-                Path::new(self.file_name(*root)).components().next(),
-                Some(Component::Prefix(_))
-              )
-            })
-            .or_else(|| Some(self.intern_edge(None, "/")));
+          #[cfg(windows)]
+          {
+            cur = cur
+              .and_then(|base| self.ancestors(base).last())
+              .filter(|root| {
+                matches!(
+                  Path::new(self.file_name(*root)).components().next(),
+                  Some(Component::Prefix(_))
+                )
+              })
+              .or_else(|| Some(self.intern_edge(None, "/")));
+          }
+          #[cfg(not(windows))]
+          {
+            cur = Some(self.intern_edge(None, "/"));
+          }
         }
         Component::Prefix(_) => unreachable!(),
         Component::Normal(os) => {

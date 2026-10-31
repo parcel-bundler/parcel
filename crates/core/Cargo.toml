@@ -33,6 +33,7 @@ smallvec = "1.13.2"
 crossbeam-channel = "0.5.6"
 parcel-highlight = { path = "../highlight" }
 sha2-const-stable = "0.1.0"
+path-slash = "0.1.4"
 
 [dev-dependencies]
 pretty_assertions = "1.4.1"

@@ -18,6 +18,7 @@ use parcel_core::{
   BuildMode, BuildOptions, DiagnosticList, FileKind, FileSystem, LogLevel, MemoryFileSystem,
   Parcel, PathId,
 };
+use path_slash::PathExt;
 use pretty_assertions::assert_eq;
 use std::{
   collections::BTreeMap,
@@ -547,9 +548,7 @@ fn read_all_files(fs: &MemoryFileSystem) -> BTreeMap<String, String> {
       } else if entry.kind.contains(FileKind::IS_FILE) {
         let bytes = fs.read(test_path_id(&path)).unwrap();
         out.insert(
-          path
-            .to_string_lossy()
-            .replace(std::path::MAIN_SEPARATOR, "/"),
+          path.to_slash_lossy(),
           String::from_utf8_lossy(&bytes).into_owned(),
         );
       }

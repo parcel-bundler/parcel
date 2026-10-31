@@ -58,6 +58,7 @@ flate2 = { version = "1.1.9", default-features = false, features = [
   "rust_backend",
 ] }
 deflate-macro = "0.1"
+path-slash = "0.1.4"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

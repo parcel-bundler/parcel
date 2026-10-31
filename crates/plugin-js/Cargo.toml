@@ -35,6 +35,7 @@ swc_core = { version = "82", features = [
   "ecma_visit",
   "ecma_helpers_inline",
 ] }
+path-slash = "0.1.4"
 
 [build-dependencies]
 cc = "1"

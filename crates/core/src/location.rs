@@ -5,6 +5,7 @@ use std::{
   sync::Arc,
 };
 
+use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -291,9 +292,7 @@ impl std::fmt::Debug for SourceUrl {
 }
 
 fn path_to_url_path(path: &Path) -> String {
-  path
-    .to_string_lossy()
-    .replace(std::path::MAIN_SEPARATOR, "/")
+  path.to_slash_lossy()
 }
 
 #[cfg(test)]

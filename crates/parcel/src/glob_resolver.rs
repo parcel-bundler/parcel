@@ -7,6 +7,7 @@ use parcel_core::{
   SourceLocation, SourceUrl, SpecifierType, SubPath, is_glob,
 };
 use parcel_resolver::{Flags, Specifier, SpecifierError};
+use path_slash::PathExt;
 use xxhash_rust::xxh3::xxh3_64;
 
 use crate::resolver::specifier_error_diagnostic;
@@ -121,9 +122,7 @@ impl Resolver for GlobResolver {
         .iter()
         .map(|file| {
           let rel = file.relative(&dir);
-          let rel = rel
-            .to_string_lossy()
-            .replace(std::path::MAIN_SEPARATOR, "/");
+          let rel = rel.to_slash_lossy();
           let rel = to_rel(&rel);
           match pipeline {
             Some(pipeline) => format!("{}:{}", pipeline, rel),
@@ -143,16 +142,12 @@ impl Resolver for GlobResolver {
     let mut root = GlobEntry::new_dir();
     for file in files.iter() {
       let rel = file.relative(&dir);
-      let rel = rel
-        .to_string_lossy()
-        .replace(std::path::MAIN_SEPARATOR, "/");
+      let rel = rel.to_slash_lossy();
       let rel = to_rel(&rel);
       // The keys are the parts of the path that the wildcards matched, or with `flat`, the
       // whole path in the form of the glob, e.g. "/dir/a.js" for "/dir/*.js".
       let matched = file.relative(&base);
-      let matched = matched
-        .to_string_lossy()
-        .replace(std::path::MAIN_SEPARATOR, "/");
+      let matched = matched.to_slash_lossy();
       let matched = if pattern.starts_with('.') {
         to_rel(&matched)
       } else {
