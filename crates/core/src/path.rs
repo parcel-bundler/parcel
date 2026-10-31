@@ -551,9 +551,6 @@ impl PathInterner {
   /// Returns the relative path from `from` to `id`.
   pub fn relative(&self, id: PathId, from: PathId) -> PathBuf {
     let (parent_dirs, dir) = self.common_ancestor(Some(from), Some(id));
-    if dir.is_none() && self.to_path_buf(id).has_root() {
-      return self.to_path_buf(id);
-    }
 
     let mut res = PathBuf::new();
     for _ in 0..parent_dirs {
@@ -581,9 +578,6 @@ impl PathInterner {
     let _guard = Guard;
 
     let (parent_dirs, dir) = self.common_ancestor(Some(from), Some(id));
-    if dir.is_none() && self.to_path_buf(id).has_root() {
-      return self.with_path(id, f);
-    }
 
     SCRATCH_PATH.with(|cell| {
       // SAFETY: `SCRATCH_IN_USE` guarantees no other live borrow of this cell exists on this
@@ -634,10 +628,20 @@ impl PathInterner {
     }
 
     let (parent_dirs, dir) = self.common_ancestor(base, dir);
-    if dir.is_none() && self.to_path_buf(id).has_root() {
-      return url::Url::from_file_path(self.to_path_buf(id))
-        .expect("absolute path should be a valid file URL")
-        .to_string();
+    // Absolute Unix paths always share the / root. Windows paths on different
+    // volumes need a file URL, since no relative URL can cross drives or shares.
+    #[cfg(windows)]
+    if dir.is_none() {
+      let absolute_url = self.with_path(id, |path| {
+        path.has_root().then(|| {
+          String::from(
+            url::Url::from_file_path(path).expect("absolute path should be a valid file URL"),
+          )
+        })
+      });
+      if let Some(url) = absolute_url {
+        return url;
+      }
     }
     for _ in 0..parent_dirs {
       if !out.is_empty() {
@@ -894,15 +898,38 @@ mod tests {
         Path::new(expected)
       );
     }
-    let other = interner.intern(Path::new(r"D:\other\a.js"));
-    assert_eq!(interner.relative(other, base), Path::new(r"D:\other\a.js"));
-    interner.with_relative(other, base, |actual| {
-      assert_eq!(actual, Path::new(r"D:\other\a.js"))
-    });
-    assert_eq!(
-      interner.relative_url_from_dir(other, base),
-      "file:///D:/other/a.js"
-    );
+  }
+
+  #[test]
+  #[cfg(windows)]
+  fn windows_relative_paths_across_volumes() {
+    let interner = PathInterner::new();
+    for (from, to, url) in [
+      (r"C:\project\src", r"D:\other\a.js", "file:///D:/other/a.js"),
+      (r"C:\project\src", r"D:\", "file:///D:/"),
+      (
+        r"C:\project\src",
+        r"\\server\share\a b.js",
+        "file://server/share/a%20b.js",
+      ),
+      (
+        r"\\server\share\src",
+        r"\\server\other\a.js",
+        "file://server/other/a.js",
+      ),
+      (
+        r"\\server\share\src",
+        r"\\other\share\",
+        "file://other/share/",
+      ),
+    ] {
+      let base = interner.intern(Path::new(from));
+      let target = interner.intern(Path::new(to));
+      assert_eq!(interner.relative(target, base), Path::new(to));
+      interner.with_relative(target, base, |actual| assert_eq!(actual, Path::new(to)));
+      assert_eq!(interner.relative_url_from_dir(target, base), url);
+      assert_eq!(interner.relative_url(target, base), url);
+    }
   }
 
   #[test]

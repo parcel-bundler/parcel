@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
+use path_slash::PathExt;
+
 use crate::{AssetNodeIndex, PathId, path::SubPath};
 
 /// Invalidation that fires when a file is created at or matching the given criteria.
@@ -182,9 +184,7 @@ impl InvalidationMap {
       // Check glob invalidations.
       if !self.on_file_create_glob.is_empty() {
         path.with_path(|p| {
-          let path_str = p.to_string_lossy();
-          #[cfg(windows)]
-          let path_str = path_str.replace('\\', "/");
+          let path_str = p.to_slash_lossy();
           for (glob, asset_index) in &self.on_file_create_glob {
             if glob_match::glob_match(glob, &path_str) {
               affected.insert(*asset_index);
