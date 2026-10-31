@@ -761,16 +761,20 @@ impl<'a> Fold for DependencyCollector<'a> {
                           if let Some(arg) = node.args.first() {
                             match &*arg.expr {
                               Fn(_) | Arrow(_) => {
+                                // Isolate require_node so an outer standalone import cannot
+                                // be spliced into this then-callback (#10373).
+                                let previous_require_node = self.require_node.take();
                                 self.in_promise = true;
                                 let node = node.clone().fold_children_with(self);
                                 self.in_promise = was_in_promise;
 
                                 // Transform Promise.resolve().then(() => __importStar(require('foo')))
                                 //   => Promise.resolve().then(() => require('foo')).then(res => __importStar(res))
-                                if let Some(require_node) = self.require_node.clone() {
-                                  self.require_node = None;
+                                if let Some(require_node) = self.require_node.take() {
+                                  self.require_node = previous_require_node;
                                   return build_promise_chain(node, require_node);
                                 }
+                                self.require_node = previous_require_node;
                               }
                               _ => {}
                             }
@@ -920,8 +924,12 @@ impl<'a> Fold for DependencyCollector<'a> {
       // Drop import attributes
       call.args.truncate(1);
 
-      // Track the returned require call to be replaced with a promise chain.
-      self.require_node = Some(call.clone());
+      // Only remember the rewritten require for Promise.resolve().then chaining
+      // when we are already inside that pattern. A standalone dynamic import must
+      // not leak into a later, unrelated Promise.resolve().then callback (#10373).
+      if self.in_promise {
+        self.require_node = Some(call.clone());
+      }
       call
     } else if kind == DependencyKind::Require {
       // Don't continue traversing so that the `require` isn't replaced with undefined
@@ -2316,6 +2324,54 @@ Promise.resolve(require("{}"));
       [DependencyDescriptor {
         kind: DependencyKind::DynamicImport,
         specifier: "other".into(),
+        attributes: None,
+        flags: DependencyFlags::empty(),
+        source_type: Some(SourceType::Module),
+        placeholder: Some(hash),
+        ..items[0].clone()
+      }]
+    );
+  }
+
+  // Standalone dynamic import must not be spliced into a later Promise.resolve().then
+  // that never referenced it (#10373).
+  #[test]
+  fn test_standalone_import_does_not_chain_into_later_promise_then() {
+    let mut items = vec![];
+    let mut diagnostics = vec![];
+    let config = make_config();
+    let input_code = r#"
+const lazy = () => import('./lazy.js');
+export const later = (work) => {
+  Promise.resolve().then(() => work());
+};
+    "#;
+
+    let RunVisitResult { output_code, .. } = run_fold(input_code, |context| {
+      make_dependency_collector(context, &mut items, &mut diagnostics, &config)
+    });
+
+    let hash = make_placeholder_hash("./lazy.js", DependencyKind::DynamicImport);
+    let expected_code = format!(
+      r#"
+const lazy = ()=>require("{}");
+export const later = (work)=>{{
+    Promise.resolve().then(()=>work());
+}};
+    "#,
+      hash
+    );
+    let expected_code = expected_code
+      .trim_start()
+      .trim_end_matches(|p: char| p == ' ');
+
+    assert_eq!(output_code, expected_code);
+    assert_eq!(diagnostics, []);
+    assert_eq!(
+      items,
+      [DependencyDescriptor {
+        kind: DependencyKind::DynamicImport,
+        specifier: "./lazy.js".into(),
         attributes: None,
         flags: DependencyFlags::empty(),
         source_type: Some(SourceType::Module),
