@@ -354,7 +354,7 @@ impl<'a> Resolver<'a> {
       from,
       &SubPath::module(module),
       FileKind::IS_DIR,
-      PathId::root(),
+      None,
     )
     .ok_or_else(|| ResolverError::ModuleNotFound {
       module: module.to_owned(),
@@ -424,7 +424,7 @@ impl<'a> Resolver<'a> {
     // }
     //
 
-    fs.find_ancestor(from, filename, FileKind::IS_FILE, self.project_root)
+    fs.find_ancestor(from, filename, FileKind::IS_FILE, Some(self.project_root))
   }
 }
 
@@ -1264,7 +1264,7 @@ impl<'a> ResolveRequest<'a> {
         self.from.parent().unwrap(),
         SubPath::jsconfig_json(),
         FileKind::IS_FILE,
-        tsconfig_dir.unwrap_or(self.resolver.project_root),
+        Some(tsconfig_dir.unwrap_or(self.resolver.project_root)),
       )
       .filter(|path| tsconfig_dir.is_none() || path.parent() != tsconfig_dir);
 

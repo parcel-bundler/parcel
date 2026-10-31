@@ -79,7 +79,7 @@ impl Resolver for GlobResolver {
           dir,
           SubPath::package_json(),
           FileKind::IS_FILE,
-          ctx.options.project_root,
+          Some(ctx.options.project_root),
         ) {
           Some(package_json) => Ok((package_json.parent().unwrap(), pattern)),
           None => Err(Diagnostic::from_message(format!(

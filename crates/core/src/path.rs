@@ -47,6 +47,7 @@ impl PathId {
     GLOBAL_INTERNER.intern(path)
   }
 
+  /// The filesystem root. On Windows, the root of the current directory's drive.
   pub fn root() -> PathId {
     static ROOT: LazyLock<PathId> = LazyLock::new(|| PathId::new(Path::new("/")));
     *ROOT
@@ -431,11 +432,11 @@ impl PathInterner {
                   Some(Component::Prefix(_))
                 )
               })
-              .or_else(|| Some(self.intern_edge(None, "/")));
+              .or_else(|| Some(self.root()));
           }
           #[cfg(not(windows))]
           {
-            cur = Some(self.intern_edge(None, "/"));
+            cur = Some(self.root());
           }
         }
         Component::Prefix(_) => unreachable!(),
@@ -448,8 +449,27 @@ impl PathInterner {
     if let Some(cur) = cur {
       cur
     } else {
-      self.intern_edge(None, "/")
+      self.root()
     }
+  }
+
+  /// The root that a path with no volume is relative to. Windows has no single
+  /// root, so like the OS, resolve against the current directory's drive.
+  #[cfg(windows)]
+  fn root(&self) -> PathId {
+    static ROOT: LazyLock<PathBuf> = LazyLock::new(|| {
+      let dir = std::env::current_dir().unwrap_or_else(|_| {
+        let drive = std::env::var_os("SystemDrive").unwrap_or_else(|| "C:".into());
+        PathBuf::from(drive).join(r"\")
+      });
+      dir.ancestors().last().unwrap().to_path_buf()
+    });
+    self.intern_impl(None, &ROOT)
+  }
+
+  #[cfg(not(windows))]
+  fn root(&self) -> PathId {
+    self.intern_edge(None, "/")
   }
 
   pub fn child(&self, parent: PathId, segment: &str) -> PathId {
@@ -936,10 +956,20 @@ mod tests {
       assert_eq!(interner.relative_url(target, base), url);
     }
 
-    // A rooted path without a volume has no file URL, so it must not panic.
-    let base = interner.intern(Path::new(r"C:\project\src"));
-    let target = interner.intern(Path::new(r"\other\a.js"));
-    assert!(!interner.relative_url(target, base).starts_with("file:"));
+  }
+
+  #[test]
+  #[cfg(windows)]
+  fn windows_paths_without_a_volume_use_the_current_drive() {
+    let interner = PathInterner::new();
+    let cwd = std::env::current_dir().unwrap();
+    let drive = cwd.ancestors().last().unwrap();
+    for path in [r"\other\a.js", "/other/a.js"] {
+      let id = interner.intern(Path::new(path));
+      assert_eq!(interner.to_path_buf(id), drive.join(r"other\a.js"));
+    }
+    assert_eq!(interner.to_path_buf(interner.intern(Path::new("/"))), drive);
+    assert_eq!(PathId::root().to_path_buf(), drive);
   }
 
   #[test]

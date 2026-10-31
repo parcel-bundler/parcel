@@ -173,7 +173,8 @@ pub trait FileSystem: Send + Sync {
   }
 
   /// Searches `from` and its ancestor directories for a file named `file_name`, returning the first
-  /// match (closest to `from`), or `None` if it is not found.
+  /// match (closest to `from`), or `None` if it is not found. The search stops after `root`, if it
+  /// is an ancestor, or otherwise at the top of the filesystem.
   ///
   /// Implementations that track invalidations override this to record a `file_create_above`
   /// invalidation, so that a closer file appearing later triggers a rebuild.
@@ -182,7 +183,7 @@ pub trait FileSystem: Send + Sync {
     from: PathId,
     file_name: &SubPath,
     kind: FileKind,
-    root: PathId,
+    root: Option<PathId>,
   ) -> Option<PathId> {
     for dir in from.ancestors() {
       // Break if we hit a node_modules directory
@@ -197,7 +198,7 @@ pub trait FileSystem: Send + Sync {
         return Some(candidate);
       }
 
-      if dir == root {
+      if Some(dir) == root {
         break;
       }
     }

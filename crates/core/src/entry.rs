@@ -754,7 +754,7 @@ fn find_package(path: PathId, fs: &dyn FileSystem) -> Option<(PathId, serde_json
     path,
     SubPath::package_json(),
     FileKind::IS_FILE,
-    PathId::root(),
+    None,
   )?;
   let contents = fs.read(pkg).ok()?;
   Some((pkg.parent()?, serde_json::from_slice(&contents).ok()?))

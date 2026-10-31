@@ -340,7 +340,7 @@ impl Resolver for MockResolver {
           from_dir,
           &SubPath::file("aliases.json"),
           FileKind::IS_FILE,
-          options.project_root,
+          Some(options.project_root),
         )
         .ok_or_else(|| Diagnostic::from_message(format!("no aliases.json for {}", specifier)))?;
       let config_url = SourceUrl::from_path(&config_path);

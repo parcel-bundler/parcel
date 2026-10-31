@@ -164,7 +164,7 @@ impl FileSystem for TrackingFileSystem {
     from: PathId,
     file_name: &SubPath,
     kind: FileKind,
-    root: PathId,
+    root: Option<PathId>,
   ) -> Option<PathId> {
     let found = self.inner.find_ancestor(from, file_name, kind, root);
     if let Some(result) = found {
