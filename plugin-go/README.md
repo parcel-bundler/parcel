@@ -11,8 +11,10 @@ go get github.com/parcel-bundler/parcel/plugin-go/v3
 ## A plugin
 
 A plugin is any value implementing one or more of `parcel.Transformer`, `parcel.Resolver`,
-`parcel.Namer`, `parcel.Optimizer` and `parcel.Reporter`, returned by the factory passed to
-`parcel.RegisterPlugin`. Parcel calls the method for the role the `.parcelrc` gives the plugin.
+`parcel.Namer` and `parcel.Optimizer`, returned by the factory passed to `parcel.RegisterPlugin`.
+Parcel calls the method for the role the `.parcelrc` gives the plugin. A reporter implements one
+interface per kind of event it handles: any of `parcel.BuildStartReporter`,
+`parcel.BuildSuccessReporter`, `parcel.BuildFailureReporter` and `parcel.LogReporter`.
 
 ```go
 package main

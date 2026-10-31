@@ -254,5 +254,14 @@ pub unsafe fn report<T: Plugin>(
   };
   let options = unsafe { Options::from_raw(raw_options) };
   let plugin = unsafe { &*(state as *const T) };
-  guard("report", diagnostic, || plugin.report(&event, &options));
+  match &event {
+    ReportEvent::BuildStart => guard("build_start", diagnostic, || plugin.build_start(&options)),
+    ReportEvent::BuildSuccess(event) => guard("build_success", diagnostic, || {
+      plugin.build_success(event, &options)
+    }),
+    ReportEvent::BuildFailure(event) => guard("build_failure", diagnostic, || {
+      plugin.build_failure(event, &options)
+    }),
+    ReportEvent::Log(event) => guard("log", diagnostic, || plugin.log(event, &options)),
+  };
 }

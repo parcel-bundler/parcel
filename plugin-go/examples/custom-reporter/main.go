@@ -19,41 +19,47 @@ type CustomReporter struct {
 	builds atomic.Int32
 }
 
-// Fails to compile if CustomReporter stops implementing parcel.Reporter, which would
-// otherwise only show up as an error when Parcel calls it.
-var _ parcel.Reporter = (*CustomReporter)(nil)
+// Fails to compile if CustomReporter stops handling one of these events, which
+// would otherwise only show up as Parcel skipping it.
+var (
+	_ parcel.BuildStartReporter   = (*CustomReporter)(nil)
+	_ parcel.BuildSuccessReporter = (*CustomReporter)(nil)
+	_ parcel.BuildFailureReporter = (*CustomReporter)(nil)
+	_ parcel.LogReporter          = (*CustomReporter)(nil)
+)
 
-func (r *CustomReporter) Report(event parcel.ReportEvent, options *parcel.Options) error {
-	switch event := event.(type) {
-	case *parcel.BuildStart:
-		r.builds.Add(1)
-		fmt.Printf("build %d starting\n", r.builds.Load())
+func (r *CustomReporter) BuildStart(options *parcel.Options) error {
+	fmt.Printf("build %d starting\n", r.builds.Add(1))
+	return nil
+}
 
-	case *parcel.BuildSuccess:
-		fmt.Printf(
-			"built %d bundles in %v (%d assets changed)\n",
-			event.BundleGraph.BundleCount(),
-			event.BuildTime,
-			len(event.ChangedAssets),
-		)
+func (r *CustomReporter) BuildSuccess(event *parcel.BuildSuccess, options *parcel.Options) error {
+	fmt.Printf(
+		"built %d bundles in %v (%d assets changed)\n",
+		event.BundleGraph.BundleCount(),
+		event.BuildTime,
+		len(event.ChangedAssets),
+	)
+	return nil
+}
 
-	case *parcel.BuildFailure:
-		summary := summarize(event.Diagnostics)
-		// Written to a file when the build's environment names one, e.g. for CI.
-		if path, ok := options.Env("REPORT_SUMMARY"); ok {
-			return os.WriteFile(path, []byte(summary), 0o644)
-		}
-		fmt.Printf("build failed with %d diagnostics:\n%s", event.Diagnostics.Len(), summary)
-
-	case *parcel.Log:
-		if event.Message != "" {
-			fmt.Printf("[%s] %s\n", event.Level, event.Message)
-		}
-		for _, diagnostic := range event.Diagnostics.All() {
-			fmt.Printf("[%s] %s\n", event.Level, diagnostic.Message())
-		}
+func (r *CustomReporter) BuildFailure(event *parcel.BuildFailure, options *parcel.Options) error {
+	summary := summarize(event.Diagnostics)
+	// Written to a file when the build's environment names one, e.g. for CI.
+	if path, ok := options.Env("REPORT_SUMMARY"); ok {
+		return os.WriteFile(path, []byte(summary), 0o644)
 	}
+	fmt.Printf("build failed with %d diagnostics:\n%s", event.Diagnostics.Len(), summary)
+	return nil
+}
 
+func (r *CustomReporter) Log(event *parcel.Log, options *parcel.Options) error {
+	if event.Message != "" {
+		fmt.Printf("[%s] %s\n", event.Level, event.Message)
+	}
+	for _, diagnostic := range event.Diagnostics.All() {
+		fmt.Printf("[%s] %s\n", event.Level, diagnostic.Message())
+	}
 	return nil
 }
 

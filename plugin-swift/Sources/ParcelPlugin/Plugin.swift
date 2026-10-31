@@ -104,23 +104,23 @@ public protocol Optimizer: Plugin {
 /// reporter throws are reported, but cannot fail the build.
 public protocol Reporter: Plugin {
   /// A build is about to start, including each rebuild.
-  func buildStarted(options: Options) async throws
+  func buildStart(options: Options) async throws
 
   /// A build finished and wrote its output.
-  func buildSucceeded(_ build: BuildSuccess, options: Options) async throws
+  func buildSuccess(_ event: BuildSuccess, options: Options) async throws
 
   /// A build failed. The same diagnostics are returned to whoever asked for it.
-  func buildFailed(_ diagnostics: Diagnostics, options: Options) async throws
+  func buildFailure(_ event: BuildFailure, options: Options) async throws
 
   /// Parcel or another plugin logged something.
-  func log(_ entry: LogEntry, options: Options) async throws
+  func log(_ event: Log, options: Options) async throws
 }
 
 extension Reporter {
-  public func buildStarted(options: Options) async throws {}
-  public func buildSucceeded(_ build: BuildSuccess, options: Options) async throws {}
-  public func buildFailed(_ diagnostics: Diagnostics, options: Options) async throws {}
-  public func log(_ entry: LogEntry, options: Options) async throws {}
+  public func buildStart(options: Options) async throws {}
+  public func buildSuccess(_ event: BuildSuccess, options: Options) async throws {}
+  public func buildFailure(_ event: BuildFailure, options: Options) async throws {}
+  public func log(_ event: Log, options: Options) async throws {}
 }
 
 /// Content a plugin produces: text, or arbitrary bytes.

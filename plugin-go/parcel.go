@@ -40,15 +40,17 @@ import (
 )
 
 // A plugin is any value implementing one or more of [Transformer], [Resolver],
-// [Namer], [Optimizer] and [Reporter], returned by the factory passed to
+// [Namer], [Optimizer] and the reporter interfaces ([BuildStartReporter],
+// [BuildSuccessReporter], [BuildFailureReporter] and [LogReporter]), returned
+// by the factory passed to
 // [RegisterPlugin]. Parcel calls the method for the role its .parcelrc entry
 // gives it, and a plugin used in a role it does not implement fails with a
 // diagnostic saying so. A kind of plugin Parcel adds later is a new interface,
 // so existing plugins keep compiling.
 //
 // Parcel calls one plugin from many goroutines at once: transforms and resolves
-// run in parallel, as do optimizers, and log events reach Report from whichever
-// thread logged them. Guard any state that changes with a mutex or atomics.
+// run in parallel, as do optimizers, and log events reach [LogReporter] from
+// whichever thread logged them. Guard any state that changes with a mutex or atomics.
 //
 // The values a method receives, such as *Asset, *Options, *BundleGraph and
 // everything obtained from them, are valid only until the method returns. Never
@@ -80,10 +82,35 @@ type Optimizer interface {
 	Optimize(bundleGraph *BundleGraph, bundle *Bundle, contents []byte, sourceMap string, options *Options) (OptimizeResult, error)
 }
 
-// Reporter handles build events. A returned error is printed rather than
+// A reporter handles build events, implementing one interface per kind of
+// event it handles: any of [BuildStartReporter], [BuildSuccessReporter],
+// [BuildFailureReporter] and [LogReporter]. Events it implements no interface
+// for are skipped, and a kind of event Parcel adds later is a new interface, so
+// existing reporters keep compiling. A returned error is printed rather than
 // failing the build: a reporter cannot fail a build that produced its output.
-type Reporter interface {
-	Report(event ReportEvent, options *Options) error
+//
+// Everything an event points at is valid only for the duration of the call it
+// was passed to.
+
+// BuildStartReporter is called when a build is about to start, once per build,
+// including rebuilds.
+type BuildStartReporter interface {
+	BuildStart(options *Options) error
+}
+
+// BuildSuccessReporter is called when a build finished and wrote its output.
+type BuildSuccessReporter interface {
+	BuildSuccess(event *BuildSuccess, options *Options) error
+}
+
+// BuildFailureReporter is called when a build failed.
+type BuildFailureReporter interface {
+	BuildFailure(event *BuildFailure, options *Options) error
+}
+
+// LogReporter is called for each message Parcel or another plugin logs.
+type LogReporter interface {
+	Log(event *Log, options *Options) error
 }
 
 // OptimizeResult is the content and optional source map returned by an optimizer.
@@ -100,7 +127,7 @@ var pluginFactory func(config []byte) (any, error)
 // RegisterPlugin sets the factory Parcel calls for each .parcelrc entry naming
 // the plugin, with that entry's config as JSON (nil when it has none). The
 // factory returns the plugin: a value implementing at least one of
-// [Transformer], [Resolver], [Namer], [Optimizer] and [Reporter].
+// [Transformer], [Resolver], [Namer], [Optimizer] and the reporter interfaces.
 //
 // Call RegisterPlugin once, from an init() function in the plugin's main package.
 func RegisterPlugin(factory func(config []byte) (any, error)) {
@@ -127,7 +154,16 @@ func pluginAs[T any](state unsafe.Pointer, method string) (T, error) {
 // hasRole reports whether plugin implements any role Parcel can call it in.
 func hasRole(plugin any) bool {
 	switch plugin.(type) {
-	case Transformer, Resolver, Namer, Optimizer, Reporter:
+	case Transformer, Resolver, Namer, Optimizer:
+		return true
+	}
+	return isReporter(plugin)
+}
+
+// isReporter reports whether plugin handles any kind of build event.
+func isReporter(plugin any) bool {
+	switch plugin.(type) {
+	case BuildStartReporter, BuildSuccessReporter, BuildFailureReporter, LogReporter:
 		return true
 	}
 	return false
@@ -168,7 +204,7 @@ func parcel_plugin_init(api *C.struct_ParcelApi, config *C.uint8_t, configLen C.
 	}
 	plugin, err := pluginFactory(data)
 	if err == nil && !hasRole(plugin) {
-		err = fmt.Errorf("the plugin factory returned %T, which implements none of Transformer, Resolver, Namer, Optimizer and Reporter", plugin)
+		err = fmt.Errorf("the plugin factory returned %T, which implements none of Transformer, Resolver, Namer, Optimizer and the reporter interfaces", plugin)
 	}
 	if err != nil {
 		writeDiagnostic(diag, err)
@@ -307,7 +343,10 @@ func parcel_plugin_optimize(rawGraph C.BundleGraph, rawBundle C.Bundle, contents
 //export parcel_plugin_report
 func parcel_plugin_report(rawEvent *C.ReportEvent, rawOptions C.Options, state unsafe.Pointer, diag *C.DiagnosticOptions) {
 	defer recoverDiagnostic("report", diag)
-	plugin, err := pluginAs[Reporter](state, "Report")
+	plugin, err := pluginAs[any](state, "")
+	if err == nil && !isReporter(plugin) {
+		err = errors.New("plugin implements none of BuildStart, BuildSuccess, BuildFailure and Log, so it cannot be used as a reporter")
+	}
 	if err != nil {
 		writeDiagnostic(diag, err)
 		return
@@ -327,12 +366,18 @@ func parcel_plugin_report(rawEvent *C.ReportEvent, rawOptions C.Options, state u
 		diagnostics = &Diagnostics{ptr: rawEvent.diagnostics}
 	}
 
-	var event ReportEvent
+	options := &Options{ptr: rawOptions}
 	switch rawEvent.event_type {
 	case C.ReportEventType(C.PARCEL_EVENT_BUILD_START):
-		event = &BuildStart{}
+		if reporter, ok := plugin.(BuildStartReporter); ok {
+			err = reporter.BuildStart(options)
+		}
 
 	case C.ReportEventType(C.PARCEL_EVENT_BUILD_SUCCESS):
+		reporter, ok := plugin.(BuildSuccessReporter)
+		if !ok {
+			return
+		}
 		success := &BuildSuccess{
 			BundleGraph: &BundleGraph{ptr: rawEvent.bundle_graph, options: rawOptions},
 			BuildTime:   time.Duration(rawEvent.build_time_ms) * time.Millisecond,
@@ -344,25 +389,30 @@ func parcel_plugin_report(rawEvent *C.ReportEvent, rawOptions C.Options, state u
 				success.ChangedAssets[i] = AssetIndex(index)
 			}
 		}
-		event = success
+		err = reporter.BuildSuccess(success, options)
 
 	case C.ReportEventType(C.PARCEL_EVENT_BUILD_FAILURE):
-		event = &BuildFailure{Diagnostics: diagnostics}
+		if reporter, ok := plugin.(BuildFailureReporter); ok {
+			err = reporter.BuildFailure(&BuildFailure{Diagnostics: diagnostics}, options)
+		}
 
 	case C.ReportEventType(C.PARCEL_EVENT_LOG):
+		reporter, ok := plugin.(LogReporter)
+		if !ok {
+			return
+		}
 		log := &Log{Level: LogLevel(rawEvent.level), Diagnostics: diagnostics}
 		if rawEvent.message != nil {
 			log.Message = goString(unsafe.Pointer(rawEvent.message), uintptr(rawEvent.message_len))
 		}
-		event = log
+		err = reporter.Log(log, options)
 
 	default:
 		// An event added to Parcel after this SDK was built. Reporting nothing
 		// beats reporting it as the wrong kind of event.
-		return
 	}
 
-	if err := plugin.Report(event, &Options{ptr: rawOptions}); err != nil {
+	if err != nil {
 		writeDiagnostic(diag, err)
 	}
 }
@@ -1233,30 +1283,8 @@ func (l LogLevel) String() string {
 	return "unknown"
 }
 
-// ReportEvent is something that happened during the build, passed to
-// [Plugin.Report]. Switch on its concrete type to handle the events you care
-// about:
-//
-//	switch event := event.(type) {
-//	case *parcel.BuildSuccess:
-//	    fmt.Println(event.BundleGraph.BundleCount(), event.BuildTime)
-//	case *parcel.BuildFailure:
-//	    for _, d := range event.Diagnostics.All() { fmt.Println(d.Message()) }
-//	}
-//
-// The set is closed — only this package can add events to it — so a switch that
-// handles every case today keeps compiling when Parcel adds one, and reports
-// nothing for it. Everything an event points at is valid only for the duration
-// of the Report call it was passed to.
-type ReportEvent interface {
-	isReportEvent()
-}
-
-// BuildStart reports that a build is about to start. Emitted once per build,
-// including rebuilds.
-type BuildStart struct{}
-
-// BuildSuccess reports a build that finished and wrote its output.
+// BuildSuccess is a build that finished and wrote its output, passed to
+// [BuildSuccessReporter].
 type BuildSuccess struct {
 	BundleGraph *BundleGraph
 	// BuildTime is how long the build took.
@@ -1266,13 +1294,13 @@ type BuildSuccess struct {
 	ChangedAssets []AssetIndex
 }
 
-// BuildFailure reports a build that failed. The same diagnostics are returned
-// to whoever asked for the build.
+// BuildFailure is a build that failed, passed to [BuildFailureReporter]. The
+// same diagnostics are returned to whoever asked for the build.
 type BuildFailure struct {
 	Diagnostics *Diagnostics
 }
 
-// Log reports a message from Parcel or from another plugin.
+// Log is a message from Parcel or from another plugin, passed to [LogReporter].
 type Log struct {
 	Level LogLevel
 	// Message is empty when the event carries diagnostics instead.
@@ -1281,12 +1309,7 @@ type Log struct {
 	Diagnostics *Diagnostics
 }
 
-func (*BuildStart) isReportEvent()   {}
-func (*BuildSuccess) isReportEvent() {}
-func (*BuildFailure) isReportEvent() {}
-func (*Log) isReportEvent()          {}
-
-// Diagnostics is the list of diagnostics a [ReportEvent] carries.
+// Diagnostics is the list of diagnostics a [BuildFailure] or [Log] event carries.
 type Diagnostics struct {
 	ptr C.DiagnosticsRef
 }
@@ -1519,7 +1542,7 @@ func (o *Options) LogLevel() LogLevel {
 
 // Log sends a message to whatever reporters the build has configured.
 //
-// Available from every plugin method, not just [Plugin.Report]. The message is
+// Available from every plugin method, not just the reporter ones. The message is
 // dropped when the build has no reporters, or when level is below its log level.
 func (o *Options) Log(level LogLevel, message string) {
 	if len(message) == 0 {

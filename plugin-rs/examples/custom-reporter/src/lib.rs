@@ -1,6 +1,8 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use parcel_plugin::{Diagnostic, Diagnostics, Options, Plugin, ReportEvent, register_plugin};
+use parcel_plugin::{
+  BuildFailure, BuildSuccess, Diagnostic, Diagnostics, Log, Options, Plugin, register_plugin,
+};
 
 struct CustomReporter {
   builds: AtomicUsize,
@@ -13,58 +15,44 @@ impl Plugin for CustomReporter {
     })
   }
 
-  fn report(&self, event: &ReportEvent, options: &Options) -> Result<(), Diagnostic> {
-    match event {
-      ReportEvent::BuildStart => {
-        let build = self.builds.fetch_add(1, Ordering::Relaxed) + 1;
-        println!("build {build} starting");
-      }
+  fn build_start(&self, _options: &Options) -> Result<(), Diagnostic> {
+    let build = self.builds.fetch_add(1, Ordering::Relaxed) + 1;
+    println!("build {build} starting");
+    Ok(())
+  }
 
-      ReportEvent::BuildSuccess {
-        bundle_graph,
-        build_time,
-        changed_assets,
-        ..
-      } => {
-        println!(
-          "built {} bundles in {:?} ({} assets changed)",
-          bundle_graph.bundle_count(),
-          build_time,
-          changed_assets.len()
-        );
-      }
+  fn build_success(&self, event: &BuildSuccess, _options: &Options) -> Result<(), Diagnostic> {
+    println!(
+      "built {} bundles in {:?} ({} assets changed)",
+      event.bundle_graph.bundle_count(),
+      event.build_time,
+      event.changed_assets.len()
+    );
+    Ok(())
+  }
 
-      ReportEvent::BuildFailure { diagnostics, .. } => {
-        let summary = summarize(diagnostics);
-        // Written to a file when the build's environment names one, e.g. for CI.
-        match options.env("REPORT_SUMMARY") {
-          Some(path) => std::fs::write(path, summary)
-            .map_err(|error| Diagnostic::new(format!("could not write the summary: {error}")))?,
-          None => print!(
-            "build failed with {} diagnostics:\n{summary}",
-            diagnostics.len()
-          ),
-        }
-      }
-
-      ReportEvent::Log {
-        level,
-        message,
-        diagnostics,
-        ..
-      } => {
-        if let Some(message) = message {
-          println!("[{level:?}] {message}");
-        }
-        for diagnostic in diagnostics.iter().flat_map(|d| d.iter()) {
-          println!("[{level:?}] {}", diagnostic.message());
-        }
-      }
-
-      // An event added after this plugin was built.
-      _ => {}
+  fn build_failure(&self, event: &BuildFailure, options: &Options) -> Result<(), Diagnostic> {
+    let summary = summarize(&event.diagnostics);
+    // Written to a file when the build's environment names one, e.g. for CI.
+    match options.env("REPORT_SUMMARY") {
+      Some(path) => std::fs::write(path, summary)
+        .map_err(|error| Diagnostic::new(format!("could not write the summary: {error}")))?,
+      None => print!(
+        "build failed with {} diagnostics:\n{summary}",
+        event.diagnostics.len()
+      ),
     }
+    Ok(())
+  }
 
+  fn log(&self, event: &Log, _options: &Options) -> Result<(), Diagnostic> {
+    let level = event.level;
+    if let Some(message) = event.message {
+      println!("[{level:?}] {message}");
+    }
+    for diagnostic in event.diagnostics.iter().flat_map(|d| d.iter()) {
+      println!("[{level:?}] {}", diagnostic.message());
+    }
     Ok(())
   }
 }

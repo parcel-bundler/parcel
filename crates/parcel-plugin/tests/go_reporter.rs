@@ -115,8 +115,8 @@ fn test_go_reporter_receives_every_event_kind() {
   common::assert_reporter_summarizes_failures("go", &plugin);
 }
 
-/// A Go plugin that is not a reporter reaches [`parcel.DefaultPlugin`]'s
-/// `Report`, which reports that rather than doing nothing.
+/// A Go plugin that implements none of the reporter interfaces says so rather
+/// than doing nothing.
 #[test]
 fn test_a_go_plugin_that_is_not_a_reporter_says_so() {
   let Some(_) = build_go_reporter_plugin() else {
@@ -152,9 +152,7 @@ fn test_a_go_plugin_that_is_not_a_reporter_says_so() {
     .expect_err("a namer is not a reporter");
 
   assert!(
-    error.0[0]
-      .message
-      .contains("plugin does not implement Report"),
+    error.0[0].message.contains("cannot be used as a reporter"),
     "got: {}",
     error.0[0].message
   );

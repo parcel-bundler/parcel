@@ -1,6 +1,7 @@
 internal import CParcelABI
 
-/// A build that finished and wrote its output.
+/// A build that finished and wrote its output, passed to
+/// ``Reporter/buildSuccess(_:options:)``.
 public struct BuildSuccess: Sendable {
   public let bundleGraph: BundleGraph
   /// How long the build took.
@@ -10,9 +11,16 @@ public struct BuildSuccess: Sendable {
   public let changedAssets: [AssetIndex]
 }
 
-/// A message from Parcel or another plugin.
-public struct LogEntry: Sendable {
-  /// What a log entry says.
+/// A build that failed, passed to ``Reporter/buildFailure(_:options:)``. The
+/// same diagnostics are returned to whoever asked for the build.
+public struct BuildFailure: Sendable {
+  public let diagnostics: Diagnostics
+}
+
+/// A message from Parcel or another plugin, passed to
+/// ``Reporter/log(_:options:)``.
+public struct Log: Sendable {
+  /// What a log event says.
   ///
   /// Parcel may add cases, so a `switch` over one needs an `@unknown default`.
   @nonexhaustive
@@ -25,7 +33,7 @@ public struct LogEntry: Sendable {
   public let message: Message
 }
 
-/// The diagnostics carried by a failed build or a log entry.
+/// The diagnostics carried by a ``BuildFailure`` or ``Log`` event.
 ///
 /// Valid only for the duration of the reporter call it was passed to.
 public struct Diagnostics: RandomAccessCollection, Sendable {

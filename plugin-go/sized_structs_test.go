@@ -130,10 +130,15 @@ func TestWriteDiagnosticWritesTheRangeAndLinks(t *testing.T) {
 }
 
 type recordingReporter struct {
-	events []ReportEvent
+	events []any
 }
 
-func (r *recordingReporter) Report(event ReportEvent, _ *Options) error {
+func (r *recordingReporter) BuildStart(_ *Options) error {
+	r.events = append(r.events, "BuildStart")
+	return nil
+}
+
+func (r *recordingReporter) Log(event *Log, _ *Options) error {
 	r.events = append(r.events, event)
 	return nil
 }

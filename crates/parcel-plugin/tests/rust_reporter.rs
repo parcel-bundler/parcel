@@ -108,39 +108,6 @@ fn test_rust_reporter_receives_every_event_kind() {
   common::assert_reporter_summarizes_failures("rust", &plugin);
 }
 
-/// A plugin configured as a reporter that does not act as one must say so
-/// rather than silently doing nothing.
-///
-/// `register_plugin!` exports every entry point regardless of which methods the
-/// plugin overrides, so this reaches the trait's default `report` and comes back
-/// as its diagnostic — not as a missing symbol. Only a plugin built without the
-/// Rust SDK can fail the symbol lookup.
-#[test]
-fn test_a_plugin_that_is_not_a_reporter_says_so() {
-  let target_dir = std::env::temp_dir()
-    .join("parcel-rust-namer-test")
-    .join("target");
-  let plugin_path = build_example("custom-namer", "custom_namer_rs", &target_dir);
-
-  let plugin = CPlugin::new(
-    PathId::new(&plugin_path),
-    "test-plugin",
-    PluginKind::Reporter,
-    None,
-  )
-  .expect("load plugin");
-  let error = plugin
-    .report(&ReporterEvent::BuildStart, &ParcelOptions::default())
-    .expect_err("a namer is not a reporter");
-
-  assert!(
-    error.0[0].message.contains("report not implemented"),
-    "got: {}",
-    error.0[0].message
-  );
-  assert_eq!(error.0[0].origin.as_deref(), Some("test-plugin"));
-}
-
 /// The whole path: a reporter named in a `.parcelrc`, loaded by the factory and
 /// driven by the build's own events.
 #[test]

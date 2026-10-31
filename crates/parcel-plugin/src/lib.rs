@@ -30,7 +30,8 @@
 //! `parcel_plugin_transform`, `parcel_plugin_resolve`, `parcel_plugin_name`,
 //! `parcel_plugin_optimize`, and `parcel_plugin_report`. Override only the
 //! methods you need; the default implementations return an error so
-//! misconfiguration is visible immediately.
+//! misconfiguration is visible immediately, except the reporter methods, which
+//! do nothing so a reporter only implements the events it handles.
 //!
 //! Plugins need no linker configuration. Parcel passes a table of host functions
 //! to `parcel_plugin_init`, which [`register_plugin!`] stores before calling your
@@ -208,7 +209,7 @@ impl<'a> Options<'a> {
 
   /// Logs a message to whatever reporters the build has configured.
   ///
-  /// Available from every plugin method, not just [`Plugin::report`]. Dropped
+  /// Available from every plugin method, not just the reporter ones. Dropped
   /// when the build has no reporters, or when `level` is below its log level.
   pub fn log(&self, level: LogLevel, message: impl AsRef<str>) {
     let message = message.as_ref().as_bytes();
@@ -744,32 +745,42 @@ impl Default for LogLevel {
   }
 }
 
-/// Something that happened during the build, passed to [`Plugin::report`].
-///
-/// Non-exhaustive: match with a catch-all arm, so a plugin keeps working when
-/// Parcel adds an event it does not know about.
+/// A build that finished and wrote its output, passed to
+/// [`Plugin::build_success`].
 #[non_exhaustive]
-pub enum ReportEvent<'a> {
-  /// A build is about to start. Emitted once per build, including rebuilds.
+pub struct BuildSuccess<'a> {
+  pub bundle_graph: BundleGraph<'a>,
+  /// How long the build took.
+  pub build_time: std::time::Duration,
+  /// The assets transformed by this build. On a full build, that is every
+  /// asset.
+  pub changed_assets: &'a [AssetIndex],
+}
+
+/// A build that failed, passed to [`Plugin::build_failure`]. The same
+/// diagnostics are returned to whoever asked for the build.
+#[non_exhaustive]
+pub struct BuildFailure<'a> {
+  pub diagnostics: Diagnostics<'a>,
+}
+
+/// A message from Parcel or from another plugin, passed to [`Plugin::log`].
+#[non_exhaustive]
+pub struct Log<'a> {
+  pub level: LogLevel,
+  /// `None` when the event carries diagnostics instead.
+  pub message: Option<&'a str>,
+  /// `None` when the event carries a message instead.
+  pub diagnostics: Option<Diagnostics<'a>>,
+}
+
+/// An event Parcel passed to `parcel_plugin_report`, before it is dispatched
+/// to the [`Plugin`] method for its kind.
+pub(crate) enum ReportEvent<'a> {
   BuildStart,
-  #[non_exhaustive]
-  BuildSuccess {
-    bundle_graph: BundleGraph<'a>,
-    /// How long the build took.
-    build_time: std::time::Duration,
-    /// The assets transformed by this build. On a full build, that is every
-    /// asset.
-    changed_assets: &'a [AssetIndex],
-  },
-  #[non_exhaustive]
-  BuildFailure { diagnostics: Diagnostics<'a> },
-  #[non_exhaustive]
-  Log {
-    level: LogLevel,
-    /// `None` when the event carries diagnostics instead.
-    message: Option<&'a str>,
-    diagnostics: Option<Diagnostics<'a>>,
-  },
+  BuildSuccess(BuildSuccess<'a>),
+  BuildFailure(BuildFailure<'a>),
+  Log(Log<'a>),
 }
 
 impl<'a> ReportEvent<'a> {
@@ -804,7 +815,7 @@ impl<'a> ReportEvent<'a> {
 
     Some(match event.event_type {
       ffi::ReportEventType::BuildStart => ReportEvent::BuildStart,
-      ffi::ReportEventType::BuildSuccess => ReportEvent::BuildSuccess {
+      ffi::ReportEventType::BuildSuccess => ReportEvent::BuildSuccess(BuildSuccess {
         bundle_graph: unsafe { BundleGraph::from_raw(event.bundle_graph, options) },
         build_time: std::time::Duration::from_millis(event.build_time_ms),
         changed_assets: if event.changed_assets.is_null() {
@@ -812,11 +823,11 @@ impl<'a> ReportEvent<'a> {
         } else {
           unsafe { std::slice::from_raw_parts(event.changed_assets, event.changed_asset_count) }
         },
-      },
-      ffi::ReportEventType::BuildFailure => ReportEvent::BuildFailure {
+      }),
+      ffi::ReportEventType::BuildFailure => ReportEvent::BuildFailure(BuildFailure {
         diagnostics: diagnostics?,
-      },
-      ffi::ReportEventType::Log => ReportEvent::Log {
+      }),
+      ffi::ReportEventType::Log => ReportEvent::Log(Log {
         level: event.level,
         message: (!event.message.is_null()).then(|| unsafe {
           std::str::from_utf8_unchecked(std::slice::from_raw_parts(
@@ -825,13 +836,13 @@ impl<'a> ReportEvent<'a> {
           ))
         }),
         diagnostics,
-      },
+      }),
       _ => return None,
     })
   }
 }
 
-/// The diagnostics carried by a [`ReportEvent`].
+/// The diagnostics carried by a [`BuildFailure`] or [`Log`] event.
 pub struct Diagnostics<'a> {
   raw: ffi::Diagnostics,
   lifetime: PhantomData<&'a ()>,
@@ -2109,19 +2120,24 @@ impl ResolveResult {
 ///
 /// Override [`transform`] to act as a transformer, [`resolve`] to act as a
 /// resolver, [`name`] to act as a namer, [`optimize`] to act as an optimizer, or
-/// [`report`] to act as a reporter. The default implementations return an error,
-/// so Parcel surfaces a clear message if a method is unexpectedly called.
+/// any of [`build_start`], [`build_success`], [`build_failure`] and [`log`] to
+/// act as a reporter. The default implementations return an error, so Parcel
+/// surfaces a clear message if a method is unexpectedly called, except the
+/// reporter methods, which do nothing.
 ///
 /// [`transform`]: Plugin::transform
 /// [`resolve`]: Plugin::resolve
 /// [`name`]: Plugin::name
 /// [`optimize`]: Plugin::optimize
-/// [`report`]: Plugin::report
+/// [`build_start`]: Plugin::build_start
+/// [`build_success`]: Plugin::build_success
+/// [`build_failure`]: Plugin::build_failure
+/// [`log`]: Plugin::log
 ///
 /// # Threading
 ///
 /// Parcel calls one instance from many threads at once: transforms and resolves
-/// run in parallel, as do optimizers, and log events reach [`report`] on
+/// run in parallel, as do optimizers, and log events reach [`log`] on
 /// whichever thread logged them. That is why the trait requires `Send + Sync`;
 /// keep any state that changes behind a `Mutex` or in atomics.
 ///
@@ -2192,12 +2208,30 @@ pub trait Plugin: Sized + Send + Sync {
     Err(Diagnostic::new("optimize not implemented"))
   }
 
-  /// Called for each build event. Override when acting as a reporter.
+  /// Called when a build is about to start, once per build, including
+  /// rebuilds. Override when acting as a reporter.
   ///
-  /// Returning `Err` reports the diagnostic and moves on: a reporter cannot fail
-  /// the build.
-  fn report(&self, _event: &ReportEvent, _options: &Options) -> Result<(), Diagnostic> {
-    Err(Diagnostic::new("report not implemented"))
+  /// Returning `Err` from any reporter method reports the diagnostic and moves
+  /// on: a reporter cannot fail the build.
+  fn build_start(&self, _options: &Options) -> Result<(), Diagnostic> {
+    Ok(())
+  }
+
+  /// Called when a build finished and wrote its output. Override when acting
+  /// as a reporter.
+  fn build_success(&self, _event: &BuildSuccess, _options: &Options) -> Result<(), Diagnostic> {
+    Ok(())
+  }
+
+  /// Called when a build failed. Override when acting as a reporter.
+  fn build_failure(&self, _event: &BuildFailure, _options: &Options) -> Result<(), Diagnostic> {
+    Ok(())
+  }
+
+  /// Called for each message Parcel or another plugin logs. Override when
+  /// acting as a reporter.
+  fn log(&self, _event: &Log, _options: &Options) -> Result<(), Diagnostic> {
+    Ok(())
   }
 }
 

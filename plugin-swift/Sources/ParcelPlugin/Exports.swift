@@ -248,22 +248,22 @@ public enum PluginExports<P: Plugin> {
       let options = Options(raw: options, scope: scope)
       switch eventType {
       case 0:
-        try await reporter.buildStarted(options: options)
+        try await reporter.buildStart(options: options)
       case 1:
-        let build = BuildSuccess(
+        let event = BuildSuccess(
           bundleGraph: BundleGraph(raw: bundleGraph, options: options),
           buildTime: buildTime,
           changedAssets: changedAssets)
-        try await reporter.buildSucceeded(build, options: options)
+        try await reporter.buildSuccess(event, options: options)
       case 2:
-        try await reporter.buildFailed(
-          diagnostics ?? Diagnostics(raw: 0, scope: scope), options: options)
+        let event = BuildFailure(diagnostics: diagnostics ?? Diagnostics(raw: 0, scope: scope))
+        try await reporter.buildFailure(event, options: options)
       case 3:
-        let entry = LogEntry(
+        let event = Log(
           level: level,
           message: message.map { .text($0) }
             ?? .diagnostics(diagnostics ?? Diagnostics(raw: 0, scope: scope)))
-        try await reporter.log(entry, options: options)
+        try await reporter.log(event, options: options)
       default:
         // An event added to Parcel after this SDK was built. Reporting nothing
         // beats reporting it as the wrong kind of event.

@@ -18,26 +18,26 @@ final class CustomReporter: Reporter {
 
   init(config: NoConfig) {}
 
-  func buildStarted(options: Options) async throws {
+  func buildStart(options: Options) async throws {
     let build = builds.add(1, ordering: .relaxed).newValue
     print("build \(build) starting")
   }
 
-  func buildSucceeded(_ build: BuildSuccess, options: Options) async throws {
+  func buildSuccess(_ event: BuildSuccess, options: Options) async throws {
     print(
-      "built \(build.bundleGraph.bundleCount) bundles in \(build.buildTime) (\(build.changedAssets.count) assets changed)"
+      "built \(event.bundleGraph.bundleCount) bundles in \(event.buildTime) (\(event.changedAssets.count) assets changed)"
     )
   }
 
-  func buildFailed(_ diagnostics: Diagnostics, options: Options) async throws {
-    let summary = summarize(diagnostics)
+  func buildFailure(_ event: BuildFailure, options: Options) async throws {
+    let summary = summarize(event.diagnostics)
     // Written to a file when the build's environment names one, e.g. for CI.
     if let path = options.env["REPORT_SUMMARY"] {
       guard FileManager.default.createFile(atPath: path, contents: Data(summary.utf8)) else {
         throw Diagnostic("could not write the summary to \(path)")
       }
     } else {
-      print("build failed with \(diagnostics.count) diagnostics:\n\(summary)", terminator: "")
+      print("build failed with \(event.diagnostics.count) diagnostics:\n\(summary)", terminator: "")
     }
   }
 
@@ -60,13 +60,13 @@ final class CustomReporter: Reporter {
     return summary
   }
 
-  func log(_ entry: LogEntry, options: Options) async throws {
-    switch entry.message {
+  func log(_ event: Log, options: Options) async throws {
+    switch event.message {
     case .text(let message):
-      print("[\(entry.level)] \(message)")
+      print("[\(event.level)] \(message)")
     case .diagnostics(let diagnostics):
       for diagnostic in diagnostics {
-        print("[\(entry.level)] \(diagnostic.message)")
+        print("[\(event.level)] \(diagnostic.message)")
       }
     // A kind of message added to Parcel after this plugin was built.
     @unknown default:
