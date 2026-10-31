@@ -115,6 +115,9 @@ impl MemoryFileSystem {
   }
 
   pub fn mkdir(&self, path: &Path) -> Result<()> {
+    // Intern first so volume prefixes match the normalized ones every PathId uses.
+    let path = PathId::new(path).to_path_buf();
+    let path = path.as_path();
     let name = path.file_name().unwrap();
     if let Some(root) = path.parent().filter(|parent| parent.file_name().is_none()) {
       self.create_dir_all(PathId::new(root))?;
@@ -378,6 +381,7 @@ mod tests {
       (r"C:\project\a.js", b"c"),
       (r"D:\project\a.js", b"d"),
       (r"\\server\share\project\a.js", b"s"),
+      (r"c:\project\a.js", b"c"),
     ] {
       let file = PathId::new(Path::new(file));
       assert_eq!(fs.read(file).unwrap(), content);

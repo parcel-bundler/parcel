@@ -387,8 +387,11 @@ impl PathInterner {
       components.next();
       // Keep the prefix and root together. A separate RootDir node would discard
       // the drive/UNC share, and walking parents must stop at the volume root.
+      // Drive letters are case-insensitive, so `c:\` and `C:\` share one node.
       let mut root = match prefix.kind() {
-        std::path::Prefix::VerbatimDisk(drive) => PathBuf::from(format!("{}:", drive as char)),
+        std::path::Prefix::Disk(drive) | std::path::Prefix::VerbatimDisk(drive) => {
+          PathBuf::from(format!("{}:", drive.to_ascii_uppercase() as char))
+        }
         std::path::Prefix::VerbatimUNC(server, share) => PathBuf::from(format!(
           r"\\{}\{}",
           server.to_string_lossy(),
@@ -633,7 +636,7 @@ impl PathInterner {
     #[cfg(windows)]
     if dir.is_none() {
       let absolute_url = self.with_path(id, |path| {
-        path.has_root().then(|| {
+        path.is_absolute().then(|| {
           String::from(
             url::Url::from_file_path(path).expect("absolute path should be a valid file URL"),
           )
@@ -872,6 +875,8 @@ mod tests {
       (r"D:\project\src\a.js", r"D:\project\src\a.js"),
       (r"\\server\share\src\a.js", r"\\server\share\src\a.js"),
       (r"\\?\C:\project\src\a.js", r"C:\project\src\a.js"),
+      (r"c:\project\src\a.js", r"C:\project\src\a.js"),
+      (r"\\?\c:\project\src\a.js", r"C:\project\src\a.js"),
       (r"\\?\UNC\server\share\src\a.js", r"\\server\share\src\a.js"),
     ] {
       let path = Path::new(original);
@@ -930,6 +935,11 @@ mod tests {
       assert_eq!(interner.relative_url_from_dir(target, base), url);
       assert_eq!(interner.relative_url(target, base), url);
     }
+
+    // A rooted path without a volume has no file URL, so it must not panic.
+    let base = interner.intern(Path::new(r"C:\project\src"));
+    let target = interner.intern(Path::new(r"\other\a.js"));
+    assert!(!interner.relative_url(target, base).starts_with("file:"));
   }
 
   #[test]

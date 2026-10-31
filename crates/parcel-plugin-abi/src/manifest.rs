@@ -110,38 +110,35 @@ impl PluginPackage {
     self.parcel.artifacts.get(TARGET).map(|name| name.as_str())
   }
 
-  /// The locally built library to load instead of an artifact package, with this
-  /// platform's extension applied.
+  /// The locally built library to load instead of an artifact package, as the
+  /// candidate paths to try in order, with this platform's extension applied.
   ///
   /// The extension is appended rather than written by the author, so one entry
   /// works for everyone on the team: `cargo build` produces `libplugin.dylib`,
-  /// `.so`, or `.dll` depending on who runs it. An extension that is already
+  /// `libplugin.so`, or `plugin.dll` depending on who runs it. On Windows, a
+  /// `lib` prefix is therefore also tried without it, after the name as written,
+  /// since other toolchains (MinGW, Go) do keep it. An extension that is already
   /// there is left alone.
-  pub fn dev_library(&self) -> Option<String> {
-    let library = self.parcel.dev_library.as_deref()?;
+  pub fn dev_libraries(&self) -> Vec<String> {
+    let Some(library) = self.parcel.dev_library.as_deref() else {
+      return Vec::new();
+    };
     let has_extension = ["so", "dylib", "dll"]
       .iter()
       .any(|ext| library.to_ascii_lowercase().ends_with(&format!(".{ext}")));
+    if has_extension {
+      return vec![library.to_owned()];
+    }
 
-    Some(if has_extension {
-      library.to_owned()
-    } else {
-      #[cfg(windows)]
-      let library_path = std::path::Path::new(library);
-      #[cfg(windows)]
-      let library = library_path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .and_then(|name| name.strip_prefix("lib"))
-        .map(|name| {
-          library_path
-            .with_file_name(name)
-            .to_string_lossy()
-            .into_owned()
-        })
-        .unwrap_or_else(|| library.to_owned());
-      format!("{library}.{LIBRARY_EXTENSION}")
-    })
+    let mut candidates = vec![format!("{library}.{LIBRARY_EXTENSION}")];
+    if cfg!(windows) {
+      let name_start = library.rfind(['/', '\\']).map_or(0, |i| i + 1);
+      let (dir, name) = library.split_at(name_start);
+      if let Some(name) = name.strip_prefix("lib").filter(|name| !name.is_empty()) {
+        candidates.push(format!("{dir}{name}.{LIBRARY_EXTENSION}"));
+      }
+    }
+    candidates
   }
 }
 
@@ -184,6 +181,26 @@ mod tests {
     .unwrap();
     assert_eq!(package.parcel.library.as_deref(), Some("plugin.dylib"));
     assert!(!package.is_native_plugin());
+  }
+
+  #[test]
+  fn dev_library_candidates() {
+    let candidates = |library: &str| {
+      PluginPackage::parse(&format!(r#"{{"parcel":{{"devLibrary":"{library}"}}}}"#))
+        .unwrap()
+        .dev_libraries()
+    };
+    let ext = LIBRARY_EXTENSION;
+    assert_eq!(candidates("./build/plugin.so"), vec!["./build/plugin.so"]);
+    assert_eq!(candidates("./build/plugin"), vec![format!("./build/plugin.{ext}")]);
+    let mut expected = vec![format!("./build/libplugin.{ext}")];
+    if cfg!(windows) {
+      expected.push(format!("./build/plugin.{ext}"));
+    }
+    assert_eq!(candidates("./build/libplugin"), expected);
+    // A name that is only the prefix has nothing to strip.
+    assert_eq!(candidates("lib"), vec![format!("lib.{ext}")]);
+    assert!(PluginPackage::default().dev_libraries().is_empty());
   }
 
   #[test]

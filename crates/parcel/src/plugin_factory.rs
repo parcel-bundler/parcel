@@ -415,19 +415,23 @@ impl DefaultPluginFactory {
     // does not survive publishing, so a package that has it is a working tree, and
     // treating it as a fallback would only muddy the "artifact not installed"
     // diagnostic below.
-    if let Some(library) = package.dev_library() {
-      let path = dir.join(Path::new(&library));
-      if !self.fs.kind(path).contains(FileKind::IS_FILE) {
+    let dev_libraries = package.dev_libraries();
+    if let Some(library) = dev_libraries.first() {
+      let Some(path) = dev_libraries
+        .iter()
+        .map(|library| dir.join(Path::new(library)))
+        .find(|path| self.fs.kind(*path).contains(FileKind::IS_FILE))
+      else {
         return Err(
           Diagnostic::from_message(format!(
             "{} declares `parcel.devLibrary` {:?}, but {:?} does not exist. Build the plugin first.",
             module,
             package.parcel.dev_library.as_deref().unwrap_or_default(),
-            path
+            dir.join(Path::new(library))
           ))
           .into(),
         );
-      }
+      };
       return Ok(Arc::new(CPlugin::new(path, module, kind, config)?));
     }
 
