@@ -25,7 +25,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            toolchains: go,swift
+          - os: macos-latest
+            toolchains: go,swift
+          # No Swift on the Windows runners.
+          - os: windows-latest
+            toolchains: go
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -35,6 +42,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
+      # For the Go plugin tests, which the macOS runners otherwise skip: Go is
+      # not on their PATH. Swift comes with the runner images.
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          # plugin-go has no dependencies, so no go.sum to key a cache on.
+          cache: false
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: ${{ matrix.os }}
@@ -46,3 +60,41 @@ jobs:
           # QuickJS allows 10 MiB of stack; Windows test threads otherwise
           # overflow their native stack first when loading Babel and its plugins.
           RUST_MIN_STACK: '16777216'
+          # The Go and Swift plugin tests skip when their toolchain is missing;
+          # this fails them instead, so a runner image change cannot silently
+          # drop them.
+          PARCEL_REQUIRE_TOOLCHAINS: ${{ matrix.toolchains }}
+
+  go_sdk_tests:
+    name: Go SDK tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: plugin-go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+      - run: go vet -tags parceltest ./...
+      - run: go test -tags parceltest ./...
+
+  swift_sdk_tests:
+    name: Swift SDK tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: plugin-swift
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift --version
+      - run: swift test

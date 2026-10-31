@@ -22,11 +22,7 @@ fn build_go_reporter_plugin() -> Option<std::path::PathBuf> {
 }
 
 fn build_go_reporter_plugin_once() -> Option<std::path::PathBuf> {
-  let check = std::process::Command::new("go")
-    .arg("version")
-    .output()
-    .ok()?;
-  if !check.status.success() {
+  if !common::go_available() {
     return None;
   }
 

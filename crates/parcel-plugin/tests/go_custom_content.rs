@@ -17,11 +17,7 @@ const LIB_EXT: &str = "so";
 const LIB_EXT: &str = "dll";
 
 fn build_go_plugin() -> Option<std::path::PathBuf> {
-  let check = std::process::Command::new("go")
-    .arg("version")
-    .output()
-    .ok()?;
-  if !check.status.success() {
+  if !common::go_available() {
     return None;
   }
 

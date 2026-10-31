@@ -1,3 +1,5 @@
+mod common;
+
 use std::{path::Path, sync::Arc};
 
 use parcel_core::{BuildOptions, FileSystem, LogLevel, OsFileSystem, OverlayFileSystem, PathId};
@@ -12,11 +14,7 @@ const LIB_EXT: &str = "dll";
 /// Builds the Go custom-resolver plugin from source and returns the path to the
 /// compiled shared library. Returns `None` if Go is not installed.
 fn build_go_resolver_plugin() -> Option<std::path::PathBuf> {
-  let check = std::process::Command::new("go")
-    .arg("version")
-    .output()
-    .ok()?;
-  if !check.status.success() {
+  if !common::go_available() {
     return None;
   }
 

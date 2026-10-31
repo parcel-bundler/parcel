@@ -73,8 +73,13 @@ fn plugin_dir() -> Option<&'static Path> {
 
 /// Whether a Swift toolchain new enough for the SDK (6.2) is installed. CI
 /// runner images ship whatever Swift they ship, so an older one skips these
-/// tests rather than failing to build the examples.
+/// tests rather than failing to build the examples, unless
+/// [`common::require_toolchain`] says it must be there.
 fn swift_supported() -> bool {
+  common::require_toolchain("swift", swift_version_supported())
+}
+
+fn swift_version_supported() -> bool {
   let Ok(output) = std::process::Command::new("swift")
     .arg("--version")
     .output()
@@ -206,7 +211,8 @@ fn root_swift_manifest_matches_the_sdk() {
     Some(package)
   };
 
-  let repository = require_swift!(dump(&root));
+  require_swift!(swift_supported().then_some(()));
+  let repository = dump(&root).expect("dump Package.swift");
   let sdk = dump(&root.join("plugin-swift")).expect("dump plugin-swift/Package.swift");
   assert_eq!(
     repository, sdk,

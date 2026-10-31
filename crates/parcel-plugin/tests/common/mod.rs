@@ -15,6 +15,31 @@ use parcel_core::{
 };
 use parcel_sourcemap::SourceMap;
 
+/// Whether Go is installed. Tests that need it skip without it, unless
+/// [`require_toolchain`] says it must be there.
+pub fn go_available() -> bool {
+  let available = std::process::Command::new("go")
+    .arg("version")
+    .output()
+    .is_ok_and(|output| output.status.success());
+  require_toolchain("go", available)
+}
+
+/// Returns `available`, but panics when it is false and the comma-separated
+/// `PARCEL_REQUIRE_TOOLCHAINS` names `toolchain`. Tests skip, and pass, when a
+/// toolchain they need is not installed; CI sets the variable to the
+/// toolchains its runners have, so one going missing from a runner image fails
+/// the build rather than silently dropping coverage.
+pub fn require_toolchain(toolchain: &str, available: bool) -> bool {
+  let required = std::env::var("PARCEL_REQUIRE_TOOLCHAINS")
+    .is_ok_and(|required| required.split(',').any(|name| name.trim() == toolchain));
+  assert!(
+    available || !required,
+    "PARCEL_REQUIRE_TOOLCHAINS requires {toolchain}, but it is not installed"
+  );
+  available
+}
+
 const INDEX_JS: &str = r#"// The first line.
 globalThis.output = "prepend-source-map-token";
 "#;
