@@ -920,7 +920,7 @@ mod tests {
       (
         r"\\server\share\src",
         r"\\other\share\",
-        "file://other/share/",
+        "file://other/share",
       ),
     ] {
       let base = interner.intern(Path::new(from));
