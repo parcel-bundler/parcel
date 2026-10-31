@@ -95,7 +95,7 @@ impl Transformer for JsTransformer {
       input_source_map(
         &*asset.content,
         &asset.loc.url.to_file_path()?.to_path_buf(),
-        &options.project_root.to_path_buf(),
+        options,
       )
     } else {
       None

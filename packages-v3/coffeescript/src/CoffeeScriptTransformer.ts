@@ -18,10 +18,7 @@ export default new Transformer({
         filename: sourceFileName,
         sourceMap: true,
       });
-      asset.setCode(
-        output.js,
-        output.v3SourceMap ? JSON.parse(output.v3SourceMap) : null,
-      );
+      asset.setCode(output.js, output.v3SourceMap || null);
     } else {
       asset.setCode(coffee.compile(code, {filename: sourceFileName}));
     }

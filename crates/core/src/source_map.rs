@@ -2,7 +2,10 @@ use std::path::{Component, Path, PathBuf};
 
 use parcel_sourcemap::{OriginalLocation, SourceMap};
 
-use crate::{Bundle, Content, ContentWithSourceMap, Diagnostic, PathId};
+use crate::{
+  Bundle, Content, ContentWithSourceMap, Diagnostic, DiagnosticSeverity, LogLevel, ParcelOptions,
+  PathId,
+};
 
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -35,14 +38,39 @@ pub fn bundle_source_root(bundle: &Bundle, project_root: &PathId) -> Option<Stri
 /// The source map an earlier transformer attached to an asset's content, with
 /// sources resolved against the asset's directory (and `sourceRoot`) and made
 /// relative to the project root, like the maps Parcel generates itself.
+///
+/// A map that can't be read is left out, with a warning.
 pub fn input_source_map(
   content: &dyn Content,
   asset_path: &Path,
-  project_root: &Path,
+  options: &ParcelOptions,
 ) -> Option<SourceMap> {
   let map = content.downcast_ref::<ContentWithSourceMap>()?;
-  let raw: RawSourceMap = serde_json::from_slice(map.source_map()).ok()?;
+  let result = serde_json::from_slice::<RawSourceMap>(map.source_map())
+    .map_err(|error| error.to_string())
+    .and_then(|raw| {
+      read_source_map(raw, asset_path, &options.project_root.to_path_buf())
+        .ok_or_else(|| "its mappings are invalid".to_owned())
+    });
+  match result {
+    Ok(map) => Some(map),
+    Err(error) => {
+      options.log_diagnostic(
+        LogLevel::Warn,
+        Diagnostic {
+          severity: DiagnosticSeverity::Warning,
+          ..Diagnostic::from_message(format!(
+            "Ignoring the source map of {}: {error}",
+            asset_path.display()
+          ))
+        },
+      );
+      None
+    }
+  }
+}
 
+fn read_source_map(raw: RawSourceMap, asset_path: &Path, project_root: &Path) -> Option<SourceMap> {
   let mut base = asset_path.parent()?.to_path_buf();
   if let Some(root) = raw.source_root.as_deref().filter(|r| !r.is_empty()) {
     base = join(

@@ -11,6 +11,28 @@ use rquickjs::{Array, Coerced, Ctx, FromJs, Function, Object, Symbol, Value};
 /// so that every copy of `@parcel/plugin` agrees on it.
 const DIAGNOSTICS: &str = "parcel-diagnostics";
 
+/// An `Error` carrying `diagnostics` the way a `Diagnostic` from `@parcel/plugin` does: as its
+/// `diagnostics`, and under the symbol Parcel reads them from, so that throwing it, or a plugin
+/// rethrowing it, reports them unchanged.
+pub(crate) fn diagnostics_error<'js>(
+  ctx: &Ctx<'js>,
+  diagnostics: &[Diagnostic],
+) -> rquickjs::Result<Value<'js>> {
+  let message = diagnostics
+    .iter()
+    .map(|diagnostic| diagnostic.message.as_str())
+    .collect::<Vec<_>>()
+    .join("\n");
+  let error = rquickjs::Exception::from_message(ctx.clone(), &message)?;
+  let list = crate::plugin::diagnostics_to_js(ctx, diagnostics)?;
+  error.set("name", "Diagnostic")?;
+  error.set("diagnostics", list.clone())?;
+  let symbol_for: Function = ctx.globals().get::<_, Object>("Symbol")?.get("for")?;
+  let key: Symbol = symbol_for.call((DIAGNOSTICS,))?;
+  error.set(key, list)?;
+  Ok(error.into_value())
+}
+
 /// Returns the diagnostics of `value` if it is a `Diagnostic` from `@parcel/plugin`. Those that
 /// don't set a severity get `severity`.
 pub(crate) fn diagnostics_from_js<'js>(

@@ -108,7 +108,7 @@ fn test_asset() -> Asset {
 fn test_asset_dependency_api() {
   let result = run("dependencies.cjs", r#"
     const assert = require('assert');
-    module.exports = {[Symbol.for('parcel-plugin-config')]: {
+    module.exports = {[Symbol.for('parcel.plugin.v3.transformer')]: {
       transform({asset}) {
         assert.equal(asset.getDependencies().length, 0);
         assert.equal(asset.uniqueKey, null);
@@ -120,7 +120,7 @@ fn test_asset_dependency_api() {
         const placeholder = asset.addDependency({
           specifier: './dep.js', specifierType: 'commonjs', priority: 'parallel',
           bundleBehavior: 'isolated', isOptional: true, needsStableName: true,
-          packageConditions: ['browser', 'require'], range: '^1.0.0',
+          packageConditions: ['browser', 'require', 'my-condition'], range: '^1.0.0',
           resolveFrom: '/src/custom.js',
           loc: {filePath: '/src/custom.js', start: {line: 2, column: 1}, end: {line: 2, column: 8}}
         });
@@ -133,9 +133,10 @@ fn test_asset_dependency_api() {
         assert.equal(dep.isOptional, true);
         assert.equal(dep.needsStableName, true);
         assert.equal(dep.placeholder, placeholder);
-        assert.equal(dep.resolveFrom, 'file:///src/custom.js');
+        assert.equal(dep.resolveFrom, '/src/custom.js');
         assert.equal(dep.range, '^1.0.0');
-        assert.deepEqual(dep.packageConditions.sort(), ['browser', 'require']);
+        // Custom conditions are kept, after the ones Parcel knows.
+        assert.deepEqual(dep.packageConditions, ['require', 'browser', 'my-condition']);
         assert.deepEqual(dep.loc, {filePath: '/src/custom.js', start: {line: 2, column: 1}, end: {line: 2, column: 8}});
         const opts = Object.freeze({priority: 'parallel', bundleBehavior: 'inline'});
         const url = asset.addURLDependency('./image.png', opts);
@@ -149,7 +150,7 @@ fn test_asset_dependency_api() {
         assert.equal(deps[1].placeholder, url);
         assert.equal(deps[2].priority, 'lazy');
         assert.equal(deps[2].placeholder, defaultUrl);
-        assert.equal(deps[2].resolveFrom, asset.url);
+        assert.equal(deps[2].resolveFrom, asset.filePath);
         // Retaining a dependency is safe across reallocations of the asset's vector.
         for (let i = 0; i < 64; i++) asset.addDependency({specifier: './dep' + i});
         assert.equal(dep.specifier, './dep.js');
@@ -180,14 +181,18 @@ fn test_asset_dependency_validation() {
     "invalid-dependency.cjs",
     r#"
     const assert = require('assert');
-    module.exports = {[Symbol.for('parcel-plugin-config')]: {
+    module.exports = {[Symbol.for('parcel.plugin.v3.transformer')]: {
       transform({asset}) {
         for (const [key, value] of [
           ['specifierType', 'bad'], ['priority', 'bad'], ['bundleBehavior', 'bad'],
-          ['importType', 'bad'], ['packageConditions', ['unsupported']]
+          ['importType', 'bad']
         ]) {
           assert.throws(() => asset.addDependency({specifier: './dep', [key]: value}));
         }
+        assert.throws(() => { asset.bundleBehavior = 'bad'; }, TypeError);
+        asset.bundleBehavior = 'inline';
+        asset.bundleBehavior = 'none';
+        assert.equal(asset.bundleBehavior, undefined);
         assert.equal(asset.getDependencies().length, 0);
         asset.pipeline = 'custom';
         asset.pipeline = null;
@@ -213,7 +218,7 @@ fn test_asset_json_source_maps() {
   ));
   let result = run("maps.cjs", r#"
     const assert = require('assert');
-    module.exports = {[Symbol.for('parcel-plugin-config')]: {
+    module.exports = {[Symbol.for('parcel.plugin.v3.transformer')]: {
       transform({asset}) {
         assert.equal(asset.getMap().sources[0], 'old.js');
         const map = {version: 3, sources: ['new.js'], names: [], mappings: 'AAAA', sourcesContent: ['hello']};
@@ -285,7 +290,7 @@ fn test_plugin_options_and_target() {
   };
   run_with_options("options-target.cjs", r#"
     const assert = require('assert');
-    module.exports = {[Symbol.for('parcel-plugin-config')]: {
+    module.exports = {[Symbol.for('parcel.plugin.v3.transformer')]: {
       transform({asset, options, logger, tracer}) {
         assert.equal(options.mode, 'production');
         assert.deepEqual(options.env, {CUSTOM: 'value'});
@@ -326,7 +331,7 @@ fn test_plugin_options_defaults_and_target_variants() {
     });
     run_with_options(&format!("options-default-{i}.cjs"), r#"
       const assert = require('assert');
-      module.exports = {[Symbol.for('parcel-plugin-config')]: {
+      module.exports = {[Symbol.for('parcel.plugin.v3.transformer')]: {
         transform({asset, options}) {
           assert.equal(options.mode, 'custom');
           assert.equal(options.logLevel, 'info');
@@ -353,7 +358,7 @@ fn plugin_fs_reads_are_tracked_by_the_plugin_tracker() {
   let source = format!(
     r#"
     const fs = require('fs');
-    module.exports = {{[Symbol.for('parcel-plugin-config')]: {{
+    module.exports = {{[Symbol.for('parcel.plugin.v3.transformer')]: {{
       transform({{asset}}) {{
         asset.setCode(JSON.parse(fs.readFileSync({}, 'utf8')).value);
       }}
@@ -781,23 +786,35 @@ fn test_resolve_uses_the_resolver_chain() {
     plugin_path,
     &br#"
       import assert from 'assert';
-      export default {[Symbol.for('parcel-plugin-config')]: {
+      export default {[Symbol.for('parcel.plugin.v3.transformer')]: {
         async transform({asset, resolve}) {
           let from = asset.filePath;
-          assert.match(await resolve(from, 'pkg'), /node_modules\/pkg\/esm\.js$/);
-          assert.match(await resolve(from, 'pkg', {specifierType: 'esm'}), /node_modules\/pkg\/esm\.js$/);
-          assert.match(await resolve(from, 'pkg', {specifierType: 'commonjs'}), /node_modules\/pkg\/cjs\.js$/);
+          let path = async (...args) => (await resolve(...args)).filePath;
+          let resolved = await resolve(from, 'pkg');
+          assert.match(resolved.filePath, /node_modules\/pkg\/esm\.js$/);
+          assert.equal(resolved.pipeline, null);
+          assert.equal(resolved.query, null);
+          assert.equal(resolved.sideEffects, true);
+          assert.match(await path(from, 'pkg', {specifierType: 'esm'}), /node_modules\/pkg\/esm\.js$/);
+          assert.match(await path(from, 'pkg', {specifierType: 'commonjs'}), /node_modules\/pkg\/cjs\.js$/);
           // A bare URL is relative, so this is the sibling file rather than the package.
-          assert.match(await resolve(from, 'pkg', {specifierType: 'url', importType: 'url'}), /resolve-fixture\/pkg$/);
+          assert.match(await path(from, 'pkg', {specifierType: 'url', importType: 'url'}), /resolve-fixture\/pkg$/);
           // Only files with a transformer can be resolved as JavaScript.
           await assert.rejects(resolve(from, './data.txt'), /No transformers found for .*data\.txt/);
-          assert.match(await resolve(from, './data.txt', {importType: 'url'}), /resolve-fixture\/data\.txt$/);
+          assert.match(await path(from, './data.txt', {importType: 'url'}), /resolve-fixture\/data\.txt$/);
           assert.throws(() => resolve(from, './data.txt', {importType: 'nope'}), /Invalid importType/);
           // Conditions Parcel has no flag for still reach the resolvers.
-          assert.match(await resolve(from, 'pkg', {packageConditions: ['my-condition']}), /custom-condition\.js$/);
+          assert.match(await path(from, 'pkg', {packageConditions: ['my-condition']}), /custom-condition\.js$/);
           // Custom specifiers are for resolver plugins to interpret.
-          assert.match(await resolve(from, 'pkg', {specifierType: 'custom'}), /resolve-fixture\/custom\.js$/);
-          await assert.rejects(resolve(from, 'missing'), /Failed to resolve 'missing'/);
+          assert.match(await path(from, 'pkg', {specifierType: 'custom'}), /resolve-fixture\/custom\.js$/);
+          // A failure carries the resolvers' diagnostics, which rethrowing would report unchanged.
+          await assert.rejects(resolve(from, 'missing'), error => {
+            assert.match(error.message, /Failed to resolve 'missing'/);
+            assert.equal(error.name, 'Diagnostic');
+            assert.match(error.diagnostics[0].message, /Failed to resolve 'missing'/);
+            assert.equal(error[Symbol.for('parcel-diagnostics')], error.diagnostics);
+            return true;
+          });
           assert.throws(() => resolve(from, 'pkg', {specifierType: 'nope'}), /Invalid specifierType/);
         }
       }};
@@ -830,12 +847,18 @@ fn test_resolve_runs_javascript_resolvers() {
   fs.write(
     resolver_path,
     br#"
-      export default {[Symbol.for('parcel-plugin-config')]: {
+      export default {[Symbol.for('parcel.plugin.v3.resolver')]: {
         async resolve({specifier}) {
           await Promise.resolve();
           if (specifier === 'fails') throw new Error('resolver failed');
-          if (specifier === 'virtual') return {filePath: '/virtual/' + globalThis.transformerState};
+          if (specifier === 'virtual') return {filePath: this.path(globalThis.transformerState)};
+          if (specifier === 'external') return {isExternal: true};
+          if (specifier === 'excluded') return {isExcluded: true};
           return null;
+        },
+        // Methods are called with the plugin object as `this`.
+        path(name) {
+          return '/virtual/' + name;
         }
       }};
     "#,
@@ -846,15 +869,17 @@ fn test_resolve_runs_javascript_resolvers() {
     plugin_path,
     br#"
       import assert from 'assert';
-      export default {[Symbol.for('parcel-plugin-config')]: {
+      export default {[Symbol.for('parcel.plugin.v3.transformer')]: {
         async transform({asset, resolve}) {
           // The resolver runs while this transformer is on the stack, in the same runtime.
           globalThis.transformerState = 'from-transformer';
           let pending = Promise.resolve('still pending');
-          assert.equal(await resolve(asset.filePath, 'virtual'), '/virtual/from-transformer');
+          assert.equal((await resolve(asset.filePath, 'virtual')).filePath, '/virtual/from-transformer');
           await assert.rejects(resolve(asset.filePath, 'fails'), /resolver failed/);
+          assert.deepEqual(await resolve(asset.filePath, 'external'), {isExternal: true});
+          assert.deepEqual(await resolve(asset.filePath, 'excluded'), {isExcluded: true});
           assert.equal(await pending, 'still pending');
-          asset.setCode(await resolve(asset.filePath, 'virtual'));
+          asset.setCode((await resolve(asset.filePath, 'virtual')).filePath);
         }
       }};
     "#,
@@ -877,4 +902,157 @@ fn test_resolve_runs_javascript_resolvers() {
     parcel_core::PluginContext::new(&options, &dyn_fs).with_resolvers(&resolvers, &transformers);
   let asset = plugin.transform(test_asset(), &context).unwrap();
   assert_eq!(asset.content.read().unwrap(), b"/virtual/from-transformer");
+}
+
+#[test]
+fn test_plugin_registered_for_another_parcel_or_kind_is_rejected() {
+  // A plugin written for Parcel 2 registers under a key Parcel 3 doesn't read.
+  let error = run(
+    "v2-plugin.cjs",
+    r#"
+    module.exports = {[Symbol.for('parcel-plugin-config')]: {
+      transform({asset}) { return [asset]; }
+    }};
+  "#,
+    test_asset(),
+  )
+  .unwrap_err();
+  assert_eq!(
+    error.0[0].message,
+    "test-plugin is not a valid Parcel transformer plugin"
+  );
+  assert!(
+    error.0[0]
+      .hints
+      .iter()
+      .any(|hint| hint.contains("new Transformer"))
+  );
+
+  let error = run(
+    "resolver-as-transformer.mjs",
+    r#"
+    import {Resolver} from '@parcel/plugin';
+    export default new Resolver({resolve() { return null; }});
+  "#,
+    test_asset(),
+  )
+  .unwrap_err();
+  assert_eq!(
+    error.0[0].message,
+    "test-plugin is not a valid Parcel transformer plugin"
+  );
+  assert!(
+    error.0[0]
+      .hints
+      .contains(&"It is a resolver plugin.".to_owned())
+  );
+}
+
+#[test]
+fn test_transform_is_called_with_the_plugin_as_this() {
+  let result = run(
+    "this.mjs",
+    r#"
+    import {Transformer} from '@parcel/plugin';
+    export default new Transformer({
+      transform({asset}) {
+        asset.setCode(this.shout(asset.getCode()));
+      },
+      shout(code) {
+        return code.toUpperCase();
+      }
+    });
+  "#,
+    test_asset(),
+  )
+  .unwrap();
+  assert_eq!(result.content.read().unwrap(), b"HELLO");
+}
+
+#[test]
+fn test_promise_that_never_settles() {
+  let error = run(
+    "never-settles.mjs",
+    r#"
+    import {Transformer} from '@parcel/plugin';
+    export default new Transformer({
+      transform() {
+        return new Promise(() => {});
+      }
+    });
+  "#,
+    test_asset(),
+  )
+  .unwrap_err();
+  assert!(
+    error.0[0].message.contains("promise never settled"),
+    "got: {}",
+    error.0[0].message
+  );
+}
+
+#[test]
+fn test_source_maps_in_every_form() {
+  use parcel_core::ContentWithSourceMap;
+  for (form, map) in [
+    ("object", "map"),
+    ("string", "JSON.stringify(map)"),
+    ("bytes", "new TextEncoder().encode(JSON.stringify(map))"),
+  ] {
+    let result = run(
+      &format!("map-{form}.mjs"),
+      &format!(
+        r#"
+        import {{Transformer}} from '@parcel/plugin';
+        import assert from 'assert';
+        export default new Transformer({{
+          transform({{asset}}) {{
+            const map = {{version: 3, sources: ['a.js'], names: [], mappings: 'AAAA'}};
+            asset.setCode('code', {map});
+            assert.deepEqual(asset.getMap(), map);
+            assert.throws(() => asset.setCode('code', '{{not json'), TypeError);
+            assert.throws(() => asset.setCode('code', '[1]'), TypeError);
+            assert.throws(() => asset.setCode('code', 42), TypeError);
+          }}
+        }});
+      "#
+      ),
+      test_asset(),
+    )
+    .unwrap();
+    let map = result
+      .content
+      .downcast_ref::<ContentWithSourceMap>()
+      .unwrap()
+      .source_map();
+    let map: serde_json::Value = serde_json::from_slice(map).unwrap();
+    assert_eq!(map["sources"][0], "a.js", "{form}");
+  }
+}
+
+#[test]
+fn test_runtimes_are_kept_per_file_system() {
+  let code = r#"
+    import {Transformer} from '@parcel/plugin';
+    let calls = 0;
+    export default new Transformer({
+      transform({asset}) {
+        asset.setCode(String(++calls));
+      }
+    });
+  "#;
+  let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
+  let first = Arc::new(OverlayFileSystem::new());
+  let second = Arc::new(OverlayFileSystem::new());
+  first.create_dir_all(root).unwrap();
+  second.create_dir_all(root).unwrap();
+  let calls = |fs: &Arc<OverlayFileSystem>| {
+    let asset = run_with_fs(fs.clone(), "per-fs.mjs", code).unwrap();
+    String::from_utf8(asset.content.read().unwrap().to_vec()).unwrap()
+  };
+  // Switching to another file system and back keeps the first runtime, and its module state.
+  assert_eq!(calls(&first), "1");
+  assert_eq!(calls(&second), "1");
+  assert_eq!(calls(&first), "2");
+  assert_eq!(calls(&second), "2");
 }

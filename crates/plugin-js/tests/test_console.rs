@@ -97,7 +97,7 @@ fn console_logs_reach_rust_reporters_even_when_the_plugin_fails() {
     r#"
     console.log('module loaded');
     const {info, warn, error, debug} = require('console');
-    module.exports = {[Symbol.for('parcel-plugin-config')]: {
+    module.exports = {[Symbol.for('parcel.plugin.v3.transformer')]: {
       async transform() {
         console.log('message');
         await Promise.resolve();
@@ -136,7 +136,7 @@ fn console_obeys_rust_log_levels_and_supports_esm_imports() {
     "console-filter.mjs",
     r#"
     import console, {log, warn, error, debug} from 'console';
-    export default {[Symbol.for('parcel-plugin-config')]: {
+    export default {[Symbol.for('parcel.plugin.v3.transformer')]: {
       transform() {
         log('hidden'); console.info('hidden'); debug('hidden');
         warn('warning'); error('failure');
@@ -167,7 +167,7 @@ fn console_can_deliver_to_javascript_reporters_without_reentry_or_recursion() {
     "console-js-reporter.cjs",
     r#"
     const assert = require('assert');
-    module.exports = {[Symbol.for('parcel-plugin-config')]: {
+    module.exports = {[Symbol.for('parcel.plugin.v3.transformer')]: {
       transform() {
         if (globalThis.outerLogged) {
           assert.equal(globalThis.reported, true);
@@ -183,7 +183,7 @@ fn console_can_deliver_to_javascript_reporters_without_reentry_or_recursion() {
     Some(
       r#"
     const assert = require('assert');
-    module.exports = {[Symbol.for('parcel-plugin-config')]: {
+    module.exports = {[Symbol.for('parcel.plugin.v3.reporter')]: {
       log({message}) {
         assert.equal(message, 'outer');
         globalThis.reportedCalls = (globalThis.reportedCalls || 0) + 1;
@@ -217,7 +217,7 @@ fn console_debug_uses_verbose_level() {
   let (plugin, options, events) = setup(
     "console-verbose.cjs",
     r#"
-    module.exports = {[Symbol.for('parcel-plugin-config')]: {
+    module.exports = {[Symbol.for('parcel.plugin.v3.transformer')]: {
       transform() { console.debug('details'); }
     }};
   "#,
@@ -282,7 +282,7 @@ fn console_logs_from_javascript_called_back_by_a_plugin_are_delivered_in_order()
   let (plugin, options, events) = setup(
     "console-reentrant.mjs",
     r#"
-    export default {[Symbol.for('parcel-plugin-config')]: {
+    export default {[Symbol.for('parcel.plugin.v3.transformer')]: {
       async transform({asset, resolve}) {
         console.log('before');
         // A URL, so that the empty transformer config is allowed.
@@ -347,7 +347,7 @@ fn console_formats_values_like_node() {
     const util = require('util');
     class Foo { constructor() { this.x = 1; } }
     const circular = {a: 1}; circular.self = circular;
-    module.exports = {[Symbol.for('parcel-plugin-config')]: {
+    module.exports = {[Symbol.for('parcel.plugin.v3.transformer')]: {
       transform() {
         console.log('plain', 'strings', 42);
         console.log('%s=%d %i %f %j %o %O %c%%', 'a', 42.5, 42.5, '1.5', {j: 1}, [1], {O: 'x'}, 'color: red', 'extra');

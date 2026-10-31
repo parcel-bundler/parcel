@@ -62,26 +62,31 @@ function attemptResolve(
       Promise.all(
         entries
           .filter(e => nativeFS.statSync(path.join(cwd, e)).isFile())
-          .map(entry =>
-            resolve(filepath, './' + entry, {
-              importType: 'stylesheet',
-              packageConditions: ['stylus', 'style'],
-            }),
-          ),
+          .map(entry => resolveStylesheet(resolve, filepath, './' + entry)),
       ),
     );
   } else {
     let relative = path.isAbsolute(importedPath)
       ? './' + path.relative(path.dirname(filepath), importedPath)
       : importedPath;
-    deps.set(
-      importedPath,
-      resolve(filepath, relative, {
-        importType: 'stylesheet',
-        packageConditions: ['stylus', 'style'],
-      }),
-    );
+    deps.set(importedPath, resolveStylesheet(resolve, filepath, relative));
   }
+}
+
+/** Resolves a stylesheet import to the path of a file, or rejects. */
+async function resolveStylesheet(
+  resolve: ResolveFn,
+  from: string,
+  specifier: string,
+): Promise<string> {
+  let resolved = await resolve(from, specifier, {
+    importType: 'stylesheet',
+    packageConditions: ['stylus', 'style'],
+  });
+  if (resolved?.filePath == null) {
+    throw new Error(`Could not resolve '${specifier}' to a file`);
+  }
+  return resolved.filePath;
 }
 
 async function getDependencies(

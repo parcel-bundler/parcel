@@ -9,40 +9,41 @@ import type {
 
 export * from './types';
 
-const CONFIG = Symbol.for('parcel-plugin-config');
-
+// Parcel finds a plugin's methods under a key for the kind of plugin it is configured as, which
+// every copy of this package agrees on. A plugin of another kind, or one written for Parcel 2,
+// fails with a diagnostic rather than misbehaving.
 export class Transformer<T> {
   constructor(opts: TransformerOpts<T>) {
     // @ts-ignore
-    this[CONFIG] = opts;
+    this[Symbol.for('parcel.plugin.v3.transformer')] = opts;
   }
 }
 
 export class Resolver<T> {
   constructor(opts: ResolverOpts<T>) {
     // @ts-ignore
-    this[CONFIG] = opts;
+    this[Symbol.for('parcel.plugin.v3.resolver')] = opts;
   }
 }
 
 export class Namer<T> {
   constructor(opts: NamerOpts<T>) {
     // @ts-ignore
-    this[CONFIG] = opts;
+    this[Symbol.for('parcel.plugin.v3.namer')] = opts;
   }
 }
 
 export class Optimizer<T> {
   constructor(opts: OptimizerOpts<T>) {
     // @ts-ignore
-    this[CONFIG] = opts;
+    this[Symbol.for('parcel.plugin.v3.optimizer')] = opts;
   }
 }
 
 export class Reporter<T> {
   constructor(opts: ReporterOpts<T>) {
     // @ts-ignore
-    this[CONFIG] = opts;
+    this[Symbol.for('parcel.plugin.v3.reporter')] = opts;
   }
 }
 

@@ -298,7 +298,7 @@ fn transformed_imports_show_the_source_their_locations_refer_to() {
       (
         "rewrite.cjs",
         r#"
-      module.exports = {[Symbol.for('parcel-plugin-config')]: {
+      module.exports = {[Symbol.for('parcel.plugin.v3.transformer')]: {
         transform({asset}) {
           asset.setCode('// generated\n\n' + asset.getCode());
           return [asset];

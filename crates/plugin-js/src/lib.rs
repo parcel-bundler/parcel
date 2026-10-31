@@ -50,8 +50,14 @@ pub struct JsEnv {
   entered: Cell<Option<NonNull<rquickjs::qjs::JSContext>>>,
 }
 
+/// How many runtimes, each for a different file system, a thread keeps. More than one, so that
+/// two `Parcel`s in one process don't each reload every plugin whenever a thread switches between
+/// them.
+const RUNTIMES_PER_THREAD: usize = 2;
+
 thread_local! {
-  static JS_ENV: RefCell<Option<JsEnv>> = RefCell::new(None);
+  /// The most recently used first.
+  static JS_ENV: RefCell<Vec<JsEnv>> = const { RefCell::new(Vec::new()) };
   static DELIVERING_CONSOLE_LOGS: Cell<bool> = const { Cell::new(false) };
 }
 
@@ -59,8 +65,8 @@ thread_local! {
 ///
 /// A runtime caches modules and whatever state they derive from what they read, so it is tied to
 /// the file system it reads through: callers pass the same `fs` for as long as that state is valid
-/// (e.g. `ParcelOptions::plugin_fs` for a `Parcel`'s lifetime), and a different one gets a fresh
-/// runtime.
+/// (e.g. `ParcelOptions::plugin_fs` for a `Parcel`'s lifetime), and a different one gets its own
+/// runtime. The thread keeps the [`RUNTIMES_PER_THREAD`] most recently used.
 pub fn with_js_env<F, R>(
   fs: Arc<dyn FileSystem>,
   env_vars: &HashMap<String, String>,
@@ -76,11 +82,7 @@ where
     // Called back from JS that is already running in this thread's runtime, e.g. a JS
     // transformer's `resolve` running a JS resolver. The runtime is locked by that call, so this
     // one runs within it.
-    if let Some(env) = cell
-      .borrow()
-      .as_ref()
-      .filter(|env| env.entered.get().is_some())
-    {
+    if let Some(env) = cell.borrow().iter().find(|env| env.entered.get().is_some()) {
       if !same_fs(env) {
         return Err(DiagnosticList::from(Diagnostic::from_message(
           "A JS plugin can't run with a different file system while another JS plugin is running"
@@ -91,20 +93,23 @@ where
     }
 
     {
-      let mut env = cell.borrow_mut();
+      let mut envs = cell.borrow_mut();
 
-      // The runtime holds `fs`, so its address can't be reused by another file system.
-      if !env.as_ref().is_some_and(same_fs) {
-        // Drop the stale runtime before creating its replacement.
-        *env = None;
-        let new_env = create_runtime(fs.clone(), env_vars, cwd, Environment::Node)
-          .map_err(|e| DiagnosticList::from(Diagnostic::from_message(e.to_string())))?;
-        *env = Some(new_env);
+      // A runtime holds its `fs`, so the address can't be reused by another file system.
+      match envs.iter().position(same_fs) {
+        Some(index) => envs[..=index].rotate_right(1),
+        None => {
+          // Drop the least recently used runtime before creating its replacement.
+          envs.truncate(RUNTIMES_PER_THREAD - 1);
+          let new_env = create_runtime(fs.clone(), env_vars, cwd, Environment::Node)
+            .map_err(|e| DiagnosticList::from(Diagnostic::from_message(e.to_string())))?;
+          envs.insert(0, new_env);
+        }
       }
     }
 
     // Only borrowed shared, so calls back into JS can borrow it too.
-    cell.borrow().as_ref().unwrap().with(f)
+    cell.borrow()[0].with(f)
   })
 }
 
@@ -478,10 +483,16 @@ pub fn await_promise<'a, 'js>(ctx: &'a Ctx<'js>, res: Value<'js>) -> rquickjs::R
       }
 
       if !ctx.execute_pending_job() {
-        let err = ctx.catch();
-        if !err.is_null() {
+        if ctx.has_exception() {
+          let err = ctx.catch();
           return Err(ctx.throw(err));
         }
+        // No jobs are left to settle it, and nothing else can: there is no event loop.
+        let error = rquickjs::Exception::from_message(
+          ctx.clone(),
+          "The plugin's promise never settled. Timers and I/O callbacks aren't available to plugins, so only promises that other promises settle can be awaited.",
+        )?;
+        return Err(ctx.throw(error.into_value()));
       }
     }
   }

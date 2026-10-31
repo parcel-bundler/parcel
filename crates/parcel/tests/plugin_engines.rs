@@ -29,7 +29,7 @@ impl Reporter for Warnings {
 }
 
 const TRANSFORMER: &str = r#"
-  module.exports = {[Symbol.for('parcel-plugin-config')]: {
+  module.exports = {[Symbol.for('parcel.plugin.v3.transformer')]: {
     transform({asset}) {
       return [asset];
     }

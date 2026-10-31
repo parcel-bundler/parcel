@@ -54,7 +54,7 @@ fn run_times(
   fs.write(
     plugin_dir.child("index.js"),
     &br#"
-      const CONFIG = Symbol.for('parcel-plugin-config');
+      const CONFIG = Symbol.for('parcel.plugin.v3.resolver');
       class Resolver { constructor(opts) { this[CONFIG] = opts; } }
       module.exports = {Resolver};
     "#
@@ -151,7 +151,7 @@ fn test_resolve_esm() {
           assert.equal(dependency.isEntry, true);
           assert.equal(dependency.isOptional, true);
           assert.equal(dependency.needsStableName, true);
-          assert.equal(dependency.resolveFrom, 'file:///project/src/index.js');
+          assert.equal(dependency.resolveFrom, '/project/src/index.js');
           assert.equal(dependency.loc.filePath, '/project/src/index.js');
           assert.deepEqual(dependency.loc.start, {line: 2, column: 3});
           assert.deepEqual(dependency.loc.end, {line: 2, column: 9});
@@ -369,4 +369,41 @@ fn test_resolve_rejects_relative_path() {
       .message
       .contains("Resolvers must return an absolute path")
   );
+}
+
+#[test]
+fn test_resolver_must_return_an_object() {
+  let error = run(
+    "returns-string.mjs",
+    r#"
+      import {Resolver} from '@parcel/plugin';
+      export default new Resolver({
+        resolve() {
+          return '/a.js';
+        }
+      });
+    "#,
+    test_dependency(),
+    "specifier",
+    None,
+  )
+  .unwrap_err();
+  assert!(error.0[0].message.contains("must return an object"));
+
+  let result = run(
+    "returns-external.mjs",
+    r#"
+      import {Resolver} from '@parcel/plugin';
+      export default new Resolver({
+        resolve() {
+          return {isExternal: true};
+        }
+      });
+    "#,
+    test_dependency(),
+    "specifier",
+    None,
+  )
+  .unwrap();
+  assert!(matches!(result, DependencyResolution::External));
 }

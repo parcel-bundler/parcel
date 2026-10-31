@@ -19,7 +19,7 @@ globalThis.output = "prepend-source-map-token";
 /// A JS transformer that runs before the native one and moves the code down a
 /// line, along with a (line-granular) map back to the original file.
 const SET_MAP_PLUGIN: &str = r#"export default {
-  [Symbol.for('parcel-plugin-config')]: {
+  [Symbol.for('parcel.plugin.v3.transformer')]: {
     transform({asset}) {
       let code = asset.getCode();
       let lines = code.split('\n');

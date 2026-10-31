@@ -16,12 +16,15 @@ use parcel_core::{
   SpecifierType, Target, Transformer,
 };
 use rquickjs::{
-  Array, Class, Coerced, Ctx, FromJs, Function, IntoJs, JsLifetime, Object, Symbol, TypedArray,
+  Class, Coerced, Ctx, FromJs, Function, IntoJs, JsLifetime, Object, Symbol, TypedArray,
   class::{self, Trace},
+  function::This,
   methods,
 };
 
-use crate::{await_promise, cjs::CjsLoader, with_named_plugin_env, with_origin};
+use crate::{
+  await_promise, cjs::CjsLoader, diagnostic::diagnostics_error, with_named_plugin_env, with_origin,
+};
 
 pub struct JsPlugin {
   path: String,
@@ -114,14 +117,15 @@ impl Optimizer for JsPlugin {
       let graph = Rc::new(scope.wrap_graph(bundle_graph, options));
 
       self.with_env(options, |ctx| {
-        let config = plugin_config(ctx, &self.path)?;
+        let config = self.plugin_config(ctx, "optimizer")?;
         let optimize: Function = config.get("optimize")?;
         let args = Object::new(ctx.clone())?;
         args.set("bundle", JsBundle::new(bundle_index, graph.clone()))?;
         args.set("bundleGraph", JsBundleGraph::new(graph.clone()))?;
         args.set("contents", TypedArray::new(ctx.clone(), contents)?)?;
+        // A JSON object, as `Asset.getMap` gives.
         if let Some(source_map) = source_map {
-          args.set("map", TypedArray::new(ctx.clone(), source_map)?)?;
+          args.set("map", ctx.json_parse(source_map)?)?;
         } else {
           args.set("map", rquickjs::Value::new_null(ctx.clone()))?;
         }
@@ -133,30 +137,15 @@ impl Optimizer for JsPlugin {
           },
         )?;
 
-        let result: rquickjs::Value = optimize.call((args,))?;
+        let result: rquickjs::Value = optimize.call((This(config), args))?;
         let result = await_promise(ctx, result)?;
         let result = result.into_object().ok_or_else(|| {
           rquickjs::Error::new_from_js_message("optimizer result", "object", "Expected an object")
         })?;
-        let contents: TypedArray<u8> = result.get("contents")?;
-        // SAFETY: copied immediately, before any JS runs.
-        let contents = unsafe { contents.as_bytes() }
-          .ok_or_else(|| {
-            rquickjs::Error::new_from_js_message("contents", "Uint8Array", "Invalid Uint8Array")
-          })?
-          .to_vec();
-        let map: rquickjs::Value = result.get("map")?;
-        if map.is_null() || map.is_undefined() {
-          Ok(Arc::new(BufferContent::new(contents)) as Arc<dyn Content>)
-        } else {
-          let map = TypedArray::<u8>::from_js(ctx, map)?;
-          // SAFETY: copied immediately, before any JS runs.
-          let map = unsafe { map.as_bytes() }
-            .ok_or_else(|| {
-              rquickjs::Error::new_from_js_message("map", "Uint8Array", "Invalid Uint8Array")
-            })?
-            .to_vec();
-          Ok(Arc::new(ContentWithSourceMap::new(contents, map)) as Arc<dyn Content>)
+        let contents = content_to_bytes(ctx, result.get("contents")?)?;
+        match source_map_to_bytes(ctx, result.get("map")?)? {
+          Some(map) => Ok(Arc::new(ContentWithSourceMap::new(contents, map)) as Arc<dyn Content>),
+          None => Ok(Arc::new(BufferContent::new(contents)) as Arc<dyn Content>),
         }
       })
     })
@@ -169,20 +158,55 @@ pub fn load_module<'js>(ctx: &Ctx<'js>, path: &str) -> rquickjs::Result<Object<'
   module.into_object().ok_or(rquickjs::Error::Unknown)
 }
 
-/// Loads the plugin and returns the object it registered under
-/// `Symbol.for('parcel-plugin-config')` — the one holding `transform`,
-/// `resolve`, `name`, `optimize` or `report` — from the module itself or from
-/// its default export.
-fn plugin_config<'js>(ctx: &Ctx<'js>, path: &str) -> rquickjs::Result<Object<'js>> {
-  let module = load_module(ctx, path)?;
+/// The kinds of plugin `@parcel/plugin` registers, each under its own key.
+const PLUGIN_KINDS: [&str; 5] = ["transformer", "resolver", "namer", "optimizer", "reporter"];
+
+/// The object a plugin of `kind` registered (e.g. with `new Transformer({...})`) in the module
+/// itself or its default export.
+fn registered_plugin<'js>(
+  ctx: &Ctx<'js>,
+  module: &Object<'js>,
+  kind: &str,
+) -> rquickjs::Result<Option<Object<'js>>> {
   let symbol: Object = ctx.globals().get("Symbol")?;
   let symbol_for: Function = symbol.get("for")?;
-  let sym: Symbol = symbol_for.call(("parcel-plugin-config",))?;
-  module.get::<_, Object>(sym.clone()).or_else(|_| {
-    module
-      .get::<_, Object>("default")
-      .and_then(|o| o.get::<_, Object>(sym))
-  })
+  let key: Symbol = symbol_for.call((format!("parcel.plugin.v3.{kind}"),))?;
+  if let Some(plugin) = module.get::<_, Option<Object>>(key.clone())? {
+    return Ok(Some(plugin));
+  }
+  match module.get::<_, Option<Object>>("default")? {
+    Some(default) => default.get(key),
+    None => Ok(None),
+  }
+}
+
+impl JsPlugin {
+  /// Loads the plugin and returns the object it registered as a plugin of `kind`, the one
+  /// holding `transform`, `resolve`, `name`, `optimize` or the reporter methods.
+  fn plugin_config<'js>(&self, ctx: &Ctx<'js>, kind: &str) -> rquickjs::Result<Object<'js>> {
+    let module = load_module(ctx, &self.path)?;
+    if let Some(plugin) = registered_plugin(ctx, &module, kind)? {
+      return Ok(plugin);
+    }
+
+    let mut hints = Vec::new();
+    for other in PLUGIN_KINDS {
+      if other != kind && registered_plugin(ctx, &module, other)?.is_some() {
+        hints.push(format!("It is a {other} plugin."));
+      }
+    }
+    let mut class = kind.to_owned();
+    class[..1].make_ascii_uppercase();
+    hints.push(format!(
+      "Export `new {class}({{...}})` from @parcel/plugin as the module's default export."
+    ));
+    let mut diagnostic = parcel_core::Diagnostic::from_message(format!(
+      "{} is not a valid Parcel {kind} plugin",
+      self.origin
+    ));
+    diagnostic.hints = hints;
+    Err(ctx.throw(diagnostics_error(ctx, &[diagnostic])?))
+  }
 }
 
 /// A non-owning reference which may be retained by JavaScript, but can only be
@@ -333,7 +357,7 @@ impl Transformer for JsPlugin {
     let options = context.options;
     with_call_scope(|scope| {
       let asset = self.with_env(options, |ctx| {
-        let config = plugin_config(&ctx, &self.path)?;
+        let config = self.plugin_config(ctx, "transformer")?;
         let transform: Function = config.get("transform")?;
         // Dependencies resolved through `resolve` are imported by this asset, for its target.
         let target = asset.target.clone();
@@ -355,7 +379,7 @@ impl Transformer for JsPlugin {
             resolve(ctx, from, specifier, options, &context, &target)
           }),
         )?;
-        let res: rquickjs::Value = transform.call((opts,))?;
+        let res: rquickjs::Value = transform.call((This(config), opts))?;
         await_promise(ctx, res)?;
         let obj = Class::<JsAsset>::from_js(&ctx, value)?;
         let js_asset = &mut *obj.borrow_mut();
@@ -385,16 +409,11 @@ fn resolve<'js>(
   if let Some(options) = options.0 {
     specifier_type = dependency_enum(&ctx, &options, "specifierType", SpecifierType::Esm)?;
     import_type = self::import_type(&ctx, &options, ImportType::JavaScript)?;
-    if let Ok(package_conditions) = options.get::<_, Array>("packageConditions") {
-      for cond in package_conditions.iter() {
-        let cond: String = cond?;
-        if let Ok(cond) = ExportsCondition::try_from(cond.as_str()) {
-          conditions |= cond;
-        } else {
-          custom_conditions.push(cond);
-        }
-      }
-    }
+    (conditions, custom_conditions) = package_conditions(
+      options
+        .get::<_, Option<Vec<String>>>("packageConditions")?
+        .unwrap_or_default(),
+    );
   }
 
   let dep = parcel_core::Dependency {
@@ -416,29 +435,44 @@ fn resolve<'js>(
   };
 
   let (promise, resolve, reject) = rquickjs::Promise::new(&ctx)?;
-  match context.with(|context| context.resolve(&dep))? {
+  let result = match context.with(|context| context.resolve(&dep))? {
+    Ok(DependencyResolution::None) => Ok(rquickjs::Value::new_null(ctx.clone())),
+    Ok(DependencyResolution::External) => Ok(flag_object(&ctx, "isExternal")?),
+    Ok(DependencyResolution::Excluded) => Ok(flag_object(&ctx, "isExcluded")?),
     Ok(DependencyResolution::Deferred(req)) if req.loc.url.to_file_path().is_ok() => {
+      let result = Object::new(ctx.clone())?;
       let path = req.loc.url.to_file_path().unwrap();
-      let _: rquickjs::Value =
-        resolve.call((path.to_path_buf().to_string_lossy().into_owned(),))?;
+      result.set(
+        "filePath",
+        path.to_path_buf().to_string_lossy().into_owned(),
+      )?;
+      result.set(
+        "pipeline",
+        or_null(&ctx, req.pipeline.as_deref().map(Into::into))?,
+      )?;
+      result.set("query", or_null(&ctx, req.loc.url.query().map(Into::into))?)?;
+      result.set("sideEffects", req.side_effects)?;
+      Ok(result.into_value())
     }
-    Ok(_) => {
-      let _: rquickjs::Value = reject.call((rquickjs::Exception::from_message(
-        ctx,
-        &format!("Could not resolve '{specifier}' to a file"),
-      )?,))?;
-    }
-    Err(diagnostics) => {
-      let message = diagnostics
-        .0
-        .iter()
-        .map(|d| d.message.as_str())
-        .collect::<Vec<_>>()
-        .join("\n");
-      let _: rquickjs::Value = reject.call((rquickjs::Exception::from_message(ctx, &message)?,))?;
-    }
+    // Resolvers don't resolve to assets already in the graph, and a URL that isn't a file has no
+    // path to give.
+    Ok(_) => Err(vec![parcel_core::Diagnostic::from_message(format!(
+      "Could not resolve '{specifier}' to a file"
+    ))]),
+    Err(diagnostics) => Err(diagnostics.0),
+  };
+  match result {
+    Ok(value) => resolve.call::<_, ()>((value,))?,
+    Err(diagnostics) => reject.call::<_, ()>((diagnostics_error(&ctx, &diagnostics)?,))?,
   }
   Ok(promise)
+}
+
+/// `{[flag]: true}`, as `resolve` gives for external and excluded dependencies.
+fn flag_object<'js>(ctx: &Ctx<'js>, flag: &str) -> rquickjs::Result<rquickjs::Value<'js>> {
+  let result = Object::new(ctx.clone())?;
+  result.set(flag, true)?;
+  Ok(result.into_value())
 }
 
 impl Resolver for JsPlugin {
@@ -452,7 +486,7 @@ impl Resolver for JsPlugin {
     let options = ctx.options;
     with_call_scope(|scope| {
       self.with_env(options, |ctx| {
-        let config = plugin_config(&ctx, &self.path)?;
+        let config = self.plugin_config(ctx, "resolver")?;
         let resolve: Function = config.get("resolve")?;
         let js_dep = JsDependency {
           dep: JsDependencyValue::Borrowed(scope.wrap(dep)),
@@ -469,13 +503,23 @@ impl Resolver for JsPlugin {
           },
         )?;
 
-        let res: rquickjs::Value = resolve.call((opts,))?;
+        let res: rquickjs::Value = resolve.call((This(config), opts))?;
         let res = await_promise(ctx, res)?;
-        if let Some(res) = res.as_object() {
-          // TODO: Support diagnostics and invalidation result fields.
-          let is_excluded: Option<bool> = res.get("isExcluded")?;
-          if is_excluded == Some(true) {
+        if res.is_null() || res.is_undefined() {
+          return Ok(DependencyResolution::None);
+        }
+        let Some(res) = res.as_object() else {
+          return Err(rquickjs::Exception::throw_type(
+            ctx,
+            "A resolver must return an object, null or undefined",
+          ));
+        };
+        {
+          if res.get::<_, Option<bool>>("isExcluded")? == Some(true) {
             return Ok(DependencyResolution::Excluded);
+          }
+          if res.get::<_, Option<bool>>("isExternal")? == Some(true) {
+            return Ok(DependencyResolution::External);
           }
 
           let file_path: Option<String> = res.get("filePath")?;
@@ -546,7 +590,7 @@ impl Namer for JsPlugin {
       let graph = Rc::new(scope.wrap_graph(bundle_graph, options));
 
       self.with_env(options, |ctx| {
-        let config = plugin_config(&ctx, &self.path)?;
+        let config = self.plugin_config(ctx, "namer")?;
         let name: Function = config.get("name")?;
         let args = Object::new(ctx.clone())?;
         args.set("bundle", JsBundle::new(bundle_index, graph.clone()))?;
@@ -558,13 +602,19 @@ impl Namer for JsPlugin {
             options: scope.wrap(options),
           },
         )?;
-        let result: rquickjs::Value = name.call((args,))?;
-        let result = await_promise(&ctx, result)?;
-        Option::<String>::from_js(&ctx, result)
+        let result: rquickjs::Value = name.call((This(config), args))?;
+        let result = await_promise(ctx, result)?;
+        Option::<String>::from_js(ctx, result)
       })
     })?;
 
-    Ok(name.map(|name| bundle.target.dist_dir.join(Path::new(&name))))
+    // As for native namers, an empty name leaves the bundle to the next namer. Core checks
+    // that any other name stays inside the dist dir.
+    Ok(
+      name
+        .filter(|name| !name.is_empty())
+        .map(|name| bundle.target.dist_dir.join(Path::new(&name))),
+    )
   }
 }
 
@@ -582,7 +632,7 @@ impl JsPlugin {
     }
 
     let methods = self.with_env(options, |ctx| {
-      let config = plugin_config(ctx, &self.path)?;
+      let config = self.plugin_config(ctx, "reporter")?;
       let exports = |name: &str| -> rquickjs::Result<bool> {
         Ok(
           config
@@ -712,9 +762,9 @@ impl Reporter for JsPlugin {
 
         args.set("config", self.config_to_js(ctx)?)?;
 
-        let config = plugin_config(ctx, &self.path)?;
+        let config = self.plugin_config(ctx, "reporter")?;
         let report: Function = config.get(method)?;
-        let result: rquickjs::Value = report.call((args,))?;
+        let result: rquickjs::Value = report.call((This(config), args))?;
         await_promise(ctx, result)?;
         Ok(())
       })
@@ -724,7 +774,7 @@ impl Reporter for JsPlugin {
 
 /// Converts diagnostics to plain JavaScript objects, in the shape their
 /// `serde` representation already defines.
-fn diagnostics_to_js<'js>(
+pub(crate) fn diagnostics_to_js<'js>(
   ctx: &Ctx<'js>,
   diagnostics: &[parcel_core::Diagnostic],
 ) -> rquickjs::Result<rquickjs::Value<'js>> {
@@ -743,23 +793,54 @@ fn json_to_js<'js>(
   ctx.json_parse(json)
 }
 
+/// A source map given as a JSON object, a JSON string, or UTF-8 JSON in a `Uint8Array`, as the
+/// JSON Parcel stores. Nullish is no map.
 fn source_map_to_bytes<'js>(
   ctx: &Ctx<'js>,
-  map: rquickjs::function::Opt<rquickjs::Value<'js>>,
+  map: Option<rquickjs::Value<'js>>,
 ) -> rquickjs::Result<Option<Vec<u8>>> {
-  let Some(map) = map.0.filter(|map| !map.is_null() && !map.is_undefined()) else {
+  let Some(map) = map.filter(|map| !map.is_null() && !map.is_undefined()) else {
     return Ok(None);
   };
-  if !map.is_object() || map.is_array() {
-    return Err(rquickjs::Exception::throw_type(
+  let invalid = |reason: &str| {
+    rquickjs::Exception::throw_type(
       ctx,
-      "Source map must be a JSON object",
-    ));
+      &format!("A source map must be a JSON object, a JSON string or a Uint8Array: {reason}"),
+    )
+  };
+  let json = if let Some(string) = map.as_string() {
+    string.to_string()?.into_bytes()
+  } else if let Ok(bytes) = TypedArray::<u8>::from_js(ctx, map.clone()) {
+    // SAFETY: copied immediately, before any JS runs.
+    unsafe { bytes.as_bytes() }
+      .ok_or_else(|| invalid("the Uint8Array is detached"))?
+      .to_vec()
+  } else if map.is_object() && !map.is_array() && !map.is_function() {
+    // Stringified by JS, so it is valid JSON.
+    let json = ctx
+      .json_stringify(map)?
+      .ok_or_else(|| invalid("not serializable"))?;
+    return Ok(Some(json.to_string()?.into_bytes()));
+  } else {
+    return Err(invalid(map.type_name()));
+  };
+  // Checked here, where the plugin that set it gets the error, rather than when it is read.
+  if let Err(error) = serde_json::from_slice::<serde_json::Map<String, serde_json::Value>>(&json) {
+    return Err(invalid(&error.to_string()));
   }
-  let json = ctx
-    .json_stringify(map)?
-    .ok_or_else(|| rquickjs::Exception::throw_type(ctx, "Source map must be a JSON object"))?;
-  Ok(Some(json.to_string()?.into_bytes()))
+  Ok(Some(json))
+}
+
+/// Content given as a string or a `Uint8Array`.
+fn content_to_bytes<'js>(ctx: &Ctx<'js>, value: rquickjs::Value<'js>) -> rquickjs::Result<Vec<u8>> {
+  if let Some(string) = value.as_string() {
+    return Ok(string.to_string()?.into_bytes());
+  }
+  let invalid =
+    || rquickjs::Exception::throw_type(ctx, "Contents must be a string or a Uint8Array");
+  let bytes = TypedArray::<u8>::from_js(ctx, value).map_err(|_| invalid())?;
+  // SAFETY: copied immediately, before any JS runs.
+  Ok(unsafe { bytes.as_bytes() }.ok_or_else(invalid)?.to_vec())
 }
 
 fn dependency_enum<'js, T: serde::de::DeserializeOwned>(
@@ -799,6 +880,19 @@ fn import_type<'js>(
   )
 }
 
+/// Splits package conditions into the ones Parcel knows, which are flags, and custom ones.
+fn package_conditions(values: Vec<String>) -> (ExportsCondition, Vec<String>) {
+  let mut conditions = ExportsCondition::empty();
+  let mut custom_conditions = Vec::new();
+  for value in values {
+    match ExportsCondition::try_from(value.as_str()) {
+      Ok(condition) => conditions |= condition,
+      Err(_) => custom_conditions.push(value),
+    }
+  }
+  (conditions, custom_conditions)
+}
+
 fn source_url(ctx: &Ctx<'_>, value: &str) -> rquickjs::Result<SourceUrl> {
   if Path::new(value).is_absolute() {
     Ok(SourceUrl::from_path(&PathId::new(Path::new(value))))
@@ -830,14 +924,11 @@ fn dependency_from_js<'js>(
     Some(target) => target.borrow().target.clone(),
     None => asset.target.clone(),
   };
-  let mut conditions = ExportsCondition::empty();
-  if let Some(values) = options.get::<_, Option<Vec<String>>>("packageConditions")? {
-    for value in values {
-      conditions |= ExportsCondition::try_from(value.as_str()).map_err(|_| {
-        rquickjs::Exception::throw_type(ctx, &format!("Unsupported package condition: {value}"))
-      })?;
-    }
-  }
+  let (conditions, custom_conditions) = package_conditions(
+    options
+      .get::<_, Option<Vec<String>>>("packageConditions")?
+      .unwrap_or_default(),
+  );
   let loc = if let Some(loc) = options.get::<_, Option<Object>>("loc")? {
     let url = match loc
       .get::<_, Option<String>>("url")?
@@ -892,7 +983,7 @@ fn dependency_from_js<'js>(
     import_type,
     flags,
     concurrent_group: 0,
-    custom_conditions: Default::default(),
+    custom_conditions: custom_conditions.into(),
     target,
     loc,
     placeholder: None,
@@ -1330,7 +1421,7 @@ impl JsAsset {
         )
       })?
       .to_owned();
-    let map = source_map_to_bytes(&ctx, map)?;
+    let map = source_map_to_bytes(&ctx, map.0)?;
     self.with_asset_mut(|asset| {
       asset.content = match map {
         Some(map) => Arc::new(ContentWithSourceMap::new(bytes, map)),
@@ -1345,7 +1436,7 @@ impl JsAsset {
     value: String,
     map: rquickjs::function::Opt<rquickjs::Value<'js>>,
   ) -> rquickjs::Result<()> {
-    let map = source_map_to_bytes(&ctx, map)?;
+    let map = source_map_to_bytes(&ctx, map.0)?;
     self.with_asset_mut(|asset| {
       asset.content = match map {
         Some(map) => Arc::new(ContentWithSourceMap::new_string(value, map)),
@@ -1473,22 +1564,6 @@ impl JsAsset {
     self.with_asset_mut(|asset| asset.flags.set(AssetFlags::SIDE_EFFECTS, value))
   }
 
-  #[qjs(get, rename = "isBundleSplittable")]
-  fn is_bundle_splittable(&self) -> rquickjs::Result<bool> {
-    self.with_asset(|asset| asset.flags.contains(AssetFlags::IS_BUNDLE_SPLITTABLE))
-  }
-
-  #[qjs(set, rename = "isBundleSplittable")]
-  fn set_is_bundle_splittable(&mut self, value: bool) -> rquickjs::Result<()> {
-    self.with_asset_mut(|asset| {
-      if value {
-        asset.flags.insert(AssetFlags::IS_BUNDLE_SPLITTABLE);
-      } else {
-        asset.flags.remove(AssetFlags::IS_BUNDLE_SPLITTABLE);
-      }
-    })
-  }
-
   #[qjs(get, rename = "bundleBehavior")]
   fn bundle_behavior(&self) -> rquickjs::Result<Option<String>> {
     self.with_asset(|asset| match asset.bundle_behavior {
@@ -1499,15 +1574,19 @@ impl JsAsset {
   }
 
   #[qjs(set, rename = "bundleBehavior")]
-  fn set_bundle_behavior(&mut self, value: Option<String>) -> rquickjs::Result<()> {
-    self.with_asset_mut(|asset| {
-      asset.bundle_behavior = match value.as_deref() {
-        None | Some("none") => BundleBehavior::None,
-        Some("inline") => BundleBehavior::Inline,
-        Some("isolated") => BundleBehavior::Isolated,
-        _ => BundleBehavior::None,
+  fn set_bundle_behavior(&mut self, ctx: Ctx<'_>, value: Option<String>) -> rquickjs::Result<()> {
+    let behavior = match value.as_deref() {
+      None | Some("none") => BundleBehavior::None,
+      Some("inline") => BundleBehavior::Inline,
+      Some("isolated") => BundleBehavior::Isolated,
+      Some(value) => {
+        return Err(rquickjs::Exception::throw_type(
+          &ctx,
+          &format!("Invalid bundleBehavior: {value}"),
+        ));
       }
-    })
+    };
+    self.with_asset_mut(|asset| asset.bundle_behavior = behavior)
   }
 }
 
@@ -1743,9 +1822,18 @@ impl JsDependency {
     })
   }
 
+  /// The path of the file the dependency is resolved from: its `resolveFrom`, or else the file
+  /// it was found in. As for native plugins, `undefined` when that isn't a file.
   #[qjs(get)]
   pub fn resolve_from(&self) -> rquickjs::Result<Option<String>> {
-    self.with_dependency(|dep| dep.resolve_from.as_ref().map(|value| value.to_string()))
+    self.with_dependency(|dep| {
+      let url = dep
+        .resolve_from
+        .as_ref()
+        .or(dep.loc.as_ref().map(|loc| &loc.url))?;
+      let path = url.to_file_path().ok()?;
+      Some(path.to_path_buf().to_string_lossy().into_owned())
+    })
   }
 
   #[qjs(get)]
@@ -1773,7 +1861,7 @@ impl JsDependency {
   }
 
   #[qjs(get)]
-  pub fn package_conditions(&self) -> rquickjs::Result<Vec<&'static str>> {
+  pub fn package_conditions(&self) -> rquickjs::Result<Vec<String>> {
     self.with_dependency(|dep| {
       [
         (ExportsCondition::IMPORT, "import"),
@@ -1796,7 +1884,13 @@ impl JsDependency {
         (ExportsCondition::SOURCE, "source"),
       ]
       .into_iter()
-      .filter_map(|(flag, name)| dep.conditions.contains(flag).then_some(name))
+      .filter_map(|(flag, name)| dep.conditions.contains(flag).then(|| name.to_owned()))
+      .chain(
+        dep
+          .custom_conditions
+          .iter()
+          .map(|condition| condition.to_string()),
+      )
       .collect()
     })
   }

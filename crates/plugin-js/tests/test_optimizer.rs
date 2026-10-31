@@ -31,7 +31,7 @@ fn run(
   fs.write(
     plugin_dir.child("index.js"),
     &br#"
-      const CONFIG = Symbol.for('parcel-plugin-config');
+      const CONFIG = Symbol.for('parcel.plugin.v3.optimizer');
       class Optimizer { constructor(opts) { this[CONFIG] = opts; } }
       module.exports = {Optimizer};
     "#
@@ -118,9 +118,9 @@ fn test_optimizer_esm_async_with_source_map() {
         async optimize({bundle, bundleGraph, contents, map, config, options}) {
           await Promise.resolve();
           assert(contents instanceof Uint8Array);
-          assert(map instanceof Uint8Array);
           assert.deepEqual([...contents], [...new TextEncoder().encode('hello')]);
-          assert.deepEqual([...map], [1, 2, 3]);
+          // A JSON object, as Asset.getMap gives.
+          assert.deepEqual(map, {version: 3, sources: ['a.js'], mappings: 'AAAA'});
           assert.deepEqual(config, {suffix: '!'});
           assert.equal(options.mode, 'production');
           assert.deepEqual(options.env, {OPTIMIZER_TEST: 'value'});
@@ -131,14 +131,18 @@ fn test_optimizer_esm_async_with_source_map() {
           assert.equal(bundle.getMainEntry().url, 'file:///src/index.js');
           assert.equal(bundleGraph.getBundles()[0].type, 'js');
 
+          // A string for each, which Parcel takes as well as bytes.
           return {
-            contents: new TextEncoder().encode(new TextDecoder().decode(contents) + config.suffix),
-            map: new Uint8Array([4, 5, 6]),
+            contents: new TextDecoder().decode(contents) + config.suffix,
+            map: JSON.stringify({...map, sources: ['b.js']}),
           };
         }
       });
     "#,
-    Arc::new(ContentWithSourceMap::new(b"hello".to_vec(), vec![1, 2, 3])),
+    Arc::new(ContentWithSourceMap::new(
+      b"hello".to_vec(),
+      br#"{"version":3,"sources":["a.js"],"mappings":"AAAA"}"#.to_vec(),
+    )),
     Some(serde_json::json!({"suffix": "!"})),
   );
 
@@ -148,7 +152,7 @@ fn test_optimizer_esm_async_with_source_map() {
       .downcast_ref::<ContentWithSourceMap>()
       .unwrap()
       .source_map(),
-    &[4, 5, 6]
+    br#"{"version":3,"sources":["b.js"],"mappings":"AAAA"}"#
   );
 }
 

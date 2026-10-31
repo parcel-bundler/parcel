@@ -9,6 +9,15 @@
 // at `filename`/`fileName`, `line` and `column` if the error has them, or
 // otherwise at the top frame of its stack. Diagnostics are attributed to the
 // plugin unless they set `origin`.
+//
+// A plugin's methods are called with the object passed to its constructor (e.g.
+// `new Transformer({...})`) as `this`, so they can call helper methods on it.
+//
+// Each worker thread runs plugins in its own JavaScript runtime, and calls run
+// concurrently across threads. Module-level state is therefore not shared between
+// calls, not even between a reporter's `log` and `buildSuccess` calls. Timers and
+// I/O callbacks aren't available, so a promise must be settled by other promises
+// or synchronous code.
 
 export type FilePath = string;
 export type Glob = string;
@@ -41,6 +50,9 @@ export type SourceMapJSON = {
   file?: string;
   [key: string]: unknown;
 };
+
+/** A source map as a JSON object, a JSON string, or UTF-8 encoded JSON. */
+export type SourceMapInput = SourceMapJSON | string | Uint8Array;
 
 /** Line/column positions are 1-based (so <code>1</code> is the first line/column). */
 export type Location = {
@@ -251,6 +263,12 @@ export type PackageCondition =
   | 'source';
 
 /**
+ * A package.json "exports" or "imports" condition. Parcel knows the `PackageCondition`s; any other
+ * string is a custom condition, which matches only itself.
+ */
+export type PackageConditionName = PackageCondition | (string & {});
+
+/**
  * Used when creating a Dependency, see that.
  * @section transformer
  */
@@ -329,11 +347,8 @@ export type DependencyOptions = {
    */
   readonly target?: Target | null;
 
-  /**
-   * A list of package.json "exports" and "imports" conditions to use when resolving the dependency.
-   * An unsupported condition throws.
-   */
-  readonly packageConditions?: Array<PackageCondition> | null;
+  /** A list of package.json "exports" and "imports" conditions to use when resolving the dependency. */
+  readonly packageConditions?: Array<PackageConditionName> | null;
 
   /** The pipeline defined in .parcelrc that the dependency should be processed with. */
   readonly pipeline?: string | null;
@@ -415,10 +430,13 @@ export interface Dependency {
   readonly target: Target;
 
   /** The package.json "exports" and "imports" conditions used to resolve the dependency. */
-  readonly packageConditions: Array<PackageCondition>;
+  readonly packageConditions: Array<PackageConditionName>;
 
-  /** The URL the dependency is resolved from. Files on disk use `file:` URLs. */
-  readonly resolveFrom: string | undefined;
+  /**
+   * The path of the file the dependency is resolved from: the `resolveFrom` it was created with,
+   * or else the file it was found in. `undefined` when that is not a file on disk.
+   */
+  readonly resolveFrom: FilePath | undefined;
 
   /** The semver version range expected for the dependency. */
   readonly range: SemverRange | undefined;
@@ -471,22 +489,12 @@ export interface Asset {
   readonly bundleBehavior: BundleBehavior | undefined;
 
   /**
-   * If the asset is used as a bundle entry, this controls whether that bundle can be split
-   * into multiple, or whether all of the dependencies must be placed in a single bundle.
-   */
-  readonly isBundleSplittable: boolean;
-
-  /**
    * Whether this asset can be omitted if none of its exports are being used.
    * This is initially set by the resolver, but can be overridden by transformers.
    */
   readonly sideEffects: boolean;
 
-  /**
-   * When a transformer returns multiple assets, it can give them unique keys to identify them.
-   * This can be used to find assets during packaging, or to create dependencies between multiple
-   * assets returned by a transformer by using the unique key as the dependency specifier.
-   */
+  /** A key that identifies the asset, set by a transformer. */
   readonly uniqueKey: string | undefined;
 
   /** The pipeline defined in .parcelrc that the asset should be processed with. */
@@ -522,16 +530,11 @@ export interface MutableAsset extends Asset {
    *       to a separate file, but embedded into the parent bundle.
    *   - isolated: The asset will be isolated from its parents in a separate bundle. Shared assets
    *       will be duplicated.
+   *
+   * Setting any other value throws a TypeError.
    */
   get bundleBehavior(): BundleBehavior | undefined;
   set bundleBehavior(value: BundleBehavior | 'none' | null | undefined);
-
-  /**
-   * If the asset is used as a bundle entry, this controls whether that bundle can be split
-   * into multiple, or whether all of the dependencies must be placed in a single bundle.
-   * @default true
-   */
-  isBundleSplittable: boolean;
 
   /**
    * Whether this asset can be omitted if none of its exports are being used.
@@ -539,12 +542,7 @@ export interface MutableAsset extends Asset {
    */
   sideEffects: boolean;
 
-  /**
-   * When a transformer returns multiple assets, it can give them unique keys to identify them.
-   * This can be used to find assets during packaging, or to create dependencies between multiple
-   * assets returned by a transformer by using the unique key as the dependency specifier.
-   * It can only be set once.
-   */
+  /** A key that identifies the asset. It can only be set once. */
   get uniqueKey(): string | undefined;
   set uniqueKey(value: string | null | undefined);
 
@@ -568,11 +566,17 @@ export interface MutableAsset extends Asset {
     options?: Partial<Omit<DependencyOptions, 'specifier'>>,
   ): string;
 
-  /** Sets the asset contents as a string, and optionally its source map. */
-  setCode(code: string, map?: SourceMapJSON | null): void;
+  /**
+   * Sets the asset contents as a string, and optionally its source map. A map that isn't a JSON
+   * object throws a TypeError.
+   */
+  setCode(code: string, map?: SourceMapInput | null): void;
 
-  /** Sets the asset contents as bytes, and optionally its source map. */
-  setBuffer(buffer: Uint8Array, map?: SourceMapJSON | null): void;
+  /**
+   * Sets the asset contents as bytes, and optionally its source map. A map that isn't a JSON
+   * object throws a TypeError.
+   */
+  setBuffer(buffer: Uint8Array, map?: SourceMapInput | null): void;
 }
 
 /**
@@ -703,21 +707,50 @@ export type ResolveOptions = {
    */
   readonly importType?: ImportType;
 
-  /** A list of custom conditions to use when resolving package.json "exports" and "imports". */
-  readonly packageConditions?: Array<string>;
+  /** A list of conditions to use when resolving package.json "exports" and "imports". */
+  readonly packageConditions?: Array<PackageConditionName>;
 };
 
 /**
+ * What a `ResolveFn` resolved a specifier to: a file, or an external or excluded dependency.
+ * @section transformer
+ */
+export type ResolvedFile =
+  | {
+      /** The absolute path of the resolved file. */
+      readonly filePath: FilePath;
+      /** The named pipeline the resolver chose for the file, if any. */
+      readonly pipeline: string | null;
+      /** The query the resolver gave the file, if any. */
+      readonly query: string | null;
+      /** Corresponds to Asset's <code>sideEffects</code>. */
+      readonly sideEffects: boolean;
+      readonly isExternal?: undefined;
+      readonly isExcluded?: undefined;
+    }
+  | {
+      readonly isExternal: true;
+      readonly filePath?: undefined;
+      readonly isExcluded?: undefined;
+    }
+  | {
+      readonly isExcluded: true;
+      readonly filePath?: undefined;
+      readonly isExternal?: undefined;
+    };
+
+/**
  * Resolves `specifier` from the file `from` with the resolvers configured in .parcelrc, exactly as
- * a dependency of the asset would be, and returns the absolute path of the resolved file. Rejects
- * when it does not resolve to a file. Every file the resolvers read invalidates the asset.
+ * a dependency of the asset would be. Returns `null` when no resolver resolves it. Rejects with a
+ * `Diagnostic` carrying the resolvers' diagnostics when one fails, which reports them unchanged
+ * if thrown. Every file the resolvers read invalidates the asset.
  * @section transformer
  */
 export type ResolveFn = (
   from: FilePath,
   specifier: string,
   options?: ResolveOptions,
-) => Promise<FilePath>;
+) => Promise<ResolvedFile | null>;
 
 /**
  * The methods for a transformer plugin.
@@ -754,6 +787,9 @@ export type ResolveResult = {
   /** Whether the resolved file should be excluded from the build. */
   readonly isExcluded?: boolean | null;
 
+  /** Whether the dependency should be left out of the bundle, to be loaded at runtime. */
+  readonly isExternal?: boolean | null;
+
   /** Corresponds to Asset's <code>sideEffects</code>. */
   readonly sideEffects?: boolean | null;
 
@@ -766,7 +802,10 @@ export type ResolveResult = {
  * @section resolver
  */
 export type Resolver<ConfigType> = {
-  /** Resolve a dependency, or return nullish to leave it to the next resolver plugin. */
+  /**
+   * Resolve a dependency, or return nullish to leave it to the next resolver plugin. Returning
+   * anything else that isn't an object throws.
+   */
   resolve(args: {
     dependency: Dependency;
     specifier: DependencySpecifier;
@@ -783,7 +822,8 @@ export type Resolver<ConfigType> = {
 export type Namer<ConfigType> = {
   /**
    * Return a file path for <code>bundle</code>, relative to its target's <code>distDir</code>,
-   * or nullish to leave it to the next namer plugin.
+   * or nullish or `""` to leave it to the next namer plugin. A path that leaves the
+   * <code>distDir</code>, e.g. an absolute one, fails the build.
    */
   name(args: {
     bundle: Bundle;
@@ -797,9 +837,9 @@ export type Namer<ConfigType> = {
  * @section optimizer
  */
 export type OptimizerResult = {
-  readonly contents: Uint8Array;
-  /** The source map for the optimized contents, as UTF-8 encoded JSON. */
-  readonly map?: Uint8Array | null;
+  readonly contents: string | Uint8Array;
+  /** The source map for the optimized contents. */
+  readonly map?: SourceMapInput | null;
 };
 
 /**
@@ -811,8 +851,8 @@ export type Optimizer<ConfigType> = {
     bundle: Bundle;
     bundleGraph: BundleGraph;
     contents: Uint8Array;
-    /** The source map for the bundle, as UTF-8 encoded JSON. */
-    map: Uint8Array | null;
+    /** The source map for the bundle. */
+    map: SourceMapJSON | null;
     config: ConfigType;
     options: PluginOptions;
   }): Async<OptimizerResult>;

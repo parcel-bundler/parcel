@@ -38,7 +38,7 @@ fn run_times(
   fs.write(
     plugin_dir.child("index.js"),
     &br#"
-      const CONFIG = Symbol.for('parcel-plugin-config');
+      const CONFIG = Symbol.for('parcel.plugin.v3.namer');
       class Namer { constructor(opts) { this[CONFIG] = opts; } }
       module.exports = {Namer};
     "#

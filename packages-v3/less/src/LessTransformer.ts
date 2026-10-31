@@ -54,7 +54,7 @@ export default new Transformer<LessConfig | undefined>({
       };
       throw err;
     }
-    asset.setCode(result.css, result.map ? JSON.parse(result.map) : null);
+    asset.setCode(result.css, result.map ?? null);
   },
 });
 
@@ -123,10 +123,14 @@ function resolvePathPlugin({
           }
 
           if (!contents) {
-            filePath = await resolve(asset.filePath, filename, {
+            let resolved = await resolve(asset.filePath, filename, {
               importType: 'stylesheet',
               packageConditions: ['less', 'style'],
             });
+            if (resolved?.filePath == null) {
+              throw new Error(`Could not resolve '${filename}' to a file`);
+            }
+            filePath = resolved.filePath;
             contents = fs.readFileSync(filePath, 'utf8');
           }
 

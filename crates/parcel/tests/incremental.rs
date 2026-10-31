@@ -1435,7 +1435,7 @@ fn js_plugin_change_reloads_plugin() {
   let plugin = |prefix: &str| {
     format!(
       r#"const suffix = require('./js-plugin-change-dep.cjs');
-module.exports = {{[Symbol.for('parcel-plugin-config')]: {{
+module.exports = {{[Symbol.for('parcel.plugin.v3.transformer')]: {{
   transform({{asset}}) {{
     asset.setCode(asset.getCode() + "\noutput('{prefix}" + suffix + "');");
     return [asset];
