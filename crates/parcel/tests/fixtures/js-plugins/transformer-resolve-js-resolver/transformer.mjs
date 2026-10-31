@@ -6,7 +6,7 @@ export default new Transformer({
   async transform({asset, resolve}) {
     let {filePath: resolved} = await resolve(asset.filePath, asset.getCode().trim());
     asset.type = 'js';
-    asset.setCode(`export default ${JSON.stringify('resolved:' + path.relative(path.dirname(asset.filePath), resolved))};`);
+    asset.setCode(`export default ${JSON.stringify('resolved:' + path.relative(path.dirname(asset.filePath), resolved).split(path.sep).join('/'))};`);
     return [asset];
   },
 });

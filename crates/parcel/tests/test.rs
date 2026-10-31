@@ -187,6 +187,10 @@ fn bundle_with_options(
 }
 
 fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJson) {
+  // testing_macros canonicalizes fixture paths, which adds a verbatim prefix on
+  // Windows. Compare them in the same form as paths returned by the bundle graph.
+  let fixture_dir = PathId::new(fixture_dir).to_path_buf();
+  let fixture_dir = fixture_dir.as_path();
   let output_fs = Arc::new(OverlayFileSystem::new());
   let cwd = test
     .options
