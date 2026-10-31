@@ -838,6 +838,8 @@ impl Iterator for Ancestors<'_> {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::test_utils::path as test_path;
+  use path_slash::PathExt;
 
   #[test]
   fn same_path_same_id() {
@@ -867,22 +869,30 @@ mod tests {
   #[test]
   fn parent_and_ancestors() {
     let interner = PathInterner::new();
-    let file = interner.intern(Path::new("/a/b/c.js"));
-    let dir = interner.intern(Path::new("/a/b"));
+    let file = interner.intern(&test_path("/a/b/c.js"));
+    let dir = interner.intern(&test_path("/a/b"));
     assert_eq!(interner.parent(file), Some(dir));
 
-    let chain: Vec<String> = interner
+    let chain: Vec<PathBuf> = interner
       .ancestors(file)
-      .map(|id| interner.display(id))
+      .map(|id| interner.to_path_buf(id))
       .collect();
-    assert_eq!(chain, vec!["/a/b/c.js", "/a/b", "/a", "/"]);
+    assert_eq!(
+      chain,
+      vec![
+        test_path("/a/b/c.js"),
+        test_path("/a/b"),
+        test_path("/a"),
+        test_path("/")
+      ]
+    );
   }
 
   #[test]
   fn roundtrips_to_path() {
     let interner = PathInterner::new();
-    let original = Path::new("/home/user/project/src/foo.js");
-    let id = interner.intern(original);
+    let original = test_path("/home/user/project/src/foo.js");
+    let id = interner.intern(&original);
     assert_eq!(interner.to_path_buf(id), original);
   }
 
@@ -955,7 +965,6 @@ mod tests {
       assert_eq!(interner.relative_url_from_dir(target, base), url);
       assert_eq!(interner.relative_url(target, base), url);
     }
-
   }
 
   #[test]
@@ -975,10 +984,11 @@ mod tests {
   #[test]
   fn normalizes_dot_and_dotdot() {
     let interner = PathInterner::new();
-    let a = interner.intern(Path::new("/a/b/../c/./d"));
-    let b = interner.intern(Path::new("/a/c/d"));
+    let a = interner.intern(&test_path("/").join("a/b/../c/./d"));
+    let expected = test_path("/a/c/d");
+    let b = interner.intern(&expected);
     assert_eq!(a, b);
-    assert_eq!(interner.display(a), "/a/c/d");
+    assert_eq!(interner.display(a), expected.to_slash_lossy());
   }
 
   #[test]
@@ -992,41 +1002,41 @@ mod tests {
 
   #[test]
   fn module_subpath_supports_scoped_packages() {
-    let dir = PathId::new(Path::new("/a/b"));
+    let dir = PathId::new(&test_path("/a/b"));
     let via_subpath = dir.join_subpath(&SubPath::module("@scope/pkg"));
     let via_module = dir.join_module("@scope/pkg");
     assert_eq!(via_subpath, via_module);
     assert_eq!(
       via_subpath.to_path_buf(),
-      Path::new("/a/b/node_modules/@scope/pkg")
+      test_path("/a/b/node_modules/@scope/pkg")
     );
   }
 
   #[test]
   fn with_path_matches_to_path_buf() {
     let interner = PathInterner::new();
-    let id = interner.intern(Path::new("/home/user/project/src/foo.js"));
+    let id = interner.intern(&test_path("/home/user/project/src/foo.js"));
     let owned = interner.to_path_buf(id);
     interner.with_path(id, |p| assert_eq!(p, owned));
     // Reuse: a second call on a different path must not be polluted by the first.
-    let other = interner.intern(Path::new("/a/b"));
-    interner.with_path(other, |p| assert_eq!(p, Path::new("/a/b")));
+    let other = interner.intern(&test_path("/a/b"));
+    interner.with_path(other, |p| assert_eq!(p, test_path("/a/b")));
   }
 
   #[test]
   fn with_path_reentrant_falls_back() {
     let interner = PathInterner::new();
-    let a = interner.intern(Path::new("/a/b/c.js"));
-    let b = interner.intern(Path::new("/x/y/z.js"));
+    let a = interner.intern(&test_path("/a/b/c.js"));
+    let b = interner.intern(&test_path("/x/y/z.js"));
     // Nested materialization of a second path while the first is still borrowed: both must be
     // correct and independent (the inner call takes the heap fallback).
     interner.with_path(a, |pa| {
       interner.with_path(b, |pb| {
-        assert_eq!(pa, Path::new("/a/b/c.js"));
-        assert_eq!(pb, Path::new("/x/y/z.js"));
+        assert_eq!(pa, test_path("/a/b/c.js"));
+        assert_eq!(pb, test_path("/x/y/z.js"));
       });
       // After the nested call returns, the outer borrow must still be intact.
-      assert_eq!(pa, Path::new("/a/b/c.js"));
+      assert_eq!(pa, test_path("/a/b/c.js"));
     });
   }
 

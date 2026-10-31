@@ -588,12 +588,20 @@ fn stdio(level: &LogLevel) -> either::Either<std::io::Stderr, std::io::Stdout> {
 }
 
 #[cfg(test)]
+#[path = "../../core/tests/support/mod.rs"]
+mod test_utils;
+
+#[cfg(test)]
 mod tests {
   use super::*;
 
   fn serve(args: &[&str]) -> (Vec<String>, ServerOptions) {
     let args = ["serve"].iter().chain(args).map(|arg| arg.to_string());
-    match parse_args(args, HashMap::new(), PathId::new(Path::new("/project"))) {
+    match parse_args(
+      args,
+      HashMap::new(),
+      PathId::new(&test_utils::path("/project")),
+    ) {
       Ok(CliAction::Run {
         entries,
         server_options,
@@ -613,7 +621,11 @@ mod tests {
     ] {
       let args = args.iter().map(|arg| arg.to_string());
       assert!(matches!(
-        parse_args(args, HashMap::new(), PathId::new(Path::new("/project"))),
+        parse_args(
+          args,
+          HashMap::new(),
+          PathId::new(&test_utils::path("/project"))
+        ),
         Ok(CliAction::Version)
       ));
     }
@@ -651,7 +663,7 @@ mod tests {
 
     let args = ["serve"].iter().map(|arg| arg.to_string());
     let env = HashMap::from([("PORT".to_owned(), "3000".to_owned())]);
-    match parse_args(args, env, PathId::new(Path::new("/project"))) {
+    match parse_args(args, env, PathId::new(&test_utils::path("/project"))) {
       Ok(CliAction::Run { server_options, .. }) => {
         assert_eq!(server_options.port, 3000);
         assert!(server_options.strict_port);
@@ -666,8 +678,8 @@ mod tests {
     assert_eq!(
       options.https,
       Some(HttpsOptions::Files {
-        cert: "/project/certs/cert.pem".into(),
-        key: "/key.pem".into()
+        cert: test_utils::path("/project/certs/cert.pem"),
+        key: test_utils::path("/key.pem")
       })
     );
     // Like Parcel 2, a certificate implies --https.

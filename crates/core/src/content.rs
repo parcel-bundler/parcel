@@ -444,7 +444,8 @@ mod tests {
   #[test]
   fn file_estimates_follow_metadata_changes_and_report_missing_files() {
     let fs = Arc::new(MemoryFileSystem::new());
-    let path = PathId::new(std::path::Path::new("/file"));
+    let path = PathId::new(&crate::test_utils::path("/file"));
+    fs.create_dir_all(path.parent().unwrap()).unwrap();
     let content = FileContent::new(path, fs.clone());
     assert!(content.estimate_size().is_err());
     fs.write(path, b"hello").unwrap();

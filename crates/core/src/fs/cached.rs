@@ -298,9 +298,9 @@ thread_local! {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::{MemoryFileSystem, normalize_path, resolve_path};
+  use crate::{MemoryFileSystem, normalize_path, resolve_path, test_utils::path as test_path};
   use std::{
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::atomic::{AtomicUsize, Ordering},
   };
 
@@ -358,7 +358,7 @@ mod tests {
 
   /// Interns a path string for use in tests.
   fn pid(s: &str) -> PathId {
-    PathId::new(Path::new(s))
+    PathId::new(&test_path(s))
   }
 
   fn setup() -> (Arc<CountingFileSystem>, CachedFileSystem) {
@@ -540,7 +540,7 @@ mod tests {
   fn symlink_fs(links: &[(&str, &str)]) -> (Arc<SymlinkFileSystem>, CachedFileSystem) {
     let links = links
       .iter()
-      .map(|(from, to)| (PathBuf::from(from), PathBuf::from(to)))
+      .map(|(from, to)| (test_path(from), test_path(to)))
       .collect();
     let inner = Arc::new(SymlinkFileSystem {
       links,

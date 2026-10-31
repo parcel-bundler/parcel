@@ -141,12 +141,15 @@ fn common_root_path(paths: impl IntoIterator<Item = PathId>) -> Option<PathId> {
 }
 
 #[cfg(test)]
+#[path = "../../core/tests/support/mod.rs"]
+mod test_utils;
+
+#[cfg(test)]
 mod tests {
   use super::*;
-  use std::path::Path;
 
   fn path(path: &str) -> PathId {
-    PathId::new(Path::new(path))
+    PathId::new(&test_utils::path(path))
   }
 
   fn common(paths: &[&str]) -> Option<PathBuf> {
@@ -157,7 +160,7 @@ mod tests {
   fn common_root_path_returns_parent_for_single_path() {
     assert_eq!(
       common(&["/project/src/index.js"]),
-      Some(PathBuf::from("/project/src"))
+      Some(test_utils::path("/project/src"))
     );
   }
 
@@ -165,7 +168,7 @@ mod tests {
   fn common_root_path_returns_shared_directory_for_siblings() {
     assert_eq!(
       common(&["/project/src/index.js", "/project/src/app.js"]),
-      Some(PathBuf::from("/project/src"))
+      Some(test_utils::path("/project/src"))
     );
   }
 
@@ -177,7 +180,7 @@ mod tests {
         "/project/src/routes/about/index.js",
         "/project/src/routes/contact/form.js"
       ]),
-      Some(PathBuf::from("/project/src/routes"))
+      Some(test_utils::path("/project/src/routes"))
     );
   }
 
@@ -189,7 +192,7 @@ mod tests {
         "/project/assets/logo.svg",
         "/project/package.json"
       ]),
-      Some(PathBuf::from("/project"))
+      Some(test_utils::path("/project"))
     );
   }
 
@@ -197,7 +200,7 @@ mod tests {
   fn common_root_path_returns_filesystem_root_for_unrelated_paths() {
     assert_eq!(
       common(&["/project/src/index.js", "/vendor/lib/index.js"]),
-      Some(PathBuf::from("/"))
+      Some(test_utils::path("/"))
     );
   }
 
