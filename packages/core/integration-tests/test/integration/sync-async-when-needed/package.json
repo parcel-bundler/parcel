@@ -1,5 +1,0 @@
-{
-  "@parcel/bundler-default": {
-    "maxParallelRequests": 1
-  }
-}

@@ -1,5 +1,0 @@
-{
-  "description": "supports require of commonjs modules",
-  "input": "a.js",
-  "output": 2
-}

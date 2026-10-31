@@ -1,5 +1,0 @@
-{
-  "main": "dist/main.js",
-  "module": "dist/module.js",
-  "source": "index.js"
-}

@@ -1,6 +1,0 @@
-{
-  "private": true,
-  "@parcel/resolver-default": {
-    "packageExports": true
-  }
-}

@@ -1,9 +1,0 @@
-{
-  "name": "ts-types-error",
-  "private": true,
-  "main": "dist/main.js",
-  "types": "dist/types.d.ts",
-  "dependencies": {
-    "react": "*"
-  }
-}

@@ -1,5 +1,0 @@
-{
-  "description": "should handle require as the callee in a new expression",
-  "input": "a.js",
-  "output": 1
-}

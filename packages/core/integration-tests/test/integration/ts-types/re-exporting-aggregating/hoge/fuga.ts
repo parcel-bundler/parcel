@@ -1,1 +1,0 @@
-export type fuga = "fuga";

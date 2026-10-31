@@ -1,3 +1,0 @@
-{
-  "extends": ["@parcel/config-default", "parcel-config-test1", "parcel-config-test2"]
-}

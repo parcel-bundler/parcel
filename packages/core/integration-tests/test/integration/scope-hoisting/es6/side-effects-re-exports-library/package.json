@@ -1,5 +1,0 @@
-{
-    "source": "a.js",
-    "main": "build.js",
-    "sideEffects": false
-}

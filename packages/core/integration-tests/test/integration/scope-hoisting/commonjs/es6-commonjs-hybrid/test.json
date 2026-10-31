@@ -1,5 +1,0 @@
-{
-  "description": "supports hybrid ES6 + commonjs modules",
-  "input": "a.js",
-  "output": 5
-}

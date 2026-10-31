@@ -1,5 +1,0 @@
-{
-  "plugins": [
-    ["@babel/plugin-syntax-module-attributes", {"version": "may-2020"}]
-  ]
-}

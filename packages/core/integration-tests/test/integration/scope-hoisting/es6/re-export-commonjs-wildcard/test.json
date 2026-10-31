@@ -1,5 +1,0 @@
-{
-  "description": "support chained namespace reexports of CommonJS",
-  "input": "a.js",
-  "output": "foo"
-}

@@ -1,6 +1,0 @@
-{
-  "name": "env-node",
-  "engines": {
-    "node": "8"
-  }
-}

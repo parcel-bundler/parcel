@@ -1,8 +1,0 @@
-{
-  "description": "supports excluding multiple chained namespace reexports",
-  "input": "a.js",
-  "sideEffects": [
-    "message1"
-  ],
-  "output": "Message 1"
-}

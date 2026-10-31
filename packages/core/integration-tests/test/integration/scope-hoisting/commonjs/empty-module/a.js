@@ -1,3 +1,0 @@
-output = {
-  b: require('./b')
-};

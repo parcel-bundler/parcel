@@ -1,5 +1,0 @@
-{
-  "description": "should wrap modules that use eval in a function",
-  "input": "a.js",
-  "output": 4
-}

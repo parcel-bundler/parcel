@@ -1,7 +1,0 @@
-{
-  "env": {
-    "production": {
-      "presets": ["@babel/preset-env"]
-    }
-  }
-}

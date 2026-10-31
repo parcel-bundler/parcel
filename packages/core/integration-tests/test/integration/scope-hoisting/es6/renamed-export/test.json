@@ -1,5 +1,0 @@
-{
-  "description": "supports renaming exports",
-  "input": "a.js",
-  "output": 2
-}

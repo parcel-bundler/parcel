@@ -1,7 +1,0 @@
-{
-  "root": true,
-  "rules": {
-    "no-console": "error",
-    "no-unused-vars": "warn"
-  }
-}

@@ -1,5 +1,0 @@
-{
-    "@parcel/transformer-js": {
-        "unstable_inlineConstants": true
-    }
-}

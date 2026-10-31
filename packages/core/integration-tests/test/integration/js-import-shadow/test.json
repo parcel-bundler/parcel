@@ -1,5 +1,0 @@
-{
-  "description": "should generate a unique variable name for imports",
-  "input": "index.js",
-  "output": "foo"
-}

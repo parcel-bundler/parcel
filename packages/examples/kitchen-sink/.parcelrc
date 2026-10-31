@@ -1,7 +1,0 @@
-{
-  "extends": "@parcel/config-default",
-  "transformers": {
-    "*.js": ["@parcel/transformer-babel", "..."]
-  },
-  "reporters": ["...", "@parcel/reporter-sourcemap-visualiser"]
-}

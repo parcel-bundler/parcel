@@ -1,8 +1,0 @@
-{
-  "module": "dist/module.js",
-  "targets": {
-    "module": {
-      "includeNodeModules": false
-    }
-  }
-}

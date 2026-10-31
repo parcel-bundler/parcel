@@ -1,5 +1,0 @@
-{
-  "customBlocks": {
-    "docs": "./docs-processor.js"
-  }
-}

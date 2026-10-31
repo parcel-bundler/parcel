@@ -1,7 +1,0 @@
-{
-  "description": "should support @layer",
-  "input": "a.css",
-  "options": {
-    "mode": "production"
-  }
-}

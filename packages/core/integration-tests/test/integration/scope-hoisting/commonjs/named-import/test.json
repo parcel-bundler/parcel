@@ -1,5 +1,0 @@
-{
-  "description": "supports named imports of commonjs modules",
-  "input": "a.js",
-  "output": 2
-}

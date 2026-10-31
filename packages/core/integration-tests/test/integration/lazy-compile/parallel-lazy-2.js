@@ -1,1 +1,0 @@
-export default 'parallel lazy 2';

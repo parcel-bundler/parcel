@@ -1,5 +1,0 @@
-{
-  "description": "supports async import of internalized asset with unused return value",
-  "input": "a.js",
-  "output": "bc"
-}

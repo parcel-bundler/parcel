@@ -1,5 +1,0 @@
-{
-  "description": "should produce a basic JS bundle with CommonJS requires",
-  "input": "index.js",
-  "output": 3
-}

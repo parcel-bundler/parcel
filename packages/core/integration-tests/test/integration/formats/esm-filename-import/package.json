@@ -1,8 +1,0 @@
-{
-  "name": "esm-filename-import",
-  "private": true,
-  "main": "dist/index.js",
-  "engines": {
-    "node": ">=10"
-  }
-}

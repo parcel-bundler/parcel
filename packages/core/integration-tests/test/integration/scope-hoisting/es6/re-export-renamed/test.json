@@ -1,5 +1,0 @@
-{
-  "description": "supports requiring a re-exported and renamed ES6 import",
-  "input": "a.js",
-  "output": "foobar"
-}

@@ -1,3 +1,0 @@
-{
-  "plugins": [["babel-plugin-dummy", {"text": "hello"}]]
-}

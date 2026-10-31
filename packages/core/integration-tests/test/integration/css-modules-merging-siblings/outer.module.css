@@ -1,3 +1,0 @@
-.container {
-  composes: -expand from "./inner.module.css";
-}

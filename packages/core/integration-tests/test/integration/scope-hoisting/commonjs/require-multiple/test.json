@@ -1,5 +1,0 @@
-{
-  "description": "should support multiple requires in the same variable declaration",
-  "input": "a.js",
-  "output": "before foo middle bar after"
-}

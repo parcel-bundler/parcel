@@ -1,3 +1,0 @@
-.main {
-  composes: buttonPrimary from "./button.module.css";
-}

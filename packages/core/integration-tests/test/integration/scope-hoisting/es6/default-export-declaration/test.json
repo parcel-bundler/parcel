@@ -1,5 +1,0 @@
-{
-  "description": "supports default imports and exports of declarations",
-  "input": "a.js",
-  "output": 2
-}

@@ -1,5 +1,0 @@
-{
-  "description": "supports importing a namespace from a commonjs module when code split",
-  "input": "a.js",
-  "output": 4
-}

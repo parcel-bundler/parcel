@@ -1,1 +1,0 @@
-importScripts('imported.js');

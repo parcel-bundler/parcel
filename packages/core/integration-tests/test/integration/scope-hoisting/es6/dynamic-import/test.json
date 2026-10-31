@@ -1,5 +1,0 @@
-{
-  "description": "supports dynamic import syntax for code splitting",
-  "input": "a.js",
-  "output": 5
-}

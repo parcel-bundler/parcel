@@ -1,5 +1,0 @@
-{
-  "description": "concats commonjs modules in the correct order",
-  "input": "a.js",
-  "output": 2
-}

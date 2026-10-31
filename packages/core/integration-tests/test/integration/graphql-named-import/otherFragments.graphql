@@ -1,9 +1,0 @@
-fragment otherUserFragment on User {
-    friends {
-        edges {
-            nodes {
-                name
-            }
-        }
-    }
-}

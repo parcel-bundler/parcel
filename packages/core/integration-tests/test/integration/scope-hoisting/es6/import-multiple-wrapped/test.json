@@ -1,5 +1,0 @@
-{
-  "description": "deduplicates imports when wrapped",
-  "input": "index.js",
-  "output": 15
-}

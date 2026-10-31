@@ -1,8 +1,0 @@
-{
-  "browserslist": "Chrome 80",
-  "sideEffects": [
-    "await-assignment.js",
-    "await-declaration*.js",
-    "then*.js"
-  ]
-}

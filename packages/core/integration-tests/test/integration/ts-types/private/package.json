@@ -1,6 +1,0 @@
-{
-  "name": "ts-types-private",
-  "private": true,
-  "main": "dist/main.js",
-  "types": "dist/types.d.ts"
-}

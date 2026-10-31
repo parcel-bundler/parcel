@@ -1,5 +1,0 @@
-{
-  "description": "should support chained reexports as default from hybrid modules",
-  "input": "a.js",
-  "output": 2
-}

@@ -1,5 +1,0 @@
-{
-  "description": "should not insert default interop for wrapped CJS modules",
-  "input": "a.js",
-  "output": "default"
-}

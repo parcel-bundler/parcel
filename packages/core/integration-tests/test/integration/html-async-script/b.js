@@ -1,2 +1,0 @@
-import './c';
-output('b');

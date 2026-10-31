@@ -1,9 +1,0 @@
-{
-  "extends": "@parcel/eslint-config",
-  "env": {
-    "browser": true
-  },
-  "rules": {
-    "no-console": "off"
-  }
-}

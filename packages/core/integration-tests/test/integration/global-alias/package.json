@@ -1,6 +1,0 @@
-{
-  "main": "dist/index.js",
-  "alias": {
-    "react": { "global": "React" }
-  }
-}

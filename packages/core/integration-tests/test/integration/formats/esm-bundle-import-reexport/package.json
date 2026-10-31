@@ -1,5 +1,0 @@
-{
-  "name": "esm-bundle-import-reexport",
-  "private": true,
-  "module": "dist/index.js"
-}

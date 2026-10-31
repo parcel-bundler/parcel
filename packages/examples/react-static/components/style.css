@@ -1,8 +1,0 @@
-h1 {
-  font-family: system-ui;
-}
-
-nav a[aria-current] {
-  background: black;
-  color: white
-}

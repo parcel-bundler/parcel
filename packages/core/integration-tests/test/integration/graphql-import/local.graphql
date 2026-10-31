@@ -1,8 +1,0 @@
-# import './other.graphql'
-
-{
-  user(id: 6) {
-    ...UserFragment
-    ...AnotherUserFragment
-  }
-}

@@ -1,5 +1,0 @@
-{
-  "description": "supports live bindings of named exports",
-  "input": "a.js",
-  "output": 8
-}

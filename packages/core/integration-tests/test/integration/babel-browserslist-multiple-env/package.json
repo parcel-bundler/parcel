@@ -1,7 +1,0 @@
-{
-  "name": "parcel-test-browser-browserslist",
-  "browserslist": {
-    "test": ["chrome 68"],
-    "production": ["last 2 Chrome versions", "IE >= 11"]
-  }
-}

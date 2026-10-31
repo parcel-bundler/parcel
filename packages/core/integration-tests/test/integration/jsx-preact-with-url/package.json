@@ -1,6 +1,0 @@
-{
-  "private": true,
-  "dependencies": {
-    "preact": "https://pkg.csb.dev/preactjs/preact/commit/96082866/preact"
-  }
-}

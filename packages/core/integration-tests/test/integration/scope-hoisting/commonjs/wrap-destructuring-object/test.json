@@ -1,8 +1,0 @@
-{
-  "description": "should support wrapping object destructuring declarations",
-  "input": "a.js",
-  "output": [
-    4,
-    2
-  ]
-}

@@ -1,4 +1,0 @@
-{
-  "name": "dont-autoinstall-if-env-var-is-false",
-  "dependencies": {}
-}

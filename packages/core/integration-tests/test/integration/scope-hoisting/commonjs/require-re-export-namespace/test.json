@@ -1,5 +1,0 @@
-{
-  "description": "supports re-exporting a namespace from another module",
-  "input": "a.js",
-  "output": 6
-}

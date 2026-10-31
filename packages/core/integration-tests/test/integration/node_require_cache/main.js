@@ -1,1 +1,0 @@
-Object.keys(require.cache);

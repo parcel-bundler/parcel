@@ -1,8 +1,0 @@
-{
-  "targets": {
-    "default": {
-      "context": "browser",
-      "includeNodeModules": true
-    }
-  }
-}

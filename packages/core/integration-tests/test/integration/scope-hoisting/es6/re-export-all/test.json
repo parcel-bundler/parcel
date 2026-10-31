@@ -1,5 +1,0 @@
-{
-  "description": "supports re-exporting all exports from another module",
-  "input": "a.js",
-  "output": 6
-}

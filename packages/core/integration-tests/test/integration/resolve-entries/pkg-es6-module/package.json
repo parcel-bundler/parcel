@@ -1,5 +1,0 @@
-{
-    "name": "pkg-es6-module",
-    "main": "./does-not-exist.js",
-    "module": "./es6.module.js"
-}

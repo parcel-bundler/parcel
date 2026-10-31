@@ -1,6 +1,0 @@
-{
-  "compilerOptions": {
-    "jsxFactory": "JSX",
-    "jsxFragmentFactory": "JSXFragment"
-  }
-}

@@ -1,9 +1,0 @@
-{
-  "description": "supports conditional requires",
-  "input": "a.js",
-  "sideEffects": [
-    "a",
-    "d"
-  ],
-  "output": {}
-}

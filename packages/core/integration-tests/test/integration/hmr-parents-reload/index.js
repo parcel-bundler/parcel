@@ -1,3 +1,0 @@
-require('./middle');
-
-output('root');

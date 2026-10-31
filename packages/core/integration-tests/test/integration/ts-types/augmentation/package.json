@@ -1,7 +1,0 @@
-{
-	"private": true,
-	"workspaces": [
-		"augmenter",
-		"original"
-	]
-}

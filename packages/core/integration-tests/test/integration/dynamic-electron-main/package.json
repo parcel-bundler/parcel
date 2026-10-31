@@ -1,9 +1,0 @@
-{
-  "name": "dynamic-electron-main",
-  "private": true,
-  "targets": {
-    "default": {
-      "context": "electron-main"
-    }
-  }
-}

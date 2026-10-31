@@ -1,1 +1,0 @@
-export {add} from 'lodash';

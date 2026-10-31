@@ -1,5 +1,0 @@
-{
-  "description": "should hoist all vars in the scope",
-  "input": "a.js",
-  "output": true
-}

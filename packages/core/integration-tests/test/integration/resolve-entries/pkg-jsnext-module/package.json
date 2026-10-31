@@ -1,5 +1,0 @@
-{
-    "name": "pkg-jsnext-module",
-    "main": "./does-not-exist.js",
-    "jsnext:main": "./jsnext.module.js"
-}

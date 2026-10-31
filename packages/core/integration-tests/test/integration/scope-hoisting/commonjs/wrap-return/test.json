@@ -1,5 +1,0 @@
-{
-  "description": "should wrap modules that have a top-level return",
-  "input": "a.js",
-  "output": 2
-}

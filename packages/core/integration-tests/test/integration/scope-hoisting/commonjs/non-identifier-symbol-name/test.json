@@ -1,5 +1,0 @@
-{
-  "description": "supports non-identifier symbol names",
-  "input": "a.js",
-  "output": 1
-}

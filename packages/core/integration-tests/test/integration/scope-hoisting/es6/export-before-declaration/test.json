@@ -1,7 +1,0 @@
-{
-  "description": "supports named exports before the variable declaration",
-  "input": "a.js",
-  "output": {
-    "x": 2
-  }
-}

@@ -1,6 +1,0 @@
-{
-	"name": "a",
-	"version": "0.0.0",
-	"source": "src/index.ts",
-	"types": "dist/index.d.ts"
-}

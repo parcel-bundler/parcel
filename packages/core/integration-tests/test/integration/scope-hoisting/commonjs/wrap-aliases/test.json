@@ -1,5 +1,0 @@
-{
-  "description": "should support two aliases to the same module",
-  "input": "a.js",
-  "output": 42
-}

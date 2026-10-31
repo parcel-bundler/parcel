@@ -1,8 +1,0 @@
-{
-    "name": "pkg-browser-multiple",
-    "main": "./node-entry.js",
-    "browser": {
-        "./projected.js": "./projected-browser.js",
-        "pkg-browser-multiple": "browser-entry.js"
-    }
-}

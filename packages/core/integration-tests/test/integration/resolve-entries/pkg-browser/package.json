@@ -1,5 +1,0 @@
-{
-    "name": "pkg-browser",
-    "main": "./node-module.js",
-    "browser": "./browser-module.js"
-}

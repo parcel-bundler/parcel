@@ -1,9 +1,0 @@
-{
-  "name": "commonjs-destructuring-browsers",
-  "private": true,
-  "browser": "dist/index.js",
-  "browserslist": [">= 0.25%"],
-  "dependencies": {
-    "lodash": "*"
-  }
-}

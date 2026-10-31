@@ -1,5 +1,0 @@
-{
-  "description": "supports exporting an import",
-  "input": "a.js",
-  "output": "foobar"
-}

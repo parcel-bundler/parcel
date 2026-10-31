@@ -1,2 +1,0 @@
-exports.default = 'default';
-eval('');

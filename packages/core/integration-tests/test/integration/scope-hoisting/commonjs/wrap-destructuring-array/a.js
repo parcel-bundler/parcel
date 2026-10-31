@@ -1,3 +1,0 @@
-(function(){
-  output = require('./b');
-})();

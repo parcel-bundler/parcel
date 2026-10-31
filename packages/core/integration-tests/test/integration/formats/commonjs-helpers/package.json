@@ -1,7 +1,0 @@
-{
-  "main": "dist/main.js",
-  "browserslist": "Chrome 70",
-  "dependencies": {
-    "@swc/helpers": "^0.5.0"
-  }
-}

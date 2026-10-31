@@ -1,7 +1,0 @@
-{
-  "description": "correctly handles ES6 re-exports in library mode entries",
-  "input": ".",
-  "output": {
-    "c1": "foo"
-  }
-}

@@ -1,7 +1,0 @@
-{
-  "description": "should handle exports of imports",
-  "input": "index.js",
-  "output": {
-    "other": 2
-  }
-}

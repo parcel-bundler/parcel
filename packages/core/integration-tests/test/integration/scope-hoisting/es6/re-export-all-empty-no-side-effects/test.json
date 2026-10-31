@@ -1,8 +1,0 @@
-{
-  "description": "supports re-exporting all from an empty module without side effects",
-  "input": "index.js",
-  "options": {
-    "mode": "production"
-  },
-  "output": "foo bar"
-}

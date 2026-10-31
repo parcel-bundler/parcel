@@ -1,7 +1,0 @@
-{
-  "description": "should support export default declarations",
-  "input": "index.js",
-  "output": {
-    "other": 1
-  }
-}

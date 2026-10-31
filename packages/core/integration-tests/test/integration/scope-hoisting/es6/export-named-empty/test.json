@@ -1,5 +1,0 @@
-{
-  "description": "should remove export named declaration without specifiers",
-  "input": "a.js",
-  "output": 2
-}

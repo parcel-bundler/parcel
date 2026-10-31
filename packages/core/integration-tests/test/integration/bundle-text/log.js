@@ -1,1 +1,0 @@
-sideEffect('hi');

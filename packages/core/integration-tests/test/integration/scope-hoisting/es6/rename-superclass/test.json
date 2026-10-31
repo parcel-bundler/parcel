@@ -1,5 +1,0 @@
-{
-  "description": "supports renaming superclass identifiers",
-  "input": "a.js",
-  "output": 2
-}

@@ -1,1 +1,0 @@
-export { akEmojiSelectedBackgroundColor } from './emojiStylesShared';

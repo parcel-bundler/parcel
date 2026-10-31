@@ -1,5 +1,0 @@
-{
-  "@parcel/transformer-css": {
-    "cssModules": true
-  }
-}

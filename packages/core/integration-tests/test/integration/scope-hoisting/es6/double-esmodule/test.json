@@ -1,5 +1,0 @@
-{
-  "description": "should allow re-declaring __esModule interop flag",
-  "input": "index.js",
-  "output": "default"
-}

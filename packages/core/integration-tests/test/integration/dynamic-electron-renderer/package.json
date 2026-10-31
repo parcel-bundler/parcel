@@ -1,9 +1,0 @@
-{
-  "name": "dynamic-electron-renderer",
-  "private": true,
-  "targets": {
-    "default": {
-      "context": "electron-renderer"
-    }
-  }
-}

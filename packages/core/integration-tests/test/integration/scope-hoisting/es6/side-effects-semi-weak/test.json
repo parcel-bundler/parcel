@@ -1,8 +1,0 @@
-{
-  "description": "supports deferring non-weak dependencies that are not used",
-  "input": "a.js",
-  "sideEffects": [
-    "esm1"
-  ],
-  "output": "Message 1"
-}

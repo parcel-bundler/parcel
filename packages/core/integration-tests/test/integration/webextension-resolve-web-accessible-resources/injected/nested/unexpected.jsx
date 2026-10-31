@@ -1,1 +1,0 @@
-export default 'should not be bundled';

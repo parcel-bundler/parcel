@@ -1,5 +1,0 @@
-{
-  "description": "supports circular dependencies",
-  "input": "a.js",
-  "output": "foo bar"
-}

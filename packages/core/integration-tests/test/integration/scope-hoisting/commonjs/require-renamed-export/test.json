@@ -1,5 +1,0 @@
-{
-  "description": "supports require of es6 renamed exports",
-  "input": "a.js",
-  "output": 2
-}
