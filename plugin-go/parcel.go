@@ -28,6 +28,7 @@ package parcel
 */
 import "C"
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -1043,6 +1044,86 @@ func (t *Target) DistDir() string {
 	}
 	defer C.parcel_free_buffer(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
+}
+
+// Engines returns the minimum engine versions the target supports.
+func (t *Target) Engines() Engines {
+	// Ours to allocate: zeroed, with the size this SDK was built with, so Parcel
+	// writes only the fields both sides know.
+	var raw C.Engines
+	raw.size = C.sizeof_Engines
+	C.parcel_target_get_engines(&raw, t.ptr)
+	return Engines{
+		Browsers: Browsers{
+			Android: versionFromRaw(raw.android),
+			Chrome:  versionFromRaw(raw.chrome),
+			Edge:    versionFromRaw(raw.edge),
+			Firefox: versionFromRaw(raw.firefox),
+			IE:      versionFromRaw(raw.ie),
+			IOSSaf:  versionFromRaw(raw.ios_saf),
+			Opera:   versionFromRaw(raw.opera),
+			Safari:  versionFromRaw(raw.safari),
+			Samsung: versionFromRaw(raw.samsung),
+		},
+		Electron: versionFromRaw(raw.electron),
+		Node:     versionFromRaw(raw.node),
+		Parcel:   versionFromRaw(raw.parcel),
+	}
+}
+
+// Engines holds the minimum engine versions a [Target] supports. An engine the
+// target does not specify is the zero [Version].
+type Engines struct {
+	Browsers Browsers
+	Electron Version
+	Node     Version
+	Parcel   Version
+}
+
+// Browsers holds the minimum browser versions a [Target] supports, resolved
+// from its browserslist query. A browser it does not support is the zero
+// [Version].
+type Browsers struct {
+	Android Version
+	Chrome  Version
+	Edge    Version
+	Firefox Version
+	IE      Version
+	IOSSaf  Version
+	Opera   Version
+	Safari  Version
+	Samsung Version
+}
+
+// Version is a major.minor engine version. The zero Version means the engine
+// is not specified.
+type Version struct {
+	Major uint8
+	Minor uint8
+}
+
+// versionFromRaw unpacks the ABI's major<<8 | minor, where zero means unset.
+func versionFromRaw(raw C.uint16_t) Version {
+	return Version{Major: uint8(raw >> 8), Minor: uint8(raw & 0xff)}
+}
+
+// IsZero reports whether v is the zero Version, i.e. not specified.
+func (v Version) IsZero() bool {
+	return v == Version{}
+}
+
+// Compare returns -1, 0 or +1 depending on whether v is older than, the same
+// as, or newer than other.
+func (v Version) Compare(other Version) int {
+	if v.Major != other.Major {
+		return cmp.Compare(v.Major, other.Major)
+	}
+	return cmp.Compare(v.Minor, other.Minor)
+}
+
+// String formats v as "major.minor".
+func (v Version) String() string {
+	return fmt.Sprintf("%d.%d", v.Major, v.Minor)
 }
 
 // ── Diagnostic ─────────────────────────────────────────────────────────────

@@ -3,11 +3,16 @@
 use std::sync::Arc;
 
 use parcel_core::{
-  Asset as CoreAsset, Environment as CoreEnvironment, EnvironmentFlags as CoreEnvironmentFlags,
-  OutputFormat as CoreOutputFormat, SourceType as CoreSourceType,
+  Asset as CoreAsset, Engines as CoreEngines, Environment as CoreEnvironment,
+  EnvironmentFlags as CoreEnvironmentFlags, OutputFormat as CoreOutputFormat,
+  SourceType as CoreSourceType, Version as CoreVersion,
 };
 
-use crate::{AssetRef, Buffer, Options, Target, write_buffer};
+use crate::{
+  AssetRef, Buffer, Options, Target,
+  extensible::{Extensible, write_extensible},
+  write_buffer,
+};
 
 // Environment (target, read-only)
 #[repr(u8)]
@@ -94,6 +99,70 @@ assert_flag_values! {
   }
 }
 
+// Engines (target, read-only)
+
+/// The minimum engine versions a target supports, written by
+/// `parcel_target_get_engines()`.
+///
+/// Each version is `major << 8 | minor`, so versions compare as integers, and
+/// zero means the target does not specify that engine.
+///
+/// Initialize it as `Engines engines = {.size = sizeof(engines)};`.
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Engines {
+  /// `sizeof(Engines)`, set by the caller. Always the first member.
+  pub size: usize,
+  pub android: u16,
+  pub chrome: u16,
+  pub edge: u16,
+  pub firefox: u16,
+  pub ie: u16,
+  pub ios_saf: u16,
+  pub opera: u16,
+  pub safari: u16,
+  pub samsung: u16,
+  pub electron: u16,
+  pub node: u16,
+  pub parcel: u16,
+}
+
+impl Default for Engines {
+  fn default() -> Self {
+    Engines::from(&CoreEngines::default())
+  }
+}
+
+// Only Parcel writes this struct.
+unsafe impl Extensible for Engines {
+  const MIN_SIZE: usize = std::mem::offset_of!(Engines, parcel) + size_of::<u16>();
+}
+
+fn version(version: Option<CoreVersion>) -> u16 {
+  version.map_or(0, |version| version.major() << 8 | version.minor())
+}
+
+impl From<&CoreEngines> for Engines {
+  fn from(engines: &CoreEngines) -> Self {
+    let browsers = &engines.browsers;
+    Engines {
+      size: size_of::<Self>(),
+      android: version(browsers.android),
+      chrome: version(browsers.chrome),
+      edge: version(browsers.edge),
+      firefox: version(browsers.firefox),
+      ie: version(browsers.ie),
+      ios_saf: version(browsers.ios_saf),
+      opera: version(browsers.opera),
+      safari: version(browsers.safari),
+      samsung: version(browsers.samsung),
+      electron: version(engines.electron),
+      node: version(engines.node),
+      parcel: version(engines.parcel),
+    }
+  }
+}
+
 // ── Target (read-only) ────────────────────────────────────────────────────────
 
 /// Returns an opaque `Target` handle. Valid for the duration of the transform call.
@@ -139,6 +208,21 @@ pub extern "C" fn parcel_target_get_env_flags(target: Target) -> EnvironmentFlag
   }
   let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };
   target.flags.bits()
+}
+
+/// Writes the target's minimum engine versions into `*engines`, whose `size`
+/// the caller sets. Every version is zero for a null target.
+pub extern "C" fn parcel_target_get_engines(engines: *mut Engines, target: Target) {
+  if engines.is_null() {
+    return;
+  }
+  let value = if target == 0 {
+    Engines::default()
+  } else {
+    let target: &parcel_core::Target = unsafe { &*(target as *const parcel_core::Target) };
+    Engines::from(&target.engines)
+  };
+  unsafe { write_extensible(engines, value) };
 }
 
 /// Returns the public URL (e.g. `"/"`) into `*buf`. Caller must `parcel_free_buffer(buf)`.

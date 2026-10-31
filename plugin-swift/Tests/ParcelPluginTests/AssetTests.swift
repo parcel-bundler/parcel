@@ -93,6 +93,14 @@ nonisolated(unsafe) private let mockAPI: UnsafeMutablePointer<ParcelApi> = {
   api.pointee.options_get_mode = { buffer, _ in buffer?.pointee = hostBuffer("staging") }
   api.pointee.options_get_hmr = { $0 == UInt64(PARCEL_LOG_VERBOSE.rawValue) }
   api.pointee.options_get_log_level = { UInt8(truncatingIfNeeded: $0) }
+  // Every target supports Chrome 100, Safari 15.4 and Node 18.2.
+  api.pointee.target_get_engines = { engines, target in
+    guard let engines else { return }
+    sizedStructs.withLock { $0[target] = rawBytes(of: engines) }
+    engines.pointee.chrome = 100 << 8
+    engines.pointee.safari = 15 << 8 | 4
+    engines.pointee.node = 18 << 8 | 2
+  }
   // Resolves each dependency to the resolution type equal to its index.
   api.pointee.bundle_graph_get_dependency_resolution = { resolution, graph, asset, index in
     guard let resolution else { return }
@@ -282,6 +290,7 @@ private func setContent(_ body: (ParcelPlugin.Asset) -> Void) -> SetContentCall?
     #expect(matches(CParcelABI.OptimizeResult.self))
     #expect(matches(CParcelABI.DiagnosticOptions.self))
     #expect(matches(CParcelABI.BundleGraphDependencyResolution.self))
+    #expect(matches(CParcelABI.Engines.self))
     #expect(matches(CParcelABI.ReportEvent.self))
     #if arch(arm64) || arch(x86_64)
       #expect(MemoryLayout<CParcelABI.DependencyOptions>.size == 40)
@@ -404,6 +413,27 @@ private func setContent(_ body: (ParcelPlugin.Asset) -> Void) -> SetContentCall?
     // A kind of resolution this SDK predates.
     #expect(graph.resolution(ofDependency: 200, of: 3) == .invalid)
     #expect(graph.resolution(ofDependency: -1, of: 3) == .invalid)
+  }
+
+  @Test func targetEngines() {
+    #expect(installAPI(UnsafeRawPointer(mockAPI)))
+    let handle = nextHandle.add(1, ordering: .relaxed).newValue
+    let scope = CallScope("transform")
+    defer { scope.close() }
+    let target = ParcelPlugin.Target(
+      raw: handle, options: ParcelPlugin.Options(raw: 1, scope: scope))
+
+    let engines = target.engines
+    let size = sizedStructs.withLock { $0[handle] }?.withUnsafeBytes {
+      $0.loadUnaligned(as: UInt.self)
+    }
+    #expect(size == UInt(MemoryLayout<CParcelABI.Engines>.size))
+    #expect(engines.browsers.chrome == Version(major: 100))
+    #expect(engines.browsers.safari?.description == "15.4")
+    #expect(engines.browsers.firefox == nil)
+    #expect(engines.electron == nil)
+    #expect(engines.node! > Version(major: 16, minor: 9))
+    #expect(engines.node! < Version(major: 18, minor: 10))
   }
 
   /// A struct Parcel filled in is read up to its `size`.

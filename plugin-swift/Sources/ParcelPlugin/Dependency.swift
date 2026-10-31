@@ -182,4 +182,76 @@ public struct Target: Sendable {
   public var distDir: String {
     host { hostString { parcel_target_get_dist_dir($0, raw, options.raw) } ?? "" }
   }
+
+  /// The minimum engine versions the target supports.
+  public var engines: Engines {
+    host {
+      withSized(CParcelABI.Engines.self) { engines in
+        parcel_target_get_engines(engines, raw)
+        return Engines(engines.pointee)
+      }
+    }
+  }
+}
+
+/// The minimum engine versions a ``Target`` supports. `nil` for an engine the
+/// target does not specify.
+public struct Engines: Hashable, Sendable {
+  public var browsers: Browsers
+  public var electron: Version?
+  public var node: Version?
+  public var parcel: Version?
+
+  init(_ raw: CParcelABI.Engines) {
+    browsers = Browsers(
+      android: Version(raw: raw.android),
+      chrome: Version(raw: raw.chrome),
+      edge: Version(raw: raw.edge),
+      firefox: Version(raw: raw.firefox),
+      ie: Version(raw: raw.ie),
+      iosSaf: Version(raw: raw.ios_saf),
+      opera: Version(raw: raw.opera),
+      safari: Version(raw: raw.safari),
+      samsung: Version(raw: raw.samsung))
+    electron = Version(raw: raw.electron)
+    node = Version(raw: raw.node)
+    parcel = Version(raw: raw.parcel)
+  }
+}
+
+/// The minimum browser versions a ``Target`` supports, resolved from its
+/// browserslist query. `nil` for a browser it does not support.
+public struct Browsers: Hashable, Sendable {
+  public var android: Version?
+  public var chrome: Version?
+  public var edge: Version?
+  public var firefox: Version?
+  public var ie: Version?
+  public var iosSaf: Version?
+  public var opera: Version?
+  public var safari: Version?
+  public var samsung: Version?
+}
+
+/// A `major.minor` engine version. Versions order by major, then minor.
+public struct Version: Hashable, Comparable, Sendable, CustomStringConvertible {
+  public var major: UInt8
+  public var minor: UInt8
+
+  public init(major: UInt8, minor: UInt8 = 0) {
+    self.major = major
+    self.minor = minor
+  }
+
+  /// Unpacks the ABI's `major << 8 | minor`, where zero means unset.
+  init?(raw: UInt16) {
+    guard raw != 0 else { return nil }
+    self.init(major: UInt8(raw >> 8), minor: UInt8(raw & 0xff))
+  }
+
+  public static func < (lhs: Version, rhs: Version) -> Bool {
+    (lhs.major, lhs.minor) < (rhs.major, rhs.minor)
+  }
+
+  public var description: String { "\(major).\(minor)" }
 }

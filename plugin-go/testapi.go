@@ -41,7 +41,8 @@ static void install_source_map_api(struct ParcelApi *api) {
 
 // What the sized-struct host below was last passed: the size of each struct, and
 // the specifier of the last dependency.
-static uintptr_t test_dependency_size, test_resolve_result_size, test_resolution_size, test_diagnostic_size;
+static uintptr_t test_dependency_size, test_resolve_result_size, test_resolution_size, test_diagnostic_size,
+    test_engines_size;
 static char test_specifier[64];
 
 // Go cannot reference static variables, only functions.
@@ -49,6 +50,7 @@ static uintptr_t test_get_dependency_size(void) { return test_dependency_size; }
 static uintptr_t test_get_resolve_result_size(void) { return test_resolve_result_size; }
 static uintptr_t test_get_resolution_size(void) { return test_resolution_size; }
 static uintptr_t test_get_diagnostic_size(void) { return test_diagnostic_size; }
+static uintptr_t test_get_engines_size(void) { return test_engines_size; }
 static const char *test_get_specifier(void) { return test_specifier; }
 
 static struct Buffer test_buffer_alloc(const uint8_t *data, uintptr_t len) {
@@ -105,6 +107,14 @@ static void test_bundle_graph_get_dependency_resolution(struct BundleGraphDepend
   resolution->resolution_type = (BundleGraphResolutionType)asset;
   resolution->asset = 5;
   resolution->bundle = 6;
+}
+
+// Supports Chrome 100, Safari 15.4 and Node 18.2.
+static void test_target_get_engines(struct Engines *engines, Target target) {
+  test_engines_size = engines->size;
+  engines->chrome = 100 << 8;
+  engines->safari = 15 << 8 | 4;
+  engines->node = 18 << 8 | 2;
 }
 
 static void test_options_log_diagnostic(Options options, const struct DiagnosticOptions *diagnostic) {
@@ -171,6 +181,7 @@ static void install_sized_struct_api(struct ParcelApi *api) {
   api->asset_resolve = test_asset_resolve;
   api->diagnostic_get_message = test_diagnostic_get_message;
   api->bundle_graph_get_dependency_resolution = test_bundle_graph_get_dependency_resolution;
+  api->target_get_engines = test_target_get_engines;
   api->options_log_diagnostic = test_options_log_diagnostic;
 }
 */
@@ -246,6 +257,7 @@ func (sizedHost) dependencySize() uintptr    { return uintptr(C.test_get_depende
 func (sizedHost) resolveResultSize() uintptr { return uintptr(C.test_get_resolve_result_size()) }
 func (sizedHost) resolutionSize() uintptr    { return uintptr(C.test_get_resolution_size()) }
 func (sizedHost) diagnosticSize() uintptr    { return uintptr(C.test_get_diagnostic_size()) }
+func (sizedHost) enginesSize() uintptr       { return uintptr(C.test_get_engines_size()) }
 func (sizedHost) specifier() string          { return C.GoString(C.test_get_specifier()) }
 
 // The sizes this SDK was built with, which every struct it allocates must carry.
@@ -254,6 +266,7 @@ const (
 	resolveResultSize     = C.sizeof_ResolveResult
 	resolutionSize        = C.sizeof_BundleGraphDependencyResolution
 	diagnosticSize        = C.sizeof_DiagnosticOptions
+	enginesSize           = C.sizeof_Engines
 	reportEventSize       = C.sizeof_ReportEvent
 )
 
@@ -306,6 +319,9 @@ func withAccessorHost(body func()) {
 func dependencyWithHandle(handle uint64) *Dependency { return &Dependency{ptr: C.Dependency(handle)} }
 func optionsWithHandle(handle uint64) *Options       { return &Options{ptr: C.Options(handle)} }
 func assetRefWithHandle(handle uint64) *AssetRef     { return &AssetRef{ptr: C.Asset(handle)} }
+
+// targetWithHandle wraps a raw target handle.
+func targetWithHandle(handle uint64) *Target { return &Target{ptr: C.Target(handle)} }
 
 // rawDependency returns the handle a dependency wraps.
 func rawDependency(dependency *Dependency) uint64 { return uint64(dependency.ptr) }

@@ -179,3 +179,25 @@ func TestReportSkipsUndersizedAndUnknownEvents(t *testing.T) {
 		}
 	})
 }
+
+func TestTargetEnginesSetsSizeAndUnpacksVersions(t *testing.T) {
+	withSizedStructHost(func(host sizedHost) {
+		engines := targetWithHandle(1).Engines()
+		if host.enginesSize() != enginesSize {
+			t.Fatalf("expected Engines.size %d, got %d", enginesSize, host.enginesSize())
+		}
+		want := Engines{
+			Browsers: Browsers{Chrome: Version{100, 0}, Safari: Version{15, 4}},
+			Node:     Version{18, 2},
+		}
+		if engines != want {
+			t.Fatalf("expected %+v, got %+v", want, engines)
+		}
+		if !engines.Electron.IsZero() || engines.Node.String() != "18.2" {
+			t.Fatalf("unexpected versions %+v", engines)
+		}
+		if engines.Node.Compare(Version{18, 10}) >= 0 || engines.Node.Compare(Version{17, 9}) <= 0 {
+			t.Fatal("expected versions to compare by major, then minor")
+		}
+	})
+}

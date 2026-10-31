@@ -1940,6 +1940,86 @@ impl<'a> Target<'a> {
     unsafe { host!(target_get_dist_dir)(&mut buf, self.raw, self.options) };
     PathBuf::from(buf.to_string().unwrap_or_default())
   }
+
+  /// Returns the minimum engine versions the target supports.
+  pub fn engines(&self) -> Engines {
+    let raw = with_sized(|engines: &mut ffi::Engines| {
+      unsafe { host!(target_get_engines)(engines, self.raw) };
+      *engines
+    });
+    Engines::from(raw)
+  }
+}
+
+/// The minimum engine versions a [`Target`] supports. `None` for an engine
+/// the target does not specify.
+#[non_exhaustive]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct Engines {
+  pub browsers: Browsers,
+  pub electron: Option<Version>,
+  pub node: Option<Version>,
+  pub parcel: Option<Version>,
+}
+
+/// The minimum browser versions a [`Target`] supports, resolved from its
+/// browserslist query.
+#[non_exhaustive]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct Browsers {
+  pub android: Option<Version>,
+  pub chrome: Option<Version>,
+  pub edge: Option<Version>,
+  pub firefox: Option<Version>,
+  pub ie: Option<Version>,
+  pub ios_saf: Option<Version>,
+  pub opera: Option<Version>,
+  pub safari: Option<Version>,
+  pub samsung: Option<Version>,
+}
+
+impl From<ffi::Engines> for Engines {
+  fn from(raw: ffi::Engines) -> Self {
+    Engines {
+      browsers: Browsers {
+        android: Version::from_raw(raw.android),
+        chrome: Version::from_raw(raw.chrome),
+        edge: Version::from_raw(raw.edge),
+        firefox: Version::from_raw(raw.firefox),
+        ie: Version::from_raw(raw.ie),
+        ios_saf: Version::from_raw(raw.ios_saf),
+        opera: Version::from_raw(raw.opera),
+        safari: Version::from_raw(raw.safari),
+        samsung: Version::from_raw(raw.samsung),
+      },
+      electron: Version::from_raw(raw.electron),
+      node: Version::from_raw(raw.node),
+      parcel: Version::from_raw(raw.parcel),
+    }
+  }
+}
+
+/// A `major.minor` engine version. Versions order by major, then minor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Version {
+  pub major: u8,
+  pub minor: u8,
+}
+
+impl Version {
+  /// Unpacks a version from the ABI's `major << 8 | minor`, where zero means unset.
+  fn from_raw(raw: u16) -> Option<Self> {
+    (raw != 0).then_some(Version {
+      major: (raw >> 8) as u8,
+      minor: (raw & 0xff) as u8,
+    })
+  }
+}
+
+impl std::fmt::Display for Version {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{}.{}", self.major, self.minor)
+  }
 }
 
 // ── Dependency ─────────────────────────────────────────────────────────────
@@ -2408,6 +2488,41 @@ mod tests {
     flags.set(AssetFlags::IS_SOURCE, false);
     assert_eq!(flags, AssetFlags::IS_ESM);
     assert!(!(!AssetFlags::IS_ESM).contains(AssetFlags::IS_ESM));
+  }
+
+  #[test]
+  fn engines_unpack_versions() {
+    let engines = Engines::from(ffi::Engines {
+      size: size_of::<ffi::Engines>(),
+      chrome: 100 << 8,
+      safari: 15 << 8 | 4,
+      node: 18 << 8 | 2,
+      ..unsafe { std::mem::zeroed() }
+    });
+    assert_eq!(
+      engines.browsers.chrome,
+      Some(Version {
+        major: 100,
+        minor: 0
+      })
+    );
+    assert_eq!(engines.browsers.safari.unwrap().to_string(), "15.4");
+    assert_eq!(engines.browsers.firefox, None);
+    assert_eq!(engines.electron, None);
+    assert!(
+      engines.node.unwrap()
+        > Version {
+          major: 16,
+          minor: 9
+        }
+    );
+    assert!(
+      engines.node.unwrap()
+        < Version {
+          major: 18,
+          minor: 3
+        }
+    );
   }
 
   #[test]

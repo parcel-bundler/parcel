@@ -569,6 +569,43 @@ const _: () = {
   ["Offset of field: DependencyOptions::import_type"]
     [::std::mem::offset_of!(DependencyOptions, import_type) - 32usize];
 };
+#[doc = " The minimum engine versions a target supports, written by\n `parcel_target_get_engines()`.\n\n Each version is `major << 8 | minor`, so versions compare as integers, and\n zero means the target does not specify that engine.\n\n Initialize it as `Engines engines = {.size = sizeof(engines)};`."]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Engines {
+  #[doc = " `sizeof(Engines)`, set by the caller. Always the first member."]
+  pub size: usize,
+  pub android: u16,
+  pub chrome: u16,
+  pub edge: u16,
+  pub firefox: u16,
+  pub ie: u16,
+  pub ios_saf: u16,
+  pub opera: u16,
+  pub safari: u16,
+  pub samsung: u16,
+  pub electron: u16,
+  pub node: u16,
+  pub parcel: u16,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+  ["Size of Engines"][::std::mem::size_of::<Engines>() - 32usize];
+  ["Alignment of Engines"][::std::mem::align_of::<Engines>() - 8usize];
+  ["Offset of field: Engines::size"][::std::mem::offset_of!(Engines, size) - 0usize];
+  ["Offset of field: Engines::android"][::std::mem::offset_of!(Engines, android) - 8usize];
+  ["Offset of field: Engines::chrome"][::std::mem::offset_of!(Engines, chrome) - 10usize];
+  ["Offset of field: Engines::edge"][::std::mem::offset_of!(Engines, edge) - 12usize];
+  ["Offset of field: Engines::firefox"][::std::mem::offset_of!(Engines, firefox) - 14usize];
+  ["Offset of field: Engines::ie"][::std::mem::offset_of!(Engines, ie) - 16usize];
+  ["Offset of field: Engines::ios_saf"][::std::mem::offset_of!(Engines, ios_saf) - 18usize];
+  ["Offset of field: Engines::opera"][::std::mem::offset_of!(Engines, opera) - 20usize];
+  ["Offset of field: Engines::safari"][::std::mem::offset_of!(Engines, safari) - 22usize];
+  ["Offset of field: Engines::samsung"][::std::mem::offset_of!(Engines, samsung) - 24usize];
+  ["Offset of field: Engines::electron"][::std::mem::offset_of!(Engines, electron) - 26usize];
+  ["Offset of field: Engines::node"][::std::mem::offset_of!(Engines, node) - 28usize];
+  ["Offset of field: Engines::parcel"][::std::mem::offset_of!(Engines, parcel) - 30usize];
+};
 #[doc = " Opaque, read-only handle to a list of diagnostics: those a reporter event\n carries, or a `Diagnostics` list. Pass to the `parcel_diagnostics_*` and\n `parcel_diagnostic_*` getters. Valid until the call that received it returns."]
 pub type DiagnosticsRef = u64;
 #[doc = " Result filled by a resolver plugin's `parcel_plugin_resolve()`, or by Parcel in\n `parcel_asset_resolve()`.\n\n Whoever allocates it zero-initializes it and sets `size`: Parcel before calling\n `parcel_plugin_resolve()`, so a resolver only writes fields that fit within\n `size` (`PARCEL_HAS_FIELD()` checks), and the plugin before calling\n `parcel_asset_resolve()`, as `ResolveResult result = {.size = sizeof(ResolveResult)};`.\n\n When type == PARCEL_RESOLUTION_FILE_PATH, fill `file_path` (and optionally `pipeline`) via `parcel_buffer_alloc()`."]
@@ -839,6 +876,8 @@ pub struct ParcelApi {
     ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, target: Target)>,
   pub target_get_dist_dir:
     ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, target: Target, options: Options)>,
+  pub target_get_engines:
+    ::std::option::Option<unsafe extern "C" fn(engines: *mut Engines, target: Target)>,
   pub asset_get_query:
     ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef)>,
   pub diagnostics_get_count:
@@ -923,7 +962,7 @@ pub struct ParcelApi {
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 704usize];
+  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 712usize];
   ["Alignment of ParcelApi"][::std::mem::align_of::<ParcelApi>() - 8usize];
   ["Offset of field: ParcelApi::header"][::std::mem::offset_of!(ParcelApi, header) - 0usize];
   ["Offset of field: ParcelApi::asset_get_content"]
@@ -1058,46 +1097,48 @@ const _: () = {
     [::std::mem::offset_of!(ParcelApi, target_get_public_url) - 528usize];
   ["Offset of field: ParcelApi::target_get_dist_dir"]
     [::std::mem::offset_of!(ParcelApi, target_get_dist_dir) - 536usize];
+  ["Offset of field: ParcelApi::target_get_engines"]
+    [::std::mem::offset_of!(ParcelApi, target_get_engines) - 544usize];
   ["Offset of field: ParcelApi::asset_get_query"]
-    [::std::mem::offset_of!(ParcelApi, asset_get_query) - 544usize];
+    [::std::mem::offset_of!(ParcelApi, asset_get_query) - 552usize];
   ["Offset of field: ParcelApi::diagnostics_get_count"]
-    [::std::mem::offset_of!(ParcelApi, diagnostics_get_count) - 552usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostics_get_count) - 560usize];
   ["Offset of field: ParcelApi::diagnostic_get_message"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_message) - 560usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_message) - 568usize];
   ["Offset of field: ParcelApi::diagnostic_get_severity"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_severity) - 568usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_severity) - 576usize];
   ["Offset of field: ParcelApi::diagnostic_get_origin"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_origin) - 576usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_origin) - 584usize];
   ["Offset of field: ParcelApi::diagnostic_get_hint_count"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_hint_count) - 584usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_hint_count) - 592usize];
   ["Offset of field: ParcelApi::diagnostic_get_hint"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_hint) - 592usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_hint) - 600usize];
   ["Offset of field: ParcelApi::options_log"]
-    [::std::mem::offset_of!(ParcelApi, options_log) - 600usize];
+    [::std::mem::offset_of!(ParcelApi, options_log) - 608usize];
   ["Offset of field: ParcelApi::options_log_diagnostic"]
-    [::std::mem::offset_of!(ParcelApi, options_log_diagnostic) - 608usize];
+    [::std::mem::offset_of!(ParcelApi, options_log_diagnostic) - 616usize];
   ["Offset of field: ParcelApi::bundle_get_stable_key"]
-    [::std::mem::offset_of!(ParcelApi, bundle_get_stable_key) - 616usize];
+    [::std::mem::offset_of!(ParcelApi, bundle_get_stable_key) - 624usize];
   ["Offset of field: ParcelApi::bundle_get_hash_reference"]
-    [::std::mem::offset_of!(ParcelApi, bundle_get_hash_reference) - 624usize];
+    [::std::mem::offset_of!(ParcelApi, bundle_get_hash_reference) - 632usize];
   ["Offset of field: ParcelApi::fs_read_file"]
-    [::std::mem::offset_of!(ParcelApi, fs_read_file) - 632usize];
+    [::std::mem::offset_of!(ParcelApi, fs_read_file) - 640usize];
   ["Offset of field: ParcelApi::fs_get_kind"]
-    [::std::mem::offset_of!(ParcelApi, fs_get_kind) - 640usize];
+    [::std::mem::offset_of!(ParcelApi, fs_get_kind) - 648usize];
   ["Offset of field: ParcelApi::fs_canonicalize"]
-    [::std::mem::offset_of!(ParcelApi, fs_canonicalize) - 648usize];
+    [::std::mem::offset_of!(ParcelApi, fs_canonicalize) - 656usize];
   ["Offset of field: ParcelApi::asset_resolve"]
-    [::std::mem::offset_of!(ParcelApi, asset_resolve) - 656usize];
+    [::std::mem::offset_of!(ParcelApi, asset_resolve) - 664usize];
   ["Offset of field: ParcelApi::asset_get_map"]
-    [::std::mem::offset_of!(ParcelApi, asset_get_map) - 664usize];
+    [::std::mem::offset_of!(ParcelApi, asset_get_map) - 672usize];
   ["Offset of field: ParcelApi::diagnostic_get_documentation_url"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_documentation_url) - 672usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_documentation_url) - 680usize];
   ["Offset of field: ParcelApi::diagnostic_get_code_frame_count"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_frame_count) - 680usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_frame_count) - 688usize];
   ["Offset of field: ParcelApi::diagnostic_get_code_frame"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_frame) - 688usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_frame) - 696usize];
   ["Offset of field: ParcelApi::diagnostic_get_code_highlight"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_highlight) - 696usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_highlight) - 704usize];
 };
 #[doc = " Result filled by an optimizer plugin's `parcel_plugin_optimize()`.\n The struct is zero-initialised by the host before the call, apart from `size`.\n Fill `contents` and optionally `source_map` using `parcel_buffer_write()` or\n `parcel_buffer_write_utf8()`, and only write fields that fit within `size`\n (`PARCEL_HAS_FIELD()` checks)."]
 #[repr(C)]

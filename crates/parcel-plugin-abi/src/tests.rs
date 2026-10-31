@@ -5,11 +5,11 @@ use std::{borrow::Cow, collections::HashMap, ffi::c_void, ptr, sync::Arc};
 
 use parcel_core::{
   Asset as CoreAsset, AssetFlags as CoreAssetFlags, AssetGraph, AssetIndex as CoreAssetIndex,
-  AssetNode, AssetNodeIndex, AssetRequest, AssetType, BufferContent, Bundle as CoreBundle,
-  BundleBehavior as CoreBundleBehavior, BundleFlags as CoreBundleFlags,
+  AssetNode, AssetNodeIndex, AssetRequest, AssetType, Browsers, BufferContent,
+  Bundle as CoreBundle, BundleBehavior as CoreBundleBehavior, BundleFlags as CoreBundleFlags,
   BundleGraph as CoreBundleGraph, Content, ContentWithSourceMap, Dependency as CoreDependency,
   DependencyFlags as CoreDependencyFlags, DependencyId, DependencyResolution, DiagnosticList,
-  Environment as CoreEnvironment, EnvironmentFlags as CoreEnvironmentFlags,
+  Engines as CoreEngines, Environment as CoreEnvironment, EnvironmentFlags as CoreEnvironmentFlags,
   ExportsCondition as CoreExportsCondition, FileCreateInvalidation, FileSystem, ImportType,
   MemoryFileSystem, OutputFormat as CoreOutputFormat, ParcelOptions, PathId, PluginContext,
   Priority as CorePriority, Resolver, SourceLocation, SourceType as CoreSourceType, SourceUrl,
@@ -30,6 +30,15 @@ fn target_fixture() -> Arc<CoreTarget> {
     flags: CoreEnvironmentFlags::IS_LIBRARY | CoreEnvironmentFlags::SHOULD_OPTIMIZE,
     dist_dir: path("/project/dist"),
     public_url: "/assets".into(),
+    engines: CoreEngines {
+      browsers: Browsers {
+        chrome: Some("100".parse().unwrap()),
+        safari: Some("15.4".parse().unwrap()),
+        ..Default::default()
+      },
+      node: Some("18.2".parse().unwrap()),
+      ..Default::default()
+    },
     ..Default::default()
   })
 }
@@ -499,6 +508,42 @@ fn target_accessors_map_every_enum_variant_and_return_fields() {
   );
   parcel_target_get_public_url(ptr::null_mut(), handle);
   parcel_target_get_dist_dir(ptr::null_mut(), handle, 0);
+}
+
+#[test]
+fn target_engines_pack_versions_and_leave_unset_ones_zero() {
+  let target = target_fixture();
+  let mut engines = Engines {
+    size: size_of::<Engines>(),
+    ..Default::default()
+  };
+  parcel_target_get_engines(&mut engines, target_handle(&target));
+  assert_eq!(
+    engines,
+    Engines {
+      chrome: 100 << 8,
+      safari: 15 << 8 | 4,
+      node: 18 << 8 | 2,
+      ..Default::default()
+    }
+  );
+
+  // A null target leaves every engine unset.
+  let mut engines = Engines {
+    chrome: 1,
+    ..Default::default()
+  };
+  parcel_target_get_engines(&mut engines, 0);
+  assert_eq!(engines, Engines::default());
+  parcel_target_get_engines(ptr::null_mut(), target_handle(&target));
+
+  // A caller that forgot to set `size` gets nothing written.
+  let mut engines = Engines {
+    size: 0,
+    ..Default::default()
+  };
+  parcel_target_get_engines(&mut engines, target_handle(&target));
+  assert_eq!(engines.chrome, 0);
 }
 
 #[test]
@@ -1884,6 +1929,21 @@ fn struct_layouts_only_grow() {
   assert_eq!(offset_of!(BundleGraphDependencyResolution, bundle), 16);
   assert_eq!(BundleGraphDependencyResolution::MIN_SIZE, 24);
 
+  assert_eq!(offset_of!(Engines, size), 0);
+  assert_eq!(offset_of!(Engines, android), 8);
+  assert_eq!(offset_of!(Engines, chrome), 10);
+  assert_eq!(offset_of!(Engines, edge), 12);
+  assert_eq!(offset_of!(Engines, firefox), 14);
+  assert_eq!(offset_of!(Engines, ie), 16);
+  assert_eq!(offset_of!(Engines, ios_saf), 18);
+  assert_eq!(offset_of!(Engines, opera), 20);
+  assert_eq!(offset_of!(Engines, safari), 22);
+  assert_eq!(offset_of!(Engines, samsung), 24);
+  assert_eq!(offset_of!(Engines, electron), 26);
+  assert_eq!(offset_of!(Engines, node), 28);
+  assert_eq!(offset_of!(Engines, parcel), 30);
+  assert_eq!(Engines::MIN_SIZE, 32);
+
   assert_eq!(offset_of!(ReportEvent, size), 0);
   assert_eq!(offset_of!(ReportEvent, event_type), 8);
   assert_eq!(offset_of!(ReportEvent, level), 9);
@@ -1968,6 +2028,9 @@ fn zero_handles_read_as_zero() {
   assert_eq!(parcel_target_get_output_format(0) as u8, 0);
   assert_eq!(parcel_target_get_source_type(0) as u8, 0);
   assert_eq!(parcel_target_get_env_flags(0), 0);
+  let mut engines = Engines::default();
+  parcel_target_get_engines(&mut engines, 0);
+  assert_eq!(engines, Engines::default());
 
   // Setters on no asset do nothing.
   let data = b"x";

@@ -756,6 +756,34 @@ typedef struct DependencyOptions {
 } DependencyOptions;
 
 /**
+ * The minimum engine versions a target supports, written by
+ * `parcel_target_get_engines()`.
+ *
+ * Each version is `major << 8 | minor`, so versions compare as integers, and
+ * zero means the target does not specify that engine.
+ *
+ * Initialize it as `Engines engines = {.size = sizeof(engines)};`.
+ */
+typedef struct Engines {
+  /**
+   * `sizeof(Engines)`, set by the caller. Always the first member.
+   */
+  uintptr_t size;
+  uint16_t android;
+  uint16_t chrome;
+  uint16_t edge;
+  uint16_t firefox;
+  uint16_t ie;
+  uint16_t ios_saf;
+  uint16_t opera;
+  uint16_t safari;
+  uint16_t samsung;
+  uint16_t electron;
+  uint16_t node;
+  uint16_t parcel;
+} Engines;
+
+/**
  * Opaque, read-only handle to a list of diagnostics: those a reporter event
  * carries, or a `Diagnostics` list. Pass to the `parcel_diagnostics_*` and
  * `parcel_diagnostic_*` getters. Valid until the call that received it returns.
@@ -946,6 +974,7 @@ typedef struct ParcelApi {
   EnvironmentFlags (*target_get_env_flags)(Target target);
   void (*target_get_public_url)(struct Buffer *buf, Target target);
   void (*target_get_dist_dir)(struct Buffer *buf, Target target, Options options);
+  void (*target_get_engines)(struct Engines *engines, Target target);
   void (*asset_get_query)(struct Buffer *buf, AssetRef asset);
   uintptr_t (*diagnostics_get_count)(DiagnosticsRef diagnostics);
   void (*diagnostic_get_message)(struct Buffer *buf, DiagnosticsRef diagnostics, uintptr_t index);
@@ -1469,6 +1498,10 @@ static inline void parcel_target_get_public_url(struct Buffer *buf, Target targe
 
 static inline void parcel_target_get_dist_dir(struct Buffer *buf, Target target, Options options) {
   parcel_api->target_get_dist_dir(buf, target, options);
+}
+
+static inline void parcel_target_get_engines(struct Engines *engines, Target target) {
+  parcel_api->target_get_engines(engines, target);
 }
 
 static inline void parcel_asset_get_query(struct Buffer *buf, AssetRef asset) {

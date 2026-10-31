@@ -217,6 +217,7 @@ pub struct ParcelApi {
   pub target_get_env_flags: unsafe extern "C" fn(target: Target) -> EnvironmentFlagsFFI,
   pub target_get_public_url: unsafe extern "C" fn(buf: *mut Buffer, target: Target),
   pub target_get_dist_dir: unsafe extern "C" fn(buf: *mut Buffer, target: Target, options: Options),
+  pub target_get_engines: unsafe extern "C" fn(engines: *mut Engines, target: Target),
   pub asset_get_query: unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef),
   pub diagnostics_get_count: unsafe extern "C" fn(diagnostics: DiagnosticsRef) -> usize,
   pub diagnostic_get_message:
@@ -356,6 +357,7 @@ pub static PARCEL_API: ParcelApi = ParcelApi {
   target_get_env_flags: parcel_target_get_env_flags,
   target_get_public_url: parcel_target_get_public_url,
   target_get_dist_dir: parcel_target_get_dist_dir,
+  target_get_engines: parcel_target_get_engines,
   asset_get_query: parcel_asset_get_query,
   diagnostics_get_count: parcel_diagnostics_get_count,
   diagnostic_get_message: parcel_diagnostic_get_message,
