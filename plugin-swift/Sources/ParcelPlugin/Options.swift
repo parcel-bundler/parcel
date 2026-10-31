@@ -60,11 +60,11 @@ public struct Options: Sendable {
         // The host copies what it needs rather than taking ownership, unlike a
         // diagnostic returned from an entry point, so these are ours to free.
         defer {
-          parcel_free_buffer(&raw.pointee.message)
-          parcel_free_buffer(&raw.pointee.file_path)
-          parcel_free_buffer(&raw.pointee.hint)
-          parcel_free_buffer(&raw.pointee.highlight_message)
-          parcel_free_buffer(&raw.pointee.documentation_url)
+          parcel_buffer_free(&raw.pointee.message)
+          parcel_buffer_free(&raw.pointee.file_path)
+          parcel_buffer_free(&raw.pointee.hint)
+          parcel_buffer_free(&raw.pointee.highlight_message)
+          parcel_buffer_free(&raw.pointee.documentation_url)
         }
         parcel_options_log_diagnostic(self.raw, raw)
       }

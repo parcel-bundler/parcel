@@ -77,7 +77,7 @@ impl Default for Buffer {
 impl Drop for Buffer {
   fn drop(&mut self) {
     if !self.data.is_null() {
-      unsafe { host!(free_buffer)(self as *mut Buffer) };
+      unsafe { host!(buffer_free)(self as *mut Buffer) };
     }
   }
 }

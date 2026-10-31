@@ -99,7 +99,7 @@ pub(crate) unsafe fn options_context<'a>(options: Options) -> &'a OptionsContext
 // ── Options accessors (read-only) ─────────────────────────────────────────────
 
 /// Returns the project root as an absolute filesystem path into `*buf`.
-/// Caller must `parcel_free_buffer(buf)`.
+/// Caller must `parcel_buffer_free(buf)`.
 pub extern "C" fn parcel_options_get_project_root(buf: *mut Buffer, options: Options) {
   if buf.is_null() || options == 0 {
     return;
@@ -121,7 +121,7 @@ pub extern "C" fn parcel_options_get_project_root(buf: *mut Buffer, options: Opt
 
 /// Looks up `key` in the build environment map.
 /// Writes the value into `*buf` if found; leaves `buf->data == NULL` if not.
-/// Caller must `parcel_free_buffer(buf)` when `data != NULL`.
+/// Caller must `parcel_buffer_free(buf)` when `data != NULL`.
 pub extern "C" fn parcel_options_get_env(
   buf: *mut Buffer,
   options: Options,

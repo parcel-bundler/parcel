@@ -45,7 +45,7 @@ nonisolated(unsafe) private let mockAPI: UnsafeMutablePointer<ParcelApi> = {
     data.initialize(from: bytes, count: bytes.count)
     buffer.pointee = Buffer(data: data, len: UInt(bytes.count), cap: UInt(bytes.count), is_utf8: true)
   }
-  api.pointee.free_buffer = { buffer in
+  api.pointee.buffer_free = { buffer in
     guard let buffer else { return }
     buffer.pointee.data?.deallocate()
     buffer.pointee = Buffer()
@@ -127,7 +127,7 @@ private let resolveFailure = "the resolver failed"
 /// How many dependencies the mock host gives each asset handle.
 private let dependencyCounts = Mutex<[UInt64: Int]>([:])
 
-/// A buffer holding `string`, which the mock host's `free_buffer` frees.
+/// A buffer holding `string`, which the mock host's `buffer_free` frees.
 private func hostBuffer(_ string: String) -> Buffer {
   let bytes = Array(string.utf8)
   let data = UnsafeMutablePointer<UInt8>.allocate(capacity: bytes.count)

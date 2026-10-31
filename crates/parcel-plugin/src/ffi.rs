@@ -407,7 +407,7 @@ const _: () = {
   ["Offset of field: ParcelApiHeader::_reserved"]
     [::std::mem::offset_of!(ParcelApiHeader, _reserved) - 12usize];
 };
-#[doc = " Byte buffer owned by Parcel.\n Plugins may allocate a buffer with `parcel_buffer_alloc` and release with `parcel_free_buffer()`.\n Use `parcel_buffer_write` or `parcel_buffer_write_utf8` to copy data into an existing Buffer,\n replacing and dropping the existing content if any. Do not set the fields in this struct manually.\n\n `is_utf8` is a promise that `data` is valid UTF-8. Parcel relies on it without checking, so a\n buffer a plugin returns with it set (via `parcel_buffer_write_utf8()`) must hold valid UTF-8,\n and returning one that does not is undefined behavior."]
+#[doc = " Byte buffer owned by Parcel.\n Plugins may allocate a buffer with `parcel_buffer_alloc` and release with `parcel_buffer_free()`.\n Use `parcel_buffer_write` or `parcel_buffer_write_utf8` to copy data into an existing Buffer,\n replacing and dropping the existing content if any. Do not set the fields in this struct manually.\n\n `is_utf8` is a promise that `data` is valid UTF-8. Parcel relies on it without checking, so a\n buffer a plugin returns with it set (via `parcel_buffer_write_utf8()`) must hold valid UTF-8,\n and returning one that does not is undefined behavior."]
 #[repr(C)]
 #[derive(Debug)]
 pub struct Buffer {
@@ -776,7 +776,7 @@ pub struct ParcelApi {
     ::std::option::Option<unsafe extern "C" fn(asset: Asset, key: *const u8, key_len: usize)>,
   pub asset_add_export_symbol:
     ::std::option::Option<unsafe extern "C" fn(asset: Asset, name: *const u8, name_len: usize)>,
-  pub free_buffer: ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer)>,
+  pub buffer_free: ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer)>,
   pub buffer_alloc:
     ::std::option::Option<unsafe extern "C" fn(data: *const u8, len: usize) -> Buffer>,
   pub buffer_write:
@@ -1001,8 +1001,8 @@ const _: () = {
     [::std::mem::offset_of!(ParcelApi, asset_set_unique_key) - 144usize];
   ["Offset of field: ParcelApi::asset_add_export_symbol"]
     [::std::mem::offset_of!(ParcelApi, asset_add_export_symbol) - 152usize];
-  ["Offset of field: ParcelApi::free_buffer"]
-    [::std::mem::offset_of!(ParcelApi, free_buffer) - 160usize];
+  ["Offset of field: ParcelApi::buffer_free"]
+    [::std::mem::offset_of!(ParcelApi, buffer_free) - 160usize];
   ["Offset of field: ParcelApi::buffer_alloc"]
     [::std::mem::offset_of!(ParcelApi, buffer_alloc) - 168usize];
   ["Offset of field: ParcelApi::buffer_write"]

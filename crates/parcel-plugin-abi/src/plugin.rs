@@ -20,7 +20,7 @@ use crate::{
   Asset, AssetIndex, Buffer, Bundle, BundleGraph, Dependency, DiagnosticOptions, DiagnosticsRef,
   OptionsContext, ParcelPluginDeinitFn, ParcelPluginInitFn, ParcelPluginNameFn,
   ParcelPluginOptimizeFn, ParcelPluginReportFn, ParcelPluginResolveFn, ParcelPluginTransformFn,
-  diagnostics::DiagnosticsView, parcel_free_buffer, plugin_path, read_cdiagnostic, trusted_str,
+  diagnostics::DiagnosticsView, parcel_buffer_free, plugin_path, read_cdiagnostic, trusted_str,
   trusted_utf8,
 };
 
@@ -512,21 +512,21 @@ impl Resolver for CPlugin {
     let resolution_type = ResolutionType::try_from(result.resolution_type);
     if resolution_type != Ok(ResolutionType::PARCEL_RESOLUTION_FILE_PATH) {
       // A resolver may have filled these in regardless.
-      parcel_free_buffer(&mut result.file_path);
-      parcel_free_buffer(&mut result.pipeline);
+      parcel_buffer_free(&mut result.file_path);
+      parcel_buffer_free(&mut result.pipeline);
     }
 
     match resolution_type {
       Ok(ResolutionType::PARCEL_RESOLUTION_FILE_PATH) => {
         if result.file_path.data.is_null() {
-          parcel_free_buffer(&mut result.pipeline);
+          parcel_buffer_free(&mut result.pipeline);
           return Ok(DependencyResolution::None);
         }
         let file_path = match take_resolved_path(&mut result.file_path, specifier, &self.origin)
         {
           Ok(path) => path,
           Err(diagnostics) => {
-            parcel_free_buffer(&mut result.pipeline);
+            parcel_buffer_free(&mut result.pipeline);
             return Err(diagnostics);
           }
         };
@@ -543,7 +543,7 @@ impl Resolver for CPlugin {
             }
           };
           let atom = s.map(hstr::Atom::from);
-          parcel_free_buffer(&mut result.pipeline);
+          parcel_buffer_free(&mut result.pipeline);
           Some(atom?)
         };
 
@@ -598,7 +598,7 @@ pub(crate) fn take_resolved_path(
     let bytes = unsafe { std::slice::from_raw_parts(buffer.data, buffer.len) };
     unsafe { plugin_path(bytes, buffer.is_utf8) }.map(Path::to_path_buf)
   };
-  parcel_free_buffer(buffer);
+  parcel_buffer_free(buffer);
   *buffer = Buffer::default();
 
   let message = match path {
@@ -640,7 +640,7 @@ impl parcel_core::Namer for CPlugin {
     );
 
     if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, &context) {
-      parcel_free_buffer(&mut name);
+      parcel_buffer_free(&mut name);
       return Err(diagnostics);
     }
 
@@ -663,7 +663,7 @@ impl parcel_core::Namer for CPlugin {
       Err(err) => Err(err.into()),
     };
 
-    parcel_free_buffer(&mut name);
+    parcel_buffer_free(&mut name);
     res
   }
 }
@@ -783,8 +783,8 @@ impl Optimizer for CPlugin {
     );
 
     if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, &context) {
-      parcel_free_buffer(&mut result.contents);
-      parcel_free_buffer(&mut result.source_map);
+      parcel_buffer_free(&mut result.contents);
+      parcel_buffer_free(&mut result.source_map);
       return Err(diagnostics);
     }
 
@@ -794,7 +794,7 @@ impl Optimizer for CPlugin {
       let source_map = unsafe {
         std::slice::from_raw_parts(result.source_map.data, result.source_map.len).to_vec()
       };
-      parcel_free_buffer(&mut result.source_map);
+      parcel_buffer_free(&mut result.source_map);
       Some(source_map)
     };
 
@@ -807,7 +807,7 @@ impl Optimizer for CPlugin {
     } else {
       let contents =
         unsafe { std::slice::from_raw_parts(result.contents.data, result.contents.len).to_vec() };
-      parcel_free_buffer(&mut result.contents);
+      parcel_buffer_free(&mut result.contents);
 
       if result.contents.is_utf8 {
         let string = unsafe { trusted_utf8(contents, "An optimizer's result") };

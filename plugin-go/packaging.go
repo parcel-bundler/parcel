@@ -415,7 +415,7 @@ func (a *AssetRef) Type() string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -426,7 +426,7 @@ func (a *AssetRef) FilePath() string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -437,7 +437,7 @@ func (a *AssetRef) Query() string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -448,7 +448,7 @@ func (a *AssetRef) Pipeline() string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -474,7 +474,7 @@ func (a *AssetRef) UniqueKey() string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -522,7 +522,7 @@ func (b *Bundle) Type() string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -563,7 +563,7 @@ func (b *Bundle) DistPath() (string, bool) {
 	if buf.data == nil {
 		return "", false
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len)), true
 }
 
@@ -625,7 +625,7 @@ func bundleString(call func(*C.Buffer)) (string, bool) {
 	if buf.data == nil {
 		return "", false
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len)), true
 }
 

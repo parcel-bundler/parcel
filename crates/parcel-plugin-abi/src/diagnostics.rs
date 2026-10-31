@@ -15,7 +15,7 @@ use parcel_core::Diagnostic as CoreDiagnostic;
 use crate::{
   Buffer, DiagnosticSeverity, DiagnosticsRef,
   extensible::{Extensible, write_extensible},
-  parcel_free_buffer, write_buffer,
+  parcel_buffer_free, write_buffer,
 };
 
 /// What a [`DiagnosticsRef`] handle points to: a reporter event's diagnostics,
@@ -52,7 +52,7 @@ pub extern "C" fn parcel_diagnostics_get_count(diagnostics: DiagnosticsRef) -> u
 }
 
 /// Returns the diagnostic's message into `*buf`.
-/// Caller must `parcel_free_buffer(buf)`.
+/// Caller must `parcel_buffer_free(buf)`.
 pub extern "C" fn parcel_diagnostic_get_message(
   buf: *mut Buffer,
   diagnostics: DiagnosticsRef,
@@ -79,7 +79,7 @@ pub extern "C" fn parcel_diagnostic_get_severity(
 
 /// Returns the name of the plugin the diagnostic came from into `*buf`, if it
 /// recorded one. Leaves `buf->data == NULL` when it did not.
-/// Caller must `parcel_free_buffer(buf)` when `data != NULL`.
+/// Caller must `parcel_buffer_free(buf)` when `data != NULL`.
 pub extern "C" fn parcel_diagnostic_get_origin(
   buf: *mut Buffer,
   diagnostics: DiagnosticsRef,
@@ -102,7 +102,7 @@ pub extern "C" fn parcel_diagnostic_get_hint_count(
 }
 
 /// Returns one of the diagnostic's hints into `*buf`.
-/// Caller must `parcel_free_buffer(buf)`.
+/// Caller must `parcel_buffer_free(buf)`.
 pub extern "C" fn parcel_diagnostic_get_hint(
   buf: *mut Buffer,
   diagnostics: DiagnosticsRef,
@@ -119,7 +119,7 @@ pub extern "C" fn parcel_diagnostic_get_hint(
 
 /// Returns the URL of documentation about the diagnostic into `*buf`, or leaves
 /// `buf->data == NULL` when it has none.
-/// Caller must `parcel_free_buffer(buf)` when `data != NULL`.
+/// Caller must `parcel_buffer_free(buf)` when `data != NULL`.
 pub extern "C" fn parcel_diagnostic_get_documentation_url(
   buf: *mut Buffer,
   diagnostics: DiagnosticsRef,
@@ -282,7 +282,7 @@ unsafe fn write_info<T: Extensible, const N: usize>(
   let size = unsafe { out.cast::<usize>().read() };
   if size < T::MIN_SIZE {
     for buffer in buffers(&mut info) {
-      parcel_free_buffer(buffer);
+      parcel_buffer_free(buffer);
     }
     return false;
   }
@@ -293,7 +293,7 @@ unsafe fn write_info<T: Extensible, const N: usize>(
   for buffer in buffers(&mut info) {
     let offset = buffer as *mut Buffer as usize - base;
     if offset + size_of::<Buffer>() > size {
-      parcel_free_buffer(buffer);
+      parcel_buffer_free(buffer);
       *buffer = Buffer::default();
     }
   }

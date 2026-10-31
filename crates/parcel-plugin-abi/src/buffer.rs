@@ -64,7 +64,7 @@ pub(crate) unsafe fn plugin_path<'a>(bytes: &'a [u8], is_utf8: bool) -> Option<&
 }
 
 /// Byte buffer owned by Parcel.
-/// Plugins may allocate a buffer with `parcel_buffer_alloc` and release with `parcel_free_buffer()`.
+/// Plugins may allocate a buffer with `parcel_buffer_alloc` and release with `parcel_buffer_free()`.
 /// Use `parcel_buffer_write` or `parcel_buffer_write_utf8` to copy data into an existing Buffer,
 /// replacing and dropping the existing content if any. Do not set the fields in this struct manually.
 ///
@@ -92,7 +92,7 @@ pub(crate) unsafe fn write_buffer(buffer: *mut Buffer, mut bytes: Vec<u8>, is_ut
 // ── Buffer functions ──────────────────────────────────────────────────────────
 
 /// Release a `Buffer` previously filled by a getter or `parcel_buffer_alloc()`.
-pub extern "C" fn parcel_free_buffer(buf: *mut Buffer) {
+pub extern "C" fn parcel_buffer_free(buf: *mut Buffer) {
   if buf.is_null() {
     return;
   }
@@ -134,7 +134,7 @@ fn parcel_buffer_write_inner(buf: *mut Buffer, data: *const u8, len: usize, is_u
     let buf = &mut *buf;
     if len == 0 {
       if !buf.data.is_null() {
-        parcel_free_buffer(buf as *mut Buffer);
+        parcel_buffer_free(buf as *mut Buffer);
         buf.data = std::ptr::null_mut();
         buf.len = 0;
         buf.cap = 0;

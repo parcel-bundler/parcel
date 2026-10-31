@@ -545,7 +545,7 @@ typedef struct ParcelApiHeader {
 
 /**
  * Byte buffer owned by Parcel.
- * Plugins may allocate a buffer with `parcel_buffer_alloc` and release with `parcel_free_buffer()`.
+ * Plugins may allocate a buffer with `parcel_buffer_alloc` and release with `parcel_buffer_free()`.
  * Use `parcel_buffer_write` or `parcel_buffer_write_utf8` to copy data into an existing Buffer,
  * replacing and dropping the existing content if any. Do not set the fields in this struct manually.
  *
@@ -923,7 +923,7 @@ typedef struct ParcelApi {
   void (*asset_get_unique_key)(struct Buffer *buf, AssetRef asset);
   void (*asset_set_unique_key)(Asset asset, const uint8_t *key, uintptr_t key_len);
   void (*asset_add_export_symbol)(Asset asset, const uint8_t *name, uintptr_t name_len);
-  void (*free_buffer)(struct Buffer *buf);
+  void (*buffer_free)(struct Buffer *buf);
   struct Buffer (*buffer_alloc)(const uint8_t *data, uintptr_t len);
   void (*buffer_write)(struct Buffer *buf, const uint8_t *data, uintptr_t len);
   void (*buffer_write_utf8)(struct Buffer *buf, const uint8_t *data, uintptr_t len);
@@ -1308,8 +1308,8 @@ static inline void parcel_asset_add_export_symbol(Asset asset, const uint8_t *na
   parcel_api->asset_add_export_symbol(asset, name, name_len);
 }
 
-static inline void parcel_free_buffer(struct Buffer *buf) {
-  parcel_api->free_buffer(buf);
+static inline void parcel_buffer_free(struct Buffer *buf) {
+  parcel_api->buffer_free(buf);
 }
 
 static inline struct Buffer parcel_buffer_alloc(const uint8_t *data, uintptr_t len) {

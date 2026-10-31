@@ -134,7 +134,7 @@ fn buffer_output<R>(call: impl FnOnce(*mut Buffer) -> R) -> Option<(Vec<u8>, boo
 
   let bytes = unsafe { std::slice::from_raw_parts(buffer.data, buffer.len).to_vec() };
   let is_utf8 = buffer.is_utf8;
-  parcel_free_buffer(&mut buffer);
+  parcel_buffer_free(&mut buffer);
   Some((bytes, is_utf8))
 }
 
@@ -168,7 +168,7 @@ fn buffer_ownership_functions_allocate_replace_and_clear() {
 
   let empty = parcel_buffer_alloc(ptr::null(), 0);
   assert!(empty.data.is_null());
-  parcel_free_buffer(ptr::null_mut());
+  parcel_buffer_free(ptr::null_mut());
 }
 
 #[test]
@@ -1343,7 +1343,7 @@ fn plugins_log_diagnostics_without_giving_up_their_buffers() {
     unsafe { std::slice::from_raw_parts(diagnostic.message.data, diagnostic.message.len) },
     message
   );
-  parcel_free_buffer(&mut diagnostic.message);
+  parcel_buffer_free(&mut diagnostic.message);
 }
 
 /// A project in memory, read through a tracker so tests can see what was recorded.
@@ -1529,7 +1529,7 @@ fn asset_resolve(
       return None;
     }
     let bytes = unsafe { std::slice::from_raw_parts(buffer.data, buffer.len).to_vec() };
-    parcel_free_buffer(buffer);
+    parcel_buffer_free(buffer);
     Some(String::from_utf8(bytes).unwrap())
   };
   if !resolved {
@@ -1852,8 +1852,8 @@ fn logged_diagnostics_tolerate_newer_layouts_and_unknown_severities() {
   parcel_options_log_diagnostic(handle, &unset);
 
   assert_eq!(*events.lock().unwrap(), ["error: from a newer plugin"]);
-  parcel_free_buffer(&mut newer.current.message);
-  parcel_free_buffer(&mut unset.message);
+  parcel_buffer_free(&mut newer.current.message);
+  parcel_buffer_free(&mut unset.message);
 }
 
 /// The first published layout of every struct passed by pointer.
@@ -2220,7 +2220,7 @@ fn take_string(buffer: &mut Buffer) -> Option<String> {
   let string =
     String::from_utf8(unsafe { std::slice::from_raw_parts(buffer.data, buffer.len) }.to_vec())
       .unwrap();
-  parcel_free_buffer(buffer);
+  parcel_buffer_free(buffer);
   Some(string)
 }
 
@@ -2479,7 +2479,7 @@ fn logged_diagnostics_include_an_attached_list() {
     *events.lock().unwrap(),
     ["info: from the plugin", "warn: from Parcel"]
   );
-  parcel_free_buffer(&mut diagnostic.message);
+  parcel_buffer_free(&mut diagnostic.message);
 }
 
 /// A custom content `read` callback that fails, as a plugin's would.

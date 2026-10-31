@@ -7,7 +7,7 @@ use parcel_core::{
   DiagnosticSeverity as CoreDiagnosticSeverity, Location, PathId, SourceUrl,
 };
 
-use crate::{Buffer, Diagnostics, OptionsContext, extensible::read_extensible, parcel_free_buffer};
+use crate::{Buffer, Diagnostics, OptionsContext, extensible::read_extensible, parcel_buffer_free};
 
 // DiagnosticSeverity — CDiagnostic.severity field
 #[repr(u8)]
@@ -115,7 +115,7 @@ pub(crate) fn read_cdiagnostic(
     &mut diag.highlight_message,
     &mut diag.documentation_url,
   ] {
-    parcel_free_buffer(buffer);
+    parcel_buffer_free(buffer);
   }
 
   diagnostics

@@ -109,14 +109,14 @@ func hostString(_ fill: (UnsafeMutablePointer<CParcelABI.Buffer>) -> Void) -> St
 /// Copies a host-filled buffer into a Swift array and frees it.
 func takeBytes(_ buffer: inout CParcelABI.Buffer) -> [UInt8]? {
   guard let data = buffer.data else { return nil }
-  defer { parcel_free_buffer(&buffer) }
+  defer { parcel_buffer_free(&buffer) }
   return Array(UnsafeBufferPointer(start: data, count: Int(buffer.len)))
 }
 
 /// Copies a host-filled buffer into a Swift string and frees it.
 func takeString(_ buffer: inout CParcelABI.Buffer) -> String? {
   guard let data = buffer.data else { return nil }
-  defer { parcel_free_buffer(&buffer) }
+  defer { parcel_buffer_free(&buffer) }
   return String(decoding: UnsafeBufferPointer(start: data, count: Int(buffer.len)), as: UTF8.self)
 }
 

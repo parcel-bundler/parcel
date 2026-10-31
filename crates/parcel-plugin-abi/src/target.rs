@@ -225,7 +225,7 @@ pub extern "C" fn parcel_target_get_engines(engines: *mut Engines, target: Targe
   unsafe { write_extensible(engines, value) };
 }
 
-/// Returns the public URL (e.g. `"/"`) into `*buf`. Caller must `parcel_free_buffer(buf)`.
+/// Returns the public URL (e.g. `"/"`) into `*buf`. Caller must `parcel_buffer_free(buf)`.
 pub extern "C" fn parcel_target_get_public_url(buf: *mut Buffer, target: Target) {
   if buf.is_null() || target == 0 {
     return;
@@ -235,7 +235,7 @@ pub extern "C" fn parcel_target_get_public_url(buf: *mut Buffer, target: Target)
 }
 
 /// Returns the absolute path of the dist directory into `*buf`.
-/// `options` must be the current call's handle. Caller must `parcel_free_buffer(buf)`.
+/// `options` must be the current call's handle. Caller must `parcel_buffer_free(buf)`.
 pub extern "C" fn parcel_target_get_dist_dir(buf: *mut Buffer, target: Target, options: Options) {
   // Reserved: unused today, but required, so Parcel can start depending on it.
   let _ = options;

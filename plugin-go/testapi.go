@@ -29,14 +29,14 @@ static void test_asset_get_map(struct Buffer *buf, Asset asset) {
   buf->cap = len;
 }
 
-static void test_free_buffer(struct Buffer *buf) {
+static void test_buffer_free(struct Buffer *buf) {
   free(buf->data);
   buf->data = NULL;
 }
 
 static void install_source_map_api(struct ParcelApi *api) {
   api->asset_get_map = test_asset_get_map;
-  api->free_buffer = test_free_buffer;
+  api->buffer_free = test_buffer_free;
 }
 
 // What the sized-struct host below was last passed: the size of each struct, and
@@ -165,7 +165,7 @@ static bool test_options_get_hmr(Options options) { return options == PARCEL_LOG
 static LogLevel test_options_get_log_level(Options options) { return (LogLevel)options; }
 
 static void install_accessor_api(struct ParcelApi *api) {
-  api->free_buffer = test_free_buffer;
+  api->buffer_free = test_buffer_free;
   api->dep_get_import_type = test_dep_get_import_type;
   api->asset_get_dependency_count = test_asset_get_dependency_count;
   api->asset_get_dependency = test_asset_get_dependency;
@@ -175,7 +175,7 @@ static void install_accessor_api(struct ParcelApi *api) {
 }
 
 static void install_sized_struct_api(struct ParcelApi *api) {
-  api->free_buffer = test_free_buffer;
+  api->buffer_free = test_buffer_free;
   api->buffer_alloc = test_buffer_alloc;
   api->asset_add_dependency = test_asset_add_dependency;
   api->asset_resolve = test_asset_resolve;
@@ -237,7 +237,7 @@ func diagnosticWritten(diag *C.DiagnosticOptions) bool {
 const testSourceMap = `{"version":3,"sources":["a.ts"],"mappings":"AAAA"}`
 
 // withSourceMapHost runs body with parcel_api pointing at a host table that
-// implements just asset_get_map and free_buffer, and passes it an asset that
+// implements just asset_get_map and buffer_free, and passes it an asset that
 // has a source map and one that has none.
 func withSourceMapHost(body func(mappedAsset, unmappedAsset *Asset)) {
 	api := hostAPI(0, 0)
@@ -343,7 +343,7 @@ func sizedDiagnostic(size uintptr) (*C.DiagnosticOptions, func()) {
 	diag := (*C.DiagnosticOptions)(C.calloc(1, C.sizeof_DiagnosticOptions))
 	diag.size = C.uintptr_t(size)
 	return diag, func() {
-		C.test_free_buffer(&diag.message)
+		C.test_buffer_free(&diag.message)
 		C.free(unsafe.Pointer(diag))
 	}
 }
@@ -355,7 +355,7 @@ func rangeAndLinks(diag *C.DiagnosticOptions) (endLine, endColumn uint32, highli
 		if buf.data == nil {
 			return ""
 		}
-		defer C.test_free_buffer(buf)
+		defer C.test_buffer_free(buf)
 		return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
 	}
 	return uint32(diag.end_line), uint32(diag.end_column), read(&diag.highlight_message), read(&diag.documentation_url)

@@ -58,7 +58,7 @@ assert_flag_values! {
 
 // ── Content ───────────────────────────────────────────────────────────────────
 
-/// Reads the asset's content into `*buf`. Caller must `parcel_free_buffer(buf)`.
+/// Reads the asset's content into `*buf`. Caller must `parcel_buffer_free(buf)`.
 ///
 /// Returns false when it cannot be read, e.g. a file that went missing or custom content whose
 /// `read` callback failed. Then, if `options` is the current call's handle, `*diagnostics` is set
@@ -86,7 +86,7 @@ pub extern "C" fn parcel_asset_get_content(
   }
 }
 
-/// Reads the asset's content as UTF-8 text into `*buf`. Caller must `parcel_free_buffer(buf)`.
+/// Reads the asset's content as UTF-8 text into `*buf`. Caller must `parcel_buffer_free(buf)`.
 ///
 /// Like `parcel_asset_get_content()`, and also fails for content that is not valid UTF-8.
 pub extern "C" fn parcel_asset_get_content_utf8(
@@ -173,7 +173,7 @@ pub extern "C" fn parcel_asset_set_content_utf8(
 }
 
 /// Returns the asset's source map into `*buf`, or leaves `buf->data == NULL` if it has none.
-/// Caller must `parcel_free_buffer(buf)` when `data != NULL`.
+/// Caller must `parcel_buffer_free(buf)` when `data != NULL`.
 ///
 /// This is the JSON (v3) source map an earlier transformer attached with a content setter (or a JS transformer's `setCode(code, map)`), exactly as it was set: its `sources` may be
 /// absolute paths, `file://` URLs, or paths relative to the asset's directory (after `sourceRoot`).
@@ -423,7 +423,7 @@ pub extern "C" fn parcel_asset_get_custom_content(
 // ── Type ──────────────────────────────────────────────────────────────────────
 
 /// Returns the asset type extension (e.g. `"js"`, `"css"`) into `*buf`.
-/// Caller must `parcel_free_buffer(buf)`.
+/// Caller must `parcel_buffer_free(buf)`.
 pub extern "C" fn parcel_asset_get_type(buf: *mut Buffer, asset: AssetRef) {
   if buf.is_null() || asset == 0 {
     return;
@@ -447,7 +447,7 @@ pub extern "C" fn parcel_asset_set_type(asset: Asset, ty: *const u8, ty_len: usi
 // ── File path (read-only) ─────────────────────────────────────────────────────
 
 /// Returns the absolute filesystem path of the source asset into `*buf`.
-/// `options` must be the current call's handle. Caller must `parcel_free_buffer(buf)`.
+/// `options` must be the current call's handle. Caller must `parcel_buffer_free(buf)`.
 pub extern "C" fn parcel_asset_get_file_path(buf: *mut Buffer, asset: AssetRef, options: Options) {
   // Reserved: unused today, but required, so Parcel can start depending on it.
   let _ = options;
@@ -474,7 +474,7 @@ pub extern "C" fn parcel_asset_get_file_path(buf: *mut Buffer, asset: AssetRef, 
 // ── Pipeline ──────────────────────────────────────────────────────────────────
 
 /// Returns the named pipeline into `*buf`, or leaves `buf->data == NULL` if none is set.
-/// Caller must `parcel_free_buffer(buf)` when `data != NULL`.
+/// Caller must `parcel_buffer_free(buf)` when `data != NULL`.
 pub extern "C" fn parcel_asset_get_pipeline(buf: *mut Buffer, asset: AssetRef) {
   if buf.is_null() || asset == 0 {
     return;
@@ -510,7 +510,7 @@ pub extern "C" fn parcel_asset_set_pipeline(
 
 /// Returns the query string from the asset's source URL into `*buf`, or leaves
 /// `buf->data == NULL` if the URL has no query.
-/// Caller must `parcel_free_buffer(buf)` when `data != NULL`.
+/// Caller must `parcel_buffer_free(buf)` when `data != NULL`.
 pub extern "C" fn parcel_asset_get_query(buf: *mut Buffer, asset: AssetRef) {
   if buf.is_null() || asset == 0 {
     return;
@@ -568,7 +568,7 @@ pub extern "C" fn parcel_asset_set_flags(asset: Asset, flags: AssetFlagsFFI) {
 // ── UniqueKey ─────────────────────────────────────────────────────────────────
 
 /// Returns the unique key into `*buf`, or leaves `buf->data == NULL` if not set.
-/// Caller must `parcel_free_buffer(buf)` when `data != NULL`.
+/// Caller must `parcel_buffer_free(buf)` when `data != NULL`.
 pub extern "C" fn parcel_asset_get_unique_key(buf: *mut Buffer, asset: AssetRef) {
   if buf.is_null() || asset == 0 {
     return;

@@ -66,7 +66,7 @@ const NO_FS: &str = "File system access is only available while transforming or 
 
 /// Reads the file at the absolute `path` into `*buf`.
 ///
-/// Caller must `parcel_free_buffer(buf)` unless the result is
+/// Caller must `parcel_buffer_free(buf)` unless the result is
 /// `PARCEL_IO_NOT_FOUND`.
 pub extern "C" fn parcel_fs_read_file(
   buf: *mut Buffer,
@@ -116,7 +116,7 @@ pub extern "C" fn parcel_fs_get_kind(
 /// Writes the canonical form of the absolute `path`, with every symlink
 /// resolved, into `*buf`.
 ///
-/// Caller must `parcel_free_buffer(buf)` unless the result is
+/// Caller must `parcel_buffer_free(buf)` unless the result is
 /// `PARCEL_IO_NOT_FOUND`.
 pub extern "C" fn parcel_fs_canonicalize(
   buf: *mut Buffer,

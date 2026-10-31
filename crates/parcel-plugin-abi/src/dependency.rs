@@ -300,7 +300,7 @@ pub extern "C" fn parcel_asset_add_dependency(asset: Asset, dep: *const Dependen
 /// Fills `*result`, whose `size` the caller sets, and returns true when the resolvers ran:
 /// `resolution_type` is `PARCEL_RESOLUTION_NONE` when none of them resolved the dependency, and
 /// for `PARCEL_RESOLUTION_FILE_PATH`, `file_path` and, when the resolver chose one, `pipeline` are
-/// set. The caller must `parcel_free_buffer()` both.
+/// set. The caller must `parcel_buffer_free()` both.
 ///
 /// Returns false when a resolver failed, when Parcel cannot honor `dep` (see
 /// `parcel_asset_add_dependency()`), or when called outside a transform. Then, if `options` is the

@@ -523,7 +523,7 @@ func readContentBytes(asset C.Asset, options C.Options) ([]byte, error) {
 	if !C.parcel_asset_get_content(&buf, asset, options, &diagnostics) {
 		return nil, parcelDiagnosticsError(diagnostics, "Parcel could not read the asset's content")
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goBytes(unsafe.Pointer(buf.data), uintptr(buf.len)), nil
 }
 
@@ -586,7 +586,7 @@ func (a *Asset) SourceMap() string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -607,7 +607,7 @@ func (a *Asset) Type() string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -627,7 +627,7 @@ func (a *Asset) FilePath() string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -638,7 +638,7 @@ func (a *Asset) Query() string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -649,7 +649,7 @@ func (a *Asset) Pipeline() string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -695,7 +695,7 @@ func (a *Asset) UniqueKey() string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -852,7 +852,7 @@ func (d *Dependency) Specifier() string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -893,7 +893,7 @@ func (d *Dependency) SourcePath() string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -904,7 +904,7 @@ func (d *Dependency) ResolveFrom() string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -1031,7 +1031,7 @@ func (t *Target) PublicURL() string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -1042,7 +1042,7 @@ func (t *Target) DistDir() string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -1554,7 +1554,7 @@ func takeBufferString(buf *C.Buffer) string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(buf)
+	defer C.parcel_buffer_free(buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -1574,7 +1574,7 @@ func (o *Options) ProjectRoot() string {
 	if buf.data == nil {
 		return ""
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len))
 }
 
@@ -1590,7 +1590,7 @@ func (o *Options) Env(key string) (string, bool) {
 	if buf.data == nil {
 		return "", false
 	}
-	defer C.parcel_free_buffer(&buf)
+	defer C.parcel_buffer_free(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len)), true
 }
 
@@ -1648,11 +1648,11 @@ func (o *Options) LogDiagnostic(diagnostic *Diagnostic) {
 	writeDiagnostic(&raw, diagnostic)
 	// The host copies what it needs rather than taking ownership, unlike the
 	// diagnostic a plugin returns as an error, so these are ours to free.
-	defer C.parcel_free_buffer(&raw.message)
-	defer C.parcel_free_buffer(&raw.file_path)
-	defer C.parcel_free_buffer(&raw.hint)
-	defer C.parcel_free_buffer(&raw.highlight_message)
-	defer C.parcel_free_buffer(&raw.documentation_url)
+	defer C.parcel_buffer_free(&raw.message)
+	defer C.parcel_buffer_free(&raw.file_path)
+	defer C.parcel_buffer_free(&raw.hint)
+	defer C.parcel_buffer_free(&raw.highlight_message)
+	defer C.parcel_buffer_free(&raw.documentation_url)
 	C.parcel_options_log_diagnostic(o.ptr, &raw)
 }
 
@@ -1712,7 +1712,7 @@ func bufferBytes(buf *C.Buffer) []byte {
 		return nil
 	}
 	defer func() {
-		C.parcel_free_buffer(buf)
+		C.parcel_buffer_free(buf)
 		*buf = C.Buffer{}
 	}()
 	return goBytes(unsafe.Pointer(buf.data), uintptr(buf.len))
