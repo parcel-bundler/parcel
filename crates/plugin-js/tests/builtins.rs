@@ -68,7 +68,7 @@ const CASES: &[(&str, &str)] = &[
   ),
   (
     "path",
-    r#"const p = require('path');
+    r#"const p = require('path').posix;
        if (p.join('/a/b', '../c') !== '/a/c') throw new Error('join: ' + p.join('/a/b', '../c'));
        if (p.extname('x/y.tar.gz') !== '.gz') throw new Error('extname');
        if (p.resolve('/a', 'b') !== '/a/b') throw new Error('resolve');"#,

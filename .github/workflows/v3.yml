@@ -43,3 +43,7 @@ jobs:
       - run: yarn --immutable
       - run: yarn gulp
       - run: cargo test --workspace --tests --no-fail-fast
+        env:
+          # QuickJS allows 10 MiB of stack; Windows test threads otherwise
+          # overflow their native stack first when loading Babel and its plugins.
+          RUST_MIN_STACK: '16777216'
