@@ -122,6 +122,12 @@ public struct AssetView: Sendable {
     options.scope.shared("AssetView", body)
   }
 
+  /// The JSON (v3) source map of the asset's content, or `nil` if it has none.
+  /// See ``Asset/sourceMap``.
+  public var sourceMap: String? {
+    host { hostString { parcel_asset_get_map($0, raw) } }
+  }
+
   /// Reads the asset's content as UTF-8 text. See ``Asset/content()``.
   public func content() throws -> String {
     try host { Result { try readContent(raw, options: options.raw) } }.get()

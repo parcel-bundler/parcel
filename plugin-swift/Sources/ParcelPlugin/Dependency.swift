@@ -125,6 +125,11 @@ public struct Dependency: Sendable {
     host { ExportsConditions(rawValue: parcel_dep_get_conditions(raw)) }
   }
 
+  /// How the importing asset uses the resolved one.
+  public var importType: ImportType {
+    host { ImportType(rawValue: parcel_dep_get_import_type(raw)) }
+  }
+
   /// The absolute path of the file containing the import.
   public var sourcePath: String {
     host { hostString { parcel_dep_get_source_path($0, raw, options.raw) } ?? "" }

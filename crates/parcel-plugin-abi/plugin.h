@@ -123,6 +123,63 @@ typedef uint8_t Priority;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
+enum ImportType
+#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+  : uint8_t
+#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+ {
+  /**
+   * The module's exports. A file imported this way must have a transformer that turns it into
+   * JavaScript, or it is an error.
+   */
+  PARCEL_IMPORT_TYPE_JAVASCRIPT = 0,
+  /**
+   * A `CSSStyleSheet`.
+   */
+  PARCEL_IMPORT_TYPE_STYLESHEET = 1,
+  /**
+   * The URL of the file. Any file can be referenced this way, transformed or not.
+   */
+  PARCEL_IMPORT_TYPE_URL = 2,
+  /**
+   * The bundle's contents as a string.
+   */
+  PARCEL_IMPORT_TYPE_TEXT = 3,
+  /**
+   * The bundle's contents as bytes.
+   */
+  PARCEL_IMPORT_TYPE_BYTES = 4,
+};
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef enum ImportType ImportType;
+#else
+typedef uint8_t ImportType;
+#endif // __STDC_VERSION__ >= 202311L
+#endif // __cplusplus
+
+/**
+ * The level of a log event, and of a message passed to `parcel_options_log()`.
+ */
+enum LogLevel
+#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+  : uint8_t
+#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
+ {
+  PARCEL_LOG_NONE = 0,
+  PARCEL_LOG_ERROR = 1,
+  PARCEL_LOG_WARN = 2,
+  PARCEL_LOG_INFO = 3,
+  PARCEL_LOG_VERBOSE = 4,
+};
+#ifndef __cplusplus
+#if __STDC_VERSION__ >= 202311L
+typedef enum LogLevel LogLevel;
+#else
+typedef uint8_t LogLevel;
+#endif // __STDC_VERSION__ >= 202311L
+#endif // __cplusplus
+
 enum Environment
 #if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
   : uint8_t
@@ -297,63 +354,6 @@ enum ReportEventType
 typedef enum ReportEventType ReportEventType;
 #else
 typedef uint8_t ReportEventType;
-#endif // __STDC_VERSION__ >= 202311L
-#endif // __cplusplus
-
-/**
- * The level of a log event, and of a message passed to `parcel_options_log()`.
- */
-enum LogLevel
-#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
-  : uint8_t
-#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
- {
-  PARCEL_LOG_NONE = 0,
-  PARCEL_LOG_ERROR = 1,
-  PARCEL_LOG_WARN = 2,
-  PARCEL_LOG_INFO = 3,
-  PARCEL_LOG_VERBOSE = 4,
-};
-#ifndef __cplusplus
-#if __STDC_VERSION__ >= 202311L
-typedef enum LogLevel LogLevel;
-#else
-typedef uint8_t LogLevel;
-#endif // __STDC_VERSION__ >= 202311L
-#endif // __cplusplus
-
-enum ImportType
-#if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
-  : uint8_t
-#endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
- {
-  /**
-   * The module's exports. A file imported this way must have a transformer that turns it into
-   * JavaScript, or it is an error.
-   */
-  PARCEL_IMPORT_TYPE_JAVASCRIPT = 0,
-  /**
-   * A `CSSStyleSheet`.
-   */
-  PARCEL_IMPORT_TYPE_STYLESHEET = 1,
-  /**
-   * The URL of the file. Any file can be referenced this way, transformed or not.
-   */
-  PARCEL_IMPORT_TYPE_URL = 2,
-  /**
-   * The bundle's contents as a string.
-   */
-  PARCEL_IMPORT_TYPE_TEXT = 3,
-  /**
-   * The bundle's contents as bytes.
-   */
-  PARCEL_IMPORT_TYPE_BYTES = 4,
-};
-#ifndef __cplusplus
-#if __STDC_VERSION__ >= 202311L
-typedef enum ImportType ImportType;
-#else
-typedef uint8_t ImportType;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 
@@ -902,11 +902,15 @@ typedef struct ParcelApi {
   BundleBehavior (*dep_get_bundle_behavior)(Dependency dep);
   DependencyFlags (*dep_get_flags)(Dependency dep);
   ExportsConditions (*dep_get_conditions)(Dependency dep);
+  ImportType (*dep_get_import_type)(Dependency dep);
   void (*dep_get_source_path)(struct Buffer *buf, Dependency dep, Options _options);
   void (*dep_get_resolve_from)(struct Buffer *buf, Dependency dep, Options _options);
   Target (*dep_get_target)(Dependency dep);
   void (*options_get_project_root)(struct Buffer *buf, Options options);
   void (*options_get_env)(struct Buffer *buf, Options options, const uint8_t *key, uintptr_t key_len);
+  void (*options_get_mode)(struct Buffer *buf, Options options);
+  bool (*options_get_hmr)(Options options);
+  LogLevel (*options_get_log_level)(Options options);
   Target (*asset_get_target)(AssetRef asset);
   Environment (*target_get_environment)(Target target);
   OutputFormat (*target_get_output_format)(Target target);
@@ -942,7 +946,8 @@ typedef struct ParcelApi {
                         const struct DependencyOptions *dep,
                         const uint8_t *from,
                         uintptr_t from_len,
-                        struct ResolveResult *result);
+                        struct ResolveResult *result,
+                        Diagnostics *diagnostics);
   void (*asset_get_map)(struct Buffer *buf, AssetRef asset);
   void (*diagnostic_get_documentation_url)(struct Buffer *buf,
                                            DiagnosticsRef diagnostics,
@@ -1369,6 +1374,10 @@ static inline ExportsConditions parcel_dep_get_conditions(Dependency dep) {
   return parcel_api->dep_get_conditions(dep);
 }
 
+static inline ImportType parcel_dep_get_import_type(Dependency dep) {
+  return parcel_api->dep_get_import_type(dep);
+}
+
 static inline void parcel_dep_get_source_path(struct Buffer *buf, Dependency dep, Options _options) {
   parcel_api->dep_get_source_path(buf, dep, _options);
 }
@@ -1387,6 +1396,18 @@ static inline void parcel_options_get_project_root(struct Buffer *buf, Options o
 
 static inline void parcel_options_get_env(struct Buffer *buf, Options options, const uint8_t *key, uintptr_t key_len) {
   parcel_api->options_get_env(buf, options, key, key_len);
+}
+
+static inline void parcel_options_get_mode(struct Buffer *buf, Options options) {
+  parcel_api->options_get_mode(buf, options);
+}
+
+static inline bool parcel_options_get_hmr(Options options) {
+  return parcel_api->options_get_hmr(options);
+}
+
+static inline LogLevel parcel_options_get_log_level(Options options) {
+  return parcel_api->options_get_log_level(options);
 }
 
 static inline Target parcel_asset_get_target(AssetRef asset) {
@@ -1473,8 +1494,8 @@ static inline IoStatus parcel_fs_canonicalize(struct Buffer *buf, Options option
   return parcel_api->fs_canonicalize(buf, options, path, path_len);
 }
 
-static inline bool parcel_asset_resolve(Asset asset, Options options, const struct DependencyOptions *dep, const uint8_t *from, uintptr_t from_len, struct ResolveResult *result) {
-  return parcel_api->asset_resolve(asset, options, dep, from, from_len, result);
+static inline bool parcel_asset_resolve(Asset asset, Options options, const struct DependencyOptions *dep, const uint8_t *from, uintptr_t from_len, struct ResolveResult *result, Diagnostics *diagnostics) {
+  return parcel_api->asset_resolve(asset, options, dep, from, from_len, result, diagnostics);
 }
 
 static inline void parcel_asset_get_map(struct Buffer *buf, AssetRef asset) {

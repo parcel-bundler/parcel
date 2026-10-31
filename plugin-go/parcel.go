@@ -460,7 +460,7 @@ func readContentString(asset C.Asset, options C.Options) (string, error) {
 	var buf C.Buffer
 	var diagnostics C.Diagnostics
 	if !C.parcel_asset_get_content_utf8(&buf, asset, options, &diagnostics) {
-		return "", parcelDiagnosticsError(diagnostics)
+		return "", parcelDiagnosticsError(diagnostics, "Parcel could not read the asset's content")
 	}
 	return takeBufferString(&buf), nil
 }
@@ -470,7 +470,7 @@ func readContentBytes(asset C.Asset, options C.Options) ([]byte, error) {
 	var buf C.Buffer
 	var diagnostics C.Diagnostics
 	if !C.parcel_asset_get_content(&buf, asset, options, &diagnostics) {
-		return nil, parcelDiagnosticsError(diagnostics)
+		return nil, parcelDiagnosticsError(diagnostics, "Parcel could not read the asset's content")
 	}
 	defer C.parcel_free_buffer(&buf)
 	return goBytes(unsafe.Pointer(buf.data), uintptr(buf.len)), nil
@@ -663,6 +663,35 @@ func (a *Asset) Target() *Target {
 	return &Target{ptr: C.parcel_asset_get_target(a.ptr), options: a.options}
 }
 
+// DependencyCount returns the number of dependencies the asset has so far.
+func (a *Asset) DependencyCount() int {
+	return int(C.parcel_asset_get_dependency_count(a.ptr))
+}
+
+// Dependency returns the dependency at index. It is invalid after the next
+// [Asset.AddDependency].
+func (a *Asset) Dependency(index int) (*Dependency, bool) {
+	raw := C.parcel_asset_get_dependency(a.ptr, C.uintptr_t(index))
+	if raw == 0 {
+		return nil, false
+	}
+	return &Dependency{ptr: raw, options: a.options}, true
+}
+
+// Dependencies returns the asset's dependencies so far: those earlier
+// transformers added, and this one. They are invalid after the next
+// [Asset.AddDependency].
+func (a *Asset) Dependencies() []*Dependency {
+	count := a.DependencyCount()
+	dependencies := make([]*Dependency, 0, count)
+	for index := 0; index < count; index++ {
+		if dependency, ok := a.Dependency(index); ok {
+			dependencies = append(dependencies, dependency)
+		}
+	}
+	return dependencies
+}
+
 // AddDependency appends a dependency to the asset. The dependency inherits the
 // asset's target.
 //
@@ -688,9 +717,10 @@ func (a *Asset) AddDependency(dep DependencyOptions) error {
 // from the asset. Every file the resolvers read or probe invalidates the asset,
 // so the transform re-runs when the result would change.
 //
-// It returns the zero ResolveResult when no resolver claimed the dependency, and
-// an error when one failed, or Parcel cannot honor dep. Only available while
-// transforming.
+// It returns the zero ResolveResult when no resolver claimed the dependency. It
+// returns an error when one failed, which carries the diagnostics the resolver
+// reported, so returning it reports them unchanged, or when Parcel cannot honor
+// dep. Only available while transforming.
 func (a *Asset) Resolve(dep DependencyOptions, from string) (ResolveResult, error) {
 	failed := fmt.Errorf("could not resolve %q", dep.Specifier)
 	var cDep C.DependencyOptions
@@ -701,12 +731,13 @@ func (a *Asset) Resolve(dep DependencyOptions, from string) (ResolveResult, erro
 	// with, so Parcel writes only the fields both sides know.
 	var raw C.ResolveResult
 	raw.size = C.sizeof_ResolveResult
-	resolved := C.parcel_asset_resolve(a.ptr, a.options, &cDep, stringPtr(from), C.uintptr_t(len(from)), &raw)
+	var diagnostics C.Diagnostics
+	resolved := C.parcel_asset_resolve(a.ptr, a.options, &cDep, stringPtr(from), C.uintptr_t(len(from)), &raw, &diagnostics)
 	// Taken whatever the outcome, so the buffers are always freed.
 	filePath := string(bufferBytes(&raw.file_path))
 	pipeline := string(bufferBytes(&raw.pipeline))
 	if !resolved {
-		return ResolveResult{}, failed
+		return ResolveResult{}, parcelDiagnosticsError(diagnostics, failed.Error())
 	}
 
 	switch raw.resolution_type {
@@ -797,6 +828,11 @@ func (d *Dependency) Flags() DependencyFlags {
 // Conditions returns the package exports and imports conditions bitfield.
 func (d *Dependency) Conditions() ExportsConditions {
 	return ExportsConditions(C.parcel_dep_get_conditions(d.ptr))
+}
+
+// ImportType returns how the importing asset uses the resolved one.
+func (d *Dependency) ImportType() ImportType {
+	return ImportType(C.parcel_dep_get_import_type(d.ptr))
 }
 
 // SourcePath returns the absolute path of the file that contains this import.
@@ -1012,10 +1048,10 @@ type Diagnostic struct {
 }
 
 // parcelDiagnosticsError stands for the diagnostics Parcel reported in list. Its
-// message is the first one's, for printing.
-func parcelDiagnosticsError(list C.Diagnostics) *Diagnostic {
+// message is the first one's, for printing, or fallback when there are none.
+func parcelDiagnosticsError(list C.Diagnostics, fallback string) *Diagnostic {
 	if list == 0 {
-		return &Diagnostic{Message: "Parcel could not read the asset's content"}
+		return &Diagnostic{Message: fallback}
 	}
 	var buf C.Buffer
 	C.parcel_diagnostic_get_message(&buf, list, 0)
@@ -1452,6 +1488,33 @@ func (o *Options) Env(key string) (string, bool) {
 	}
 	defer C.parcel_free_buffer(&buf)
 	return goString(unsafe.Pointer(buf.data), uintptr(buf.len)), true
+}
+
+// BuildMode is the mode a build runs in: BuildModeDevelopment,
+// BuildModeProduction, or a custom mode the build was given.
+type BuildMode string
+
+const (
+	BuildModeDevelopment BuildMode = "development"
+	BuildModeProduction  BuildMode = "production"
+)
+
+// Mode returns the build mode.
+func (o *Options) Mode() BuildMode {
+	var buf C.Buffer
+	C.parcel_options_get_mode(&buf, o.ptr)
+	return BuildMode(takeBufferString(&buf))
+}
+
+// HMR reports whether hot module replacement is enabled for the build.
+func (o *Options) HMR() bool {
+	return bool(C.parcel_options_get_hmr(o.ptr))
+}
+
+// LogLevel returns the build's log level. Messages below it are dropped, so a
+// plugin can skip formatting them.
+func (o *Options) LogLevel() LogLevel {
+	return LogLevel(C.parcel_options_get_log_level(o.ptr))
 }
 
 // Log sends a message to whatever reporters the build has configured.

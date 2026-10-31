@@ -3,8 +3,9 @@
 use std::{borrow::Cow, sync::Mutex};
 
 use parcel_core::{
-  Diagnostic as CoreDiagnostic, DiagnosticSeverity as CoreDiagnosticSeverity, FileSystem,
-  LogLevel as CoreLogLevel, ParcelOptions, PluginContext,
+  BuildMode as CoreBuildMode, Diagnostic as CoreDiagnostic,
+  DiagnosticSeverity as CoreDiagnosticSeverity, FileSystem, LogLevel as CoreLogLevel,
+  ParcelOptions, PluginContext,
 };
 
 use crate::{
@@ -56,7 +57,6 @@ impl<'a> OptionsContext<'a> {
   }
 
   /// Hands the plugin `diagnostics` as a list that lives until this call returns.
-  #[allow(dead_code)]
   pub fn hand_out(&self, diagnostics: Vec<CoreDiagnostic>) -> Diagnostics {
     let view = Box::new(DiagnosticsView {
       diagnostics: Cow::Owned(diagnostics),
@@ -138,6 +138,35 @@ pub extern "C" fn parcel_options_get_env(
   if let Some(value) = options.env.get(key) {
     unsafe { write_buffer(buf, value.as_bytes().to_vec(), true) };
   }
+}
+
+/// Returns the build mode into `*buf`: `development`, `production`, or a custom mode the build
+/// was given.
+pub extern "C" fn parcel_options_get_mode(buf: *mut Buffer, options: Options) {
+  if buf.is_null() || options == 0 {
+    return;
+  }
+  let options = unsafe { options_context(options) }.options;
+  let mode = match &options.mode {
+    CoreBuildMode::Development => "development",
+    CoreBuildMode::Production => "production",
+    CoreBuildMode::Other(mode) => mode,
+  };
+  unsafe { write_buffer(buf, mode.as_bytes().to_vec(), true) };
+}
+
+/// Returns whether hot module replacement is enabled for the build.
+pub extern "C" fn parcel_options_get_hmr(options: Options) -> bool {
+  options != 0 && unsafe { options_context(options) }.options.hmr.is_some()
+}
+
+/// Returns the build's log level (`PARCEL_LOG_*`): messages below it are dropped, so a plugin can
+/// skip formatting them.
+pub extern "C" fn parcel_options_get_log_level(options: Options) -> LogLevel {
+  if options == 0 {
+    return LogLevel::PARCEL_LOG_INFO;
+  }
+  unsafe { options_context(options) }.options.log_level.into()
 }
 
 // ── Logging ───────────────────────────────────────────────────────────────────

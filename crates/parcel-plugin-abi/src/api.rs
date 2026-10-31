@@ -161,6 +161,7 @@ pub struct ParcelApi {
   pub dep_get_bundle_behavior: unsafe extern "C" fn(dep: Dependency) -> BundleBehavior,
   pub dep_get_flags: unsafe extern "C" fn(dep: Dependency) -> DependencyFlagsFFI,
   pub dep_get_conditions: unsafe extern "C" fn(dep: Dependency) -> ExportsConditionsFFI,
+  pub dep_get_import_type: unsafe extern "C" fn(dep: Dependency) -> ImportType,
   pub dep_get_source_path:
     unsafe extern "C" fn(buf: *mut Buffer, dep: Dependency, _options: Options),
   pub dep_get_resolve_from:
@@ -169,6 +170,9 @@ pub struct ParcelApi {
   pub options_get_project_root: unsafe extern "C" fn(buf: *mut Buffer, options: Options),
   pub options_get_env:
     unsafe extern "C" fn(buf: *mut Buffer, options: Options, key: *const u8, key_len: usize),
+  pub options_get_mode: unsafe extern "C" fn(buf: *mut Buffer, options: Options),
+  pub options_get_hmr: unsafe extern "C" fn(options: Options) -> bool,
+  pub options_get_log_level: unsafe extern "C" fn(options: Options) -> LogLevel,
   pub asset_get_target: unsafe extern "C" fn(asset: AssetRef) -> Target,
   pub target_get_environment: unsafe extern "C" fn(target: Target) -> Environment,
   pub target_get_output_format: unsafe extern "C" fn(target: Target) -> OutputFormat,
@@ -220,6 +224,7 @@ pub struct ParcelApi {
     from: *const u8,
     from_len: usize,
     result: *mut ResolveResult,
+    diagnostics: *mut Diagnostics,
   ) -> bool,
   pub asset_get_map: unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef),
   pub diagnostic_get_documentation_url:
@@ -299,11 +304,15 @@ pub static PARCEL_API: ParcelApi = ParcelApi {
   dep_get_bundle_behavior: parcel_dep_get_bundle_behavior,
   dep_get_flags: parcel_dep_get_flags,
   dep_get_conditions: parcel_dep_get_conditions,
+  dep_get_import_type: parcel_dep_get_import_type,
   dep_get_source_path: parcel_dep_get_source_path,
   dep_get_resolve_from: parcel_dep_get_resolve_from,
   dep_get_target: parcel_dep_get_target,
   options_get_project_root: parcel_options_get_project_root,
   options_get_env: parcel_options_get_env,
+  options_get_mode: parcel_options_get_mode,
+  options_get_hmr: parcel_options_get_hmr,
+  options_get_log_level: parcel_options_get_log_level,
   asset_get_target: parcel_asset_get_target,
   target_get_environment: parcel_target_get_environment,
   target_get_output_format: parcel_target_get_output_format,

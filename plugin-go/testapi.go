@@ -69,14 +69,32 @@ static bool test_asset_add_dependency(Asset asset, const struct DependencyOption
   return asset != 0;
 }
 
-// Resolves to the ResolutionType given as the asset handle, with a file path.
+// The diagnostics list the host below hands out when a resolve fails, whose one
+// diagnostic says TEST_RESOLVE_FAILURE.
+#define TEST_FAILED_ASSET 99
+#define TEST_RESOLVE_DIAGNOSTICS 7
+#define TEST_RESOLVE_FAILURE "the resolver failed"
+
+// Resolves to the ResolutionType given as the asset handle, with a file path. The
+// asset TEST_FAILED_ASSET fails, handing out TEST_RESOLVE_DIAGNOSTICS.
 static bool test_asset_resolve(Asset asset, Options options, const struct DependencyOptions *dep,
-                               const uint8_t *from, uintptr_t from_len, struct ResolveResult *result) {
+                               const uint8_t *from, uintptr_t from_len, struct ResolveResult *result,
+                               Diagnostics *diagnostics) {
   test_dependency_size = dep->size;
   test_resolve_result_size = result->size;
+  if (asset == TEST_FAILED_ASSET) {
+    *diagnostics = TEST_RESOLVE_DIAGNOSTICS;
+    return false;
+  }
   result->resolution_type = (ResolutionType)asset;
   result->file_path = test_buffer_alloc((const uint8_t *)"/a.js", 5);
   return true;
+}
+
+static void test_diagnostic_get_message(struct Buffer *buf, DiagnosticsRef diagnostics, uintptr_t index) {
+  if (diagnostics == TEST_RESOLVE_DIAGNOSTICS && index == 0) {
+    *buf = test_buffer_alloc((const uint8_t *)TEST_RESOLVE_FAILURE, strlen(TEST_RESOLVE_FAILURE));
+  }
 }
 
 // Resolves to the BundleGraphResolutionType given as the asset index.
@@ -121,11 +139,37 @@ static void install_utf8_api(struct ParcelApi *api) {
   api->buffer_write_utf8 = test_buffer_write_utf8;
 }
 
+// A host whose answers are read from the handles they're given: a dependency's
+// import type is its handle, an asset has as many dependencies as its handle,
+// each the handle 100 + its index, and the options handle is the log level, with
+// HMR enabled for PARCEL_LOG_VERBOSE.
+static ImportType test_dep_get_import_type(Dependency dep) { return (ImportType)dep; }
+static uintptr_t test_asset_get_dependency_count(AssetRef asset) { return (uintptr_t)asset; }
+static Dependency test_asset_get_dependency(AssetRef asset, uintptr_t index) {
+  return index < (uintptr_t)asset ? 100 + index : 0;
+}
+static void test_options_get_mode(struct Buffer *buf, Options options) {
+  *buf = test_buffer_alloc((const uint8_t *)"staging", 7);
+}
+static bool test_options_get_hmr(Options options) { return options == PARCEL_LOG_VERBOSE; }
+static LogLevel test_options_get_log_level(Options options) { return (LogLevel)options; }
+
+static void install_accessor_api(struct ParcelApi *api) {
+  api->free_buffer = test_free_buffer;
+  api->dep_get_import_type = test_dep_get_import_type;
+  api->asset_get_dependency_count = test_asset_get_dependency_count;
+  api->asset_get_dependency = test_asset_get_dependency;
+  api->options_get_mode = test_options_get_mode;
+  api->options_get_hmr = test_options_get_hmr;
+  api->options_get_log_level = test_options_get_log_level;
+}
+
 static void install_sized_struct_api(struct ParcelApi *api) {
   api->free_buffer = test_free_buffer;
   api->buffer_alloc = test_buffer_alloc;
   api->asset_add_dependency = test_asset_add_dependency;
   api->asset_resolve = test_asset_resolve;
+  api->diagnostic_get_message = test_diagnostic_get_message;
   api->bundle_graph_get_dependency_resolution = test_bundle_graph_get_dependency_resolution;
   api->options_log_diagnostic = test_options_log_diagnostic;
 }
@@ -237,6 +281,34 @@ func withSizedStructHost(body func(host sizedHost)) {
 	defer func() { C.parcel_api = previous }()
 	body(sizedHost{})
 }
+
+// failedAsset is an asset the host from [withSizedStructHost] fails to resolve
+// for, with one diagnostic saying resolveFailure.
+const (
+	failedAsset    = C.TEST_FAILED_ASSET
+	resolveFailure = C.TEST_RESOLVE_FAILURE
+)
+
+// withAccessorHost runs body with parcel_api pointing at a host table that
+// answers from the handles it is given: see install_accessor_api.
+func withAccessorHost(body func()) {
+	api := hostAPI(0, 0)
+	defer freeHostAPI(api)
+	C.install_accessor_api(api)
+	previous := C.parcel_api
+	C.parcel_api = api
+	defer func() { C.parcel_api = previous }()
+	body()
+}
+
+// dependencyWithHandle, optionsWithHandle and assetRefWithHandle wrap raw
+// handles, which the host from [withAccessorHost] reads as instructions.
+func dependencyWithHandle(handle uint64) *Dependency { return &Dependency{ptr: C.Dependency(handle)} }
+func optionsWithHandle(handle uint64) *Options       { return &Options{ptr: C.Options(handle)} }
+func assetRefWithHandle(handle uint64) *AssetRef     { return &AssetRef{ptr: C.Asset(handle)} }
+
+// rawDependency returns the handle a dependency wraps.
+func rawDependency(dependency *Dependency) uint64 { return uint64(dependency.ptr) }
 
 // parcelAPI returns the host table currently installed.
 func parcelAPI() *C.struct_ParcelApi {

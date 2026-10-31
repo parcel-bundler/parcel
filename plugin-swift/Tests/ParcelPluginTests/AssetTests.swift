@@ -59,16 +59,40 @@ nonisolated(unsafe) private let mockAPI: UnsafeMutablePointer<ParcelApi> = {
     return dep.pointee.size >= UInt(MemoryLayout<CParcelABI.DependencyOptions>.size)
       && specifier != "unsupported"
   }
-  // Resolves to the resolution type in `resolutionTypes` for the asset.
-  api.pointee.asset_resolve = { asset, _, dep, _, _, result in
+  // Resolves to the resolution type in `resolutionTypes` for the asset, and
+  // fails for `failedResolution`, handing out `resolveDiagnostics`.
+  api.pointee.asset_resolve = { asset, _, dep, _, _, result, diagnostics in
     guard let dep, let result else { return false }
     sizedStructs.withLock { $0[asset] = rawBytes(of: result) }
     guard dep.pointee.size >= UInt(MemoryLayout<CParcelABI.DependencyOptions>.size) else {
       return false
     }
-    result.pointee.resolution_type = resolutionTypes.withLock { $0[asset] } ?? 0
+    let resolution = resolutionTypes.withLock { $0[asset] } ?? 0
+    if resolution == failedResolution {
+      diagnostics?.pointee = resolveDiagnostics
+      return false
+    }
+    result.pointee.resolution_type = resolution
     return true
   }
+  api.pointee.diagnostic_get_message = { buffer, diagnostics, index in
+    guard let buffer, diagnostics == resolveDiagnostics, index == 0 else { return }
+    buffer.pointee = hostBuffer(resolveFailure)
+  }
+  // Answers from the handles it is given: a dependency's import type is its
+  // handle, each asset has `dependencyCounts` dependencies, each the handle
+  // 100 + its index, and the options handle is the log level, with HMR enabled
+  // for verbose.
+  api.pointee.dep_get_import_type = { UInt8(truncatingIfNeeded: $0) }
+  api.pointee.asset_get_dependency_count = { asset in
+    UInt(dependencyCounts.withLock { $0[asset] } ?? 0)
+  }
+  api.pointee.asset_get_dependency = { asset, index in
+    index < UInt(dependencyCounts.withLock { $0[asset] } ?? 0) ? 100 + UInt64(index) : 0
+  }
+  api.pointee.options_get_mode = { buffer, _ in buffer?.pointee = hostBuffer("staging") }
+  api.pointee.options_get_hmr = { $0 == UInt64(PARCEL_LOG_VERBOSE.rawValue) }
+  api.pointee.options_get_log_level = { UInt8(truncatingIfNeeded: $0) }
   // Resolves each dependency to the resolution type equal to its index.
   api.pointee.bundle_graph_get_dependency_resolution = { resolution, graph, asset, index in
     guard let resolution else { return }
@@ -85,6 +109,23 @@ private let sizedStructs = Mutex<[UInt64: [UInt8]]>([:])
 
 /// The resolution type `Asset.resolve` gets for each asset handle.
 private let resolutionTypes = Mutex<[UInt64: UInt8]>([:])
+
+/// The resolution type for which the mock host's resolve fails, handing out
+/// `resolveDiagnostics`, whose one diagnostic says `resolveFailure`.
+private let failedResolution: UInt8 = 250
+private let resolveDiagnostics: UInt64 = 7
+private let resolveFailure = "the resolver failed"
+
+/// How many dependencies the mock host gives each asset handle.
+private let dependencyCounts = Mutex<[UInt64: Int]>([:])
+
+/// A buffer holding `string`, which the mock host's `free_buffer` frees.
+private func hostBuffer(_ string: String) -> Buffer {
+  let bytes = Array(string.utf8)
+  let data = UnsafeMutablePointer<UInt8>.allocate(capacity: bytes.count)
+  data.initialize(from: bytes, count: bytes.count)
+  return Buffer(data: data, len: UInt(bytes.count), cap: UInt(bytes.count), is_utf8: true)
+}
 
 private func rawBytes<T>(of pointer: UnsafePointer<T>) -> [UInt8] {
   Array(UnsafeRawBufferPointer(start: pointer, count: MemoryLayout<T>.size))
@@ -206,6 +247,15 @@ private func setContent(_ body: (ParcelPlugin.Asset) -> Void) -> SetContentCall?
   @Test func isNilWithoutAMap() {
     #expect(withAsset(sourceMap: nil) { $0.sourceMap } == nil)
   }
+
+  /// Read-only assets, as namers, optimizers and reporters get them, have it too.
+  @Test func assetViewReturnsTheHostMap() {
+    let map = #"{"version":3,"sources":["a.ts"],"mappings":"AAAA"}"#
+    let view = withAsset(sourceMap: map) { asset in
+      AssetView(raw: asset.raw, index: 0, options: asset.options).sourceMap
+    }
+    #expect(view == map)
+  }
 }
 
 @Suite struct ByteContainerTests {
@@ -281,6 +331,51 @@ private func setContent(_ body: (ParcelPlugin.Asset) -> Void) -> SetContentCall?
       return Result { () throws(ParcelPlugin.Diagnostic) in try asset.resolve("./a.js") }
     }
     #expect(throws: ParcelPlugin.Diagnostic.self) { try result.get() }
+  }
+
+  @Test func resolveFailureCarriesParcelDiagnostics() {
+    let result = withAssetHandle { asset, handle in
+      resolutionTypes.withLock { $0[handle] = failedResolution }
+      return Result { () throws(ParcelPlugin.Diagnostic) in try asset.resolve("./a.js") }
+    }
+    #expect {
+      try result.get()
+    } throws: { error in
+      let diagnostic = error as? ParcelPlugin.Diagnostic
+      // Thrown from a plugin method, it fails with exactly Parcel's diagnostics.
+      return diagnostic?.message == resolveFailure
+        && diagnostic?.parcelDiagnostics == resolveDiagnostics
+    }
+  }
+
+  @Test func transformerAssetDependencies() {
+    let handles = withAssetHandle { asset, handle in
+      dependencyCounts.withLock { $0[handle] = 3 }
+      return asset.dependencies.map(\.raw)
+    }
+    #expect(handles == [100, 101, 102])
+  }
+
+  @Test func dependencyImportType() {
+    #expect(installAPI(UnsafeRawPointer(mockAPI)))
+    let scope = CallScope("resolve")
+    defer { scope.close() }
+    let options = ParcelPlugin.Options(raw: 1, scope: scope)
+    for importType in [ImportType.javaScript, .styleSheet, .url, .text, .bytes] {
+      let dependency = ParcelPlugin.Dependency(raw: UInt64(importType.rawValue), options: options)
+      #expect(dependency.importType == importType)
+    }
+  }
+
+  @Test func optionsModeHMRAndLogLevel() {
+    #expect(installAPI(UnsafeRawPointer(mockAPI)))
+    let scope = CallScope("transform")
+    defer { scope.close() }
+    let verbose = ParcelPlugin.Options(raw: UInt64(LogLevel.verbose.rawValue), scope: scope)
+    let warn = ParcelPlugin.Options(raw: UInt64(LogLevel.warn.rawValue), scope: scope)
+    #expect(verbose.mode == BuildMode(rawValue: "staging"))
+    #expect(verbose.hmr && !warn.hmr)
+    #expect(warn.logLevel == .warn)
   }
 
   @Test func resolveReportsUnresolved() {

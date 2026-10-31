@@ -153,6 +153,25 @@ public struct Asset {
 
   // ── Dependencies and symbols ─────────────────────────────────────────────
 
+  public var dependencyCount: Int {
+    host { Int(parcel_asset_get_dependency_count(raw)) }
+  }
+
+  /// The dependency at `index`, or `nil` when it is out of range. It is invalid
+  /// after the next ``addDependency(_:)``.
+  public func dependency(at index: Int) -> Dependency? {
+    guard index >= 0 else { return nil }
+    let dependency = host { parcel_asset_get_dependency(raw, UInt(index)) }
+    guard dependency != 0 else { return nil }
+    return Dependency(raw: dependency, options: options)
+  }
+
+  /// The asset's dependencies so far: those earlier transformers added, and this
+  /// one. They are invalid after the next ``addDependency(_:)``.
+  public var dependencies: [Dependency] {
+    (0..<dependencyCount).compactMap { dependency(at: $0) }
+  }
+
   /// Adds a dependency to the asset. It inherits the asset's target.
   ///
   /// Throws when Parcel cannot honor `dependency`, e.g. because it uses a
@@ -194,15 +213,21 @@ public struct Asset {
   /// when the result would change.
   ///
   /// Returns ``ResolveResult/unresolved`` when no resolver claimed the
-  /// dependency, and throws when one failed, or Parcel cannot honor `dependency`
-  /// (see ``addDependency(_:)``).
+  /// dependency. Throws when one failed, with the diagnostics it reported, which
+  /// rethrowing reports unchanged, or when Parcel cannot honor `dependency` (see
+  /// ``addDependency(_:)``).
   public func resolve(_ dependency: DependencyOptions, from: String? = nil) throws(Diagnostic)
     -> ResolveResult
   {
+    let failed = "Could not resolve \"\(dependency.specifier)\""
+    var diagnostics: UInt64 = 0
+    var resolved = false
     let resolution: ResolveResult? = host {
       withSized(CParcelABI.ResolveResult.self) { result in
-        let resolved = dependency.withRaw { dep in
-          withBytes(from ?? "") { parcel_asset_resolve(raw, options.raw, dep, $0, $1, result) }
+        resolved = dependency.withRaw { dep in
+          withBytes(from ?? "") {
+            parcel_asset_resolve(raw, options.raw, dep, $0, $1, result, &diagnostics)
+          }
         }
         let filePath = takeString(&result.pointee.file_path)
         let pipeline = takeString(&result.pointee.pipeline)
@@ -217,9 +242,10 @@ public struct Asset {
         }
       }
     }
-    guard let resolution else {
-      throw Diagnostic("Could not resolve \"\(dependency.specifier)\"")
+    guard resolved else {
+      throw Diagnostic(parcelDiagnostics: diagnostics, fallback: failed)
     }
+    guard let resolution else { throw Diagnostic(failed) }
     return resolution
   }
 

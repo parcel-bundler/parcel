@@ -20,6 +20,24 @@ public struct Options: Sendable {
   /// The build's environment variables, e.g. `options.env["NODE_ENV"]`.
   public var env: EnvironmentVariables { EnvironmentVariables(options: self) }
 
+  /// The build mode.
+  public var mode: BuildMode {
+    scope.shared("Options") {
+      BuildMode(rawValue: hostString { parcel_options_get_mode($0, raw) } ?? "")
+    }
+  }
+
+  /// Whether hot module replacement is enabled for the build.
+  public var hmr: Bool {
+    scope.shared("Options") { parcel_options_get_hmr(raw) }
+  }
+
+  /// The build's log level. Messages below it are dropped, so a plugin can skip
+  /// formatting them.
+  public var logLevel: LogLevel {
+    scope.shared("Options") { LogLevel(rawValue: parcel_options_get_log_level(raw)) }
+  }
+
   /// Sends a message to the build's reporters.
   ///
   /// Dropped when the build has no reporters, or when `level` is below the

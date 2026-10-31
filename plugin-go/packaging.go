@@ -395,6 +395,14 @@ func (a *AssetRef) ContentBytes() ([]byte, error) {
 	return readContentBytes(a.ptr, a.options)
 }
 
+// SourceMap returns the JSON (v3) source map of the asset's content, or "" if it
+// has none. See [Asset.SourceMap].
+func (a *AssetRef) SourceMap() string {
+	var buf C.Buffer
+	C.parcel_asset_get_map(&buf, a.ptr)
+	return takeBufferString(&buf)
+}
+
 // CustomContent returns custom content created by this Go SDK.
 func (a *AssetRef) CustomContent() (AssetContent, bool) {
 	return customContent(a.ptr)

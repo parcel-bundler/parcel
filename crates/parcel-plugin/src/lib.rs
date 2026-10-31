@@ -184,6 +184,28 @@ impl<'a> Options<'a> {
     buf.to_string()
   }
 
+  /// Returns the build mode.
+  pub fn mode(&self) -> BuildMode {
+    let mut buf = Buffer::default();
+    unsafe { host!(options_get_mode)(&mut buf, self.raw) };
+    match buf.to_string().unwrap_or_default().as_str() {
+      "development" => BuildMode::Development,
+      "production" => BuildMode::Production,
+      mode => BuildMode::Other(mode.to_owned()),
+    }
+  }
+
+  /// Returns whether hot module replacement is enabled for the build.
+  pub fn hmr(&self) -> bool {
+    unsafe { host!(options_get_hmr)(self.raw) }
+  }
+
+  /// Returns the build's log level. Messages below it are dropped, so a plugin
+  /// can skip formatting them.
+  pub fn log_level(&self) -> LogLevel {
+    unsafe { host!(options_get_log_level)(self.raw) }
+  }
+
   /// Logs a message to whatever reporters the build has configured.
   ///
   /// Available from every plugin method, not just [`Plugin::report`]. Dropped
@@ -701,6 +723,16 @@ impl From<&str> for Diagnostic {
   }
 }
 
+/// The mode a build runs in, from [`Options::mode`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum BuildMode {
+  Development,
+  Production,
+  /// A custom mode the build was given.
+  Other(String),
+}
+
 // ── Reporter events ────────────────────────────────────────────────────────
 
 /// The level of a log event.
@@ -725,8 +757,8 @@ pub enum ReportEvent<'a> {
     bundle_graph: BundleGraph<'a>,
     /// How long the build took.
     build_time: std::time::Duration,
-    /// The assets re-transformed by this build. Empty after a full build,
-    /// which transformed all of them.
+    /// The assets transformed by this build. On a full build, that is every
+    /// asset.
     changed_assets: &'a [AssetIndex],
   },
   #[non_exhaustive]
@@ -1289,8 +1321,9 @@ impl<'a> Asset<'a> {
   /// itself, e.g. a Sass partial the asset pulled in. Every file the resolvers read or probe
   /// invalidates the asset, so the transform re-runs when the result would change.
   ///
-  /// Returns [`ResolveResult::None`] when no resolver claimed the dependency, and fails when one
-  /// failed, or Parcel cannot honor `dep`. Only available while transforming.
+  /// Returns [`ResolveResult::None`] when no resolver claimed the dependency. Fails when one
+  /// failed, with the diagnostics it reported, which returning the error reports unchanged, or
+  /// when Parcel cannot honor `dep`. Only available while transforming.
   pub fn resolve(
     &self,
     dep: &DependencyOptions,
@@ -1302,6 +1335,7 @@ impl<'a> Asset<'a> {
       None => "",
     };
     with_sized(|result: &mut ffi::ResolveResult| {
+      let mut diagnostics = 0;
       let resolved = dep.with_raw(|raw| unsafe {
         host!(asset_resolve)(
           self.raw,
@@ -1310,13 +1344,17 @@ impl<'a> Asset<'a> {
           from.as_ptr(),
           from.len(),
           result,
+          &mut diagnostics,
         )
       });
       // Dropping the buffers frees them.
       let file_path = std::mem::take(&mut result.file_path);
       let pipeline = std::mem::take(&mut result.pipeline);
       if !resolved {
-        return Err(failed());
+        return Err(Diagnostic::from_parcel(
+          diagnostics,
+          &format!("Could not resolve {:?}", dep.specifier),
+        ));
       }
 
       Ok(match result.resolution_type {
@@ -1331,6 +1369,25 @@ impl<'a> Asset<'a> {
         _ => return Err(failed()),
       })
     })
+  }
+
+  /// Returns the number of dependencies the asset has so far.
+  pub fn dependency_count(&self) -> usize {
+    unsafe { host!(asset_get_dependency_count)(self.raw) }
+  }
+
+  /// Returns the dependency at `index`, as of now: a dependency borrows the asset, so it can't
+  /// outlive a later [`add_dependency`](Self::add_dependency).
+  pub fn dependency(&self, index: usize) -> Option<Dependency<'_>> {
+    let raw = unsafe { host!(asset_get_dependency)(self.raw, index) };
+    (raw != 0).then(|| unsafe { Dependency::from_raw(raw, self.options) })
+  }
+
+  /// Returns the asset's dependencies so far: those earlier transformers added, and this one.
+  /// They borrow the asset, so they can't outlive a later
+  /// [`add_dependency`](Self::add_dependency).
+  pub fn dependencies(&self) -> impl Iterator<Item = Dependency<'_>> + '_ {
+    (0..self.dependency_count()).filter_map(|index| self.dependency(index))
   }
 
   // ── Symbols ───────────────────────────────────────────────────────────────
@@ -1584,6 +1641,14 @@ impl<'a> AssetRef<'a> {
   /// Reads the asset's content as bytes. See [`Asset::content_bytes`].
   pub fn content_bytes(&self) -> Result<Vec<u8>, Diagnostic> {
     read_content(self.raw, self.options, false).map(|buf| buf.to_bytes().unwrap_or_default())
+  }
+
+  /// Returns the JSON (v3) source map of the asset's content, or `None` if it has none. See
+  /// [`Asset::source_map`].
+  pub fn source_map(&self) -> Option<String> {
+    let mut buf = Buffer::default();
+    unsafe { host!(asset_get_map)(&mut buf, self.raw) };
+    buf.to_string()
   }
 
   pub fn custom_content<T: AssetContent>(&self) -> Option<&'a T> {
@@ -1921,6 +1986,11 @@ impl<'a> Dependency<'a> {
   /// Returns the package `exports` and `imports` conditions bitfield.
   pub fn conditions(&self) -> ExportsConditions {
     unsafe { host!(dep_get_conditions)(self.raw) }
+  }
+
+  /// Returns how the importing asset uses the resolved one.
+  pub fn import_type(&self) -> ImportType {
+    unsafe { host!(dep_get_import_type)(self.raw) }
   }
 
   /// Returns the absolute path of the file that contains this import, if it

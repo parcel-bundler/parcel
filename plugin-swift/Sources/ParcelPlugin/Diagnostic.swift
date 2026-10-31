@@ -80,10 +80,13 @@ public struct Diagnostic: Error, Hashable, Sendable, CustomStringConvertible {
   public var description: String { message }
 
   /// Stands for the diagnostics Parcel reported in `list`. Its message is the
-  /// first one's, for printing.
-  init(parcelDiagnostics list: UInt64) {
+  /// first one's, for printing, or `fallback` when there are none.
+  init(
+    parcelDiagnostics list: UInt64,
+    fallback: String = "Parcel could not read the asset's content"
+  ) {
     guard list != 0 else {
-      self.init("Parcel could not read the asset's content")
+      self.init(fallback)
       return
     }
     self.init(hostString { parcel_diagnostic_get_message($0, list, 0) } ?? "")

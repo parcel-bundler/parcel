@@ -4,13 +4,14 @@ use std::sync::Arc;
 
 use parcel_core::{
   Asset as CoreAsset, Dependency as CoreDependency, DependencyFlags as CoreDependencyFlags,
-  DependencyResolution, ExportsCondition as CoreExportsCondition, ImportType as CoreImportType,
-  Priority as CorePriority, SourceUrl, SpecifierType as CoreSpecifierType,
+  DependencyResolution, Diagnostic as CoreDiagnostic, ExportsCondition as CoreExportsCondition,
+  ImportType as CoreImportType, Priority as CorePriority, SourceUrl,
+  SpecifierType as CoreSpecifierType,
 };
 
 use crate::{
-  Asset, AssetRef, Buffer, BundleBehavior, BundleBehaviorFFI, Dependency, Options, ResolutionType,
-  ResolveResult, Target,
+  Asset, AssetRef, Buffer, BundleBehavior, BundleBehaviorFFI, Dependency, Diagnostics, Options,
+  ResolutionType, ResolveResult, Target,
   extensible::{Extensible, read_extensible, unknown_fields_are_zero, write_extensible},
   options_context, path_arg, plugin_str, write_buffer,
 };
@@ -296,10 +297,16 @@ pub extern "C" fn parcel_asset_add_dependency(asset: Asset, dep: *const Dependen
 /// Every file the resolvers read or probe is recorded as an invalidation of the asset, so the
 /// transform re-runs when the result would change. Only available while transforming.
 ///
-/// Returns false when the dependency could not be resolved, or when Parcel cannot honor `dep` (see
-/// `parcel_asset_add_dependency()`). Otherwise fills `*result`, whose `size` the caller sets: for
-/// `PARCEL_RESOLUTION_FILE_PATH`, `file_path` and, when the resolver chose one, `pipeline`. The
-/// caller must `parcel_free_buffer()` both.
+/// Fills `*result`, whose `size` the caller sets, and returns true when the resolvers ran:
+/// `resolution_type` is `PARCEL_RESOLUTION_NONE` when none of them resolved the dependency, and
+/// for `PARCEL_RESOLUTION_FILE_PATH`, `file_path` and, when the resolver chose one, `pipeline` are
+/// set. The caller must `parcel_free_buffer()` both.
+///
+/// Returns false when a resolver failed, when Parcel cannot honor `dep` (see
+/// `parcel_asset_add_dependency()`), or when called outside a transform. Then, if `options` is the
+/// current call's handle, `*diagnostics` is set to a list saying why, including every diagnostic
+/// a failing resolver reported: read it, or fail with it unchanged by setting
+/// `DiagnosticOptions.diagnostics`.
 pub extern "C" fn parcel_asset_resolve(
   asset: Asset,
   options: Options,
@@ -307,16 +314,25 @@ pub extern "C" fn parcel_asset_resolve(
   from: *const u8,
   from_len: usize,
   result: *mut ResolveResult,
+  diagnostics: *mut Diagnostics,
 ) -> bool {
   if asset == 0 || options == 0 || dep.is_null() || result.is_null() {
     return false;
   }
+  let context = unsafe { options_context(options) };
+  let fail = |message: &str| {
+    if !diagnostics.is_null() {
+      let diagnostic = CoreDiagnostic::from_message(format!("parcel_asset_resolve: {message}"));
+      unsafe { *diagnostics = context.hand_out(vec![diagnostic]) };
+    }
+    false
+  };
   // Checked up front, so a resolution is never computed only to be dropped.
   if unsafe { result.cast::<usize>().read() } < ResolveResult::MIN_SIZE {
-    return false;
+    return fail("the result's size is too small for any version of ResolveResult");
   }
-  let Some(plugin) = unsafe { options_context(options) }.plugin else {
-    return false;
+  let Some(plugin) = context.plugin else {
+    return fail("only available while transforming");
   };
   let asset = unsafe { &*(asset as *const CoreAsset) };
   let resolve_from = if from_len == 0 {
@@ -324,15 +340,21 @@ pub extern "C" fn parcel_asset_resolve(
   } else {
     match unsafe { path_arg(from, from_len) } {
       Some(from) => SourceUrl::from_path(&from),
-      None => return false,
+      None => return fail("`from` must be an absolute path"),
     }
   };
   let Some(dep) = (unsafe { DependencyOptions::read(dep, asset, resolve_from) }) else {
-    return false;
+    return fail("the DependencyOptions ask for something this version of Parcel does not support");
   };
 
-  let Ok(resolution) = plugin.resolve(&dep) else {
-    return false;
+  let resolution = match plugin.resolve(&dep) {
+    Ok(resolution) => resolution,
+    Err(errors) => {
+      if !diagnostics.is_null() {
+        unsafe { *diagnostics = context.hand_out(errors.0) };
+      }
+      return false;
+    }
   };
 
   let mut resolved = ResolveResult::default();
@@ -414,6 +436,15 @@ pub extern "C" fn parcel_dep_get_conditions(dep: Dependency) -> ExportsCondition
   }
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
   dep.conditions.bits()
+}
+
+/// Returns how the importing asset uses the resolved one (`PARCEL_IMPORT_TYPE_*`).
+pub extern "C" fn parcel_dep_get_import_type(dep: Dependency) -> ImportType {
+  if dep == 0 {
+    return ImportType::PARCEL_IMPORT_TYPE_JAVASCRIPT;
+  }
+  let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
+  dep.import_type.into()
 }
 
 /// Returns the absolute path of the file containing this import into `*buf`.

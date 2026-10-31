@@ -92,6 +92,16 @@ public struct SourceType: RawRepresentable, Hashable, Sendable {
   public static let script = Self(rawValue: 1)
 }
 
+/// The mode a build runs in: ``development``, ``production``, or a custom mode
+/// the build was given.
+public struct BuildMode: RawRepresentable, Hashable, Sendable {
+  public var rawValue: String
+  public init(rawValue: String) { self.rawValue = rawValue }
+
+  public static let development = Self(rawValue: "development")
+  public static let production = Self(rawValue: "production")
+}
+
 /// The level of a log event, and of a message passed to ``Options/log(_:level:)``.
 public struct LogLevel: RawRepresentable, Hashable, Comparable, Sendable, CustomStringConvertible {
   public var rawValue: UInt8

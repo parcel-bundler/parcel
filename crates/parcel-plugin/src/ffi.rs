@@ -40,6 +40,32 @@ impl Priority {
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct Priority(pub u8);
+impl ImportType {
+  #[doc = " The module's exports. A file imported this way must have a transformer that turns it into\n JavaScript, or it is an error."]
+  pub const JavaScript: ImportType = ImportType(0);
+  #[doc = " A `CSSStyleSheet`."]
+  pub const StyleSheet: ImportType = ImportType(1);
+  #[doc = " The URL of the file. Any file can be referenced this way, transformed or not."]
+  pub const Url: ImportType = ImportType(2);
+  #[doc = " The bundle's contents as a string."]
+  pub const Text: ImportType = ImportType(3);
+  #[doc = " The bundle's contents as bytes."]
+  pub const Bytes: ImportType = ImportType(4);
+}
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct ImportType(pub u8);
+impl LogLevel {
+  pub const None: LogLevel = LogLevel(0);
+  pub const Error: LogLevel = LogLevel(1);
+  pub const Warn: LogLevel = LogLevel(2);
+  pub const Info: LogLevel = LogLevel(3);
+  pub const Verbose: LogLevel = LogLevel(4);
+}
+#[repr(transparent)]
+#[doc = " The level of a log event, and of a message passed to `parcel_options_log()`."]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct LogLevel(pub u8);
 impl Environment {
   pub const Browser: Environment = Environment(0);
   pub const WebWorker: Environment = Environment(1);
@@ -121,32 +147,6 @@ impl ReportEventType {
 #[doc = " The kind of event passed to `parcel_plugin_report()`."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct ReportEventType(pub u8);
-impl LogLevel {
-  pub const None: LogLevel = LogLevel(0);
-  pub const Error: LogLevel = LogLevel(1);
-  pub const Warn: LogLevel = LogLevel(2);
-  pub const Info: LogLevel = LogLevel(3);
-  pub const Verbose: LogLevel = LogLevel(4);
-}
-#[repr(transparent)]
-#[doc = " The level of a log event, and of a message passed to `parcel_options_log()`."]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub struct LogLevel(pub u8);
-impl ImportType {
-  #[doc = " The module's exports. A file imported this way must have a transformer that turns it into\n JavaScript, or it is an error."]
-  pub const JavaScript: ImportType = ImportType(0);
-  #[doc = " A `CSSStyleSheet`."]
-  pub const StyleSheet: ImportType = ImportType(1);
-  #[doc = " The URL of the file. Any file can be referenced this way, transformed or not."]
-  pub const Url: ImportType = ImportType(2);
-  #[doc = " The bundle's contents as a string."]
-  pub const Text: ImportType = ImportType(3);
-  #[doc = " The bundle's contents as bytes."]
-  pub const Bytes: ImportType = ImportType(4);
-}
-#[repr(transparent)]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub struct ImportType(pub u8);
 impl DependencyFlags {
   pub const ENTRY: DependencyFlags = DependencyFlags(1);
   pub const OPTIONAL: DependencyFlags = DependencyFlags(2);
@@ -385,6 +385,8 @@ impl ::std::ops::BitAndAssign for FileKind {
 pub struct FileKind(pub u8);
 #[doc = " Index of an asset within the bundle graph."]
 pub type AssetIndex = u32;
+#[doc = " Index of a bundle within the bundle graph."]
+pub type BundleIndex = usize;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct ParcelApiHeader {
@@ -491,8 +493,6 @@ pub type BundleGraph = u64;
 pub type Bundle = u64;
 #[doc = " Opaque handle to a Parcel target. Obtained via `parcel_asset_get_target()`."]
 pub type Target = u64;
-#[doc = " Index of a bundle within the bundle graph."]
-pub type BundleIndex = usize;
 #[doc = " The resolution of a dependency in the bundle graph, written by\n `parcel_bundle_graph_get_dependency_resolution()`.\n\n Initialize it as `BundleGraphDependencyResolution resolution = {.size = sizeof(resolution)};`."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -501,9 +501,9 @@ pub struct BundleGraphDependencyResolution {
   pub size: usize,
   #[doc = " `PARCEL_BUNDLE_GRAPH_RESOLUTION_*`"]
   pub resolution_type: BundleGraphResolutionType,
-  #[doc = " Valid only when `resolution_type == PARCEL_BUNDLE_GRAPH_RESOLUTION_ASSET`."]
+  #[doc = " The asset the dependency resolved to, when `resolution_type` is\n `PARCEL_BUNDLE_GRAPH_RESOLUTION_ASSET` (an asset in the same bundle),\n `PARCEL_BUNDLE_GRAPH_RESOLUTION_BUNDLE` (an asset in another bundle) or\n `PARCEL_BUNDLE_GRAPH_RESOLUTION_INTERNALIZED` (an asset in a bundle inlined\n into this one). `PARCEL_INVALID_ASSET_INDEX` otherwise."]
   pub asset: AssetIndex,
-  #[doc = " Valid only when `resolution_type == PARCEL_BUNDLE_GRAPH_RESOLUTION_BUNDLE`."]
+  #[doc = " The bundle the dependency resolved to, only when `resolution_type` is\n `PARCEL_BUNDLE_GRAPH_RESOLUTION_BUNDLE`. `PARCEL_INVALID_BUNDLE_INDEX`\n otherwise."]
   pub bundle: BundleIndex,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
@@ -720,7 +720,7 @@ pub struct ParcelApi {
   pub asset_set_type:
     ::std::option::Option<unsafe extern "C" fn(asset: Asset, ty: *const u8, ty_len: usize)>,
   pub asset_get_file_path: ::std::option::Option<
-    unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef, _options: Options),
+    unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef, options: Options),
   >,
   pub asset_get_pipeline:
     ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef)>,
@@ -807,11 +807,13 @@ pub struct ParcelApi {
     ::std::option::Option<unsafe extern "C" fn(dep: Dependency) -> DependencyFlags>,
   pub dep_get_conditions:
     ::std::option::Option<unsafe extern "C" fn(dep: Dependency) -> ExportsConditions>,
+  pub dep_get_import_type:
+    ::std::option::Option<unsafe extern "C" fn(dep: Dependency) -> ImportType>,
   pub dep_get_source_path: ::std::option::Option<
-    unsafe extern "C" fn(buf: *mut Buffer, dep: Dependency, _options: Options),
+    unsafe extern "C" fn(buf: *mut Buffer, dep: Dependency, options: Options),
   >,
   pub dep_get_resolve_from: ::std::option::Option<
-    unsafe extern "C" fn(buf: *mut Buffer, dep: Dependency, _options: Options),
+    unsafe extern "C" fn(buf: *mut Buffer, dep: Dependency, options: Options),
   >,
   pub dep_get_target: ::std::option::Option<unsafe extern "C" fn(dep: Dependency) -> Target>,
   pub options_get_project_root:
@@ -819,6 +821,11 @@ pub struct ParcelApi {
   pub options_get_env: ::std::option::Option<
     unsafe extern "C" fn(buf: *mut Buffer, options: Options, key: *const u8, key_len: usize),
   >,
+  pub options_get_mode:
+    ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, options: Options)>,
+  pub options_get_hmr: ::std::option::Option<unsafe extern "C" fn(options: Options) -> bool>,
+  pub options_get_log_level:
+    ::std::option::Option<unsafe extern "C" fn(options: Options) -> LogLevel>,
   pub asset_get_target: ::std::option::Option<unsafe extern "C" fn(asset: AssetRef) -> Target>,
   pub target_get_environment:
     ::std::option::Option<unsafe extern "C" fn(target: Target) -> Environment>,
@@ -830,9 +837,8 @@ pub struct ParcelApi {
     ::std::option::Option<unsafe extern "C" fn(target: Target) -> EnvironmentFlags>,
   pub target_get_public_url:
     ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, target: Target)>,
-  pub target_get_dist_dir: ::std::option::Option<
-    unsafe extern "C" fn(buf: *mut Buffer, target: Target, _options: Options),
-  >,
+  pub target_get_dist_dir:
+    ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, target: Target, options: Options)>,
   pub asset_get_query:
     ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef)>,
   pub diagnostics_get_count:
@@ -888,6 +894,7 @@ pub struct ParcelApi {
       from: *const u8,
       from_len: usize,
       result: *mut ResolveResult,
+      diagnostics: *mut Diagnostics,
     ) -> bool,
   >,
   pub asset_get_map: ::std::option::Option<unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef)>,
@@ -916,7 +923,7 @@ pub struct ParcelApi {
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 672usize];
+  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 704usize];
   ["Alignment of ParcelApi"][::std::mem::align_of::<ParcelApi>() - 8usize];
   ["Offset of field: ParcelApi::header"][::std::mem::offset_of!(ParcelApi, header) - 0usize];
   ["Offset of field: ParcelApi::asset_get_content"]
@@ -1019,70 +1026,78 @@ const _: () = {
     [::std::mem::offset_of!(ParcelApi, dep_get_flags) - 400usize];
   ["Offset of field: ParcelApi::dep_get_conditions"]
     [::std::mem::offset_of!(ParcelApi, dep_get_conditions) - 408usize];
+  ["Offset of field: ParcelApi::dep_get_import_type"]
+    [::std::mem::offset_of!(ParcelApi, dep_get_import_type) - 416usize];
   ["Offset of field: ParcelApi::dep_get_source_path"]
-    [::std::mem::offset_of!(ParcelApi, dep_get_source_path) - 416usize];
+    [::std::mem::offset_of!(ParcelApi, dep_get_source_path) - 424usize];
   ["Offset of field: ParcelApi::dep_get_resolve_from"]
-    [::std::mem::offset_of!(ParcelApi, dep_get_resolve_from) - 424usize];
+    [::std::mem::offset_of!(ParcelApi, dep_get_resolve_from) - 432usize];
   ["Offset of field: ParcelApi::dep_get_target"]
-    [::std::mem::offset_of!(ParcelApi, dep_get_target) - 432usize];
+    [::std::mem::offset_of!(ParcelApi, dep_get_target) - 440usize];
   ["Offset of field: ParcelApi::options_get_project_root"]
-    [::std::mem::offset_of!(ParcelApi, options_get_project_root) - 440usize];
+    [::std::mem::offset_of!(ParcelApi, options_get_project_root) - 448usize];
   ["Offset of field: ParcelApi::options_get_env"]
-    [::std::mem::offset_of!(ParcelApi, options_get_env) - 448usize];
+    [::std::mem::offset_of!(ParcelApi, options_get_env) - 456usize];
+  ["Offset of field: ParcelApi::options_get_mode"]
+    [::std::mem::offset_of!(ParcelApi, options_get_mode) - 464usize];
+  ["Offset of field: ParcelApi::options_get_hmr"]
+    [::std::mem::offset_of!(ParcelApi, options_get_hmr) - 472usize];
+  ["Offset of field: ParcelApi::options_get_log_level"]
+    [::std::mem::offset_of!(ParcelApi, options_get_log_level) - 480usize];
   ["Offset of field: ParcelApi::asset_get_target"]
-    [::std::mem::offset_of!(ParcelApi, asset_get_target) - 456usize];
+    [::std::mem::offset_of!(ParcelApi, asset_get_target) - 488usize];
   ["Offset of field: ParcelApi::target_get_environment"]
-    [::std::mem::offset_of!(ParcelApi, target_get_environment) - 464usize];
+    [::std::mem::offset_of!(ParcelApi, target_get_environment) - 496usize];
   ["Offset of field: ParcelApi::target_get_output_format"]
-    [::std::mem::offset_of!(ParcelApi, target_get_output_format) - 472usize];
+    [::std::mem::offset_of!(ParcelApi, target_get_output_format) - 504usize];
   ["Offset of field: ParcelApi::target_get_source_type"]
-    [::std::mem::offset_of!(ParcelApi, target_get_source_type) - 480usize];
+    [::std::mem::offset_of!(ParcelApi, target_get_source_type) - 512usize];
   ["Offset of field: ParcelApi::target_get_env_flags"]
-    [::std::mem::offset_of!(ParcelApi, target_get_env_flags) - 488usize];
+    [::std::mem::offset_of!(ParcelApi, target_get_env_flags) - 520usize];
   ["Offset of field: ParcelApi::target_get_public_url"]
-    [::std::mem::offset_of!(ParcelApi, target_get_public_url) - 496usize];
+    [::std::mem::offset_of!(ParcelApi, target_get_public_url) - 528usize];
   ["Offset of field: ParcelApi::target_get_dist_dir"]
-    [::std::mem::offset_of!(ParcelApi, target_get_dist_dir) - 504usize];
+    [::std::mem::offset_of!(ParcelApi, target_get_dist_dir) - 536usize];
   ["Offset of field: ParcelApi::asset_get_query"]
-    [::std::mem::offset_of!(ParcelApi, asset_get_query) - 512usize];
+    [::std::mem::offset_of!(ParcelApi, asset_get_query) - 544usize];
   ["Offset of field: ParcelApi::diagnostics_get_count"]
-    [::std::mem::offset_of!(ParcelApi, diagnostics_get_count) - 520usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostics_get_count) - 552usize];
   ["Offset of field: ParcelApi::diagnostic_get_message"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_message) - 528usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_message) - 560usize];
   ["Offset of field: ParcelApi::diagnostic_get_severity"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_severity) - 536usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_severity) - 568usize];
   ["Offset of field: ParcelApi::diagnostic_get_origin"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_origin) - 544usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_origin) - 576usize];
   ["Offset of field: ParcelApi::diagnostic_get_hint_count"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_hint_count) - 552usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_hint_count) - 584usize];
   ["Offset of field: ParcelApi::diagnostic_get_hint"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_hint) - 560usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_hint) - 592usize];
   ["Offset of field: ParcelApi::options_log"]
-    [::std::mem::offset_of!(ParcelApi, options_log) - 568usize];
+    [::std::mem::offset_of!(ParcelApi, options_log) - 600usize];
   ["Offset of field: ParcelApi::options_log_diagnostic"]
-    [::std::mem::offset_of!(ParcelApi, options_log_diagnostic) - 576usize];
+    [::std::mem::offset_of!(ParcelApi, options_log_diagnostic) - 608usize];
   ["Offset of field: ParcelApi::bundle_get_stable_key"]
-    [::std::mem::offset_of!(ParcelApi, bundle_get_stable_key) - 584usize];
+    [::std::mem::offset_of!(ParcelApi, bundle_get_stable_key) - 616usize];
   ["Offset of field: ParcelApi::bundle_get_hash_reference"]
-    [::std::mem::offset_of!(ParcelApi, bundle_get_hash_reference) - 592usize];
+    [::std::mem::offset_of!(ParcelApi, bundle_get_hash_reference) - 624usize];
   ["Offset of field: ParcelApi::fs_read_file"]
-    [::std::mem::offset_of!(ParcelApi, fs_read_file) - 600usize];
+    [::std::mem::offset_of!(ParcelApi, fs_read_file) - 632usize];
   ["Offset of field: ParcelApi::fs_get_kind"]
-    [::std::mem::offset_of!(ParcelApi, fs_get_kind) - 608usize];
+    [::std::mem::offset_of!(ParcelApi, fs_get_kind) - 640usize];
   ["Offset of field: ParcelApi::fs_canonicalize"]
-    [::std::mem::offset_of!(ParcelApi, fs_canonicalize) - 616usize];
+    [::std::mem::offset_of!(ParcelApi, fs_canonicalize) - 648usize];
   ["Offset of field: ParcelApi::asset_resolve"]
-    [::std::mem::offset_of!(ParcelApi, asset_resolve) - 624usize];
+    [::std::mem::offset_of!(ParcelApi, asset_resolve) - 656usize];
   ["Offset of field: ParcelApi::asset_get_map"]
-    [::std::mem::offset_of!(ParcelApi, asset_get_map) - 632usize];
+    [::std::mem::offset_of!(ParcelApi, asset_get_map) - 664usize];
   ["Offset of field: ParcelApi::diagnostic_get_documentation_url"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_documentation_url) - 640usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_documentation_url) - 672usize];
   ["Offset of field: ParcelApi::diagnostic_get_code_frame_count"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_frame_count) - 648usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_frame_count) - 680usize];
   ["Offset of field: ParcelApi::diagnostic_get_code_frame"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_frame) - 656usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_frame) - 688usize];
   ["Offset of field: ParcelApi::diagnostic_get_code_highlight"]
-    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_highlight) - 664usize];
+    [::std::mem::offset_of!(ParcelApi, diagnostic_get_code_highlight) - 696usize];
 };
 #[doc = " Result filled by an optimizer plugin's `parcel_plugin_optimize()`.\n The struct is zero-initialised by the host before the call, apart from `size`.\n Fill `contents` and optionally `source_map` using `parcel_buffer_write()` or\n `parcel_buffer_write_utf8()`, and only write fields that fit within `size`\n (`PARCEL_HAS_FIELD()` checks)."]
 #[repr(C)]
@@ -1122,7 +1137,7 @@ pub struct ReportEvent {
   pub bundle_graph: BundleGraph,
   #[doc = " `PARCEL_EVENT_BUILD_SUCCESS` only. How long the build took."]
   pub build_time_ms: u64,
-  #[doc = " `PARCEL_EVENT_BUILD_SUCCESS` only. The assets re-transformed by this\n build; empty after a full build, which transformed all of them."]
+  #[doc = " `PARCEL_EVENT_BUILD_SUCCESS` only. The assets transformed by this build:\n on a full build, every asset. NULL when `changed_asset_count` is 0."]
   pub changed_assets: *const AssetIndex,
   pub changed_asset_count: usize,
 }
