@@ -1155,9 +1155,10 @@ mod tests {
     let (status, body) = http_get(address, "/");
     assert_eq!(status, "HTTP/1.1 500 Internal Server Error");
     assert!(body.contains("Unexpected &lt;token&gt;"), "{body}");
+    let separator = if cfg!(windows) { "%5C" } else { "%2F" };
     assert!(
       body.contains(&format!(
-        "{LAUNCH_EDITOR_ENDPOINT}?file=src%2Fa%26b.js%3A1%3A9"
+        "{LAUNCH_EDITOR_ENDPOINT}?file=src{separator}a%26b.js%3A1%3A9"
       )),
       "{body}"
     );

@@ -3,6 +3,7 @@ use super::availability::{
 };
 use super::*;
 use AvailabilityEdgeKind::{Lazy, Parallel, Sync};
+use parcel_core::PathId;
 
 fn bits(len: usize, ones: impl IntoIterator<Item = usize>) -> FixedBitSet {
   let mut set = FixedBitSet::with_capacity(len);
@@ -563,7 +564,11 @@ fn asset_graph(
   let mut assets: Vec<_> = (0..count)
     .map(|a| Asset {
       loc: SourceLocation {
-        url: SourceUrl::parse(&format!("file:///project/{a}.js")).unwrap(),
+        url: SourceUrl::from_path(&PathId::new(
+          &std::env::current_dir()
+            .unwrap()
+            .join(format!("project/{a}.js")),
+        )),
         start: Default::default(),
         end: Default::default(),
       },
@@ -1418,7 +1423,11 @@ fn css_order_diagnostics_distinguish_locations_only_when_needed() {
       let asset = &mut graph.assets.to_mut()[asset];
       asset.ty = AssetType::Css;
       asset.loc = SourceLocation {
-        url: SourceUrl::parse(&format!("file:///project/{file}")).unwrap(),
+        url: SourceUrl::from_path(&PathId::new(
+          &std::env::current_dir()
+            .unwrap()
+            .join(format!("project/{file}")),
+        )),
         start: parcel_core::Location { line, column: 1 },
         end: parcel_core::Location { line, column: 2 },
       };

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - v3
+      - fix-windows-ci
 
 permissions:
   contents: read
@@ -23,6 +24,7 @@ jobs:
   rust_tests:
     name: Rust tests (${{ matrix.os }})
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
@@ -37,6 +39,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: ${{ matrix.os }}
+          cache-on-failure: true
       - run: yarn --immutable
       - run: yarn gulp
-      - run: cargo test --workspace --tests
+      - run: cargo test --workspace --tests --no-fail-fast
