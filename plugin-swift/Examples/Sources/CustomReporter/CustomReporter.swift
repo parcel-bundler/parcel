@@ -68,6 +68,9 @@ final class CustomReporter: Reporter {
       for diagnostic in diagnostics {
         print("[\(entry.level)] \(diagnostic.message)")
       }
+    // A kind of message added to Parcel after this plugin was built.
+    @unknown default:
+      break
     }
   }
 }

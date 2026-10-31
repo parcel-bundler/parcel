@@ -301,9 +301,11 @@ impl CPlugin {
       // The plugin rejected our function table, which is also the only way it
       // could have allocated a diagnostic. Describe the mismatch here instead.
       // Any status no SDK returns gets the same treatment, since it most likely
-      // came from a library built against an older ABI.
+      // came from a library built against an older ABI. The SDKs also refuse a
+      // second Parcel's table in one process, which they cannot tell us apart.
       _ => Err(incompatible_library(format!(
-        "{} was built for a different version of Parcel's plugin ABI.",
+        "{} was built for a different version of Parcel's plugin ABI, or is already in use by \
+         another Parcel in this process.",
         path.to_path_buf().display(),
       ))),
     }

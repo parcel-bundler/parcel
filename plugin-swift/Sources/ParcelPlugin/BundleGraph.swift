@@ -73,14 +73,19 @@ public struct BundleGraph: Sendable {
     case 3: return .external
     case 4: return .excluded
     case 5: return .asset(resolution.asset)
-    case 6: return BundleIndex(exactly: resolution.bundle).map { .bundle($0) } ?? .invalid
-    case 7: return .internalized
+    case 6:
+      return BundleIndex(exactly: resolution.bundle).map { .bundle($0, asset: resolution.asset) }
+        ?? .invalid
+    case 7: return .internalized(resolution.asset)
     default: return .invalid
     }
   }
 }
 
 /// What a dependency in a ``BundleGraph`` resolved to.
+///
+/// Parcel may add cases, so a `switch` over one needs an `@unknown default`.
+@nonexhaustive
 public enum DependencyResolution: Hashable, Sendable {
   /// The asset or dependency index was out of range, or the dependency resolved
   /// to something this SDK predates.
@@ -93,10 +98,10 @@ public enum DependencyResolution: Hashable, Sendable {
   case excluded
   /// An asset in the same bundle.
   case asset(AssetIndex)
-  /// Another bundle.
-  case bundle(BundleIndex)
-  /// A bundle that was inlined into this one.
-  case internalized
+  /// An asset in another bundle.
+  case bundle(BundleIndex, asset: AssetIndex)
+  /// An asset in a bundle that was inlined into this one.
+  case internalized(AssetIndex)
 }
 
 /// Read-only access to an asset in a ``BundleGraph``.

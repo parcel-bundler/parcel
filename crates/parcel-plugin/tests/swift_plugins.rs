@@ -173,6 +173,41 @@ macro_rules! require_swift {
   };
 }
 
+// ── Manifests ───────────────────────────────────────────────────────────────
+
+/// SwiftPM only accepts a package at the root of a repository, so the root
+/// Package.swift repeats plugin-swift/Package.swift for plugins that depend on
+/// the SDK by URL. Apart from where the sources are, and the SDK's own tests,
+/// the two must declare the same package.
+#[test]
+fn root_swift_manifest_matches_the_sdk() {
+  let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+  let dump = |dir: &Path| -> Option<serde_json::Value> {
+    let output = std::process::Command::new("swift")
+      .args(["package", "dump-package", "--package-path"])
+      .arg(dir)
+      .output()
+      .ok()
+      .filter(|output| output.status.success())?;
+    let mut package: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let package_object = package.as_object_mut().unwrap();
+    package_object.remove("packageKind");
+    let targets = package_object["targets"].as_array_mut().unwrap();
+    targets.retain(|target| target["type"] != "test");
+    for target in targets {
+      target.as_object_mut().unwrap().remove("path");
+    }
+    Some(package)
+  };
+
+  let repository = require_swift!(dump(&root));
+  let sdk = dump(&root.join("plugin-swift")).expect("dump plugin-swift/Package.swift");
+  assert_eq!(
+    repository, sdk,
+    "Package.swift and plugin-swift/Package.swift declare different packages"
+  );
+}
+
 // ── Transformer ─────────────────────────────────────────────────────────────
 
 #[test]

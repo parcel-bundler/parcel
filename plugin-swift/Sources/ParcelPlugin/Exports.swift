@@ -10,8 +10,11 @@ internal import CParcelABI
 /// ``parcelPlugin(_:)`` exports for `P`.
 ///
 /// Each entry point runs the plugin method as a task on the calling thread (see
-/// ``Plugin``), and closes the handles it passed in before returning. Use the
-/// macro rather than calling these; they are public only so its expansion can.
+/// ``Plugin``), and closes the handles it passed in before returning.
+///
+/// Not part of the SDK's API: public only so the expansion of
+/// ``parcelPlugin(_:)`` can call it, and free to change with any release. Export
+/// a plugin with the macro rather than calling these.
 public enum PluginExports<P: Plugin> {
   // ── Init ─────────────────────────────────────────────────────────────────
 
@@ -109,17 +112,17 @@ public enum PluginExports<P: Plugin> {
       // Parcel allocated and sized this, so it is written field by field. Every
       // field here is in the first layout; one added later must check `size` first.
       switch resolution {
-      case nil:
+      case .unresolved:
         output.pointee.resolution_type = 0
-      case .resolved(let filePath, let pipeline)?:
+      case .file(let file):
         output.pointee.resolution_type = 1
-        output.pointee.file_path = allocBuffer(filePath)
-        if let pipeline, !pipeline.isEmpty {
+        output.pointee.file_path = allocBuffer(file.path)
+        if let pipeline = file.pipeline, !pipeline.isEmpty {
           output.pointee.pipeline = allocBuffer(pipeline)
         }
-      case .external?:
+      case .external:
         output.pointee.resolution_type = 2
-      case .excluded?:
+      case .excluded:
         output.pointee.resolution_type = 3
       }
     case .failure(let error):
@@ -227,7 +230,8 @@ public enum PluginExports<P: Plugin> {
     let scope = CallScope("report")
     defer { scope.close() }
 
-    let diagnostics = Diagnostics(raw: event.diagnostics, scope: scope)
+    let diagnostics =
+      event.diagnostics == 0 ? nil : Diagnostics(raw: event.diagnostics, scope: scope)
     let changedAssets: [AssetIndex] =
       if let changed = event.changed_assets, event.changed_asset_count > 0 {
         Array(UnsafeBufferPointer(start: changed, count: Int(event.changed_asset_count)))
@@ -252,11 +256,13 @@ public enum PluginExports<P: Plugin> {
           changedAssets: changedAssets)
         try await reporter.buildSucceeded(build, options: options)
       case 2:
-        try await reporter.buildFailed(diagnostics, options: options)
+        try await reporter.buildFailed(
+          diagnostics ?? Diagnostics(raw: 0, scope: scope), options: options)
       case 3:
         let entry = LogEntry(
           level: level,
-          message: message.map { .text($0) } ?? .diagnostics(diagnostics))
+          message: message.map { .text($0) }
+            ?? .diagnostics(diagnostics ?? Diagnostics(raw: 0, scope: scope)))
         try await reporter.log(entry, options: options)
       default:
         // An event added to Parcel after this SDK was built. Reporting nothing

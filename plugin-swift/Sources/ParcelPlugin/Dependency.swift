@@ -46,14 +46,40 @@ public struct DependencyOptions: Hashable, Sendable {
 }
 
 /// The outcome of resolving a dependency.
+///
+/// Parcel may add cases, so a `switch` over one needs an `@unknown default`.
+@nonexhaustive
 public enum ResolveResult: Hashable, Sendable {
-  /// An absolute file path, optionally with the transformer pipeline to build it
-  /// with.
-  case resolved(filePath: String, pipeline: String? = nil)
+  /// Not resolved: the next resolver gets a turn.
+  case unresolved
+  /// A file, built with Parcel's transformers.
+  case file(ResolvedFile)
   /// Left out of the bundle, to be loaded at runtime.
   case external
   /// Silently excluded from the bundle.
   case excluded
+
+  /// The file at the absolute `path`, optionally transformed with the named
+  /// `pipeline`.
+  public static func file(_ path: String, pipeline: String? = nil) -> Self {
+    .file(ResolvedFile(path: path, pipeline: pipeline))
+  }
+}
+
+/// The file a dependency resolved to.
+///
+/// A struct rather than the case's own associated values, so Parcel can add
+/// details about the file without breaking plugins that match on the case.
+public struct ResolvedFile: Hashable, Sendable {
+  /// The file's absolute path.
+  public var path: String
+  /// The named pipeline to transform the file with, if any.
+  public var pipeline: String?
+
+  public init(path: String, pipeline: String? = nil) {
+    self.path = path
+    self.pipeline = pipeline
+  }
 }
 
 /// Read-only access to a dependency.

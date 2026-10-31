@@ -5,7 +5,10 @@ Swift. Plugins are dynamic libraries that Parcel loads through its C plugin ABI,
 just like plugins built with the Rust (`crates/parcel-plugin`) and Go
 (`plugin-go`) SDKs.
 
-Requires Swift 6.2 or later, and macOS 15 or later at runtime.
+Requires Swift 6.2.3 or later, for `@nonexhaustive` enums (SE-0487), and macOS 15
+or later at runtime. Parcel may add cases to the SDK's enums, such as
+`ResolveResult` and `DependencyResolution`, so a `switch` over one needs an
+`@unknown default`.
 
 ## A plugin
 
@@ -127,13 +130,6 @@ assets by it to package them and hashes it into bundle ids, so keep it the same
 across builds. It is namespaced by your module, so other plugins can use the
 same name.
 
-## Without the macro
-
-`#parcelPlugin` depends on swift-syntax. Its expansion is simple: one `@_cdecl`
-function per entry point, each forwarding to `PluginExports<MyPlugin>`. See
-`Sources/ParcelPluginMacros/ParcelPluginMacro.swift` to write those functions by
-hand instead.
-
 ## Publishing
 
 A native plugin is published as a metadata package, plus one package per
@@ -144,6 +140,11 @@ x86_64) and Linux glibc (x64 and arm64). See
 [its README](../.github/scripts/native-plugin/README.md#swift) for details.
 While developing, point `parcel.devLibrary` at the build output instead, e.g.
 `./.build/debug/libMyPlugin`.
+
+Set `engines.parcel` in your package.json to the Parcel versions your plugin was
+built for: at least the version whose source the SDK came from. The SDK carries
+that Parcel's `plugin.h`, and a plugin built against it needs a Parcel that
+implements every host function it calls.
 
 ## Development
 

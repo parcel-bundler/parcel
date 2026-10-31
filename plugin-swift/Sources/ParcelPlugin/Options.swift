@@ -136,6 +136,9 @@ public struct FileSystem: Sendable {
 }
 
 /// A failure reading through ``FileSystem``.
+///
+/// Parcel may add cases, so a `switch` over one needs an `@unknown default`.
+@nonexhaustive
 public enum FileSystemError: Error, Hashable, Sendable, CustomStringConvertible {
   case notFound(path: String)
   case failed(path: String, message: String)

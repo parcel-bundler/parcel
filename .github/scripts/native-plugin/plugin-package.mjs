@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import {PARCEL_ABI_VERSION} from './abi.mjs';
 import {TARGETS} from './targets.mjs';
 
 /** The cdylib is renamed to this inside every artifact package, so a plugin's
@@ -72,6 +73,12 @@ export function readPluginPackage(dir) {
   } else {
     if (!Number.isInteger(parcel.abi)) {
       errors.push('"parcel.abi" must be an integer');
+    } else if (parcel.abi !== PARCEL_ABI_VERSION) {
+      // Parcel refuses to load a plugin whose package.json names another ABI, so
+      // publishing one would only ship a plugin nobody can use.
+      errors.push(
+        `"parcel.abi" is ${parcel.abi}, but this workflow is for Parcel plugin ABI ${PARCEL_ABI_VERSION}. Use the workflow from the Parcel release your plugin's SDK comes from.`,
+      );
     }
 
     let artifacts = parcel.artifacts;

@@ -60,11 +60,11 @@ public protocol Transformer: Plugin {
 
 /// Resolves dependency specifiers to files.
 public protocol Resolver: Plugin {
-  /// Called for each dependency that reaches this resolver. Return `nil` to pass
-  /// it to the next one.
+  /// Called for each dependency that reaches this resolver. Return
+  /// ``ResolveResult/unresolved`` to pass it to the next one.
   func resolve(
     _ dependency: Dependency, specifier: String, pipeline: String?, options: Options
-  ) async throws -> ResolveResult?
+  ) async throws -> ResolveResult
 }
 
 /// Names output bundles.
@@ -124,6 +124,9 @@ extension Reporter {
 }
 
 /// Content a plugin produces: text, or arbitrary bytes.
+///
+/// Parcel may add cases, so a `switch` over one needs an `@unknown default`.
+@nonexhaustive
 public enum Content: Hashable, Sendable {
   case string(String)
   case bytes([UInt8])

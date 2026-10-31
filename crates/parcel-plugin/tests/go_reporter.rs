@@ -135,7 +135,9 @@ fn test_a_go_plugin_that_is_not_a_reporter_says_so() {
     .expect_err("a namer is not a reporter");
 
   assert!(
-    error.0[0].message.contains("plugin does not implement Report"),
+    error.0[0]
+      .message
+      .contains("plugin does not implement Report"),
     "got: {}",
     error.0[0].message
   );

@@ -39,7 +39,8 @@ seven. The workflow derives all of that from a single `parcel` key in your packa
 - `engines.parcel` — the range of Parcel versions your plugin supports. Parcel refuses to
   load a plugin whose range its version does not satisfy, and warns about one without a
   range. `^3.0.0-0` includes the Parcel 3 prereleases, which `^3.0.0` does not.
-- `parcel.abi` — the Parcel plugin ABI version your crate builds against.
+- `parcel.abi` — the Parcel plugin ABI version your plugin builds against. The workflow
+  refuses to publish one that differs from the ABI of the Parcel release it comes from.
 - `parcel.artifacts` — one entry per platform you want to ship, mapping a Rust target
   triple to the npm package name its binary is published under. The build matrix is
   these keys; add or remove a line to add or drop a platform.

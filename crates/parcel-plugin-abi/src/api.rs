@@ -337,6 +337,20 @@ pub static PARCEL_API: ParcelApi = ParcelApi {
 mod tests {
   use super::*;
 
+  /// The publishing workflow rejects a plugin whose package.json names another
+  /// ABI, using its own copy of the version, since it checks out only its
+  /// scripts.
+  #[test]
+  fn publishing_workflow_knows_the_abi_version() {
+    let workflow = include_str!("../../../.github/scripts/native-plugin/abi.mjs");
+    assert!(
+      workflow.contains(&format!(
+        "export const PARCEL_ABI_VERSION = {PARCEL_ABI_VERSION};"
+      )),
+      "update PARCEL_ABI_VERSION in .github/scripts/native-plugin/abi.mjs"
+    );
+  }
+
   #[test]
   fn table_describes_itself() {
     assert_eq!(PARCEL_API.header.size, size_of::<ParcelApi>());

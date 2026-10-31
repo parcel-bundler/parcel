@@ -12,6 +12,10 @@ public struct BuildSuccess: Sendable {
 
 /// A message from Parcel or another plugin.
 public struct LogEntry: Sendable {
+  /// What a log entry says.
+  ///
+  /// Parcel may add cases, so a `switch` over one needs an `@unknown default`.
+  @nonexhaustive
   public enum Message: Sendable {
     case text(String)
     case diagnostics(Diagnostics)

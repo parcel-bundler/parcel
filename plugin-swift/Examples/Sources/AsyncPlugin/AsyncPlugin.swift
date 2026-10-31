@@ -47,9 +47,10 @@ struct AsyncPlugin: Transformer, Resolver {
     }
 
     // Runs the resolver chain, which starts with this same library.
-    guard case .resolved(let suffixPath, _)? = asset.resolve("greeting:suffix") else {
+    guard case .file(let suffix) = try asset.resolve("greeting:suffix") else {
       throw Diagnostic("could not resolve greeting:suffix", filePath: asset.filePath)
     }
+    let suffixPath = suffix.path
     let suffixFile = suffixPath.split(separator: "/").last.map(String.init) ?? suffixPath
 
     asset.setContent("""
@@ -64,11 +65,11 @@ struct AsyncPlugin: Transformer, Resolver {
 
   func resolve(
     _ dependency: Dependency, specifier: String, pipeline: String?, options: Options
-  ) async throws -> ResolveResult? {
-    guard specifier.hasPrefix("greeting:") else { return nil }
+  ) async throws -> ResolveResult {
+    guard specifier.hasPrefix("greeting:") else { return .unresolved }
     let directory = dependency.resolveFrom.split(separator: "/", omittingEmptySubsequences: false)
       .dropLast().joined(separator: "/")
-    return .resolved(filePath: "\(directory)/\(specifier.dropFirst("greeting:".count)).js")
+    return .file("\(directory)/\(specifier.dropFirst("greeting:".count)).js")
   }
 }
 

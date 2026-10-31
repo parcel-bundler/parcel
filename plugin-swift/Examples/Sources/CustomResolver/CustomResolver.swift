@@ -10,9 +10,9 @@ struct CustomResolver: Resolver {
 
   func resolve(
     _ dependency: Dependency, specifier: String, pipeline: String?, options: Options
-  ) async throws -> ResolveResult? {
+  ) async throws -> ResolveResult {
     guard specifier.hasPrefix("custom:") else {
-      return nil  // Not ours: on to the next resolver.
+      return .unresolved  // Not ours: on to the next resolver.
     }
     let name = specifier.dropFirst("custom:".count)
     let directory = dependency.resolveFrom.split(separator: "/", omittingEmptySubsequences: false)
@@ -25,7 +25,7 @@ struct CustomResolver: Resolver {
         "Cannot resolve \(specifier): \(path) does not exist", filePath: dependency.sourcePath,
         hint: "Create \(name).js next to the file that imports it.")
     }
-    return .resolved(filePath: path)
+    return .file(path)
   }
 }
 

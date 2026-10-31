@@ -193,10 +193,13 @@ public struct Asset {
   /// the resolvers read or probe invalidates the asset, so the transform re-runs
   /// when the result would change.
   ///
-  /// Returns `nil` when the dependency could not be resolved to anything, or
-  /// Parcel cannot honor `dependency` (see ``addDependency(_:)``).
-  public func resolve(_ dependency: DependencyOptions, from: String? = nil) -> ResolveResult? {
-    host {
+  /// Returns ``ResolveResult/unresolved`` when no resolver claimed the
+  /// dependency, and throws when one failed, or Parcel cannot honor `dependency`
+  /// (see ``addDependency(_:)``).
+  public func resolve(_ dependency: DependencyOptions, from: String? = nil) throws(Diagnostic)
+    -> ResolveResult
+  {
+    let resolution: ResolveResult? = host {
       withSized(CParcelABI.ResolveResult.self) { result in
         let resolved = dependency.withRaw { dep in
           withBytes(from ?? "") { parcel_asset_resolve(raw, options.raw, dep, $0, $1, result) }
@@ -205,20 +208,26 @@ public struct Asset {
         let pipeline = takeString(&result.pointee.pipeline)
         guard resolved else { return nil }
         switch result.pointee.resolution_type {
-        case 1: return filePath.map { .resolved(filePath: $0, pipeline: pipeline) }
+        case 0: return .unresolved
+        case 1: return filePath.map { .file($0, pipeline: pipeline) }
         case 2: return .external
         case 3: return .excluded
-        // Unresolved, or a kind of resolution this SDK predates, which a plugin
-        // cannot act on.
+        // A kind of resolution this SDK predates, which a plugin cannot act on.
         default: return nil
         }
       }
     }
+    guard let resolution else {
+      throw Diagnostic("Could not resolve \"\(dependency.specifier)\"")
+    }
+    return resolution
   }
 
   /// Resolves `specifier` as an ES module import. See ``resolve(_:from:)-(DependencyOptions,_)``.
-  public func resolve(_ specifier: String, from: String? = nil) -> ResolveResult? {
-    resolve(DependencyOptions(specifier), from: from)
+  public func resolve(_ specifier: String, from: String? = nil) throws(Diagnostic)
+    -> ResolveResult
+  {
+    try resolve(DependencyOptions(specifier), from: from)
   }
 
   /// Registers an exported symbol name, e.g. `"default"`, `"foo"`, or `"*"`.

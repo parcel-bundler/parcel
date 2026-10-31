@@ -267,19 +267,28 @@ private func setContent(_ body: (ParcelPlugin.Asset) -> Void) -> SetContentCall?
   @Test func resolveSizesItsResult() {
     let (result, bytes) = withAssetHandle { asset, handle in
       resolutionTypes.withLock { $0[handle] = UInt8(PARCEL_RESOLUTION_EXTERNAL.rawValue) }
-      return (asset.resolve("./a.js"), sizedStructs.withLock { $0[handle] } ?? [])
+      return (try? asset.resolve("./a.js"), sizedStructs.withLock { $0[handle] } ?? [])
     }
     #expect(result == .external)
     let size = bytes.withUnsafeBytes { $0.loadUnaligned(as: UInt.self) }
     #expect(size == UInt(MemoryLayout<CParcelABI.ResolveResult>.size))
   }
 
-  @Test func resolveTreatsAnUnknownResolutionAsUnresolved() {
+  /// A kind of resolution this SDK predates, which a plugin cannot act on.
+  @Test func resolveFailsOnAnUnknownResolution() {
     let result = withAssetHandle { asset, handle in
       resolutionTypes.withLock { $0[handle] = 200 }
-      return asset.resolve("./a.js")
+      return Result { () throws(ParcelPlugin.Diagnostic) in try asset.resolve("./a.js") }
     }
-    #expect(result == nil)
+    #expect(throws: ParcelPlugin.Diagnostic.self) { try result.get() }
+  }
+
+  @Test func resolveReportsUnresolved() {
+    let result = withAssetHandle { asset, handle in
+      resolutionTypes.withLock { $0[handle] = UInt8(PARCEL_RESOLUTION_NONE.rawValue) }
+      return try? asset.resolve("./a.js")
+    }
+    #expect(result == .unresolved)
   }
 
   @Test func bundleGraphResolutions() {
