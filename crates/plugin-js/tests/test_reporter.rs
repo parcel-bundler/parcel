@@ -1,3 +1,6 @@
+#[path = "../../core/tests/support/mod.rs"]
+mod test_utils;
+
 use std::{borrow::Cow, collections::HashMap, path::Path, sync::Arc, time::Duration};
 
 use parcel_core::{
@@ -41,7 +44,7 @@ fn report_times(
   let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
   let plugin_path = root.join(Path::new(name));
   fs.create_dir_all(root).expect("Error creating dir");
-  fs.write(plugin_path, &code.as_bytes().to_owned())
+  fs.write(plugin_path, &test_utils::js(code).as_bytes().to_owned())
     .expect("Error writing file");
 
   let plugin_dir = root.join(Path::new("node_modules/@parcel/plugin"));
@@ -76,13 +79,21 @@ fn report_times(
 
 fn bundle_graph() -> BundleGraph<'static> {
   let target = Arc::new(Target {
-    dist_dir: PathId::new(Path::new("/dist")),
+    dist_dir: PathId::new(test_utils::path("/dist").as_path()),
     public_url: "/assets".into(),
     ..Default::default()
   });
   let assets = vec![
-    test_asset("file:///src/index.js", AssetType::Js, target.clone()),
-    test_asset("file:///src/style.css", AssetType::Css, target.clone()),
+    test_asset(
+      test_utils::url("file:///src/index.js").as_str(),
+      AssetType::Js,
+      target.clone(),
+    ),
+    test_asset(
+      test_utils::url("file:///src/style.css").as_str(),
+      AssetType::Css,
+      target.clone(),
+    ),
   ];
   let bundles = vec![Bundle {
     id: 0,
@@ -112,14 +123,14 @@ fn bundle_graph() -> BundleGraph<'static> {
     },
     bundles,
     HashMap::new(),
-    PathId::new(Path::new("/")),
+    PathId::new(test_utils::path("/").as_path()),
   )
 }
 
 fn test_asset(url: &str, ty: AssetType, target: Arc<Target>) -> Asset {
   Asset {
     loc: SourceLocation {
-      url: SourceUrl::parse(url).unwrap(),
+      url: SourceUrl::parse(&test_utils::url(url)).unwrap(),
       ..Default::default()
     },
     ty,
@@ -174,10 +185,10 @@ fn test_reporter_build_success() {
           let bundles = bundleGraph.getBundles();
           assert.equal(bundles.length, 1);
           assert.equal(bundles[0].type, 'js');
-          assert.equal(bundles[0].getMainEntry().url, 'file:///src/index.js');
+          assert.equal(bundles[0].getMainEntry().url, testUrl('file:///src/index.js'));
 
           assert.equal(changedAssets.length, 1);
-          assert.equal(changedAssets[0].url, 'file:///src/style.css');
+          assert.equal(changedAssets[0].url, testUrl('file:///src/style.css'));
           assert.equal(changedAssets[0].type, 'css');
         }
       });
@@ -195,7 +206,7 @@ fn test_reporter_build_success() {
 fn test_reporter_file_path_of_bundles_that_are_not_content_hashed() {
   let mut graph = bundle_graph();
   // Written to the namer's path, so it never gets a final path of its own.
-  graph.bundles[0].dist_path = Some(PathId::new(Path::new("/dist/index.js")));
+  graph.bundles[0].dist_path = Some(PathId::new(test_utils::path("/dist/index.js").as_path()));
   report(
     "reporter-file-path.mjs",
     r#"
@@ -204,7 +215,7 @@ fn test_reporter_file_path_of_bundles_that_are_not_content_hashed() {
 
       export default new Reporter({
         buildSuccess({bundleGraph}) {
-          assert.equal(bundleGraph.getBundles()[0].filePath, '/dist/index.js');
+          assert.equal(bundleGraph.getBundles()[0].filePath, testPath('/dist/index.js'));
         }
       });
     "#,
@@ -221,11 +232,11 @@ fn test_reporter_file_path_of_bundles_that_are_not_content_hashed() {
 /// to that bundle. Only the entry has its final path.
 fn lazy_bundle_graph() -> BundleGraph<'static> {
   let target = Arc::new(Target {
-    dist_dir: PathId::new(Path::new("/dist")),
+    dist_dir: PathId::new(test_utils::path("/dist").as_path()),
     ..Default::default()
   });
   let server_target = Arc::new(Target {
-    dist_dir: PathId::new(Path::new("/dist")),
+    dist_dir: PathId::new(test_utils::path("/dist").as_path()),
     environment: Environment::Node,
     ..Default::default()
   });
@@ -246,14 +257,22 @@ fn lazy_bundle_graph() -> BundleGraph<'static> {
     conditions: ExportsCondition::empty(),
     resolution: DependencyResolution::Asset(AssetNodeIndex(1)),
   };
-  let mut index = test_asset("file:///src/index.js", AssetType::Js, target.clone());
+  let mut index = test_asset(
+    test_utils::url("file:///src/index.js").as_str(),
+    AssetType::Js,
+    target.clone(),
+  );
   index.dependencies = vec![
     lazy("./lazy", DependencyFlags::SIDE_EFFECTS),
     lazy("./lazy?again", DependencyFlags::empty()),
   ];
   let assets = vec![
     index,
-    test_asset("file:///src/lazy.js", AssetType::Js, server_target.clone()),
+    test_asset(
+      test_utils::url("file:///src/lazy.js").as_str(),
+      AssetType::Js,
+      server_target.clone(),
+    ),
   ];
   let bundles = vec![
     Bundle {
@@ -262,7 +281,7 @@ fn lazy_bundle_graph() -> BundleGraph<'static> {
       target,
       bundle_behavior: BundleBehavior::None,
       flags: BundleFlags::ENTRY,
-      dist_path: Some(PathId::new(Path::new("/dist/index.js"))),
+      dist_path: Some(PathId::new(test_utils::path("/dist/index.js").as_path())),
       assets: vec![AssetIndex(0)],
       entry_assets: vec![AssetIndex(0)],
       main_entry_asset: Some(AssetIndex(0)),
@@ -283,7 +302,7 @@ fn lazy_bundle_graph() -> BundleGraph<'static> {
       name_state: Default::default(),
     },
   ];
-  bundles[0].set_final_path(PathId::new(Path::new("/dist/index.js")));
+  bundles[0].set_final_path(PathId::new(test_utils::path("/dist/index.js").as_path()));
 
   let mut resolutions = HashMap::new();
   // Only the first dependency was resolved to the lazy bundle; the second keeps its asset
@@ -313,7 +332,7 @@ fn lazy_bundle_graph() -> BundleGraph<'static> {
     },
     bundles,
     resolutions,
-    PathId::new(Path::new("/")),
+    PathId::new(test_utils::path("/").as_path()),
   )
 }
 
@@ -331,7 +350,7 @@ fn test_reporter_bundle_graph_queries() {
           let [entry, lazy] = bundleGraph.getBundles();
           let [index, lazyAsset] = [entry.getMainEntry(), lazy.getMainEntry()];
 
-          assert.equal(entry.filePath, '/dist/index.js');
+          assert.equal(entry.filePath, testPath('/dist/index.js'));
           assert.equal(entry.name, 'index.js');
           assert.equal(lazy.filePath, null);
           assert.equal(lazy.name, null);
@@ -347,17 +366,17 @@ fn test_reporter_bundle_graph_queries() {
           assert.equal(dep.sideEffects, true);
           assert.equal(internalized.sideEffects, false);
 
-          assert.equal(bundleGraph.getResolvedAsset(dep).url, 'file:///src/lazy.js');
-          assert.equal(bundleGraph.getResolvedAsset(internalized).url, 'file:///src/lazy.js');
-          assert.equal(bundleGraph.getReferencedBundle(dep).getMainEntry().url, 'file:///src/lazy.js');
+          assert.equal(bundleGraph.getResolvedAsset(dep).url, testUrl('file:///src/lazy.js'));
+          assert.equal(bundleGraph.getResolvedAsset(internalized).url, testUrl('file:///src/lazy.js'));
+          assert.equal(bundleGraph.getReferencedBundle(dep).getMainEntry().url, testUrl('file:///src/lazy.js'));
           assert.equal(bundleGraph.getReferencedBundle(internalized), undefined);
 
           let dependencies = bundleGraph.getBundleDependencies(entry);
-          assert.deepEqual(dependencies.map(b => b.getMainEntry().url), ['file:///src/lazy.js']);
+          assert.deepEqual(dependencies.map(b => b.getMainEntry().url), [testUrl('file:///src/lazy.js')]);
           assert.deepEqual(bundleGraph.getBundleDependencies(lazy), []);
 
           let group = bundleGraph.getBundlesInBundleGroup(entry);
-          assert.deepEqual(group.map(b => b.getMainEntry().url), ['file:///src/lazy.js']);
+          assert.deepEqual(group.map(b => b.getMainEntry().url), [testUrl('file:///src/lazy.js')]);
         }
       });
     "#,

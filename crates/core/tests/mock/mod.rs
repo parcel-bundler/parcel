@@ -3,6 +3,13 @@
 //! Living in a subdirectory (`tests/mock/mod.rs`) means cargo does not treat this file as its
 //! own test binary; it is included via `mod mock;` from the test files that need it.
 
+#[path = "../support/mod.rs"]
+mod test_utils;
+
+pub fn test_path_id(path: &std::path::Path) -> parcel_core::PathId {
+  parcel_core::PathId::new(&test_utils::path(path.to_str().unwrap()))
+}
+
 use std::{
   collections::{HashMap, HashSet},
   io::Result as IoResult,
@@ -30,9 +37,9 @@ use parcel_core::{
 pub fn write_file(fs: &MemoryFileSystem, path: &str, contents: &str) {
   let path = Path::new(path);
   if let Some(parent) = path.parent() {
-    fs.create_dir_all(PathId::new(parent)).unwrap();
+    fs.create_dir_all(test_path_id(parent)).unwrap();
   }
-  fs.write(PathId::new(path), &contents.as_bytes().to_vec())
+  fs.write(test_path_id(path), &contents.as_bytes().to_vec())
     .unwrap();
 }
 
@@ -53,7 +60,7 @@ pub fn build_options(
     config: None,
     // Setting cwd to the project directory makes `find_project_root` (which falls back to cwd
     // when no lockfile is found on disk) deterministically resolve the project root to /project.
-    cwd: PathId::new(Path::new("/project")),
+    cwd: test_path_id(Path::new("/project")),
     dist_dir: None,
     public_url: Default::default(),
     hmr: None,
@@ -636,7 +643,7 @@ impl Reporter for MockReporter {
 
     // Proves the options reached the reporter rather than the event being
     // dispatched against a dead `Weak`.
-    assert_eq!(options.project_root, PathId::new(Path::new("/project")));
+    assert_eq!(options.project_root, test_path_id(Path::new("/project")));
 
     self.events.lock().unwrap().push(name);
     Ok(())

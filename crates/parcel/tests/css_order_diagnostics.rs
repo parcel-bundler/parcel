@@ -1,3 +1,10 @@
+#[path = "../../core/tests/support/mod.rs"]
+mod test_utils;
+
+fn test_path_id(path: &std::path::Path) -> parcel_core::PathId {
+  parcel_core::PathId::new(&test_utils::path(path.to_str().unwrap()))
+}
+
 use std::{
   path::Path,
   sync::{Arc, Mutex},
@@ -48,10 +55,10 @@ fn build_entries(files: &[(&str, &str)], entries: &[&str], mode: BuildMode) -> V
   ) {
     let path = Path::new("/project").join(file);
     input
-      .create_dir_all(PathId::new(path.parent().unwrap()))
+      .create_dir_all(test_path_id(path.parent().unwrap()))
       .unwrap();
     input
-      .write(PathId::new(&path), &code.as_bytes().to_vec())
+      .write(test_path_id(&path), &code.as_bytes().to_vec())
       .unwrap();
   }
   let warnings = Arc::new(Warnings::default());
@@ -70,7 +77,7 @@ fn build_entries(files: &[(&str, &str)], entries: &[&str], mode: BuildMode) -> V
       input_fs: input,
       output_fs: Arc::new(MemoryFileSystem::new()),
       config: None,
-      cwd: PathId::new(Path::new("/project")),
+      cwd: test_path_id(Path::new("/project")),
       dist_dir: None,
       public_url: "/".into(),
       hmr: None,
@@ -87,7 +94,7 @@ fn frame<'a>(diagnostic: &'a Diagnostic, file: &str) -> &'a CodeFrame {
     .iter()
     .find(|frame| {
       frame.url.as_ref().unwrap().to_file_path().unwrap()
-        == PathId::new(&Path::new("/project").join(file))
+        == test_path_id(&Path::new("/project").join(file))
     })
     .unwrap_or_else(|| panic!("missing frame for {file}: {diagnostic:#?}"))
 }

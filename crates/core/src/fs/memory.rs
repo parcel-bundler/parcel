@@ -66,6 +66,7 @@ impl MemoryFileSystem {
 
   fn dir_in(entries: &[Entry], path: &Path) -> Result<usize> {
     let mut node = 0;
+    let mut root = 0;
     for component in path.components() {
       match component {
         Component::CurDir => {}
@@ -77,9 +78,12 @@ impl MemoryFileSystem {
             return Err(Error::new(ErrorKind::NotFound, "not found"));
           }
         }
-        Component::Prefix(_) => todo!(),
+        Component::Prefix(prefix) => {
+          root = Self::entry_in(entries, 0, prefix.as_os_str())?;
+          node = root;
+        }
         Component::RootDir => {
-          node = 0;
+          node = root;
         }
         Component::Normal(name) => {
           node = Self::entry_in(entries, node, name)?;
@@ -112,6 +116,9 @@ impl MemoryFileSystem {
 
   pub fn mkdir(&self, path: &Path) -> Result<()> {
     let name = path.file_name().unwrap();
+    if let Some(root) = path.parent().filter(|parent| parent.file_name().is_none()) {
+      self.create_dir_all(PathId::new(root))?;
+    }
     let mut entries = self.entries.lock().unwrap();
     let node = path.parent().map_or(Ok(0), |p| Self::dir_in(&entries, p))?;
     let found = Self::entry_in(&entries, node, name);
@@ -138,7 +145,13 @@ impl MemoryFileSystem {
 impl FileSystem for MemoryFileSystem {
   fn kind(&self, path: PathId) -> FileKind {
     path.with_path(|path| {
-      let name = path.file_name().unwrap();
+      let Some(name) = path.file_name() else {
+        return if self.dir(path).is_ok() {
+          FileKind::IS_DIR
+        } else {
+          FileKind::empty()
+        };
+      };
       let node = path.parent().map_or(Ok(0), |p| self.dir(p));
       if let Ok(found) = node.and_then(|node| self.entry(node, name)) {
         let entries = self.entries.lock().unwrap();
@@ -256,7 +269,13 @@ impl FileSystem for MemoryFileSystem {
     path.with_path(|path| {
       let mut entries = self.entries.lock().unwrap();
       let mut node = 0;
+      let mut root = 0;
       for component in path.components() {
+        let name = match component {
+          Component::Prefix(prefix) => Some(prefix.as_os_str()),
+          Component::Normal(name) => Some(name),
+          _ => None,
+        };
         match component {
           Component::CurDir => {}
           Component::ParentDir => {
@@ -267,11 +286,14 @@ impl FileSystem for MemoryFileSystem {
               return Err(Error::new(ErrorKind::NotFound, "not found"));
             }
           }
-          Component::Prefix(_) => todo!(),
           Component::RootDir => {
-            node = 0;
+            node = root;
           }
-          Component::Normal(name) => {
+          Component::Prefix(_) | Component::Normal(_) => {
+            let name = name.unwrap();
+            if matches!(component, Component::Prefix(_)) {
+              node = 0;
+            }
             node = match Self::entry_in(&entries, node, name) {
               Ok(v) => v,
               Err(e) if e.kind() == ErrorKind::NotFound => {
@@ -287,6 +309,9 @@ impl FileSystem for MemoryFileSystem {
                 index
               }
               Err(e) => return Err(e),
+            };
+            if matches!(component, Component::Prefix(_)) {
+              root = node;
             }
           }
         }
@@ -300,7 +325,10 @@ impl FileSystem for MemoryFileSystem {
     path.with_path(|path| {
       // Only the root has no file name.
       let Some(name) = path.file_name() else {
-        return Some(FileStat::new_unavailable(FileKind::IS_DIR));
+        return self
+          .dir(path)
+          .ok()
+          .map(|_| FileStat::new_unavailable(FileKind::IS_DIR));
       };
       let node = path.parent().map_or(Ok(0), |p| self.dir(p)).ok()?;
       let found = self.entry(node, name).ok()?;
@@ -321,5 +349,39 @@ impl FileSystem for MemoryFileSystem {
 
   fn lstat(&self, path: PathId) -> Option<FileStat> {
     self.stat(path)
+  }
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn volumes_have_independent_files() {
+    let fs = MemoryFileSystem::new();
+    for (root, content) in [(r"C:\", b"c"), (r"D:\", b"d"), (r"\\server\share\", b"s")] {
+      let dir = Path::new(root).join("project");
+      let file = PathId::new(&dir.join("a.js"));
+      fs.create_dir_all(PathId::new(&dir)).unwrap();
+      fs.write(file, content).unwrap();
+      assert_eq!(fs.kind(PathId::new(Path::new(root))), FileKind::IS_DIR);
+      assert_eq!(fs.read_dir(PathId::new(&dir)).unwrap().len(), 1);
+      assert_eq!(
+        fs.glob(
+          dir.join("*.js").to_str().unwrap(),
+          PathId::new(Path::new(root))
+        ),
+        vec![file]
+      );
+    }
+    for (file, content) in [
+      (r"C:\project\a.js", b"c"),
+      (r"D:\project\a.js", b"d"),
+      (r"\\server\share\project\a.js", b"s"),
+    ] {
+      let file = PathId::new(Path::new(file));
+      assert_eq!(fs.read(file).unwrap(), content);
+      assert_eq!(fs.stat(file).unwrap().size, 1);
+    }
   }
 }

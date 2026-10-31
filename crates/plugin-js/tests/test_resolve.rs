@@ -1,3 +1,6 @@
+#[path = "../../core/tests/support/mod.rs"]
+mod test_utils;
+
 use std::{path::Path, sync::Arc};
 
 use parcel_core::{
@@ -41,7 +44,7 @@ fn run_times(
   let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
   let plugin_path = root.join(Path::new(name));
   fs.create_dir_all(root).expect("Error creating dir");
-  fs.write(plugin_path, &code.as_bytes().to_owned())
+  fs.write(plugin_path, &test_utils::js(code).as_bytes().to_owned())
     .expect("Error writing plugin");
   let plugin_dir = root.join(Path::new("node_modules/@parcel/plugin"));
   fs.create_dir_all(plugin_dir)
@@ -90,7 +93,7 @@ fn test_resolver_config() {
 
       export default new Resolver({
         resolve({config}) {
-          assert.deepEqual(config, {filePath: '/configured.js', enabled: true});
+          assert.deepEqual(config, {filePath: testPath('/configured.js'), enabled: true});
           return {filePath: config.filePath};
         }
       });
@@ -99,7 +102,7 @@ fn test_resolver_config() {
     "configured",
     None,
     Some(serde_json::json!({
-      "filePath": "/configured.js",
+      "filePath": test_utils::path("/configured.js"),
       "enabled": true
     })),
   )
@@ -118,12 +121,14 @@ fn test_dependency() -> Dependency {
     flags: DependencyFlags::ENTRY | DependencyFlags::OPTIONAL | DependencyFlags::NEEDS_STABLE_NAME,
     target: Arc::new(Default::default()),
     loc: Some(SourceLocation {
-      url: SourceUrl::parse("file:///project/src/index.js").unwrap(),
+      url: SourceUrl::parse(test_utils::url("file:///project/src/index.js").as_str()).unwrap(),
       start: Location { line: 2, column: 3 },
       end: Location { line: 2, column: 9 },
     }),
     placeholder: None,
-    resolve_from: Some(SourceUrl::parse("file:///project/src/index.js").unwrap()),
+    resolve_from: Some(
+      SourceUrl::parse(test_utils::url("file:///project/src/index.js").as_str()).unwrap(),
+    ),
     range: Some("^1.2.3".into()),
     conditions: ExportsCondition::REQUIRE | ExportsCondition::BROWSER,
     resolution: DependencyResolution::None,
@@ -151,8 +156,8 @@ fn test_resolve_esm() {
           assert.equal(dependency.isEntry, true);
           assert.equal(dependency.isOptional, true);
           assert.equal(dependency.needsStableName, true);
-          assert.equal(dependency.resolveFrom, '/project/src/index.js');
-          assert.equal(dependency.loc.filePath, '/project/src/index.js');
+          assert.equal(dependency.resolveFrom, testPath('/project/src/index.js'));
+          assert.equal(dependency.loc.filePath, testPath('/project/src/index.js'));
           assert.deepEqual(dependency.loc.start, {line: 2, column: 3});
           assert.deepEqual(dependency.loc.end, {line: 2, column: 9});
           assert.deepEqual(dependency.packageConditions.sort(), ['browser', 'require']);
@@ -161,7 +166,7 @@ fn test_resolve_esm() {
           assert.equal(dependency.target.outputFormat, 'global');
 
           return {
-            filePath: '/project/src/result.css',
+            filePath: testPath('/project/src/result.css'),
             pipeline: 'custom',
             query: new URLSearchParams('foo=bar&x=1'),
             sideEffects: false,
@@ -181,7 +186,7 @@ fn test_resolve_esm() {
   };
   assert_eq!(
     request.loc.url.to_string(),
-    "file:///project/src/result.css?foo=bar&x=1"
+    test_utils::url("file:///project/src/result.css?foo=bar&x=1").as_str()
   );
   assert_eq!(request.ty.extension(), "css");
   assert_eq!(request.pipeline.as_deref(), Some("custom"));
@@ -198,7 +203,7 @@ fn test_resolve_cjs() {
 
       module.exports = new Resolver({
         resolve() {
-          return {filePath: '/project/result.js'};
+          return {filePath: testPath('/project/result.js')};
         }
       });
     "#,
@@ -211,7 +216,10 @@ fn test_resolve_cjs() {
   let DependencyResolution::Deferred(request) = result else {
     panic!("Expected deferred asset request");
   };
-  assert_eq!(request.loc.url.to_string(), "file:///project/result.js");
+  assert_eq!(
+    request.loc.url.to_string(),
+    test_utils::url("file:///project/result.js").as_str()
+  );
   assert!(request.side_effects);
 }
 
@@ -225,7 +233,7 @@ fn test_resolve_async() {
       export default new Resolver({
         async resolve() {
           await Promise.resolve();
-          return {filePath: '/project/async.js', code: 'async'};
+          return {filePath: testPath('/project/async.js'), code: 'async'};
         }
       });
     "#,
@@ -267,7 +275,7 @@ fn test_dependency_wrapper_expires_after_call() {
           if (!message?.includes('plugin call has completed')) {
             throw new Error(`Expected expired wrapper error, got: ${message}`);
           }
-          return {filePath: '/project/guarded.js'};
+          return {filePath: testPath('/project/guarded.js')};
         }
       });
     "#,
@@ -282,7 +290,10 @@ fn test_dependency_wrapper_expires_after_call() {
   let DependencyResolution::Deferred(request) = result else {
     panic!("Expected deferred asset request");
   };
-  assert_eq!(request.loc.url.to_string(), "file:///project/guarded.js");
+  assert_eq!(
+    request.loc.url.to_string(),
+    test_utils::url("file:///project/guarded.js").as_str()
+  );
 }
 
 #[test]
@@ -330,7 +341,7 @@ fn test_resolve_clears_pipeline_and_has_null_bundle_behavior() {
       export default new Resolver({
         resolve({dependency}) {
           assert.equal(dependency.bundleBehavior, null);
-          return {filePath: '/project/result.js', pipeline: null, query: 'raw=query'};
+          return {filePath: testPath('/project/result.js'), pipeline: null, query: 'raw=query'};
         }
       });
     "#,
@@ -346,7 +357,7 @@ fn test_resolve_clears_pipeline_and_has_null_bundle_behavior() {
   assert_eq!(request.pipeline, None);
   assert_eq!(
     request.loc.url.to_string(),
-    "file:///project/result.js?raw=query"
+    test_utils::url("file:///project/result.js?raw=query").as_str()
   );
 }
 
@@ -379,7 +390,7 @@ fn test_resolver_must_return_an_object() {
       import {Resolver} from '@parcel/plugin';
       export default new Resolver({
         resolve() {
-          return '/a.js';
+          return testPath('/a.js');
         }
       });
     "#,

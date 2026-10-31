@@ -1,3 +1,6 @@
+#[path = "../../core/tests/support/mod.rs"]
+mod test_utils;
+
 use std::{collections::HashMap, path::Path, sync::Arc};
 
 use parcel_core::{FileSystem, OverlayFileSystem, PathId};
@@ -5,16 +8,16 @@ use parcel_plugin_js::create_runtime;
 
 fn run(code: &str) {
   let fs = Arc::new(OverlayFileSystem::new());
-  fs.create_dir_all(PathId::new(Path::new("/_parcel_test")))
+  fs.create_dir_all(PathId::new(test_utils::path("/_parcel_test").as_path()))
     .expect("Error creating dir");
   fs.write(
-    PathId::new(Path::new("/_parcel_test/test.txt")),
+    PathId::new(test_utils::path("/_parcel_test/test.txt").as_path()),
     &"test".as_bytes().to_owned(),
   )
   .expect("Error writing file");
   fs.write(
-    PathId::new(Path::new("/test.mjs")),
-    &code.as_bytes().to_owned(),
+    PathId::new(test_utils::path("/test.mjs").as_path()),
+    &test_utils::js(code).as_bytes().to_owned(),
   )
   .expect("Error writing file");
   let ctx = create_runtime(
@@ -25,8 +28,15 @@ fn run(code: &str) {
   )
   .unwrap();
   let res = ctx.with(|ctx| {
-    rquickjs::Module::import(&ctx, "/test.mjs".as_bytes().to_owned())
-      .and_then(|p| p.finish::<rquickjs::Value>())?;
+    rquickjs::Module::import(
+      &ctx,
+      test_utils::path("/test.mjs")
+        .to_str()
+        .unwrap()
+        .as_bytes()
+        .to_owned(),
+    )
+    .and_then(|p| p.finish::<rquickjs::Value>())?;
     Ok(())
   });
   if let Err(err) = res {
@@ -40,14 +50,14 @@ fn test_read_file_sync_string() {
     r#"
     import fs from 'fs';
     import assert from 'assert';
-    assert.equal(fs.readFileSync('/_parcel_test/test.txt', 'utf8'), 'test');
+    assert.equal(fs.readFileSync(testPath('/_parcel_test/test.txt'), 'utf8'), 'test');
   "#,
   );
   run(
     r#"
     import fs from 'fs';
     import assert from 'assert';
-    assert.equal(fs.readFileSync('/_parcel_test/test.txt', 'utf-8'), 'test');
+    assert.equal(fs.readFileSync(testPath('/_parcel_test/test.txt'), 'utf-8'), 'test');
   "#,
   );
 }
@@ -59,7 +69,7 @@ fn test_read_file_string() {
     import fs from 'fs';
     import assert from 'assert';
     let called = false;
-    fs.readFile('/_parcel_test/test.txt', 'utf8', (err, res) => {
+    fs.readFile(testPath('/_parcel_test/test.txt'), 'utf8', (err, res) => {
       called = true;
       assert.equal(err, null);
       assert.equal(res, 'test');
@@ -75,14 +85,14 @@ fn test_read_file_promise_string() {
     r#"
     import fs from 'fs/promises';
     import assert from 'assert';
-    assert.equal(await fs.readFile('/_parcel_test/test.txt', 'utf8'), 'test');
+    assert.equal(await fs.readFile(testPath('/_parcel_test/test.txt'), 'utf8'), 'test');
   "#,
   );
   run(
     r#"
     import fs from 'fs';
     import assert from 'assert';
-    assert.equal(await fs.promises.readFile('/_parcel_test/test.txt', 'utf8'), 'test');
+    assert.equal(await fs.promises.readFile(testPath('/_parcel_test/test.txt'), 'utf8'), 'test');
   "#,
   );
 }
@@ -93,7 +103,7 @@ fn test_read_file_sync_buffer() {
     r#"
     import fs from 'fs';
     import assert from 'assert';
-    assert.deepEqual(fs.readFileSync('/_parcel_test/test.txt'), new Uint8Array([...'test'].map(c => c.charCodeAt(0))));
+    assert.deepEqual(fs.readFileSync(testPath('/_parcel_test/test.txt')), new Uint8Array([...'test'].map(c => c.charCodeAt(0))));
   "#,
   );
 }
@@ -104,7 +114,7 @@ fn test_read_file_promise_buffer() {
     r#"
     import fs from 'fs/promises';
     import assert from 'assert';
-    assert.deepEqual(await fs.readFile('/_parcel_test/test.txt'), new Uint8Array([...'test'].map(c => c.charCodeAt(0))));
+    assert.deepEqual(await fs.readFile(testPath('/_parcel_test/test.txt')), new Uint8Array([...'test'].map(c => c.charCodeAt(0))));
   "#,
   );
 }
@@ -116,7 +126,7 @@ fn test_read_file_buffer() {
     import fs from 'fs';
     import assert from 'assert';
     let called = false;
-    fs.readFile('/_parcel_test/test.txt', (err, res) => {
+    fs.readFile(testPath('/_parcel_test/test.txt'), (err, res) => {
       called = true;
       assert.equal(err, null);
       assert.deepEqual(res, new Uint8Array([...'test'].map(c => c.charCodeAt(0))));
@@ -132,9 +142,9 @@ fn test_fs_stat_sync() {
     r#"
     import fs from 'fs';
     import assert from 'assert';
-    let stat = fs.statSync('/_parcel_test/test.txt');
+    let stat = fs.statSync(testPath('/_parcel_test/test.txt'));
     assert.equal(stat.size, 4);
-    assert.throws(() => fs.statSync('/_parcel_test/foo.txt'));
+    assert.throws(() => fs.statSync(testPath('/_parcel_test/foo.txt')));
   "#,
   );
 }
@@ -145,9 +155,9 @@ fn test_fs_stat_promise() {
     r#"
     import fs from 'fs/promises';
     import assert from 'assert';
-    let stat = await fs.stat('/_parcel_test/test.txt');
+    let stat = await fs.stat(testPath('/_parcel_test/test.txt'));
     assert.equal(stat.size, 4);
-    assert.equal(await fs.stat('/_parcel_test/foo.txt').catch(() => 1), 1);
+    assert.equal(await fs.stat(testPath('/_parcel_test/foo.txt')).catch(() => 1), 1);
   "#,
   );
 }
@@ -159,14 +169,14 @@ fn test_fs_stat() {
     import fs from 'fs';
     import assert from 'assert';
     let called = false;
-    fs.stat('/_parcel_test/test.txt', (err, stat) => {
+    fs.stat(testPath('/_parcel_test/test.txt'), (err, stat) => {
       called = true;
       assert.equal(err, null);
       assert.equal(stat.size, 4);
     });
     assert.equal(called, true);
     called = false;
-    fs.stat('/_parcel_test/foo.txt', (err, stat) => {
+    fs.stat(testPath('/_parcel_test/foo.txt'), (err, stat) => {
       called = true;
       assert.equal(!!err, true);
       assert.equal(stat, null);
@@ -182,10 +192,10 @@ fn test_fs_readdir_sync() {
     r#"
     import fs from 'fs';
     import assert from 'assert';
-    let dir = fs.readdirSync('/_parcel_test');
+    let dir = fs.readdirSync(testPath('/_parcel_test'));
     assert.deepEqual(dir, ['test.txt']);
 
-    let dir2 = fs.readdirSync('/_parcel_test', {withFileTypes: true});
+    let dir2 = fs.readdirSync(testPath('/_parcel_test'), {withFileTypes: true});
     assert.equal(dir2.length, 1);
     assert.equal(dir2[0].name, 'test.txt');
     assert(dir2[0].isFile());
@@ -199,10 +209,10 @@ fn test_fs_readdir_async() {
     r#"
     import fs from 'fs/promises';
     import assert from 'assert';
-    let dir = await fs.readdir('/_parcel_test');
+    let dir = await fs.readdir(testPath('/_parcel_test'));
     assert.deepEqual(dir, ['test.txt']);
 
-    let dir2 = await fs.readdir('/_parcel_test', {withFileTypes: true});
+    let dir2 = await fs.readdir(testPath('/_parcel_test'), {withFileTypes: true});
     assert.equal(dir2.length, 1);
     assert.equal(dir2[0].name, 'test.txt');
     assert(dir2[0].isFile());
@@ -218,7 +228,7 @@ fn test_fs_readdir_callback() {
     import assert from 'assert';
 
     let called = false;
-    fs.readdir('/_parcel_test', (err, dir) => {
+    fs.readdir(testPath('/_parcel_test'), (err, dir) => {
       called = true;
       assert.equal(err, null);
       assert.deepEqual(dir, ['test.txt']);
@@ -226,7 +236,7 @@ fn test_fs_readdir_callback() {
     assert.equal(called, true);
 
     called = false;
-    fs.readdir('/_parcel_test', {withFileTypes: true}, (err, dir2) => {
+    fs.readdir(testPath('/_parcel_test'), {withFileTypes: true}, (err, dir2) => {
       called = true;
       assert.equal(err, null);
       assert.equal(dir2.length, 1);
@@ -247,10 +257,10 @@ fn test_fs_async_missing_callback_throws() {
     r#"
     import fs from 'fs';
     import assert from 'assert';
-    assert.throws(() => fs.readFile('/_parcel_test/test.txt'), /Required callback not provided/);
-    assert.throws(() => fs.realpath('/_parcel_test/test.txt'), /Required callback not provided/);
-    assert.throws(() => fs.readlink('/_parcel_test/test.txt'), /Required callback not provided/);
-    assert.throws(() => fs.readdir('/_parcel_test'), /Required callback not provided/);
+    assert.throws(() => fs.readFile(testPath('/_parcel_test/test.txt')), /Required callback not provided/);
+    assert.throws(() => fs.realpath(testPath('/_parcel_test/test.txt')), /Required callback not provided/);
+    assert.throws(() => fs.readlink(testPath('/_parcel_test/test.txt')), /Required callback not provided/);
+    assert.throws(() => fs.readdir(testPath('/_parcel_test')), /Required callback not provided/);
   "#,
   );
 }
@@ -378,16 +388,16 @@ fn test_url_module() {
     assert.equal(url.URLSearchParams, URLSearchParams);
     assert.equal(parse('https://example.com/a').hostname, 'example.com');
 
-    const value = pathToFileURL('/tmp/a b.txt');
+    const value = pathToFileURL(testPath('/tmp/a b.txt'));
     assert.ok(value instanceof URL);
-    assert.equal(value.href, 'file:///tmp/a%20b.txt');
-    assert.equal(fileURLToPath(value), '/tmp/a b.txt');
-    assert.equal(fileURLToPath('file:///tmp/a%20b.txt'), '/tmp/a b.txt');
+    assert.equal(value.href, testUrl('file:///tmp/a%20b.txt'));
+    assert.equal(fileURLToPath(value), testPath('/tmp/a b.txt'));
+    assert.equal(fileURLToPath(testUrl('file:///tmp/a%20b.txt')), testPath('/tmp/a b.txt'));
 
     const cjs = require('url');
     assert.equal(cjs.URL, URL);
     assert.equal(cjs.URLSearchParams, URLSearchParams);
-    assert.equal(cjs.fileURLToPath(cjs.pathToFileURL('/tmp/c d.txt')), '/tmp/c d.txt');
+    assert.equal(cjs.fileURLToPath(cjs.pathToFileURL(testPath('/tmp/c d.txt'))), testPath('/tmp/c d.txt'));
     assert.equal(cjs.format(cjs.parse('https://example.com/a')), 'https://example.com/a');
     "#,
   );

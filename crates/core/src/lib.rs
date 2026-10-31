@@ -835,3 +835,7 @@ mod tests {
     assert_eq!(env.get("BAR").map(String::as_str), Some("test-local"));
   }
 }
+
+#[cfg(test)]
+#[path = "../tests/support/mod.rs"]
+mod test_utils;

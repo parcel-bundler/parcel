@@ -1007,11 +1007,9 @@ fn dist_dir_prefix(dist_dir: &PathId, bundle_dir: &PathId) -> String {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use std::path::Path;
-
   #[test]
   fn dist_dir_prefix_is_directory_relative_and_ends_in_slash() {
-    let dist_dir = PathId::new(Path::new("/project/dist"));
+    let dist_dir = PathId::new(&std::env::current_dir().unwrap().join("dist"));
 
     assert_eq!(dist_dir_prefix(&dist_dir, &dist_dir), "./");
     assert_eq!(dist_dir_prefix(&dist_dir, &dist_dir.child("client")), "../");

@@ -6,6 +6,13 @@
 //! that incremental rebuilds converge to exactly what a from-scratch build would produce:
 //! no stale content, no stale output files, no missed invalidations.
 
+#[path = "../../core/tests/support/mod.rs"]
+mod test_utils;
+
+fn test_path_id(path: &std::path::Path) -> parcel_core::PathId {
+  parcel_core::PathId::new(&test_utils::path(path.to_str().unwrap()))
+}
+
 use parcel::make_parcel;
 use parcel_core::{
   BuildMode, BuildOptions, DiagnosticList, FileKind, FileSystem, LogLevel, MemoryFileSystem,
@@ -21,9 +28,9 @@ use std::{
 fn write_file(fs: &MemoryFileSystem, path: &str, contents: &str) {
   let path = Path::new(path);
   if let Some(parent) = path.parent() {
-    fs.create_dir_all(PathId::new(parent)).unwrap();
+    fs.create_dir_all(test_path_id(parent)).unwrap();
   }
-  fs.write(PathId::new(path), &contents.as_bytes().to_vec())
+  fs.write(test_path_id(path), &contents.as_bytes().to_vec())
     .unwrap();
 }
 
@@ -61,12 +68,14 @@ fn ast_size_estimates_retain_parser_input_across_rebuilds() {
         let path = asset.loc.url.to_file_path().ok();
         let expected = if asset.ty == parcel_core::AssetType::StyleAttribute {
           style.len()
-        } else if path == Some(PathId::new(Path::new("/project/index.ts"))) {
+        } else if path == Some(test_path_id(Path::new("/project/index.ts"))) {
           source.len()
         } else if asset.ty == parcel_core::AssetType::Css {
           match path {
-            Some(p) if p == PathId::new(Path::new("/project/style.css")) => css.len(),
-            Some(p) if p == PathId::new(Path::new("/project/style.module.css")) => module_css.len(),
+            Some(p) if p == test_path_id(Path::new("/project/style.css")) => css.len(),
+            Some(p) if p == test_path_id(Path::new("/project/style.module.css")) => {
+              module_css.len()
+            }
             _ => continue,
           }
         } else {
@@ -158,7 +167,7 @@ fn synchronous_bundle_imports_survive_bundle_index_changes() {
       .iter()
       .find_map(|bundle| {
         let asset = graph.asset_graph.asset(bundle.main_entry_asset?);
-        (asset.loc.url.to_file_path().ok() == Some(PathId::new(Path::new("/project/page.js"))))
+        (asset.loc.url.to_file_path().ok() == Some(test_path_id(Path::new("/project/page.js"))))
           .then(|| bundle.dist_path().to_path_buf())
       })
       .unwrap();
@@ -259,7 +268,7 @@ fn make_options(
     input_fs,
     output_fs,
     config: None,
-    cwd: PathId::new(Path::new("/project")),
+    cwd: test_path_id(Path::new("/project")),
     dist_dir: None,
     public_url: Default::default(),
     hmr: None,
@@ -340,12 +349,12 @@ impl IncrementalTest {
         if self.files.keys().any(|file| file.starts_with(&prefix)) {
           break;
         }
-        created.push(PathId::new(dir));
+        created.push(test_path_id(dir));
         ancestor = dir.parent();
       }
 
       write_file(&self.input_fs, path, contents);
-      let id = PathId::new(Path::new(path));
+      let id = test_path_id(Path::new(path));
       if self
         .files
         .insert(path.to_string(), contents.to_string())
@@ -360,13 +369,13 @@ impl IncrementalTest {
     for path in delete {
       self
         .input_fs
-        .remove_file(PathId::new(Path::new(path)))
+        .remove_file(test_path_id(Path::new(path)))
         .expect("failed to delete input file");
       assert!(
         self.files.remove(*path).is_some(),
         "deleted file {path} was not part of the project"
       );
-      deleted.push(PathId::new(Path::new(path)));
+      deleted.push(test_path_id(Path::new(path)));
     }
 
     // Prune directories left empty by the deletions, as `rm -rf` would, and report them as
@@ -379,7 +388,7 @@ impl IncrementalTest {
         if self.files.keys().any(|file| file.starts_with(&prefix)) {
           break;
         }
-        let id = PathId::new(dir);
+        let id = test_path_id(dir);
         if !deleted.contains(&id) {
           let _ = self.input_fs.remove_file(id);
           deleted.push(id);
@@ -522,7 +531,7 @@ fn read_all_files(fs: &MemoryFileSystem) -> BTreeMap<String, String> {
   let mut out = BTreeMap::new();
   let mut stack = vec![PathBuf::from("/")];
   while let Some(dir) = stack.pop() {
-    let Ok(entries) = fs.read_dir(PathId::new(&dir)) else {
+    let Ok(entries) = fs.read_dir(test_path_id(&dir)) else {
       continue;
     };
     for entry in entries {
@@ -530,7 +539,7 @@ fn read_all_files(fs: &MemoryFileSystem) -> BTreeMap<String, String> {
       if entry.kind.contains(FileKind::IS_DIR) {
         stack.push(path);
       } else if entry.kind.contains(FileKind::IS_FILE) {
-        let bytes = fs.read(PathId::new(&path)).unwrap();
+        let bytes = fs.read(test_path_id(&path)).unwrap();
         out.insert(
           path.to_string_lossy().into_owned(),
           String::from_utf8_lossy(&bytes).into_owned(),

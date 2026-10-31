@@ -1,3 +1,6 @@
+#[path = "../../core/tests/support/mod.rs"]
+mod test_utils;
+
 use std::{borrow::Cow, collections::HashMap, path::Path, sync::Arc};
 
 use parcel_core::{
@@ -25,7 +28,7 @@ fn run_times(
   let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
   let plugin_path = root.join(Path::new(name));
   fs.create_dir_all(root).expect("Error creating dir");
-  fs.write(plugin_path, &code.as_bytes().to_owned())
+  fs.write(plugin_path, &test_utils::js(code).as_bytes().to_owned())
     .expect("Error writing file");
   let plugin_dir = root.join(Path::new("node_modules/@parcel/plugin"));
   fs.create_dir_all(plugin_dir)
@@ -47,13 +50,21 @@ fn run_times(
   .expect("Error writing plugin API");
 
   let target = Arc::new(Target {
-    dist_dir: PathId::new(Path::new("/dist")),
+    dist_dir: PathId::new(test_utils::path("/dist").as_path()),
     public_url: "/assets".into(),
     ..Default::default()
   });
   let assets = vec![
-    test_asset("file:///src/index.js", AssetType::Js, target.clone()),
-    test_asset("file:///src/style.css", AssetType::Css, target.clone()),
+    test_asset(
+      test_utils::url("file:///src/index.js").as_str(),
+      AssetType::Js,
+      target.clone(),
+    ),
+    test_asset(
+      test_utils::url("file:///src/style.css").as_str(),
+      AssetType::Css,
+      target.clone(),
+    ),
   ];
   let bundles = vec![
     Bundle {
@@ -97,7 +108,7 @@ fn run_times(
     },
     bundles,
     HashMap::new(),
-    PathId::new(Path::new("/")),
+    PathId::new(test_utils::path("/").as_path()),
   );
   let plugin = JsPlugin::new(plugin_path, "test-plugin", config);
   let options = ParcelOptions {
@@ -133,14 +144,16 @@ fn test_namer_config() {
 
   assert_eq!(
     result,
-    Some(PathId::new(Path::new("/dist/configured/js-42.js")))
+    Some(PathId::new(
+      test_utils::path("/dist/configured/js-42.js").as_path()
+    ))
   );
 }
 
 fn test_asset(url: &str, ty: AssetType, target: Arc<Target>) -> Asset {
   Asset {
     loc: SourceLocation {
-      url: SourceUrl::parse(url).unwrap(),
+      url: SourceUrl::parse(&test_utils::url(url)).unwrap(),
       ..Default::default()
     },
     ty,
@@ -169,9 +182,9 @@ fn test_namer_esm() {
           assert.equal(bundle.needsStableName, true);
           assert.equal(bundle.isEntry, true);
           assert.equal(bundle.bundleBehavior, null);
-          assert.equal(bundle.target.distDir, '/dist');
+          assert.equal(bundle.target.distDir, testPath('/dist'));
           assert.equal(bundle.target.publicUrl, '/assets');
-          assert.equal(bundle.getMainEntry().url, 'file:///src/index.js');
+          assert.equal(bundle.getMainEntry().url, testUrl('file:///src/index.js'));
           assert.equal(bundle.getEntryAssets()[0].type, 'js');
           assert.equal(bundleGraph.getBundles().length, 2);
           assert.equal(bundleGraph.getEntryBundles().length, 1);
@@ -186,7 +199,12 @@ fn test_namer_esm() {
     "#,
   );
 
-  assert_eq!(result, Some(PathId::new(Path::new("/dist/custom/js.js"))));
+  assert_eq!(
+    result,
+    Some(PathId::new(
+      test_utils::path("/dist/custom/js.js").as_path()
+    ))
+  );
 }
 
 #[test]
@@ -205,7 +223,10 @@ fn test_namer_cjs_async() {
     "#,
   );
 
-  assert_eq!(result, Some(PathId::new(Path::new("/dist/async.js"))));
+  assert_eq!(
+    result,
+    Some(PathId::new(test_utils::path("/dist/async.js").as_path()))
+  );
 }
 
 #[test]
@@ -255,5 +276,8 @@ fn test_namer_wrappers_expire_after_call() {
     None,
   );
 
-  assert_eq!(result, Some(PathId::new(Path::new("/dist/guarded.js"))));
+  assert_eq!(
+    result,
+    Some(PathId::new(test_utils::path("/dist/guarded.js").as_path()))
+  );
 }

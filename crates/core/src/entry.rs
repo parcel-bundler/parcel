@@ -376,11 +376,12 @@ impl EntryResolver {
           let start = source_bytes.iter().position(|b| *b == b'*').unwrap();
           let end = source_bytes.len() - start;
 
-          let source_glob = if start == 0 || source_bytes[start - 1] == b'/' {
-            source.replace('*', "**/*")
-          } else {
-            source.clone()
-          };
+          let source_glob =
+            if start == 0 || std::path::is_separator(source_bytes[start - 1] as char) {
+              source.replace('*', "**/*")
+            } else {
+              source.clone()
+            };
 
           fs.glob(&source_glob, dir)
             .into_iter()
@@ -761,29 +762,36 @@ fn find_package(path: PathId, fs: &dyn FileSystem) -> Option<(PathId, serde_json
 
 #[cfg(test)]
 mod tests {
+  use crate::test_utils::{path as test_path, url as test_url};
   use crate::{
     Entry, Environment, EnvironmentFlags, FileSystem, MemoryFileSystem, PathId, SourceUrl, Target,
     Version, entry::resolve_entries,
   };
   use pretty_assertions::assert_eq;
-  use std::{collections::HashMap, num::NonZero, path::Path, sync::Arc};
+  use std::{collections::HashMap, num::NonZero, sync::Arc};
 
   fn test(input: &str, expected: Vec<Entry>) {
     let fs = MemoryFileSystem::new();
-    fs.mkdir(Path::new("/root")).unwrap();
+    fs.mkdir(test_path("/root").as_path()).unwrap();
     fs.write(
-      PathId::new(Path::new("/root/package.json")),
+      PathId::new(test_path("/root/package.json").as_path()),
       &input.as_bytes().to_owned(),
     )
     .unwrap();
-    fs.mkdir(Path::new("/root/src")).unwrap();
-    fs.write(PathId::new(Path::new("/root/src/foo.tsx")), &Vec::new())
-      .unwrap();
-    fs.write(PathId::new(Path::new("/root/src/bar.tsx")), &Vec::new())
-      .unwrap();
+    fs.mkdir(test_path("/root/src").as_path()).unwrap();
+    fs.write(
+      PathId::new(test_path("/root/src/foo.tsx").as_path()),
+      &Vec::new(),
+    )
+    .unwrap();
+    fs.write(
+      PathId::new(test_path("/root/src/bar.tsx").as_path()),
+      &Vec::new(),
+    )
+    .unwrap();
     let fs = Arc::new(fs);
     let (result, _) = resolve_entries(
-      &vec!["/root".into()],
+      &vec![test_path("/root").to_string_lossy().into_owned()],
       &crate::BuildOptions {
         input_fs: fs.clone(),
         output_fs: fs,
@@ -821,30 +829,30 @@ mod tests {
     }"#,
       vec![
         Entry {
-          url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
+          url: SourceUrl::parse(test_url("file:///root/foo.tsx").as_str()).unwrap(),
           target: Arc::new(Target {
             output_format: crate::OutputFormat::Esmodule,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Array(vec!["foo".into()]),
-            dist_dir: PathId::new(Path::new("/root")),
+            dist_dir: PathId::new(test_path("/root").as_path()),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some(PathId::new(Path::new("/root/import.mjs"))),
+          dist_entry: Some(PathId::new(test_path("/root/import.mjs").as_path())),
           asset: None,
           loc: None,
         },
         Entry {
-          url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
+          url: SourceUrl::parse(test_url("file:///root/foo.tsx").as_str()).unwrap(),
           target: Arc::new(Target {
             output_format: crate::OutputFormat::Commonjs,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Array(vec!["foo".into()]),
-            dist_dir: PathId::new(Path::new("/root")),
+            dist_dir: PathId::new(test_path("/root").as_path()),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some(PathId::new(Path::new("/root/require.cjs"))),
+          dist_entry: Some(PathId::new(test_path("/root/require.cjs").as_path())),
           asset: None,
           loc: None,
         },
@@ -862,32 +870,32 @@ mod tests {
     }"#,
       vec![
         Entry {
-          url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
+          url: SourceUrl::parse(test_url("file:///root/foo.tsx").as_str()).unwrap(),
           target: Arc::new(Target {
             environment: Environment::Node,
             output_format: crate::OutputFormat::Commonjs,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             flags: EnvironmentFlags::IS_LIBRARY,
-            dist_dir: PathId::new(Path::new("/root")),
+            dist_dir: PathId::new(test_path("/root").as_path()),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some(PathId::new(Path::new("/root/node.js"))),
+          dist_entry: Some(PathId::new(test_path("/root/node.js").as_path())),
           asset: None,
           loc: None,
         },
         Entry {
-          url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
+          url: SourceUrl::parse(test_url("file:///root/foo.tsx").as_str()).unwrap(),
           target: Arc::new(Target {
             environment: Environment::Browser,
             output_format: crate::OutputFormat::Commonjs,
             flags: EnvironmentFlags::IS_LIBRARY,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: PathId::new(Path::new("/root")),
+            dist_dir: PathId::new(test_path("/root").as_path()),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some(PathId::new(Path::new("/root/browser.js"))),
+          dist_entry: Some(PathId::new(test_path("/root/browser.js").as_path())),
           asset: None,
           loc: None,
         },
@@ -912,60 +920,60 @@ mod tests {
     }"#,
       vec![
         Entry {
-          url: SourceUrl::parse("file:///root/node.tsx").unwrap(),
+          url: SourceUrl::parse(test_url("file:///root/node.tsx").as_str()).unwrap(),
           target: Arc::new(Target {
             environment: Environment::Node,
             output_format: crate::OutputFormat::Esmodule,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
-            dist_dir: PathId::new(Path::new("/root")),
+            dist_dir: PathId::new(test_path("/root").as_path()),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some(PathId::new(Path::new("/root/node.mjs"))),
+          dist_entry: Some(PathId::new(test_path("/root/node.mjs").as_path())),
           asset: None,
           loc: None,
         },
         Entry {
-          url: SourceUrl::parse("file:///root/node.tsx").unwrap(),
+          url: SourceUrl::parse(test_url("file:///root/node.tsx").as_str()).unwrap(),
           target: Arc::new(Target {
             environment: Environment::Node,
             output_format: crate::OutputFormat::Commonjs,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
-            dist_dir: PathId::new(Path::new("/root")),
+            dist_dir: PathId::new(test_path("/root").as_path()),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some(PathId::new(Path::new("/root/node.cjs"))),
+          dist_entry: Some(PathId::new(test_path("/root/node.cjs").as_path())),
           asset: None,
           loc: None,
         },
         Entry {
-          url: SourceUrl::parse("file:///root/browser.tsx").unwrap(),
+          url: SourceUrl::parse(test_url("file:///root/browser.tsx").as_str()).unwrap(),
           target: Arc::new(Target {
             output_format: crate::OutputFormat::Esmodule,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: PathId::new(Path::new("/root")),
+            dist_dir: PathId::new(test_path("/root").as_path()),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some(PathId::new(Path::new("/root/browser.mjs"))),
+          dist_entry: Some(PathId::new(test_path("/root/browser.mjs").as_path())),
           asset: None,
           loc: None,
         },
         Entry {
-          url: SourceUrl::parse("file:///root/browser.tsx").unwrap(),
+          url: SourceUrl::parse(test_url("file:///root/browser.tsx").as_str()).unwrap(),
           target: Arc::new(Target {
             output_format: crate::OutputFormat::Commonjs,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: PathId::new(Path::new("/root")),
+            dist_dir: PathId::new(test_path("/root").as_path()),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some(PathId::new(Path::new("/root/browser.cjs"))),
+          dist_entry: Some(PathId::new(test_path("/root/browser.cjs").as_path())),
           asset: None,
           loc: None,
         },
@@ -989,60 +997,60 @@ mod tests {
     }"#,
       vec![
         Entry {
-          url: SourceUrl::parse("file:///root/entry.tsx").unwrap(),
+          url: SourceUrl::parse(test_url("file:///root/entry.tsx").as_str()).unwrap(),
           target: Arc::new(Target {
             environment: Environment::Node,
             output_format: crate::OutputFormat::Esmodule,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: PathId::new(Path::new("/root")),
+            dist_dir: PathId::new(test_path("/root").as_path()),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some(PathId::new(Path::new("/root/node.mjs"))),
+          dist_entry: Some(PathId::new(test_path("/root/node.mjs").as_path())),
           asset: None,
           loc: None,
         },
         Entry {
-          url: SourceUrl::parse("file:///root/entry.tsx").unwrap(),
+          url: SourceUrl::parse(test_url("file:///root/entry.tsx").as_str()).unwrap(),
           target: Arc::new(Target {
             environment: Environment::Node,
             output_format: crate::OutputFormat::Commonjs,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: PathId::new(Path::new("/root")),
+            dist_dir: PathId::new(test_path("/root").as_path()),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some(PathId::new(Path::new("/root/node.cjs"))),
+          dist_entry: Some(PathId::new(test_path("/root/node.cjs").as_path())),
           asset: None,
           loc: None,
         },
         Entry {
-          url: SourceUrl::parse("file:///root/entry.tsx").unwrap(),
+          url: SourceUrl::parse(test_url("file:///root/entry.tsx").as_str()).unwrap(),
           target: Arc::new(Target {
             output_format: crate::OutputFormat::Esmodule,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: PathId::new(Path::new("/root")),
+            dist_dir: PathId::new(test_path("/root").as_path()),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some(PathId::new(Path::new("/root/browser.mjs"))),
+          dist_entry: Some(PathId::new(test_path("/root/browser.mjs").as_path())),
           asset: None,
           loc: None,
         },
         Entry {
-          url: SourceUrl::parse("file:///root/entry.tsx").unwrap(),
+          url: SourceUrl::parse(test_url("file:///root/entry.tsx").as_str()).unwrap(),
           target: Arc::new(Target {
             output_format: crate::OutputFormat::Commonjs,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: PathId::new(Path::new("/root")),
+            dist_dir: PathId::new(test_path("/root").as_path()),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some(PathId::new(Path::new("/root/browser.cjs"))),
+          dist_entry: Some(PathId::new(test_path("/root/browser.cjs").as_path())),
           asset: None,
           loc: None,
         },
@@ -1061,7 +1069,7 @@ mod tests {
       }
     }"#,
       vec![Entry {
-        url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
+        url: SourceUrl::parse(test_url("file:///root/foo.tsx").as_str()).unwrap(),
         target: Arc::new(Target {
           environment: Environment::Node,
           output_format: crate::OutputFormat::Commonjs,
@@ -1071,11 +1079,11 @@ mod tests {
             node: Some(Version::new(NonZero::new(20).unwrap(), 0)),
             ..Default::default()
           },
-          dist_dir: PathId::new(Path::new("/root")),
+          dist_dir: PathId::new(test_path("/root").as_path()),
           source_map: Some(Default::default()),
           ..Default::default()
         }),
-        dist_entry: Some(PathId::new(Path::new("/root/dist.js"))),
+        dist_entry: Some(PathId::new(test_path("/root/dist.js").as_path())),
         asset: None,
         loc: None,
       }],
@@ -1093,7 +1101,7 @@ mod tests {
       }
     }"#,
       vec![Entry {
-        url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
+        url: SourceUrl::parse(test_url("file:///root/foo.tsx").as_str()).unwrap(),
         target: Arc::new(Target {
           environment: Environment::Browser,
           output_format: crate::OutputFormat::Commonjs,
@@ -1106,11 +1114,11 @@ mod tests {
             },
             ..Default::default()
           },
-          dist_dir: PathId::new(Path::new("/root")),
+          dist_dir: PathId::new(test_path("/root").as_path()),
           source_map: Some(Default::default()),
           ..Default::default()
         }),
-        dist_entry: Some(PathId::new(Path::new("/root/dist.js"))),
+        dist_entry: Some(PathId::new(test_path("/root/dist.js").as_path())),
         asset: None,
         loc: None,
       }],
@@ -1126,7 +1134,7 @@ mod tests {
     }"#,
       vec![
         Entry {
-          url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
+          url: SourceUrl::parse(test_url("file:///root/foo.tsx").as_str()).unwrap(),
           target: Arc::new(Target {
             environment: Environment::Browser,
             output_format: crate::OutputFormat::Commonjs,
@@ -1139,16 +1147,16 @@ mod tests {
               },
               ..Default::default()
             },
-            dist_dir: PathId::new(Path::new("/root")),
+            dist_dir: PathId::new(test_path("/root").as_path()),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some(PathId::new(Path::new("/root/dist.js"))),
+          dist_entry: Some(PathId::new(test_path("/root/dist.js").as_path())),
           asset: None,
           loc: None,
         },
         Entry {
-          url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
+          url: SourceUrl::parse(test_url("file:///root/foo.tsx").as_str()).unwrap(),
           target: Arc::new(Target {
             environment: Environment::Browser,
             output_format: crate::OutputFormat::Esmodule,
@@ -1161,11 +1169,11 @@ mod tests {
               },
               ..Default::default()
             },
-            dist_dir: PathId::new(Path::new("/root")),
+            dist_dir: PathId::new(test_path("/root").as_path()),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some(PathId::new(Path::new("/root/module.js"))),
+          dist_entry: Some(PathId::new(test_path("/root/module.js").as_path())),
           asset: None,
           loc: None,
         },
@@ -1188,32 +1196,32 @@ mod tests {
     }"#,
       vec![
         Entry {
-          url: SourceUrl::parse("file:///root/foo.tsx").unwrap(),
+          url: SourceUrl::parse(test_url("file:///root/foo.tsx").as_str()).unwrap(),
           target: Arc::new(Target {
             environment: Environment::Browser,
             output_format: crate::OutputFormat::Esmodule,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: PathId::new(Path::new("/root")),
+            dist_dir: PathId::new(test_path("/root").as_path()),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some(PathId::new(Path::new("/root/foo.mjs"))),
+          dist_entry: Some(PathId::new(test_path("/root/foo.mjs").as_path())),
           asset: None,
           loc: None,
         },
         Entry {
-          url: SourceUrl::parse("file:///root/bar.tsx").unwrap(),
+          url: SourceUrl::parse(test_url("file:///root/bar.tsx").as_str()).unwrap(),
           target: Arc::new(Target {
             environment: Environment::Browser,
             output_format: crate::OutputFormat::Esmodule,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: PathId::new(Path::new("/root")),
+            dist_dir: PathId::new(test_path("/root").as_path()),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some(PathId::new(Path::new("/root/bar.mjs"))),
+          dist_entry: Some(PathId::new(test_path("/root/bar.mjs").as_path())),
           asset: None,
           loc: None,
         },
@@ -1230,32 +1238,32 @@ mod tests {
     }"#,
       vec![
         Entry {
-          url: SourceUrl::parse("file:///root/src/bar.tsx").unwrap(),
+          url: SourceUrl::parse(test_url("file:///root/src/bar.tsx").as_str()).unwrap(),
           target: Arc::new(Target {
             environment: Environment::Browser,
             output_format: crate::OutputFormat::Esmodule,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: PathId::new(Path::new("/root/dist")),
+            dist_dir: PathId::new(test_path("/root/dist").as_path()),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some(PathId::new(Path::new("/root/dist/bar.mjs"))),
+          dist_entry: Some(PathId::new(test_path("/root/dist/bar.mjs").as_path())),
           asset: None,
           loc: None,
         },
         Entry {
-          url: SourceUrl::parse("file:///root/src/foo.tsx").unwrap(),
+          url: SourceUrl::parse(test_url("file:///root/src/foo.tsx").as_str()).unwrap(),
           target: Arc::new(Target {
             environment: Environment::Browser,
             output_format: crate::OutputFormat::Esmodule,
             flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
             include_node_modules: crate::IncludeNodeModules::Bool(false),
-            dist_dir: PathId::new(Path::new("/root/dist")),
+            dist_dir: PathId::new(test_path("/root/dist").as_path()),
             source_map: Some(Default::default()),
             ..Default::default()
           }),
-          dist_entry: Some(PathId::new(Path::new("/root/dist/foo.mjs"))),
+          dist_entry: Some(PathId::new(test_path("/root/dist/foo.mjs").as_path())),
           asset: None,
           loc: None,
         },
@@ -1279,7 +1287,7 @@ mod tests {
       }
     }"#,
       vec![Entry {
-        url: SourceUrl::parse("file:///root/src/index.tsx").unwrap(),
+        url: SourceUrl::parse(test_url("file:///root/src/index.tsx").as_str()).unwrap(),
         target: Arc::new(Target {
           environment: Environment::Browser,
           output_format: crate::OutputFormat::Esmodule,
@@ -1292,11 +1300,11 @@ mod tests {
             },
             ..Default::default()
           },
-          dist_dir: PathId::new(Path::new("/root/dist")),
+          dist_dir: PathId::new(test_path("/root/dist").as_path()),
           source_map: Some(Default::default()),
           ..Default::default()
         }),
-        dist_entry: Some(PathId::new(Path::new("/root/dist/index.js"))),
+        dist_entry: Some(PathId::new(test_path("/root/dist/index.js").as_path())),
         asset: None,
         loc: None,
       }],
@@ -1323,7 +1331,7 @@ mod tests {
       }
     }"#,
       vec![Entry {
-        url: SourceUrl::parse("file:///root/src/index.tsx").unwrap(),
+        url: SourceUrl::parse(test_url("file:///root/src/index.tsx").as_str()).unwrap(),
         target: Arc::new(Target {
           environment: Environment::Browser,
           output_format: crate::OutputFormat::Esmodule,
@@ -1336,11 +1344,11 @@ mod tests {
             },
             ..Default::default()
           },
-          dist_dir: PathId::new(Path::new("/root/dist")),
+          dist_dir: PathId::new(test_path("/root/dist").as_path()),
           source_map: Some(Default::default()),
           ..Default::default()
         }),
-        dist_entry: Some(PathId::new(Path::new("/root/dist/index.js"))),
+        dist_entry: Some(PathId::new(test_path("/root/dist/index.js").as_path())),
         asset: None,
         loc: None,
       }],
@@ -1355,17 +1363,19 @@ mod tests {
       }
     }"#,
       vec![Entry {
-        url: SourceUrl::parse("file:///root/style/index.ts").unwrap(),
+        url: SourceUrl::parse(test_url("file:///root/style/index.ts").as_str()).unwrap(),
         target: Arc::new(Target {
           environment: Environment::Browser,
           output_format: crate::OutputFormat::Esmodule,
           flags: EnvironmentFlags::IS_LIBRARY | EnvironmentFlags::MODULE_TYPE_EXTENSION,
           include_node_modules: crate::IncludeNodeModules::Bool(false),
-          dist_dir: PathId::new(Path::new("/root/style/dist")),
+          dist_dir: PathId::new(test_path("/root/style/dist").as_path()),
           source_map: Some(Default::default()),
           ..Default::default()
         }),
-        dist_entry: Some(PathId::new(Path::new("/root/style/dist/index.mjs"))),
+        dist_entry: Some(PathId::new(
+          test_path("/root/style/dist/index.mjs").as_path(),
+        )),
         asset: None,
         loc: None,
       }],
@@ -1391,9 +1401,9 @@ mod tests {
     // A `"source"` field that resolves outside the package directory (e.g. `"../foo.tsx"`)
     // must produce a diagnostic instead of panicking in `dist_dir_entry`'s `strip_prefix`.
     let fs = MemoryFileSystem::new();
-    fs.mkdir(Path::new("/root")).unwrap();
+    fs.mkdir(test_path("/root").as_path()).unwrap();
     fs.write(
-      PathId::new(Path::new("/root/package.json")),
+      PathId::new(test_path("/root/package.json").as_path()),
       &br#"
     {
       "source": "../outside.tsx",
@@ -1402,11 +1412,14 @@ mod tests {
         .to_vec(),
     )
     .unwrap();
-    fs.write(PathId::new(Path::new("/outside.tsx")), &Vec::new())
-      .unwrap();
+    fs.write(
+      PathId::new(test_path("/outside.tsx").as_path()),
+      &Vec::new(),
+    )
+    .unwrap();
     let fs = Arc::new(fs);
     let result = resolve_entries(
-      &vec!["/root".into()],
+      &vec![test_path("/root").to_string_lossy().into_owned()],
       &crate::BuildOptions {
         input_fs: fs.clone(),
         output_fs: fs,
@@ -1431,17 +1444,24 @@ mod tests {
   fn test_node_file_entry_output_format_follows_package_type() {
     let output_format = |pkg: &str, entry: &str| {
       let fs = MemoryFileSystem::new();
-      fs.mkdir(Path::new("/root")).unwrap();
+      fs.mkdir(test_path("/root").as_path()).unwrap();
       fs.write(
-        PathId::new(Path::new("/root/package.json")),
+        PathId::new(test_path("/root/package.json").as_path()),
         &pkg.as_bytes().to_vec(),
       )
       .unwrap();
-      fs.write(PathId::new(&Path::new("/root").join(entry)), &Vec::new())
-        .unwrap();
+      fs.write(
+        PathId::new(&test_path("/root").as_path().join(entry)),
+        &Vec::new(),
+      )
+      .unwrap();
       let fs = Arc::new(fs);
       let (entries, _) = resolve_entries(
-        &vec![format!("/root/{entry}")],
+        &vec![
+          test_path(&format!("/root/{entry}"))
+            .to_string_lossy()
+            .into_owned(),
+        ],
         &crate::BuildOptions {
           input_fs: fs.clone(),
           output_fs: fs,
@@ -1451,7 +1471,7 @@ mod tests {
           optimize: None,
           content_hash: None,
           config: None,
-          cwd: PathId::new(Path::new("/root")),
+          cwd: PathId::new(test_path("/root").as_path()),
           source_map: None,
           dist_dir: None,
           public_url: Default::default(),
@@ -1495,17 +1515,20 @@ mod tests {
   #[test]
   fn test_default_target_context_for_file_entry() {
     let fs = MemoryFileSystem::new();
-    fs.mkdir(Path::new("/root")).unwrap();
+    fs.mkdir(test_path("/root").as_path()).unwrap();
     fs.write(
-      PathId::new(Path::new("/root/package.json")),
+      PathId::new(test_path("/root/package.json").as_path()),
       &br#"{"targets":{"default":{"context":"react-server"}}}"#.to_vec(),
     )
     .unwrap();
-    fs.write(PathId::new(Path::new("/root/index.jsx")), &Vec::new())
-      .unwrap();
+    fs.write(
+      PathId::new(test_path("/root/index.jsx").as_path()),
+      &Vec::new(),
+    )
+    .unwrap();
     let fs = Arc::new(fs);
     let (entries, _) = resolve_entries(
-      &vec!["/root/index.jsx".into()],
+      &vec![test_path("/root/index.jsx").to_string_lossy().into_owned()],
       &crate::BuildOptions {
         input_fs: fs.clone(),
         output_fs: fs,
@@ -1515,7 +1538,7 @@ mod tests {
         optimize: None,
         content_hash: None,
         config: None,
-        cwd: PathId::new(Path::new("/root")),
+        cwd: PathId::new(test_path("/root").as_path()),
         source_map: None,
         dist_dir: None,
         public_url: Default::default(),
@@ -1542,17 +1565,24 @@ mod tests {
   /// Resolves `/root/{entry}` with the given package.json, returning each entry's target.
   fn file_entry_targets(pkg: &str, entry: &str, dist_dir: Option<&str>) -> Vec<Arc<Target>> {
     let fs = MemoryFileSystem::new();
-    fs.mkdir(Path::new("/root")).unwrap();
+    fs.mkdir(test_path("/root").as_path()).unwrap();
     fs.write(
-      PathId::new(Path::new("/root/package.json")),
+      PathId::new(test_path("/root/package.json").as_path()),
       &pkg.as_bytes().to_vec(),
     )
     .unwrap();
-    fs.write(PathId::new(&Path::new("/root").join(entry)), &Vec::new())
-      .unwrap();
+    fs.write(
+      PathId::new(&test_path("/root").as_path().join(entry)),
+      &Vec::new(),
+    )
+    .unwrap();
     let fs = Arc::new(fs);
     let (entries, _) = resolve_entries(
-      &vec![format!("/root/{entry}")],
+      &vec![
+        test_path(&format!("/root/{entry}"))
+          .to_string_lossy()
+          .into_owned(),
+      ],
       &crate::BuildOptions {
         input_fs: fs.clone(),
         output_fs: fs,
@@ -1562,9 +1592,9 @@ mod tests {
         optimize: None,
         content_hash: None,
         config: None,
-        cwd: PathId::new(Path::new("/root")),
+        cwd: PathId::new(test_path("/root").as_path()),
         source_map: None,
-        dist_dir: dist_dir.map(|dir| PathId::new(Path::new(dir))),
+        dist_dir: dist_dir.map(|dir| PathId::new(test_path(dir).as_path())),
         public_url: Default::default(),
         hmr: None,
         reporters: Vec::new(),
@@ -1582,7 +1612,7 @@ mod tests {
         .map(|target| target.dist_dir)
         .collect()
     };
-    let dir = |dir: &str| PathId::new(Path::new(dir));
+    let dir = |dir: &str| PathId::new(test_path(dir).as_path());
 
     assert_eq!(dist_dirs(r#"{}"#, None), vec![dir("/root/dist")]);
     assert_eq!(dist_dirs(r#"{}"#, Some("/out")), vec![dir("/out")]);
@@ -1655,20 +1685,26 @@ mod tests {
   /// Resolves the `/root` package with the given package.json.
   fn package_entries(pkg: &str, dist_dir: Option<&str>) -> Result<Vec<Entry>, crate::Diagnostic> {
     let fs = MemoryFileSystem::new();
-    fs.mkdir(Path::new("/root")).unwrap();
-    fs.mkdir(Path::new("/root/src")).unwrap();
+    fs.mkdir(test_path("/root").as_path()).unwrap();
+    fs.mkdir(test_path("/root/src").as_path()).unwrap();
     fs.write(
-      PathId::new(Path::new("/root/package.json")),
+      PathId::new(test_path("/root/package.json").as_path()),
       &pkg.as_bytes().to_vec(),
     )
     .unwrap();
-    fs.write(PathId::new(Path::new("/root/src/foo.js")), &Vec::new())
-      .unwrap();
-    fs.write(PathId::new(Path::new("/root/src/bar.html")), &Vec::new())
-      .unwrap();
+    fs.write(
+      PathId::new(test_path("/root/src/foo.js").as_path()),
+      &Vec::new(),
+    )
+    .unwrap();
+    fs.write(
+      PathId::new(test_path("/root/src/bar.html").as_path()),
+      &Vec::new(),
+    )
+    .unwrap();
     let fs = Arc::new(fs);
     resolve_entries(
-      &vec!["/root".into()],
+      &vec![test_path("/root").to_string_lossy().into_owned()],
       &crate::BuildOptions {
         input_fs: fs.clone(),
         output_fs: fs,
@@ -1678,9 +1714,9 @@ mod tests {
         optimize: None,
         content_hash: None,
         config: None,
-        cwd: PathId::new(Path::new("/root")),
+        cwd: PathId::new(test_path("/root").as_path()),
         source_map: None,
-        dist_dir: dist_dir.map(|dir| PathId::new(Path::new(dir))),
+        dist_dir: dist_dir.map(|dir| PathId::new(test_path(dir).as_path())),
         public_url: Default::default(),
         hmr: None,
         reporters: Vec::new(),
@@ -1699,10 +1735,16 @@ mod tests {
     let urls: Vec<_> = entries.iter().map(|e| e.url.to_string()).collect();
     assert_eq!(
       urls,
-      vec!["file:///root/src/foo.js", "file:///root/src/bar.html"]
+      vec![
+        test_url("file:///root/src/foo.js").as_str(),
+        test_url("file:///root/src/bar.html").as_str()
+      ]
     );
     for entry in &entries {
-      assert_eq!(entry.target.dist_dir, PathId::new(Path::new("/root/dist")));
+      assert_eq!(
+        entry.target.dist_dir,
+        PathId::new(test_path("/root/dist").as_path())
+      );
       assert_eq!(
         entry.target.engines.browsers.chrome,
         Some(Version::new(NonZero::new(100).unwrap(), 0))
@@ -1723,8 +1765,14 @@ mod tests {
     assert_eq!(
       targets,
       vec![
-        (PathId::new(Path::new("/out/a")), Environment::Node),
-        (PathId::new(Path::new("/out/b")), Environment::Node)
+        (
+          PathId::new(test_path("/out/a").as_path()),
+          Environment::Node
+        ),
+        (
+          PathId::new(test_path("/out/b").as_path()),
+          Environment::Node
+        )
       ]
     );
 
@@ -1771,8 +1819,8 @@ mod tests {
     assert_eq!(
       dist_entries,
       vec![
-        Path::new("/root/dist/index.mjs").to_path_buf(),
-        Path::new("/root/dist/main.js").to_path_buf()
+        test_path("/root/dist/index.mjs").as_path().to_path_buf(),
+        test_path("/root/dist/main.js").as_path().to_path_buf()
       ]
     );
   }
@@ -1781,14 +1829,17 @@ mod tests {
   fn test_target_optimize() {
     let optimized = |pkg: &str, mode: crate::BuildMode, optimize: Option<bool>| -> Vec<bool> {
       let fs = MemoryFileSystem::new();
-      fs.mkdir(Path::new("/root")).unwrap();
+      fs.mkdir(test_path("/root").as_path()).unwrap();
       fs.write(
-        PathId::new(Path::new("/root/package.json")),
+        PathId::new(test_path("/root/package.json").as_path()),
         &pkg.as_bytes().to_vec(),
       )
       .unwrap();
-      fs.write(PathId::new(Path::new("/root/foo.js")), &Vec::new())
-        .unwrap();
+      fs.write(
+        PathId::new(test_path("/root/foo.js").as_path()),
+        &Vec::new(),
+      )
+      .unwrap();
       let fs = Arc::new(fs);
       let input = if pkg.contains("exports") {
         "/root"
@@ -1796,7 +1847,7 @@ mod tests {
         "/root/foo.js"
       };
       let (entries, _) = resolve_entries(
-        &vec![input.into()],
+        &vec![test_path(input).to_string_lossy().into_owned()],
         &crate::BuildOptions {
           input_fs: fs.clone(),
           output_fs: fs,
@@ -1806,7 +1857,7 @@ mod tests {
           optimize,
           content_hash: None,
           config: None,
-          cwd: PathId::new(Path::new("/root")),
+          cwd: PathId::new(test_path("/root").as_path()),
           source_map: None,
           dist_dir: None,
           public_url: Default::default(),

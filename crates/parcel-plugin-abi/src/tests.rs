@@ -1,3 +1,6 @@
+#[path = "../../core/tests/support/mod.rs"]
+mod test_utils;
+
 use std::{borrow::Cow, collections::HashMap, ffi::c_void, path::Path, ptr, sync::Arc};
 
 use parcel_core::{
@@ -16,7 +19,7 @@ use parcel_core::{
 use super::*;
 
 fn path(value: &str) -> PathId {
-  PathId::new(Path::new(value))
+  PathId::new(&test_utils::path(value))
 }
 
 fn target_fixture() -> Arc<CoreTarget> {
@@ -277,7 +280,7 @@ fn asset_accessors_return_content_metadata_and_optional_values() {
   );
   assert_eq!(
     string_output(|buffer| parcel_asset_get_file_path(buffer, handle, 0)).as_deref(),
-    Some("/project/src/index.css")
+    Some(test_utils::path("/project/src/index.css").to_str().unwrap())
   );
   assert_eq!(
     string_output(|buffer| parcel_asset_get_query(buffer, handle)).as_deref(),
@@ -492,7 +495,7 @@ fn target_accessors_map_every_enum_variant_and_return_fields() {
   );
   assert_eq!(
     string_output(|buffer| parcel_target_get_dist_dir(buffer, handle, 0)).as_deref(),
-    Some("/project/dist")
+    Some(test_utils::path("/project/dist").to_str().unwrap())
   );
   parcel_target_get_public_url(ptr::null_mut(), handle);
   parcel_target_get_dist_dir(ptr::null_mut(), handle, 0);
@@ -540,11 +543,15 @@ fn dependency_accessors_return_values_and_map_every_enum_variant() {
   }
   assert_eq!(
     string_output(|buffer| parcel_dep_get_source_path(buffer, handle, 0)).as_deref(),
-    Some("/project/src/source.js")
+    Some(test_utils::path("/project/src/source.js").to_str().unwrap())
   );
   assert_eq!(
     string_output(|buffer| parcel_dep_get_resolve_from(buffer, handle, 0)).as_deref(),
-    Some("/project/src/resolve-from.js")
+    Some(
+      test_utils::path("/project/src/resolve-from.js")
+        .to_str()
+        .unwrap()
+    )
   );
   assert_eq!(
     parcel_dep_get_target(handle),
@@ -614,7 +621,7 @@ fn dependency_accessors_return_values_and_map_every_enum_variant() {
   assert_eq!(
     string_output(|buffer| parcel_dep_get_resolve_from(buffer, dependency_handle(&fallback), 0))
       .as_deref(),
-    Some("/project/src/source.js")
+    Some(test_utils::path("/project/src/source.js").to_str().unwrap())
   );
   fallback.loc = None;
   assert!(
@@ -645,8 +652,18 @@ fn dependency_accessors_return_values_and_map_every_enum_variant() {
 #[test]
 fn bundle_accessors_return_fields_urls_indices_and_fallbacks() {
   let target = target_fixture();
-  let bundle = bundle_fixture(target.clone(), Some("/project/dist/chunks/app.js"));
-  let mut from = bundle_fixture(target.clone(), Some("/project/dist/index.js"));
+  let bundle = bundle_fixture(
+    target.clone(),
+    Some(
+      test_utils::path("/project/dist/chunks/app.js")
+        .to_str()
+        .unwrap(),
+    ),
+  );
+  let mut from = bundle_fixture(
+    target.clone(),
+    Some(test_utils::path("/project/dist/index.js").to_str().unwrap()),
+  );
   from.id = 1;
   let handle = bundle_handle(&bundle);
   let from_handle = bundle_handle(&from);
@@ -666,7 +683,11 @@ fn bundle_accessors_return_fields_urls_indices_and_fallbacks() {
   assert_eq!(parcel_bundle_get_flags(handle), bundle.flags.bits());
   assert_eq!(
     string_output(|buffer| parcel_bundle_get_dist_path(buffer, handle)).as_deref(),
-    Some("/project/dist/chunks/app.js")
+    Some(
+      test_utils::path("/project/dist/chunks/app.js")
+        .to_str()
+        .unwrap()
+    )
   );
   assert_eq!(parcel_bundle_get_asset_count(handle), 2);
   assert_eq!(parcel_bundle_get_asset(handle, 0), 2);
@@ -725,7 +746,14 @@ fn bundle_accessors_return_fields_urls_indices_and_fallbacks() {
   from.end_packaging();
 
   // A pending bundle's name is unavailable until its final path is set.
-  let pending = bundle_fixture(target.clone(), Some("/project/dist/pending-template.js"));
+  let pending = bundle_fixture(
+    target.clone(),
+    Some(
+      test_utils::path("/project/dist/pending-template.js")
+        .to_str()
+        .unwrap(),
+    ),
+  );
   let pending_handle = bundle_handle(&pending);
   pending.name_state.mark_pending();
   assert!(string_output(|buffer| parcel_bundle_get_name(buffer, pending_handle)).is_none());
@@ -745,7 +773,11 @@ fn bundle_accessors_return_fields_urls_indices_and_fallbacks() {
   );
   assert_eq!(
     string_output(|buffer| parcel_bundle_get_dist_path(buffer, pending_handle)).as_deref(),
-    Some("/project/dist/pending-final.js")
+    Some(
+      test_utils::path("/project/dist/pending-final.js")
+        .to_str()
+        .unwrap()
+    )
   );
 
   let behavior_cases = [
@@ -857,7 +889,10 @@ fn bundle_graph_accessors_cover_every_dependency_resolution() {
   }
 
   let assets = vec![source, resolved];
-  let bundle = bundle_fixture(target, Some("/project/dist/app.js"));
+  let bundle = bundle_fixture(
+    target,
+    Some(test_utils::path("/project/dist/app.js").to_str().unwrap()),
+  );
   let mut bundle_resolutions = HashMap::new();
   bundle_resolutions.insert(
     DependencyId {
@@ -997,7 +1032,7 @@ fn options_accessors_return_project_root_and_environment_values() {
 
   assert_eq!(
     string_output(|buffer| parcel_options_get_project_root(buffer, handle)).as_deref(),
-    Some("/project")
+    Some(test_utils::path("/project").to_str().unwrap())
   );
   assert_eq!(
     string_output(|buffer| {
@@ -1292,6 +1327,7 @@ fn tracked_project() -> (ParcelOptions, Arc<TrackingFileSystem>) {
 }
 
 fn read_file(handle: Options, file: &str) -> (IoStatus, Option<String>) {
+  let file = test_utils::path(file).to_string_lossy().into_owned();
   let mut status = IoStatus::PARCEL_IO_ERROR;
   let output = string_output(|buffer| {
     status = parcel_fs_read_file(buffer, handle, file.as_ptr(), file.len());
@@ -1334,7 +1370,10 @@ fn fs_reports_kinds_and_canonical_paths() {
   let plugin = PluginContext::new(&options, &dyn_fs);
   let context = OptionsContext::with_plugin(&plugin);
   let handle = context.handle();
-  let kind = |file: &str| parcel_fs_get_kind(handle, file.as_ptr(), file.len());
+  let kind = |file: &str| {
+    let file = test_utils::path(file).to_string_lossy().into_owned();
+    parcel_fs_get_kind(handle, file.as_ptr(), file.len())
+  };
 
   assert_eq!(
     kind("/project/src/index.scss"),
@@ -1346,13 +1385,22 @@ fn fs_reports_kinds_and_canonical_paths() {
   );
   assert_eq!(kind("/project/missing"), 0);
 
-  let file = "/project/src/../src/index.scss";
+  let file = test_utils::path("/project/src/../src/index.scss")
+    .to_string_lossy()
+    .into_owned();
   let mut status = IoStatus::PARCEL_IO_ERROR;
   let canonical = string_output(|buffer| {
     status = parcel_fs_canonicalize(buffer, handle, file.as_ptr(), file.len());
   });
   assert_eq!(status, IoStatus::PARCEL_IO_OK);
-  assert_eq!(canonical.as_deref(), Some("/project/src/index.scss"));
+  assert_eq!(
+    canonical.as_deref(),
+    Some(
+      test_utils::path("/project/src/index.scss")
+        .to_str()
+        .unwrap()
+    )
+  );
 }
 
 /// Resolves `pkg` to a file next to the importer and records the dependency it was given, so
@@ -1407,6 +1455,11 @@ fn asset_resolve(
   specifier: &str,
   from: &str,
 ) -> Result<(ResolutionType, Option<String>, Option<String>), Vec<String>> {
+  let from = if from.is_empty() {
+    String::new()
+  } else {
+    test_utils::path(from).to_string_lossy().into_owned()
+  };
   let dep = DependencyOptions {
     specifier: specifier.as_ptr(),
     specifier_len: specifier.len(),
@@ -1463,7 +1516,11 @@ fn asset_resolve_runs_the_resolver_chain() {
     asset_resolve(&asset, context.handle(), "pkg", ""),
     Ok((
       ResolutionType::PARCEL_RESOLUTION_FILE_PATH,
-      Some("/project/src/pkg.scss".into()),
+      Some(
+        test_utils::path("/project/src/pkg.scss")
+          .to_string_lossy()
+          .into_owned()
+      ),
       Some("styles".into())
     ))
   );
@@ -1477,7 +1534,11 @@ fn asset_resolve_runs_the_resolver_chain() {
     ),
     Ok((
       ResolutionType::PARCEL_RESOLUTION_FILE_PATH,
-      Some("/project/lib/nested/pkg.scss".into()),
+      Some(
+        test_utils::path("/project/lib/nested/pkg.scss")
+          .to_string_lossy()
+          .into_owned()
+      ),
       Some("styles".into())
     ))
   );
@@ -1556,9 +1617,11 @@ fn fs_is_unavailable_outside_transform_and_resolve() {
   let (options, _) = tracked_project();
   let context = OptionsContext::new(&options);
   let handle = context.handle();
-  let file = "/project/src/index.scss";
+  let file = test_utils::path("/project/src/index.scss")
+    .to_string_lossy()
+    .into_owned();
 
-  let (status, message) = read_file(handle, file);
+  let (status, message) = read_file(handle, &file);
   assert_eq!(status, IoStatus::PARCEL_IO_ERROR);
   assert!(message.unwrap().contains("only available"));
   assert_eq!(parcel_fs_get_kind(handle, file.as_ptr(), file.len()), 0);
@@ -2112,11 +2175,11 @@ fn diagnostic_getters_read_code_frames_and_documentation() {
     assert!(parcel_diagnostic_get_code_frame(&mut frame, handle, 0, 0));
     assert_eq!(
       take_string(&mut frame.file_path).as_deref(),
-      Some("/project/src/a.js")
+      Some(test_utils::path("/project/src/a.js").to_str().unwrap())
     );
     assert_eq!(
       take_string(&mut frame.url).as_deref(),
-      Some("file:///project/src/a.js")
+      Some(test_utils::url("file:///project/src/a.js").as_str())
     );
     assert_eq!(take_string(&mut frame.code).as_deref(), Some("let x = ;"));
     assert_eq!(take_string(&mut frame.language).as_deref(), Some("js"));
@@ -2160,7 +2223,7 @@ fn diagnostic_getters_read_code_frames_and_documentation() {
     assert!(parcel_diagnostic_get_code_frame(&mut frame, handle, 0, 1));
     assert_eq!(
       take_string(&mut frame.file_path).as_deref(),
-      Some("/project/src/b.js")
+      Some(test_utils::path("/project/src/b.js").to_str().unwrap())
     );
     take_string(&mut frame.url);
     assert_eq!(take_string(&mut frame.code), None);
@@ -2229,7 +2292,7 @@ fn diagnostic_options_convert_to_a_full_diagnostic() {
   let context = OptionsContext::new(&options);
   let mut diagnostic = DiagnosticOptions {
     message: alloc("unexpected token"),
-    file_path: alloc("/project/src/a.js"),
+    file_path: alloc(test_utils::path("/project/src/a.js").to_str().unwrap()),
     line: 1,
     column: 9,
     end_line: 1,
@@ -2267,7 +2330,7 @@ fn diagnostic_options_convert_to_a_full_diagnostic() {
   // Without an end, the highlight covers just its start, as before.
   let mut diagnostic = DiagnosticOptions {
     message: alloc("unexpected token"),
-    file_path: alloc("/project/src/a.js"),
+    file_path: alloc(test_utils::path("/project/src/a.js").to_str().unwrap()),
     line: 2,
     column: 3,
     ..Default::default()

@@ -9,6 +9,8 @@ const LIB_EXT: &str = "so";
 #[cfg(target_os = "windows")]
 const LIB_EXT: &str = "dll";
 
+const LIB_PREFIX: &str = std::env::consts::DLL_PREFIX;
+
 /// Compiles the Rust custom-resolver example into a cdylib and returns its path.
 fn build_rust_resolver_plugin() -> std::path::PathBuf {
   let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
@@ -40,7 +42,7 @@ fn build_rust_resolver_plugin() -> std::path::PathBuf {
 
   target_dir
     .join("debug")
-    .join(format!("libcustom_resolver_rs.{}", LIB_EXT))
+    .join(format!("{LIB_PREFIX}custom_resolver_rs.{}", LIB_EXT))
 }
 
 #[test]
@@ -56,7 +58,7 @@ fn test_rust_resolver_plugin() {
   let tmp = std::env::temp_dir().join("parcel-rust-resolver-test");
   let parcelrc_path = tmp.join("rust-resolver.parcelrc");
   let parcelrc = format!(
-    r#"{{"extends":"@parcel/config-default","resolvers":["./target/debug/libcustom_resolver_rs.{}", "..."]}}"#,
+    r#"{{"extends":"@parcel/config-default","resolvers":["./target/debug/{LIB_PREFIX}custom_resolver_rs.{}", "..."]}}"#,
     LIB_EXT
   );
   std::fs::write(&parcelrc_path, &parcelrc).expect("write parcelrc");

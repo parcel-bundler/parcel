@@ -16,6 +16,8 @@ const LIB_EXT: &str = "so";
 #[cfg(target_os = "windows")]
 const LIB_EXT: &str = "dll";
 
+const LIB_PREFIX: &str = std::env::consts::DLL_PREFIX;
+
 fn build_rust_plugin() -> std::path::PathBuf {
   let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
   let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -43,9 +45,10 @@ fn build_rust_plugin() -> std::path::PathBuf {
     String::from_utf8_lossy(&result.stderr),
   );
 
-  target_dir
-    .join("debug")
-    .join(format!("libcustom_content_transformer_rs.{}", LIB_EXT))
+  target_dir.join("debug").join(format!(
+    "{LIB_PREFIX}custom_content_transformer_rs.{}",
+    LIB_EXT
+  ))
 }
 
 fn plugin_config() -> &'static PathBuf {
@@ -62,7 +65,7 @@ fn plugin_config() -> &'static PathBuf {
     std::fs::create_dir_all(&tmp).expect("create tmp dir");
     let parcelrc_path = tmp.join("native-plugin.parcelrc");
     let parcelrc = format!(
-      r#"{{"extends":"@parcel/config-default","transformers":{{"*.upper":["./target/debug/libcustom_content_transformer_rs.{}"],"*.upper.js":["./target/debug/libcustom_content_transformer_rs.{}"]}}}}"#,
+      r#"{{"extends":"@parcel/config-default","transformers":{{"*.upper":["./target/debug/{LIB_PREFIX}custom_content_transformer_rs.{}"],"*.upper.js":["./target/debug/{LIB_PREFIX}custom_content_transformer_rs.{}"]}}}}"#,
       LIB_EXT, LIB_EXT,
     );
     std::fs::write(&parcelrc_path, &parcelrc).expect("write parcelrc");

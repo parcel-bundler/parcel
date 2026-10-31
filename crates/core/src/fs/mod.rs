@@ -233,7 +233,9 @@ pub fn glob<F: FileSystem + ?Sized>(fs: &F, pattern: &str, cwd: PathId) -> Vec<P
     return Vec::new();
   }
 
-  let (dir, file) = pattern.rsplit_once('/').unwrap_or(("", pattern));
+  let (dir, file) = pattern
+    .rsplit_once(std::path::is_separator)
+    .unwrap_or(("", pattern));
   let mut matches = Vec::new();
 
   if !is_glob(dir) {
@@ -318,23 +320,5 @@ pub fn normalize_path(path: &Path) -> PathBuf {
 }
 
 pub fn resolve_path(from: &Path, subpath: &Path) -> PathBuf {
-  let mut path = PathBuf::new();
-  if let Some(parent) = from.parent() {
-    path.push(parent);
-  }
-
-  for component in subpath.components() {
-    match component {
-      Component::Prefix(..) | Component::RootDir => unreachable!(),
-      Component::CurDir => {}
-      Component::ParentDir => {
-        path.pop();
-      }
-      Component::Normal(c) => {
-        path.push(c);
-      }
-    }
-  }
-
-  path
+  normalize_path(&from.parent().unwrap_or(Path::new("")).join(subpath))
 }

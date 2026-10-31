@@ -20,6 +20,8 @@ const LIB_EXT: &str = "so";
 #[cfg(target_os = "windows")]
 const LIB_EXT: &str = "dll";
 
+const LIB_PREFIX: &str = std::env::consts::DLL_PREFIX;
+
 const PLUGIN: &str = "@parcel-test/txt-transformer";
 const ARTIFACT: &str = "@parcel-test/txt-transformer-native";
 
@@ -66,7 +68,7 @@ fn build_rust_plugin_once() -> PathBuf {
 
   let library = target_dir
     .join("debug")
-    .join(format!("libtxt_transformer_rs.{LIB_EXT}"));
+    .join(format!("{LIB_PREFIX}txt_transformer_rs.{LIB_EXT}"));
   assert!(library.exists(), "built plugin not found at {library:?}");
   library
 }

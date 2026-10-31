@@ -1,3 +1,10 @@
+#[path = "../../core/tests/support/mod.rs"]
+mod test_utils;
+
+fn test_path_id(path: &std::path::Path) -> parcel_core::PathId {
+  parcel_core::PathId::new(&test_utils::path(path.to_str().unwrap()))
+}
+
 use parcel::make_parcel;
 use parcel_core::{
   AssetType, BuildMode, BuildOptions, CodeFrame, CodeHighlight, Diagnostic, DiagnosticList,
@@ -16,9 +23,9 @@ use std::{
 fn write_file(fs: &MemoryFileSystem, path: &str, contents: &str) {
   let path = Path::new(path);
   if let Some(parent) = path.parent() {
-    fs.create_dir_all(PathId::new(parent)).unwrap();
+    fs.create_dir_all(test_path_id(parent)).unwrap();
   }
-  fs.write(PathId::new(path), &contents.as_bytes().to_vec())
+  fs.write(test_path_id(path), &contents.as_bytes().to_vec())
     .unwrap();
 }
 
@@ -43,7 +50,7 @@ fn setup_entries(files: &[(&str, &str)], entries: &[&str]) -> (Parcel, Arc<Memor
     input_fs: input_fs.clone(),
     output_fs,
     config: None,
-    cwd: PathId::new(Path::new("/project")),
+    cwd: test_path_id(Path::new("/project")),
     dist_dir: None,
     public_url: Default::default(),
     hmr: Some(HmrOptions {
@@ -66,7 +73,7 @@ fn hmr_update_after_change(
   contents: &str,
 ) -> (serde_json::Value, usize, usize) {
   write_file(input_fs, path, contents);
-  let path_id = PathId::new(Path::new(path));
+  let path_id = test_path_id(Path::new(path));
   let invalidate_result = parcel
     .invalidate(&[path_id], &[], &[])
     .expect("invalidate failed");
@@ -126,7 +133,7 @@ fn hmr_reloads_when_config_changes() {
     r#"{"extends": "@parcel/config-default", "transformers": {}}"#,
   );
   let invalidate_result = parcel
-    .invalidate(&[PathId::new(Path::new("/project/.parcelrc"))], &[], &[])
+    .invalidate(&[test_path_id(Path::new("/project/.parcelrc"))], &[], &[])
     .expect("invalidate failed");
   assert!(invalidate_result.config_changed);
 
@@ -150,7 +157,7 @@ fn split_hmr_updates_after_change(
 ) -> (serde_json::Value, serde_json::Value) {
   write_file(input_fs, path, contents);
   parcel
-    .invalidate(&[PathId::new(Path::new(path))], &[], &[])
+    .invalidate(&[test_path_id(Path::new(path))], &[], &[])
     .expect("invalidate failed");
   let config = parcel.config.clone();
   let options = parcel.options.clone();
@@ -263,7 +270,7 @@ fn css_bundle_name_is_stable_when_its_assets_change() {
     "@import './theme.css'; .styles { color: red; }",
   );
   parcel
-    .invalidate(&[PathId::new(Path::new("/project/styles.css"))], &[], &[])
+    .invalidate(&[test_path_id(Path::new("/project/styles.css"))], &[], &[])
     .expect("invalidate failed");
   let result = parcel
     .build_with_changes()
@@ -348,7 +355,7 @@ output(css("background: red"));"#,
 output(css("background: green"));"#,
   );
   parcel
-    .invalidate(&[PathId::new(Path::new("/project/index.js"))], &[], &[])
+    .invalidate(&[test_path_id(Path::new("/project/index.js"))], &[], &[])
     .expect("invalidate failed");
   {
     let result = parcel
@@ -364,7 +371,7 @@ output(css("background: green"));"#,
 output(css("background: red"));"#,
   );
   parcel
-    .invalidate(&[PathId::new(Path::new("/project/index.js"))], &[], &[])
+    .invalidate(&[test_path_id(Path::new("/project/index.js"))], &[], &[])
     .expect("invalidate failed");
   let result = parcel
     .build_with_changes()
@@ -582,7 +589,7 @@ impl HmrRuntimeTest {
     let js_env = create_runtime(
       parcel.options.output_fs.clone(),
       &env,
-      PathId::new(Path::new("/project")),
+      test_path_id(Path::new("/project")),
       Environment::Browser,
     )
     .unwrap();
@@ -666,7 +673,7 @@ impl HmrRuntimeTest {
       .iter()
       .map(|(path, contents)| {
         write_file(&self.input_fs, path, contents);
-        PathId::new(Path::new(path))
+        test_path_id(Path::new(path))
       })
       .collect();
 
@@ -1671,7 +1678,7 @@ fn editing_a_file_does_not_invalidate_inline_assets_emitted_from_it() {
     "<p>v2</p><script type=\"module\">console.log('a');</script>",
   );
   let result = parcel
-    .invalidate(&[PathId::new(Path::new("/project/index.html"))], &[], &[])
+    .invalidate(&[test_path_id(Path::new("/project/index.html"))], &[], &[])
     .expect("invalidate failed");
 
   // Only the HTML file. Its re-transform provides the inline script's content.

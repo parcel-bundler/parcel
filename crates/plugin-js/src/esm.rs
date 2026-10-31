@@ -61,6 +61,16 @@ impl Resolver for ModuleResolver {
     name: &str,
     _attributes: Option<rquickjs::loader::ImportAttributes<'js>>,
   ) -> rquickjs::Result<String> {
+    // QuickJS also asks us to import filesystem paths supplied by the host.
+    // On Windows a drive prefix would otherwise be parsed as a URL scheme.
+    let file_url;
+    let name = if cfg!(windows) && Path::new(name).is_absolute() {
+      file_url =
+        url::Url::from_file_path(name).map_err(|_| rquickjs::Error::new_resolving(base, name))?;
+      file_url.as_str()
+    } else {
+      name
+    };
     let res = self.resolver.resolve(
       name,
       parcel_resolver::PathId::new(Path::new(base)),

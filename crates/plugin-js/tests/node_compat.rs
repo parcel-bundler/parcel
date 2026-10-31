@@ -1,6 +1,9 @@
 //! Node APIs that npm packages (e.g. Babel, PostCSS, posthtml-expressions) rely on,
 //! exercised from both CommonJS and ES modules.
 
+#[path = "../../core/tests/support/mod.rs"]
+mod test_utils;
+
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -167,21 +170,21 @@ const CJS_CASES: &[(&str, &str, &str)] = &[
     "module.createRequire",
     "module.js",
     r#"const {createRequire, builtinModules, isBuiltin} = require('module');
-       const req = createRequire('/project/lib/index.js');
+       const req = createRequire(testPath('/project/lib/index.js'));
        if (req('./helper') !== 'helper') throw new Error('relative require');
-       if (req.resolve('./helper') !== '/project/lib/helper.js') throw new Error('resolve: ' + req.resolve('./helper'));
-       if (createRequire('/project/lib/')('./helper') !== 'helper') throw new Error('directory base');
-       if (createRequire('file:///project/lib/index.js')('./helper') !== 'helper') throw new Error('file URL base');
+       if (req.resolve('./helper') !== testPath('/project/lib/helper.js')) throw new Error('resolve: ' + req.resolve('./helper'));
+       if (createRequire(testPath('/project/lib/'))('./helper') !== 'helper') throw new Error('directory base');
+       if (createRequire(testUrl('file:///project/lib/index.js'))('./helper') !== 'helper') throw new Error('file URL base');
        if (!builtinModules.includes('fs')) throw new Error('builtinModules');
        if (!isBuiltin('node:path') || isBuiltin('pkg')) throw new Error('isBuiltin');"#,
   ),
   (
     "require.resolve paths",
     "resolve.js",
-    r#"const resolved = require.resolve('other-pkg', {paths: ['/nowhere', '/other']});
-       if (resolved !== '/other/node_modules/other-pkg/index.js') throw new Error('paths: ' + resolved);
+    r#"const resolved = require.resolve('other-pkg', {paths: [testPath('/nowhere'), testPath('/other')]});
+       if (resolved !== testPath('/other/node_modules/other-pkg/index.js')) throw new Error('paths: ' + resolved);
        let threw = false;
-       try { require.resolve('missing-pkg', {paths: ['/other']}) } catch (e) { threw = true }
+       try { require.resolve('missing-pkg', {paths: [testPath('/other')]}) } catch (e) { threw = true }
        if (!threw) throw new Error('missing module resolved');"#,
   ),
   (
@@ -193,10 +196,10 @@ const CJS_CASES: &[(&str, &str, &str)] = &[
     "fs.existsSync",
     "fs.js",
     r#"const fs = require('fs');
-       if (!fs.existsSync('/project/lib/helper.js')) throw new Error('file');
-       if (!fs.existsSync('/project/lib')) throw new Error('directory');
+       if (!fs.existsSync(testPath('/project/lib/helper.js'))) throw new Error('file');
+       if (!fs.existsSync(testPath('/project/lib'))) throw new Error('directory');
        if (!fs.existsSync('/')) throw new Error('root');
-       if (fs.existsSync('/project/missing.js')) throw new Error('missing file');"#,
+       if (fs.existsSync(testPath('/project/missing.js'))) throw new Error('missing file');"#,
   ),
   (
     "process",
@@ -238,8 +241,8 @@ const ESM_CASES: &[(&str, &str, &str)] = &[
     "fs.mjs",
     r#"import fs, {existsSync, readFileSync, promises} from 'fs';
        import {readFile} from 'fs/promises';
-       if (!existsSync('/project/lib/helper.js')) throw new Error('existsSync');
-       if (readFileSync('/project/lib/helper.js', 'utf8') !== "module.exports = 'helper';") throw new Error('readFileSync');
+       if (!existsSync(testPath('/project/lib/helper.js'))) throw new Error('existsSync');
+       if (readFileSync(testPath('/project/lib/helper.js'), 'utf8') !== "module.exports = 'helper';") throw new Error('readFileSync');
        if (typeof promises.readFile !== 'function' || typeof readFile !== 'function') throw new Error('promises');
        if (fs.existsSync !== existsSync) throw new Error('default export');"#,
   ),
@@ -248,10 +251,10 @@ const ESM_CASES: &[(&str, &str, &str)] = &[
 fn fixture_fs() -> Arc<dyn FileSystem> {
   let fs = MemoryFileSystem::new();
   for (path, contents) in FILES {
-    let path = Path::new(path);
+    let path = test_utils::path(path);
     fs.create_dir_all(PathId::new(path.parent().unwrap()))
       .unwrap();
-    fs.write(PathId::new(path), &contents.as_bytes().to_vec())
+    fs.write(PathId::new(&path), &contents.as_bytes().to_vec())
       .unwrap();
   }
   Arc::new(fs)
@@ -262,12 +265,17 @@ fn run_cases(
   run: impl Fn(&rquickjs::Ctx, &str) -> rquickjs::Result<()>,
 ) {
   let fs = fixture_fs();
-  let cwd = PathId::new(Path::new("/project"));
+  let cwd = PathId::new(test_utils::path("/project").as_path());
   let mut failed = Vec::new();
   for (label, file, source) in cases {
-    let path = format!("/project/{file}");
-    fs.write(PathId::new(Path::new(&path)), &source.as_bytes().to_vec())
-      .unwrap();
+    let path = test_utils::path(&format!("/project/{file}"))
+      .to_string_lossy()
+      .into_owned();
+    fs.write(
+      PathId::new(Path::new(&path)),
+      &test_utils::js(source).as_bytes().to_vec(),
+    )
+    .unwrap();
     if let Err(diagnostics) = with_js_env(fs.clone(), &HashMap::new(), cwd, |ctx| run(ctx, &path)) {
       let mut buf = Vec::new();
       diagnostics.report(&mut buf).unwrap();

@@ -424,7 +424,7 @@ func writeDiagnostic(raw *C.DiagnosticOptions, err error) {
 		*buf = C.parcel_buffer_alloc((*C.uint8_t)(unsafe.Pointer(&data[0])), C.uintptr_t(len(data)))
 	}
 	writeBuffer(&raw.message, message)
-	raw.severity = C.uint8_t(d.Severity)
+	raw.severity = C.DiagnosticSeverity(d.Severity)
 	writeBuffer(&raw.file_path, d.FilePath)
 	raw.line = C.uint32_t(d.Line)
 	raw.column = C.uint32_t(d.Column)
@@ -619,7 +619,7 @@ func (a *Asset) BundleBehavior() BundleBehavior {
 
 // SetBundleBehavior sets the asset's bundle behavior.
 func (a *Asset) SetBundleBehavior(b BundleBehavior) {
-	C.parcel_asset_set_bundle_behavior(a.ptr, C.uint8_t(b))
+	C.parcel_asset_set_bundle_behavior(a.ptr, C.BundleBehavior(b))
 }
 
 // Flags returns the raw AssetFlags bitfield.
@@ -629,7 +629,7 @@ func (a *Asset) Flags() AssetFlags {
 
 // SetFlags replaces the AssetFlags bitfield.
 func (a *Asset) SetFlags(flags AssetFlags) {
-	C.parcel_asset_set_flags(a.ptr, C.uint32_t(flags))
+	C.parcel_asset_set_flags(a.ptr, C.AssetFlags(flags))
 }
 
 // HasFlag reports whether all bits in mask are set in the asset flags.
@@ -769,12 +769,12 @@ func (dep *DependencyOptions) writeRaw(raw *C.DependencyOptions, pinner *runtime
 	}
 	raw.specifier = stringPtr(dep.Specifier)
 	raw.specifier_len = C.uintptr_t(len(dep.Specifier))
-	raw.specifier_type = C.uint8_t(dep.SpecifierType)
-	raw.priority = C.uint8_t(dep.Priority)
-	raw.bundle_behavior = C.uint8_t(dep.BundleBehavior)
-	raw.flags = C.uint8_t(dep.Flags)
-	raw.conditions = C.uint32_t(dep.Conditions)
-	raw.import_type = C.uint8_t(dep.ImportType)
+	raw.specifier_type = C.SpecifierType(dep.SpecifierType)
+	raw.priority = C.Priority(dep.Priority)
+	raw.bundle_behavior = C.BundleBehavior(dep.BundleBehavior)
+	raw.flags = C.DependencyFlags(dep.Flags)
+	raw.conditions = C.ExportsConditions(dep.Conditions)
+	raw.import_type = C.ImportType(dep.ImportType)
 }
 
 // AddExportSymbol registers an exported symbol name (e.g. "default", "foo", "*").

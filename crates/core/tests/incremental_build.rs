@@ -77,7 +77,7 @@ fn setup_with_options(
 fn read_dist(output_fs: &RecordingFileSystem, name: &str) -> String {
   let path = PathBuf::from(format!("/project/dist/{}", name));
   let bytes = output_fs
-    .read(parcel_core::PathId::new(&path))
+    .read(mock::test_path_id(&path))
     .unwrap_or_else(|e| panic!("could not read dist/{}: {}", name, e));
   String::from_utf8(bytes).unwrap()
 }
@@ -228,7 +228,7 @@ fn full_build_shared_dependency_is_deduped() {
 
 /// Interns a project file path, matching the `PathId` keys used by invalidation tracking.
 fn path_id(path: &str) -> PathId {
-  PathId::new(Path::new(path))
+  mock::test_path_id(Path::new(path))
 }
 
 #[test]

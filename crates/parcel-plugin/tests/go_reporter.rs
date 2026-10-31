@@ -17,6 +17,11 @@ const LIB_EXT: &str = "dll";
 
 /// Builds the Go example plugin, or returns `None` when Go is not installed.
 fn build_go_reporter_plugin() -> Option<std::path::PathBuf> {
+  static PLUGIN: std::sync::OnceLock<Option<std::path::PathBuf>> = std::sync::OnceLock::new();
+  PLUGIN.get_or_init(build_go_reporter_plugin_once).clone()
+}
+
+fn build_go_reporter_plugin_once() -> Option<std::path::PathBuf> {
   let check = std::process::Command::new("go")
     .arg("version")
     .output()

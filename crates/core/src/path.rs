@@ -382,23 +382,45 @@ impl PathInterner {
   }
 
   fn intern_impl(&self, mut cur: Option<PathId>, path: &Path) -> PathId {
-    for comp in path.components() {
+    let mut components = path.components().peekable();
+    if let Some(Component::Prefix(prefix)) = components.peek().copied() {
+      components.next();
+      // Keep the prefix and root together. A separate RootDir node would discard
+      // the drive/UNC share, and walking parents must stop at the volume root.
+      let mut root = PathBuf::from(prefix.as_os_str());
+      if components.peek() == Some(&Component::RootDir) {
+        components.next();
+        root.push(Component::RootDir);
+      }
+      cur = Some(self.intern_edge(None, &root.to_string_lossy()));
+    }
+    for comp in components {
       match comp {
         Component::CurDir => continue,
         Component::ParentDir => {
           if let Some(c) = cur {
-            cur = self.node(c).parent;
+            cur = self
+              .node(c)
+              .parent
+              .or_else(|| Path::new(self.file_name(c)).has_root().then_some(c));
           } else {
             cur = None;
           }
         }
         Component::RootDir => {
-          cur = Some(self.intern_edge(None, "/"));
+          // Like PathBuf::push, a rooted path without a prefix retains the
+          // base's Windows volume, but replaces all directories below it.
+          cur = cur
+            .and_then(|base| self.ancestors(base).last())
+            .filter(|root| {
+              matches!(
+                Path::new(self.file_name(*root)).components().next(),
+                Some(Component::Prefix(_))
+              )
+            })
+            .or_else(|| Some(self.intern_edge(None, "/")));
         }
-        Component::Prefix(prefix) => {
-          let s = prefix.as_os_str().to_string_lossy();
-          cur = Some(self.intern_edge(cur, &s));
-        }
+        Component::Prefix(_) => unreachable!(),
         Component::Normal(os) => {
           let s = os.to_string_lossy();
           cur = Some(self.intern_edge(cur, &s));
@@ -514,6 +536,9 @@ impl PathInterner {
   /// Returns the relative path from `from` to `id`.
   pub fn relative(&self, id: PathId, from: PathId) -> PathBuf {
     let (parent_dirs, dir) = self.common_ancestor(Some(from), Some(id));
+    if dir.is_none() && self.to_path_buf(id).has_root() {
+      return self.to_path_buf(id);
+    }
 
     let mut res = PathBuf::new();
     for _ in 0..parent_dirs {
@@ -528,7 +553,7 @@ impl PathInterner {
     // If the scratch buffer is already lent out on this thread, we can't reuse it without
     // clobbering the outstanding borrow, so fall back to a heap path for this (rare) nested call.
     if SCRATCH_IN_USE.with(|in_use| in_use.replace(true)) {
-      return f(&self.to_path_buf(id));
+      return f(&self.relative(id, from));
     }
 
     // Reset the in-use flag even if `f` panics.
@@ -541,6 +566,9 @@ impl PathInterner {
     let _guard = Guard;
 
     let (parent_dirs, dir) = self.common_ancestor(Some(from), Some(id));
+    if dir.is_none() && self.to_path_buf(id).has_root() {
+      return self.with_path(id, f);
+    }
 
     SCRATCH_PATH.with(|cell| {
       // SAFETY: `SCRATCH_IN_USE` guarantees no other live borrow of this cell exists on this
@@ -591,6 +619,11 @@ impl PathInterner {
     }
 
     let (parent_dirs, dir) = self.common_ancestor(base, dir);
+    if dir.is_none() && self.to_path_buf(id).has_root() {
+      return url::Url::from_file_path(self.to_path_buf(id))
+        .expect("absolute path should be a valid file URL")
+        .to_string();
+    }
     for _ in 0..parent_dirs {
       if !out.is_empty() {
         out.push('/');
@@ -656,10 +689,9 @@ impl PathInterner {
     if Some(id) == ancestor {
       return;
     }
-    let parent = self
-      .parent(id)
-      .expect("ancestor should be in id's parent chain");
-    self.push_segments_after(buf, parent, ancestor);
+    if let Some(parent) = self.parent(id) {
+      self.push_segments_after(buf, parent, ancestor);
+    }
     buf.push(self.file_name(id));
   }
 
@@ -692,12 +724,16 @@ impl PathInterner {
     let mut out = String::new();
     for (i, part) in parts.iter().rev().enumerate() {
       // A leading "/" segment shouldn't produce a doubled "//".
-      if i > 0 && !out.ends_with('/') {
+      if i > 0 && !out.ends_with(['/', std::path::MAIN_SEPARATOR]) {
         out.push('/');
       }
       out.push_str(part);
     }
-    out
+    if cfg!(windows) {
+      out.replace('\\', "/")
+    } else {
+      out
+    }
   }
 
   // --- internals ---
@@ -806,6 +842,50 @@ mod tests {
     let original = Path::new("/home/user/project/src/foo.js");
     let id = interner.intern(original);
     assert_eq!(interner.to_path_buf(id), original);
+  }
+
+  #[test]
+  #[cfg(windows)]
+  fn windows_volumes_roundtrip_and_remain_distinct() {
+    let interner = PathInterner::new();
+    for original in [
+      r"C:\project\src\a.js",
+      r"D:\project\src\a.js",
+      r"\\server\share\src\a.js",
+      r"\\?\C:\project\src\a.js",
+    ] {
+      let path = Path::new(original);
+      let id = interner.intern(path);
+      assert_eq!(interner.to_path_buf(id), path);
+      interner.with_path(id, |actual| assert_eq!(actual, path));
+      assert_eq!(interner.intern(&interner.to_path_buf(id)), id);
+    }
+    assert_ne!(
+      interner.intern(Path::new(r"C:\project")),
+      interner.intern(Path::new(r"D:\project"))
+    );
+    let base = interner.intern(Path::new(r"C:\project\src"));
+    assert_eq!(interner.display(base), "C:/project/src");
+    for (suffix, expected) in [
+      (r"..\a.js", r"C:\project\a.js"),
+      (r"\other\a.js", r"C:\other\a.js"),
+      (r"D:\other\a.js", r"D:\other\a.js"),
+      (r"..\..\..\a.js", r"C:\a.js"),
+    ] {
+      assert_eq!(
+        interner.to_path_buf(interner.join(base, Path::new(suffix))),
+        Path::new(expected)
+      );
+    }
+    let other = interner.intern(Path::new(r"D:\other\a.js"));
+    assert_eq!(interner.relative(other, base), Path::new(r"D:\other\a.js"));
+    interner.with_relative(other, base, |actual| {
+      assert_eq!(actual, Path::new(r"D:\other\a.js"))
+    });
+    assert_eq!(
+      interner.relative_url_from_dir(other, base),
+      "file:///D:/other/a.js"
+    );
   }
 
   #[test]

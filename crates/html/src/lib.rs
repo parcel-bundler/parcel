@@ -1021,7 +1021,9 @@ mod tests {
 
   #[test]
   fn test_transform() {
-    let url = parcel_core::SourceUrl::parse("file:///foo.html").unwrap();
+    let url = parcel_core::SourceUrl::from_path(&parcel_core::PathId::new(
+      &std::env::current_dir().unwrap().join("foo.html"),
+    ));
     let res = transform_html(crate::TransformOptions {
       code: "<html><body><template><div>test</div><span>hi</span></template></body></html>".into(),
       url: url.clone(),

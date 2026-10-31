@@ -34,6 +34,16 @@ impl Resolver for DefaultResolver {
     }
 
     let options = ctx.options;
+    let virtual_url = |path: &str| {
+      SourceUrl::from_path(
+        &options
+          .project_root
+          .ancestors()
+          .last()
+          .unwrap()
+          .join(Path::new(path)),
+      )
+    };
 
     // Parcel's runtime modules, e.g. the ESM helpers the JS transformer inserts, are embedded in
     // Parcel rather than installed in the project, and are bundled even in libraries. They are
@@ -181,7 +191,7 @@ impl Resolver for DefaultResolver {
         Resolution::Empty => Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
           ty: AssetType::Js,
           loc: SourceLocation {
-            url: SourceUrl::parse("file:///empty.js")?,
+            url: virtual_url("empty.js"),
             ..Default::default()
           },
           content: Arc::new(BufferContent::new(vec![])),
@@ -193,7 +203,7 @@ impl Resolver for DefaultResolver {
         Resolution::Global(global) => Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
           ty: AssetType::Js,
           loc: SourceLocation {
-            url: SourceUrl::parse(&format!("file:///globals/{}.js", global))?,
+            url: virtual_url(&format!("globals/{}.js", global)),
             ..Default::default()
           },
           content: Arc::new(BufferContent::new_string(format!(
@@ -241,7 +251,7 @@ impl Resolver for DefaultResolver {
               return Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
                 ty: AssetType::Js,
                 loc: SourceLocation {
-                  url: SourceUrl::parse("file:///empty.js")?,
+                  url: virtual_url("empty.js"),
                   ..Default::default()
                 },
                 content: Arc::new(BufferContent::new(vec![])),

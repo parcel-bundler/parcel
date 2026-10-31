@@ -9,6 +9,8 @@ const LIB_EXT: &str = "so";
 #[cfg(target_os = "windows")]
 const LIB_EXT: &str = "dll";
 
+const LIB_PREFIX: &str = std::env::consts::DLL_PREFIX;
+
 /// Compiles the Rust txt-transformer example into a cdylib and returns its
 /// path.  Uses an isolated `--target-dir` so this subprocess does not
 /// contend on the Cargo lock held by the parent test runner.
@@ -42,7 +44,7 @@ fn build_rust_plugin() -> std::path::PathBuf {
 
   target_dir
     .join("debug")
-    .join(format!("libtxt_transformer_rs.{}", LIB_EXT))
+    .join(format!("{LIB_PREFIX}txt_transformer_rs.{}", LIB_EXT))
 }
 
 #[test]
@@ -59,7 +61,7 @@ fn test_rust_transformer_plugin() {
   let tmp = std::env::temp_dir().join("parcel-rust-plugin-test");
   let parcelrc_path = tmp.join("rust-plugin.parcelrc");
   let parcelrc = format!(
-    r#"{{"extends":"@parcel/config-default","transformers":{{"*.txt":["./target/debug/libtxt_transformer_rs.{}"]}}}}"#,
+    r#"{{"extends":"@parcel/config-default","transformers":{{"*.txt":["./target/debug/{LIB_PREFIX}txt_transformer_rs.{}"]}}}}"#,
     LIB_EXT
   );
   std::fs::write(&parcelrc_path, &parcelrc).expect("write parcelrc");

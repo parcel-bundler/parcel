@@ -1,3 +1,6 @@
+#[path = "../../core/tests/support/mod.rs"]
+mod test_utils;
+
 use std::{borrow::Cow, collections::HashMap, path::Path, sync::Arc};
 
 use parcel_core::{
@@ -17,7 +20,7 @@ fn run(
   let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
   let plugin_path = root.join(Path::new(name));
   fs.create_dir_all(root).expect("Error creating dir");
-  fs.write(plugin_path, &code.as_bytes().to_owned())
+  fs.write(plugin_path, &test_utils::js(code).as_bytes().to_owned())
     .expect("Error writing file");
 
   let plugin_dir = root.join(Path::new("node_modules/@parcel/plugin"));
@@ -40,13 +43,13 @@ fn run(
   .expect("Error writing plugin API");
 
   let target = Arc::new(Target {
-    dist_dir: PathId::new(Path::new("/dist")),
+    dist_dir: PathId::new(test_utils::path("/dist").as_path()),
     public_url: "/assets".into(),
     ..Default::default()
   });
   let assets = vec![Asset {
     loc: SourceLocation {
-      url: SourceUrl::parse("file:///src/index.js").unwrap(),
+      url: SourceUrl::parse(test_utils::url("file:///src/index.js").as_str()).unwrap(),
       ..Default::default()
     },
     ty: AssetType::Js,
@@ -86,7 +89,7 @@ fn run(
     },
     bundles,
     HashMap::new(),
-    PathId::new(Path::new("/")),
+    PathId::new(test_utils::path("/").as_path()),
   );
   let plugin = JsPlugin::new(plugin_path, "test-plugin", config);
   let options = ParcelOptions {
@@ -128,7 +131,7 @@ fn test_optimizer_esm_async_with_source_map() {
           assert.deepEqual(options.hmrOptions, {host: 'localhost', port: 1234});
           assert.equal(bundle.type, 'js');
           assert.equal(bundle.isEntry, true);
-          assert.equal(bundle.getMainEntry().url, 'file:///src/index.js');
+          assert.equal(bundle.getMainEntry().url, testUrl('file:///src/index.js'));
           assert.equal(bundleGraph.getBundles()[0].type, 'js');
 
           // A string for each, which Parcel takes as well as bytes.

@@ -9,6 +9,8 @@ const LIB_EXT: &str = "so";
 #[cfg(target_os = "windows")]
 const LIB_EXT: &str = "dll";
 
+const LIB_PREFIX: &str = std::env::consts::DLL_PREFIX;
+
 /// Compiles the Rust prepend-transformer example into a cdylib and returns its
 /// path. Uses an isolated `--target-dir` so this subprocess does not contend on
 /// the Cargo lock held by the parent test runner.
@@ -41,7 +43,7 @@ fn build_rust_plugin() -> PathBuf {
 
   target_dir
     .join("debug")
-    .join(format!("libprepend_transformer_rs.{}", LIB_EXT))
+    .join(format!("{LIB_PREFIX}prepend_transformer_rs.{}", LIB_EXT))
 }
 
 #[test]

@@ -15,6 +15,8 @@ const LIB_EXT: &str = "so";
 #[cfg(target_os = "windows")]
 const LIB_EXT: &str = "dll";
 
+const LIB_PREFIX: &str = std::env::consts::DLL_PREFIX;
+
 fn build_example(name: &str, lib: &str, target_dir: &Path) -> std::path::PathBuf {
   let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
   let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -37,7 +39,9 @@ fn build_example(name: &str, lib: &str, target_dir: &Path) -> std::path::PathBuf
     String::from_utf8_lossy(&result.stderr),
   );
 
-  target_dir.join("debug").join(format!("lib{lib}.{LIB_EXT}"))
+  target_dir
+    .join("debug")
+    .join(format!("{LIB_PREFIX}{lib}.{LIB_EXT}"))
 }
 
 /// Calls the plugin's `parcel_plugin_report` directly, so each event kind is
@@ -147,7 +151,7 @@ fn test_rust_reporter_plugin_in_a_build() {
 
   let parcelrc_path = tmp.join("rust-reporter.parcelrc");
   let parcelrc = format!(
-    r#"{{"extends":"@parcel/config-default","reporters":["./target/debug/libcustom_reporter_rs.{LIB_EXT}"]}}"#
+    r#"{{"extends":"@parcel/config-default","reporters":["./target/debug/{LIB_PREFIX}custom_reporter_rs.{LIB_EXT}"]}}"#
   );
   std::fs::write(&parcelrc_path, parcelrc).expect("write parcelrc");
 

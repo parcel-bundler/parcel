@@ -71,7 +71,14 @@ impl<'de> serde::Deserialize<'de> for SourceUrl {
 
 impl Default for SourceUrl {
   fn default() -> Self {
-    SourceUrl::from_path(&PathId::new(Path::new("/default")))
+    static DEFAULT_PATH: std::sync::LazyLock<PathId> = std::sync::LazyLock::new(|| {
+      PathId::new(&std::env::current_dir().unwrap())
+        .ancestors()
+        .last()
+        .unwrap()
+        .child("default")
+    });
+    SourceUrl::from_path(&DEFAULT_PATH)
   }
 }
 
@@ -289,71 +296,94 @@ fn path_to_url_path(path: &Path) -> String {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::test_utils::{path as test_path, url as test_url};
   use std::hash::{DefaultHasher, Hasher};
 
   fn make_root(path: &str) -> PathId {
-    PathId::new(Path::new(path))
+    PathId::new(test_path(path).as_path())
   }
 
   fn make_path(path: &str) -> PathId {
-    PathId::new(Path::new(path))
+    PathId::new(test_path(path).as_path())
+  }
+
+  #[test]
+  fn default_url_is_an_absolute_file_url() {
+    let url = SourceUrl::default();
+    assert!(url.to_file_path().unwrap().to_path_buf().is_absolute());
+    assert_eq!(SourceUrl::parse(&url.to_string()).unwrap(), url);
   }
 
   #[test]
   fn test_from_path_within_project() {
     let url = SourceUrl::from_path(&make_path("/home/user/project/src/foo.js"));
-    assert_eq!(url.to_string(), "file:///home/user/project/src/foo.js");
+    assert_eq!(
+      url.to_string(),
+      test_url("file:///home/user/project/src/foo.js").as_str()
+    );
   }
 
   #[test]
   fn test_from_path_outside_project() {
     let url = SourceUrl::from_path(&make_path("/usr/lib/node_modules/foo.js"));
-    assert_eq!(url.to_string(), "file:///usr/lib/node_modules/foo.js");
+    assert_eq!(
+      url.to_string(),
+      test_url("file:///usr/lib/node_modules/foo.js").as_str()
+    );
   }
 
   #[test]
   fn test_from_path_is_project_root() {
     let url = SourceUrl::from_path(&make_path("/home/user/project"));
-    assert_eq!(url.to_string(), "file:///home/user/project");
+    assert_eq!(
+      url.to_string(),
+      test_url("file:///home/user/project").as_str()
+    );
   }
 
   #[test]
   fn test_from_directory_path_within_project() {
     let url = SourceUrl::from_directory_path(&make_path("/home/user/project/src"));
-    assert_eq!(url.to_string(), "file:///home/user/project/src/");
+    assert_eq!(
+      url.to_string(),
+      test_url("file:///home/user/project/src/").as_str()
+    );
   }
 
   #[test]
   fn test_from_directory_path_is_project_root() {
     let url = SourceUrl::from_directory_path(&make_path("/home/user/project"));
-    assert_eq!(url.to_string(), "file:///home/user/project/");
+    assert_eq!(
+      url.to_string(),
+      test_url("file:///home/user/project/").as_str()
+    );
   }
 
   #[test]
   fn test_from_directory_path_outside_project() {
     let url = SourceUrl::from_directory_path(&make_path("/usr/lib"));
-    assert_eq!(url.to_string(), "file:///usr/lib/");
+    assert_eq!(url.to_string(), test_url("file:///usr/lib/").as_str());
   }
 
   #[test]
   fn test_to_file_path_file_url() {
-    let url = SourceUrl::parse("file:///usr/lib/foo.js").unwrap();
+    let url = SourceUrl::parse(test_url("file:///usr/lib/foo.js").as_str()).unwrap();
     let path = url.to_file_path().unwrap();
-    assert_eq!(path.to_path_buf(), Path::new("/usr/lib/foo.js"));
+    assert_eq!(path.to_path_buf(), test_path("/usr/lib/foo.js").as_path());
   }
 
   #[test]
   fn test_roundtrip_within_project() {
-    let original = Path::new("/home/user/project/src/foo.js");
-    let url = SourceUrl::from_path(&PathId::new(original));
+    let original = test_path("/home/user/project/src/foo.js");
+    let url = SourceUrl::from_path(&PathId::new(&original));
     let path = url.to_file_path().unwrap();
     assert_eq!(path.to_path_buf(), original);
   }
 
   #[test]
   fn test_roundtrip_outside_project() {
-    let original = Path::new("/usr/lib/node_modules/foo.js");
-    let url = SourceUrl::from_path(&PathId::new(original));
+    let original = test_path("/usr/lib/node_modules/foo.js");
+    let url = SourceUrl::from_path(&PathId::new(&original));
     let path = url.to_file_path().unwrap();
     assert_eq!(path.to_path_buf(), original);
   }
@@ -382,7 +412,7 @@ mod tests {
     );
     assert_eq!(
       url.to_string(),
-      "file:///home/user/project/src/foo.js?transform=true"
+      test_url("file:///home/user/project/src/foo.js?transform=true").as_str()
     );
     assert_eq!(url.query(), Some("transform=true"));
   }
@@ -396,7 +426,7 @@ mod tests {
     let path = url.to_file_path().unwrap();
     assert_eq!(
       path.to_path_buf(),
-      Path::new("/home/user/project/src/foo.js")
+      test_path("/home/user/project/src/foo.js").as_path()
     );
   }
 
@@ -408,7 +438,7 @@ mod tests {
     let path = url.to_file_path().unwrap();
     assert_eq!(
       path.to_path_buf(),
-      Path::new("/home/user/project/src/foo bar.js")
+      test_path("/home/user/project/src/foo bar.js").as_path()
     );
   }
 

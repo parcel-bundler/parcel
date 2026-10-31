@@ -260,7 +260,9 @@ mod tests {
   fn transform(code: &str) -> TransformResult {
     let result = transform_xml(TransformOptions {
       code: code.as_bytes().to_vec(),
-      url: SourceUrl::parse("file:///feed.xml").unwrap(),
+      url: SourceUrl::from_path(&parcel_core::PathId::new(
+        &std::env::current_dir().unwrap().join("feed.xml"),
+      )),
       xml: true,
       target: Default::default(),
       hmr: false,

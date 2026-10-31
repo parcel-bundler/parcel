@@ -163,7 +163,7 @@ mod tests {
       if specifier == "one" {
         Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
           loc: SourceLocation {
-            url: SourceUrl::parse("file:///one.js").unwrap(),
+            url: SourceUrl::from_path(&PathId::new(&crate::test_utils::path("/one.js"))),
             ..Default::default()
           },
           ty: AssetType::Js,
@@ -194,7 +194,7 @@ mod tests {
       if specifier == "two" {
         Ok(DependencyResolution::Deferred(Arc::new(AssetRequest {
           loc: SourceLocation {
-            url: SourceUrl::parse("file:///two.js").unwrap(),
+            url: SourceUrl::from_path(&PathId::new(&crate::test_utils::path("/two.js"))),
             ..Default::default()
           },
           ty: AssetType::Js,
@@ -228,7 +228,7 @@ mod tests {
       flags: DependencyFlags::empty(),
       target: Arc::new(Default::default()),
       loc: Some(crate::SourceLocation {
-        url: SourceUrl::parse("file:///test.js").unwrap(),
+        url: SourceUrl::from_path(&PathId::new(&crate::test_utils::path("/test.js"))),
         ..Default::default()
       }),
       // A URL, so that the empty transformer config is allowed.
@@ -250,7 +250,10 @@ mod tests {
     let DependencyResolution::Deferred(req) = res else {
       panic!("expected Deferred");
     };
-    assert_eq!(req.loc.url, SourceUrl::parse("file:///one.js").unwrap());
+    assert_eq!(
+      req.loc.url,
+      SourceUrl::from_path(&PathId::new(&crate::test_utils::path("/one.js")))
+    );
     assert_eq!(req.ty, AssetType::Js);
     assert!(!req.side_effects);
 
@@ -260,7 +263,10 @@ mod tests {
     let DependencyResolution::Deferred(req) = res else {
       panic!("expected Deferred");
     };
-    assert_eq!(req.loc.url, SourceUrl::parse("file:///two.js").unwrap());
+    assert_eq!(
+      req.loc.url,
+      SourceUrl::from_path(&PathId::new(&crate::test_utils::path("/two.js")))
+    );
     assert_eq!(req.ty, AssetType::Js);
     assert!(!req.side_effects);
   }
@@ -316,7 +322,10 @@ mod tests {
     let Ok(DependencyResolution::Deferred(req)) = ctx.resolve(&dep) else {
       panic!("expected Deferred");
     };
-    assert_eq!(req.loc.url, SourceUrl::parse("file:///one.js").unwrap());
+    assert_eq!(
+      req.loc.url,
+      SourceUrl::from_path(&PathId::new(&crate::test_utils::path("/one.js")))
+    );
 
     // Would recurse forever if the delegating resolver saw itself again.
     dep.specifier = "loop".into();

@@ -113,6 +113,8 @@ impl InvalidationMap {
             .push((file_name, above, asset_index));
         }
         FileCreateInvalidation::Glob(glob) => {
+          #[cfg(windows)]
+          let glob = glob.replace('\\', "/");
           self.on_file_create_glob.push((glob, asset_index));
         }
       }
@@ -180,9 +182,11 @@ impl InvalidationMap {
       // Check glob invalidations.
       if !self.on_file_create_glob.is_empty() {
         path.with_path(|p| {
-          let path_str = p.to_str().unwrap();
+          let path_str = p.to_string_lossy();
+          #[cfg(windows)]
+          let path_str = path_str.replace('\\', "/");
           for (glob, asset_index) in &self.on_file_create_glob {
-            if glob_match::glob_match(glob, path_str) {
+            if glob_match::glob_match(glob, &path_str) {
               affected.insert(*asset_index);
             }
           }

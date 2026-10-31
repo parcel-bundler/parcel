@@ -1,3 +1,6 @@
+#[path = "../../core/tests/support/mod.rs"]
+mod test_utils;
+
 use std::{
   path::Path,
   sync::{Arc, Mutex},
@@ -42,7 +45,7 @@ impl Reporter for Recorder {
 fn asset() -> Asset {
   Asset {
     loc: SourceLocation {
-      url: SourceUrl::parse("file:///src/test.js").unwrap(),
+      url: SourceUrl::parse(test_utils::url("file:///src/test.js").as_str()).unwrap(),
       ..Default::default()
     },
     ty: AssetType::Js,
@@ -71,12 +74,12 @@ fn setup(
   let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
   fs.create_dir_all(root).unwrap();
   let path = root.child(name);
-  fs.write(path, source.as_bytes()).unwrap();
+  fs.write(path, test_utils::js(source).as_bytes()).unwrap();
   let events = Arc::new(Mutex::new(Vec::new()));
   let mut plugins: Vec<Arc<dyn Reporter>> = vec![Arc::new(Recorder(events.clone()))];
   if let Some(source) = js_reporter {
     let path = root.child(&format!("{name}-reporter.cjs"));
-    fs.write(path, source.as_bytes()).unwrap();
+    fs.write(path, test_utils::js(source).as_bytes()).unwrap();
     plugins.push(Arc::new(JsPlugin::new(path, "test-plugin", None)));
   }
   let reporters = Reporters::new(plugins, level);
@@ -300,16 +303,19 @@ fn console_logs_from_javascript_called_back_by_a_plugin_are_delivered_in_order()
     .input_fs
     .write(
       resolver_path,
-      br#"
+      test_utils::js(
+        r#"
     import {Resolver, Diagnostic} from '@parcel/plugin';
     export default new Resolver({
       resolve() {
         console.log('resolving');
         console.warn(new Diagnostic({message: 'from resolver'}));
-        return {filePath: '/src/dep.js'};
+        return {filePath: testPath('/src/dep.js')};
       }
     });
   "#,
+      )
+      .as_bytes(),
     )
     .unwrap();
   let resolvers: Vec<Arc<dyn parcel_core::Resolver>> = vec![Arc::new(JsPlugin::new(

@@ -1,3 +1,6 @@
+#[path = "../../core/tests/support/mod.rs"]
+mod test_utils;
+
 use std::{path::Path, sync::Arc};
 
 use parcel_core::{
@@ -31,7 +34,7 @@ fn run_with_options(
   let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
   let plugin_path = root.join(Path::new(name));
   fs.create_dir_all(root).expect("Error creating dir");
-  fs.write(plugin_path, &code.as_bytes().to_owned())
+  fs.write(plugin_path, &test_utils::js(code).as_bytes().to_owned())
     .expect("Error writing file");
   let plugin = JsPlugin::new(plugin_path, "test-plugin", config);
   let dyn_fs: Arc<dyn FileSystem> = fs.clone();
@@ -46,7 +49,8 @@ fn run_with_fs(
 ) -> Result<Asset, DiagnosticList> {
   let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
   let plugin_path = root.join(Path::new(name));
-  fs.write(plugin_path, code.as_bytes()).unwrap();
+  fs.write(plugin_path, test_utils::js(code).as_bytes())
+    .unwrap();
   let plugin = JsPlugin::new(plugin_path, "test-plugin", None);
   let dyn_fs: Arc<dyn FileSystem> = fs.clone();
   let options = ParcelOptions {
@@ -88,7 +92,7 @@ fn test_transform_config() {
 fn test_asset() -> Asset {
   Asset {
     loc: SourceLocation {
-      url: SourceUrl::parse("file:///foo/bar.js").unwrap(),
+      url: SourceUrl::parse(test_utils::url("file:///foo/bar.js").as_str()).unwrap(),
       start: Default::default(),
       end: Default::default(),
     },
@@ -121,8 +125,8 @@ fn test_asset_dependency_api() {
           specifier: './dep.js', specifierType: 'commonjs', priority: 'parallel',
           bundleBehavior: 'isolated', isOptional: true, needsStableName: true,
           packageConditions: ['browser', 'require', 'my-condition'], range: '^1.0.0',
-          resolveFrom: '/src/custom.js',
-          loc: {filePath: '/src/custom.js', start: {line: 2, column: 1}, end: {line: 2, column: 8}}
+          resolveFrom: testPath('/src/custom.js'),
+          loc: {filePath: testPath('/src/custom.js'), start: {line: 2, column: 1}, end: {line: 2, column: 8}}
         });
         const dep = asset.getDependencies()[0];
         assert.equal(dep.specifier, './dep.js');
@@ -133,11 +137,11 @@ fn test_asset_dependency_api() {
         assert.equal(dep.isOptional, true);
         assert.equal(dep.needsStableName, true);
         assert.equal(dep.placeholder, placeholder);
-        assert.equal(dep.resolveFrom, '/src/custom.js');
+        assert.equal(dep.resolveFrom, testPath('/src/custom.js'));
         assert.equal(dep.range, '^1.0.0');
         // Custom conditions are kept, after the ones Parcel knows.
         assert.deepEqual(dep.packageConditions, ['require', 'browser', 'my-condition']);
-        assert.deepEqual(dep.loc, {filePath: '/src/custom.js', start: {line: 2, column: 1}, end: {line: 2, column: 8}});
+        assert.deepEqual(dep.loc, {filePath: testPath('/src/custom.js'), start: {line: 2, column: 1}, end: {line: 2, column: 8}});
         const opts = Object.freeze({priority: 'parallel', bundleBehavior: 'inline'});
         const url = asset.addURLDependency('./image.png', opts);
         const defaultUrl = asset.addURLDependency('./lazy.png');
@@ -167,7 +171,7 @@ fn test_asset_dependency_api() {
   assert_eq!(result.dependencies.len(), 67);
   assert_eq!(
     result.dependencies[0].resolve_from,
-    Some(SourceUrl::parse("file:///src/custom.js").unwrap())
+    Some(SourceUrl::parse(test_utils::url("file:///src/custom.js").as_str()).unwrap())
   );
   assert_eq!(
     result.dependencies[1].import_type,
@@ -366,7 +370,7 @@ fn plugin_fs_reads_are_tracked_by_the_plugin_tracker() {
   "#,
     serde_json::to_string(&config_path.to_path_buf().to_string_lossy()).unwrap()
   );
-  fs.write(path, source.as_bytes()).unwrap();
+  fs.write(path, test_utils::js(&source).as_bytes()).unwrap();
   let plugin = JsPlugin::new(path, "test-plugin", None);
   // The plugin may cache what it reads, so reads go to the build-wide plugin tracker rather than
   // the asset's.
@@ -415,7 +419,7 @@ fn test_transform_esm() {
       let code = asset.getCode();
       assert.equal(code, 'hello');
       assert.equal(asset.type, 'js');
-      assert.equal(asset.url, 'file:///foo/bar.js');
+      assert.equal(asset.url, testUrl('file:///foo/bar.js'));
       assert.equal(asset.bundleBehavior, null);
       assert.equal(asset.sideEffects, true);
       assert.equal(asset.isSource, false);
@@ -523,7 +527,7 @@ fn test_transform_cjs() {
       let code = asset.getCode();
       assert.equal(code, 'hello');
       assert.equal(asset.type, 'js');
-      assert.equal(asset.url, 'file:///foo/bar.js');
+      assert.equal(asset.url, testUrl('file:///foo/bar.js'));
       assert.equal(asset.bundleBehavior, null);
       assert.equal(asset.sideEffects, true);
       assert.equal(asset.isSource, false);
@@ -619,7 +623,7 @@ fn test_transform_throws_diagnostics() {
           message: 'first',
           codeFrames: [
             {
-              filePath: '/src/index.js',
+              filePath: testPath('/src/index.js'),
               code: 'let x = 1;',
               language: 'ts',
               codeHighlights: [
@@ -627,7 +631,7 @@ fn test_transform_throws_diagnostics() {
                 {start: {line: 1, column: 9}},
               ],
             },
-            {url: 'file:///src/other.js', codeHighlights: []},
+            {url: testUrl('file:///src/other.js'), codeHighlights: []},
             {filePath: 'relative.js', codeHighlights: []},
           ],
           hints: ['try this'],
@@ -652,7 +656,7 @@ fn test_transform_throws_diagnostics() {
         code_frames: vec![
           parcel_core::CodeFrame {
             code: Some("let x = 1;".into()),
-            url: Some(SourceUrl::parse("file:///src/index.js").unwrap()),
+            url: Some(SourceUrl::parse(test_utils::url("file:///src/index.js").as_str()).unwrap()),
             language: Some(AssetType::Ts),
             code_highlights: vec![
               parcel_core::CodeHighlight {
@@ -668,7 +672,7 @@ fn test_transform_throws_diagnostics() {
             ],
           },
           parcel_core::CodeFrame {
-            url: Some(SourceUrl::parse("file:///src/other.js").unwrap()),
+            url: Some(SourceUrl::parse(test_utils::url("file:///src/other.js").as_str()).unwrap()),
             ..Default::default()
           },
           // Only absolute paths can be reported.
@@ -846,7 +850,8 @@ fn test_resolve_runs_javascript_resolvers() {
   let resolver_path = root.join(Path::new("reentrant-resolver.mjs"));
   fs.write(
     resolver_path,
-    br#"
+    test_utils::js(
+      r#"
       export default {[Symbol.for('parcel.plugin.v3.resolver')]: {
         async resolve({specifier}) {
           await Promise.resolve();
@@ -858,23 +863,25 @@ fn test_resolve_runs_javascript_resolvers() {
         },
         // Methods are called with the plugin object as `this`.
         path(name) {
-          return '/virtual/' + name;
+          return testPath('/virtual/') + name;
         }
       }};
     "#,
+    )
+    .as_bytes(),
   )
   .unwrap();
   let plugin_path = root.join(Path::new("reentrant-transformer.mjs"));
   fs.write(
     plugin_path,
-    br#"
+    test_utils::js(r#"
       import assert from 'assert';
       export default {[Symbol.for('parcel.plugin.v3.transformer')]: {
         async transform({asset, resolve}) {
           // The resolver runs while this transformer is on the stack, in the same runtime.
           globalThis.transformerState = 'from-transformer';
           let pending = Promise.resolve('still pending');
-          assert.equal((await resolve(asset.filePath, 'virtual')).filePath, '/virtual/from-transformer');
+          assert.equal((await resolve(asset.filePath, 'virtual')).filePath, testPath('/virtual/from-transformer'));
           await assert.rejects(resolve(asset.filePath, 'fails'), /resolver failed/);
           assert.deepEqual(await resolve(asset.filePath, 'external'), {isExternal: true});
           assert.deepEqual(await resolve(asset.filePath, 'excluded'), {isExcluded: true});
@@ -882,7 +889,7 @@ fn test_resolve_runs_javascript_resolvers() {
           asset.setCode((await resolve(asset.filePath, 'virtual')).filePath);
         }
       }};
-    "#,
+    "#).as_bytes(),
   )
   .unwrap();
 
@@ -901,7 +908,13 @@ fn test_resolve_runs_javascript_resolvers() {
   let context =
     parcel_core::PluginContext::new(&options, &dyn_fs).with_resolvers(&resolvers, &transformers);
   let asset = plugin.transform(test_asset(), &context).unwrap();
-  assert_eq!(asset.content.read().unwrap(), b"/virtual/from-transformer");
+  assert_eq!(
+    asset.content.read().unwrap(),
+    test_utils::path("/virtual/from-transformer")
+      .to_str()
+      .unwrap()
+      .as_bytes()
+  );
 }
 
 #[test]

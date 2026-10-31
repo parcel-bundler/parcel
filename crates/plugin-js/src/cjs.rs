@@ -69,8 +69,11 @@ impl CjsLoader {
         }
 
         for candidate in candidates {
-          let candidate = candidate.to_str().unwrap();
-          if Builtins::contains(candidate) {
+          let candidate = candidate
+            .to_str()
+            .unwrap()
+            .replace(std::path::MAIN_SEPARATOR, "/");
+          if Builtins::contains(&candidate) {
             return Ok(format!("builtin:{candidate}"));
           }
         }
@@ -79,7 +82,13 @@ impl CjsLoader {
         if resolved.extension().is_none() {
           resolved.add_extension("js");
         }
-        return Ok(format!("builtin:{}", resolved.to_str().unwrap()));
+        return Ok(format!(
+          "builtin:{}",
+          resolved
+            .to_str()
+            .unwrap()
+            .replace(std::path::MAIN_SEPARATOR, "/")
+        ));
       } else if name.starts_with("builtin:") {
         return Ok(name.to_string());
       } else {

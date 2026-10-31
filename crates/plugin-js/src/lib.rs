@@ -528,11 +528,15 @@ mod tests {
         .eval::<Value, _>(
           r#"({
             message: 42,
-            filename: "/tmp/source.less",
+            filename: "__FIXTURE_TMP__/source.less",
             line: 3,
             column: 7,
-            stack: "    at fallback (/tmp/fallback.js:10:20)"
-          })"#,
+            stack: "    at fallback (__FIXTURE_TMP__/fallback.js:10:20)"
+          })"#
+            .replace(
+              "__FIXTURE_TMP__",
+              if cfg!(windows) { "C:/tmp" } else { "/tmp" },
+            ),
         )
         .unwrap();
       let diagnostic = error_to_diagnostic(error);
@@ -553,7 +557,11 @@ mod tests {
           r#"({
             message: "failed",
             stack: "    at <anonymous> (eval_script:43:24)"
-          })"#,
+          })"#
+            .replace(
+              "__FIXTURE_TMP__",
+              if cfg!(windows) { "C:/tmp" } else { "/tmp" },
+            ),
         )
         .unwrap();
       let diagnostic = error_to_diagnostic(error);
@@ -575,8 +583,12 @@ mod tests {
         .eval::<Value, _>(
           r#"({
             message: "failed",
-            stack: "    at transform (/tmp/plugin.js:12:8)"
-          })"#,
+            stack: "    at transform (__FIXTURE_TMP__/plugin.js:12:8)"
+          })"#
+            .replace(
+              "__FIXTURE_TMP__",
+              if cfg!(windows) { "C:/tmp" } else { "/tmp" },
+            ),
         )
         .unwrap();
       let diagnostic = error_to_diagnostic(error);
@@ -682,7 +694,9 @@ mod tests {
     let frame = &diagnostic.code_frames[0];
     assert_eq!(
       frame.url,
-      Some(SourceUrl::from_path(&PathId::new(Path::new(file))))
+      Some(SourceUrl::from_path(&PathId::new(
+        &crate::test_utils::path(file)
+      )))
     );
     assert_eq!(frame.code_highlights.len(), 1);
     let highlight = &frame.code_highlights[0];
@@ -690,3 +704,7 @@ mod tests {
     assert_eq!(highlight.end, Location { line, column });
   }
 }
+
+#[cfg(test)]
+#[path = "../../core/tests/support/mod.rs"]
+mod test_utils;
