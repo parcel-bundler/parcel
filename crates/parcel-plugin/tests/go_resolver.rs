@@ -51,7 +51,7 @@ fn build_go_resolver_plugin() -> Option<std::path::PathBuf> {
 
 #[test]
 fn test_go_resolver_plugin() {
-  let Some(plugin_path) = build_go_resolver_plugin() else {
+  let Some(_) = build_go_resolver_plugin() else {
     eprintln!("Go not available – skipping native resolver test");
     return;
   };

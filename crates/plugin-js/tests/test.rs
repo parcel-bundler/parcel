@@ -1,7 +1,7 @@
 #[path = "../../core/tests/support/mod.rs"]
 mod test_utils;
 
-use std::{collections::HashMap, path::Path, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use parcel_core::{FileSystem, OverlayFileSystem, PathId};
 use parcel_plugin_js::create_runtime;

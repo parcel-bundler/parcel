@@ -40,7 +40,7 @@ rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem
 ring = "0.17"
 tungstenite = "0.28.0"
 url = "*"
-toml = "0.9.12+spec-1.1.0"
+toml = "0.9.12"
 serde_yaml_ng = "0.10"
 base64-url = "3.0.2"
 data-encoding = "2.3.2"

@@ -209,20 +209,6 @@ fn package_bundle(
 pub(crate) struct Packaged {
   /// For each bundle, the hash of the content that named it, if it was named by its own content.
   pub content_hashes: Vec<Option<u128>>,
-  pub stats: PackagingStats,
-}
-
-/// Counts reported after packaging.
-#[derive(Debug, Default)]
-pub(crate) struct PackagingStats {
-  /// Bundles packaged, including second passes.
-  pub packaged: AtomicUsize,
-  /// Groups of bundles whose names depend on each other in a cycle.
-  pub cycles: AtomicUsize,
-  /// The number of bundles in the largest cycle.
-  pub largest_cycle: AtomicUsize,
-  /// Bundles packaged a second time, after their cycle was named.
-  pub second_passes: AtomicUsize,
 }
 
 /// Whether a bundle's name contains a hash of its content, so it's only known once the bundle has
@@ -371,7 +357,6 @@ pub(crate) fn package_bundles(
     written_paths: Mutex::new(written_paths),
     error: Mutex::new(None),
     aborted: AtomicBool::new(false),
-    stats: PackagingStats::default(),
   };
 
   rayon::scope(|scope| {
@@ -398,7 +383,6 @@ pub(crate) fn package_bundles(
       .into_iter()
       .map(|hash| hash.into_inner())
       .collect(),
-    stats: scheduler.stats,
   })
 }
 
@@ -423,7 +407,6 @@ struct Scheduler<'a, 'g> {
   written_paths: Mutex<HashMap<String, WrittenPath>>,
   error: Mutex<Option<DiagnosticList>>,
   aborted: AtomicBool,
-  stats: PackagingStats,
 }
 
 impl<'a, 'g> Scheduler<'a, 'g> {
@@ -480,12 +463,6 @@ impl<'a, 'g> Scheduler<'a, 'g> {
       return self.write(member, content);
     }
 
-    self.stats.cycles.fetch_add(1, Ordering::Relaxed);
-    self
-      .stats
-      .largest_cycle
-      .fetch_max(members.len(), Ordering::Relaxed);
-
     // Package every member with each other's provisional names, then name them together.
     // Inline bundles are packaged separately for each pass, since they may embed members' names.
     for &member in members {
@@ -525,10 +502,6 @@ impl<'a, 'g> Scheduler<'a, 'g> {
       .iter()
       .any(|&member| bundles[member].dist_path() != bundles[member].dist_path.unwrap())
     {
-      self
-        .stats
-        .second_passes
-        .fetch_add(members.len(), Ordering::Relaxed);
       let second_pass_cache = InlineBundleCache::new();
       members
         .par_iter()
@@ -558,7 +531,6 @@ impl<'a, 'g> Scheduler<'a, 'g> {
     index: usize,
     cache: &InlineBundleCache,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
-    self.stats.packaged.fetch_add(1, Ordering::Relaxed);
     get_bundle_content(self.config, self.bundle_graph, index, self.options, cache)
   }
 

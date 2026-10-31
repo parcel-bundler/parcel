@@ -45,7 +45,7 @@ fn build_go_optimizer_plugin() -> Option<std::path::PathBuf> {
 
 #[test]
 fn test_go_optimizer_plugin() {
-  let Some(plugin_path) = build_go_optimizer_plugin() else {
+  let Some(_) = build_go_optimizer_plugin() else {
     eprintln!("Go not available – skipping native optimizer test");
     return;
   };

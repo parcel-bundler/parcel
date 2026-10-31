@@ -750,12 +750,7 @@ fn common_root_path<'a>(paths: impl IntoIterator<Item = &'a PathId>) -> Option<P
 
 /// Finds the package.json that contains `path`, returning its directory and contents.
 fn find_package(path: PathId, fs: &dyn FileSystem) -> Option<(PathId, serde_json::Value)> {
-  let pkg = fs.find_ancestor(
-    path,
-    SubPath::package_json(),
-    FileKind::IS_FILE,
-    None,
-  )?;
+  let pkg = fs.find_ancestor(path, SubPath::package_json(), FileKind::IS_FILE, None)?;
   let contents = fs.read(pkg).ok()?;
   Some((pkg.parent()?, serde_json::from_slice(&contents).ok()?))
 }

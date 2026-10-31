@@ -206,24 +206,6 @@ impl<'arena> Node<'arena> {
     self.previous_sibling.set(Some(new_sibling));
   }
 
-  pub fn insert_after(&'arena self, new_sibling: &'arena Self) {
-    new_sibling.detach();
-    new_sibling.parent.set(self.parent.get());
-    new_sibling.previous_sibling.set(Some(self));
-    if let Some(next_sibling) = self.next_sibling.take() {
-      new_sibling.next_sibling.set(Some(next_sibling));
-      debug_assert!(ptr::eq::<Node>(
-        next_sibling.previous_sibling.get().unwrap(),
-        self
-      ));
-      next_sibling.previous_sibling.set(Some(new_sibling));
-    } else if let Some(parent) = self.parent.get() {
-      debug_assert!(ptr::eq::<Node>(parent.last_child.get().unwrap(), self));
-      parent.last_child.set(Some(new_sibling));
-    }
-    self.next_sibling.set(Some(new_sibling));
-  }
-
   pub fn walk<Visit: FnMut(Ref<'arena>)>(&'arena self, visit: &mut Visit) {
     visit(self);
     if let NodeData::Element {

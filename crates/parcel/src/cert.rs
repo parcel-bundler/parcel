@@ -401,9 +401,10 @@ mod tests {
     let provider = crate::http::crypto_provider();
     let resolver = CertResolver::new(ca, provider.clone(), "0.0.0.0").unwrap();
     let tls = crate::http::resolver_tls_config(provider, Arc::new(resolver)).unwrap();
-    let server = crate::http::Server::bind("127.0.0.1:0", Some(tls)).unwrap();
-    let address = server.local_addr().unwrap();
-    server.run(|_| crate::http::Reply::Respond(crate::http::Response::new(200, "")));
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    crate::http::Server::new(listener, Some(tls))
+      .run(|_| crate::http::Reply::Respond(crate::http::Response::new(200, "")));
 
     for name in [
       "localhost",

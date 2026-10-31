@@ -131,6 +131,7 @@ const Foo = lazy(() => import('./lazy'));
     run_with_transformation(code, run);
   }
 
+  #[test]
   fn test_renamed_import() {
     let code = r#"
   import {lazy as myLazy} from 'react';
@@ -160,6 +161,7 @@ const Foo = lazy(() => import('./lazy'));
     run_with_transformation(code, run);
   }
 
+  #[test]
   fn test_require() {
     let code = r#"
   const React = require('react');
@@ -169,6 +171,7 @@ const Foo = lazy(() => import('./lazy'));
     run_with_transformation(code, run);
   }
 
+  #[test]
   fn test_require_destructure() {
     let code = r#"
   const {lazy} = require('react');

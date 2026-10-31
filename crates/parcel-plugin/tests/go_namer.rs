@@ -45,7 +45,7 @@ fn build_go_namer_plugin() -> Option<std::path::PathBuf> {
 
 #[test]
 fn test_go_namer_plugin() {
-  let Some(plugin_path) = build_go_namer_plugin() else {
+  let Some(_) = build_go_namer_plugin() else {
     eprintln!("Go not available – skipping native namer test");
     return;
   };

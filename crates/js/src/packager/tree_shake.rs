@@ -170,7 +170,7 @@ pub fn tree_shake<'a>(
     // Visit the wrapper's children so its body is still treated as the module's top level.
     wrapper.function.visit_mut_children_with(&mut shake);
 
-    let mut program = swc_core::ecma::minifier::optimize(
+    let program = swc_core::ecma::minifier::optimize(
       Program::Module(Module {
         body: vec![ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(
           ExportDefaultDecl {

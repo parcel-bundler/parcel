@@ -30,6 +30,7 @@ fn bench_dev(c: &mut Criterion) {
   });
 }
 
+#[allow(dead_code)]
 fn bench_prod(c: &mut Criterion) {
   let os: Arc<dyn parcel_resolver::FileSystem> = Arc::new(parcel_resolver::OsFileSystem::default());
   c.bench_function("prod", |b| {

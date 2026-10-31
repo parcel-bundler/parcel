@@ -192,7 +192,10 @@ mod tests {
     };
     let ext = LIBRARY_EXTENSION;
     assert_eq!(candidates("./build/plugin.so"), vec!["./build/plugin.so"]);
-    assert_eq!(candidates("./build/plugin"), vec![format!("./build/plugin.{ext}")]);
+    assert_eq!(
+      candidates("./build/plugin"),
+      vec![format!("./build/plugin.{ext}")]
+    );
     let mut expected = vec![format!("./build/libplugin.{ext}")];
     if cfg!(windows) {
       expected.push(format!("./build/plugin.{ext}"));

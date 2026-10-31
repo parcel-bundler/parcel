@@ -7,6 +7,8 @@
 
 use std::{path::PathBuf, process::Command};
 
+// build.rs uses the rest.
+#[allow(dead_code)]
 #[path = "../build/shims.rs"]
 mod shims;
 

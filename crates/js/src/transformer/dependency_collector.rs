@@ -1045,7 +1045,6 @@ impl<'a> Fold for DependencyCollector<'a> {
       }
     }
 
-    let mut is_specifier_str = false;
     let node = if let Some(arg) = node.args.first() {
       if kind == DependencyKind::ServiceWorker || kind == DependencyKind::Worklet {
         let (source_type, opts) = if kind == DependencyKind::ServiceWorker {
@@ -1109,7 +1108,6 @@ impl<'a> Fold for DependencyCollector<'a> {
       }
 
       if let Some((specifier, span)) = match_str(&arg.expr) {
-        is_specifier_str = true;
         // require() calls aren't allowed in scripts, flag as an error.
         if kind == DependencyKind::Require && self.config.source_type() == SourceType::Script {
           self.add_script_error(node.span);
@@ -1609,7 +1607,7 @@ impl Fold for PromiseTransformer {
   }
 
   fn fold_arrow_expr(&mut self, node: ast::ArrowExpr) -> ast::ArrowExpr {
-    if let ast::BlockStmtOrExpr::Expr(expr) = &*node.body {
+    if let ast::ArrowFunctionBody::Expr(expr) = &*node.body {
       if let ast::Expr::Call(call) = &**expr {
         if let Some(require_node) = &self.require_node {
           if require_node == call {

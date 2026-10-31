@@ -6,7 +6,7 @@
 use std::{
   fs::File,
   io::{self, Read, Write},
-  net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs},
+  net::{TcpListener, TcpStream},
   path::Path,
   sync::Arc,
   thread,
@@ -111,17 +111,6 @@ pub struct Server {
 impl Server {
   pub fn new(listener: TcpListener, tls: Option<Arc<ServerConfig>>) -> Self {
     Server { listener, tls }
-  }
-
-  pub fn bind(address: impl ToSocketAddrs, tls: Option<Arc<ServerConfig>>) -> io::Result<Self> {
-    Ok(Server {
-      listener: TcpListener::bind(address)?,
-      tls,
-    })
-  }
-
-  pub fn local_addr(&self) -> io::Result<SocketAddr> {
-    self.listener.local_addr()
   }
 
   /// Serves each connection on its own thread, since requests for the build's output wait for it.

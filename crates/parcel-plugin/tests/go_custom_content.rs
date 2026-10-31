@@ -57,7 +57,7 @@ fn plugin_config() -> Option<&'static PathBuf> {
   static CONFIG: OnceLock<Option<PathBuf>> = OnceLock::new();
   CONFIG
     .get_or_init(|| {
-      let plugin_path = build_go_plugin()?;
+      build_go_plugin()?;
       let tmp = std::env::temp_dir().join("parcel-go-custom-content-test");
       let parcelrc_path = tmp.join("native-plugin.parcelrc");
       let parcelrc = format!(

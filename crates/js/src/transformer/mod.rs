@@ -715,7 +715,7 @@ pub fn transform_to_ast(
 
           // Inject SWC helpers if needed.
           program.mutate(&mut helpers::inject_helpers(global_mark));
-          let mut module = program.expect_module();
+          let module = program.expect_module();
 
           // Collect dependencies
           let ignore_mark = Mark::fresh(Mark::root());

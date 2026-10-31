@@ -82,10 +82,9 @@ pub fn get_hmr_update<'a>(
 
   // JS bundles embed the class names of the CSS modules they import, so a change to a CSS module,
   // or to one it composes from, updates their exports even if no JS changed.
-  if changed_assets
-    .iter()
-    .any(|(_, asset)| asset.ty != AssetType::Js && asset.symbols.exports.iter().any(|e| e.requested))
-  {
+  if changed_assets.iter().any(|(_, asset)| {
+    asset.ty != AssetType::Js && asset.symbols.exports.iter().any(|e| e.requested)
+  }) {
     let changed: HashSet<AssetIndex> = changed_assets.iter().map(|&(id, _)| id).collect();
     let mut checked = HashSet::new();
     for bundle in &bundle_graph.bundles {

@@ -1,7 +1,7 @@
 #[path = "../../core/tests/support/mod.rs"]
 mod test_utils;
 
-use std::{borrow::Cow, collections::HashMap, ffi::c_void, path::Path, ptr, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, ffi::c_void, ptr, sync::Arc};
 
 use parcel_core::{
   Asset as CoreAsset, AssetFlags as CoreAssetFlags, AssetGraph, AssetIndex as CoreAssetIndex,

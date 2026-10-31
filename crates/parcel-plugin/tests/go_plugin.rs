@@ -52,7 +52,7 @@ fn build_go_plugin() -> Option<std::path::PathBuf> {
 
 #[test]
 fn test_go_transformer_plugin() {
-  let Some(plugin_path) = build_go_plugin() else {
+  let Some(_) = build_go_plugin() else {
     eprintln!("Go not available – skipping native plugin test");
     return;
   };

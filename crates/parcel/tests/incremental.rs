@@ -15,8 +15,7 @@ fn test_path_id(path: &std::path::Path) -> parcel_core::PathId {
 
 use parcel::make_parcel;
 use parcel_core::{
-  BuildMode, BuildOptions, DiagnosticList, FileKind, FileSystem, LogLevel, MemoryFileSystem,
-  Parcel, PathId,
+  BuildMode, BuildOptions, DiagnosticList, FileKind, FileSystem, LogLevel, MemoryFileSystem, Parcel,
 };
 use path_slash::PathExt;
 use pretty_assertions::assert_eq;

@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - v3
-      - fix-windows-ci
 
 permissions:
   contents: read

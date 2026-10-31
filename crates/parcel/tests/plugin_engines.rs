@@ -12,7 +12,7 @@ use std::{
 
 use parcel_core::{
   BuildMode, BuildOptions, Diagnostic, DiagnosticList, DiagnosticSeverity, FileSystem, LogLevel,
-  LogMessage, MemoryFileSystem, ParcelOptions, PathId, Reporter, ReporterEvent,
+  LogMessage, MemoryFileSystem, ParcelOptions, Reporter, ReporterEvent,
 };
 
 #[derive(Default)]

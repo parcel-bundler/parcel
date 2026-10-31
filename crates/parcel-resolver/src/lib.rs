@@ -350,15 +350,10 @@ impl<'a> Resolver<'a> {
 
     // NODE_PATH??
 
-    fs.find_ancestor(
-      from,
-      &SubPath::module(module),
-      FileKind::IS_DIR,
-      None,
-    )
-    .ok_or_else(|| ResolverError::ModuleNotFound {
-      module: module.to_owned(),
-    })
+    fs.find_ancestor(from, &SubPath::module(module), FileKind::IS_DIR, None)
+      .ok_or_else(|| ResolverError::ModuleNotFound {
+        module: module.to_owned(),
+      })
   }
 
   pub fn find_package(

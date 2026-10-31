@@ -5,7 +5,7 @@ use parcel_core::{
   DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList, DiagnosticSeverity,
   Environment, EnvironmentFlags, ExportsCondition, FileContent, FileSystem, IncludeNodeModules,
   JsonSourceLocationType, Location, PathId, Resolver, SourceLocation, SourceUrl, SpecifierType,
-  Target, json_source_location,
+  json_source_location,
 };
 use parcel_resolver::{
   Extensions, Fields, PackageJsonError, Resolution, ResolutionAndQuery, ResolveOptions,

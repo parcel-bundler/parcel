@@ -321,7 +321,6 @@ struct RawParcelConfig {
   bundler: Option<PluginWithConfig>,
   namers: Option<RawPipeline>,
   optimizers: Option<RawPipelineMap>,
-  compressors: Option<RawPipelineMap>,
   reporters: Option<RawPipeline>,
 }
 

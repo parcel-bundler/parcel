@@ -5,7 +5,6 @@ use swc_core::{
   ecma::{
     ast::*,
     atoms::Atom as JsWord,
-    parser::Syntax,
     preset_env::{Feature, Versions},
     utils::stack_size::maybe_grow_default,
     visit::{Fold, FoldWith},
@@ -247,7 +246,7 @@ impl ESMFold {
           })
         } else {
           Expr::Arrow(ArrowExpr {
-            body: Box::new(BlockStmtOrExpr::Expr(Box::new(local))),
+            body: Box::new(ArrowFunctionBody::Expr(Box::new(local))),
             is_async: false,
             is_generator: false,
             params: vec![],
