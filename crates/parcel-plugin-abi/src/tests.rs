@@ -513,6 +513,31 @@ fn dependency_accessors_return_values_and_map_every_enum_variant() {
     parcel_dep_get_conditions(handle),
     dependency.conditions.bits()
   );
+  for (core, abi) in [
+    (
+      ImportType::JavaScript,
+      crate::ImportType::PARCEL_IMPORT_TYPE_JAVASCRIPT,
+    ),
+    (
+      ImportType::StyleSheet,
+      crate::ImportType::PARCEL_IMPORT_TYPE_STYLESHEET,
+    ),
+    (ImportType::Url, crate::ImportType::PARCEL_IMPORT_TYPE_URL),
+    (ImportType::Text, crate::ImportType::PARCEL_IMPORT_TYPE_TEXT),
+    (
+      ImportType::Bytes,
+      crate::ImportType::PARCEL_IMPORT_TYPE_BYTES,
+    ),
+  ] {
+    let dependency = CoreDependency {
+      import_type: core,
+      ..dependency.clone()
+    };
+    assert_eq!(
+      parcel_dep_get_import_type(dependency_handle(&dependency)),
+      abi
+    );
+  }
   assert_eq!(
     string_output(|buffer| parcel_dep_get_source_path(buffer, handle, 0)).as_deref(),
     Some("/project/src/source.js")
@@ -989,6 +1014,69 @@ fn options_accessors_return_project_root_and_environment_values() {
   );
   assert!(string_output(|buffer| parcel_options_get_env(buffer, handle, ptr::null(), 0)).is_none());
   parcel_options_get_project_root(ptr::null_mut(), handle);
+  parcel_options_get_mode(ptr::null_mut(), handle);
+}
+
+#[test]
+fn options_accessors_return_mode_hmr_and_log_level() {
+  for (mode, name) in [
+    (parcel_core::BuildMode::Development, "development"),
+    (parcel_core::BuildMode::Production, "production"),
+    (parcel_core::BuildMode::Other("staging".into()), "staging"),
+  ] {
+    let options = ParcelOptions {
+      mode,
+      ..Default::default()
+    };
+    let context = OptionsContext::new(&options);
+    assert_eq!(
+      string_output(|buffer| parcel_options_get_mode(buffer, context.handle())).as_deref(),
+      Some(name)
+    );
+  }
+
+  let options = ParcelOptions::default();
+  let context = OptionsContext::new(&options);
+  assert!(!parcel_options_get_hmr(context.handle()));
+  let options = ParcelOptions {
+    hmr: Some(parcel_core::HmrOptions {
+      host: "localhost".into(),
+      port: 1234,
+    }),
+    ..Default::default()
+  };
+  let context = OptionsContext::new(&options);
+  assert!(parcel_options_get_hmr(context.handle()));
+
+  for (core, abi) in [
+    (
+      parcel_core::LogLevel::None,
+      crate::LogLevel::PARCEL_LOG_NONE,
+    ),
+    (
+      parcel_core::LogLevel::Error,
+      crate::LogLevel::PARCEL_LOG_ERROR,
+    ),
+    (
+      parcel_core::LogLevel::Warn,
+      crate::LogLevel::PARCEL_LOG_WARN,
+    ),
+    (
+      parcel_core::LogLevel::Info,
+      crate::LogLevel::PARCEL_LOG_INFO,
+    ),
+    (
+      parcel_core::LogLevel::Verbose,
+      crate::LogLevel::PARCEL_LOG_VERBOSE,
+    ),
+  ] {
+    let options = ParcelOptions {
+      log_level: core,
+      ..Default::default()
+    };
+    let context = OptionsContext::new(&options);
+    assert_eq!(parcel_options_get_log_level(context.handle()), abi);
+  }
 }
 
 // ── Reporter events ──────────────────────────────────────────────────────────
@@ -1303,17 +1391,22 @@ impl Resolver for RecordingResolver {
         })))
       }
       "excluded" => Ok(DependencyResolution::Excluded),
+      "fails" => Err(DiagnosticList(vec![
+        parcel_core::Diagnostic::from_message("first".into()),
+        parcel_core::Diagnostic::from_message("second".into()),
+      ])),
       _ => Ok(DependencyResolution::None),
     }
   }
 }
 
+/// The resolution, or the messages of the diagnostics Parcel handed out saying why it failed.
 fn asset_resolve(
   asset: &CoreAsset,
   handle: Options,
   specifier: &str,
   from: &str,
-) -> Option<(ResolutionType, Option<String>, Option<String>)> {
+) -> Result<(ResolutionType, Option<String>, Option<String>), Vec<String>> {
   let dep = DependencyOptions {
     specifier: specifier.as_ptr(),
     specifier_len: specifier.len(),
@@ -1323,6 +1416,7 @@ fn asset_resolve(
     ..Default::default()
   };
   let mut result = ResolveResult::default();
+  let mut diagnostics = 0;
   let resolved = parcel_asset_resolve(
     asset as *const CoreAsset as Asset,
     handle,
@@ -1330,6 +1424,7 @@ fn asset_resolve(
     from.as_ptr(),
     from.len(),
     &mut result,
+    &mut diagnostics,
   );
   let take = |buffer: &mut Buffer| {
     if buffer.data.is_null() {
@@ -1339,13 +1434,17 @@ fn asset_resolve(
     parcel_free_buffer(buffer);
     Some(String::from_utf8(bytes).unwrap())
   };
-  resolved.then(|| {
-    (
-      ResolutionType::try_from(result.resolution_type).unwrap(),
-      take(&mut result.file_path),
-      take(&mut result.pipeline),
-    )
-  })
+  if !resolved {
+    let diagnostics = unsafe { options_context(handle) }
+      .call_diagnostics(diagnostics)
+      .unwrap_or_default();
+    return Err(diagnostics.into_iter().map(|d| d.message).collect());
+  }
+  Ok((
+    ResolutionType::try_from(result.resolution_type).unwrap(),
+    take(&mut result.file_path),
+    take(&mut result.pipeline),
+  ))
 }
 
 #[test]
@@ -1362,7 +1461,7 @@ fn asset_resolve_runs_the_resolver_chain() {
   // An empty `from` resolves from the asset itself.
   assert_eq!(
     asset_resolve(&asset, context.handle(), "pkg", ""),
-    Some((
+    Ok((
       ResolutionType::PARCEL_RESOLUTION_FILE_PATH,
       Some("/project/src/pkg.scss".into()),
       Some("styles".into())
@@ -1376,7 +1475,7 @@ fn asset_resolve_runs_the_resolver_chain() {
       "pkg",
       "/project/lib/nested/_partial.scss"
     ),
-    Some((
+    Ok((
       ResolutionType::PARCEL_RESOLUTION_FILE_PATH,
       Some("/project/lib/nested/pkg.scss".into()),
       Some("styles".into())
@@ -1384,10 +1483,28 @@ fn asset_resolve_runs_the_resolver_chain() {
   );
   assert_eq!(
     asset_resolve(&asset, context.handle(), "excluded", ""),
-    Some((ResolutionType::PARCEL_RESOLUTION_EXCLUDED, None, None))
+    Ok((ResolutionType::PARCEL_RESOLUTION_EXCLUDED, None, None))
   );
-  // Nothing in the chain resolves it.
-  assert_eq!(asset_resolve(&asset, context.handle(), "missing", ""), None);
+  // Nothing in the chain resolves it, which Parcel reports as a failure.
+  assert!(asset_resolve(&asset, context.handle(), "missing", "").is_err_and(|d| !d.is_empty()));
+  // Every diagnostic a failing resolver reports is handed back, after Parcel's own summary.
+  let messages = asset_resolve(&asset, context.handle(), "fails", "").unwrap_err();
+  assert!(messages[0].starts_with("Failed to resolve 'fails'"));
+  assert_eq!(messages[1..], ["first", "second"]);
+  assert_eq!(
+    asset_resolve(&asset, context.handle(), "pkg", "relative/from.scss"),
+    Err(vec![
+      "parcel_asset_resolve: `from` must be an absolute path".to_owned()
+    ])
+  );
+  // Outside a transform there is no resolver chain to run.
+  let outside = OptionsContext::new(&options);
+  assert_eq!(
+    asset_resolve(&asset, outside.handle(), "pkg", ""),
+    Err(vec![
+      "parcel_asset_resolve: only available while transforming".to_owned()
+    ])
+  );
 
   // A result with `size` unset is never written to, and nothing is resolved for it.
   let specifier = "pkg";
@@ -1400,6 +1517,7 @@ fn asset_resolve_runs_the_resolver_chain() {
     size: 0,
     ..Default::default()
   };
+  let mut diagnostics = 0;
   let resolved = parcel_asset_resolve(
     asset_handle(&asset),
     context.handle(),
@@ -1407,9 +1525,11 @@ fn asset_resolve_runs_the_resolver_chain() {
     ptr::null(),
     0,
     &mut result,
+    &mut diagnostics,
   );
   assert!(!resolved);
   assert!(result.file_path.data.is_null());
+  assert!(context.call_diagnostics(diagnostics).is_some());
 
   let seen = recorder.seen.lock().unwrap();
   assert!(Arc::ptr_eq(&seen[0].target, &asset.target));
@@ -1443,7 +1563,7 @@ fn fs_is_unavailable_outside_transform_and_resolve() {
   assert!(message.unwrap().contains("only available"));
   assert_eq!(parcel_fs_get_kind(handle, file.as_ptr(), file.len()), 0);
   let asset = asset_fixture(target_fixture());
-  assert_eq!(asset_resolve(&asset, handle, "pkg", ""), None);
+  assert!(asset_resolve(&asset, handle, "pkg", "").is_err());
 }
 
 #[test]
@@ -1755,7 +1875,8 @@ fn zero_handles_read_as_zero() {
     |buf| parcel_target_get_dist_dir(buf, 0, 0),
     |buf| parcel_options_get_project_root(buf, 0),
     |buf| parcel_options_get_env(buf, 0, b"KEY".as_ptr(), 3),
-  ] as [fn(*mut Buffer); 15]
+    |buf| parcel_options_get_mode(buf, 0),
+  ] as [fn(*mut Buffer); 16]
   {
     assert_eq!(buffer_output(read), None);
   }
@@ -1773,6 +1894,12 @@ fn zero_handles_read_as_zero() {
   assert_eq!(parcel_dep_get_bundle_behavior(0) as u8, 0);
   assert_eq!(parcel_dep_get_flags(0), 0);
   assert_eq!(parcel_dep_get_conditions(0), 0);
+  assert_eq!(parcel_dep_get_import_type(0) as u8, 0);
+  assert!(!parcel_options_get_hmr(0));
+  assert_eq!(
+    parcel_options_get_log_level(0),
+    crate::LogLevel::PARCEL_LOG_INFO
+  );
   assert_eq!(parcel_dep_get_target(0), 0);
   assert_eq!(parcel_target_get_environment(0) as u8, 0);
   assert_eq!(parcel_target_get_output_format(0) as u8, 0);

@@ -42,4 +42,8 @@ pub type AssetIndex = u32;
 /// Index of a bundle within the bundle graph.
 pub type BundleIndex = usize;
 
+/// An asset index no asset has, returned by getters for a missing asset.
 pub const PARCEL_INVALID_ASSET_INDEX: AssetIndex = 0xffff_ffff;
+/// A bundle index no bundle has (`SIZE_MAX`), where there is no bundle to
+/// point at. Index 0 is a valid bundle, so it can't serve.
+pub const PARCEL_INVALID_BUNDLE_INDEX: BundleIndex = usize::MAX;

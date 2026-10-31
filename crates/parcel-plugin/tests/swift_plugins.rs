@@ -13,7 +13,7 @@ use parcel_core::{
   BuildOptions, Diagnostic, DiagnosticList, FileSystem, LogEvent, LogLevel, LogMessage,
   OsFileSystem, OverlayFileSystem, ParcelOptions, PathId, Reporter, ReporterEvent,
 };
-use parcel_plugin_abi::CPlugin;
+use parcel_plugin_abi::{CPlugin, PluginKind};
 
 #[cfg(target_os = "macos")]
 const LIB_EXT: &str = "dylib";
@@ -155,10 +155,16 @@ fn outputs(
 
 fn load(
   example: &str,
+  kind: PluginKind,
   config: Option<&serde_json::Value>,
 ) -> Option<Result<CPlugin, DiagnosticList>> {
   let path = plugin_dir()?.join(format!("{example}.{LIB_EXT}"));
-  Some(CPlugin::new(PathId::new(&path), "test-plugin", config))
+  Some(CPlugin::new(
+    PathId::new(&path),
+    "test-plugin",
+    kind,
+    config,
+  ))
 }
 
 macro_rules! require_swift {
@@ -235,13 +241,22 @@ fn swift_transformer_reads_the_input_source_map() {
 #[test]
 fn swift_plugin_config_is_decoded() {
   let config = serde_json::json!({ "prefix": "Swift says: " });
-  require_swift!(load("TxtTransformer", Some(&config))).expect("load with a valid config");
+  require_swift!(load(
+    "TxtTransformer",
+    PluginKind::Transformer,
+    Some(&config)
+  ))
+  .expect("load with a valid config");
 }
 
 #[test]
 fn swift_plugin_config_errors_name_the_key() {
   let config = serde_json::json!({ "prefix": 5 });
-  let Err(error) = require_swift!(load("TxtTransformer", Some(&config))) else {
+  let Err(error) = require_swift!(load(
+    "TxtTransformer",
+    PluginKind::Transformer,
+    Some(&config)
+  )) else {
     panic!("expected an invalid config to fail");
   };
   assert!(
@@ -329,7 +344,8 @@ fn swift_optimizer() {
 /// without needing a build that produces it.
 #[test]
 fn swift_reporter_receives_every_event_kind() {
-  let plugin = require_swift!(load("CustomReporter", None)).expect("load plugin");
+  let plugin =
+    require_swift!(load("CustomReporter", PluginKind::Reporter, None)).expect("load plugin");
   let options = ParcelOptions::default();
 
   plugin
@@ -377,7 +393,7 @@ fn swift_reporter_receives_every_event_kind() {
 /// A library used for a role its plugin type does not conform to says so.
 #[test]
 fn swift_plugin_used_for_the_wrong_role_says_so() {
-  let plugin = require_swift!(load("CustomNamer", None)).expect("load plugin");
+  let plugin = require_swift!(load("CustomNamer", PluginKind::Namer, None)).expect("load plugin");
   let error = plugin
     .report(&ReporterEvent::BuildStart, &ParcelOptions::default())
     .expect_err("a namer is not a reporter");

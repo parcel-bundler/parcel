@@ -5,8 +5,8 @@ public struct BuildSuccess: Sendable {
   public let bundleGraph: BundleGraph
   /// How long the build took.
   public let buildTime: Duration
-  /// The assets re-transformed by this build. Empty after a full build, which
-  /// transformed all of them.
+  /// The assets transformed by this build. On a full build, that is every
+  /// asset.
   public let changedAssets: [AssetIndex]
 }
 

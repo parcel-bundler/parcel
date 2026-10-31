@@ -3,7 +3,6 @@
 use std::{
   borrow::Cow,
   ffi::c_void,
-  mem::ManuallyDrop,
   path::{Path, PathBuf},
   ptr,
   sync::Arc,
@@ -155,8 +154,8 @@ pub struct ReportEvent {
   pub bundle_graph: BundleGraph,
   /// `PARCEL_EVENT_BUILD_SUCCESS` only. How long the build took.
   pub build_time_ms: u64,
-  /// `PARCEL_EVENT_BUILD_SUCCESS` only. The assets re-transformed by this
-  /// build; empty after a full build, which transformed all of them.
+  /// `PARCEL_EVENT_BUILD_SUCCESS` only. The assets transformed by this build:
+  /// on a full build, every asset. NULL when `changed_asset_count` is 0.
   pub changed_assets: *const AssetIndex,
   pub changed_asset_count: usize,
 }
@@ -182,12 +181,83 @@ impl_extensible!(
 
 // ── CPlugin ───────────────────────────────────────────────────────────────────
 
+/// What a .parcelrc entry configures a plugin as, which decides the entry point
+/// Parcel calls.
+/// cbindgen:ignore
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PluginKind {
+  Transformer,
+  Resolver,
+  Namer,
+  Optimizer,
+  Reporter,
+}
+
+impl PluginKind {
+  /// The kind's name, as a .parcelrc key spells it in the singular.
+  pub fn name(self) -> &'static str {
+    match self {
+      PluginKind::Transformer => "transformer",
+      PluginKind::Resolver => "resolver",
+      PluginKind::Namer => "namer",
+      PluginKind::Optimizer => "optimizer",
+      PluginKind::Reporter => "reporter",
+    }
+  }
+
+  fn symbol(self) -> &'static str {
+    match self {
+      PluginKind::Transformer => "parcel_plugin_transform",
+      PluginKind::Resolver => "parcel_plugin_resolve",
+      PluginKind::Namer => "parcel_plugin_name",
+      PluginKind::Optimizer => "parcel_plugin_optimize",
+      PluginKind::Reporter => "parcel_plugin_report",
+    }
+  }
+}
+
+/// The entry points a library exports, looked up once when it is loaded.
+/// cbindgen:ignore
+struct EntryPoints {
+  transform: Option<ParcelPluginTransformFn>,
+  resolve: Option<ParcelPluginResolveFn>,
+  name: Option<ParcelPluginNameFn>,
+  optimize: Option<ParcelPluginOptimizeFn>,
+  report: Option<ParcelPluginReportFn>,
+  deinit: Option<ParcelPluginDeinitFn>,
+}
+
+impl EntryPoints {
+  fn find(lib: &Library) -> Self {
+    /// The function `symbol` names, copied out of its `Symbol`. It stays valid
+    /// because the library is never unloaded.
+    fn get<T: Copy>(lib: &Library, symbol: &str) -> Option<T> {
+      unsafe { lib.get::<T>(symbol.as_bytes()) }.ok().map(|f| *f)
+    }
+    EntryPoints {
+      transform: get(lib, "parcel_plugin_transform"),
+      resolve: get(lib, "parcel_plugin_resolve"),
+      name: get(lib, "parcel_plugin_name"),
+      optimize: get(lib, "parcel_plugin_optimize"),
+      report: get(lib, "parcel_plugin_report"),
+      deinit: get(lib, "parcel_plugin_deinit"),
+    }
+  }
+
+  fn exports(&self, kind: PluginKind) -> bool {
+    match kind {
+      PluginKind::Transformer => self.transform.is_some(),
+      PluginKind::Resolver => self.resolve.is_some(),
+      PluginKind::Namer => self.name.is_some(),
+      PluginKind::Optimizer => self.optimize.is_some(),
+      PluginKind::Reporter => self.report.is_some(),
+    }
+  }
+}
+
 pub struct CPlugin {
-  // ManuallyDrop prevents dlclose() from being called on drop. Go shared
-  // libraries cannot be unloaded: their runtime starts background goroutines
-  // that block dlclose() indefinitely. The OS reclaims all resources on
-  // process exit without needing an explicit unload.
-  lib: ManuallyDrop<Library>,
+  /// Points into the library, which is never unloaded (see `new`).
+  entry_points: EntryPoints,
   state: *mut c_void,
   /// The plugin's name in .parcelrc, which its diagnostics are attributed to.
   origin: String,
@@ -197,22 +267,70 @@ unsafe impl Send for CPlugin {}
 unsafe impl Sync for CPlugin {}
 
 impl CPlugin {
+  /// Loads the library at `path` as the plugin .parcelrc names `origin`,
+  /// configured as a `kind` plugin, and initializes it with `config`.
+  ///
+  /// Fails when the library doesn't export the entry point for `kind`, rather
+  /// than at the first call. That is checked after initializing it, so a library
+  /// that isn't a Parcel plugin at all, or was built for another ABI, gets the
+  /// diagnostic that says so instead.
   pub fn new(
     path: PathId,
     origin: &str,
+    kind: PluginKind,
     config: Option<&serde_json::Value>,
   ) -> Result<CPlugin, DiagnosticList> {
-    let (lib, state) = Self::load(path, config).map_err(|mut diagnostics| {
+    let with_origin = |mut diagnostics: DiagnosticList| {
       for diagnostic in &mut diagnostics.0 {
         diagnostic.origin.get_or_insert_with(|| origin.to_owned());
       }
       diagnostics
-    })?;
+    };
+    // Never unloaded, even when loading fails below, so dlclose() is never
+    // called. Go shared libraries cannot be unloaded: their runtime starts
+    // background goroutines that block dlclose() indefinitely. The OS reclaims
+    // everything on process exit. That is also what keeps the function pointers
+    // in `entry_points` valid.
+    let lib: &'static Library = Box::leak(Box::new(Self::open(path).map_err(with_origin)?));
+    let entry_points = EntryPoints::find(lib);
+    let state = Self::call_init(lib, path, config).map_err(with_origin)?;
+    if !entry_points.exports(kind) {
+      if let Some(deinit) = entry_points.deinit
+        && !state.is_null()
+      {
+        deinit(state);
+      }
+      return Err(with_origin(
+        CoreDiagnostic {
+          hints: vec![format!(
+            "Check that {origin} is a {} plugin, or configure it as the kind of plugin it is.",
+            kind.name()
+          )],
+          ..CoreDiagnostic::from_message(format!(
+            "{origin} is configured as a {} but {} does not export {}()",
+            kind.name(),
+            path.to_path_buf().display(),
+            kind.symbol()
+          ))
+        }
+        .into(),
+      ));
+    }
     Ok(CPlugin {
-      lib: ManuallyDrop::new(lib),
+      entry_points,
       state,
       origin: origin.to_owned(),
     })
+  }
+
+  /// A diagnostic for a call to an entry point the library doesn't export,
+  /// which `new` rules out for the kind it was configured as.
+  fn missing(&self, symbol: &str) -> DiagnosticList {
+    CoreDiagnostic {
+      origin: Some(self.origin.clone()),
+      ..CoreDiagnostic::from_message(format!("{} does not export {symbol}()", self.origin))
+    }
+    .into()
   }
 
   /// Reads the diagnostics the plugin failed a call with, if any. Its own are
@@ -232,11 +350,8 @@ impl CPlugin {
     Some(DiagnosticList(diagnostics))
   }
 
-  fn load(
-    path: PathId,
-    config: Option<&serde_json::Value>,
-  ) -> Result<(Library, *mut c_void), DiagnosticList> {
-    let lib = path
+  fn open(path: PathId) -> Result<Library, DiagnosticList> {
+    path
       .with_path(|path| unsafe { Library::new(path) })
       .map_err(|e| {
         incompatible_library(format!(
@@ -244,9 +359,7 @@ impl CPlugin {
           path.to_path_buf().display(),
           e
         ))
-      })?;
-    let state = Self::call_init(&lib, path, config)?;
-    Ok((lib, state))
+      })
   }
 
   fn call_init(
@@ -331,10 +444,8 @@ impl Drop for CPlugin {
     if self.state.is_null() {
       return;
     }
-    let sym: Result<Symbol<ParcelPluginDeinitFn>, _> =
-      unsafe { self.lib.get(b"parcel_plugin_deinit") };
-    if let Ok(deinit_fn) = sym {
-      deinit_fn(self.state);
+    if let Some(deinit) = self.entry_points.deinit {
+      deinit(self.state);
     }
   }
 }
@@ -345,11 +456,8 @@ impl Transformer for CPlugin {
     mut asset: CoreAsset,
     ctx: &parcel_core::PluginContext,
   ) -> Result<CoreAsset, DiagnosticList> {
-    let transform: Symbol<ParcelPluginTransformFn> = unsafe {
-      self.lib.get(b"parcel_plugin_transform").map_err(|_| {
-        CoreDiagnostic::from_message("Failed to find parcel_plugin_transform symbol".into())
-      })?
-    };
+    let transform =
+      (self.entry_points.transform).ok_or_else(|| self.missing("parcel_plugin_transform"))?;
 
     let context = OptionsContext::with_plugin(ctx);
     let mut diagnostic = DiagnosticOptions::default();
@@ -376,11 +484,8 @@ impl Resolver for CPlugin {
     ctx: &parcel_core::PluginContext,
   ) -> Result<DependencyResolution, DiagnosticList> {
     let options = ctx.options;
-    let resolve: Symbol<ParcelPluginResolveFn> = unsafe {
-      self.lib.get(b"parcel_plugin_resolve").map_err(|_| {
-        CoreDiagnostic::from_message("Failed to find parcel_plugin_resolve symbol".into())
-      })?
-    };
+    let resolve =
+      (self.entry_points.resolve).ok_or_else(|| self.missing("parcel_plugin_resolve"))?;
 
     let mut result = ResolveResult::default();
     let mut diagnostic = DiagnosticOptions::default();
@@ -520,11 +625,7 @@ impl parcel_core::Namer for CPlugin {
     bundle: &parcel_core::Bundle,
     options: &ParcelOptions,
   ) -> Result<Option<PathId>, DiagnosticList> {
-    let name_fn: Symbol<ParcelPluginNameFn> = unsafe {
-      self.lib.get(b"parcel_plugin_name").map_err(|_| {
-        CoreDiagnostic::from_message("Failed to find parcel_plugin_name symbol".into())
-      })?
-    };
+    let name_fn = (self.entry_points.name).ok_or_else(|| self.missing("parcel_plugin_name"))?;
 
     let context = OptionsContext::new(options);
     let mut name = Buffer::default();
@@ -569,11 +670,7 @@ impl parcel_core::Namer for CPlugin {
 
 impl Reporter for CPlugin {
   fn report(&self, event: &ReporterEvent, options: &ParcelOptions) -> Result<(), DiagnosticList> {
-    let report: Symbol<ParcelPluginReportFn> = unsafe {
-      self.lib.get(b"parcel_plugin_report").map_err(|_| {
-        CoreDiagnostic::from_message("Failed to find parcel_plugin_report symbol".into())
-      })?
-    };
+    let report = (self.entry_points.report).ok_or_else(|| self.missing("parcel_plugin_report"))?;
 
     // Both of these are borrowed by `c_event` below, so they have to outlive it.
     let diagnostics = match event {
@@ -608,7 +705,13 @@ impl Reporter for CPlugin {
         .map_or(0, |view| view as *const DiagnosticsView as DiagnosticsRef),
       bundle_graph: 0,
       build_time_ms: 0,
-      changed_assets: changed_assets.as_ptr(),
+      // NULL rather than the dangling pointer of an empty Vec, which C may not
+      // treat as a valid address.
+      changed_assets: if changed_assets.is_empty() {
+        ptr::null()
+      } else {
+        changed_assets.as_ptr()
+      },
       changed_asset_count: changed_assets.len(),
     };
 
@@ -655,11 +758,8 @@ impl Optimizer for CPlugin {
     contents: Arc<dyn Content>,
     options: &ParcelOptions,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
-    let optimize: Symbol<ParcelPluginOptimizeFn> = unsafe {
-      self.lib.get(b"parcel_plugin_optimize").map_err(|_| {
-        CoreDiagnostic::from_message("Failed to find parcel_plugin_optimize symbol".into())
-      })?
-    };
+    let optimize =
+      (self.entry_points.optimize).ok_or_else(|| self.missing("parcel_plugin_optimize"))?;
 
     let source_map = contents
       .downcast_ref::<ContentWithSourceMap>()

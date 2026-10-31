@@ -448,7 +448,10 @@ pub extern "C" fn parcel_dep_get_import_type(dep: Dependency) -> ImportType {
 }
 
 /// Returns the absolute path of the file containing this import into `*buf`.
-pub extern "C" fn parcel_dep_get_source_path(buf: *mut Buffer, dep: Dependency, _options: Options) {
+/// `options` must be the current call's handle.
+pub extern "C" fn parcel_dep_get_source_path(buf: *mut Buffer, dep: Dependency, options: Options) {
+  // Reserved: unused today, but required, so Parcel can start depending on it.
+  let _ = options;
   if buf.is_null() || dep == 0 {
     return;
   }
@@ -472,11 +475,10 @@ pub extern "C" fn parcel_dep_get_source_path(buf: *mut Buffer, dep: Dependency, 
 
 /// Returns the base path for resolving the specifier into `*buf`.
 /// Falls back to the source file path when `resolve_from` is not set.
-pub extern "C" fn parcel_dep_get_resolve_from(
-  buf: *mut Buffer,
-  dep: Dependency,
-  _options: Options,
-) {
+/// `options` must be the current call's handle.
+pub extern "C" fn parcel_dep_get_resolve_from(buf: *mut Buffer, dep: Dependency, options: Options) {
+  // Reserved: unused today, but required, so Parcel can start depending on it.
+  let _ = options;
   if buf.is_null() || dep == 0 {
     return;
   }

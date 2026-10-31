@@ -7,6 +7,7 @@ use parcel_core::{
 
 use crate::{
   AssetIndex, AssetRef, Bundle, BundleGraph, BundleIndex, PARCEL_INVALID_ASSET_INDEX,
+  PARCEL_INVALID_BUNDLE_INDEX,
   extensible::{Extensible, write_extensible},
 };
 
@@ -35,9 +36,15 @@ pub struct BundleGraphDependencyResolution {
   pub size: usize,
   /// `PARCEL_BUNDLE_GRAPH_RESOLUTION_*`
   pub resolution_type: BundleGraphResolutionType,
-  /// Valid only when `resolution_type == PARCEL_BUNDLE_GRAPH_RESOLUTION_ASSET`.
+  /// The asset the dependency resolved to, when `resolution_type` is
+  /// `PARCEL_BUNDLE_GRAPH_RESOLUTION_ASSET` (an asset in the same bundle),
+  /// `PARCEL_BUNDLE_GRAPH_RESOLUTION_BUNDLE` (an asset in another bundle) or
+  /// `PARCEL_BUNDLE_GRAPH_RESOLUTION_INTERNALIZED` (an asset in a bundle inlined
+  /// into this one). `PARCEL_INVALID_ASSET_INDEX` otherwise.
   pub asset: AssetIndex,
-  /// Valid only when `resolution_type == PARCEL_BUNDLE_GRAPH_RESOLUTION_BUNDLE`.
+  /// The bundle the dependency resolved to, only when `resolution_type` is
+  /// `PARCEL_BUNDLE_GRAPH_RESOLUTION_BUNDLE`. `PARCEL_INVALID_BUNDLE_INDEX`
+  /// otherwise.
   pub bundle: BundleIndex,
 }
 
@@ -47,7 +54,7 @@ impl Default for BundleGraphDependencyResolution {
       size: size_of::<Self>(),
       resolution_type: BundleGraphResolutionType::PARCEL_BUNDLE_GRAPH_RESOLUTION_INVALID,
       asset: PARCEL_INVALID_ASSET_INDEX,
-      bundle: 0,
+      bundle: PARCEL_INVALID_BUNDLE_INDEX,
     }
   }
 }

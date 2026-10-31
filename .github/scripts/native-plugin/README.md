@@ -198,10 +198,8 @@ resolvable before the binaries its `optionalDependencies` pin.
 | `x86_64-apple-darwin`           | `macos-latest`   | cargo          | darwin | x64   |       |
 | `aarch64-pc-windows-msvc`       | `windows-latest` | cargo          | win32  | arm64 |       |
 | `x86_64-pc-windows-msvc`        | `windows-latest` | cargo          | win32  | x64   |       |
-| `i686-pc-windows-msvc`          | `windows-latest` | cargo          | win32  | ia32  |       |
 | `x86_64-unknown-linux-gnu`      | `ubuntu-latest`  | cargo-zigbuild | linux  | x64   | glibc |
 | `aarch64-unknown-linux-gnu`     | `ubuntu-latest`  | cargo-zigbuild | linux  | arm64 | glibc |
-| `armv7-unknown-linux-gnueabihf` | `ubuntu-latest`  | cargo-zigbuild | linux  | arm   | glibc |
 | `x86_64-unknown-linux-musl`     | `ubuntu-latest`  | cargo-zigbuild | linux  | x64   | musl  |
 | `aarch64-unknown-linux-musl`    | `ubuntu-latest`  | cargo-zigbuild | linux  | arm64 | musl  |
 

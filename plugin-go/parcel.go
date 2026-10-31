@@ -1261,8 +1261,8 @@ type BuildSuccess struct {
 	BundleGraph *BundleGraph
 	// BuildTime is how long the build took.
 	BuildTime time.Duration
-	// ChangedAssets holds the assets re-transformed by this build. It is empty
-	// after a full build, which transformed all of them.
+	// ChangedAssets holds the assets transformed by this build. On a full build,
+	// that is every asset.
 	ChangedAssets []AssetIndex
 }
 

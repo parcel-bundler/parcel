@@ -13,7 +13,7 @@ use parcel_html::{HtmlTransformer, SvgToJsxTransformer, SvgTransformer, XmlTrans
 use parcel_image::ImageTransformer;
 use parcel_js::JsTransformer;
 use parcel_plugin_abi::{
-  CPlugin, PARCEL_ABI_VERSION,
+  CPlugin, PARCEL_ABI_VERSION, PluginKind,
   manifest::{PluginPackage, TARGET},
 };
 use parcel_plugin_js::JsPlugin;
@@ -99,7 +99,7 @@ impl PluginFactory for DefaultPluginFactory {
       "@parcel/transformer-tailwind" => Arc::new(TailwindTransformer {}),
       "@parcel/transformer-inline" => Arc::new(InlineTransformer {}),
       "@parcel/transformer-raw" => Arc::new(RawTransformer {}),
-      _ => match self.resolve_plugin("transformer", name, from, config)? {
+      _ => match self.resolve_plugin(PluginKind::Transformer, name, from, config)? {
         ResolvedPlugin::Native(plugin) => plugin,
         ResolvedPlugin::Js(plugin) => plugin,
       },
@@ -133,10 +133,12 @@ impl PluginFactory for DefaultPluginFactory {
   ) -> Result<Arc<dyn Namer>, DiagnosticList> {
     match name {
       "@parcel/namer-default" => Ok(Arc::new(DefaultNamer {})),
-      _ => Ok(match self.resolve_plugin("namer", name, from, config)? {
-        ResolvedPlugin::Native(plugin) => plugin,
-        ResolvedPlugin::Js(plugin) => plugin,
-      }),
+      _ => Ok(
+        match self.resolve_plugin(PluginKind::Namer, name, from, config)? {
+          ResolvedPlugin::Native(plugin) => plugin,
+          ResolvedPlugin::Js(plugin) => plugin,
+        },
+      ),
     }
   }
 
@@ -149,7 +151,7 @@ impl PluginFactory for DefaultPluginFactory {
     match name {
       "@parcel/optimizer-data-url" => Ok(Arc::new(DataUrlOptimizer {})),
       _ => Ok(
-        match self.resolve_plugin("optimizer", name, from, config)? {
+        match self.resolve_plugin(PluginKind::Optimizer, name, from, config)? {
           ResolvedPlugin::Native(plugin) => plugin,
           ResolvedPlugin::Js(plugin) => plugin,
         },
@@ -166,7 +168,7 @@ impl PluginFactory for DefaultPluginFactory {
     Ok(match name {
       "@parcel/resolver-default" => Arc::new(DefaultResolver::new("/".into())),
       "@parcel/resolver-glob" => Arc::new(GlobResolver {}),
-      _ => match self.resolve_plugin("resolver", name, from, config)? {
+      _ => match self.resolve_plugin(PluginKind::Resolver, name, from, config)? {
         ResolvedPlugin::Native(plugin) => plugin,
         ResolvedPlugin::Js(plugin) => plugin,
       },
@@ -179,10 +181,12 @@ impl PluginFactory for DefaultPluginFactory {
     config: Option<serde_json::Value>,
     from: PathId,
   ) -> Result<Arc<dyn Reporter>, DiagnosticList> {
-    Ok(match self.resolve_plugin("reporter", name, from, config)? {
-      ResolvedPlugin::Native(plugin) => plugin,
-      ResolvedPlugin::Js(plugin) => plugin,
-    })
+    Ok(
+      match self.resolve_plugin(PluginKind::Reporter, name, from, config)? {
+        ResolvedPlugin::Native(plugin) => plugin,
+        ResolvedPlugin::Js(plugin) => plugin,
+      },
+    )
   }
 
   fn config(&self, specifier: &str, from: PathId) -> Result<ParcelConfig, DiagnosticList> {
@@ -239,10 +243,10 @@ enum ResolvedPlugin {
 
 impl DefaultPluginFactory {
   /// Resolves a plugin specifier to either a native (shared library) or JavaScript
-  /// plugin. `kind` names the plugin type for error messages, e.g. "transformer".
+  /// plugin, configured as a `kind` plugin.
   fn resolve_plugin(
     &self,
-    kind: &str,
+    kind: PluginKind,
     name: &str,
     from: PathId,
     config: Option<serde_json::Value>,
@@ -259,6 +263,7 @@ impl DefaultPluginFactory {
         if subpath.is_empty() && package.is_native_plugin() {
           return Ok(ResolvedPlugin::Native(self.load_native_plugin(
             &module,
+            kind,
             dir,
             &package,
             config.as_ref(),
@@ -268,7 +273,7 @@ impl DefaultPluginFactory {
     }
 
     let not_found = || -> DiagnosticList {
-      Diagnostic::from_message(format!("Could not find {} {}", kind, name)).into()
+      Diagnostic::from_message(format!("Could not find {} {}", kind.name(), name)).into()
     };
 
     let Ok(resolved) = self
@@ -287,6 +292,7 @@ impl DefaultPluginFactory {
       Some(b"so" | b"dylib" | b"dll") => Ok(ResolvedPlugin::Native(Arc::new(CPlugin::new(
         path,
         name,
+        kind,
         config.as_ref(),
       )?))),
       _ => Ok(ResolvedPlugin::Js(Arc::new(JsPlugin::new(
@@ -368,6 +374,7 @@ impl DefaultPluginFactory {
   fn load_native_plugin(
     &self,
     module: &str,
+    kind: PluginKind,
     dir: PathId,
     package: &PluginPackage,
     config: Option<&serde_json::Value>,
@@ -414,7 +421,7 @@ impl DefaultPluginFactory {
           .into(),
         );
       }
-      return Ok(Arc::new(CPlugin::new(path, module, config)?));
+      return Ok(Arc::new(CPlugin::new(path, module, kind, config)?));
     }
 
     let Some(artifact) = package.artifact() else {
@@ -455,7 +462,7 @@ impl DefaultPluginFactory {
       _ => self.resolve_artifact_package(module, artifact, dir)?,
     };
 
-    Ok(Arc::new(CPlugin::new(path, module, config)?))
+    Ok(Arc::new(CPlugin::new(path, module, kind, config)?))
   }
 
   /// Resolves the library of a platform-specific artifact package.

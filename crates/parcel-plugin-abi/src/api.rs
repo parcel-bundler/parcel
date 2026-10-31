@@ -24,6 +24,21 @@
 //!
 //! Adding a host function means adding it here too. The test at the bottom of
 //! this file fails if the table and the crate's exported functions drift apart.
+//!
+//! New functions follow these naming conventions. A few existing ones predate
+//! them, and keep their names, since renaming would break plugins.
+//!
+//! | Convention | Example |
+//! | --- | --- |
+//! | Prefixed with the handle the function acts on: `asset_`, `dep_`, `bundle_`, `bundle_graph_`, `target_`, `options_`, `diagnostic_`/`diagnostics_`, `fs_`, `buffer_` | `parcel_target_get_dist_dir()` |
+//! | The prefix for a `Dependency` is `dep_`. Spelled out, `dependency` names something else's dependencies | `parcel_dep_get_flags()`, `parcel_asset_get_dependency()` |
+//! | `get_` reads, `set_` replaces, `add_` appends | `parcel_asset_set_type()`, `parcel_asset_add_dependency()` |
+//! | A list is a `get_<item>_count()` and a `get_<item>()` taking an index | `parcel_bundle_get_asset_count()`, `parcel_bundle_get_asset()` |
+//! | A string or bytes are returned into a `Buffer *` passed first; a struct into a size-prefixed out-param passed first | `parcel_bundle_get_name(buf, bundle)` |
+//! | `_utf8` marks the variant that takes or returns text Parcel trusts to be UTF-8 | `parcel_asset_set_content_utf8()` |
+//! | Booleans are bits in a `*_flags` bitfield rather than separate getters | `parcel_asset_get_flags()` |
+//! | An `Options` handle, when needed, comes after the handle acted on | `parcel_dep_get_source_path(buf, dep, options)` |
+//! | Acronyms are lowercase in C (`url`, `hmr`), and cased by each SDK's rules: Rust `url`, Go `URL`, Swift `URL` (`url` when it leads a name) | `parcel_bundle_get_absolute_url()` |
 //! build.rs generates `plugin.h`, including a C wrapper for each function here,
 //! and copies it into the Go and Swift SDKs, which call those wrappers.
 
@@ -46,6 +61,28 @@ use crate::*;
 ///
 /// Structs passed by pointer do not need a bump either: each starts with its own
 /// `size`, so fields can be appended to them too.
+///
+/// # Evolving the entry points
+///
+/// The entry points a plugin exports (`parcel_plugin_transform()` and so on, see
+/// the `entry_points` module) are the one part of the ABI a host can't extend by
+/// appending, so they change only like this:
+///
+/// - New per-call state reaches plugins through the `Options` handle every entry
+///   point already receives: Parcel adds it to its `OptionsContext` and exposes
+///   it through new host functions taking `Options`. Most needs end here.
+/// - New output goes in a size-prefixed struct the entry point already fills
+///   (`ResolveResult`, `OptimizeResult`, `DiagnosticOptions`), by appending a
+///   field.
+/// - An entry point whose arguments must change ships as a new symbol, such as
+///   `parcel_plugin_optimize2()`. Parcel looks for the new symbol first and
+///   falls back to the old one, so plugins built either way keep loading. An SDK
+///   exports whichever it was built for.
+/// - A new entry point, numbered or not, takes its inputs as one size-prefixed
+///   args struct, so later inputs are appended rather than needing another
+///   symbol.
+///
+/// None of these needs a bump, which is why one should never be necessary.
 ///
 /// A published plugin repeats this in its package.json as `parcel.abi`, which
 /// lets Parcel reject a mismatch before opening the library. That copy is
@@ -109,7 +146,7 @@ pub struct ParcelApi {
   pub asset_get_type: unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef),
   pub asset_set_type: unsafe extern "C" fn(asset: Asset, ty: *const u8, ty_len: usize),
   pub asset_get_file_path:
-    unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef, _options: Options),
+    unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef, options: Options),
   pub asset_get_pipeline: unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef),
   pub asset_set_pipeline:
     unsafe extern "C" fn(asset: Asset, pipeline: *const u8, pipeline_len: usize),
@@ -163,9 +200,9 @@ pub struct ParcelApi {
   pub dep_get_conditions: unsafe extern "C" fn(dep: Dependency) -> ExportsConditionsFFI,
   pub dep_get_import_type: unsafe extern "C" fn(dep: Dependency) -> ImportType,
   pub dep_get_source_path:
-    unsafe extern "C" fn(buf: *mut Buffer, dep: Dependency, _options: Options),
+    unsafe extern "C" fn(buf: *mut Buffer, dep: Dependency, options: Options),
   pub dep_get_resolve_from:
-    unsafe extern "C" fn(buf: *mut Buffer, dep: Dependency, _options: Options),
+    unsafe extern "C" fn(buf: *mut Buffer, dep: Dependency, options: Options),
   pub dep_get_target: unsafe extern "C" fn(dep: Dependency) -> Target,
   pub options_get_project_root: unsafe extern "C" fn(buf: *mut Buffer, options: Options),
   pub options_get_env:
@@ -179,8 +216,7 @@ pub struct ParcelApi {
   pub target_get_source_type: unsafe extern "C" fn(target: Target) -> SourceType,
   pub target_get_env_flags: unsafe extern "C" fn(target: Target) -> EnvironmentFlagsFFI,
   pub target_get_public_url: unsafe extern "C" fn(buf: *mut Buffer, target: Target),
-  pub target_get_dist_dir:
-    unsafe extern "C" fn(buf: *mut Buffer, target: Target, _options: Options),
+  pub target_get_dist_dir: unsafe extern "C" fn(buf: *mut Buffer, target: Target, options: Options),
   pub asset_get_query: unsafe extern "C" fn(buf: *mut Buffer, asset: AssetRef),
   pub diagnostics_get_count: unsafe extern "C" fn(diagnostics: DiagnosticsRef) -> usize,
   pub diagnostic_get_message:

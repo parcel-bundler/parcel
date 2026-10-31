@@ -360,6 +360,24 @@ fn test_unknown_init_status_reports_a_useful_error() {
   );
 }
 
+/// A library configured as a kind of plugin whose entry point it doesn't export
+/// fails when it is loaded, rather than at its first call.
+#[test]
+fn test_library_without_the_configured_entry_point_reports_a_useful_error() {
+  let error = build_with_library("parcel-rust-plugin-wrong-kind-test", |library| {
+    build_stub_library(&init_stub(0), library)
+  });
+  assert!(
+    error.contains(&format!("{PLUGIN} is configured as a transformer but"))
+      && error.contains("does not export parcel_plugin_transform()"),
+    "error should say which entry point is missing, got:\n{error}"
+  );
+  assert!(
+    error.contains(&format!("origin: Some(\"{PLUGIN}\")")),
+    "error should name the plugin, got:\n{error}"
+  );
+}
+
 #[test]
 fn test_library_without_init_reports_a_useful_error() {
   let error = build_with_library("parcel-rust-plugin-no-init-test", |library| {

@@ -447,9 +447,10 @@ pub extern "C" fn parcel_asset_set_type(asset: Asset, ty: *const u8, ty_len: usi
 // ── File path (read-only) ─────────────────────────────────────────────────────
 
 /// Returns the absolute filesystem path of the source asset into `*buf`.
-/// `options` is the handle received from `parcel_plugin_transform()`.
-/// Caller must `parcel_free_buffer(buf)`.
-pub extern "C" fn parcel_asset_get_file_path(buf: *mut Buffer, asset: AssetRef, _options: Options) {
+/// `options` must be the current call's handle. Caller must `parcel_free_buffer(buf)`.
+pub extern "C" fn parcel_asset_get_file_path(buf: *mut Buffer, asset: AssetRef, options: Options) {
+  // Reserved: unused today, but required, so Parcel can start depending on it.
+  let _ = options;
   if buf.is_null() || asset == 0 {
     return;
   }

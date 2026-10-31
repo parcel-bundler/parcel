@@ -6,7 +6,7 @@ use parcel_core::{
   BuildOptions, Diagnostic, DiagnosticList, LogEvent, LogLevel, LogMessage, OsFileSystem,
   OverlayFileSystem, ParcelOptions, PathId, Reporter, ReporterEvent,
 };
-use parcel_plugin_abi::CPlugin;
+use parcel_plugin_abi::{CPlugin, PluginKind};
 
 #[cfg(target_os = "macos")]
 const LIB_EXT: &str = "dylib";
@@ -59,7 +59,13 @@ fn test_go_reporter_receives_every_event_kind() {
     return;
   };
 
-  let plugin = CPlugin::new(PathId::new(&plugin_path), "test-plugin", None).expect("load plugin");
+  let plugin = CPlugin::new(
+    PathId::new(&plugin_path),
+    "test-plugin",
+    PluginKind::Reporter,
+    None,
+  )
+  .expect("load plugin");
   let options = ParcelOptions::default();
 
   plugin
@@ -129,7 +135,13 @@ fn test_a_go_plugin_that_is_not_a_reporter_says_so() {
     .expect("spawn go build");
   assert!(result.status.success(), "go build failed");
 
-  let plugin = CPlugin::new(PathId::new(&lib_path), "test-plugin", None).expect("load plugin");
+  let plugin = CPlugin::new(
+    PathId::new(&lib_path),
+    "test-plugin",
+    PluginKind::Reporter,
+    None,
+  )
+  .expect("load plugin");
   let error = plugin
     .report(&ReporterEvent::BuildStart, &ParcelOptions::default())
     .expect_err("a namer is not a reporter");

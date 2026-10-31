@@ -151,9 +151,10 @@ pub extern "C" fn parcel_target_get_public_url(buf: *mut Buffer, target: Target)
 }
 
 /// Returns the absolute path of the dist directory into `*buf`.
-/// `options` is the handle received from `parcel_plugin_transform()`.
-/// Caller must `parcel_free_buffer(buf)`.
-pub extern "C" fn parcel_target_get_dist_dir(buf: *mut Buffer, target: Target, _options: Options) {
+/// `options` must be the current call's handle. Caller must `parcel_free_buffer(buf)`.
+pub extern "C" fn parcel_target_get_dist_dir(buf: *mut Buffer, target: Target, options: Options) {
+  // Reserved: unused today, but required, so Parcel can start depending on it.
+  let _ = options;
   if buf.is_null() || target == 0 {
     return;
   }
