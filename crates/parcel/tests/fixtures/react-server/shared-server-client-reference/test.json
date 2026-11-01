@@ -1,0 +1,27 @@
+{
+  "description": "client references load the bundles of the client component and everything it imports, even from a server bundle shared by several pages",
+  "input": "index.jsx",
+  "skipNodeModules": true,
+  "options": {"config": ".parcelrc", "mode": "development", "contentHash": false},
+  "bundles": [
+    {"assets": ["index.jsx"], "context": "react-server"},
+    {
+      "assets": ["home.jsx"],
+      "context": "react-server",
+      "contains": ["\"HomeWidget\",[\"{{bundleName:home-widget.jsx}}\",\"{{bundleName:header.jsx}}\"]"]
+    },
+    {
+      "assets": ["about.jsx"],
+      "context": "react-server",
+      "contains": ["\"AboutWidget\",[\"{{bundleName:about-widget.jsx}}\",\"{{bundleName:header.jsx}}\"]"]
+    },
+    {
+      "assets": ["layout.jsx"],
+      "context": "react-server",
+      "contains": ["\"Header\",[\"{{bundleName:header.jsx}}\"]"]
+    },
+    {"assets": ["header.jsx"], "context": "react-client"},
+    {"assets": ["home-widget.jsx"], "context": "react-client"},
+    {"assets": ["about-widget.jsx"], "context": "react-client"}
+  ]
+}

@@ -44,25 +44,16 @@ pub(crate) fn bundle_dependencies(bundle_graph: &BundleGraph, bundle: &Bundle) -
     Environment::ReactServer | Environment::ReactClient
   );
   if is_rsc {
-    // Client references embed URLs of CSS in the importer's bundle group, and final names of the
-    // client bundles they load (see `rsc::client_bundle_import_map`).
-    // They're computed from the first bundle containing the importer, which may be a copy of this
-    // one's assets in another bundle.
-    let mut importer_bundles: Vec<usize> = bundle.referenced_bundles.clone();
-    for &asset_index in &bundle.assets {
-      if let Some(importer_bundle) = bundle_graph.first_bundle_containing(asset_index)
-        && !importer_bundles.contains(&importer_bundle)
-      {
-        importer_bundles.push(importer_bundle);
-      }
-    }
-    for importer_bundle in importer_bundles {
-      dependencies.extend(bundle_graph.referenced_bundles(importer_bundle));
+    // RSC modules may embed names from this bundle's group.
+    for &referenced in &bundle.referenced_bundles {
+      dependencies.extend(bundle_graph.referenced_bundles(referenced));
       dependencies.extend(rsc::client_bundle_import_map_dependencies(
         bundle_graph,
-        importer_bundle as u32,
+        referenced as u32,
       ));
     }
+    // Client references embed the names of the bundles they load.
+    dependencies.extend(rsc::client_reference_dependencies(bundle_graph, bundle));
   }
 
   for &asset_index in &bundle.assets {

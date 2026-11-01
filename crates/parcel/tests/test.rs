@@ -621,18 +621,21 @@ fn page_scripts(html: &str) -> Vec<PageScript<'_>> {
   scripts
 }
 
-/// Resolve {{bundle:asset-name}} to the emitted public URL, so fixtures can
-/// assert references without hard-coding generated bundle names.
+/// Resolve {{bundle:asset-name}} to the emitted public URL, and {{bundleName:asset-name}} to the
+/// bundle's name relative to its dist dir (as client references list them), so fixtures can assert
+/// references without hard-coding generated bundle names.
 fn expand_bundle_urls(pattern: &str, graph: &BundleGraph) -> String {
   let mut result = String::new();
   let mut remaining = pattern;
-  while let Some(start) = remaining.find("{{bundle:") {
+  while let Some(start) = remaining.find("{{bundle") {
     result.push_str(&remaining[..start]);
-    let reference = &remaining[start + "{{bundle:".len()..];
+    let reference = &remaining[start + "{{".len()..];
     let end = reference
       .find("}}")
       .expect("Unterminated bundle URL assertion");
-    let name = &reference[..end];
+    let (kind, name) = reference[..end]
+      .split_once(':')
+      .expect("Expected {{bundle:asset-name}} or {{bundleName:asset-name}}");
     let matches: Vec<_> = graph
       .bundles
       .iter()
@@ -653,7 +656,11 @@ fn expand_bundle_urls(pattern: &str, graph: &BundleGraph) -> String {
       1,
       "Expected one bundle for URL assertion {name}"
     );
-    result.push_str(&matches[0].absolute_url());
+    match kind {
+      "bundle" => result.push_str(&matches[0].absolute_url()),
+      "bundleName" => result.push_str(&matches[0].name()),
+      _ => panic!("Unknown bundle assertion {{{{{kind}:{name}}}}}"),
+    }
     remaining = &reference[end + 2..];
   }
   result.push_str(remaining);
@@ -818,7 +825,8 @@ struct TestBundle {
   #[serde(rename = "outputFormat")]
   output_format: Option<OutputFormat>,
   #[serde(default)]
-  /// Substrings may use {{bundle:asset-name}} for generated public URLs.
+  /// Substrings may use {{bundle:asset-name}} for generated public URLs, and
+  /// {{bundleName:asset-name}} for bundle names.
   contains: Vec<String>,
   #[serde(default)]
   not_contains: Vec<String>,
