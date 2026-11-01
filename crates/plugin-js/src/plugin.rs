@@ -166,11 +166,11 @@ const PLUGIN_KINDS: [&str; 5] = ["transformer", "resolver", "namer", "optimizer"
 fn registered_plugin<'js>(
   ctx: &Ctx<'js>,
   module: &Object<'js>,
-  kind: &str,
+  sym: String,
 ) -> rquickjs::Result<Option<Object<'js>>> {
   let symbol: Object = ctx.globals().get("Symbol")?;
   let symbol_for: Function = symbol.get("for")?;
-  let key: Symbol = symbol_for.call((format!("parcel.plugin.v3.{kind}"),))?;
+  let key: Symbol = symbol_for.call((sym,))?;
   if let Some(plugin) = module.get::<_, Option<Object>>(key.clone())? {
     return Ok(Some(plugin));
   }
@@ -185,13 +185,21 @@ impl JsPlugin {
   /// holding `transform`, `resolve`, `name`, `optimize` or the reporter methods.
   fn plugin_config<'js>(&self, ctx: &Ctx<'js>, kind: &str) -> rquickjs::Result<Object<'js>> {
     let module = load_module(ctx, &self.path)?;
-    if let Some(plugin) = registered_plugin(ctx, &module, kind)? {
+    if let Some(plugin) = registered_plugin(ctx, &module, format!("parcel.plugin.v3.{kind}"))? {
+      return Ok(plugin);
+    }
+
+    // Backward compatibility for now, so you can run Parcel 2 and 3 side by side.
+    // TODO: remove before GA.
+    if let Some(plugin) = registered_plugin(ctx, &module, format!("parcel-plugin-config"))? {
       return Ok(plugin);
     }
 
     let mut hints = Vec::new();
     for other in PLUGIN_KINDS {
-      if other != kind && registered_plugin(ctx, &module, other)?.is_some() {
+      if other != kind
+        && registered_plugin(ctx, &module, format!("parcel.plugin.v3.{other}"))?.is_some()
+      {
         hints.push(format!("It is a {other} plugin."));
       }
     }
