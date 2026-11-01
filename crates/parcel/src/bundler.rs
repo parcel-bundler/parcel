@@ -375,6 +375,7 @@ impl Bundler for DefaultBundler {
       &bundle_roots,
       &needed_roots,
       options,
+      self.min_bundle_size,
       |asset| {
         asset_graph.asset(asset).ty == AssetType::Css
           && bundle_roots.manual_shared_bundle(asset).is_none()

@@ -55,6 +55,7 @@ pub(super) fn plan(
   bundle_roots: &BundleRoots,
   needed_roots: &Reachability,
   options: &ParcelOptions,
+  min_bundle_size: usize,
   plannable: impl Fn(AssetIndex) -> bool,
 ) -> StylePlan {
   let mut analysis = OrderAnalysis::new(asset_graph, |asset| {
@@ -138,6 +139,7 @@ pub(super) fn plan(
     bundle_roots,
     &contexts,
     options,
+    min_bundle_size,
   );
 
   plan
@@ -582,6 +584,7 @@ fn report_conflicts(
   roots: &BundleRoots,
   contexts: &[OrderedContent],
   options: &ParcelOptions,
+  min_bundle_size: usize,
 ) {
   if plan.conflicts.is_empty() || !options.log_level.allows(LogLevel::Warn) {
     return;
@@ -591,6 +594,21 @@ fn report_conflicts(
   let root_assets: HashMap<_, _> = roots.iter_active().collect();
   for conflict in &plan.conflicts {
     let assets: HashSet<_> = conflict.assets.iter().copied().collect();
+    // The bundler duplicates shared payloads smaller than `min_bundle_size` into their consumers
+    // anyway, so only warn about duplicating a stylesheet group at least that large.
+    let size: usize = assets
+      .iter()
+      .map(|&asset| graph.asset(asset).content.estimate_size().unwrap_or(0))
+      .sum();
+    let level = if size >= min_bundle_size {
+      LogLevel::Warn
+    } else {
+      LogLevel::Verbose
+    };
+    if !options.log_level.allows(level) {
+      continue;
+    }
+
     // Group by actual asset order, before collapsing filenames for display:
     // two styles in the same file can themselves be imported in reverse order.
     let mut orders: Vec<(Vec<AssetIndex>, Vec<usize>)> = Vec::new();
@@ -680,9 +698,17 @@ fn report_conflicts(
     };
 
     let mut diagnostic = Diagnostic {
-      message: "Stylesheets are imported in conflicting orders by different contexts. Parcel duplicated this stylesheet group to preserve each context's order. Use a consistent import order to allow these styles to be shared.".into(),
+      message: format!(
+        "Stylesheets are imported in conflicting orders by different contexts. Parcel duplicated this stylesheet group ({:.1} kB) for each of its {} orders to preserve each context's order. Use a consistent import order to allow these styles to be shared.",
+        size as f64 / 1000.0,
+        orders.len()
+      ),
       origin: Some("@parcel/bundler-default".into()),
-      severity: DiagnosticSeverity::Warning,
+      severity: if level == LogLevel::Warn {
+        DiagnosticSeverity::Warning
+      } else {
+        DiagnosticSeverity::Info
+      },
       code_frames: Vec::new(),
       documentation_url: None,
       hints: Vec::new(),
@@ -813,9 +839,7 @@ fn report_conflicts(
         .sort_by_key(|h| (h.start.line, h.start.column, h.end.line, h.end.column));
     }
 
-    options
-      .reporters
-      .log_diagnostics(LogLevel::Warn, &[diagnostic]);
+    options.reporters.log_diagnostics(level, &[diagnostic]);
   }
 }
 

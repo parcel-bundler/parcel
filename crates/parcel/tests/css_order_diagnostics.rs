@@ -16,7 +16,7 @@ use parcel_core::{
 };
 
 #[derive(Default)]
-struct Warnings(Mutex<Vec<Diagnostic>>);
+struct Warnings(Mutex<Vec<(LogLevel, Diagnostic)>>);
 
 impl Reporter for Warnings {
   fn report(&self, event: &ReporterEvent, _: &ParcelOptions) -> Result<(), DiagnosticList> {
@@ -27,8 +27,7 @@ impl Reporter for Warnings {
             .message
             .contains("imported in conflicting orders")
           {
-            assert_eq!(log.level, LogLevel::Warn);
-            self.0.lock().unwrap().push(diagnostic.clone());
+            self.0.lock().unwrap().push((log.level, diagnostic.clone()));
           }
         }
       } else if let LogMessage::Text(message) = log.message {
@@ -43,13 +42,34 @@ fn build(files: &[(&str, &str)], mode: BuildMode) -> Vec<Diagnostic> {
   build_entries(files, &["first.js", "second.js"], mode)
 }
 
+/// Conflicts at warning level. `x.css` and `y.css` together are at least the default
+/// `minBundleSize`, so a group with both is warned about.
 fn build_entries(files: &[(&str, &str)], entries: &[&str], mode: BuildMode) -> Vec<Diagnostic> {
+  build_logs(files, entries, mode, LogLevel::Warn)
+    .into_iter()
+    .map(|(level, diagnostic)| {
+      assert_eq!(level, LogLevel::Warn);
+      diagnostic
+    })
+    .collect()
+}
+
+/// Conflicts logged at `log_level` or below, with the level each was logged at.
+fn build_logs(
+  files: &[(&str, &str)],
+  entries: &[&str],
+  mode: BuildMode,
+  log_level: LogLevel,
+) -> Vec<(LogLevel, Diagnostic)> {
+  let padding = format!("/* {} */", "-".repeat(16_000));
+  let x = format!(".x {{ color: red; }}\n{padding}");
+  let y = format!(".y {{ color: blue; }}\n{padding}");
   let input = Arc::new(MemoryFileSystem::new());
   for &(file, code) in files.iter().chain(
     [
       ("package.json", "{}"),
-      ("x.css", ".x { color: red; }"),
-      ("y.css", ".y { color: blue; }"),
+      ("x.css", x.as_str()),
+      ("y.css", y.as_str()),
     ]
     .iter(),
   ) {
@@ -73,7 +93,7 @@ fn build_entries(files: &[(&str, &str)], entries: &[&str], mode: BuildMode) -> V
       content_hash: None,
       source_map: None,
       env: Default::default(),
-      log_level: LogLevel::Warn,
+      log_level,
       input_fs: input,
       output_fs: Arc::new(MemoryFileSystem::new()),
       config: None,
@@ -213,6 +233,51 @@ fn repeated_css_imports_highlight_the_retained_last_occurrence() {
     1,
     "./x.css",
     "Order 2: x.css before y.css",
+  );
+}
+
+#[test]
+fn small_conflicting_groups_are_only_logged_verbosely() {
+  let files = [
+    ("a.css", ".a { color: red; }"),
+    ("b.css", ".b { color: blue; }"),
+    ("first.js", "import './a.css';\nimport './b.css';\n"),
+    ("second.js", "import './b.css';\nimport './a.css';\n"),
+  ];
+  let entries = ["first.js", "second.js"];
+  // Smaller than `minBundleSize`, so duplicating the group is no worse than what the bundler does
+  // with small shared bundles anyway.
+  assert!(build_logs(&files, &entries, BuildMode::Development, LogLevel::Info).is_empty());
+  let logs = build_logs(&files, &entries, BuildMode::Development, LogLevel::Verbose);
+  assert_eq!(logs.len(), 1);
+  let (level, diagnostic) = &logs[0];
+  assert_eq!(*level, LogLevel::Verbose);
+  assert_eq!(diagnostic.severity, DiagnosticSeverity::Info);
+  assert!(
+    diagnostic
+      .message
+      .contains("(0.0 kB) for each of its 2 orders"),
+    "{}",
+    diagnostic.message
+  );
+}
+
+#[test]
+fn large_conflicting_groups_warn_with_their_size() {
+  let diagnostics = build(
+    &[
+      ("first.js", "import './x.css';\nimport './y.css';\n"),
+      ("second.js", "import './y.css';\nimport './x.css';\n"),
+    ],
+    BuildMode::Development,
+  );
+  assert_eq!(diagnostics.len(), 1);
+  assert!(
+    diagnostics[0]
+      .message
+      .contains("(32.1 kB) for each of its 2 orders"),
+    "{}",
+    diagnostics[0].message
   );
 }
 
