@@ -359,12 +359,16 @@ pub(crate) fn package_bundles(
     aborted: AtomicBool::new(false),
   };
 
+  // Find the components that are ready before starting any: once one runs, it decrements its
+  // dependents' counts and starts those that become ready itself, so checking counts while
+  // spawning could start a component twice.
+  let ready: Vec<usize> = (0..components.len())
+    .filter(|&component| scheduler.remaining[component].load(Ordering::Relaxed) == 0)
+    .collect();
   rayon::scope(|scope| {
-    for component in 0..components.len() {
-      if scheduler.remaining[component].load(Ordering::Relaxed) == 0 {
-        let scheduler = &scheduler;
-        scope.spawn(move |scope| scheduler.run(scope, component));
-      }
+    for component in ready {
+      let scheduler = &scheduler;
+      scope.spawn(move |scope| scheduler.run(scope, component));
     }
   });
 
