@@ -758,7 +758,7 @@ fn prepare_to_package(
             .into_owned()
         } else {
           let mut url = reference_url(referenced_bundle, bundle);
-          url.push_str(dep.url_fragment().unwrap_or_default());
+          url.push_str(dep.url_suffix().unwrap_or_default());
           url
         };
 

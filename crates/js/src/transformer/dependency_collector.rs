@@ -472,11 +472,6 @@ impl<'a> DependencyCollector<'a> {
   ) -> ast::Expr {
     // If not a library, replace with a require call pointing to a runtime that will resolve the url dynamically.
     if !self.config.standalone {
-      // Resolution drops the fragment, e.g. `#icon` in `sprite.svg#icon`, so append it to the
-      // bundle's URL.
-      let fragment = specifier
-        .find('#')
-        .map(|index| JsWord::from(&specifier[index..]));
       let placeholder = self.add_dependency(
         specifier.clone(),
         span,
@@ -486,6 +481,13 @@ impl<'a> DependencyCollector<'a> {
         source_type,
         needs_stable_name,
       );
+      // Resolution drops the fragment, e.g. `#icon` in `sprite.svg#icon`, and sometimes the
+      // query, so append them to the bundle's URL.
+      let fragment = self
+        .items
+        .last()
+        .and_then(|dep| dep.url_suffix())
+        .map(JsWord::from);
       let specifier = if let Some(placeholder) = placeholder {
         placeholder
       } else {

@@ -52,24 +52,34 @@ impl Dependency {
       && self.bundle_behavior == BundleBehavior::None
   }
 
-  /// The fragment of a URL specifier including its `#`, e.g. `#icon` in `sprite.svg#icon`.
-  /// Resolution drops it, so references to the resolved bundle append it again. Queries are not
-  /// kept, since they select how an asset is transformed rather than part of the output URL.
-  pub fn url_fragment(&self) -> Option<&str> {
+  /// Whether the query of a URL specifier is part of the URL rather than of the asset, e.g.
+  /// `?tab=api` in `<a href="page.html?tab=api">`. A query usually selects how an asset is
+  /// transformed, but a bundle that needs a stable name is named after its file alone, so
+  /// references with different queries can't each have their own bundle. Resolution drops the
+  /// query instead, and references to the bundle append it like the fragment.
+  pub fn url_keeps_query(&self) -> bool {
+    self.specifier_type == SpecifierType::Url
+      && self.flags.contains(DependencyFlags::NEEDS_STABLE_NAME)
+  }
+
+  /// What references to the resolved bundle append to its URL: the fragment of a URL specifier
+  /// including its `#`, e.g. `#icon` in `sprite.svg#icon`, which resolution drops, preceded by
+  /// the query when [`Self::url_keeps_query`].
+  pub fn url_suffix(&self) -> Option<&str> {
     if self.specifier_type != SpecifierType::Url {
       return None;
     }
-    self
-      .specifier
-      .find('#')
-      .map(|index| &self.specifier[index..])
+    url_suffix(&self.specifier, self.url_keeps_query())
   }
 
   /// The element id a URL specifier's fragment names, e.g. `icon` in `sprite.svg#icon`. None
   /// without a fragment, or for one that isn't an id, like an SVG view specification
   /// (`#svgView(viewBox(0,0,10,10))`).
   pub fn fragment_id(&self) -> Option<Cow<'_, str>> {
-    let fragment = self.url_fragment()?.strip_prefix('#')?;
+    if self.specifier_type != SpecifierType::Url {
+      return None;
+    }
+    let fragment = url_suffix(&self.specifier, false)?.strip_prefix('#')?;
     if fragment.is_empty() || fragment.contains('(') {
       return None;
     }
@@ -119,6 +129,20 @@ pub enum UrlReference {
   /// Only the element the fragment names is used, e.g. by `<use href="sprite.svg#icon">` or
   /// `fill="url(paint.svg#gradient)"`. Without a fragment, that is the root element.
   Element,
+}
+
+/// The suffix of a URL specifier that references to its bundle append: the fragment, preceded by
+/// the query if `keep_query`. See [`Dependency::url_suffix`].
+pub fn url_suffix(specifier: &str, keep_query: bool) -> Option<&str> {
+  let fragment = specifier.find('#');
+  // A `?` inside the fragment doesn't start a query.
+  let query = specifier[..fragment.unwrap_or(specifier.len())].find('?');
+  let start = if keep_query {
+    query.or(fragment)
+  } else {
+    fragment
+  };
+  start.map(|index| &specifier[index..])
 }
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
@@ -324,5 +348,22 @@ impl AssetRequest {
       side_effects: self.side_effects,
       unique_key: self.unique_key.clone(),
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn url_suffix_keeps_the_query_only_when_asked() {
+    assert_eq!(url_suffix("page.html", true), None);
+    assert_eq!(url_suffix("page.html#a", false), Some("#a"));
+    assert_eq!(url_suffix("page.html?tab=api#a", false), Some("#a"));
+    assert_eq!(url_suffix("page.html?tab=api#a", true), Some("?tab=api#a"));
+    assert_eq!(url_suffix("page.html?tab=api", false), None);
+    assert_eq!(url_suffix("page.html?tab=api", true), Some("?tab=api"));
+    // A `?` in the fragment isn't a query.
+    assert_eq!(url_suffix("page.html#a?b", true), Some("#a?b"));
   }
 }

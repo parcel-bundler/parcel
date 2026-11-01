@@ -1,0 +1,17 @@
+{
+  "description": "navigation links keep the URL query, and share one bundle for every query",
+  "input": "index.html",
+  "options": {"mode": "development"},
+  "bundles": [
+    {
+      "assets": ["index.html"],
+      "contains": [
+        "href=\"{{bundle:other.html}}\"",
+        "href=\"{{bundle:other.html}}?tab=api\"",
+        "href=\"{{bundle:other.html}}?tab=props#section\"",
+        "src=\"{{bundle:other.html}}?embed=1\""
+      ]
+    },
+    {"assets": ["other.html"]}
+  ]
+}

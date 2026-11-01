@@ -169,7 +169,7 @@ impl SourceUrl {
     base.with_query(query)
   }
 
-  fn with_query(&self, query: Option<&str>) -> SourceUrl {
+  pub fn with_query(&self, query: Option<&str>) -> SourceUrl {
     let query = query.map(Arc::from);
     match self {
       SourceUrl::Path {

@@ -439,7 +439,7 @@ pub fn asset_dependencies<'a>(
             dependencies.insert((&**placeholder).into(), resolution);
           } else if dep.specifier_type == SpecifierType::Url || dep.import_type == ImportType::Url {
             let mut url = resolved_bundle.relative_url(bundle).unwrap();
-            url.push_str(dep.url_fragment().unwrap_or_default());
+            url.push_str(dep.url_suffix().unwrap_or_default());
             dependencies.insert((&**placeholder).into(), Resolution::String(url.into()));
           } else {
             if resolved_bundle.ty != AssetType::Js {

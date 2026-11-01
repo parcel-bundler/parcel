@@ -73,6 +73,12 @@ pub(crate) fn resolve(
             }
           }
 
+          // References append the query instead, so every query shares the asset.
+          if dep.url_keeps_query() && req.loc.url.query().is_some() {
+            let req = Arc::make_mut(&mut req);
+            req.loc.url = req.loc.url.with_query(None);
+          }
+
           return Ok(DependencyResolution::Deferred(req));
         }
         _ => return Ok(res),

@@ -1,0 +1,22 @@
+{
+  "description": "MDX links keep the URL query, and share one bundle for every query",
+  "input": "index.mdx",
+  "bundles": [
+    {
+      "assets": ["index.mdx"],
+      "contains": ["+ \"?tab=api\"", "+ \"?tab=props#section\""],
+      "references": [["esmodule-helpers.js", "index.js", "jsx-dev-runtime.js"]],
+      "type": "js"
+    },
+    {
+      "assets": ["another.mdx"],
+      "references": [["esmodule-helpers.js", "index.js", "jsx-dev-runtime.js"]],
+      "type": "js"
+    },
+    {
+      "assets": ["esmodule-helpers.js", "index.js", "jsx-dev-runtime.js"],
+      "references": [],
+      "type": "js"
+    }
+  ]
+}
