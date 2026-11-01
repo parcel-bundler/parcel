@@ -1,6 +1,10 @@
 /* @jsxRuntime automatic */
 
-function CodeBlock({lang, children, render}) {
+const CLIENT_REFERENCE = Symbol.for('react.client.reference');
+
+// `render` is the rendered code block's default export: a component, or a value to render as is.
+function CodeBlock({lang, children, render: Render}) {
+  let isComponent = typeof Render === 'function' || Render?.$$typeof === CLIENT_REFERENCE;
   return (
     <>
       <pre>
@@ -8,7 +12,7 @@ function CodeBlock({lang, children, render}) {
           {children}
         </code>
       </pre>
-      {render}
+      {isComponent ? <Render /> : Render}
     </>
   );
 }

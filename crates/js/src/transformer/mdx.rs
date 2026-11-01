@@ -29,8 +29,8 @@ use swc_core::{
     ast::{
       ArrayLit, BindingIdent, CallExpr, Callee, Decl, ExportDecl, ExportDefaultExpr,
       ExportSpecifier, Expr, ExprOrSpread, Ident, JSXAttrName, JSXAttrOrSpread, JSXAttrValue,
-      JSXElementName, JSXExpr, JSXExprContainer, JSXOpeningElement, Lit, Module, ModuleDecl,
-      ModuleItem, Pat, Stmt, VarDecl, VarDeclarator,
+      JSXElement, JSXElementName, JSXExpr, JSXExprContainer, JSXOpeningElement, Lit, Module,
+      ModuleDecl, ModuleItem, Pat, SpreadElement, Stmt, VarDecl, VarDeclarator,
     },
     codegen::to_code,
     parser::{EsSyntax, Parser, StringInput, Syntax, TsSyntax, lexer::Lexer},
@@ -347,16 +347,12 @@ fn parse_code_block(code: &Code, assets: &mut Vec<MdxAsset>) -> Option<Node> {
         {
           if matches!(lang.as_str(), "js" | "jsx" | "ts" | "tsx") {
             if let AttributeContent::Property(attr) = &mut element.attributes[attr_idx] {
-              let (block_code, is_component) = transform_js_code_block(&code.value, lang);
-              // A component is rendered here, so the example module only exports the component.
-              // That lets React Refresh update it in place.
-              let import = format!("__parcelMdxImport{}", assets.len());
+              let block_code = transform_js_code_block(&code.value, lang);
+              // The page passes the example's default export, which the component rendering code
+              // blocks renders, e.g. with props from controls. Exporting a component rather than
+              // the element it renders lets React Refresh update it in place.
               attr.value = Some(AttributeValue::Expression(AttributeValueExpression {
-                value: if is_component {
-                  format!("<{} />", import)
-                } else {
-                  import
-                },
+                value: format!("__parcelMdxImport{}", assets.len()),
                 stops: vec![],
               }));
 
@@ -389,10 +385,9 @@ fn parse_code_block(code: &Code, assets: &mut Vec<MdxAsset>) -> Option<Node> {
   None
 }
 
-/// Exports the code block's last declaration or expression if it has no default export. Returns the
-/// code, and whether its default export is now a component, which the page renders, rather than a
-/// value it renders as is.
-fn transform_js_code_block(code: &str, lang: &str) -> (String, bool) {
+/// Exports the code block's last declaration or expression if it has no default export. A JSX
+/// expression is wrapped in a component that forwards its props to the expression's root element.
+fn transform_js_code_block(code: &str, lang: &str) -> String {
   let code = code.to_owned();
   let source_map = Lrc::new(SourceMap::default());
   let source_file =
@@ -417,7 +412,7 @@ fn transform_js_code_block(code: &str, lang: &str) -> (String, bool) {
 
   let mut parser = Parser::new_from(lexer);
   let mut module = match parser.parse_module() {
-    Err(_) => return (code, false),
+    Err(_) => return code,
     Ok(module) => module,
   };
 
@@ -434,10 +429,10 @@ fn transform_js_code_block(code: &str, lang: &str) -> (String, bool) {
     ));
 
     // Export the last declaration or expression if there are no explicit exports.
-    let mut is_component = false;
     if !has_default_export(&module) {
       // React Refresh requires component names to start with a capital letter.
       let wrapper_name = Ident::new_private("Example".into(), DUMMY_SP);
+      let props = Ident::new_private("props".into(), DUMMY_SP);
       let mut export_name = None;
       for item in module.body.iter_mut().rev() {
         match item {
@@ -454,13 +449,23 @@ fn transform_js_code_block(code: &str, lang: &str) -> (String, bool) {
             break;
           }
           ModuleItem::Stmt(Stmt::Expr(expr)) => {
-            let value = expr.expr.clone();
+            let mut value = expr.expr.clone();
             *item = if is_jsx(&value) {
-              // Wrapped in a component so that React Refresh can update it.
-              is_component = true;
+              // Wrapped in a component so that React Refresh can update it. Props are spread last,
+              // so they override the element's own, e.g. with values from controls.
+              if let Some(element) = root_jsx_element(&mut value) {
+                element
+                  .opening
+                  .attrs
+                  .push(JSXAttrOrSpread::SpreadElement(SpreadElement {
+                    dot3_token: DUMMY_SP,
+                    expr: Box::new(Expr::Ident(props.clone())),
+                  }));
+              }
               quote!(
-                "export default function $name() { return $value; }" as ModuleItem,
+                "export default function $name($props) { return $value; }" as ModuleItem,
                 name = wrapper_name,
+                props = props,
                 value: Expr = *value,
               )
             } else {
@@ -476,7 +481,6 @@ fn transform_js_code_block(code: &str, lang: &str) -> (String, bool) {
       }
 
       if let Some(export_name) = export_name {
-        is_component = true;
         module
           .body
           .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(
@@ -489,8 +493,17 @@ fn transform_js_code_block(code: &str, lang: &str) -> (String, bool) {
     }
 
     module.visit_mut_with(&mut hygiene());
-    (to_code(&module), is_component)
+    to_code(&module)
   })
+}
+
+/// The root element of a JSX expression, unless it's a fragment.
+fn root_jsx_element(expr: &mut Expr) -> Option<&mut JSXElement> {
+  match expr {
+    Expr::JSXElement(element) => Some(element),
+    Expr::Paren(paren) => root_jsx_element(&mut paren.expr),
+    _ => None,
+  }
 }
 
 fn is_jsx(expr: &Expr) -> bool {
@@ -599,30 +612,44 @@ mod tests {
   }
 
   #[test]
-  fn code_block_exports_its_last_declaration_as_a_component() {
+  fn code_block_exports_its_last_declaration() {
     let (block, page) = render_code_block("function Example() { return <div />; }");
     assert!(block.contains("export default Example;"), "{block}");
-    // The page renders it.
-    assert!(page.contains("render={<__parcelMdxImport0/>}"), "{page}");
+    // The page passes the default export to the code block.
+    assert!(page.contains("render={__parcelMdxImport0}"), "{page}");
   }
 
   #[test]
-  fn code_block_wraps_its_last_jsx_expression_in_a_component() {
-    let (block, page) = render_code_block("<div>hi</div>");
+  fn code_block_wraps_its_last_jsx_expression_in_a_component_forwarding_props() {
+    let (block, page) = render_code_block("<div title=\"hi\">hi</div>");
     assert!(
-      block.contains("export default function Example() {\n    return <div>hi</div>;"),
+      block.contains(
+        "export default function Example(props) {\n    return <div title=\"hi\" {...props}>hi</div>;"
+      ),
       "{block}"
     );
-    assert!(page.contains("render={<__parcelMdxImport0/>}"), "{page}");
+    assert!(page.contains("render={__parcelMdxImport0}"), "{page}");
+  }
+
+  #[test]
+  fn code_block_wraps_a_jsx_fragment_without_forwarding_props() {
+    let (block, _) = render_code_block("<>hi</>");
+    assert!(
+      block.contains("export default function Example(props) {\n    return <>hi</>;"),
+      "{block}"
+    );
   }
 
   #[test]
   fn code_block_component_wrapper_does_not_conflict_with_its_declarations() {
-    let (block, _) =
-      render_code_block("function Example({children}) { return children; }\n<Example>hi</Example>");
+    let (block, _) = render_code_block(
+      "const props = {};\nfunction Example({children}) { return children; }\n<Example {...props}>hi</Example>",
+    );
     assert!(block.contains("function Example({ children })"), "{block}");
     assert!(
-      block.contains("export default function Example1() {\n    return <Example>hi</Example>;"),
+      block.contains(
+        "export default function Example1(props1) {\n    return <Example {...props} {...props1}>hi</Example>;"
+      ),
       "{block}"
     );
   }
