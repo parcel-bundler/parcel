@@ -93,7 +93,9 @@ impl AssetNode {
   }
 
   fn replace_request(&mut self, request: Arc<AssetRequest>) -> bool {
-    if self.request.content.eq(&*request.content) {
+    if self.request.content.eq(&*request.content)
+      && self.request.side_effects == request.side_effects
+    {
       return false;
     }
 
@@ -254,7 +256,9 @@ impl AssetGraphBuilder {
           )),
           target: entry.target.clone(),
           pipeline: None,
-          side_effects: true, // TODO: resolve this for real?
+          // A placeholder: this only affects how importers of the entry resolve its symbols, and
+          // their requests carry the file's real side effects, which replace this one.
+          side_effects: true,
           unique_key: None,
         });
 
@@ -336,15 +340,18 @@ impl AssetGraphBuilder {
             let asset = &mut self.assets[asset_index.index()];
             for dep in &mut asset.dependencies {
               let priority = dep.priority;
+              // The resolved side effects of the asset, or the dependency's own (e.g. set by a plugin).
+              let side_effects = dep.flags.contains(DependencyFlags::SIDE_EFFECTS);
               if let DependencyResolution::Deferred(req) = &dep.resolution {
                 let req = req.clone();
                 if let Some(&node_index) = self.nodes_by_request.get(&req.stable_key()) {
                   dep.resolution = DependencyResolution::Asset(node_index);
 
                   // Same logical asset. If the content changed (e.g. an inline/macro asset
-                  // whose parent emitted a new snapshot), re-transform the node with the new
-                  // request; any in-flight transform of the old request is discarded when its
-                  // result arrives.
+                  // whose parent emitted a new snapshot) or its side effects did (e.g. the
+                  // package.json `sideEffects` field changed, or this imports an entry, whose
+                  // request has none resolved), re-transform the node with the new request; any
+                  // in-flight transform of the old request is discarded when its result arrives.
                   // TODO: evaluate if we can avoid having multiple in-flight requests for the same asset in the first place.
                   let node = &mut self.asset_nodes[node_index.index()];
                   if node.replace_request(req.clone()) {
@@ -359,7 +366,7 @@ impl AssetGraphBuilder {
                   // Side-effectful and lazy/parallel deps must be transformed: matching the
                   // requested-ness a brand-new node would get below. (An existing node can be
                   // unrequested e.g. after its transform failed while unreachable.)
-                  if priority != Priority::Sync || req.side_effects {
+                  if priority != Priority::Sync || side_effects {
                     let node = &mut self.asset_nodes[node_index.index()];
                     if node.mark_requested() {
                       queue.transform(node_index, node.request.clone());
@@ -372,7 +379,7 @@ impl AssetGraphBuilder {
                   self.nodes_by_request.insert(req.stable_key(), node_index);
 
                   // If the dependency has side effects or is loaded via dynamic import, always transform it.
-                  let requested = req.side_effects || priority != Priority::Sync;
+                  let requested = side_effects || priority != Priority::Sync;
                   self
                     .asset_nodes
                     .push(AssetNode::deferred(req.clone(), Vec::new(), requested));

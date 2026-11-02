@@ -303,6 +303,9 @@ pub struct AssetRequest {
   pub pipeline: Option<hstr::Atom>,
   pub target: Arc<Target>,
   pub content: Arc<dyn Content>,
+  /// Whether the asset has side effects, e.g. per the `sideEffects` field in package.json. Not
+  /// part of the request's identity: it is a property of the file, not a separate asset, and is
+  /// only carried here so the resolver can pass it on to the asset.
   pub side_effects: bool,
   /// Discriminator for multiple inline assets emitted at the same source location
   /// (e.g. inline scripts/styles on one HTML line, or multiple `addAsset` calls from
@@ -324,17 +327,16 @@ impl PartialEq for AssetRequest {
 
 impl Eq for AssetRequest {}
 
-/// Stable identity of an asset request: everything except the content. Two requests
-/// with the same key refer to the same logical asset (and asset graph node); a content
-/// difference between them means that asset needs re-transformation, not that a
-/// separate asset exists.
+/// Stable identity of an asset request: everything except the content and side effects. Two
+/// requests with the same key refer to the same logical asset (and asset graph node); a
+/// difference between them means that asset needs re-transformation, not that a separate
+/// asset exists.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct AssetRequestKey {
   pub loc: SourceLocation,
   pub ty: AssetType,
   pub pipeline: Option<hstr::Atom>,
   pub target: Arc<Target>,
-  pub side_effects: bool,
   pub unique_key: Option<Arc<str>>,
 }
 
@@ -345,7 +347,6 @@ impl AssetRequest {
       ty: self.ty.clone(),
       pipeline: self.pipeline.clone(),
       target: self.target.clone(),
-      side_effects: self.side_effects,
       unique_key: self.unique_key.clone(),
     }
   }

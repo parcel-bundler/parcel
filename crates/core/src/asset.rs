@@ -36,9 +36,6 @@ pub struct AssetKey {
   pub pipeline: Option<hstr::Atom>,
   pub bundle_behavior: BundleBehavior,
   pub unique_key: Option<Arc<str>>,
-  /// Included so that when a package's `sideEffects` flag changes across incremental builds,
-  /// the differently-flagged asset gets its own slot instead of overwriting the other's.
-  pub side_effects: bool,
 }
 
 impl Asset {
@@ -69,7 +66,6 @@ impl Asset {
       pipeline: self.pipeline.clone(),
       bundle_behavior: self.bundle_behavior.clone(),
       unique_key: self.unique_key.clone(),
-      side_effects: self.flags.contains(AssetFlags::SIDE_EFFECTS),
     }
   }
 }

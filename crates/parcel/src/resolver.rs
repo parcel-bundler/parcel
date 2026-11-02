@@ -152,22 +152,23 @@ impl Resolver for DefaultResolver {
       },
     );
 
-    let side_effects = dep.flags.contains(DependencyFlags::SIDE_EFFECTS)
-      || if let Ok(ResolutionAndQuery {
-        resolution: Resolution::Path(p),
-        ..
-      }) = &res
-      {
-        match resolver.resolve_side_effects(*p, &**fs) {
-          Ok(side_effects) => side_effects,
-          Err(err) => {
-            res = Err(err);
-            true
-          }
+    // The side effects of the file itself. A dependency's own `SIDE_EFFECTS` flag (e.g. set by a
+    // plugin) is not included: every request for a file must agree, since they share one asset.
+    let side_effects = if let Ok(ResolutionAndQuery {
+      resolution: Resolution::Path(p),
+      ..
+    }) = &res
+    {
+      match resolver.resolve_side_effects(*p, &**fs) {
+        Ok(side_effects) => side_effects,
+        Err(err) => {
+          res = Err(err);
+          true
         }
-      } else {
-        true
-      };
+      }
+    } else {
+      true
+    };
 
     match res {
       Ok(res) => match res.resolution {
