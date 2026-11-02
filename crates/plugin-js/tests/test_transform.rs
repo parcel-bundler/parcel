@@ -918,9 +918,10 @@ fn test_resolve_runs_javascript_resolvers() {
 }
 
 #[test]
-fn test_plugin_registered_for_another_parcel_or_kind_is_rejected() {
-  // A plugin written for Parcel 2 registers under a key Parcel 3 doesn't read.
-  let error = run(
+fn test_plugin_registered_for_parcel_2_is_accepted() {
+  // Parcel 2's registration key is still read so both versions can run side by side.
+  // TODO: expect "not a valid Parcel transformer plugin" once that is removed before GA.
+  let result = run(
     "v2-plugin.cjs",
     r#"
     module.exports = {[Symbol.for('parcel-plugin-config')]: {
@@ -928,19 +929,12 @@ fn test_plugin_registered_for_another_parcel_or_kind_is_rejected() {
     }};
   "#,
     test_asset(),
-  )
-  .unwrap_err();
-  assert_eq!(
-    error.0[0].message,
-    "test-plugin is not a valid Parcel transformer plugin"
   );
-  assert!(
-    error.0[0]
-      .hints
-      .iter()
-      .any(|hint| hint.contains("new Transformer"))
-  );
+  assert!(result.is_ok(), "{result:?}");
+}
 
+#[test]
+fn test_plugin_registered_for_another_kind_is_rejected() {
   let error = run(
     "resolver-as-transformer.mjs",
     r#"

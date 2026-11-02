@@ -1456,7 +1456,7 @@ fn css_order_diagnostics_distinguish_locations_only_when_needed() {
     reporters.attach(Arc::downgrade(&options));
     let roots = BundleRoots::from_asset_graph(&graph, |_| None);
     let reachability = Reachability::from_bundle_roots(&graph, &roots);
-    style_order::plan(&graph, &roots, &reachability, &options, |a| {
+    style_order::plan(&graph, &roots, &reachability, &options, 0, |a| {
       graph.asset(a).ty == AssetType::Css
     });
     let diagnostics = warnings.0.lock().unwrap();
