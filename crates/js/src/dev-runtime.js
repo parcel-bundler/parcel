@@ -550,7 +550,7 @@ async function handleMessage(data /*: HMRMessage */) {
     let handled = assets.every(asset => {
       return (
         asset.type === 'css' ||
-        (asset.type === 'js' &&
+        ((asset.type === 'js' || asset.type === 'json') &&
           hmrAcceptCheck(parcelRequire.root, asset.id, asset.depsByBundle))
       );
     });
