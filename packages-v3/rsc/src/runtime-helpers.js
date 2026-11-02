@@ -4,6 +4,7 @@ import {createElement, Fragment} from 'react';
 
 export function stylesheetResource(href) {
   return createElement('link', {
+    key: href,
     rel: 'stylesheet',
     href,
     precedence: 'default',
@@ -11,21 +12,16 @@ export function stylesheetResource(href) {
 }
 
 export function modulePreloadResource(href) {
-  return createElement('link', {rel: 'modulepreload', href});
+  return createElement('link', {key: href, rel: 'modulepreload', href});
 }
 
 export function scriptPreloadResource(href) {
-  return createElement('link', {rel: 'preload', as: 'script', href});
+  return createElement('link', {key: href, rel: 'preload', as: 'script', href});
 }
 
 export function wrapClientReferenceWithResources(Reference, resources) {
   return props =>
-    createElement(
-      Fragment,
-      null,
-      ...resources,
-      createElement(Reference, props),
-    );
+    createElement(Fragment, null, resources, createElement(Reference, props));
 }
 
 export function createResourcesProxy(
@@ -95,7 +91,7 @@ function createResourcesValueProxy(value, resources, bootstrapScript) {
       apply(target, thisArg, args) {
         let result = Reflect.apply(target, thisArg, args);
         return isReactComponent
-          ? createElement(Fragment, null, ...resources, result)
+          ? createElement(Fragment, null, resources, result)
           : result;
       },
     });
