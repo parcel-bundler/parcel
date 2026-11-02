@@ -567,6 +567,45 @@ if (module.hot) module.hot.accept();",
   assert!(hmr.reloaded());
 }
 
+#[test]
+fn hmr_runtime_reloads_when_an_imported_esm_sync_bundle_changes() {
+  let mut hmr = HmrRuntimeTest::new(ESM_SYNC_BUNDLE_FILES);
+
+  // The page imports the JSON bundle, which an update can't replace.
+  hmr.update(&[("/project/data.json", r#"{"value":7}"#)]);
+
+  assert!(hmr.reloaded());
+}
+
+#[test]
+fn hmr_runtime_accepts_changes_to_bundles_the_page_does_not_import() {
+  let mut hmr = HmrRuntimeTest::new(&[
+    (
+      "/project/.parcelrc",
+      r#"{
+        "extends": "@parcel/config-default",
+        "transformers": {
+          "raw-json:*.json": ["@parcel/transformer-raw"]
+        }
+      }"#,
+    ),
+    (
+      "/project/package.json",
+      r#"{"targets": {"default": {"outputFormat": "esmodule"}}}"#,
+    ),
+    (
+      "/project/index.js",
+      "output(new URL('raw-json:./data.json', import.meta.url).href);
+if (module.hot) module.hot.accept();",
+    ),
+    ("/project/data.json", r#"{"value":42}"#),
+  ]);
+
+  hmr.update(&[("/project/data.json", r#"{"value":7}"#)]);
+
+  assert!(!hmr.reloaded());
+}
+
 struct HmrRuntimeTest {
   parcel: Parcel,
   input_fs: Arc<MemoryFileSystem>,

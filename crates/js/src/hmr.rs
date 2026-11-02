@@ -61,6 +61,10 @@ pub struct HmrAsset<'a> {
   output: String,
   output_format: OutputFormat,
   deps_by_bundle: HashMap<String, IndexMap<String, Resolution<'a>>>,
+  /// For a changed asset that isn't JS or CSS, the sync shim ids of the bundles containing it. It
+  /// only affects a page that imports one of them (see `externals` in the runtime).
+  #[serde(skip_serializing_if = "Option::is_none")]
+  bundles: Option<Vec<String>>,
 }
 
 pub fn get_hmr_update<'a>(
@@ -148,12 +152,29 @@ pub fn get_hmr_update<'a>(
       output = hot_update_code(asset, &bundle_graph.project_root);
     }
 
+    let bundles = (asset.ty != AssetType::Js && asset.ty != AssetType::Css).then(|| {
+      bundle_graph
+        .bundles
+        .iter()
+        .enumerate()
+        .filter(|(_, bundle)| bundle.assets.contains(&id))
+        .map(|(index, _)| {
+          SyntheticAsset::Bundle {
+            bundle: index as u32,
+            kind: BundleShim::Sync,
+          }
+          .id(bundle_graph, &bundle_graph.project_root)
+        })
+        .collect()
+    });
+
     assets.push(HmrAsset {
       id: Id::Asset(asset.id(&bundle_graph.project_root)),
       ty: asset.ty.clone(),
       output,
       output_format: asset.target.output_format.clone(),
       deps_by_bundle,
+      bundles,
     });
   }
 
@@ -216,6 +237,7 @@ pub fn get_hmr_update<'a>(
       output,
       output_format: OutputFormat::Esmodule,
       deps_by_bundle,
+      bundles: None,
     });
   }
 

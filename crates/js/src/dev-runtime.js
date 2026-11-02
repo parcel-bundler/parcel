@@ -548,10 +548,18 @@ async function handleMessage(data /*: HMRMessage */) {
 
     // Handle HMR Update
     let handled = assets.every(asset => {
+      if (asset.type === 'css') {
+        return true;
+      }
+      if (asset.type === 'js') {
+        return hmrAcceptCheck(parcelRequire.root, asset.id, asset.depsByBundle);
+      }
+      // A changed asset of another type (e.g. JSON) only affects the page through a bundle it
+      // imports. A bundle the update references without the page importing it (no `bundles`)
+      // can't be added, so it reloads.
       return (
-        asset.type === 'css' ||
-        ((asset.type === 'js' || asset.type === 'json') &&
-          hmrAcceptCheck(parcelRequire.root, asset.id, asset.depsByBundle))
+        asset.bundles != null &&
+        !asset.bundles.some(id => hmrIsImportedBundle(parcelRequire.root, id))
       );
     });
 

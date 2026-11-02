@@ -159,7 +159,13 @@ impl Loader for ModuleLoader {
     {
       ModuleType::Json
     } else if self.environment == Environment::Browser {
-      ModuleType::Module
+      // QuickJS doesn't serialize import attributes in module bytecode, so an importer loaded from
+      // the bytecode cache requests JSON without `type: 'json'`.
+      if name.ends_with(".json") {
+        ModuleType::Json
+      } else {
+        ModuleType::Module
+      }
     } else {
       self
         .resolver
