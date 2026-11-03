@@ -9,6 +9,6 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "parcel": "^3.0.0"
+    "parcel": "^3.0.0-alpha.0"
   }
 }

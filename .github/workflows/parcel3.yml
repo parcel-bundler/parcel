@@ -276,33 +276,32 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: yarn
+          registry-url: 'https://registry.npmjs.org'
 
-      - run: yarn --immutable
-      - run: yarn build
+      # Trusted publishing, and the provenance attestation it generates, needs
+      # npm 11.5.1 or later.
+      - name: Update npm
+        run: npm install -g npm@latest
 
-      - name: Set version
-        env:
-          VERSION: ${{ inputs.version }}
-          YARN_ENABLE_IMMUTABLE_INSTALLS: 'false'
-        run: yarn workspaces foreach --all --no-private --exclude @parcel/parcel3 version "$VERSION"
+      # Published with npm rather than `yarn npm publish`, whose Sigstore client
+      # fails the publish whenever a retried transparency log upload finds its
+      # first attempt already recorded (409). yarn pack has already replaced the
+      # workspace: ranges with real versions.
+      - name: Download JS packages
+        uses: actions/download-artifact@v4
+        with:
+          name: parcel3-js
+          path: ${{ runner.temp }}/js
 
-      # Topological, so @parcel/plugin is published before the packages that
-      # depend on it. --tolerate-republish lets a failed run be retried.
+      # Ordered by dependencies, so @parcel/plugin is published before the
+      # packages that depend on it, and skipping versions already on npm, so a
+      # failed run can be retried. A prerelease never becomes latest (see
+      # dist-tag.mjs): these package names were used by Parcel 2, whose users
+      # would otherwise get v3.
       - name: Publish
         env:
-          VERSION: ${{ inputs.version }}
           TAG: ${{ inputs.tag }}
-        run: |
-          set -euo pipefail
-
-          # A prerelease must never become latest: these package names were
-          # used by Parcel 2, whose users would otherwise get v3.
-          TAG="$(node .github/scripts/native-plugin/dist-tag.mjs --version "$VERSION" --tag "$TAG")"
-          echo "Publishing $VERSION with dist-tag $TAG"
-
-          yarn workspaces foreach --all --no-private --exclude @parcel/parcel3 --topological \
-            npm publish --access public --tag "$TAG" --tolerate-republish --provenance
+        run: node .github/scripts/native-plugin/publish.mjs --tag "$TAG" "$RUNNER_TEMP"/js/*.tgz
 
   # The Rust plugin SDK is versioned on its own rather than in lockstep with
   # Parcel, so most releases leave it unchanged. Publishes only when the

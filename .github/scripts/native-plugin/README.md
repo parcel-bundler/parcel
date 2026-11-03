@@ -188,7 +188,8 @@ and each artifact package — pointing at your repository and the workflow file 
 this one. The calling job must also grant `id-token: write`, as above.
 
 Artifact packages are published before the plugin package, so the plugin is never
-resolvable before the binaries its `optionalDependencies` pin.
+resolvable before the binaries its `optionalDependencies` pin. Versions already on npm are
+skipped, so a run that failed partway through publishing can simply be re-run.
 
 ## Supported targets
 
@@ -315,8 +316,8 @@ The workflow runs these directly; they are also runnable locally.
 - [`pack-artifact.mjs`](pack-artifact.mjs) — packs one target's library into a tarball.
 - [`pack-main.mjs`](pack-main.mjs) — packs the plugin package with `optionalDependencies`,
   failing if any declared target is missing a build.
-- [`publish.mjs`](publish.mjs) — publishes tarballs in the order given, each under the
-  dist-tag its version calls for.
+- [`publish.mjs`](publish.mjs) — publishes tarballs, each after any of the others it
+  depends on and under the dist-tag its version calls for, skipping versions already on npm.
 - [`dist-tag.mjs`](dist-tag.mjs) — chooses that dist-tag: the `tag` input if set, else
   the prerelease identifier (`1.0.0-alpha.3` → `alpha`), else `latest`.
 - [`targets.mjs`](targets.mjs) — the supported target registry.
