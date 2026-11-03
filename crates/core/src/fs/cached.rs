@@ -73,6 +73,7 @@ type CachedObject = Arc<OnceLock<Arc<dyn Any + Send + Sync>>>;
 
 /// Cached metadata for a single path. Each field is computed at most once; `Result`-returning
 /// operations are only cached on success (errors are rare and re-tried against the inner fs).
+#[derive(Default)]
 struct CacheEntry {
   kind: OnceLock<FileKind>,
   stat: OnceLock<Option<FileStat>>,
@@ -86,7 +87,10 @@ struct CacheEntry {
   /// Arbitrary objects derived from this path, keyed by their type. Stored type-erased so the fs
   /// layer needn't know about resolver concepts like `package.json` or `tsconfig`. Dropped together
   /// with the entry on invalidation, which is how derived artifacts get invalidated centrally.
-  objects: papaya::HashMap<TypeId, CachedObject, BuildHasherDefault<FxHasher>>,
+  /// Created on first use: few paths have objects, and an empty `papaya::HashMap` is costly to
+  /// create (it allocates its own garbage collector), while the resolver creates entries for every
+  /// path it probes.
+  objects: OnceLock<papaya::HashMap<TypeId, CachedObject, BuildHasherDefault<FxHasher>>>,
 }
 
 /// An entry in the path set. Hashed by its precomputed path hash and compared by path, so lookups
@@ -116,25 +120,21 @@ impl CachedFileSystem {
 
   /// Returns the cache entry for `path`, creating it if necessary.
   fn entry(&self, path: PathId) -> Arc<CacheEntry> {
+    self.with_entry(path, |entry| entry.clone())
+  }
+
+  /// Calls `f` with the cache entry for `path`, creating it if necessary. Unlike `entry`, this
+  /// doesn't touch the entry's reference count, which every thread would otherwise contend on for
+  /// commonly probed paths.
+  fn with_entry<R>(&self, path: PathId, f: impl FnOnce(&Arc<CacheEntry>) -> R) -> R {
     let paths = self.paths.pin();
     if let Some(PathEntry(entry)) = paths.get(&path) {
-      return entry.clone();
+      return f(entry);
     }
-
-    let entry = Arc::new(CacheEntry {
-      kind: OnceLock::new(),
-      stat: OnceLock::new(),
-      lstat: OnceLock::new(),
-      read_dir: OnceLock::new(),
-      read_link: OnceLock::new(),
-      canonical: OnceLock::new(),
-      canonicalizing: AtomicU64::new(0),
-      objects: papaya::HashMap::default(),
-    });
-    // A concurrent insert of the same path is harmless: `insert` keeps the existing entry and this
-    // caller simply uses its own (which won't be shared), recomputing at most once.
-    paths.insert(path, PathEntry(entry.clone()));
-    entry
+    // If another thread inserts the same path first, its entry is kept and used.
+    let PathEntry(entry) =
+      paths.get_or_insert_with(path, || PathEntry(Arc::new(CacheEntry::default())));
+    f(entry)
   }
 
   /// Drops cached metadata for the given paths (e.g. when files change). For each path, the entry
@@ -163,23 +163,21 @@ impl FileSystem for CachedFileSystem {
   }
 
   fn kind(&self, path: PathId) -> FileKind {
-    *self.entry(path).kind.get_or_init(|| self.inner.kind(path))
+    self.with_entry(path, |entry| {
+      *entry.kind.get_or_init(|| self.inner.kind(path))
+    })
   }
 
   fn stat(&self, path: PathId) -> Option<FileStat> {
-    self
-      .entry(path)
-      .stat
-      .get_or_init(|| self.inner.stat(path))
-      .clone()
+    self.with_entry(path, |entry| {
+      entry.stat.get_or_init(|| self.inner.stat(path)).clone()
+    })
   }
 
   fn lstat(&self, path: PathId) -> Option<FileStat> {
-    self
-      .entry(path)
-      .lstat
-      .get_or_init(|| self.inner.lstat(path))
-      .clone()
+    self.with_entry(path, |entry| {
+      entry.lstat.get_or_init(|| self.inner.lstat(path)).clone()
+    })
   }
 
   fn read_link(&self, path: PathId) -> Result<PathId> {
@@ -281,6 +279,7 @@ impl ObjectCache for CachedFileSystem {
     let entry = self.entry(path);
     let slot = entry
       .objects
+      .get_or_init(Default::default)
       .pin()
       .get_or_insert_with(type_id, || Arc::new(OnceLock::new()))
       .clone();
