@@ -14,6 +14,6 @@ lightningcss = { version = "1.0.0-alpha.72", default-features = false, features 
   "sourcemap",
 ] }
 serde = { version = "1.0.228", features = ["derive", "rc"] }
-parcel_sourcemap = "*"
+parcel_sourcemap = "2.1.1"
 cssparser = "0.37.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
