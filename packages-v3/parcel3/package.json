@@ -1,6 +1,6 @@
 {
   "name": "@parcel/parcel3",
-  "version": "3.0.0",
+  "version": "3.0.0-alpha.0",
   "private": true,
   "license": "MIT",
   "repository": {
