@@ -183,7 +183,7 @@ impl ::std::ops::BitAndAssign for DependencyFlags {
 }
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub struct DependencyFlags(pub u8);
+pub struct DependencyFlags(pub u16);
 impl ExportsConditions {
   pub const IMPORT: ExportsConditions = ExportsConditions(1);
   pub const REQUIRE: ExportsConditions = ExportsConditions(2);
@@ -563,11 +563,11 @@ const _: () = {
   ["Offset of field: DependencyOptions::bundle_behavior"]
     [::std::mem::offset_of!(DependencyOptions, bundle_behavior) - 26usize];
   ["Offset of field: DependencyOptions::flags"]
-    [::std::mem::offset_of!(DependencyOptions, flags) - 27usize];
+    [::std::mem::offset_of!(DependencyOptions, flags) - 28usize];
   ["Offset of field: DependencyOptions::conditions"]
-    [::std::mem::offset_of!(DependencyOptions, conditions) - 28usize];
+    [::std::mem::offset_of!(DependencyOptions, conditions) - 32usize];
   ["Offset of field: DependencyOptions::import_type"]
-    [::std::mem::offset_of!(DependencyOptions, import_type) - 32usize];
+    [::std::mem::offset_of!(DependencyOptions, import_type) - 36usize];
 };
 #[doc = " The minimum engine versions a target supports, written by\n `parcel_target_get_engines()`.\n\n Each version is `major << 8 | minor`, so versions compare as integers, and\n zero means the target does not specify that engine.\n\n Initialize it as `Engines engines = {.size = sizeof(engines)};`."]
 #[repr(C)]

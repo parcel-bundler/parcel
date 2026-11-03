@@ -381,7 +381,7 @@ typedef uint8_t ReportEventType;
 
 enum DependencyFlags
 #if defined(__cplusplus) || __STDC_VERSION__ >= 202311L
-  : uint8_t
+  : uint16_t
 #endif // defined(__cplusplus) || __STDC_VERSION__ >= 202311L
  {
   PARCEL_DEP_ENTRY = (1 << 0),
@@ -395,7 +395,7 @@ enum DependencyFlags
 #if __STDC_VERSION__ >= 202311L
 typedef enum DependencyFlags DependencyFlags;
 #else
-typedef uint8_t DependencyFlags;
+typedef uint16_t DependencyFlags;
 #endif // __STDC_VERSION__ >= 202311L
 #endif // __cplusplus
 

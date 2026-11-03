@@ -16,7 +16,7 @@ macro_rules! assert_flag_values {
   ) => {
     $(
       const _: () = assert!(
-        <$core>::$core_flag.bits() == <$abi>::$abi_flag as $repr,
+        <$core>::$core_flag.bits() as $repr == <$abi>::$abi_flag as $repr,
         concat!("Parcel core and ABI flag values differ for ", stringify!($core_flag)),
       );
     )+

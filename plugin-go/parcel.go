@@ -1256,7 +1256,7 @@ const (
 )
 
 // DependencyFlags is a bitfield of dependency flags.
-type DependencyFlags uint8
+type DependencyFlags uint16
 
 const (
 	DependencyFlagEntry           DependencyFlags = 1 << 0

@@ -160,8 +160,8 @@ public struct AssetFlags: OptionSet, Hashable, Sendable {
 }
 
 public struct DependencyFlags: OptionSet, Hashable, Sendable {
-  public var rawValue: UInt8
-  public init(rawValue: UInt8) { self.rawValue = rawValue }
+  public var rawValue: UInt16
+  public init(rawValue: UInt16) { self.rawValue = rawValue }
 
   public static let entry = Self(rawValue: 1 << 0)
   public static let optional = Self(rawValue: 1 << 1)

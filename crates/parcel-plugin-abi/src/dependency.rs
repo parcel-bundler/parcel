@@ -85,7 +85,7 @@ impl_enum_conversion! {
   }
 }
 
-#[repr(u8)]
+#[repr(u16)]
 #[derive(Debug, Clone, Copy, Hash)]
 pub enum DependencyFlags {
   PARCEL_DEP_ENTRY = 1 << 0,
@@ -96,7 +96,8 @@ pub enum DependencyFlags {
   PARCEL_DEP_MACRO = 1 << 5,
 }
 
-pub type DependencyFlagsFFI = u8;
+/// Wider than the core flag set (`u8`) so new flags can be added without changing the layout.
+pub type DependencyFlagsFFI = u16;
 
 /// Conditions used when resolving package `exports` and `imports` fields.
 #[repr(u32)]
@@ -127,7 +128,7 @@ pub type ExportsConditionsFFI = u32;
 assert_flag_values! {
   core = CoreDependencyFlags,
   abi = DependencyFlags,
-  repr = u8;
+  repr = u16;
   flags = {
     ENTRY => PARCEL_DEP_ENTRY,
     OPTIONAL => PARCEL_DEP_OPTIONAL,
@@ -257,7 +258,7 @@ impl DependencyOptions {
         .ok()?
         .into(),
       import_type: ImportType::try_from(options.import_type).ok()?.into(),
-      flags: CoreDependencyFlags::from_bits_truncate(options.flags),
+      flags: CoreDependencyFlags::from_bits_truncate((options.flags & 0xff) as u8),
       target: asset.target.clone(),
       loc: None,
       placeholder: None,
@@ -426,7 +427,7 @@ pub extern "C" fn parcel_dep_get_flags(dep: Dependency) -> DependencyFlagsFFI {
     return 0;
   }
   let dep: &CoreDependency = unsafe { &*(dep as *const CoreDependency) };
-  dep.flags.bits()
+  dep.flags.bits().into()
 }
 
 /// Returns the raw `ExportsConditions` bitfield (`PARCEL_EXPORTS_CONDITION_*` bits).

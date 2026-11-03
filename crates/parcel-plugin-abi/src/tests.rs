@@ -556,7 +556,7 @@ fn dependency_accessors_return_values_and_map_every_enum_variant() {
     string_output(|buffer| parcel_dep_get_specifier(buffer, handle)).as_deref(),
     Some("./dependency.js")
   );
-  assert_eq!(parcel_dep_get_flags(handle), dependency.flags.bits());
+  assert_eq!(parcel_dep_get_flags(handle), u16::from(dependency.flags.bits()));
   assert_eq!(
     parcel_dep_get_conditions(handle),
     dependency.conditions.bits()
@@ -1730,7 +1730,7 @@ fn add_dependency_reads_what_the_plugin_passed() {
     priority: Priority::PARCEL_PRIORITY_LAZY as u8,
     import_type: crate::ImportType::PARCEL_IMPORT_TYPE_URL as u8,
     // Unknown bits are dropped, as they always have been.
-    flags: 0xff,
+    flags: 0xffff,
     ..dependency_options("./a.js")
   };
   assert!(parcel_asset_add_dependency(handle, &dep));
@@ -1873,10 +1873,10 @@ fn struct_layouts_only_grow() {
   assert_eq!(offset_of!(DependencyOptions, specifier_type), 24);
   assert_eq!(offset_of!(DependencyOptions, priority), 25);
   assert_eq!(offset_of!(DependencyOptions, bundle_behavior), 26);
-  assert_eq!(offset_of!(DependencyOptions, flags), 27);
-  assert_eq!(offset_of!(DependencyOptions, conditions), 28);
-  assert_eq!(offset_of!(DependencyOptions, import_type), 32);
-  assert_eq!(DependencyOptions::MIN_SIZE, 33);
+  assert_eq!(offset_of!(DependencyOptions, flags), 28);
+  assert_eq!(offset_of!(DependencyOptions, conditions), 32);
+  assert_eq!(offset_of!(DependencyOptions, import_type), 36);
+  assert_eq!(DependencyOptions::MIN_SIZE, 37);
 
   assert_eq!(size_of::<Buffer>(), 32);
   assert_eq!(offset_of!(DiagnosticOptions, size), 0);
