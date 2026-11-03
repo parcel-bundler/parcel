@@ -69,6 +69,8 @@ const PACKAGES = [
   {name: '@parcel/parcel3', bin: 'parcel3'},
 ];
 
+const ROOT = path.resolve(import.meta.dirname, '../../..');
+
 let out = path.resolve(values.out);
 fs.mkdirSync(out, {recursive: true});
 
@@ -83,6 +85,9 @@ for (let {name, bin} of PACKAGES) {
     path.join(stage, 'bin', bin),
   );
   fs.chmodSync(path.join(stage, 'bin', bin), 0o755);
+  for (let file of ['README.md', 'LICENSE']) {
+    fs.copyFileSync(path.join(ROOT, file), path.join(stage, file));
+  }
 
   let pkg = {
     name,
@@ -95,8 +100,9 @@ for (let {name, bin} of PACKAGES) {
     },
     bin: {[bin]: `bin/${bin}`},
     // The runtime modules bundled into user code (the ESM helpers, React Refresh,
-    // ...) are embedded in the executable, so nothing else is needed.
-    files: ['bin'],
+    // ...) are embedded in the executable, so nothing else is needed. npm
+    // always includes the README and LICENSE, but listing them makes that explicit.
+    files: ['bin', 'README.md', 'LICENSE'],
     // The launcher uses process.execve where it can, added in Node 23.11, and
     // falls back to spawnSync everywhere else.
     engines: {node: '>= 18'},
