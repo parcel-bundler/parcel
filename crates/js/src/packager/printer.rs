@@ -32,14 +32,24 @@ impl Printer {
   }
 
   pub(super) fn add_source_map(&mut self, map: Option<String>) -> Result<(), DiagnosticList> {
+    self.add_raw_source_map(map.map(RawValue::from_string).transpose()?);
+    Ok(())
+  }
+
+  /// Like `add_source_map`, with a map that was already validated (e.g. on another thread).
+  pub(super) fn add_raw_source_map(&mut self, map: Option<Box<RawValue>>) {
     if let Some(source_map_sections) = &mut self.source_map_sections
       && let Some(map) = map
     {
-      source_map_sections.push(SourceMapSection::new(self.line, self.column, map)?);
+      source_map_sections.push(SourceMapSection {
+        offset: SourceMapSectionOffset {
+          line: self.line,
+          column: self.column,
+        },
+        map,
+      });
       self.section_open = true;
     }
-
-    Ok(())
   }
 
   /// Ends the section started by the last `add_source_map`, so that the code written after it

@@ -3,6 +3,7 @@ use std::{fmt::Write, sync::Arc};
 use crate::transformer::{Ast, async_module::wrap_async_module};
 use indexmap::{IndexMap, IndexSet};
 use parcel_core::*;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use swc_core::{
   common::{DUMMY_SP, SyntaxContext},
   ecma::ast::{
@@ -186,23 +187,29 @@ impl JsContent {
 
     let mut first: bool = true;
 
-    for (asset_index, dependencies) in asset_plans {
-      let asset = &bundle_graph.asset_graph.asset(asset_index);
+    // Each module is generated (tree shaken, minified and printed) independently, so render them in
+    // parallel and write them out in bundle order.
+    let modules = asset_plans
+      .into_par_iter()
+      .map(|(asset_index, dependencies)| {
+        render_asset_module(
+          bundle_graph.asset_graph.asset(asset_index),
+          bundle_graph.asset_id(asset_index),
+          bundle,
+          bundle_graph.is_async_asset(asset_index),
+          dependencies,
+          options,
+          should_build_source_map,
+          should_optimize,
+        )
+      })
+      .collect::<Result<Vec<_>, DiagnosticList>>()?;
+    for module in modules {
       if !first {
         printer.write_char(',')?;
       }
       first = false;
-
-      write_asset_module(
-        &mut printer,
-        asset,
-        bundle,
-        bundle_graph.is_async_asset(asset_index),
-        dependencies,
-        options,
-        should_build_source_map,
-        should_optimize,
-      )?;
+      module.write(&mut printer)?;
     }
 
     let has_url_references = synthetic_assets.iter().any(|synthetic_asset| {
@@ -424,98 +431,118 @@ fn write_bundle_references(
   Ok(())
 }
 
-fn write_asset_module<'a>(
-  printer: &mut Printer,
+/// A module of the bundle's module table, generated independently of the others.
+struct RenderedModule {
+  id: String,
+  code: Vec<u8>,
+  map: Option<Box<serde_json::value::RawValue>>,
+  /// The serialized dependencies written after an unoptimized module, or `None` for an optimized
+  /// JS module, which is written as an expression.
+  trailer: Option<String>,
+}
+
+impl RenderedModule {
+  fn write(self, printer: &mut Printer) -> Result<(), DiagnosticList> {
+    printer.write_module_header(self.id)?;
+    printer.add_raw_source_map(self.map);
+    match self.trailer {
+      None => printer.write_expression_code(&self.code)?,
+      Some(deps) => {
+        printer.write_str(std::str::from_utf8(&self.code).unwrap())?;
+        printer.write_module_trailer(deps)?;
+      }
+    }
+    printer.end_source_map()
+  }
+}
+
+fn render_asset_module<'a>(
   asset: &Asset,
+  id: String,
   bundle: &Bundle,
   is_async: bool,
   dependencies: IndexMap<String, Resolution<'a>>,
   options: &ParcelOptions,
   should_build_source_map: bool,
   should_optimize: bool,
-) -> Result<(), DiagnosticList> {
-  if let Some(content) = asset.content.downcast_ref::<JsContent>() {
-    let mut ast = content.ast.clone();
-    if is_async {
-      // The runtime's module evaluator runs it (see `tla-runtime.js`).
-      wrap_async_module(
-        &mut ast,
-        content.esm_prologue_len,
-        content.react_refresh_wrapped,
-        &static_import_ids(asset, &dependencies),
-        asset.flags.contains(AssetFlags::HAS_TOP_LEVEL_AWAIT),
-      );
-      // Rename bindings so the wrapper's names can't collide with the module's. Optimized output is
-      // finalized after tree shaking below.
-      if !should_optimize {
-        ast.finalize();
-      }
-    }
-    insert_node_replacements(&mut ast, content, asset, bundle, should_optimize);
-    let serialized_dependencies = if should_optimize {
-      None
-    } else {
-      Some(serde_json::to_string(&dependencies)?)
-    };
+) -> Result<RenderedModule, DiagnosticList> {
+  let Some(content) = asset.content.downcast_ref::<JsContent>() else {
+    return Ok(RenderedModule {
+      id,
+      code: asset.content.read()?,
+      map: None,
+      trailer: Some(serde_json::to_string(&dependencies)?),
+    });
+  };
 
-    if should_optimize {
-      let used_symbols = asset
-        .symbols
-        .exports
-        .iter()
-        .filter_map(|e| {
-          if e.requested {
-            Some(e.exported.as_str().into())
-          } else {
-            None
-          }
-        })
-        .chain(asset.symbols.indirect.iter().filter_map(|e| {
-          if e.requested {
-            Some(e.exported.as_str().into())
-          } else {
-            None
-          }
-        }))
-        .collect();
-      tree_shake(
-        &mut ast,
-        used_symbols,
-        dependencies,
-        true,
-        false,
-        RUNTIME_REQUIRE.into(),
-      );
+  let mut ast = content.ast.clone();
+  if is_async {
+    // The runtime's module evaluator runs it (see `tla-runtime.js`).
+    wrap_async_module(
+      &mut ast,
+      content.esm_prologue_len,
+      content.react_refresh_wrapped,
+      &static_import_ids(asset, &dependencies),
+      asset.flags.contains(AssetFlags::HAS_TOP_LEVEL_AWAIT),
+    );
+    // Rename bindings so the wrapper's names can't collide with the module's. Optimized output is
+    // finalized after tree shaking below.
+    if !should_optimize {
       ast.finalize();
     }
-    let (code, map) = content.to_code(
-      &ast,
-      should_build_source_map,
-      bundle_source_root(bundle, &options.project_root).as_deref(),
-      should_optimize,
-    )?;
-
-    printer.write_module_header(asset.id(&options.project_root))?;
-    printer.add_source_map(map)?;
-    if should_optimize {
-      printer.write_expression_code(&code)?;
-      printer.end_source_map()?;
-    } else {
-      printer.write_str(std::str::from_utf8(&code).unwrap())?;
-      printer.write_module_trailer(serialized_dependencies.unwrap())?;
-      printer.end_source_map()?;
-    }
-  } else {
-    let (code, map) = (asset.content.read()?, None);
-    let deps = serde_json::to_string(&dependencies)?;
-
-    printer.write_module_header(asset.id(&options.project_root))?;
-    printer.add_source_map(map)?;
-    printer.write_str(std::str::from_utf8(&code).unwrap())?;
-    printer.write_module_trailer(deps)?;
   }
+  insert_node_replacements(&mut ast, content, asset, bundle, should_optimize);
+  let trailer = if should_optimize {
+    None
+  } else {
+    Some(serde_json::to_string(&dependencies)?)
+  };
 
-  Ok(())
+  if should_optimize {
+    let used_symbols = asset
+      .symbols
+      .exports
+      .iter()
+      .filter_map(|e| {
+        if e.requested {
+          Some(e.exported.as_str().into())
+        } else {
+          None
+        }
+      })
+      .chain(asset.symbols.indirect.iter().filter_map(|e| {
+        if e.requested {
+          Some(e.exported.as_str().into())
+        } else {
+          None
+        }
+      }))
+      .collect();
+    tree_shake(
+      &mut ast,
+      used_symbols,
+      dependencies,
+      true,
+      false,
+      RUNTIME_REQUIRE.into(),
+    );
+    ast.finalize();
+  }
+  let (code, map) = content.to_code(
+    &ast,
+    should_build_source_map,
+    bundle_source_root(bundle, &options.project_root).as_deref(),
+    should_optimize,
+  )?;
+
+  Ok(RenderedModule {
+    id,
+    code,
+    map: map
+      .map(serde_json::value::RawValue::from_string)
+      .transpose()?,
+    trailer,
+  })
 }
 
 fn write_node_replacement_helpers(
