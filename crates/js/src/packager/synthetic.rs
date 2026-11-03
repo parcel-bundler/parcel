@@ -87,7 +87,7 @@ impl BundleShim {
     // Neither physical bundle indices nor dense asset indices survive a merge
     // or an incremental rebuild. Cached module registries require stable IDs.
     let bundle = graph.bundles[bundle as usize].id;
-    let asset_id = |a| graph.asset_graph.asset(a).id(&graph.project_root);
+    let asset_id = |a| graph.asset_id(a);
     match self {
       BundleShim::Url | BundleShim::Inline(InlineType::Text) | BundleShim::Sync => {
         format!("b{bundle:x}")

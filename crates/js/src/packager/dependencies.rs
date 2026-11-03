@@ -304,10 +304,9 @@ pub fn asset_dependencies<'a>(
               .iter()
               .any(|import| import.dep_index == dep_index as u32)
           {
-            let asset = &bundle_graph.asset_graph.asset(resolved);
             dependencies.insert(
               (&**placeholder).into(),
-              Resolution::Asset(asset.id(project_root)),
+              Resolution::Asset(bundle_graph.asset_id(resolved)),
             );
             additional_assets.insert(SyntheticAsset::CssModuleExports(resolved));
             continue;
@@ -326,10 +325,9 @@ pub fn asset_dependencies<'a>(
                 SymbolResolution::Export {
                   asset_index, name, ..
                 } => {
-                  let asset = &bundle_graph.asset_graph.asset(*asset_index);
                   resolutions.push((
                     import.symbol.as_str(),
-                    asset.id(project_root),
+                    bundle_graph.asset_id(*asset_index),
                     name.as_str(),
                   ));
                   if first_asset.is_none() {
@@ -340,10 +338,9 @@ pub fn asset_dependencies<'a>(
                   }
                 }
                 SymbolResolution::Runtime { asset_index, name } => {
-                  let asset = &bundle_graph.asset_graph.asset(*asset_index);
                   resolutions.push((
                     import.symbol.as_str(),
-                    asset.id(project_root),
+                    bundle_graph.asset_id(*asset_index),
                     name.as_str(),
                   ));
                   if first_asset.is_none() {
@@ -354,8 +351,11 @@ pub fn asset_dependencies<'a>(
                   }
                 }
                 SymbolResolution::Namespace { asset_index } => {
-                  let asset = &bundle_graph.asset_graph.asset(*asset_index);
-                  resolutions.push((import.symbol.as_str(), asset.id(project_root), "*"));
+                  resolutions.push((
+                    import.symbol.as_str(),
+                    bundle_graph.asset_id(*asset_index),
+                    "*",
+                  ));
                   if first_asset.is_none() {
                     first_asset = Some(*asset_index);
                   }
@@ -373,10 +373,9 @@ pub fn asset_dependencies<'a>(
 
         if !resolutions.is_empty() {
           if all_assets_match && let Some(res) = first_asset {
-            let asset = &bundle_graph.asset_graph.asset(res);
             dependencies.insert(
               (&**placeholder).into(),
-              Resolution::Asset(asset.id(project_root)),
+              Resolution::Asset(bundle_graph.asset_id(res)),
             );
           } else {
             dependencies.insert((&**placeholder).into(), Resolution::Symbols(resolutions));
@@ -384,10 +383,9 @@ pub fn asset_dependencies<'a>(
         } else if !used_deps.contains(&resolved) {
           dependencies.insert((&**placeholder).into(), Resolution::Excluded);
         } else {
-          let asset = &bundle_graph.asset_graph.asset(resolved);
           dependencies.insert(
             (&**placeholder).into(),
-            Resolution::Asset(asset.id(project_root)),
+            Resolution::Asset(bundle_graph.asset_id(resolved)),
           );
         }
       }

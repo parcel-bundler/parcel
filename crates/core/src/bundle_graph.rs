@@ -64,6 +64,9 @@ pub struct BundleGraph<'a> {
   bundle_indices: OnceLock<HashMap<u64, u32>>,
   /// Each bundle's `context_closure`, computed on first use. Indexed by bundle index.
   context_closures: OnceLock<Vec<OnceLock<Box<[usize]>>>>,
+  /// Each asset's `Asset::id_u64` relative to the project root the cache was created for, computed
+  /// on first use. Indexed by asset index.
+  asset_ids: OnceLock<(PathId, Box<[OnceLock<u64>]>)>,
 }
 
 impl<'a> BundleGraph<'a> {
@@ -84,6 +87,30 @@ impl<'a> BundleGraph<'a> {
       asset_bundle_targets: OnceLock::new(),
       bundle_indices: OnceLock::new(),
       context_closures: OnceLock::new(),
+      asset_ids: OnceLock::new(),
+    }
+  }
+
+  /// The asset's stable id (`Asset::id`), cached since packaging needs it for every reference.
+  pub fn asset_id(&self, asset: AssetIndex) -> String {
+    format!("{:016x}", self.asset_id_u64(asset))
+  }
+
+  /// The asset's stable id as a number (`Asset::id_u64`), cached.
+  pub fn asset_id_u64(&self, asset: AssetIndex) -> u64 {
+    let compute = || self.asset_graph.asset(asset).id_u64(&self.project_root);
+    let (root, ids) = self.asset_ids.get_or_init(|| {
+      (
+        self.project_root,
+        (0..self.asset_graph.assets.len())
+          .map(|_| OnceLock::new())
+          .collect(),
+      )
+    });
+    match ids.get(asset.index()) {
+      Some(id) if *root == self.project_root => *id.get_or_init(compute),
+      // The project root was reassigned, or the asset was added after the cache was sized.
+      _ => compute(),
     }
   }
 
