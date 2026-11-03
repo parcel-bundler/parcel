@@ -1,11 +1,10 @@
 use std::{
   borrow::Cow,
   hash::{Hash, Hasher},
-  path::{Path, PathBuf},
+  path::Path,
   sync::Arc,
 };
 
-use path_slash::PathExt;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -119,20 +118,15 @@ impl SourceUrl {
     }
   }
 
-  fn project_relative_path(&self, project_root: &PathId) -> Option<PathBuf> {
+  fn project_relative_slash_path(&self, project_root: &PathId) -> Option<String> {
     match self {
-      SourceUrl::Path { path, .. } => {
-        let path = path.to_path_buf();
-        let root = project_root.to_path_buf();
-        path.strip_prefix(root).ok().map(|p| p.to_path_buf())
-      }
+      SourceUrl::Path { path, .. } => path.slash_path_below(*project_root),
       SourceUrl::Url(_) => None,
     }
   }
 
   pub fn stable_id(&self, project_root: &PathId) -> String {
-    if let Some(rel) = self.project_relative_path(project_root) {
-      let mut path = path_to_url_path(&rel);
+    if let Some(mut path) = self.project_relative_slash_path(project_root) {
       if !path.starts_with('/') {
         path.insert(0, '/');
       }
@@ -155,9 +149,17 @@ impl SourceUrl {
   }
 
   pub fn stable_hash<H: Hasher>(&self, project_root: &PathId, state: &mut H) {
-    Url::parse(&self.stable_id(project_root))
-      .expect("SourceUrl stable id should be a valid URL")
-      .hash(state);
+    let id = self.stable_id(project_root);
+    // A `Url` hashes its serialization, so an id that parsing would leave unchanged hashes the same
+    // without paying for the parse (asset ids are computed often while packaging).
+    if is_normalized_project_url(&id) {
+      debug_assert_eq!(Url::parse(&id).unwrap().as_str(), id);
+      id.hash(state);
+    } else {
+      Url::parse(&id)
+        .expect("SourceUrl stable id should be a valid URL")
+        .hash(state);
+    }
   }
 
   /// Creates a file-backed `SourceUrl` from an absolute file path and optional query string.
@@ -281,8 +283,19 @@ impl std::fmt::Debug for SourceUrl {
   }
 }
 
-fn path_to_url_path(path: &Path) -> String {
-  path.to_slash_lossy()
+/// Whether `Url::parse` serializes `id` unchanged: a `project:` URL without a query whose path has
+/// no characters that would be percent-encoded and no dot segments that would be removed.
+fn is_normalized_project_url(id: &str) -> bool {
+  let Some(path) = id.strip_prefix("project://") else {
+    return false;
+  };
+  path.starts_with('/')
+    && path.bytes().all(|b| {
+      b.is_ascii_alphanumeric() || matches!(b, b'/' | b'-' | b'_' | b'.' | b'~' | b'@' | b'+')
+    })
+    && path
+      .split('/')
+      .all(|segment| segment != "." && segment != "..")
 }
 
 #[cfg(test)]
@@ -438,5 +451,33 @@ mod tests {
   fn test_extension() {
     let url = SourceUrl::from_path(&make_path("/home/user/project/src/foo.js"));
     assert_eq!(url.extension(), "js");
+  }
+
+  #[test]
+  fn normalized_project_urls_match_parsed_serialization() {
+    for id in [
+      "project:///",
+      "project:///src/foo.js",
+      "project:///node_modules/@scope/pkg-name/dist/index.min.js",
+      "project:///a_b/c~d/e+f/g.h.i",
+      "project:///dist/",
+      "project:///.parcel-cache/x",
+    ] {
+      assert!(is_normalized_project_url(id), "{id}");
+      assert_eq!(Url::parse(id).unwrap().as_str(), id);
+    }
+    for id in [
+      "project:///a/./b",
+      "project:///a/../b",
+      "project:///a/..",
+      "project:///a b",
+      "project:///a?q",
+      "project:///a#b",
+      "project:///caf\u{e9}",
+      "project:///a%2e",
+      "file:///a",
+    ] {
+      assert!(!is_normalized_project_url(id), "{id}");
+    }
   }
 }

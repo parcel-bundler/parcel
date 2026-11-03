@@ -190,6 +190,20 @@ impl PathId {
     self.ancestors().any(|a| a == parent)
   }
 
+  /// The `/`-joined segments of this path below `ancestor` (empty if they're equal), or `None` if
+  /// it isn't inside `ancestor`. Equivalent to `strip_prefix` followed by `to_slash_lossy`, without
+  /// materializing either path.
+  pub fn slash_path_below(&self, ancestor: PathId) -> Option<String> {
+    let mut segments = smallvec::SmallVec::<[&str; 16]>::new();
+    for a in self.ancestors() {
+      if a == ancestor {
+        return Some(segments.into_iter().rev().collect::<Vec<_>>().join("/"));
+      }
+      segments.push(GLOBAL_INTERNER.file_name(a));
+    }
+    None
+  }
+
   pub fn ends_with(&self, subpath: &SubPath) -> bool {
     self
       .ancestors()

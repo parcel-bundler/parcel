@@ -456,7 +456,8 @@ pub fn main() -> ExitCode {
       print!("{}", help(None));
       return ExitCode::SUCCESS;
     }
-    Command::Build => parcel::build(&entries, options).map(|_| ()),
+    // The process exits next, so don't spend time freeing the bundle graph (every asset's AST).
+    Command::Build => parcel::build(&entries, options).map(std::mem::forget),
     Command::Watch => parcel::watch(&entries, options),
     Command::Serve => parcel::serve(&entries, options, server_options),
     Command::Run => parcel::run(&entries, options, server_options),
