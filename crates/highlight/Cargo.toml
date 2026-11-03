@@ -5,10 +5,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-swc_ecma_parser = { version = "46", default-features = false, features = [
+swc_ecma_parser = { version = "47", default-features = false, features = [
   "typescript",
   "unstable",
 ] }
-swc_common = "26.0.0"
-swc_ecma_ast = "29.0.0"
+swc_common = "27.0.0"
+swc_ecma_ast = "30.0.0"
 cssparser = "0.37.0"

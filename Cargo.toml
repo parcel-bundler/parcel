@@ -22,3 +22,63 @@ markup5ever = { git = "https://github.com/devongovett/html5ever.git", branch = "
 ravif = { git = "https://github.com/devongovett/cavif-rs.git", branch = "bit_depth_10" }
 lightningcss = { git = "https://github.com/parcel-bundler/lightningcss", branch = "master" }
 parcel_selectors = { git = "https://github.com/parcel-bundler/lightningcss", branch = "master" }
+
+# swc from devongovett/swc perf-arguments-atom (swc-project/swc PR: avoid refcount contention on
+# atom!("arguments") in the renamer and DCE, ~2.7x faster parallel packaging). Every swc crate is
+# patched, not just the two that changed: git crates resolve their path dependencies from the same
+# repo, so patching only some would duplicate swc_common, swc_ecma_ast, etc.
+ast_node = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+better_scoped_tls = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+from_variant = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+hstr = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+preset_env_base = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+string_enum = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_allocator = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_atoms = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_common = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_config = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_config_macro = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_core = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_ast = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_codegen = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_codegen_macros = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_compat_bugfixes = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_compat_common = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_compat_es2015 = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_compat_es2016 = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_compat_es2017 = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_compat_es2018 = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_compat_es2019 = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_compat_es2020 = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_compat_es2021 = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_compat_es2022 = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_compat_regexp = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_hooks = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_loader = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_minifier = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_parser = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_preset_env = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_quote_macros = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_react_compiler = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_regexp = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_regexp_ast = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_regexp_common = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_regexp_visit = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_transformer = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_transforms = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_transforms_base = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_transforms_classes = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_transforms_compat = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_transforms_macros = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_transforms_module = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_transforms_optimization = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_transforms_proposal = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_transforms_react = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_transforms_typescript = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_utils = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_ecma_visit = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_eq_ignore_macros = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_macros_common = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_node_comments = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_sourcemap = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
+swc_visit = { git = "https://github.com/devongovett/swc.git", branch = "perf-arguments-atom" }
