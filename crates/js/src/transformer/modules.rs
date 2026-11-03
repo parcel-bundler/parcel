@@ -1,13 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
 use swc_core::{
-  common::{DUMMY_SP, Mark, Span, SyntaxContext},
+  common::{DUMMY_SP, Mark, Span, SyntaxContext, util::take::Take},
   ecma::{
     ast::*,
     atoms::Atom as JsWord,
     preset_env::{Feature, Versions},
     utils::stack_size::maybe_grow_default,
-    visit::{Fold, FoldWith},
+    visit::{VisitMut, VisitMutWith},
   },
   quote,
 };
@@ -15,17 +15,19 @@ use swc_core::{
 use crate::{
   runtime_modules::ESM_HELPERS,
   transformer::{
-    fold_member_expr_skip_prop, id,
+    id,
     utils::{get_undefined_ident, match_export_name, match_export_name_ident},
   },
 };
 
+/// Converts `module` from ESM to CommonJS in place, returning whether it needs the ESM helpers and
+/// the length of its prologue (see `Esm2Cjs::prologue_len`).
 pub fn esm2cjs(
-  node: Module,
+  module: &mut Module,
   unresolved_mark: Mark,
   versions: Option<Versions>,
-) -> (Module, bool, usize) {
-  let mut fold = ESMFold {
+) -> (bool, usize) {
+  let mut visitor = Esm2Cjs {
     imports: HashMap::new(),
     require_names: HashMap::new(),
     interops: HashSet::new(),
@@ -42,11 +44,11 @@ pub fn esm2cjs(
     prologue_len: 0,
   };
 
-  let module = node.fold_with(&mut fold);
-  (module, fold.needs_helpers, fold.prologue_len)
+  module.visit_mut_with(&mut visitor);
+  (visitor.needs_helpers, visitor.prologue_len)
 }
 
-struct ESMFold {
+struct Esm2Cjs {
   // Map of imported identifier to (source, specifier)
   imports: HashMap<Id, (JsWord, JsWord)>,
   // Map of source to (require identifier, mark)
@@ -107,7 +109,7 @@ fn to_camel_case(s: &str) -> String {
   out
 }
 
-impl ESMFold {
+impl Esm2Cjs {
   fn get_require_name(&mut self, src: &JsWord, span: Span) -> Ident {
     if let Some((name, mark)) = self.require_names.get(src) {
       return Ident::new(name.clone(), span, SyntaxContext::empty().apply_mark(*mark));
@@ -195,9 +197,9 @@ impl ESMFold {
         span: DUMMY_SP,
       }))),
       args: args
-        .iter()
+        .into_iter()
         .map(|arg| ExprOrSpread {
-          expr: Box::new(arg.clone()),
+          expr: Box::new(arg),
           spread: None,
         })
         .collect(),
@@ -320,18 +322,17 @@ impl ESMFold {
 
 macro_rules! modules_visit_fn {
   ($name:ident, $type:ident) => {
-    fn $name(&mut self, node: $type) -> $type {
+    fn $name(&mut self, node: &mut $type) {
       let in_function_scope = self.in_function_scope;
       self.in_function_scope = true;
-      let res = node.fold_children_with(self);
+      node.visit_mut_children_with(self);
       self.in_function_scope = in_function_scope;
-      res
     }
   };
 }
 
-impl Fold for ESMFold {
-  fn fold_module(&mut self, node: Module) -> Module {
+impl VisitMut for Esm2Cjs {
+  fn visit_mut_module(&mut self, node: &mut Module) {
     let mut needs_interop_flag = false;
 
     // First pass: collect all imported declarations. On the second pass, exports can be matched to
@@ -441,12 +442,13 @@ impl Fold for ESMFold {
       }
     }
 
-    let node = node.fold_children_with(self);
-    let mut items = vec![];
+    node.visit_mut_children_with(self);
+    let mut items = Vec::with_capacity(node.body.len());
 
-    // Second pass
-    for item in &node.body {
-      match &item {
+    // Second pass. Declarations were already transformed above, so they're moved out of their
+    // exports as they are.
+    for item in std::mem::take(&mut node.body) {
+      match item {
         ModuleItem::ModuleDecl(decl) => {
           match decl {
             ModuleDecl::Import(_) | ModuleDecl::ExportAll(_) => {
@@ -484,49 +486,45 @@ impl Fold for ESMFold {
             }
             ModuleDecl::ExportDefaultExpr(export) => {
               needs_interop_flag = true;
-              items.push(self.create_exports_assign(
-                "default".into(),
-                *export.expr.clone(),
-                export.span,
-              ))
+              items.push(self.create_exports_assign("default".into(), *export.expr, export.span))
             }
             ModuleDecl::ExportDefaultDecl(export) => {
               needs_interop_flag = true;
 
-              match &export.decl {
+              match export.decl {
                 DefaultDecl::Class(class) => {
-                  if let Some(ident) = &class.ident {
-                    items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Class(ClassDecl {
-                      ident: ident.clone(),
-                      declare: false,
-                      class: class.class.clone(),
-                    }))));
+                  if let Some(ident) = class.ident {
                     self.create_export("default".into(), Expr::Ident(ident.clone()), DUMMY_SP);
+                    items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Class(ClassDecl {
+                      ident,
+                      declare: false,
+                      class: class.class,
+                    }))));
                   } else {
                     items.push(self.create_exports_assign(
                       "default".into(),
                       Expr::Class(ClassExpr {
                         ident: None,
-                        class: class.class.clone(),
+                        class: class.class,
                       }),
                       export.span,
                     ));
                   }
                 }
                 DefaultDecl::Fn(func) => {
-                  if let Some(ident) = &func.ident {
-                    items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Fn(FnDecl {
-                      ident: ident.clone(),
-                      declare: false,
-                      function: func.function.clone(),
-                    }))));
+                  if let Some(ident) = func.ident {
                     self.create_export("default".into(), Expr::Ident(ident.clone()), DUMMY_SP);
+                    items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Fn(FnDecl {
+                      ident,
+                      declare: false,
+                      function: func.function,
+                    }))));
                   } else {
                     self.create_export(
                       "default".into(),
                       Expr::Fn(FnExpr {
                         ident: None,
-                        function: func.function.clone(),
+                        function: func.function,
                       }),
                       export.span,
                     );
@@ -539,16 +537,14 @@ impl Fold for ESMFold {
             }
             ModuleDecl::ExportDecl(export) => {
               needs_interop_flag = true;
-              match &export.decl {
+              match export.decl {
                 Decl::Class(class) => {
                   self.create_export(
                     class.ident.sym.clone(),
                     Expr::Ident(class.ident.clone()),
                     export.span,
                   );
-                  items.push(ModuleItem::Stmt(Stmt::Decl(
-                    export.decl.clone().fold_with(self),
-                  )));
+                  items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Class(class))));
                 }
                 Decl::Fn(func) => {
                   self.create_export(
@@ -556,37 +552,24 @@ impl Fold for ESMFold {
                     Expr::Ident(func.ident.clone()),
                     export.span,
                   );
-                  items.push(ModuleItem::Stmt(Stmt::Decl(
-                    export.decl.clone().fold_with(self),
-                  )));
+                  items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Fn(func))));
                 }
-                Decl::Var(var) => {
-                  let mut var = var.clone();
-                  var.decls = var
-                    .decls
-                    .iter()
-                    .map(|decl| {
-                      let mut decl = decl.clone();
-                      self.in_export_decl = true;
-                      decl.name = decl.name.clone().fold_with(self);
-                      self.in_export_decl = false;
-                      decl.init = decl.init.clone().fold_with(self);
-                      decl
-                    })
-                    .collect();
+                Decl::Var(mut var) => {
+                  // Export each binding (see `visit_mut_binding_ident`).
+                  for decl in &mut var.decls {
+                    self.in_export_decl = true;
+                    decl.name.visit_mut_with(self);
+                    self.in_export_decl = false;
+                  }
                   items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(var))));
                 }
-                _ => {
-                  items.push(ModuleItem::Stmt(Stmt::Decl(
-                    export.decl.clone().fold_with(self),
-                  )));
-                }
+                decl => items.push(ModuleItem::Stmt(Stmt::Decl(decl))),
               }
             }
-            _ => items.push(item.clone()),
+            decl => items.push(ModuleItem::ModuleDecl(decl)),
           }
         }
-        _ => items.push(item.clone()),
+        item => items.push(item),
       }
     }
 
@@ -603,105 +586,99 @@ impl Fold for ESMFold {
       self.exports.insert(0, helper);
     }
 
-    let mut node = node;
-    items.splice(0..0, self.requires.clone());
-    items.splice(0..0, self.exports.clone());
     self.prologue_len = self.exports.len() + self.requires.len() + self.needs_helpers as usize;
-
+    let mut body = Vec::with_capacity(self.prologue_len + items.len());
     if self.needs_helpers {
-      items.insert(
-        0,
-        ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
+      body.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
+        span: DUMMY_SP,
+        ctxt: SyntaxContext::empty(),
+        kind: VarDeclKind::Var,
+        decls: vec![VarDeclarator {
           span: DUMMY_SP,
-          ctxt: SyntaxContext::empty(),
-          kind: VarDeclKind::Var,
-          decls: vec![VarDeclarator {
-            span: DUMMY_SP,
-            name: Pat::Ident(
-              Ident::new(
-                "parcelHelpers".into(),
-                DUMMY_SP,
-                SyntaxContext::empty().apply_mark(self.mark),
-              )
-              .into(),
-            ),
-            init: Some(Box::new(Expr::Call(
-              crate::transformer::utils::create_require(ESM_HELPERS.into(), self.unresolved_mark),
-            ))),
-            definite: false,
-          }],
-          declare: false,
-        })))),
-      )
+          name: Pat::Ident(
+            Ident::new(
+              "parcelHelpers".into(),
+              DUMMY_SP,
+              SyntaxContext::empty().apply_mark(self.mark),
+            )
+            .into(),
+          ),
+          init: Some(Box::new(Expr::Call(
+            crate::transformer::utils::create_require(ESM_HELPERS.into(), self.unresolved_mark),
+          ))),
+          definite: false,
+        }],
+        declare: false,
+      })))));
     }
-
-    node.body = items;
-    node
+    body.append(&mut self.exports);
+    body.append(&mut self.requires);
+    body.append(&mut items);
+    node.body = body;
   }
 
-  fn fold_binding_ident(&mut self, node: BindingIdent) -> BindingIdent {
+  fn visit_mut_binding_ident(&mut self, node: &mut BindingIdent) {
     if self.in_export_decl {
       // export const {foo} = ...;
       self.create_export(node.id.sym.clone(), Expr::Ident(node.id.clone()), DUMMY_SP);
     }
 
-    node.fold_children_with(self)
+    node.visit_mut_children_with(self);
   }
 
-  modules_visit_fn!(fold_function, Function);
-  modules_visit_fn!(fold_class, Class);
-  modules_visit_fn!(fold_getter_prop, GetterProp);
-  modules_visit_fn!(fold_setter_prop, SetterProp);
+  modules_visit_fn!(visit_mut_function, Function);
+  modules_visit_fn!(visit_mut_class, Class);
+  modules_visit_fn!(visit_mut_getter_prop, GetterProp);
+  modules_visit_fn!(visit_mut_setter_prop, SetterProp);
 
-  fn fold_expr(&mut self, node: Expr) -> Expr {
-    match &node {
+  fn visit_mut_expr(&mut self, node: &mut Expr) {
+    match node {
       Expr::Ident(ident) => {
         if let Some((source, imported)) = self.imports.get(&id!(ident)).cloned() {
-          self.create_import_access(&source, &imported, ident.span)
-        } else {
-          node
+          let span = ident.span;
+          *node = self.create_import_access(&source, &imported, span);
         }
       }
-      Expr::This(_this) => {
+      Expr::This(_) => {
         if !self.in_function_scope && self.is_esm {
-          Expr::Ident(get_undefined_ident(self.unresolved_mark))
-        } else {
-          node
+          *node = Expr::Ident(get_undefined_ident(self.unresolved_mark));
         }
       }
-      Expr::Call(call) => {
-        if call.callee.is_import() {
-          quote!(
-            "Promise.resolve($require($specifier))" as Expr,
-            require: Ident = Ident::new("require".into(), DUMMY_SP, SyntaxContext::empty().apply_mark(self.unresolved_mark)),
-            specifier: Expr = *call.args[0].expr.clone()
-          )
-        } else {
-          node.fold_children_with(self)
-        }
+      Expr::Call(call) if call.callee.is_import() => {
+        *node = quote!(
+          "Promise.resolve($require($specifier))" as Expr,
+          require: Ident = Ident::new("require".into(), DUMMY_SP, SyntaxContext::empty().apply_mark(self.unresolved_mark)),
+          specifier: Expr = *call.args[0].expr.take()
+        );
       }
-      _ => maybe_grow_default(|| node.fold_children_with(self)),
+      Expr::Call(_) => node.visit_mut_children_with(self),
+      _ => maybe_grow_default(|| node.visit_mut_children_with(self)),
     }
   }
 
-  fn fold_prop(&mut self, node: Prop) -> Prop {
+  fn visit_mut_prop(&mut self, node: &mut Prop) {
     // let obj = {a, b}; -> let obj = {a: imported.a, b: imported.b};
-    match &node {
-      Prop::Shorthand(ident) => {
-        if let Some((source, imported)) = self.imports.get(&id!(ident)).cloned() {
-          Prop::KeyValue(KeyValueProp {
-            key: PropName::Ident(IdentName::new(ident.sym.clone(), DUMMY_SP)),
-            value: Box::new(self.create_import_access(&source, &imported, ident.span)),
-          })
-        } else {
-          node.fold_children_with(self)
-        }
-      }
-      _ => node.fold_children_with(self),
+    if let Prop::Shorthand(ident) = node
+      && let Some((source, imported)) = self.imports.get(&id!(ident)).cloned()
+    {
+      let key = PropName::Ident(IdentName::new(ident.sym.clone(), DUMMY_SP));
+      let span = ident.span;
+      *node = Prop::KeyValue(KeyValueProp {
+        key,
+        value: Box::new(self.create_import_access(&source, &imported, span)),
+      });
+    } else {
+      node.visit_mut_children_with(self);
     }
   }
 
-  fold_member_expr_skip_prop! {}
+  /// A non-computed property name isn't a reference to a binding.
+  fn visit_mut_member_expr(&mut self, node: &mut MemberExpr) {
+    node.obj.visit_mut_with(self);
+    if let MemberProp::Computed(_) = node.prop {
+      node.prop.visit_mut_with(self);
+    }
+  }
 }
 
 #[cfg(test)]
@@ -713,8 +690,7 @@ mod tests {
   fn requires_esm_helpers() {
     let (output, needs_helpers) =
       run_with_transformation("export default 42", |context, module| {
-        let (result, needs_helpers, _) = esm2cjs(module.clone(), context.unresolved_mark, None);
-        *module = result;
+        let (needs_helpers, _) = esm2cjs(module, context.unresolved_mark, None);
         needs_helpers
       });
 

@@ -762,18 +762,12 @@ pub fn transform_to_ast(
           }
 
           let mut needs_esm_helpers = false;
-          let mut module = if !config.is_library() || !config.is_esm_output() {
-            let (module, needs_helpers, prologue_len) = esm2cjs(
-              module,
-              unresolved_mark,
-              versions,
-            );
+          let mut module = module;
+          if !config.is_library() || !config.is_esm_output() {
+            let (needs_helpers, prologue_len) = esm2cjs(&mut module, unresolved_mark, versions);
             needs_esm_helpers = needs_helpers;
             result.esm_prologue_len = prologue_len;
-            module
-          } else {
-            module
-          };
+          }
 
           result.dependencies.extend(global_deps);
 
