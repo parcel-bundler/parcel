@@ -304,6 +304,56 @@ jobs:
           yarn workspaces foreach --all --no-private --exclude @parcel/parcel3 --topological \
             npm publish --access public --tag "$TAG" --tolerate-republish --provenance
 
+  # The Rust plugin SDK is versioned on its own rather than in lockstep with
+  # Parcel, so most releases leave it unchanged. Publishes only when the
+  # version in crates/parcel-plugin/Cargo.toml is not on crates.io yet.
+  publish-crate:
+    name: Publish parcel-plugin to crates.io
+    if: ${{ inputs.publish }}
+    # Like the npm packages, nothing is published unless the whole release built.
+    needs: [pack, pack-js, plugins]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Check crates.io
+        id: check
+        run: |
+          set -euo pipefail
+
+          CRATE_VERSION="$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name == "parcel-plugin") | .version')"
+
+          # crates.io rejects API requests without a User-Agent.
+          STATUS="$(curl -s -o /dev/null -w '%{http_code}' \
+            -A 'parcel-release (https://github.com/parcel-bundler/parcel)' \
+            "https://crates.io/api/v1/crates/parcel-plugin/$CRATE_VERSION")"
+
+          case "$STATUS" in
+            200)
+              echo "parcel-plugin $CRATE_VERSION is already on crates.io"
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              ;;
+            404)
+              echo "Publishing parcel-plugin $CRATE_VERSION"
+              echo "publish=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Unexpected HTTP $STATUS checking crates.io for parcel-plugin $CRATE_VERSION"
+              exit 1
+              ;;
+          esac
+
+      - name: Publish
+        if: ${{ steps.check.outputs.publish == 'true' }}
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: cargo publish -p parcel-plugin
+
   # Native plugins that live in this repo but are installed separately, so
   # that projects without those file types do not download them. Released in
   # lockstep with Parcel, through the same workflow third-party native plugins
