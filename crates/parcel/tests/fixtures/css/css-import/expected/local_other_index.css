@@ -2,9 +2,7 @@
   .local {
     color: teal;
   }
-}
 
-@media print {
   .other {
     color: green;
   }

@@ -1,2 +1,2 @@
-@layer a,b;@layer b{.probe{color:#00f}}@layer a{.probe{color:red}}
+@layer a{.probe{color:red}}@layer b{.probe{color:#00f}}
 /*# sourceMappingURL=index.css.map */

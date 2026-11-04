@@ -202,13 +202,36 @@ impl CssContent {
       );
     }
 
-    // Each sheet was already minified at transform time with real targets.
-    // Minifying the assembled sheet again would merge same-name @layer
-    // blocks across intervening rules — including into an earlier @layer
-    // statement — which reorders same-layer rules across an @media or other
-    // block and changes which declaration wins (lightningcss merges layer
-    // blocks by name without checking what stands between them). Skip it;
-    // the printer still applies browser targets.
+    let targets = Targets {
+      browsers: if bundle.target.environment.is_browser() {
+        let browsers = &bundle.target.engines.browsers;
+        Some(Browsers {
+          chrome: browsers.chrome.map(convert_version),
+          firefox: browsers.firefox.map(convert_version),
+          safari: browsers.safari.map(convert_version),
+          ie: browsers.ie.map(convert_version),
+          ios_saf: browsers.ios_saf.map(convert_version),
+          android: browsers.android.map(convert_version),
+          edge: browsers.edge.map(convert_version),
+          opera: browsers.opera.map(convert_version),
+          samsung: browsers.samsung.map(convert_version),
+        })
+      } else {
+        None
+      },
+      ..Default::default()
+    };
+
+    // Each sheet was already minified at transform time, but that cannot merge
+    // or deduplicate rules across assets (e.g. the same atomic class emitted by
+    // many modules). Minify the assembled sheet with the real targets so merged
+    // selectors stay compatible with every target browser.
+    stylesheet
+      .minify(MinifyOptions {
+        targets,
+        ..Default::default()
+      })
+      .map_err(|err| convert_error(None, err))?;
 
     let res = stylesheet
       .to_css(PrinterOptions {
@@ -216,25 +239,7 @@ impl CssContent {
           .target
           .flags
           .contains(EnvironmentFlags::SHOULD_OPTIMIZE),
-        targets: Targets {
-          browsers: if bundle.target.environment.is_browser() {
-            let browsers = &bundle.target.engines.browsers;
-            Some(Browsers {
-              chrome: browsers.chrome.map(convert_version),
-              firefox: browsers.firefox.map(convert_version),
-              safari: browsers.safari.map(convert_version),
-              ie: browsers.ie.map(convert_version),
-              ios_saf: browsers.ios_saf.map(convert_version),
-              android: browsers.android.map(convert_version),
-              edge: browsers.edge.map(convert_version),
-              opera: browsers.opera.map(convert_version),
-              samsung: browsers.samsung.map(convert_version),
-            })
-          } else {
-            None
-          },
-          ..Default::default()
-        },
+        targets,
         source_map: if bundle.target.source_map.is_some() {
           Some(&mut source_map)
         } else {

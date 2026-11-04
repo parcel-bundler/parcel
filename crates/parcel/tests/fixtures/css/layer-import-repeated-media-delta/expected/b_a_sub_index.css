@@ -1,2 +1,2 @@
-@media print{@media (width>=1000px){@layer a;}}@media print{@layer b{.probe{color:#00f}}}@media print{@media (width>=1000px){@layer a{.probe{color:red}}}}@media print{}.idx{color:#000}
+@media print{@media (width>=1000px){@layer a;}@layer b{.probe{color:#00f}}@media (width>=1000px){@layer a{.probe{color:red}}}}.idx{color:#000}
 /*# sourceMappingURL=index.css.map */
