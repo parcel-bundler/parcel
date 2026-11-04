@@ -206,11 +206,19 @@ function parcelResolve(bundleId) {
   return bundleUrl ? new URL(distDir + name, bundleUrl).href : publicUrl + name;
 }
 
+// Pending and completed stylesheet loads by URL, shared by every bundle on the page so concurrent
+// loads of the same stylesheet wait on one link.
+var cssLoads = (parcelRequire.cssLoads = previousRequire.cssLoads || {});
+
 function parcelLoadCSS(bundleId, media) {
   // Like parcelResolve: bundle ids are dist-root-relative, and link hrefs resolve against the
   // document rather than this bundle, so they must be based on the public URL.
-  let url = publicUrl + (importMap[bundleId] || bundleId);
-  return new Promise(function (resolve, reject) {
+  var url = publicUrl + (importMap[bundleId] || bundleId);
+  if (cssLoads[url]) {
+    return cssLoads[url];
+  }
+
+  return (cssLoads[url] = new Promise(function (resolve, reject) {
     if (typeof document === 'undefined') {
       return resolve();
     }
@@ -222,14 +230,23 @@ function parcelLoadCSS(bundleId, media) {
     // lets the browser deprioritize a stylesheet that cannot apply.
     link.media = media || '';
 
-    // Insert a link even when one with the same href already exists: an
-    // earlier activation may have loaded it at a position incompatible with
-    // this activation's cascade order. A fresh link re-applies the cached
-    // stylesheet at this activation's position, so each activation asserts
-    // its own order and the last one wins, as per-link markup would natively.
+    // Don't insert a stylesheet that is already on the page (e.g. from the HTML). Like other
+    // bundlers, this keeps its existing position even if a fresh load would order it differently:
+    // duplicate links multiply the number of rules the browser must match and can be very slow.
+    var existing = document.getElementsByTagName('link');
+    for (var i = 0; i < existing.length; i++) {
+      if (
+        existing[i].href === link.href &&
+        existing[i].relList.contains('stylesheet')
+      ) {
+        return resolve();
+      }
+    }
+
     link.onerror = function (e) {
       link.onerror = link.onload = null;
       link.remove();
+      delete cssLoads[url];
       reject(e);
     };
 
@@ -248,7 +265,7 @@ function parcelLoadCSS(bundleId, media) {
     } else {
       document.getElementsByTagName('head')[0].appendChild(link);
     }
-  });
+  }));
 }
 
 parcelRequire.loadJS = parcelLoadJS;
