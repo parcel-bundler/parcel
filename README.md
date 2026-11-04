@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://parceljs.org/" target="_blank">
+  <a href="https://v3.parceljs.org/" target="_blank">
     <img alt="Parcel" src="https://user-images.githubusercontent.com/19409/135924939-03845d0b-e7bb-414b-89b6-e627dfa9f614.png" width="749">
   </a>
 </p>
@@ -10,7 +10,7 @@
 [![Discord](https://img.shields.io/discord/894288336095690753)](https://discord.gg/XSCzqGRuvr)
 [![Twitter Follow](https://img.shields.io/twitter/follow/parceljs.svg?style=social)](https://twitter.com/parceljs)
 
-**NOTE: This is Parcel v3 (currently in alpha).**
+**NOTE: This is Parcel v3 (currently in alpha).** For v2, see the [v2](https://github.com/parcel-bundler/parcel/tree/v2) branch.
 
 Parcel is a batteries-included build tool for the web. It combines a great out-of-the-box development experience with a scalable architecture that can take your project from just getting started to massive production application.
 
