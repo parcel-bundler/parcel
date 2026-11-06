@@ -1,0 +1,19 @@
+{
+  "description": "should build scripts in HTML imported from React server code for the React client",
+  "input": "server.js",
+  "options": {"mode": "production", "contentHash": false},
+  "skipNodeModules": true,
+  "bundles": [
+    {"type": "js", "environment": "react-server", "assets": ["server.js"]},
+    {"type": "html", "environment": "react-client", "assets": ["page.html"], "notContains": ["process.env"]},
+    {"type": "js", "environment": "react-client", "assets": ["page.html"]},
+    {
+      "type": "js",
+      "environment": "react-client",
+      "assets": ["client.js", "browser.js"],
+      "contains": ["browser build of cond-pkg"],
+      "notContains": ["process.env", "node build"]
+    },
+    {"type": "js", "environment": "react-client", "assets": []}
+  ]
+}

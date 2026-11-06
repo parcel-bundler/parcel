@@ -518,6 +518,7 @@ impl Transformer for HtmlTransformer {
     mut asset: Asset,
     _ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
+    asset.target = Target::normalize(&asset.target, &asset.ty);
     let code = asset.content.read()?;
     let res = transform_html(TransformOptions {
       code,
@@ -885,6 +886,7 @@ impl Transformer for SvgTransformer {
     mut asset: Asset,
     _ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
+    asset.target = Target::normalize(&asset.target, &asset.ty);
     let code = asset.content.read()?;
     let res = transform_svg(TransformOptions {
       code,

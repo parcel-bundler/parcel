@@ -1,0 +1,5 @@
+@import "npm:css-pkg";
+
+.page {
+  color: red;
+}

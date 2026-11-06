@@ -1,0 +1,5 @@
+{
+  "name": "html-server-import-electron-main",
+  "private": true,
+  "targets": {"default": {"context": "electron-main", "includeNodeModules": false}}
+}

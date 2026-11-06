@@ -276,7 +276,11 @@ pub(crate) fn react_target(target: &Arc<Target>, environment: Environment) -> Ar
       Environment::ReactClient => OutputFormat::Esmodule,
       _ => unreachable!(),
     },
-    include_node_modules: IncludeNodeModules::Bool(true),
+    include_node_modules: match environment {
+      // Packages must be bundled to resolve with the `react-server` condition.
+      Environment::ReactServer => IncludeNodeModules::Bool(true),
+      _ => target.client_include_node_modules(),
+    },
     ..(**target).clone()
   })
 }

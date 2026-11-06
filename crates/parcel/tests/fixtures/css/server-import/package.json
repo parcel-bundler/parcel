@@ -1,0 +1,6 @@
+{
+  "name": "css-server-import",
+  "private": true,
+  "engines": {"node": ">= 20"},
+  "targets": {"default": {"includeNodeModules": false}}
+}

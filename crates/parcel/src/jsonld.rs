@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use parcel_core::{Asset, AssetType, DiagnosticList, Transformer};
+use parcel_core::{Asset, AssetType, DiagnosticList, Target, Transformer};
 use serde_json::Value;
 
 use crate::json_urls::JsonUrlContent;
@@ -32,6 +32,8 @@ impl Transformer for JsonLdTransformer {
     let json = serde_json::from_slice(&source)?;
     let mut pointers = Vec::new();
     collect_urls(&json, String::new(), &mut pointers);
+    asset.ty = AssetType::Jsonld;
+    asset.target = Target::normalize(&asset.target, &asset.ty);
     let mut content = JsonUrlContent {
       json,
       urls: Vec::new(),
@@ -40,7 +42,6 @@ impl Transformer for JsonLdTransformer {
     for pointer in pointers {
       content.add_url(&mut asset, pointer, None);
     }
-    asset.ty = AssetType::Jsonld;
     asset.content = Arc::new(content);
     Ok(asset)
   }

@@ -1,0 +1,6 @@
+{
+  "name": "react-server-shared-css-test",
+  "private": true,
+  "dependencies": {"react": "^19"},
+  "targets": {"default": {"context": "react-server"}}
+}

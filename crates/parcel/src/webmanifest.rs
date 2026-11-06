@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use parcel_core::{
   Asset, AssetType, CodeFrame, CodeHighlight, Diagnostic, DiagnosticList, Location, SourceLocation,
-  Transformer,
+  Target, Transformer,
 };
 use serde_json::Value;
 
@@ -40,6 +40,8 @@ impl Transformer for WebManifestTransformer {
       return Err(diagnostic.into());
     }
 
+    asset.ty = AssetType::from_extension("webmanifest");
+    asset.target = Target::normalize(&asset.target, &asset.ty);
     let mut content = JsonUrlContent {
       json,
       urls: Vec::new(),
@@ -60,7 +62,6 @@ impl Transformer for WebManifestTransformer {
       };
       content.add_url(&mut asset, pointer, Some(source_location));
     }
-    asset.ty = AssetType::from_extension("webmanifest");
     asset.content = Arc::new(content);
     Ok(asset)
   }

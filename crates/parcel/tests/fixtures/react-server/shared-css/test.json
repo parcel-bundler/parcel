@@ -1,0 +1,12 @@
+{
+  "description": "should build CSS imported from both server and client components once",
+  "input": "entry.jsx",
+  "skipNodeModules": true,
+  "bundles": [
+    {"assets": ["entry.jsx"], "context": "react-server"},
+    {"assets": ["index.jsx"], "context": "react-server"},
+    {"assets": ["client.jsx"], "context": "react-client"},
+    {"assets": ["shared.css"], "type": "css", "context": "react-client"},
+    {"assets": []}
+  ]
+}

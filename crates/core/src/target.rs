@@ -87,41 +87,53 @@ impl Target {
     self.flags.contains(EnvironmentFlags::SHOULD_SCOPE_HOIST)
   }
 
+  /// The target of an asset of the given type, imported with the given target.
+  ///
+  /// The output format and environment only apply to JavaScript-based languages, and style
+  /// conditions only apply to stylesheets. Other asset types are normalized to the environment
+  /// of the document that loads them, so that they aren't duplicated, and so that they and their
+  /// dependencies are built for a browser even when imported from server code.
   pub fn normalize(target: &Arc<Target>, ty: &AssetType) -> Arc<Target> {
-    // The output format + environment only applies to JavaScript-based languages,
-    // and style conditions only apply to stylesheets. Normalize the target for
-    // other asset types to avoid duplicating them.
     let normalize_js = *ty != AssetType::Js
       && (matches!(
         target.output_format,
         OutputFormat::Esmodule | OutputFormat::Commonjs
-      ) || !matches!(
-        target.environment,
-        Environment::Browser | Environment::ReactClient
-      ));
+      ) || target.environment.document_environment() != target.environment);
     let strip_condition = *ty != AssetType::Css && target.style_condition.is_some();
     if !normalize_js && !strip_condition {
       return target.clone();
     }
     let mut normalized = (**target).clone();
     if normalize_js {
-      normalized.environment = if matches!(
-        target.environment,
-        Environment::ReactServer | Environment::ReactClient
-      ) {
-        Environment::ReactClient
-      } else {
-        Environment::Browser
-      };
+      normalized.environment = target.environment.document_environment();
       normalized.output_format = OutputFormat::Global;
       normalized.flags = target
         .flags
         .difference(EnvironmentFlags::MODULE_TYPE_EXTENSION);
+      // Code in a React client environment remembers the server target it came from, so modules
+      // with a "use server" directive (e.g. in an HTML page's scripts) can restore it. This also
+      // gives assets imported from server components the same target as from client components.
+      if target.environment == Environment::ReactServer {
+        normalized.rsc_server_target = Some(target.clone());
+      }
+      normalized.include_node_modules = target.client_include_node_modules();
     }
     if strip_condition {
       normalized.style_condition = None;
     }
     Arc::new(normalized)
+  }
+
+  /// Which node_modules to bundle for client code loaded from code with this target. Browsers
+  /// cannot load bare specifiers, so apps bundle all of a client's node_modules even when the
+  /// server code that loads it does not. Libraries keep their externals for the consumer's
+  /// bundler to resolve.
+  pub fn client_include_node_modules(&self) -> IncludeNodeModules {
+    if self.environment.is_browser() || self.flags.contains(EnvironmentFlags::IS_LIBRARY) {
+      self.include_node_modules.clone()
+    } else {
+      IncludeNodeModules::Bool(true)
+    }
   }
 
   pub fn stable_hash<H: std::hash::Hasher>(&self, project_root: &PathId, state: &mut H) {
@@ -635,6 +647,19 @@ impl Environment {
 
   pub fn is_worklet(&self) -> bool {
     matches!(self, Environment::Worklet)
+  }
+
+  /// The environment that a document (e.g. an HTML page) and the scripts it loads run in when
+  /// loaded from code in this environment. Pages always render in a browser window: an Electron
+  /// renderer when opened by the main process, and a React client when imported from server
+  /// components. Workers and Node have no windows of their own.
+  pub fn document_environment(self) -> Environment {
+    use Environment::*;
+    match self {
+      ReactServer | ReactClient => ReactClient,
+      ElectronMain | ElectronRenderer => ElectronRenderer,
+      Browser | WebWorker | ServiceWorker | Worklet | Node => Browser,
+    }
   }
 }
 

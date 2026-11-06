@@ -1,0 +1,6 @@
+{
+  "name": "html-server-import-node",
+  "private": true,
+  "engines": {"node": ">= 20"},
+  "targets": {"default": {"includeNodeModules": false}}
+}

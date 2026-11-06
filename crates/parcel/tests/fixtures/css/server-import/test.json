@@ -1,0 +1,16 @@
+{
+  "description": "should resolve and bundle the dependencies of CSS imported from Node code for the browser, even when the server target does not bundle node_modules",
+  "input": "server.js",
+  "options": {"mode": "production", "contentHash": false},
+  "skipNodeModules": true,
+  "bundles": [
+    {"type": "js", "environment": "node", "assets": ["server.js"]},
+    {
+      "type": "css",
+      "environment": "browser",
+      "assets": ["style.css", "browser.css"],
+      "contains": [".browser-build-of-css-pkg", ".page"],
+      "notContains": [".node-build-of-css-pkg", "@import"]
+    }
+  ]
+}

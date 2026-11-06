@@ -1,0 +1,101 @@
+[
+  {
+    "description": "should build scripts in HTML imported from Node code for the browser, bundling node_modules even when the server target does not",
+    "input": "server.js",
+    "options": {
+      "mode": "production",
+      "contentHash": false
+    },
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "type": "js",
+        "environment": "node",
+        "assets": [
+          "server.js"
+        ]
+      },
+      {
+        "type": "html",
+        "environment": "browser",
+        "assets": [
+          "page.html"
+        ],
+        "notContains": [
+          "process.env"
+        ]
+      },
+      {
+        "type": "js",
+        "environment": "browser",
+        "assets": [
+          "page.html"
+        ]
+      },
+      {
+        "type": "js",
+        "environment": "browser",
+        "outputFormat": "esmodule",
+        "assets": [
+          "client.js",
+          "browser.js"
+        ],
+        "contains": [
+          "browser build of cond-pkg"
+        ],
+        "notContains": [
+          "process.env",
+          "node build",
+          "require("
+        ]
+      }
+    ]
+  },
+  {
+    "description": "should use the browser HMR runtime for scripts in HTML imported from Node code",
+    "input": "server.js",
+    "options": {
+      "hmr": true
+    },
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "type": "js",
+        "environment": "node",
+        "assets": [
+          "server.js"
+        ]
+      },
+      {
+        "type": "html",
+        "environment": "browser",
+        "assets": [
+          "page.html"
+        ]
+      },
+      {
+        "type": "js",
+        "environment": "browser",
+        "assets": [
+          "page.html"
+        ]
+      },
+      {
+        "type": "js",
+        "environment": "browser",
+        "assets": [
+          "client.js",
+          "browser.js"
+        ],
+        "contains": [
+          "browser build of cond-pkg"
+        ],
+        "notContains": [
+          "from 'path'",
+          "module.require('path')",
+          "node build"
+        ]
+      }
+    ]
+  }
+]

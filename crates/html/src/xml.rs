@@ -141,6 +141,7 @@ impl Transformer for XmlTransformer {
     mut asset: Asset,
     _ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
+    asset.target = Target::normalize(&asset.target, &asset.ty);
     let result = transform_xml(TransformOptions {
       code: asset.content.read()?,
       url: asset.loc.url.clone(),

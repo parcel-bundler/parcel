@@ -1,0 +1,5 @@
+{
+  "name": "html-server-import-react-server",
+  "private": true,
+  "targets": {"default": {"context": "react-server"}}
+}

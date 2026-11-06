@@ -1,0 +1,18 @@
+{
+  "description": "should build scripts in HTML opened by the Electron main process for the renderer",
+  "input": "main.js",
+  "options": {"mode": "production", "contentHash": false},
+  "skipNodeModules": true,
+  "bundles": [
+    {"type": "js", "environment": "electron-main", "assets": ["main.js"]},
+    {"type": "html", "environment": "electron-renderer", "assets": ["page.html"]},
+    {"type": "js", "environment": "electron-renderer", "assets": ["page.html"]},
+    {
+      "type": "js",
+      "environment": "electron-renderer",
+      "assets": ["client.js", "electron-renderer.js"],
+      "contains": ["electron-renderer build of cond-pkg"],
+      "notContains": ["electron-main build", "require("]
+    }
+  ]
+}

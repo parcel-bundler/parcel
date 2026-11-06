@@ -112,6 +112,7 @@ impl Transformer for CssTransformer {
     mut asset: Asset,
     ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
+    asset.target = Target::normalize(&asset.target, &asset.ty);
     let options = ctx.options;
     let code = asset.content.read()?;
     let code = std::str::from_utf8(&code)?;
@@ -603,6 +604,7 @@ impl Transformer for StyleAttrTransformer {
     mut asset: Asset,
     ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
+    asset.target = Target::normalize(&asset.target, &asset.ty);
     let options = ctx.options;
     let code = asset.content.read()?;
     let code = std::str::from_utf8(&code)?;
