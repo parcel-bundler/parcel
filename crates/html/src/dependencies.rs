@@ -90,6 +90,26 @@ pub fn collect_dependencies<'arena>(
     _ => {}
   });
 
+  if let Some(head) = dom.find(expanded_name!(html "head")) {
+    for (script, preload) in &collector.script_preloads {
+      let mut root = *script;
+      while let Some(parent) = root.parent.get() {
+        root = parent;
+      }
+      if std::ptr::eq(root, dom) {
+        if script
+          .parent
+          .get()
+          .is_some_and(|parent| std::ptr::eq(parent, head))
+        {
+          script.insert_before(preload);
+        } else {
+          head.append(preload);
+        }
+      }
+    }
+  }
+
   for asset in &collector.assets {
     collector.deps.push(Dependency {
       specifier: asset
@@ -179,6 +199,7 @@ struct DependencyCollector<'arena> {
   assets: Vec<Asset>,
   key: u32,
   has_module_scripts: bool,
+  script_preloads: Vec<(&'arena Node<'arena>, &'arena Node<'arena>)>,
   errors: Vec<Diagnostic>,
   rss: bool,
 }
@@ -200,6 +221,7 @@ impl<'arena> DependencyCollector<'arena> {
       assets: Vec::new(),
       key: 0,
       has_module_scripts: false,
+      script_preloads: Vec::new(),
       errors: Vec::new(),
       rss: false,
     }
@@ -435,7 +457,35 @@ impl<'arena> DependencyCollector<'arena> {
             custom_conditions: Default::default(),
           };
 
-          node.set_attribute(src_attr, dep.set_placeholder());
+          let src = dep.set_placeholder();
+          node.set_attribute(src_attr, &src);
+          if source_type == SourceType::Module
+            && output_format != OutputFormat::Esmodule
+            && !is_svg
+            && node.get_attribute(expanded_name!("", "async")).is_none()
+          {
+            let preload = self
+              .arena
+              .alloc(Node::create_element(expanded_name!(html "link")));
+            preload.set_attribute(expanded_name!("", "rel"), "preload");
+            preload.set_attribute(expanded_name!("", "as"), "script");
+            preload.set_attribute(expanded_name!("", "href"), &src);
+            for attr in [
+              "crossorigin",
+              "integrity",
+              "referrerpolicy",
+              "fetchpriority",
+            ] {
+              let attr = ExpandedName {
+                ns: &ns!(),
+                local: &attr.into(),
+              };
+              if let Some(value) = node.get_attribute(attr) {
+                preload.set_attribute(attr, &value);
+              }
+            }
+            self.script_preloads.push((node, preload));
+          }
           self.deps.push(dep);
         } else {
           if let Some(ty) = &ty {

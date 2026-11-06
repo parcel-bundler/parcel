@@ -192,8 +192,19 @@ pub fn insert_bundle_references<'arena>(
 
   dom.walk(&mut |node| {
     if let NodeData::Element { name, attrs, .. } = &node.data {
+      // Preloads share URLs with scripts, but references belong at the script.
+      let script_preload = name.expanded() == expanded_name!(html "link")
+        && node
+          .get_attribute(expanded_name!("", "rel"))
+          .is_some_and(|rel| rel.as_ref() == "preload")
+        && node
+          .get_attribute(expanded_name!("", "as"))
+          .is_some_and(|value| value.as_ref() == "script");
       // Resolve positional references before replacing attribute placeholders.
-      if (name.ns == ns!(html) || name.ns == ns!(svg)) && !element_refs.is_empty() {
+      if (name.ns == ns!(html) || name.ns == ns!(svg))
+        && !element_refs.is_empty()
+        && !script_preload
+      {
         let scope = if scope_roots.is_empty() {
           Some(dom as *const Node)
         } else {

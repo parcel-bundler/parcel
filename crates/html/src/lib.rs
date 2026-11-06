@@ -1041,6 +1041,154 @@ mod tests {
   }
 
   #[test]
+  fn preloads_compiled_module_scripts() {
+    for browsers in ["chrome 60", "ie 11"] {
+      let url = parcel_core::SourceUrl::from_path(&parcel_core::PathId::new(
+        &std::env::current_dir().unwrap().join("index.html"),
+      ));
+      let res = transform_html(crate::TransformOptions {
+        code: br#"<html><head><script type="module" src="app.js" crossorigin="anonymous" integrity="sha256-test" referrerpolicy="no-referrer" fetchpriority="low"></script></head><body></body></html>"#.to_vec(),
+        url,
+        xml: false,
+        target: std::sync::Arc::new(parcel_core::Target {
+          engines: parcel_core::Engines::from_browserslist([browsers], parcel_core::OutputFormat::Global),
+          ..Default::default()
+        }),
+        hmr: false,
+      });
+
+      assert!(res.errors.is_empty());
+      assert_eq!(res.dependencies.len(), 1);
+      assert_eq!(
+        res.dependencies[0].target.output_format,
+        parcel_core::OutputFormat::Global
+      );
+      let code = std::str::from_utf8(&res.code).unwrap().replace(
+        res.dependencies[0].placeholder.as_ref().unwrap().as_ref(),
+        "app.js",
+      );
+      assert_eq!(
+        code,
+        r#"<html><head><link rel="preload" as="script" href="app.js" crossorigin="anonymous" integrity="sha256-test" referrerpolicy="no-referrer" fetchpriority="low"><script src="app.js" crossorigin="anonymous" integrity="sha256-test" referrerpolicy="no-referrer" fetchpriority="low" defer=""></script></head><body></body></html>"#
+      );
+    }
+  }
+
+  #[test]
+  fn compiled_module_preloads_preserve_stylesheet_order() {
+    use crate::{BundleReference, InlineBundle, PackageOptions, SerializableTendril, package_html};
+
+    for browsers in ["chrome 60", "ie 11"] {
+      let res = transform_html(crate::TransformOptions {
+        code: br#"<html><head></head><body><style>body{color:blue}</style><script type="module" src="app.js"></script><script type="module" src="other.js"></script></body></html>"#.to_vec(),
+        url: parcel_core::SourceUrl::from_path(&parcel_core::PathId::new(
+          &std::env::current_dir().unwrap().join("index.html"),
+        )),
+        xml: false,
+        target: std::sync::Arc::new(parcel_core::Target {
+          engines: parcel_core::Engines::from_browserslist([browsers], parcel_core::OutputFormat::Global),
+          ..Default::default()
+        }),
+        hmr: false,
+      });
+      assert!(res.errors.is_empty());
+
+      let mut inline_bundles = std::collections::HashMap::new();
+      let mut element_refs = std::collections::HashMap::new();
+      for dep in &res.dependencies {
+        let key = SerializableTendril(dep.placeholder.as_ref().unwrap().as_ref().into());
+        let (contents, refs) = match dep.specifier.as_ref() {
+          "app.js" | "other.js" => (dep.specifier.as_ref(), true),
+          _ => ("body{color:blue}", false),
+        };
+        inline_bundles.insert(
+          key.clone(),
+          InlineBundle {
+            contents: SerializableTendril(contents.into()),
+            module: false,
+          },
+        );
+        if refs {
+          element_refs.insert(
+            key,
+            vec![BundleReference::StyleSheet {
+              href: SerializableTendril("app.css".into()),
+              media: None,
+            }],
+          );
+        }
+      }
+
+      let result = package_html(PackageOptions {
+        code: res.code,
+        xml: false,
+        bundles: Vec::new(),
+        inline_bundles,
+        stylesheet_media: Default::default(),
+        element_refs,
+        import_map: Default::default(),
+        manifest: None,
+      })
+      .unwrap();
+      assert_eq!(
+        String::from_utf8(result.code).unwrap(),
+        r#"<html><head><link rel="preload" as="script" href="app.js"><link rel="preload" as="script" href="other.js"></head><body><style>body{color:blue}</style><link rel="stylesheet" href="app.css"><script src="app.js" defer=""></script><script src="other.js" defer=""></script></body></html>"#
+      );
+    }
+  }
+
+  #[test]
+  fn only_preloads_deferred_module_fallbacks() {
+    for (browsers, code) in [
+      (
+        "defaults",
+        r#"<script type="module" src="app.js"></script>"#,
+      ),
+      (
+        "last 2 Chrome versions",
+        r#"<script type="module" src="app.js"></script>"#,
+      ),
+      ("chrome 60", r#"<script src="app.js" defer></script>"#),
+      (
+        "chrome 60",
+        r#"<script type="module" src="app.js" async></script>"#,
+      ),
+      (
+        "chrome 60",
+        r#"<script type="module">console.log(1)</script>"#,
+      ),
+      (
+        "chrome 60",
+        r#"<svg><script type="module" href="app.js"></script></svg>"#,
+      ),
+      (
+        "chrome 60",
+        r#"<template><script type="module" src="app.js"></script></template>"#,
+      ),
+    ] {
+      let url = parcel_core::SourceUrl::from_path(&parcel_core::PathId::new(
+        &std::env::current_dir().unwrap().join("index.html"),
+      ));
+      let res = transform_html(crate::TransformOptions {
+        code: code.as_bytes().to_vec(),
+        url,
+        xml: false,
+        target: std::sync::Arc::new(parcel_core::Target {
+          engines: parcel_core::Engines::from_browserslist(
+            [browsers],
+            parcel_core::OutputFormat::Global,
+          ),
+          ..Default::default()
+        }),
+        hmr: false,
+      });
+      assert!(res.errors.is_empty());
+      let code = std::str::from_utf8(&res.code).unwrap();
+      assert!(!code.contains("<link"), "{browsers}: {code}");
+    }
+  }
+
+  #[test]
   fn manifest_is_a_data_block_before_every_script() {
     let res = crate::package_html(crate::PackageOptions {
       code: b"<html><head><script src=\"app.js\"></script></head><body></body></html>".to_vec(),
