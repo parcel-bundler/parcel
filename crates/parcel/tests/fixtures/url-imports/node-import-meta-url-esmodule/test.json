@@ -3,6 +3,6 @@
   "input": "index.js",
   "output": {
     "protocol": "file:",
-    "path": "dist/test.txt"
+    "path": "client/test.txt"
   }
 }

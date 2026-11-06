@@ -43,6 +43,59 @@ bitflags::bitflags! {
   }
 }
 
+bitflags::bitflags! {
+  /// The environments that a bundle graph contains.
+  #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+  pub struct BundleEnvironments: u16 {
+    const BROWSER = 1 << 0;
+    const WEB_WORKER = 1 << 1;
+    const SERVICE_WORKER = 1 << 2;
+    const WORKLET = 1 << 3;
+    const NODE = 1 << 4;
+    const ELECTRON_MAIN = 1 << 5;
+    const ELECTRON_RENDERER = 1 << 6;
+    const REACT_CLIENT = 1 << 7;
+    const REACT_SERVER = 1 << 8;
+  }
+}
+
+impl From<Environment> for BundleEnvironments {
+  fn from(value: Environment) -> Self {
+    match value {
+      Environment::Browser => BundleEnvironments::BROWSER,
+      Environment::WebWorker => BundleEnvironments::WEB_WORKER,
+      Environment::ServiceWorker => BundleEnvironments::SERVICE_WORKER,
+      Environment::Worklet => BundleEnvironments::WORKLET,
+      Environment::Node => BundleEnvironments::NODE,
+      Environment::ElectronMain => BundleEnvironments::ELECTRON_MAIN,
+      Environment::ElectronRenderer => BundleEnvironments::ELECTRON_RENDERER,
+      Environment::ReactClient => BundleEnvironments::REACT_CLIENT,
+      Environment::ReactServer => BundleEnvironments::REACT_SERVER,
+    }
+  }
+}
+
+impl BundleEnvironments {
+  /// Environments whose bundles are served to browsers.
+  pub const CLIENT: Self = Self::BROWSER
+    .union(Self::WEB_WORKER)
+    .union(Self::SERVICE_WORKER)
+    .union(Self::WORKLET)
+    .union(Self::REACT_CLIENT);
+
+  /// Environments whose bundles run on a server. Electron is neither: its main process and
+  /// renderers ship together in the app, and nothing is served publicly.
+  pub const SERVER: Self = Self::NODE.union(Self::REACT_SERVER);
+
+  pub fn has_client(&self) -> bool {
+    self.intersects(Self::CLIENT)
+  }
+
+  pub fn has_server(&self) -> bool {
+    self.intersects(Self::SERVER)
+  }
+}
+
 #[derive(Debug)]
 pub struct BundleGraph<'a> {
   pub asset_graph: AssetGraph<'a>,
@@ -67,6 +120,7 @@ pub struct BundleGraph<'a> {
   /// Each asset's `Asset::id_u64` relative to the project root the cache was created for, computed
   /// on first use. Indexed by asset index.
   asset_ids: OnceLock<(PathId, Box<[OnceLock<u64>]>)>,
+  bundle_environments: OnceLock<BundleEnvironments>,
 }
 
 impl<'a> BundleGraph<'a> {
@@ -88,6 +142,7 @@ impl<'a> BundleGraph<'a> {
       bundle_indices: OnceLock::new(),
       context_closures: OnceLock::new(),
       asset_ids: OnceLock::new(),
+      bundle_environments: OnceLock::new(),
     }
   }
 
@@ -410,6 +465,18 @@ impl<'a> BundleGraph<'a> {
       }
 
       None
+    })
+  }
+
+  /// Bit flags summarizing the environments used in the bundle graph.
+  pub fn environments(&self) -> BundleEnvironments {
+    *self.bundle_environments.get_or_init(|| {
+      self
+        .bundles
+        .iter()
+        .fold(BundleEnvironments::empty(), |p, b| {
+          p | b.target.environment.into()
+        })
     })
   }
 }

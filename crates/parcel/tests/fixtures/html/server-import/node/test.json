@@ -13,6 +13,18 @@
         "environment": "node",
         "assets": [
           "server.js"
+        ],
+        "name": "server.js",
+        "contains": [
+          "/client/client-",
+          "server/lazy-"
+        ]
+      },
+      {
+        "type": "js",
+        "environment": "node",
+        "assets": [
+          "lazy.js"
         ]
       },
       {
@@ -64,6 +76,18 @@
         "environment": "node",
         "assets": [
           "server.js"
+        ],
+        "name": "server.js",
+        "contains": [
+          "/client/client-",
+          "server/lazy-"
+        ]
+      },
+      {
+        "type": "js",
+        "environment": "node",
+        "assets": [
+          "lazy.js"
         ]
       },
       {

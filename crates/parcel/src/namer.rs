@@ -4,8 +4,8 @@ use std::{
 };
 
 use parcel_core::{
-  Asset, AssetType, Bundle, BundleFlags, BundleGraph, Diagnostic, DiagnosticList, Environment,
-  EnvironmentFlags, Namer, OutputFormat, PathId,
+  Asset, AssetType, Bundle, BundleEnvironments, BundleFlags, BundleGraph, Diagnostic,
+  DiagnosticList, EnvironmentFlags, Namer, OutputFormat, PathId,
 };
 
 pub struct DefaultNamer {}
@@ -31,14 +31,26 @@ impl Namer for DefaultNamer {
       }
     }
 
-    // Group server and client bundles into separate folders.
-    // This allows users to easily upload to different places, and avoid exposing
-    // server code on public servers.
-    // If bundleExtension is set, assume everything is static (rendering at build time).
-    let prefix = match bundle.target.environment {
-      Environment::ReactServer => bundle.target.dist_dir.child("server"),
-      Environment::ReactClient => bundle.target.dist_dir.child("client"),
-      _ => bundle.target.dist_dir,
+    // When a build has both server and client bundles (e.g. React server components),
+    // group them into separate folders. This allows users to easily pload them to
+    // different places, and avoids exposing server code on public servers.
+    // Server entries stay in the dist dir.
+    let environments = bundle_graph.environments();
+    let environment = BundleEnvironments::from(bundle.target.environment);
+    let prefix = if bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY)
+      || !(environments.has_client() && environments.has_server())
+    {
+      bundle.target.dist_dir
+    } else if environment.intersects(BundleEnvironments::SERVER)
+      && !bundle.flags.contains(BundleFlags::ENTRY)
+    {
+      bundle.target.dist_dir.child("server")
+    } else if environment.intersects(BundleEnvironments::CLIENT)
+      && !bundle.flags.contains(BundleFlags::ENTRY)
+    {
+      bundle.target.dist_dir.child("client")
+    } else {
+      bundle.target.dist_dir
     };
 
     if let Some(entry) = bundle.main_entry_asset {
