@@ -11,8 +11,7 @@
       "type": "js",
       "assets": [
         "default-side-effectful-unused-export.js",
-        "dep-default-side-effectful-unused-export.js",
-        "esmodule-helpers.js"
+        "dep-default-side-effectful-unused-export.js"
       ],
       "contains": [
         "used-default-side-effectful-export",

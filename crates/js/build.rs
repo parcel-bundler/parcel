@@ -7,7 +7,10 @@ use swc_core::common::{
   sync::Lrc,
 };
 use swc_core::ecma::ast::{EsVersion, Program};
-use swc_core::ecma::codegen::{Config, Emitter, text_writer::JsWriter};
+use swc_core::ecma::codegen::{
+  Config, Emitter,
+  text_writer::{JsWriter, omit_trailing_semi},
+};
 use swc_core::ecma::minifier::optimize;
 use swc_core::ecma::minifier::option::{
   CompressOptions, ExtraOptions, MangleOptions, MinifyOptions,
@@ -30,12 +33,17 @@ const RUNTIME_GLOBALS: &[(&str, &str)] = &[
   ("bundleUrl", "l"),
   ("$parcel$path", "v"),
   ("$parcel$bundleDir", "w"),
+  // The ESM helpers' functions (see `ESM_HELPER_FUNCTIONS` in src/runtime_modules.rs).
+  ("$parcel$export", "t"),
+  ("$parcel$exportAll", "a"),
+  ("$parcel$interopDefault", "i"),
+  ("$parcel$defineInteropFlag", "f"),
 ];
 
 fn main() {
   println!("cargo:rerun-if-changed=build.rs");
   let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR is not set"));
-  for name in ["runtime", "tla-runtime"] {
+  for name in ["runtime", "tla-runtime", "esm-helpers"] {
     println!("cargo:rerun-if-changed=src/{name}.js");
     let source =
       fs::read_to_string(format!("src/{name}.js")).expect(&format!("failed to read src/{name}.js"));
@@ -127,12 +135,13 @@ impl VisitMut for RuntimeAbiRenamer {
 fn emit_runtime(program: Program, source_map: Lrc<SourceMap>) -> String {
   let mut buf = Vec::new();
   {
-    let writer = JsWriter::new(source_map.clone(), "\n", &mut buf, None);
+    let writer = omit_trailing_semi(JsWriter::new(source_map.clone(), "\n", &mut buf, None));
     let mut emitter = Emitter {
       cfg: Config::default()
         .with_target(EsVersion::Es5)
         .with_ascii_only(true)
-        .with_minify(true),
+        .with_minify(true)
+        .with_omit_last_semi(true),
       comments: None,
       cm: source_map.clone(),
       wr: writer,

@@ -3,7 +3,7 @@
   "input": "reformat.js",
   "options": {"mode": "production"},
   "bundles": [
-    {"type": "js", "assets": ["esmodule-helpers.js", "reformat.js"]},
+    {"type": "js", "assets": ["reformat.js"]},
     {"type": "webp", "assets": ["image.jpg"]}
   ]
 }

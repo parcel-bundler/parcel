@@ -70,6 +70,9 @@ impl JsContent {
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     const RUNTIME: &str = include_str!(concat!(env!("OUT_DIR"), "/runtime.min.js"));
     const DEV_RUNTIME: &str = include_str!("../dev-runtime.js");
+    // Only optimized modules call them (see `runtime_modules::ESM_HELPER_FUNCTIONS`).
+    const ESM_HELPER_FUNCTIONS: &str =
+      include_str!(concat!(env!("OUT_DIR"), "/esm-helpers.min.js"));
 
     let should_build_source_map = bundle.target.source_map.is_some();
     let should_optimize = bundle
@@ -253,6 +256,17 @@ impl JsContent {
     printer.write_str("};")?;
     printer.newline()?;
     printer.newline()?;
+
+    if bundle.assets.iter().any(|asset_index| {
+      bundle_graph
+        .asset_graph
+        .asset(*asset_index)
+        .content
+        .downcast_ref::<JsContent>()
+        .is_some_and(|content| content.needs_esm_helpers)
+    }) {
+      printer.write_str(ESM_HELPER_FUNCTIONS)?;
+    }
 
     write_runtime_globals(
       &mut printer,

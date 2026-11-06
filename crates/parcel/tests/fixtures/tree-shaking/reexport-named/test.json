@@ -5,7 +5,7 @@
   "bundles": [
     {
       "type": "js",
-      "assets": ["dep-reexport.js", "esmodule-helpers.js", "reexport-barrel.js", "reexport-named.js"],
+      "assets": ["dep-reexport.js", "reexport-barrel.js", "reexport-named.js"],
       "contains": ["used-reexport"],
       "notContains": ["unused-reexport-sentinel"]
     }

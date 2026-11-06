@@ -296,6 +296,7 @@ impl Transformer for JsTransformer {
       rsc_runtime_dep,
       needs_filename: res.needs_filename,
       needs_dirname: res.needs_dirname,
+      needs_esm_helpers: res.needs_esm_helpers,
       esm_prologue_len: res.esm_prologue_len,
       react_refresh_wrapped: res.react_refresh_wrapped,
       input_source_map,

@@ -15,9 +15,12 @@ use swc_core::{
   quote,
 };
 
-use crate::transformer::{
-  Ast,
-  utils::{is_unresolved, match_member_expr, match_property_name},
+use crate::{
+  runtime_modules::{esm_helper_bundle_name, esm_helper_function},
+  transformer::{
+    Ast,
+    utils::{is_unresolved, match_member_expr, match_property_name},
+  },
 };
 
 #[derive(Debug, serde::Serialize)]
@@ -313,10 +316,48 @@ impl<'a> TreeShake<'a> {
       SyntaxContext::empty().apply_mark(self.unresolved_mark),
     )
   }
+
+  /// Whether `node` defines an export (with the ESM `export` helper) that isn't used.
+  fn is_unused_export(&self, node: &Stmt) -> bool {
+    let Stmt::Expr(stmt) = node else {
+      return false;
+    };
+    let Expr::Call(call) = &*stmt.expr else {
+      return false;
+    };
+    let Callee::Expr(callee) = &call.callee else {
+      return false;
+    };
+    let is_export_helper = match &**callee {
+      Expr::Member(member) => {
+        matches!(&*member.obj, Expr::Ident(id) if id.sym == "parcelHelpers")
+          && matches!(match_property_name(member), Some((name, _)) if name == "export")
+      }
+      Expr::Ident(id) => {
+        id.sym == esm_helper_function("export") && is_unresolved(id, self.unresolved_mark)
+      }
+      _ => false,
+    };
+    if !is_export_helper {
+      return false;
+    }
+
+    matches!(
+      call.args.get(1).map(|arg| &*arg.expr),
+      Some(Expr::Lit(Lit::Str(name))) if !self.used_symbols.contains(&name.value)
+    )
+  }
 }
 
 impl<'a> VisitMut for TreeShake<'a> {
   fn visit_mut_stmt(&mut self, node: &mut Stmt) {
+    // Before visiting the call, which renames the helper it calls (see `visit_mut_ident`).
+    if !self.used_symbols.is_empty() && self.is_unused_export(node) {
+      *node = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
+      self.mutated = true;
+      return;
+    }
+
     node.visit_mut_children_with(self);
     if self.used_symbols.is_empty() {
       return;
@@ -366,33 +407,6 @@ impl<'a> VisitMut for TreeShake<'a> {
             self.mutated = true;
             return;
           }
-        }
-      }
-      Expr::Call(call) => {
-        let Callee::Expr(expr) = &call.callee else {
-          return;
-        };
-        let Expr::Member(member) = &**expr else {
-          return;
-        };
-
-        if !(matches!(&*member.obj, Expr::Ident(id) if id.sym == "parcelHelpers")
-          && matches!(match_property_name(&member), Some((name, _)) if name == "export"))
-        {
-          return;
-        }
-
-        let Some(ExprOrSpread { expr, .. }) = call.args.get(1) else {
-          return;
-        };
-
-        let Expr::Lit(Lit::Str(name)) = &**expr else {
-          return;
-        };
-
-        if !self.used_symbols.contains(&name.value) {
-          *node = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
-          self.mutated = true;
         }
       }
       _ => {}
@@ -683,8 +697,12 @@ impl<'a> VisitMut for TreeShake<'a> {
       node.ctxt = self.wrapper_ctxt;
     }
 
-    if node.sym == "require" && is_unresolved(node, self.unresolved_mark) {
-      node.sym = self.require_name.clone();
+    if is_unresolved(node, self.unresolved_mark) {
+      if node.sym == "require" {
+        node.sym = self.require_name.clone();
+      } else if let Some(name) = esm_helper_bundle_name(&node.sym) {
+        node.sym = name.into();
+      }
     }
   }
 }

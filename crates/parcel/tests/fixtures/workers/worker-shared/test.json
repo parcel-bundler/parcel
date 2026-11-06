@@ -6,19 +6,19 @@
   },
   "bundles": [
     {
-      "assets": ["esmodule-helpers.js", "index.js", "index.js"],
+      "assets": ["index.js", "index.js"],
       "references": []
     },
     {
       "assets": ["worker-a.js"],
-      "references": [["esmodule-helpers.js", "index.js"]]
+      "references": [["index.js"]]
     },
     {
       "assets": ["worker-b.js"],
-      "references": [["esmodule-helpers.js", "index.js"]]
+      "references": [["index.js"]]
     },
     {
-      "assets": ["esmodule-helpers.js", "index.js"],
+      "assets": ["index.js"],
       "references": []
     }
   ]

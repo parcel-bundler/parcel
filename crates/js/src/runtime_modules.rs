@@ -11,6 +11,36 @@ pub(crate) const REACT_REFRESH: &str = "@parcel/parcel3/src/react-refresh.js";
 /// still resolves to the project's copy.
 const REACT_REFRESH_RUNTIME: &str = "@parcel/parcel3/src/react-refresh-runtime.js";
 
+/// The ESM helpers as functions that optimized app bundles define (see `esm-helpers.js`), so
+/// modules can call them directly rather than through a require of `ESM_HELPERS` in every module.
+/// Each is the helper's name in `ESM_HELPERS`, the function the transformer calls, and its name in
+/// the bundle, which must not collide with the runtime's globals (`RUNTIME_GLOBALS` in build.rs,
+/// which lists these too so the runtime's minifier doesn't use them).
+pub(crate) const ESM_HELPER_FUNCTIONS: &[(&str, &str, &str)] = &[
+  ("export", "$parcel$export", "t"),
+  ("exportAll", "$parcel$exportAll", "a"),
+  ("interopDefault", "$parcel$interopDefault", "i"),
+  ("defineInteropFlag", "$parcel$defineInteropFlag", "f"),
+];
+
+/// The function the transformer calls for an ESM helper (see `ESM_HELPER_FUNCTIONS`).
+pub(crate) fn esm_helper_function(helper: &str) -> &'static str {
+  ESM_HELPER_FUNCTIONS
+    .iter()
+    .find(|(name, _, _)| *name == helper)
+    .map(|(_, function, _)| *function)
+    .unwrap_or_else(|| panic!("unknown ESM helper {helper}"))
+}
+
+/// The name in the bundle of a function the transformer calls for an ESM helper, if `function` is
+/// one (see `ESM_HELPER_FUNCTIONS`).
+pub(crate) fn esm_helper_bundle_name(function: &str) -> Option<&'static str> {
+  ESM_HELPER_FUNCTIONS
+    .iter()
+    .find(|(_, name, _)| *name == function)
+    .map(|(_, _, minified)| *minified)
+}
+
 /// An embedded runtime module.
 pub struct RuntimeModule {
   /// Where the module would be in `node_modules` if it were installed, e.g.

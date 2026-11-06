@@ -11,7 +11,7 @@
       },
       {
         "type": "js",
-        "assets": ["esmodule-helpers.js", "index.js", "page.js"],
+        "assets": ["index.js", "page.js"],
         "contains": ["value-shared"],
         "notContains": ["unused-lib-sentinel"]
       }

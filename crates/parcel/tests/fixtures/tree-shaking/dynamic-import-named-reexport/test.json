@@ -13,7 +13,6 @@
     {
       "assets": [
         "barrel.js",
-        "esmodule-helpers.js",
         "preview.js",
         "renderer.js"
       ],

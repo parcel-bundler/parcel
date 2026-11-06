@@ -19,8 +19,7 @@
       {
         "type": "js",
         "assets": [
-          "async-dep.js",
-          "esmodule-helpers.js"
+          "async-dep.js"
         ],
         "contains": [
           "used-dynamic",

@@ -3,7 +3,7 @@
   "input": "index.js",
   "options": {"mode": "production"},
   "bundles": [
-    {"assets": ["esmodule-helpers.js", "index.js"]},
+    {"assets": ["index.js"]},
     {"assets": ["style.module.css"]}
   ],
   "output": "_kFmYa_b-2"

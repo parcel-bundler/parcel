@@ -11,7 +11,7 @@
     "bundles": [
       {
         "type": "js",
-        "assets": ["dep.js", "esmodule-helpers.js", "index.js"],
+        "assets": ["dep.js", "index.js"],
         "contains": ["foo"],
         "notContains": ["bar", "baz"]
       }

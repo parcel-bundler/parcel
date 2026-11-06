@@ -51,7 +51,7 @@ use swc_core::{
   ecma::{
     ast::{BlockStmt, Expr, ExprStmt, Ident, Lit, Module, ModuleItem, Program, Stmt, Str, TryStmt},
     atoms::Atom as JsWord,
-    codegen::text_writer::JsWriter,
+    codegen::text_writer::{JsWriter, WriteJs, omit_trailing_semi},
     parser::{EsSyntax, Parser, StringInput, Syntax, TsSyntax, error::Error, lexer::Lexer},
     preset_env::{Mode::Entry, Targets, transform_from_env},
     transforms::{
@@ -332,6 +332,8 @@ pub struct TransformAstResult {
   pub has_node_replacements: bool,
   pub needs_filename: bool,
   pub needs_dirname: bool,
+  /// Whether the module calls the ESM helpers its bundle defines (see `ESM_HELPER_FUNCTIONS`).
+  pub needs_esm_helpers: bool,
   /// Whether the module contains top-level await, i.e. evaluates asynchronously.
   pub has_top_level_await: bool,
   /// The number of statements the module starts with that define its exports and require its
@@ -767,8 +769,11 @@ pub fn transform_to_ast(
 
           let mut needs_esm_helpers = false;
           let mut module = module;
+          // Optimized app bundles define the helpers themselves (see `ESM_HELPER_FUNCTIONS`).
+          let bundle_helpers = config.minify() && !config.is_library();
           if !config.is_library() || !config.is_esm_output() {
-            let (needs_helpers, prologue_len) = esm2cjs(&mut module, unresolved_mark, versions);
+            let (needs_helpers, prologue_len) =
+              esm2cjs(&mut module, unresolved_mark, versions, bundle_helpers);
             needs_esm_helpers = needs_helpers;
             result.esm_prologue_len = prologue_len;
           }
@@ -838,7 +843,9 @@ pub fn transform_to_ast(
             ));
           }
 
-          if needs_esm_helpers {
+          if needs_esm_helpers && bundle_helpers {
+            result.needs_esm_helpers = true;
+          } else if needs_esm_helpers {
             runtime_dependencies.push(result.dependencies.len() as u32);
             result.dependencies.push(config.runtime_dependency(ESM_HELPERS));
           }
@@ -976,7 +983,7 @@ fn emit(
   let mut src_map_buf = vec![];
   let mut buf = vec![];
   {
-    let writer = Box::new(JsWriter::new(
+    let writer = JsWriter::new(
       source_map.clone(),
       "\n",
       &mut buf,
@@ -985,12 +992,19 @@ fn emit(
       } else {
         None
       },
-    ));
+    );
+    // Omits semicolons before closing braces.
+    let writer: Box<dyn WriteJs> = if minify {
+      Box::new(omit_trailing_semi(writer))
+    } else {
+      Box::new(writer)
+    };
     let config = swc_core::ecma::codegen::Config::default()
       .with_target(swc_core::ecma::ast::EsVersion::Es5)
       // Make sure the output works regardless of whether it's loaded with the correct (utf8) encoding
       .with_ascii_only(true)
-      .with_minify(minify);
+      .with_minify(minify)
+      .with_omit_last_semi(minify);
     let mut emitter = swc_core::ecma::codegen::Emitter {
       cfg: config,
       comments: Some(comments),

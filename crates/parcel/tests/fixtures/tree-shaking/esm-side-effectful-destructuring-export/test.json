@@ -8,8 +8,7 @@
       "type": "js",
       "assets": [
         "dep-destructuring-export.js",
-        "destructuring-export.js",
-        "esmodule-helpers.js"
+        "destructuring-export.js"
       ],
       "contains": ["used-destructuring-export", "unused-destructuring-export"],
       "notContains": ["unused-destructuring-pure-sentinel"]

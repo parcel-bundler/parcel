@@ -13,7 +13,7 @@ use swc_core::{
 };
 
 use crate::{
-  runtime_modules::ESM_HELPERS,
+  runtime_modules::{ESM_HELPERS, esm_helper_function},
   transformer::{
     id,
     utils::{get_undefined_ident, match_export_name, match_export_name_ident},
@@ -22,10 +22,15 @@ use crate::{
 
 /// Converts `module` from ESM to CommonJS in place, returning whether it needs the ESM helpers and
 /// the length of its prologue (see `Esm2Cjs::prologue_len`).
+///
+/// With `bundle_helpers`, the module calls the helpers as functions its bundle defines (see
+/// `ESM_HELPER_FUNCTIONS`) instead of requiring the ESM helpers module, so that each module needn't
+/// require them and access each through it.
 pub fn esm2cjs(
   module: &mut Module,
   unresolved_mark: Mark,
   versions: Option<Versions>,
+  bundle_helpers: bool,
 ) -> (bool, usize) {
   let mut visitor = Esm2Cjs {
     imports: HashMap::new(),
@@ -34,6 +39,7 @@ pub fn esm2cjs(
     requires: vec![],
     exports: vec![],
     needs_helpers: false,
+    bundle_helpers,
     in_export_decl: false,
     in_function_scope: false,
     mark: Mark::fresh(Mark::root()),
@@ -60,6 +66,8 @@ struct Esm2Cjs {
   // List of exports to add.
   exports: Vec<ModuleItem>,
   needs_helpers: bool,
+  /// Whether helpers are called as the bundle's functions rather than through the helpers module.
+  bundle_helpers: bool,
   in_export_decl: bool,
   in_function_scope: bool,
   mark: Mark,
@@ -185,17 +193,26 @@ impl Esm2Cjs {
 
   fn create_helper_call(&mut self, name: JsWord, args: Vec<Expr>, span: Span) -> Expr {
     self.needs_helpers = true;
-    let ident = Ident::new(
-      "parcelHelpers".into(),
-      DUMMY_SP,
-      SyntaxContext::empty().apply_mark(self.mark),
-    );
-    Expr::Call(CallExpr {
-      callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+    let callee = if self.bundle_helpers {
+      Expr::Ident(Ident::new(
+        esm_helper_function(&name).into(),
+        DUMMY_SP,
+        self.unresolved_ctxt,
+      ))
+    } else {
+      let ident = Ident::new(
+        "parcelHelpers".into(),
+        DUMMY_SP,
+        SyntaxContext::empty().apply_mark(self.mark),
+      );
+      Expr::Member(MemberExpr {
         obj: Box::new(Expr::Ident(ident)),
         prop: MemberProp::Ident(IdentName::new(name, DUMMY_SP)),
         span: DUMMY_SP,
-      }))),
+      })
+    };
+    Expr::Call(CallExpr {
+      callee: Callee::Expr(Box::new(callee)),
       args: args
         .into_iter()
         .map(|arg| ExprOrSpread {
@@ -586,9 +603,10 @@ impl VisitMut for Esm2Cjs {
       self.exports.insert(0, helper);
     }
 
-    self.prologue_len = self.exports.len() + self.requires.len() + self.needs_helpers as usize;
+    let requires_helpers = self.needs_helpers && !self.bundle_helpers;
+    self.prologue_len = self.exports.len() + self.requires.len() + requires_helpers as usize;
     let mut body = Vec::with_capacity(self.prologue_len + items.len());
-    if self.needs_helpers {
+    if requires_helpers {
       body.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
         span: DUMMY_SP,
         ctxt: SyntaxContext::empty(),
@@ -690,11 +708,26 @@ mod tests {
   fn requires_esm_helpers() {
     let (output, needs_helpers) =
       run_with_transformation("export default 42", |context, module| {
-        let (needs_helpers, _) = esm2cjs(module, context.unresolved_mark, None);
+        let (needs_helpers, _) = esm2cjs(module, context.unresolved_mark, None, false);
         needs_helpers
       });
 
     assert!(needs_helpers);
     assert!(output.contains(r#"require("@parcel/parcel3/src/esmodule-helpers.js")"#));
+  }
+
+  #[test]
+  fn calls_bundle_esm_helpers() {
+    let (output, (needs_helpers, prologue_len)) =
+      run_with_transformation("export const foo = 42", |context, module| {
+        esm2cjs(module, context.unresolved_mark, None, true)
+      });
+
+    assert!(needs_helpers);
+    assert!(!output.contains("esmodule-helpers"));
+    assert!(output.contains("$parcel$defineInteropFlag(exports)"));
+    assert!(output.contains(r#"$parcel$export(exports, "foo", ()=>foo)"#));
+    // The two helper calls, without a require of the helpers.
+    assert_eq!(prologue_len, 2);
   }
 }

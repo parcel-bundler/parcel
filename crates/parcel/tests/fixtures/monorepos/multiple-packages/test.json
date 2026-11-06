@@ -32,7 +32,7 @@
     "input": "src/index.js",
     "options": { "mode": "production", "cwd": "packages/pkg-a" },
     "bundles": [
-      {"assets": ["index.js", "esmodule-helpers.js"]}
+      {"assets": ["index.js"]}
     ]
   },
   {
@@ -40,7 +40,7 @@
     "input": "index.js",
     "options": { "mode": "production", "cwd": "packages/pkg-a/src" },
     "bundles": [
-      {"assets": ["index.js", "esmodule-helpers.js"]}
+      {"assets": ["index.js"]}
     ]
   }
 ]
