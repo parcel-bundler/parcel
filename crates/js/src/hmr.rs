@@ -24,9 +24,9 @@ use swc_core::{
 use crate::{
   JsContent, JsOutput,
   packager::{
-    BundleShim, Resolution, SectionMap, SourceMapSection, SyntheticAsset, asset_dependencies,
-    embedded_css_modules, insert_hot_update_node_replacements, source_map_index,
-    write_node_replacement_decls,
+    BundleShim, MapJson, Resolution, SectionMap, SourceMapSection, SyntheticAsset,
+    asset_dependencies, embedded_css_modules, insert_hot_update_node_replacements,
+    source_map_index, write_node_replacement_decls,
   },
 };
 
@@ -259,7 +259,7 @@ fn hot_update_code(asset: &Asset, project_root: &PathId) -> String {
   let source_root = "/";
   // Code before the module's own, outside of its source map.
   let mut prefix = String::new();
-  let (code, map): (Cow<'_, [u8]>, Option<SectionMap<'_>>) = match asset
+  let (code, map): (Cow<'_, [u8]>, Option<SectionMap>) = match asset
     .content
     .downcast_ref::<JsContent>()
   {
@@ -289,11 +289,11 @@ fn hot_update_code(asset: &Asset, project_root: &PathId) -> String {
         );
         let map = generated
           .map
-          .as_deref()
+          .as_ref()
           .filter(|_| source_maps)
           .map(|json| SectionMap {
-            json: Cow::Borrowed(json),
-            source_root: Some(source_root),
+            json: MapJson::Shared(json.clone()),
+            source_root: Some(source_root.into()),
           });
         (Cow::Borrowed(generated.code.as_bytes()), map)
       }
@@ -309,11 +309,12 @@ fn hot_update_code(asset: &Asset, project_root: &PathId) -> String {
   output.push_str("\n}");
   if let Some(map) = map {
     // Like a bundle's map.
-    let map = source_map_index(&[SourceMapSection {
+    let map = source_map_index(vec![SourceMapSection {
       line: 1 + prefix.matches('\n').count() as u32,
       column: 0,
       map,
-    }]);
+    }])
+    .to_string();
     write!(
       &mut output,
       "\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,{}\n//# sourceURL={}",

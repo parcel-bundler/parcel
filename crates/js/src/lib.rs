@@ -65,10 +65,11 @@ enum JsOutput {
 
 /// A module's code, generated when it was transformed.
 struct GeneratedCode {
-  code: Box<str>,
+  /// Shared, so that bundles reference it rather than copying it (see `ChunkedText`).
+  code: Arc<str>,
   /// The source map of `code`, composed with the asset's input map, and without a `sourceRoot`,
   /// which depends on the bundle (see `bundle_source_root`).
-  map: Option<Box<str>>,
+  map: Option<Arc<str>>,
   /// The offset of an empty line in `code` after the module's ESM prologue, where the module waits
   /// for its imports if it's async (see `wrap_async_module`). None if the prologue is empty, so
   /// the module waits before its code.
@@ -128,8 +129,8 @@ impl GeneratedCode {
     };
 
     Ok(GeneratedCode {
-      code: code.into_boxed_str(),
-      map: map.map(|map| without_source_root(map).into_boxed_str()),
+      code: code.into(),
+      map: map.map(|map| without_source_root(map).into()),
       prologue_end,
       source,
     })

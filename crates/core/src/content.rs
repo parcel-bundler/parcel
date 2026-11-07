@@ -366,7 +366,11 @@ impl Content for ContentWithSourceMap {
 ///
 /// It's added when the content is written, after the bundle's name (and so `path`) is known. A
 /// content hash can't cover it: the comment contains the name, and the name contains the hash.
-fn source_mapping_url_comment(path: PathId, map_path: PathId, code: &[u8]) -> Option<String> {
+pub(crate) fn source_mapping_url_comment(
+  path: PathId,
+  map_path: PathId,
+  code: &[u8],
+) -> Option<String> {
   let url = map_path.relative_url(&path);
   let comment = match path.extension()? {
     "js" | "mjs" | "cjs" => format!("//# sourceMappingURL={url}"),

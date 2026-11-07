@@ -127,6 +127,10 @@ impl FileSystem for TrackingFileSystem {
     self.inner.write(path, contents)
   }
 
+  fn write_vectored(&self, path: PathId, chunks: &[&[u8]]) -> Result<()> {
+    self.inner.write_vectored(path, chunks)
+  }
+
   fn remove_file(&self, path: PathId) -> Result<()> {
     self.inner.remove_file(path)
   }

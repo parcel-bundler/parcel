@@ -154,6 +154,12 @@ pub trait FileSystem: Send + Sync {
 
   fn write(&self, path: PathId, contents: &[u8]) -> Result<()>;
 
+  /// Writes the concatenation of `chunks` to a file. File systems that can write them as they are
+  /// (e.g. with `writev`) override this to avoid concatenating them in memory.
+  fn write_vectored(&self, path: PathId, chunks: &[&[u8]]) -> Result<()> {
+    self.write(path, &chunks.concat())
+  }
+
   fn copy(&self, from: PathId, to: PathId) -> Result<()> {
     self.write(to, &self.read(from)?)
   }

@@ -252,6 +252,12 @@ impl FileSystem for CachedFileSystem {
     Ok(())
   }
 
+  fn write_vectored(&self, path: PathId, chunks: &[&[u8]]) -> Result<()> {
+    self.inner.write_vectored(path, chunks)?;
+    self.invalidate([path]);
+    Ok(())
+  }
+
   fn remove_file(&self, path: PathId) -> Result<()> {
     self.inner.remove_file(path)?;
     self.invalidate([path]);

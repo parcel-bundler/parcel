@@ -3,6 +3,7 @@ mod asset_graph;
 mod bundle;
 mod bundle_graph;
 mod bundler;
+mod chunked_text;
 mod config;
 mod content;
 mod context;
@@ -38,6 +39,7 @@ pub use asset_graph::{AssetGraph, AssetGraphBuilder, AssetIndex, AssetNode, Asse
 pub use bundle::*;
 pub use bundle_graph::*;
 pub use bundler::*;
+pub use chunked_text::{ChunkedText, ChunkedTextContent};
 pub use config::*;
 pub use content::*;
 pub use context::PluginContext;

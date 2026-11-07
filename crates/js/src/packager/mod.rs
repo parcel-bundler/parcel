@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt::Write, sync::Arc};
+use std::{fmt::Write, sync::Arc};
 
 use crate::transformer::{Ast, async_module::wrap_async_module};
 use indexmap::{IndexMap, IndexSet};
@@ -29,7 +29,7 @@ pub use tree_shake::{Resolution, tree_shake};
 
 use crate::{GeneratedCode, JsContent, JsOutput};
 use printer::Printer;
-pub(crate) use printer::{SectionMap, SourceMapSection, source_map_index};
+pub(crate) use printer::{MapJson, SectionMap, SourceMapSection, source_map_index};
 use script::{link_script, minify_script};
 
 const RUNTIME_MODULES: &str = "m";
@@ -154,7 +154,8 @@ impl JsContent {
         None
       };
 
-    let source_root = bundle_source_root(bundle, &options.project_root);
+    let source_root: Option<Arc<str>> =
+      bundle_source_root(bundle, &options.project_root).map(Into::into);
     let mut printer = Printer::new(should_build_source_map, should_optimize);
     if let Some(main) = bundle.main_entry_asset {
       let asset = &bundle_graph.asset_graph.asset(main);
@@ -200,7 +201,7 @@ impl JsContent {
           bundle,
           bundle_graph.is_async_asset(asset_index),
           dependencies,
-          source_root.as_deref(),
+          source_root.as_ref(),
           should_build_source_map,
           should_optimize,
         )
@@ -434,39 +435,65 @@ fn write_bundle_references(
 }
 
 /// A module of the bundle's module table, generated independently of the others.
-struct RenderedModule<'a> {
+struct RenderedModule {
   id: String,
   /// Code written before the module's own, outside of its source map.
   prefix: String,
-  code: Cow<'a, [u8]>,
+  code: ModuleCode,
   /// Code written after the module's own.
   suffix: String,
-  map: Option<SectionMap<'a>>,
+  map: Option<SectionMap>,
   /// The serialized dependencies written after an unoptimized module, or `None` for an optimized
   /// JS module, which is written as an expression.
   trailer: Option<String>,
 }
 
-impl<'a> RenderedModule<'a> {
+enum ModuleCode {
+  Owned(Vec<u8>),
+  /// Code generated when the module was transformed, which the bundle references rather than
+  /// copies, with text inserted at an offset (where an async module waits for its imports).
+  Shared {
+    code: Arc<str>,
+    insert: Option<(usize, String)>,
+  },
+}
+
+impl RenderedModule {
   fn new(id: String, code: Vec<u8>, map: Option<String>, trailer: Option<String>) -> Self {
     RenderedModule {
       id,
       prefix: String::new(),
-      code: Cow::Owned(code),
+      code: ModuleCode::Owned(code),
       suffix: String::new(),
       map: map.map(SectionMap::new),
       trailer,
     }
   }
 
-  fn write(self, printer: &mut Printer<'a>) -> Result<(), DiagnosticList> {
+  fn write(self, printer: &mut Printer) -> Result<(), DiagnosticList> {
     printer.write_module_header(self.id)?;
     printer.write_str(&self.prefix)?;
     printer.add_source_map(self.map);
-    match self.trailer {
-      None => printer.write_expression_code(&self.code)?,
-      Some(deps) => {
-        printer.write_str(std::str::from_utf8(&self.code).unwrap())?;
+    match (self.trailer, self.code) {
+      (None, ModuleCode::Owned(code)) => printer.write_expression_code(code)?,
+      (None, ModuleCode::Shared { .. }) => {
+        unreachable!("optimized bundles render modules from their AST")
+      }
+      (Some(deps), code) => {
+        match code {
+          ModuleCode::Owned(code) => printer.write_owned(
+            String::from_utf8(code).map_err(|e| Diagnostic::from_message(e.to_string()))?,
+          ),
+          ModuleCode::Shared { code, insert: None } => printer.write_shared(&code, 0..code.len()),
+          ModuleCode::Shared {
+            code,
+            insert: Some((at, text)),
+          } => {
+            printer.write_shared(&code, 0..at);
+            printer.write_str(&text)?;
+            printer.write_shared(&code, at..code.len());
+          }
+        }
         printer.write_str(&self.suffix)?;
         printer.write_module_trailer(deps)?;
       }
@@ -476,16 +503,16 @@ impl<'a> RenderedModule<'a> {
   }
 }
 
-fn render_asset_module<'a, 'm>(
-  asset: &'m Asset,
+fn render_asset_module<'a>(
+  asset: &Asset,
   id: String,
   bundle: &Bundle,
   is_async: bool,
   dependencies: IndexMap<String, Resolution<'a>>,
-  source_root: Option<&'m str>,
+  source_root: Option<&Arc<str>>,
   should_build_source_map: bool,
   should_optimize: bool,
-) -> Result<RenderedModule<'m>, DiagnosticList> {
+) -> Result<RenderedModule, DiagnosticList> {
   let Some(content) = asset.content.downcast_ref::<JsContent>() else {
     return Ok(RenderedModule::new(
       id,
@@ -566,7 +593,12 @@ fn render_asset_module<'a, 'm>(
     );
     ast.finalize();
   }
-  let (code, map) = content.to_code(&ast, should_build_source_map, source_root, should_optimize)?;
+  let (code, map) = content.to_code(
+    &ast,
+    should_build_source_map,
+    source_root.map(|root| &**root),
+    should_optimize,
+  )?;
 
   Ok(RenderedModule::new(id, code, map, trailer))
 }
@@ -574,17 +606,17 @@ fn render_asset_module<'a, 'm>(
 /// Renders a module from the code generated when it was transformed, applying what packaging adds
 /// to it as text: its Node replacements, and the async module wrapper (as `wrap_async_module` does
 /// to an AST). Both go outside of the generated code's lines, so its source map applies as is.
-fn render_generated_module<'a, 'm>(
-  asset: &'m Asset,
+fn render_generated_module<'a>(
+  asset: &Asset,
   content: &JsContent,
-  generated: &'m GeneratedCode,
+  generated: &GeneratedCode,
   id: String,
   bundle: &Bundle,
   is_async: bool,
   dependencies: IndexMap<String, Resolution<'a>>,
-  source_root: Option<&'m str>,
+  source_root: Option<&Arc<str>>,
   should_build_source_map: bool,
-) -> Result<RenderedModule<'m>, DiagnosticList> {
+) -> Result<RenderedModule, DiagnosticList> {
   let mut prefix = String::new();
   let bundle_dir = bundle
     .dist_path()
@@ -598,7 +630,7 @@ fn render_generated_module<'a, 'm>(
     )
   });
 
-  let mut code = Cow::Borrowed(generated.code.as_bytes());
+  let mut insert = None;
   let mut suffix = String::new();
   if is_async {
     // The runtime's module evaluator runs it (see `tla-runtime.js`).
@@ -616,13 +648,7 @@ fn render_generated_module<'a, 'm>(
     let wait_for_imports = format!("var {wait} = {gate}(); if ({wait}) (await {wait})();");
     match generated.prologue_end {
       // On the empty line left for it, which has no mappings.
-      Some(at) => {
-        let mut with_wait = String::with_capacity(source.len() + wait_for_imports.len());
-        with_wait.push_str(&source[..at]);
-        with_wait.push_str(&wait_for_imports);
-        with_wait.push_str(&source[at..]);
-        code = Cow::Owned(with_wait.into_bytes());
-      }
+      Some(at) => insert = Some((at, wait_for_imports)),
       None => {
         prefix.push_str(&wait_for_imports);
         prefix.push('\n');
@@ -640,15 +666,18 @@ fn render_generated_module<'a, 'm>(
   Ok(RenderedModule {
     id,
     prefix,
-    code,
+    code: ModuleCode::Shared {
+      code: generated.code.clone(),
+      insert,
+    },
     suffix,
     map: generated
       .map
-      .as_deref()
+      .as_ref()
       .filter(|_| should_build_source_map)
       .map(|json| SectionMap {
-        json: Cow::Borrowed(json),
-        source_root,
+        json: MapJson::Shared(json.clone()),
+        source_root: source_root.cloned(),
       }),
     trailer: Some(serde_json::to_string(&dependencies)?),
   })
