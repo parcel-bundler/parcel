@@ -7,7 +7,11 @@ const {minifySync, parseSync} = require('@swc/core');
 // omitted here. `request` is resolved with Node's normal package resolution and
 // then the package's browser mapping is applied.
 const BUILTINS = {
-  assert: {request: 'assert/'},
+  // A facade that loads the `assert` package only when it's needed (see builtin-src/assert).
+  assert: {
+    source: path.join(__dirname, 'builtin-src/assert/index.js'),
+    packageName: 'assert'
+  },
   buffer: {request: 'buffer/'},
   domain: {request: 'domain-browser'},
   events: {request: 'events/'},
@@ -330,7 +334,7 @@ class BuiltinGraph {
     }
 
     let builtin = BUILTINS[request];
-    if (builtin) request = builtin.request;
+    if (builtin) request = builtin.source || builtin.request;
     else if (HOST_BUILTINS.has(request)) return {external: request};
 
     let resolved = this.resolveWithoutBrowser(request, from);

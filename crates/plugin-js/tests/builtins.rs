@@ -16,8 +16,22 @@ const CASES: &[(&str, &str)] = &[
     "assert",
     r#"const a = require('assert');
        a.equal(1, 1); a.deepEqual({x: [1, 2]}, {x: [1, 2]});
-       let threw = false; try { a.equal(1, 2) } catch (e) { threw = true }
-       if (!threw) throw new Error('assert.equal did not throw');"#,
+       a(1); a.ok('x'); a.notEqual(1, 2); a.strictEqual(NaN, NaN); a.notStrictEqual(0, -0);
+       function throws(f, check) {
+         try { f() } catch (e) { if (!check(e)) throw new Error('wrong error: ' + e.message); return }
+         throw new Error('did not throw: ' + f);
+       }
+       const failed = e => e instanceof a.AssertionError && e.code === 'ERR_ASSERTION';
+       throws(() => a.equal(1, 2), e => failed(e) && e.message === '1 == 2');
+       throws(() => a(0), failed);
+       throws(() => a(), e => failed(e) && /No value argument/.test(e.message));
+       throws(() => a.ok(false, 'custom'), e => failed(e) && e.message === 'custom');
+       throws(() => a.notEqual(1, '1'), failed);
+       throws(() => a.strictEqual(1, '1'), failed);
+       throws(() => a.notStrictEqual(NaN, NaN), failed);
+       throws(() => a.equal(1), e => e.code === 'ERR_MISSING_ARGS');
+       throws(() => a.strict.equal(1, '1'), failed);
+       a.throws(() => { throw new Error('x') }, /x/);"#,
   ),
   (
     "buffer",
@@ -166,4 +180,33 @@ fn embedded_builtins_work() {
     failed.join(", ")
   );
   assert_eq!(passed, CASES.len());
+}
+
+/// `assert` loads its implementation, and the `util` modules that come with it, only once something
+/// needs it: a passing assertion shouldn't.
+#[test]
+fn passing_assertions_dont_load_util() {
+  // A file system of its own, so this test gets a fresh runtime.
+  let fs: Arc<dyn FileSystem> = Arc::new(OsFileSystem {});
+  let cwd = PathId::new(&std::env::current_dir().unwrap());
+  let result = with_js_env(fs, &HashMap::new(), cwd, |ctx| {
+    require_source(
+      ctx,
+      "/verify_assert_lazy.js",
+      r#"const a = require('assert');
+         a(1); a.ok(1); a.equal(1, '1'); a.notEqual(1, 2); a.strictEqual(1, 1); a.notStrictEqual(1, 2);
+         const loaded = Object.keys(require.cache).filter(k => /util|assert@/.test(k));
+         if (loaded.length) throw new Error('loaded ' + loaded.join(', '));
+         try { a.equal(1, 2) } catch (e) {}
+         if (!Object.keys(require.cache).some(k => /util\/util\.js/.test(k))) {
+           throw new Error('a failing assertion should load the implementation');
+         }"#,
+    )?;
+    Ok(())
+  });
+  if let Err(diagnostics) = result {
+    let mut buf = Vec::new();
+    diagnostics.report(&mut buf).unwrap();
+    panic!("{}", String::from_utf8_lossy(&buf));
+  }
 }
