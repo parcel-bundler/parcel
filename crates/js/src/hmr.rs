@@ -1,4 +1,5 @@
 use std::{
+  borrow::Cow,
   collections::{HashMap, HashSet},
   fmt::Write,
 };
@@ -21,10 +22,11 @@ use swc_core::{
 };
 
 use crate::{
-  JsContent,
+  JsContent, JsOutput,
   packager::{
-    BundleShim, Resolution, SyntheticAsset, asset_dependencies, embedded_css_modules,
-    insert_hot_update_node_replacements,
+    BundleShim, Resolution, SectionMap, SourceMapSection, SyntheticAsset, asset_dependencies,
+    embedded_css_modules, insert_hot_update_node_replacements, source_map_index,
+    write_node_replacement_decls,
   },
 };
 
@@ -252,35 +254,66 @@ pub fn get_hmr_update<'a>(
 /// stack traces and devtools.
 fn hot_update_code(asset: &Asset, project_root: &PathId) -> String {
   let id = asset.id(project_root);
-  let (code, map) = match asset.content.downcast_ref::<JsContent>() {
-    Some(content) => {
-      let mut ast = content.ast.clone();
-      insert_hot_update_node_replacements(&mut ast, content, asset);
-      replace_import_meta(&mut ast);
-      content
-        .to_code(
-          &ast,
-          asset.target.source_map.is_some(),
-          // Resolved from the origin's root, where a bundle in the dist root resolves its
-          // `sources` to.
-          Some("/"),
-          false,
-        )
-        .unwrap()
-    }
-    None => (asset.content.read().unwrap(), None),
+  let source_maps = asset.target.source_map.is_some();
+  // Resolved from the origin's root, where a bundle in the dist root resolves its `sources` to.
+  let source_root = "/";
+  // Code before the module's own, outside of its source map.
+  let mut prefix = String::new();
+  let (code, map): (Cow<'_, [u8]>, Option<SectionMap<'_>>) = match asset
+    .content
+    .downcast_ref::<JsContent>()
+  {
+    Some(content) => match &content.output {
+      JsOutput::Ast { ast, .. } => {
+        let mut ast = ast.clone();
+        insert_hot_update_node_replacements(&mut ast, content, asset);
+        replace_import_meta(&mut ast);
+        let (code, map) = content
+          .to_code(&ast, source_maps, Some(source_root), false)
+          .unwrap();
+        (Cow::Owned(code), map.map(SectionMap::new))
+      }
+      // Modules that use `import.meta` keep their AST when hot updates are enabled (see
+      // `JsContent::keeps_ast`), so this only needs the Node replacements.
+      JsOutput::Code(generated) => {
+        write_node_replacement_decls(
+          &mut prefix,
+          content,
+          asset,
+          asset.target.dist_dir,
+          |value| {
+            format!(
+              "module.bundle.nodePath.resolve(module.bundle.bundleDir, module.bundle.distDir, {value})"
+            )
+          },
+        );
+        let map = generated
+          .map
+          .as_deref()
+          .filter(|_| source_maps)
+          .map(|json| SectionMap {
+            json: Cow::Borrowed(json),
+            source_root: Some(source_root),
+          });
+        (Cow::Borrowed(generated.code.as_bytes()), map)
+      }
+    },
+    None => (Cow::Owned(asset.content.read().unwrap()), None),
   };
 
   // The code starts on its own line so that the map only needs a line offset, and ends on one so
   // that a trailing line comment can't swallow the closing brace.
   let mut output = format!("parcelHotUpdate['{id}'] = function (module, exports, require) {{\n");
+  output.push_str(&prefix);
   output.push_str(std::str::from_utf8(&code).unwrap());
   output.push_str("\n}");
   if let Some(map) = map {
-    // Like a bundle's map (see `SourceMapIndex`).
-    let map = format!(
-      r#"{{"version":3,"sources":[],"sections":[{{"offset":{{"line":1,"column":0}},"map":{map}}}]}}"#
-    );
+    // Like a bundle's map.
+    let map = source_map_index(&[SourceMapSection {
+      line: 1 + prefix.matches('\n').count() as u32,
+      column: 0,
+      map,
+    }]);
     write!(
       &mut output,
       "\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,{}\n//# sourceURL={}",

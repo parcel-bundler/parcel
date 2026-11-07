@@ -9,7 +9,7 @@ use parcel_resolver::{AliasValue, BrowserField, Specifier};
 use serde::{Deserialize, Deserializer, de::Error};
 use swc_core::ecma::react_compiler::{CompilerTarget, GatingConfig, default_plugin_options};
 
-use crate::JsContent;
+use crate::{GeneratedCode, JsContent, JsOutput};
 
 #[derive(Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -91,6 +91,8 @@ impl Transformer for JsTransformer {
   ) -> Result<Asset, DiagnosticList> {
     let options = ctx.options;
     let fs = ctx.fs;
+    // Whether an earlier transformer produced the source, rather than it being the file's.
+    let rewritten = asset.content.downcast_ref::<FileContent>().is_none();
     let input_source_map = if asset.target.source_map.is_some() {
       input_source_map(
         &*asset.content,
@@ -288,9 +290,24 @@ impl Transformer for JsTransformer {
     asset
       .flags
       .set(AssetFlags::HAS_TOP_LEVEL_AWAIT, res.has_top_level_await);
+    let output = if JsContent::keeps_ast(&asset.target, options, &res.ast.program) {
+      JsOutput::Ast {
+        ast: res.ast,
+        input_source_map,
+      }
+    } else {
+      JsOutput::Code(GeneratedCode::new(
+        res.ast,
+        input_source_map.as_ref(),
+        asset.target.source_map.is_some(),
+        res.esm_prologue_len,
+        res.react_refresh_wrapped,
+        rewritten,
+      )?)
+    };
     asset.content = Arc::new(JsContent {
       source_size,
-      ast: res.ast,
+      output,
       shebang: res.shebang,
       directives,
       rsc_runtime_dep,
@@ -298,7 +315,6 @@ impl Transformer for JsTransformer {
       needs_dirname: res.needs_dirname,
       esm_prologue_len: res.esm_prologue_len,
       react_refresh_wrapped: res.react_refresh_wrapped,
-      input_source_map,
     });
     Ok(asset)
   }

@@ -47,7 +47,7 @@ impl JsContent {
     )?;
 
     let (code, map) = if let Some(content) = asset.content.downcast_ref::<JsContent>() {
-      let mut ast = content.ast.clone();
+      let mut ast = content.ast()?.clone();
       if let Some(shebang) = &content.shebang {
         ast.program.shebang = Some(shebang.as_str().into());
       }
