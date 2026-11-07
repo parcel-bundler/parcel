@@ -1162,10 +1162,19 @@ fn request_all(
         asset_nodes,
         assets,
         resolved_asset_index,
-        name,
+        name.clone(),
         None,
         &mut HashSet::new(),
         queue,
+      );
+      // Reading the re-export from the namespace reads the name from the target's exports
+      // object, which must provide it through `export *` too.
+      request_runtime_star_exports(
+        asset_nodes,
+        assets,
+        resolved_asset_index,
+        &name,
+        &mut HashSet::new(),
       );
     }
   }

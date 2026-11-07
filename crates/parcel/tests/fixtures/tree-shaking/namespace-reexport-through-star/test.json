@@ -1,0 +1,13 @@
+[
+  {
+    "description": "a re-export read through a namespace provides a name its target re-exports with export *",
+    "input": "index.js",
+    "output": "value"
+  },
+  {
+    "description": "a re-export read through a namespace provides a name its target re-exports with export * in production",
+    "input": "index.js",
+    "options": {"mode": "production"},
+    "output": "value"
+  }
+]
