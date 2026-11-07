@@ -1,9 +1,6 @@
-use std::{
-  sync::{
-    Arc, Mutex,
-    mpsc::{self, Receiver, Sender},
-  },
-  thread::{self, available_parallelism},
+use std::sync::{
+  Arc,
+  mpsc::{self, Receiver, Sender},
 };
 
 use crate::{
@@ -11,16 +8,15 @@ use crate::{
   transformer::{TransformRequest, TransformResult},
 };
 
-pub enum Request {
-  Transform(TransformRequest),
-}
-
 pub enum RequestResult {
   Transform(TransformResult),
 }
 
+/// Runs transforms on rayon's global thread pool, which packaging also uses, so that a build has one
+/// set of worker threads (and one set of their thread-local state, such as JS runtimes). The asset
+/// graph builder receives the results on its own thread, which isn't one of the pool's.
 pub struct TransformQueue {
-  request_sender: Sender<Request>,
+  result_sender: Sender<RequestResult>,
   result_receiver: Receiver<RequestResult>,
   config: Arc<ParcelConfig>,
   options: Arc<ParcelOptions>,
@@ -29,11 +25,9 @@ pub struct TransformQueue {
 
 impl TransformQueue {
   pub fn new(config: Arc<ParcelConfig>, options: Arc<ParcelOptions>) -> TransformQueue {
-    let (request_sender, request_receiver) = mpsc::channel::<Request>();
     let (result_sender, result_receiver) = mpsc::channel::<RequestResult>();
-    spawn_workers(request_receiver, result_sender);
     TransformQueue {
-      request_sender,
+      result_sender,
       result_receiver,
       pending_requests: 0,
       config,
@@ -43,13 +37,17 @@ impl TransformQueue {
 
   pub fn transform(&mut self, index: AssetNodeIndex, req: Arc<AssetRequest>) {
     self.pending_requests += 1;
-    let request = Request::Transform(TransformRequest {
+    let request = TransformRequest {
       index,
       req,
       options: self.options.clone(),
       config: self.config.clone(),
+    };
+    let sender = self.result_sender.clone();
+    // Spawned from outside the pool, so tasks are queued in the order they're requested.
+    rayon::spawn(move || {
+      let _ = sender.send(RequestResult::Transform(run(request)));
     });
-    self.request_sender.send(request).unwrap();
   }
 
   /// Whether any transform requests are still in flight.
@@ -65,7 +63,7 @@ impl TransformQueue {
           Some(result)
         }
         Err(_) => {
-          // All workers gone; nothing more will arrive.
+          // Unreachable while `self` holds a sender, but nothing more could arrive.
           self.pending_requests = 0;
           None
         }
@@ -76,51 +74,25 @@ impl TransformQueue {
   }
 }
 
-fn spawn_workers(rx: mpsc::Receiver<Request>, tx: mpsc::Sender<RequestResult>) {
-  // To multiplex the non-cloneable Receiver, wrap it in Arc<Mutex<_>>.
-  let rx = Arc::new(Mutex::new(rx));
-
-  for _ in 0..available_parallelism().unwrap().get() {
-    let tx = tx.clone();
-    let rx = Arc::clone(&rx);
-    thread::spawn(move || {
-      loop {
-        let request: Result<_, _> = {
-          let receiver_guard = rx.lock().unwrap();
-          receiver_guard.recv()
-        };
-
-        let Ok(request) = request else {
-          // The sender got dropped. No more commands coming in.
-          break;
-        };
-
-        let result = match request {
-          Request::Transform(req) => {
-            let index = req.index;
-            let request = req.req.clone();
-            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| req.run()));
-            match outcome {
-              Ok(r) => RequestResult::Transform(r),
-              Err(payload) => {
-                let msg = payload
-                  .downcast_ref::<&str>()
-                  .map(|s| s.to_string())
-                  .or_else(|| payload.downcast_ref::<String>().cloned())
-                  .unwrap_or_else(|| "transform panicked".to_string());
-                RequestResult::Transform(TransformResult {
-                  index,
-                  req: request,
-                  invalidations: Invalidations::default(),
-                  result: Err(Diagnostic::from_message(msg).into()),
-                })
-              }
-            }
-          }
-        };
-
-        let _ = tx.send(result);
+/// Runs a transform, turning a panic into an error. A panic must not escape: rayon aborts the process
+/// when a spawned task panics.
+fn run(request: TransformRequest) -> TransformResult {
+  let index = request.index;
+  let req = request.req.clone();
+  match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| request.run())) {
+    Ok(result) => result,
+    Err(payload) => {
+      let message = payload
+        .downcast_ref::<&str>()
+        .map(|s| s.to_string())
+        .or_else(|| payload.downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "transform panicked".to_string());
+      TransformResult {
+        index,
+        req,
+        invalidations: Invalidations::default(),
+        result: Err(Diagnostic::from_message(message).into()),
       }
-    });
+    }
   }
 }
