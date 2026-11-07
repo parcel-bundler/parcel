@@ -471,10 +471,38 @@ impl<'arena> DependencyCollector<'arena> {
             key
           };
 
+          // Determine the asset type up front so the `type` attribute can be
+          // normalised below. Inline scripts that compile to JavaScript (e.g.
+          // TypeScript) must not keep a non-JS `type` attribute: browsers
+          // would refuse to execute the compiled output.
+          let asset_type = ty
+            .as_ref()
+            .map(|ty| AssetType::from_mime(ty))
+            .unwrap_or(AssetType::Js);
+
+          if source_type != SourceType::Module
+            && matches!(
+              asset_type,
+              AssetType::Js | AssetType::Jsx | AssetType::Ts | AssetType::Tsx | AssetType::Mdx
+            )
+          {
+            // Only rewrite an existing non-JS type: scripts without a `type`
+            // attribute, and scripts already typed as JavaScript, are left
+            // alone. Note the check is against `AssetType::Js` exactly, not
+            // the JS family: a TypeScript mime (e.g. `application/ts`) maps
+            // to `Ts`, which must still be rewritten, while a JavaScript
+            // mime maps to `Js` and is already fine. Module scripts keep
+            // `type="module"`; data blocks (JSON/HTML/importmap) returned
+            // early above.
+            if let Some(t) = &ty {
+              if !matches!(AssetType::from_mime(t), AssetType::Js) {
+                node.set_attribute(expanded_name!("", "type"), "application/javascript");
+              }
+            }
+          }
+
           self.assets.push(Asset {
-            ty: ty
-              .map(|ty| AssetType::from_mime(&ty))
-              .unwrap_or(AssetType::Js),
+            ty: asset_type,
             content: Arc::new(BufferContent::new_string(code)),
             unique_key: Some(key.to_string().into()),
             flags: AssetFlags::IS_HTML_TAG,
