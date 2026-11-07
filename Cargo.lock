@@ -2866,7 +2866,7 @@ dependencies = [
 [[package]]
 name = "oxvg_ast"
 version = "0.0.9"
-source = "git+https://github.com/devongovett/oxvg.git?branch=lightningcss-master-external-references#644c2809db5478122425c992e7a2af8dee2924ed"
+source = "git+https://github.com/devongovett/oxvg.git?branch=attr-id-index#5a305096982ca7b9c80c7421324e8648d90432c7"
 dependencies = [
  "bitflags 2.13.1",
  "cfg-if",
@@ -2890,7 +2890,7 @@ dependencies = [
 [[package]]
 name = "oxvg_collections"
 version = "0.0.9"
-source = "git+https://github.com/devongovett/oxvg.git?branch=lightningcss-master-external-references#644c2809db5478122425c992e7a2af8dee2924ed"
+source = "git+https://github.com/devongovett/oxvg.git?branch=attr-id-index#5a305096982ca7b9c80c7421324e8648d90432c7"
 dependencies = [
  "bitflags 2.13.1",
  "cssparser",
@@ -2907,7 +2907,7 @@ dependencies = [
 [[package]]
 name = "oxvg_optimiser"
 version = "0.0.9"
-source = "git+https://github.com/devongovett/oxvg.git?branch=lightningcss-master-external-references#644c2809db5478122425c992e7a2af8dee2924ed"
+source = "git+https://github.com/devongovett/oxvg.git?branch=attr-id-index#5a305096982ca7b9c80c7421324e8648d90432c7"
 dependencies = [
  "anyhow",
  "bitflags 2.13.1",
@@ -2936,7 +2936,7 @@ dependencies = [
 [[package]]
 name = "oxvg_parse"
 version = "0.0.9"
-source = "git+https://github.com/devongovett/oxvg.git?branch=lightningcss-master-external-references#644c2809db5478122425c992e7a2af8dee2924ed"
+source = "git+https://github.com/devongovett/oxvg.git?branch=attr-id-index#5a305096982ca7b9c80c7421324e8648d90432c7"
 dependencies = [
  "cssparser",
  "lightningcss",
@@ -2945,7 +2945,7 @@ dependencies = [
 [[package]]
 name = "oxvg_path"
 version = "0.0.9"
-source = "git+https://github.com/devongovett/oxvg.git?branch=lightningcss-master-external-references#644c2809db5478122425c992e7a2af8dee2924ed"
+source = "git+https://github.com/devongovett/oxvg.git?branch=attr-id-index#5a305096982ca7b9c80c7421324e8648d90432c7"
 dependencies = [
  "bitflags 2.13.1",
  "geo",
@@ -2963,7 +2963,7 @@ dependencies = [
 [[package]]
 name = "oxvg_serialize"
 version = "0.0.9"
-source = "git+https://github.com/devongovett/oxvg.git?branch=lightningcss-master-external-references#644c2809db5478122425c992e7a2af8dee2924ed"
+source = "git+https://github.com/devongovett/oxvg.git?branch=attr-id-index#5a305096982ca7b9c80c7421324e8648d90432c7"
 dependencies = [
  "cssparser",
  "lightningcss",
