@@ -618,9 +618,25 @@ impl<'arena> DependencyCollector<'arena> {
             return;
           }
 
+          // Only navigable documents keep a stable, SEO-friendly name. Other
+          // targets (images, media, data, ...) are assets like `<img src>`:
+          // they are content-hashed and flattened into the dist root instead
+          // of keeping their source folder structure. SVGs count as images
+          // here, not documents. See #1917.
+          let extension = path
+            .split_once('?')
+            .map_or(path, |p| p.0)
+            .rsplit_once('.')
+            .map_or("", |p| p.1)
+            .to_ascii_lowercase();
+          let needs_stable_name = matches!(
+            AssetType::from_extension(&extension),
+            AssetType::Html | AssetType::Xhtml | AssetType::Xml | AssetType::Rss | AssetType::Atom
+          );
+
           let placeholder = self.add_dep(
             href,
-            true,
+            needs_stable_name,
             Priority::Lazy,
             node.line,
             Some(UrlReference::Document),
