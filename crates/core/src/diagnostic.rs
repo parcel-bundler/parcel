@@ -126,6 +126,20 @@ impl Diagnostic {
     }
     self
   }
+
+  /// Fill in `code` for code frames that point at a file but carry no code,
+  /// by reading the file. Frames whose file cannot be read keep `code: None`,
+  /// so a frame for a deleted or virtual file is unaffected. Consumers of the
+  /// Parcel API then always find `code` set whenever the file is readable,
+  /// instead of having to read it themselves.
+  pub fn normalize_code_frames(&mut self) {
+    for frame in &mut self.code_frames {
+      if frame.code.is_none() {
+        let code = frame.code();
+        frame.code = code;
+      }
+    }
+  }
 }
 
 impl From<std::io::Error> for Diagnostic {
@@ -1208,5 +1222,75 @@ mod tests {
         .contains("escape &lt;this&gt;")
     );
     assert!(rendered.ansi[0].codeframe.is_some());
+  }
+
+  fn frame_with_url_and_code(url: Option<SourceUrl>, code: Option<String>) -> CodeFrame {
+    CodeFrame {
+      code,
+      url,
+      language: Some(AssetType::Js),
+      code_highlights: vec![CodeHighlight {
+        message: None,
+        start: Location { line: 1, column: 1 },
+        end: Location { line: 1, column: 2 },
+      }],
+    }
+  }
+
+  #[test]
+  fn normalize_code_frames_reads_missing_code_from_file() {
+    let dir = std::env::temp_dir().join("parcel-normalize-code-frames-test");
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("example.js");
+    std::fs::write(&path, "const x = 1;\n").unwrap();
+    let url = SourceUrl::from_path(&PathId::new(&path));
+
+    let mut diagnostic = Diagnostic::from_message("broken".into());
+    diagnostic.code_frames = vec![frame_with_url_and_code(Some(url), None)];
+    diagnostic.normalize_code_frames();
+
+    assert_eq!(
+      diagnostic.code_frames[0].code,
+      Some("const x = 1;\n".into())
+    );
+    std::fs::remove_file(&path).unwrap();
+  }
+
+  #[test]
+  fn normalize_code_frames_keeps_existing_code() {
+    let dir = std::env::temp_dir().join("parcel-normalize-code-frames-test");
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("other.js");
+    std::fs::write(&path, "const y = 2;\n").unwrap();
+    let url = SourceUrl::from_path(&PathId::new(&path));
+
+    let mut diagnostic = Diagnostic::from_message("broken".into());
+    diagnostic.code_frames = vec![frame_with_url_and_code(
+      Some(url),
+      Some("const x = 1;\n".into()),
+    )];
+    diagnostic.normalize_code_frames();
+
+    assert_eq!(
+      diagnostic.code_frames[0].code,
+      Some("const x = 1;\n".into())
+    );
+    std::fs::remove_file(&path).unwrap();
+  }
+
+  #[test]
+  fn normalize_code_frames_leaves_unreadable_frames_alone() {
+    let missing = std::env::temp_dir().join("parcel-does-not-exist.js");
+    let url = SourceUrl::from_path(&PathId::new(&missing));
+
+    let mut diagnostic = Diagnostic::from_message("broken".into());
+    diagnostic.code_frames = vec![
+      frame_with_url_and_code(Some(url), None),
+      frame_with_url_and_code(None, None),
+    ];
+    diagnostic.normalize_code_frames();
+
+    assert_eq!(diagnostic.code_frames[0].code, None);
+    assert_eq!(diagnostic.code_frames[1].code, None);
   }
 }
