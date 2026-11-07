@@ -318,33 +318,26 @@ impl CjsLoader {
       return module.get("exports");
     }
 
-    // Another thread may already have compiled this module (including any TypeScript
-    // transpilation); if so, skip straight to executing its bytecode.
+    // Transpiled and compiled by the first thread to load this module; later ones (and any
+    // that load it meanwhile) run its bytecode.
     let source_hash = bytecode::source_hash(&source);
-    if let Some(f) = bytecode::load_script(ctx, resolved, source_hash) {
-      let f = Function::from_js(ctx, f?)?;
-      f.call::<_, ()>((module.clone(), module.get::<_, Value>("exports")?))?;
-      return module.get("exports");
-    }
-
-    if resolved.ends_with(".ts") || resolved.ends_with(".tsx") {
-      source = Cow::Owned(
-        crate::transpile::transpile_ts(resolved, source.into_owned(), ModuleKind::CommonJs)
-          .map_err(|message| rquickjs::Error::Loading {
-            name: resolved.into(),
-            message: Some(message),
-          })?,
-      );
-    }
-
-    let mut code = String::new();
-    code.push_str("(function (module, exports) {");
-    code.push_str(&source);
-    code.push_str("\n})");
-    let f = Function::from_js(
-      ctx,
-      bytecode::compile_script(ctx, resolved, source_hash, &code)?,
-    )?;
+    let f = bytecode::run_script(ctx, resolved, source_hash, || {
+      if resolved.ends_with(".ts") || resolved.ends_with(".tsx") {
+        source = Cow::Owned(
+          crate::transpile::transpile_ts(resolved, source.into_owned(), ModuleKind::CommonJs)
+            .map_err(|message| rquickjs::Error::Loading {
+              name: resolved.into(),
+              message: Some(message),
+            })?,
+        );
+      }
+      let mut code = String::with_capacity(source.len() + 32);
+      code.push_str("(function (module, exports) {");
+      code.push_str(&source);
+      code.push_str("\n})");
+      Ok(code)
+    })?;
+    let f = Function::from_js(ctx, f)?;
     f.call::<_, ()>((module.clone(), module.get::<_, Value>("exports")?))?;
 
     let exports: Value = module.get("exports")?;
