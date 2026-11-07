@@ -781,12 +781,22 @@ impl Reporter for JsPlugin {
 }
 
 /// Converts diagnostics to plain JavaScript objects, in the shape their
-/// `serde` representation already defines.
+/// `serde` representation already defines. Code frames that point at a file
+/// but carry no `code` get it filled in from the file first, so consumers of
+/// the Parcel API always find `code` set whenever the file is readable.
 pub(crate) fn diagnostics_to_js<'js>(
   ctx: &Ctx<'js>,
   diagnostics: &[parcel_core::Diagnostic],
 ) -> rquickjs::Result<rquickjs::Value<'js>> {
-  let json = serde_json::to_string(diagnostics).map_err(|error| {
+  let diagnostics: Vec<parcel_core::Diagnostic> = diagnostics
+    .iter()
+    .map(|diagnostic| {
+      let mut diagnostic = diagnostic.clone();
+      diagnostic.normalize_code_frames();
+      diagnostic
+    })
+    .collect();
+  let json = serde_json::to_string(&diagnostics).map_err(|error| {
     rquickjs::Error::new_from_js_message("diagnostics", "JSON", error.to_string())
   })?;
   ctx.json_parse(json)
