@@ -65,7 +65,8 @@ impl dyn ObjectCache + '_ {
 /// `tsconfig` structures and node_modules bookkeeping it doesn't need here.
 pub struct CachedFileSystem {
   inner: Arc<dyn FileSystem>,
-  paths: papaya::HashMap<PathId, PathEntry>,
+  /// `PathId`s are small integers, so they don't need a DoS-resistant hash.
+  paths: papaya::HashMap<PathId, PathEntry, BuildHasherDefault<FxHasher>>,
 }
 
 /// A lazily-computed, type-erased value derived from a path (e.g. a parsed `package.json`).
@@ -109,7 +110,7 @@ impl CachedFileSystem {
   pub fn new(inner: Arc<dyn FileSystem>) -> CachedFileSystem {
     CachedFileSystem {
       inner,
-      paths: papaya::HashMap::default(),
+      paths: crate::path::read_mostly_map(),
     }
   }
 
