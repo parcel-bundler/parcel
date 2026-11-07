@@ -1542,53 +1542,34 @@ impl<'a> AssetGraph<'a> {
     &self.assets[asset_index.index()]
   }
 }
-
 /// Marks the assets whose export names are private to the build (see
-/// `AssetSymbols::private_exports`): ES modules in optimized, non-library targets whose namespace
-/// isn't observed as a whole, that aren't entries, and that are only reached through static
-/// imports and re-exports from JS in the same environment, outside of React Server Components.
-/// Their exports can't be observed by
-/// name from outside the build, or through a namespace object. Modules on either side of an
-/// `export *` are public: it copies its source's exports onto the re-exporting module's exports
-/// object at runtime by name, where private names could collide.
+/// `AssetSymbols::private_exports`): ES modules in optimized, non-library targets outside of React
+/// Server Components whose exports are only read through static imports and re-exports from JS in
+/// the same environment, each by a name that resolves to them. Anything that reads a module's
+/// exports object by name makes it public: entries, other importers, namespace objects, runtime
+/// symbol resolutions, and re-exports of names a module provides through `export *`.
+///
+/// An `export *` copies its source's exports onto the re-exporting module's exports object at
+/// runtime. When nothing reads the re-exporting module by name, the copies are unused, so their
+/// names don't matter. Otherwise its source's exports are needed by their public names too. A
+/// source without `export *` declarations of its own can keep private names when packagers map
+/// them back to public names in the copy (see `private_star_export_names`), if that is smaller
+/// than keeping its names public.
 fn mark_private_exports(
   asset_nodes: &[AssetNode],
   assets: &mut [Asset],
   entries: &[Entry],
   reachable: &HashSet<AssetNodeIndex>,
 ) {
+  let resolved = |dep: &Dependency| match dep.resolution {
+    DependencyResolution::Asset(node) => asset_nodes[node.index()].asset.map(|a| a.index()),
+    _ => None,
+  };
+
   let mut public = FixedBitSet::with_capacity(assets.len());
   for entry in entries {
     if let Some(asset_index) = entry.asset.and_then(|node| asset_nodes[node.index()].asset) {
       public.insert(asset_index.index());
-    }
-  }
-
-  let resolved = |dep: &Dependency| match dep.resolution {
-    DependencyResolution::Asset(node) => asset_nodes[node.index()].asset,
-    _ => None,
-  };
-  for node in reachable {
-    let Some(asset_index) = asset_nodes[node.index()].asset else {
-      continue;
-    };
-    let asset = &assets[asset_index.index()];
-    for dep in &asset.dependencies {
-      let Some(target) = resolved(dep) else {
-        continue;
-      };
-      if !dep.is_static_import()
-        || asset.ty != AssetType::Js
-        || asset.target.environment != assets[target.index()].target.environment
-      {
-        public.insert(target.index());
-      }
-    }
-    for star in &asset.symbols.star {
-      public.insert(asset_index.index());
-      if let Some(target) = resolved(&asset.dependencies[star.dep_index as usize]) {
-        public.insert(target.index());
-      }
     }
   }
 
@@ -1597,7 +1578,6 @@ fn mark_private_exports(
     if asset.ty != AssetType::Js
       || !asset.flags.contains(AssetFlags::IS_ESM)
       || !asset.flags.contains(AssetFlags::STATIC_EXPORTS)
-      || asset.symbols.used_namespace
       || !flags.contains(EnvironmentFlags::SHOULD_OPTIMIZE)
       || flags.contains(EnvironmentFlags::IS_LIBRARY)
       // RSC packaging replaces modules with directives (e.g. "use client") with synthetic
@@ -1612,7 +1592,152 @@ fn mark_private_exports(
     }
   }
 
+  for node in reachable {
+    let Some(asset_index) = asset_nodes[node.index()].asset else {
+      continue;
+    };
+    let asset = &assets[asset_index.index()];
+    for dep in &asset.dependencies {
+      let Some(target) = resolved(dep) else {
+        continue;
+      };
+      if !dep.is_static_import()
+        || asset.ty != AssetType::Js
+        || asset.target.environment != assets[target].target.environment
+      {
+        public.insert(target);
+      }
+    }
+    // Namespace objects, and symbols read from exports objects at runtime. Not `used_namespace`,
+    // which `export *` also sets on its source.
+    for import in &asset.symbols.imports {
+      if let SymbolResolution::Namespace { asset_index }
+      | SymbolResolution::Runtime { asset_index, .. } = import.resolved
+      {
+        public.insert(asset_index.index());
+      }
+    }
+    for indirect in &asset.symbols.indirect {
+      let Some(target) = resolved(&asset.dependencies[indirect.dep_index as usize]) else {
+        continue;
+      };
+      // `export * as ns from` exports the namespace object. Other re-exports read the name from
+      // the target's exports object, so a name it provides through `export *` must be there.
+      let symbols = &assets[target].symbols;
+      if indirect.imported == SymbolName::Namespace
+        || (!symbols.star.is_empty()
+          && !symbols
+            .exports
+            .iter()
+            .map(|export| &export.exported)
+            .chain(symbols.indirect.iter().map(|export| &export.exported))
+            .any(|exported| *exported == indirect.imported))
+      {
+        public.insert(target);
+      }
+    }
+  }
+
+  // The sources of the `export *` declarations of public modules, which are needed by name, and
+  // the number of public modules that re-export each one whose names could be mapped.
+  let mut queue: Vec<usize> = public
+    .ones()
+    .filter(|&index| !assets[index].symbols.star.is_empty())
+    .collect();
+  let mut mapped: HashMap<usize, i64> = HashMap::new();
+  while let Some(index) = queue.pop() {
+    let asset = &assets[index];
+    for star in &asset.symbols.star {
+      let Some(source) = resolved(&asset.dependencies[star.dep_index as usize]) else {
+        continue;
+      };
+      if public.contains(source) {
+        continue;
+      }
+      let symbols = &assets[source].symbols;
+      if symbols.star.is_empty()
+        // Imports from the same dependency may resolve elsewhere, in which case the packager
+        // requires something other than the source.
+        && !asset
+          .symbols
+          .imports
+          .iter()
+          .any(|import| import.dep_index == star.dep_index)
+        && !symbols
+          .exports
+          .iter()
+          .map(|export| &export.exported)
+          .chain(symbols.indirect.iter().map(|export| &export.exported))
+          .any(|exported| exported.as_str().contains(','))
+      {
+        *mapped.entry(source).or_default() += 1;
+      } else {
+        public.insert(source);
+        queue.push(source);
+      }
+    }
+  }
+
+  if !mapped.is_empty() {
+    // The bytes private names save in the source's exports and where they're read, less the
+    // public names each re-exporting module maps them from.
+    let mut savings: HashMap<usize, i64> = HashMap::with_capacity(mapped.len());
+    for (&source, &reexporters) in &mapped {
+      let symbols = &assets[source].symbols;
+      let mut saved = 0;
+      for (index, (exported, requested)) in symbols
+        .exports
+        .iter()
+        .map(|export| (&export.exported, export.requested))
+        .chain(
+          symbols
+            .indirect
+            .iter()
+            .map(|export| (&export.exported, export.requested)),
+        )
+        .enumerate()
+      {
+        if requested && let SymbolName::Name(name) = exported {
+          saved += private_name_savings(name, index) - reexporters * (name.len() as i64 + 1);
+        }
+      }
+      savings.insert(source, saved);
+    }
+    for node in reachable {
+      let Some(asset_index) = asset_nodes[node.index()].asset else {
+        continue;
+      };
+      for import in &assets[asset_index.index()].symbols.imports {
+        if let SymbolResolution::Export {
+          asset_index,
+          export_index,
+          name: SymbolName::Name(name),
+        } = &import.resolved
+          && let Some(saved) = savings.get_mut(&asset_index.index())
+        {
+          *saved += private_name_savings(name, *export_index as usize);
+        }
+      }
+    }
+    for (source, saved) in savings {
+      if saved <= 0 {
+        public.insert(source);
+      }
+    }
+  }
+
   for (index, asset) in assets.iter_mut().enumerate() {
     asset.symbols.private_exports = !public.contains(index);
   }
+}
+
+/// Roughly the bytes saved by reading an export by the private name for `index` (see
+/// `private_export_name` in the JS packager) rather than by `name`.
+fn private_name_savings(name: &str, index: usize) -> i64 {
+  let private_len = match index {
+    0..54 => 1,
+    54..3510 => 2,
+    _ => 3,
+  };
+  name.len() as i64 - private_len
 }

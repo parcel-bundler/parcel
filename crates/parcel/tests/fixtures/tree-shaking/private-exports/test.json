@@ -1,21 +1,75 @@
 [
   {
-    "description": "private exports: modules only imported statically have their exports renamed",
+    "description": "private exports: modules whose exports are only read statically have their exports renamed",
     "input": "index.js",
-    "options": {"mode": "production"},
-    "output": ["value", "default", "value", "default", "method", "star", "escapedExportName", "value-async"],
+    "options": {
+      "mode": "production"
+    },
+    "output": [
+      "value",
+      "default",
+      "value",
+      "default",
+      "method",
+      "star",
+      "collision",
+      "barrel",
+      "escapedExportName",
+      "value-async",
+      "mappedExportName,mapped,otherMappedExportName,other,ownExport,own",
+      "mapped",
+      "indirect"
+    ],
     "bundles": [
       {
         "type": "js",
-        "assets": ["async.js", "barrel.js", "escaped.js", "index.js", "lib.js", "star.js"],
-        "contains": ["\"escapedExportName\"", "\"starExportName\""],
-        "notContains": ["privateExportName", "asyncExportName"]
+        "assets": [
+          "async.js",
+          "barrel.js",
+          "escaped.js",
+          "index.js",
+          "indirect-barrel.js",
+          "indirect-star.js",
+          "lib.js",
+          "mapped.js",
+          "public-barrel.js",
+          "reexport.js",
+          "star-collision.js",
+          "star.js"
+        ],
+        "contains": [
+          "\"escapedExportName\"",
+          "\"ownExport\"",
+          "\"indirectStarExportName\"",
+          "\"mappedExportName,otherMappedExportName\""
+        ],
+        "notContains": [
+          "privateExportName",
+          "asyncExportName",
+          "\"starExportName\"",
+          "\"collidingStarExportName\"",
+          "\"barrelExportName\""
+        ]
       }
     ]
   },
   {
     "description": "private exports: development keeps export names",
     "input": "index.js",
-    "output": ["value", "default", "value", "default", "method", "star", "escapedExportName", "value-async"]
+    "output": [
+      "value",
+      "default",
+      "value",
+      "default",
+      "method",
+      "star",
+      "collision",
+      "barrel",
+      "escapedExportName",
+      "value-async",
+      "mappedExportName,mapped,otherMappedExportName,other,ownExport,own",
+      "mapped",
+      "indirect"
+    ]
   }
 ]

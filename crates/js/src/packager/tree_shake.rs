@@ -30,9 +30,10 @@ pub enum Resolution<'a> {
   Excluded,
   Asset(String),
   /// An asset whose exports are private (see `AssetSymbols::private_exports`), with the private
-  /// name of each symbol the importer reads from it.
+  /// name of each symbol the importer reads from it, and the names an `export *` of it copies its
+  /// exports by, if the importer has one and is public (see `private_star_export_names`).
   #[serde(serialize_with = "serialize_private_asset")]
-  PrivateAsset(String, Vec<(&'a str, String)>),
+  PrivateAsset(String, Vec<(&'a str, String)>, Option<String>),
   Symbols(Vec<(&'a str, String, Cow<'a, str>)>),
   #[serde(serialize_with = "serialize_internalized")]
   Internalized(String),
@@ -61,6 +62,7 @@ where
 fn serialize_private_asset<S>(
   id: &String,
   _names: &[(&str, String)],
+  _star_names: &Option<String>,
   serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
@@ -145,13 +147,13 @@ pub fn tree_shake<'a>(
       used_symbols.extend(self_references.names);
     }
 
-    let import_names = private_import_names(&ast.program, &resolutions, ast.unresolved_mark);
+    let private_imports = private_imports(&ast.program, &resolutions, ast.unresolved_mark);
     let wrapper_mark = Mark::new();
     let wrapper_ctxt = SyntaxContext::empty().apply_mark(wrapper_mark);
     let mut shake = TreeShake {
       used_symbols,
       export_names,
-      import_names,
+      private_imports,
       resolutions,
       unresolved_mark: ast.unresolved_mark,
       wrapper_mark,
@@ -319,9 +321,8 @@ struct TreeShake<'a> {
   used_symbols: HashSet<JsWord>,
   /// The private names of the module's exports (see `AssetSymbols::private_exports`), if any.
   export_names: HashMap<JsWord, JsWord>,
-  /// The private names of the exports read through each binding of a required module whose
-  /// exports are private (see `private_import_names`).
-  import_names: HashMap<Id, HashMap<JsWord, JsWord>>,
+  /// The bindings of required modules whose exports are private (see `private_imports`).
+  private_imports: PrivateImports,
   resolutions: IndexMap<String, Resolution<'a>>,
   unresolved_mark: Mark,
   wrapper_mark: Mark,
@@ -342,8 +343,8 @@ impl<'a> TreeShake<'a> {
     )
   }
 
-  /// The name argument of a call to the ESM `export` helper, if `node` is one.
-  fn export_helper_name<'n>(&self, node: &'n mut Stmt) -> Option<&'n mut Str> {
+  /// The call to an ESM helper (e.g. `export`) that `node` is, if it is one.
+  fn helper_call<'n>(&self, node: &'n mut Stmt, helper: &str) -> Option<&'n mut CallExpr> {
     let Stmt::Expr(stmt) = node else {
       return None;
     };
@@ -353,21 +354,27 @@ impl<'a> TreeShake<'a> {
     let Callee::Expr(callee) = &call.callee else {
       return None;
     };
-    let is_export_helper = match &**callee {
+    let is_helper = match &**callee {
       Expr::Member(member) => {
         matches!(&*member.obj, Expr::Ident(id) if id.sym == "parcelHelpers")
-          && matches!(match_property_name(member), Some((name, _)) if name == "export")
+          && matches!(match_property_name(member), Some((name, _)) if name == helper)
       }
       Expr::Ident(id) => {
-        id.sym == esm_helper_function("export") && is_unresolved(id, self.unresolved_mark)
+        id.sym == esm_helper_function(helper) && is_unresolved(id, self.unresolved_mark)
       }
       _ => false,
     };
-    if !is_export_helper {
-      return None;
-    }
+    is_helper.then_some(call)
+  }
 
-    match call.args.get_mut(1).map(|arg| &mut *arg.expr) {
+  /// The name argument of a call to the ESM `export` helper, if `node` is one.
+  fn export_helper_name<'n>(&self, node: &'n mut Stmt) -> Option<&'n mut Str> {
+    match self
+      .helper_call(node, "export")?
+      .args
+      .get_mut(1)
+      .map(|arg| &mut *arg.expr)
+    {
       Some(Expr::Lit(Lit::Str(name))) => Some(name),
       _ => None,
     }
@@ -391,6 +398,15 @@ impl<'a> VisitMut for TreeShake<'a> {
         self.mutated = true;
         return;
       }
+    }
+
+    // An `export *` of a module whose exports are private copies them by their public names.
+    if !self.private_imports.star_names.is_empty()
+      && let Some(call) = self.helper_call(node, "exportAll")
+      && let Some(Expr::Ident(source)) = call.args.first().map(|arg| &*arg.expr)
+      && let Some(names) = self.private_imports.star_names.get(&source.to_id())
+    {
+      call.args.push(Expr::from(Str::from(names.clone())).into());
     }
 
     node.visit_mut_children_with(self);
@@ -459,7 +475,7 @@ impl<'a> VisitMut for TreeShake<'a> {
     let Expr::Ident(obj) = &*node.obj else {
       return;
     };
-    let Some(names) = self.import_names.get(&obj.to_id()) else {
+    let Some(names) = self.private_imports.names.get(&obj.to_id()) else {
       return;
     };
     let private = match &node.prop {
@@ -526,7 +542,7 @@ impl<'a> VisitMut for TreeShake<'a> {
             Resolution::Excluded => {
               *node = Expr::Object(Default::default());
             }
-            Resolution::Asset(resolution) | Resolution::PrivateAsset(resolution, _) => {
+            Resolution::Asset(resolution) | Resolution::PrivateAsset(resolution, ..) => {
               **expr = resolution.clone().into();
             }
             Resolution::External(specifier) => {
@@ -769,19 +785,26 @@ impl<'a> VisitMut for TreeShake<'a> {
   }
 }
 
-/// The bindings of required modules whose exports are private (see `Resolution::PrivateAsset`),
-/// with the private names of the exports the module reads through them: the
-/// `var x = require("...")` declarations that `esm2cjs` creates for imports (which are in a wrapper
-/// function in async modules), and the default interop bindings it creates from them.
-fn private_import_names(
+/// The bindings of required modules whose exports are private (see `Resolution::PrivateAsset`):
+/// the `var x = require("...")` declarations that `esm2cjs` creates for imports (which are in a
+/// wrapper function in async modules), and the default interop bindings it creates from them.
+#[derive(Default)]
+struct PrivateImports {
+  /// The private names of the exports the module reads through each binding.
+  names: HashMap<Id, HashMap<JsWord, JsWord>>,
+  /// The names the module's `export *` of each binding copies its exports by, if it has one.
+  star_names: HashMap<Id, String>,
+}
+
+fn private_imports(
   program: &Module,
   resolutions: &IndexMap<String, Resolution<'_>>,
   unresolved_mark: Mark,
-) -> HashMap<Id, HashMap<JsWord, JsWord>> {
+) -> PrivateImports {
   let mut collector = PrivateImportNames {
     resolutions,
     unresolved_mark,
-    bindings: HashMap::new(),
+    imports: PrivateImports::default(),
   };
   if resolutions
     .values()
@@ -789,13 +812,13 @@ fn private_import_names(
   {
     program.visit_with(&mut collector);
   }
-  collector.bindings
+  collector.imports
 }
 
 struct PrivateImportNames<'a, 'b> {
   resolutions: &'b IndexMap<String, Resolution<'a>>,
   unresolved_mark: Mark,
-  bindings: HashMap<Id, HashMap<JsWord, JsWord>>,
+  imports: PrivateImports,
 }
 
 impl Visit for PrivateImportNames<'_, '_> {
@@ -821,22 +844,30 @@ impl Visit for PrivateImportNames<'_, '_> {
           .resolutions
           .get(specifier.value.to_string_lossy().as_ref())
         {
-          Some(Resolution::PrivateAsset(_, names)) => names
-            .iter()
-            .map(|(name, private)| (JsWord::from(*name), JsWord::from(private.as_str())))
-            .collect(),
+          Some(Resolution::PrivateAsset(_, names, star_names)) => {
+            if let Some(star_names) = star_names {
+              self
+                .imports
+                .star_names
+                .insert(binding.id.to_id(), star_names.clone());
+            }
+            names
+              .iter()
+              .map(|(name, private)| (JsWord::from(*name), JsWord::from(private.as_str())))
+              .collect()
+          }
           _ => return,
         }
       }
       // Declared after the require it interops with.
       Some(Expr::Ident(required)) if callee.sym == esm_helper_function("interopDefault") => {
-        match self.bindings.get(&required.to_id()) {
+        match self.imports.names.get(&required.to_id()) {
           Some(names) => names.clone(),
           None => return,
         }
       }
       _ => return,
     };
-    self.bindings.insert(binding.id.to_id(), names);
+    self.imports.names.insert(binding.id.to_id(), names);
   }
 }

@@ -245,6 +245,32 @@ fn private_export_name_of(asset: &Asset, name: &SymbolName) -> Option<String> {
     .map(private_export_name)
 }
 
+/// The public names of an asset's exports whose names are private, in the order of their private
+/// names (see `private_export_name`), comma separated, for an `export *` of it to copy them by.
+/// Those it doesn't copy (`default`, and exports that aren't packaged) are empty.
+fn private_star_export_names(asset: &Asset) -> String {
+  let symbols = &asset.symbols;
+  let mut names: Vec<&str> = symbols
+    .exports
+    .iter()
+    .map(|export| (&export.exported, export.requested))
+    .chain(
+      symbols
+        .indirect
+        .iter()
+        .map(|export| (&export.exported, export.requested)),
+    )
+    .map(|(exported, requested)| match exported {
+      SymbolName::Name(name) if requested => &**name,
+      _ => "",
+    })
+    .collect();
+  while names.last() == Some(&"") {
+    names.pop();
+  }
+  names.join(",")
+}
+
 /// Resolves each dependency of an asset for packaging, collecting any synthetic
 /// assets that must be emitted alongside it.
 pub fn asset_dependencies<'a>(
@@ -422,7 +448,16 @@ pub fn asset_dependencies<'a>(
                 names.push((indirect.imported.as_str(), name));
               }
             }
-            Resolution::PrivateAsset(id, names)
+            // An `export *` of a public module copies the source's exports by their public
+            // names (see `mark_private_exports`).
+            let star_names = (!asset.symbols.private_exports
+              && asset
+                .symbols
+                .star
+                .iter()
+                .any(|star| star.dep_index == dep_index as u32))
+            .then(|| private_star_export_names(required));
+            Resolution::PrivateAsset(id, names, star_names)
           } else {
             Resolution::Asset(id)
           };
@@ -600,7 +635,7 @@ pub(super) fn static_import_ids(
     }
     let placeholder = dep.placeholder.as_ref().unwrap_or(&dep.specifier);
     match dependencies.get(&**placeholder) {
-      Some(Resolution::Asset(id) | Resolution::PrivateAsset(id, _)) => push(id),
+      Some(Resolution::Asset(id) | Resolution::PrivateAsset(id, ..)) => push(id),
       Some(Resolution::External(specifier)) => push(specifier),
       Some(Resolution::Symbols(symbols)) => {
         for (_, id, _) in symbols {
