@@ -1,0 +1,9 @@
+{
+  "description": "should lossless optimise PNGs imported through a named pipeline without optimizers of its own",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"type": "js", "assets": ["esmodule-helpers.js", "index.js"]},
+    {"type": "png", "assets": ["clock.png"]}
+  ]
+}

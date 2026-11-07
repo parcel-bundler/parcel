@@ -2244,20 +2244,19 @@ checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
 
 [[package]]
 name = "libdeflate-sys"
-version = "1.25.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72753e0008ea87963d2f0770042d0df7abe51fafbb8dcaf618ac440f2f1fec0a"
+version = "1.26.1"
+source = "git+https://github.com/devongovett/libdeflater?branch=parallel#9bf65c02052b972151d40866c2fff5eab36d8ddd"
 dependencies = [
  "cc",
 ]
 
 [[package]]
 name = "libdeflater"
-version = "1.25.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1ee41cf6fb1bb6030dfb59ffb7bc01ab26aade44142084c87f0fc7a1658fe71"
+version = "1.26.1"
+source = "git+https://github.com/devongovett/libdeflater?branch=parallel#9bf65c02052b972151d40866c2fff5eab36d8ddd"
 dependencies = [
  "libdeflate-sys",
+ "rayon",
 ]
 
 [[package]]
@@ -2857,12 +2856,9 @@ dependencies = [
 
 [[package]]
 name = "oxipng"
-version = "9.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26c613f0f566526a647c7473f6a8556dbce22c91b13485ee4b4ec7ab648e4973"
+version = "10.2.1"
+source = "git+https://github.com/devongovett/oxipng?branch=parallel-deflate#ef7589cc9571694a7dd87b62c2eaac653b0ff78b"
 dependencies = [
- "bitvec",
- "crossbeam-channel",
  "indexmap 2.14.0",
  "libdeflater",
  "log",
