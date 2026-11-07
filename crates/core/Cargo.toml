@@ -30,6 +30,7 @@ rayon = "1.7.0"
 papaya = "0.2.4"
 boxcar = "0.2.14"
 smallvec = "1.13.2"
+thread_local = "1.1.10"
 crossbeam-channel = "0.5.6"
 parcel-highlight = { path = "../highlight" }
 sha2-const-stable = "0.1.0"

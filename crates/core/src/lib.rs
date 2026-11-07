@@ -265,11 +265,13 @@ impl Parcel {
     deleted: &[PathId],
   ) -> Result<InvalidateResult, DiagnosticList> {
     // JS runtimes cache modules and any state derived from what they read, which can't be
-    // invalidated piecemeal, so their reads are treated like configuration.
+    // invalidated piecemeal, so their reads are treated like configuration. Runtimes record the
+    // same reads again on later builds (e.g. resolving each `require`), so drop the repeats.
     if let Some(tracker) = &self.options.plugin_tracker {
       self
         .config_invalidations
         .add(AssetNodeIndex(0), tracker.take());
+      self.config_invalidations.dedup();
     }
 
     if self.is_config_change(changed, created, deleted) {

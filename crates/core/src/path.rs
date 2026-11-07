@@ -243,7 +243,7 @@ impl<'de> serde::Deserialize<'de> for PathId {
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct SegmentId(u32);
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct SubPath(smallvec::SmallVec<[SegmentId; 4]>);
 
 impl SubPath {
@@ -852,6 +852,7 @@ impl Iterator for Ancestors<'_> {
 #[cfg(test)]
 mod tests {
   use super::*;
+
   use crate::test_utils::path as test_path;
   use path_slash::PathExt;
 

@@ -3,7 +3,9 @@ use std::{
   sync::Mutex,
 };
 
-use crate::{PathId, path::SubPath};
+use thread_local::ThreadLocal;
+
+use crate::{Invalidations, PathId, path::SubPath};
 
 use super::{DirEntry, FileKind, FileStat, FileSystem, is_glob, normalize_path};
 
@@ -18,54 +20,80 @@ use super::{DirEntry, FileKind, FileStat, FileSystem, is_glob, normalize_path};
 /// `.parcelrc` that does not exist yet but appears later). Paths are recorded as absolute `file://`
 /// URLs, so no project root is required while tracking.
 ///
+/// Resolution probes the same paths over and over, and JS runtimes on every thread load the same
+/// modules, so `take` drops repeats.
+///
+/// Any number of threads may record at once: each appends to its own list, so they don't contend,
+/// and `take` merges them.
+///
 /// The accumulated [`Invalidations`](crate::Invalidations) can be folded into an
 /// [`InvalidationMap`](crate::InvalidationMap) (for config tracking during `Parcel::new`) or merged
 /// into a transform request's invalidations (for per-asset tracking of files read by transformers).
 pub struct TrackingFileSystem {
   inner: std::sync::Arc<dyn FileSystem>,
-  invalidations: Mutex<crate::Invalidations>,
+  /// Each thread's invalidations, locked only by it, except while `take` drains them.
+  recorded: ThreadLocal<Mutex<Invalidations>>,
 }
 
 impl TrackingFileSystem {
-  /// Creates a tracker that records absolute `file://` URLs. Used for config tracking during
-  /// `Parcel::new`, where the project root isn't yet known.
   pub fn new(inner: std::sync::Arc<dyn FileSystem>) -> Self {
     TrackingFileSystem {
       inner,
-      invalidations: Mutex::new(crate::Invalidations::default()),
+      recorded: ThreadLocal::new(),
     }
   }
 
+  fn record(&self, f: impl FnOnce(&mut Invalidations)) {
+    f(&mut self.recorded.get_or_default().lock().unwrap());
+  }
+
   fn record_read(&self, path: PathId) {
-    self
-      .invalidations
-      .lock()
-      .unwrap()
-      .invalidate_on_file_change
-      .push(path);
+    self.record(|i| i.invalidate_on_file_change(path));
   }
 
   fn record_missing(&self, path: PathId) {
-    self
-      .invalidations
-      .lock()
-      .unwrap()
-      .invalidate_on_file_create
-      .push(crate::FileCreateInvalidation::Path(path));
+    self.record(|i| i.invalidate_on_file_create(path));
   }
 
   fn record_exists(&self, path: PathId) {
-    self
-      .invalidations
-      .lock()
-      .unwrap()
-      .invalidate_on_file_delete
-      .push(path);
+    self.record(|i| i.invalidate_on_file_delete(path));
   }
 
-  /// Returns the accumulated invalidations, leaving the tracker empty.
-  pub fn take(&self) -> crate::Invalidations {
-    std::mem::take(&mut *self.invalidations.lock().unwrap())
+  fn record_create_above(&self, file_name: &SubPath, above: PathId) {
+    self.record(|i| i.invalidate_on_file_create_above(file_name.clone(), above));
+  }
+
+  fn record_create_glob(&self, glob: String) {
+    self.record(|i| i.invalidate_on_glob_create(glob));
+  }
+
+  /// Returns the invalidations recorded since the last call, without repeats.
+  pub fn take(&self) -> Invalidations {
+    let mut invalidations = Invalidations::default();
+    for recorded in self.recorded.iter() {
+      let mut recorded = std::mem::take(&mut *recorded.lock().unwrap());
+      if invalidations.is_empty() {
+        // Usually only one thread recorded any, e.g. while transforming one asset.
+        invalidations = recorded;
+      } else {
+        invalidations.append(&mut recorded);
+      }
+    }
+    for paths in [
+      &mut invalidations.invalidate_on_file_change,
+      &mut invalidations.invalidate_on_file_create,
+      &mut invalidations.invalidate_on_file_delete,
+    ] {
+      paths.sort_unstable();
+      paths.dedup();
+    }
+    invalidations
+      .invalidate_on_file_create_above
+      .sort_unstable();
+    invalidations.invalidate_on_file_create_above.dedup();
+    invalidations.invalidate_on_glob_create.sort_unstable();
+    invalidations.invalidate_on_glob_create.dedup();
+    invalidations
   }
 }
 
@@ -147,12 +175,7 @@ impl FileSystem for TrackingFileSystem {
     if is_glob(pattern) {
       let absolute = cwd.with_path(|c| normalize_path(&c.join(pattern)));
       let absolute = absolute.to_string_lossy().into_owned();
-      self
-        .invalidations
-        .lock()
-        .unwrap()
-        .invalidate_on_file_create
-        .push(crate::FileCreateInvalidation::Glob(absolute));
+      self.record_create_glob(absolute);
     }
     // Run the actual matching against the inner file system so the directory walk isn't recorded
     // as individual file-change invalidations. Deleting a match changes the result, though.
@@ -179,20 +202,80 @@ impl FileSystem for TrackingFileSystem {
     // Record a `file_create_above` invalidation: a file named `file_name` created anywhere within
     // `from` would change resolution and should trigger a rebuild. Using the found directory as
     // the boundary captures any closer file appearing between `from` and the match.
-    self
-      .invalidations
-      .lock()
-      .unwrap()
-      .invalidate_on_file_create
-      .push(crate::FileCreateInvalidation::FileName {
-        file_name: file_name.clone(),
-        above: from,
-      });
+    self.record_create_above(file_name, from);
 
     found
   }
 
   fn as_object_cache(&self) -> Option<&dyn super::ObjectCache> {
     self.inner.as_object_cache()
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use std::sync::Arc;
+
+  use super::*;
+  use crate::{MemoryFileSystem, test_utils::path};
+
+  fn fs() -> (Arc<dyn FileSystem>, PathId, PathId) {
+    let fs = MemoryFileSystem::new();
+    let file = PathId::new(&path("/project/a.js"));
+    fs.create_dir_all(PathId::new(&path("/project"))).unwrap();
+    fs.write(file, b"a").unwrap();
+    (
+      Arc::new(fs),
+      file,
+      PathId::new(&path("/project/missing.js")),
+    )
+  }
+
+  fn record_twice(tracker: &TrackingFileSystem, file: PathId, missing: PathId) {
+    let package_json = SubPath::new(std::path::Path::new("package.json"));
+    let project = PathId::new(&path("/project"));
+    for _ in 0..2 {
+      tracker.read(file).unwrap();
+      tracker.stat(file);
+      tracker.kind(file);
+      tracker.kind(missing);
+      tracker.find_ancestor(file, &package_json, FileKind::IS_FILE, None);
+      tracker.glob("*.ts", project);
+    }
+  }
+
+  fn assert_recorded_once(invalidations: &Invalidations, file: PathId, missing: PathId) {
+    assert_eq!(invalidations.invalidate_on_file_change, [file]);
+    assert_eq!(invalidations.invalidate_on_file_create, [missing]);
+    assert_eq!(invalidations.invalidate_on_file_delete, [file]);
+    assert_eq!(invalidations.invalidate_on_file_create_above.len(), 1);
+    assert_eq!(invalidations.invalidate_on_glob_create.len(), 1);
+  }
+
+  #[test]
+  fn records_each_invalidation_once() {
+    let (inner, file, missing) = fs();
+    let tracker = TrackingFileSystem::new(inner);
+    record_twice(&tracker, file, missing);
+    assert_recorded_once(&tracker.take(), file, missing);
+
+    // Taking empties the tracker.
+    let invalidations = tracker.take();
+    assert!(invalidations.invalidate_on_file_change.is_empty());
+    assert!(invalidations.invalidate_on_glob_create.is_empty());
+    record_twice(&tracker, file, missing);
+    assert_recorded_once(&tracker.take(), file, missing);
+  }
+
+  #[test]
+  fn records_each_invalidation_once_across_threads() {
+    let (inner, file, missing) = fs();
+    let tracker = TrackingFileSystem::new(inner);
+    std::thread::scope(|scope| {
+      for _ in 0..8 {
+        scope.spawn(|| record_twice(&tracker, file, missing));
+      }
+    });
+    assert_recorded_once(&tracker.take(), file, missing);
   }
 }

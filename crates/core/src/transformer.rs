@@ -47,10 +47,8 @@ impl TransformRequest {
     match self.req.loc.url.to_file_path() {
       Ok(path) => {
         if self.req.content.downcast_ref::<FileContent>().is_some() {
-          invalidations.invalidate_on_file_change.push(path);
-          invalidations
-            .invalidate_on_file_create
-            .push(crate::FileCreateInvalidation::Path(path));
+          invalidations.invalidate_on_file_change(path);
+          invalidations.invalidate_on_file_create(path);
         }
       }
       Err(diagnostic) => {

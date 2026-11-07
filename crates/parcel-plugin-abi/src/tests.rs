@@ -10,9 +10,9 @@ use parcel_core::{
   BundleGraph as CoreBundleGraph, Content, ContentWithSourceMap, Dependency as CoreDependency,
   DependencyFlags as CoreDependencyFlags, DependencyId, DependencyResolution, DiagnosticList,
   Engines as CoreEngines, Environment as CoreEnvironment, EnvironmentFlags as CoreEnvironmentFlags,
-  ExportsCondition as CoreExportsCondition, FileCreateInvalidation, FileSystem, ImportType,
-  MemoryFileSystem, OutputFormat as CoreOutputFormat, ParcelOptions, PathId, PluginContext,
-  Priority as CorePriority, Resolver, SourceLocation, SourceType as CoreSourceType, SourceUrl,
+  ExportsCondition as CoreExportsCondition, FileSystem, ImportType, MemoryFileSystem,
+  OutputFormat as CoreOutputFormat, ParcelOptions, PathId, PluginContext, Priority as CorePriority,
+  Resolver, SourceLocation, SourceType as CoreSourceType, SourceUrl,
   SpecifierType as CoreSpecifierType, Target as CoreTarget, TrackingFileSystem,
 };
 
@@ -556,7 +556,10 @@ fn dependency_accessors_return_values_and_map_every_enum_variant() {
     string_output(|buffer| parcel_dep_get_specifier(buffer, handle)).as_deref(),
     Some("./dependency.js")
   );
-  assert_eq!(parcel_dep_get_flags(handle), u16::from(dependency.flags.bits()));
+  assert_eq!(
+    parcel_dep_get_flags(handle),
+    u16::from(dependency.flags.bits())
+  );
   assert_eq!(
     parcel_dep_get_conditions(handle),
     dependency.conditions.bits()
@@ -1402,10 +1405,10 @@ fn fs_reads_are_recorded_as_invalidations() {
     invalidations.invalidate_on_file_change,
     [path("/project/src/index.scss")]
   );
-  assert!(matches!(
-    invalidations.invalidate_on_file_create.as_slice(),
-    [FileCreateInvalidation::Path(p)] if *p == path("/project/src/missing.scss")
-  ));
+  assert_eq!(
+    invalidations.invalidate_on_file_create,
+    [path("/project/src/missing.scss")]
+  );
 }
 
 #[test]
@@ -1652,8 +1655,7 @@ fn asset_resolve_runs_the_resolver_chain() {
   assert!(
     fs.take()
       .invalidate_on_file_create
-      .iter()
-      .any(|i| matches!(i, FileCreateInvalidation::Path(p) if *p == path("/project/src/pkg.scss")))
+      .contains(&path("/project/src/pkg.scss"))
   );
 }
 

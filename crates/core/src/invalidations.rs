@@ -4,24 +4,18 @@ use path_slash::PathExt;
 
 use crate::{AssetNodeIndex, PathId, path::SubPath};
 
-/// Invalidation that fires when a file is created at or matching the given criteria.
-#[derive(Debug, Clone)]
-pub enum FileCreateInvalidation {
-  /// Invalidate if this exact path is created.
-  Path(PathId),
-  /// Invalidate if a file with this name is created anywhere above the given directory.
-  FileName { file_name: SubPath, above: PathId },
-  /// Invalidate if a file matching this glob is created.
-  Glob(String),
-}
-
 /// Files that should trigger re-transformation of an asset when they change or are created.
 #[derive(Default, Debug)]
 pub struct Invalidations {
   /// Files that should trigger re-transformation when changed.
   pub invalidate_on_file_change: Vec<PathId>,
-  /// Files/patterns that should trigger re-transformation when created.
-  pub invalidate_on_file_create: Vec<FileCreateInvalidation>,
+  /// Files that should trigger re-transformation when created at exactly this path.
+  pub invalidate_on_file_create: Vec<PathId>,
+  /// File names (which may span several segments, e.g. `node_modules/dep`) that should trigger
+  /// re-transformation when created anywhere above the paired directory.
+  pub invalidate_on_file_create_above: Vec<(SubPath, PathId)>,
+  /// Globs that should trigger re-transformation when a matching file is created.
+  pub invalidate_on_glob_create: Vec<String>,
   /// Files that should trigger re-transformation when deleted (but not when merely modified),
   /// e.g. resolver existence probes whose disappearance changes resolution.
   pub invalidate_on_file_delete: Vec<PathId>,
@@ -32,14 +26,24 @@ pub struct Invalidations {
 impl Invalidations {
   /// Invalidate if a file matching the given glob is created.
   pub fn invalidate_on_glob_create<S: Into<String>>(&mut self, glob: S) {
-    self
-      .invalidate_on_file_create
-      .push(FileCreateInvalidation::Glob(glob.into()));
+    self.invalidate_on_glob_create.push(glob.into());
   }
 
   /// Invalidate if the given file changes.
   pub fn invalidate_on_file_change(&mut self, path: PathId) {
     self.invalidate_on_file_change.push(path);
+  }
+
+  /// Invalidate if a file is created at the given path.
+  pub fn invalidate_on_file_create(&mut self, path: PathId) {
+    self.invalidate_on_file_create.push(path);
+  }
+
+  /// Invalidate if a file named `file_name` is created anywhere above `above`.
+  pub fn invalidate_on_file_create_above(&mut self, file_name: SubPath, above: PathId) {
+    self
+      .invalidate_on_file_create_above
+      .push((file_name, above));
   }
 
   /// Invalidate if the given file is deleted.
@@ -52,16 +56,51 @@ impl Invalidations {
     self.invalidate_on_startup = true;
   }
 
+  pub fn is_empty(&self) -> bool {
+    self.invalidate_on_file_change.is_empty()
+      && self.invalidate_on_file_create.is_empty()
+      && self.invalidate_on_file_create_above.is_empty()
+      && self.invalidate_on_glob_create.is_empty()
+      && self.invalidate_on_file_delete.is_empty()
+      && !self.invalidate_on_startup
+  }
+
+  /// Moves all of `other`'s invalidations into this, leaving `other` empty.
+  pub fn append(&mut self, other: &mut Invalidations) {
+    self
+      .invalidate_on_file_change
+      .append(&mut other.invalidate_on_file_change);
+    self
+      .invalidate_on_file_create
+      .append(&mut other.invalidate_on_file_create);
+    self
+      .invalidate_on_file_create_above
+      .append(&mut other.invalidate_on_file_create_above);
+    self
+      .invalidate_on_glob_create
+      .append(&mut other.invalidate_on_glob_create);
+    self
+      .invalidate_on_file_delete
+      .append(&mut other.invalidate_on_file_delete);
+    self.invalidate_on_startup |= std::mem::take(&mut other.invalidate_on_startup);
+  }
+
   pub fn extend(&mut self, other: &Invalidations) {
     self
       .invalidate_on_file_change
-      .extend(other.invalidate_on_file_change.iter().cloned());
+      .extend_from_slice(&other.invalidate_on_file_change);
     self
       .invalidate_on_file_create
-      .extend(other.invalidate_on_file_create.iter().cloned());
+      .extend_from_slice(&other.invalidate_on_file_create);
+    self
+      .invalidate_on_file_create_above
+      .extend_from_slice(&other.invalidate_on_file_create_above);
+    self
+      .invalidate_on_glob_create
+      .extend_from_slice(&other.invalidate_on_glob_create);
     self
       .invalidate_on_file_delete
-      .extend(other.invalidate_on_file_delete.iter().cloned());
+      .extend_from_slice(&other.invalidate_on_file_delete);
     self.invalidate_on_startup |= other.invalidate_on_startup;
   }
 }
@@ -101,30 +140,38 @@ impl InvalidationMap {
       push(self.on_file_delete.entry(url).or_default(), asset_index);
     }
 
-    for inv in invalidations.invalidate_on_file_create {
-      match inv {
-        FileCreateInvalidation::Path(url) => {
-          push(
-            self.on_file_create_path.entry(url).or_default(),
-            asset_index,
-          );
-        }
-        FileCreateInvalidation::FileName { file_name, above } => {
-          self
-            .on_file_create_above
-            .push((file_name, above, asset_index));
-        }
-        FileCreateInvalidation::Glob(glob) => {
-          #[cfg(windows)]
-          let glob = glob.replace('\\', "/");
-          self.on_file_create_glob.push((glob, asset_index));
-        }
-      }
+    for url in invalidations.invalidate_on_file_create {
+      push(
+        self.on_file_create_path.entry(url).or_default(),
+        asset_index,
+      );
+    }
+
+    for (file_name, above) in invalidations.invalidate_on_file_create_above {
+      self
+        .on_file_create_above
+        .push((file_name, above, asset_index));
+    }
+
+    for glob in invalidations.invalidate_on_glob_create {
+      #[cfg(windows)]
+      let glob = glob.replace('\\', "/");
+      self.on_file_create_glob.push((glob, asset_index));
     }
 
     if invalidations.invalidate_on_startup {
       self.on_startup.push(asset_index);
     }
+  }
+
+  /// Removes repeated create-above and glob invalidations, which `add` doesn't check for: unlike
+  /// path invalidations, they aren't keyed by path. For maps that `add` the same invalidations
+  /// repeatedly, e.g. one kept across rebuilds.
+  pub fn dedup(&mut self) {
+    self.on_file_create_above.sort_unstable();
+    self.on_file_create_above.dedup();
+    self.on_file_create_glob.sort_unstable();
+    self.on_file_create_glob.dedup();
   }
 
   /// Returns the asset indices affected by the given file events.
@@ -210,14 +257,30 @@ mod tests {
   fn map_with_create_above(file_name: SubPath, above: &str) -> InvalidationMap {
     let mut map = InvalidationMap::default();
     let mut invalidations = Invalidations::default();
-    invalidations
-      .invalidate_on_file_create
-      .push(FileCreateInvalidation::FileName {
-        file_name,
-        above: path(above),
-      });
+    invalidations.invalidate_on_file_create_above(file_name, path(above));
     map.add(AssetNodeIndex(1), invalidations);
     map
+  }
+
+  #[test]
+  fn dedup_removes_repeated_create_above_and_glob_invalidations() {
+    let mut map = InvalidationMap::default();
+    for _ in 0..3 {
+      let mut invalidations = Invalidations::default();
+      invalidations.invalidate_on_file_create_above(SubPath::file("package.json"), path("/a"));
+      invalidations.invalidate_on_glob_create("/a/*.js");
+      invalidations.invalidate_on_file_change(path("/a/b.js"));
+      map.add(AssetNodeIndex(0), invalidations);
+    }
+    // A different asset's invalidation for the same pattern is kept.
+    let mut invalidations = Invalidations::default();
+    invalidations.invalidate_on_glob_create("/a/*.js");
+    map.add(AssetNodeIndex(1), invalidations);
+
+    map.dedup();
+    assert_eq!(map.on_file_create_above.len(), 1);
+    assert_eq!(map.on_file_create_glob.len(), 2);
+    assert_eq!(map.on_file_change[&path("/a/b.js")], [AssetNodeIndex(0)]);
   }
 
   #[test]

@@ -3098,6 +3098,7 @@ dependencies = [
  "serde_json",
  "sha2-const-stable",
  "smallvec",
+ "thread_local",
  "url",
  "xxhash-rust",
 ]
