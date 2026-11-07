@@ -1,0 +1,10 @@
+{
+  "description": "should fail with a user-friendly error when a dynamic import is not JS or CSS (#1951)",
+  "input": "index.js",
+  "diagnostics": [
+    {
+      "message": "Cannot dynamically import './module.html' because it is not JavaScript or CSS.",
+      "origin": "@parcel/packager-js"
+    }
+  ]
+}

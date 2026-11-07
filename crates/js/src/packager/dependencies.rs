@@ -467,6 +467,20 @@ pub fn asset_dependencies<'a>(
         } else {
           let is_lazy_dynamic_import = is_async_bundle_dependency(dep, resolved_bundle);
           let is_inline = is_inline_bundle_dependency(dep, resolved_bundle);
+          // Only JavaScript and CSS bundles have a loader (loadJS/loadCSS). A
+          // dynamic import of anything else would emit a bundle the runtime
+          // cannot load, so fail the build with a friendly error instead of
+          // emitting broken JavaScript. See #1951.
+          if is_lazy_dynamic_import
+            && dep.import_type == ImportType::JavaScript
+            && !matches!(resolved_bundle.ty, AssetType::Js | AssetType::Css)
+          {
+            return Err(dynamic_import_type_diagnostic(
+              asset,
+              dep,
+              &resolved_bundle.ty,
+            ));
+          }
           // TODO: this is wrong. It should be if the _target_ module is CJS. But this breaks some dynamic_import tests. Would be a behavior change.
           let needs_esm_interop =
             is_lazy_dynamic_import && !is_inline && asset.flags.contains(AssetFlags::IS_ESM);
@@ -596,6 +610,40 @@ fn require_async_module_diagnostic(asset: &Asset, dep: &Dependency) -> Diagnosti
       .into_iter()
       .collect(),
     hints: vec!["Use import or import() instead.".into()],
+    severity: DiagnosticSeverity::Error,
+    documentation_url: None,
+  }])
+}
+
+fn dynamic_import_type_diagnostic(
+  asset: &Asset,
+  dep: &Dependency,
+  ty: &AssetType,
+) -> DiagnosticList {
+  DiagnosticList(vec![Diagnostic {
+    origin: Some("@parcel/packager-js".into()),
+    message: format!(
+      "Cannot dynamically import '{}' because it is not JavaScript or CSS.",
+      dep.specifier
+    ),
+    code_frames: dep
+      .loc
+      .as_ref()
+      .map(|loc| CodeFrame {
+        url: Some(loc.url.clone()),
+        code: None,
+        language: Some(asset.ty.clone()),
+        code_highlights: vec![CodeHighlight {
+          message: Some(format!("imported here as {}", ty.extension())),
+          start: loc.start.clone(),
+          end: loc.end.clone(),
+        }],
+      })
+      .into_iter()
+      .collect(),
+    hints: vec![
+      "Use a static import, or load the file with new URL('...', import.meta.url) instead.".into(),
+    ],
     severity: DiagnosticSeverity::Error,
     documentation_url: None,
   }])
