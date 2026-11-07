@@ -1338,6 +1338,43 @@ impl<'a> Fold for DependencyCollector<'a> {
       return url;
     }
 
+    // `require.cache` is provided by the Parcel runtime (the module cache), so
+    // unlike other free `require` properties it must not be replaced with
+    // `undefined` (see parcel-bundler/parcel#4616). Parcel 1 created a shim
+    // for it; here the runtime's cache is referenced directly. In ESM library
+    // output there is no runtime to provide it, so stub it with an empty
+    // object instead and the bundle still runs.
+    if let Expr::Member(member) = &node {
+      if let Expr::Ident(ident) = &*member.obj {
+        if ident.sym == "require"
+          && is_unresolved(ident, self.unresolved_mark)
+          && matches!(match_property_name(member), Some((name, _)) if name == "cache")
+        {
+          if self.config.is_library() && self.config.is_esm_output() {
+            return ast::Expr::Object(ast::ObjectLit {
+              span: member.span,
+              props: vec![],
+            });
+          }
+
+          let cache = if self.config.is_library() {
+            member_expr!(
+              SyntaxContext::empty().apply_mark(self.unresolved_mark),
+              member.span,
+              parcelRequire.cache
+            )
+          } else {
+            member_expr!(
+              SyntaxContext::empty().apply_mark(self.unresolved_mark),
+              member.span,
+              module.bundle.cache
+            )
+          };
+          return ast::Expr::Member(cache);
+        }
+      }
+    }
+
     let is_require = match &node {
       Expr::Ident(ident) => {
         if ident.sym == "__parcel__import__" {
@@ -2020,7 +2057,7 @@ fn match_worker_type(expr: Option<&ast::ExprOrSpread>) -> (SourceType, Option<as
 mod test {
   use super::*;
   use crate::transformer::test_utils::{RunTestContext, RunVisitResult, run_fold};
-  use parcel_core::{Browsers, Engines};
+  use parcel_core::{Browsers, Engines, EnvironmentFlags};
 
   fn make_dependency_collector<'a>(
     context: RunTestContext,
@@ -2731,5 +2768,115 @@ document.body.appendChild(img);
       Some(&hash),
       DependencyFlags::empty(),
     );
+  }
+
+  #[test]
+  fn test_require_cache_replaced_with_module_bundle_cache() {
+    let mut items = vec![];
+    let mut diagnostics = vec![];
+    let config = make_config();
+    let input_code = r#"
+      Object.keys(require.cache);
+    "#;
+
+    let RunVisitResult { output_code, .. } = run_fold(input_code, |context| {
+      make_dependency_collector(context, &mut items, &mut diagnostics, &config)
+    });
+
+    let expected_code = r#"
+      Object.keys(module.bundle.cache);
+    "#;
+    let expected_code = expected_code
+      .trim_start()
+      .trim_end_matches(|p: char| p == ' ');
+    assert_eq!(output_code, expected_code);
+    assert_eq!(diagnostics, []);
+    assert!(items.is_empty());
+  }
+
+  #[test]
+  fn test_require_cache_library_replaced_with_parcel_require_cache() {
+    let mut items = vec![];
+    let mut diagnostics = vec![];
+    let config = Config {
+      target: Arc::new(Target {
+        flags: EnvironmentFlags::IS_LIBRARY,
+        ..Default::default()
+      }),
+      ..make_config()
+    };
+    let input_code = r#"
+      Object.keys(require.cache);
+    "#;
+
+    let RunVisitResult { output_code, .. } = run_fold(input_code, |context| {
+      make_dependency_collector(context, &mut items, &mut diagnostics, &config)
+    });
+
+    let expected_code = r#"
+      Object.keys(parcelRequire.cache);
+    "#;
+    let expected_code = expected_code
+      .trim_start()
+      .trim_end_matches(|p: char| p == ' ');
+    assert_eq!(output_code, expected_code);
+    assert_eq!(diagnostics, []);
+    assert!(items.is_empty());
+  }
+
+  #[test]
+  fn test_require_cache_esm_library_stubbed_with_empty_object() {
+    let mut items = vec![];
+    let mut diagnostics = vec![];
+    let config = Config {
+      target: Arc::new(Target {
+        flags: EnvironmentFlags::IS_LIBRARY,
+        output_format: OutputFormat::Esmodule,
+        ..Default::default()
+      }),
+      ..make_config()
+    };
+    let input_code = r#"
+      Object.keys(require.cache);
+    "#;
+
+    let RunVisitResult { output_code, .. } = run_fold(input_code, |context| {
+      make_dependency_collector(context, &mut items, &mut diagnostics, &config)
+    });
+
+    let expected_code = r#"
+      Object.keys({});
+    "#;
+    let expected_code = expected_code
+      .trim_start()
+      .trim_end_matches(|p: char| p == ' ');
+    assert_eq!(output_code, expected_code);
+    assert_eq!(diagnostics, []);
+    assert!(items.is_empty());
+  }
+
+  #[test]
+  fn test_other_require_properties_still_replaced_with_undefined() {
+    let mut items = vec![];
+    let mut diagnostics = vec![];
+    let config = make_config();
+    let input_code = r#"
+      require.extensions;
+      require.resolve;
+    "#;
+
+    let RunVisitResult { output_code, .. } = run_fold(input_code, |context| {
+      make_dependency_collector(context, &mut items, &mut diagnostics, &config)
+    });
+
+    let expected_code = r#"undefined;
+undefined;
+"#;
+    let expected_code = expected_code
+      .trim_start()
+      .trim_end_matches(|p: char| p == ' ');
+    assert_eq!(output_code, expected_code);
+    assert_eq!(diagnostics, []);
+    assert!(items.is_empty());
   }
 }
