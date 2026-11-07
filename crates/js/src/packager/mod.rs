@@ -3,7 +3,7 @@ use std::{fmt::Write, sync::Arc};
 use crate::transformer::{Ast, async_module::wrap_async_module};
 use indexmap::{IndexMap, IndexSet};
 use parcel_core::*;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use swc_core::{
   common::{DUMMY_SP, SyntaxContext},
   ecma::ast::{
@@ -91,24 +91,58 @@ impl JsContent {
     // resolutions, such as synchronous bundles in ESM output, must be emitted
     // as top-level imports before the module table.
     let mut synthetic_assets = IndexSet::new();
-    let mut asset_plans = Vec::with_capacity(bundle.assets.len());
-    let mut script_dependencies = IndexMap::new();
-    for asset_index in &bundle.assets {
-      let asset = &bundle_graph.asset_graph.asset(*asset_index);
-      let dependencies = asset_dependencies(
-        *asset_index,
-        asset,
+    let script_dependencies = match script {
+      Some(asset_index) => asset_dependencies(
+        asset_index,
+        bundle_graph.asset_graph.asset(asset_index),
         bundle_graph,
         Some(bundle),
         &mut synthetic_assets,
-        get_inline_bundle_content,
+        None,
         &options.project_root,
-      )?;
-      if script == Some(*asset_index) {
-        script_dependencies = dependencies;
-      } else {
-        asset_plans.push((*asset_index, dependencies));
-      }
+      )?,
+      None => IndexMap::new(),
+    };
+
+    // Each module's dependencies are resolved, and the module generated (tree shaken, minified and
+    // printed), independently of the others, so do both in parallel. Each collects the synthetic
+    // assets it needs, which are merged in bundle order, as if resolved one after the other.
+    let source_root: Option<Arc<str>> =
+      bundle_source_root(bundle, &options.project_root).map(Into::into);
+    let rendered = bundle
+      .assets
+      .par_iter()
+      .filter(|asset_index| script != Some(**asset_index))
+      .map(|&asset_index| {
+        let asset = bundle_graph.asset_graph.asset(asset_index);
+        let mut synthetic = IndexSet::new();
+        let dependencies = asset_dependencies(
+          asset_index,
+          asset,
+          bundle_graph,
+          Some(bundle),
+          &mut synthetic,
+          None,
+          &options.project_root,
+        )?;
+        let module = render_asset_module(
+          asset,
+          bundle_graph.asset_id(asset_index),
+          bundle,
+          bundle_graph.is_async_asset(asset_index),
+          dependencies,
+          source_root.as_ref(),
+          should_build_source_map,
+          should_optimize,
+        )?;
+        Ok((synthetic, module))
+      })
+      .collect::<Vec<Result<_, DiagnosticList>>>();
+    let mut modules = Vec::with_capacity(rendered.len());
+    for result in rendered {
+      let (synthetic, module) = result?;
+      synthetic_assets.extend(synthetic);
+      modules.push(module);
     }
 
     let script = match script {
@@ -154,8 +188,6 @@ impl JsContent {
         None
       };
 
-    let source_root: Option<Arc<str>> =
-      bundle_source_root(bundle, &options.project_root).map(Into::into);
     let mut printer = Printer::new(should_build_source_map, should_optimize);
     if let Some(main) = bundle.main_entry_asset {
       let asset = &bundle_graph.asset_graph.asset(main);
@@ -189,24 +221,6 @@ impl JsContent {
     )?;
 
     let mut first: bool = true;
-
-    // Each module is generated (tree shaken, minified and printed) independently, so render them in
-    // parallel and write them out in bundle order.
-    let modules = asset_plans
-      .into_par_iter()
-      .map(|(asset_index, dependencies)| {
-        render_asset_module(
-          bundle_graph.asset_graph.asset(asset_index),
-          bundle_graph.asset_id(asset_index),
-          bundle,
-          bundle_graph.is_async_asset(asset_index),
-          dependencies,
-          source_root.as_ref(),
-          should_build_source_map,
-          should_optimize,
-        )
-      })
-      .collect::<Result<Vec<_>, DiagnosticList>>()?;
     for module in modules {
       if !first {
         printer.write_char(',')?;

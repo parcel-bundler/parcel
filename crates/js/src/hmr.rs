@@ -118,7 +118,7 @@ pub fn get_hmr_update<'a>(
       bundle_graph,
       None,
       &mut additional_assets,
-      &|bundle_index| {
+      Some(&|bundle_index| {
         get_bundle_content(
           config,
           bundle_graph,
@@ -126,7 +126,7 @@ pub fn get_hmr_update<'a>(
           options,
           &Default::default(),
         )
-      },
+      }),
       &bundle_graph.project_root,
     )
     .unwrap();

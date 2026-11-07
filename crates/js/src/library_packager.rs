@@ -42,7 +42,7 @@ impl JsContent {
       bundle_graph,
       Some(bundle),
       &mut synthetic_assets,
-      get_inline_bundle_content,
+      Some(get_inline_bundle_content),
       &options.project_root,
     )?;
 
