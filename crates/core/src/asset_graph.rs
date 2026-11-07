@@ -580,6 +580,12 @@ impl AssetGraphBuilder {
     }
 
     self.warn_missing_symbols(missing_symbols);
+    mark_private_exports(
+      &self.asset_nodes,
+      &mut self.assets,
+      &self.entries,
+      &reachable,
+    );
 
     let mut changed = FixedBitSet::with_capacity(self.assets.len());
     changed.extend(changed_assets.iter().map(|asset| asset.index()));
@@ -1525,5 +1531,79 @@ impl<'a> AssetGraph<'a> {
   #[inline]
   pub fn asset(&'a self, asset_index: AssetIndex) -> &'a Asset {
     &self.assets[asset_index.index()]
+  }
+}
+
+/// Marks the assets whose export names are private to the build (see
+/// `AssetSymbols::private_exports`): ES modules in optimized, non-library targets whose namespace
+/// isn't observed as a whole, that aren't entries, and that are only reached through static
+/// imports and re-exports from JS in the same environment, outside of React Server Components.
+/// Their exports can't be observed by
+/// name from outside the build, or through a namespace object. Modules on either side of an
+/// `export *` are public: it copies its source's exports onto the re-exporting module's exports
+/// object at runtime by name, where private names could collide.
+fn mark_private_exports(
+  asset_nodes: &[AssetNode],
+  assets: &mut [Asset],
+  entries: &[Entry],
+  reachable: &HashSet<AssetNodeIndex>,
+) {
+  let mut public = FixedBitSet::with_capacity(assets.len());
+  for entry in entries {
+    if let Some(asset_index) = entry.asset.and_then(|node| asset_nodes[node.index()].asset) {
+      public.insert(asset_index.index());
+    }
+  }
+
+  let resolved = |dep: &Dependency| match dep.resolution {
+    DependencyResolution::Asset(node) => asset_nodes[node.index()].asset,
+    _ => None,
+  };
+  for node in reachable {
+    let Some(asset_index) = asset_nodes[node.index()].asset else {
+      continue;
+    };
+    let asset = &assets[asset_index.index()];
+    for dep in &asset.dependencies {
+      let Some(target) = resolved(dep) else {
+        continue;
+      };
+      if !dep.is_static_import()
+        || asset.ty != AssetType::Js
+        || asset.target.environment != assets[target.index()].target.environment
+      {
+        public.insert(target.index());
+      }
+    }
+    for star in &asset.symbols.star {
+      public.insert(asset_index.index());
+      if let Some(target) = resolved(&asset.dependencies[star.dep_index as usize]) {
+        public.insert(target.index());
+      }
+    }
+  }
+
+  for (index, asset) in assets.iter().enumerate() {
+    let flags = asset.target.flags;
+    if asset.ty != AssetType::Js
+      || !asset.flags.contains(AssetFlags::IS_ESM)
+      || !asset.flags.contains(AssetFlags::STATIC_EXPORTS)
+      || asset.symbols.used_namespace
+      || !flags.contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+      || flags.contains(EnvironmentFlags::IS_LIBRARY)
+      // RSC packaging replaces modules with directives (e.g. "use client") with synthetic
+      // references and proxies that read their exports by name.
+      // TODO: only modules with these directives.
+      || matches!(
+        asset.target.environment,
+        Environment::ReactServer | Environment::ReactClient
+      )
+    {
+      public.insert(index);
+    }
+  }
+
+  for (index, asset) in assets.iter_mut().enumerate() {
+    asset.symbols.private_exports = !public.contains(index);
   }
 }

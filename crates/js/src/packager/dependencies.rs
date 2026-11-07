@@ -5,7 +5,7 @@ use parcel_core::*;
 use parcel_css::{css_module_export_sources, resolve_css_module_export};
 
 use super::{
-  Resolution, rsc,
+  Resolution, private_export_name, rsc,
   synthetic::{BundleShim, InlineType, SyntheticAsset},
 };
 
@@ -232,6 +232,19 @@ fn is_sync_bundle_dependency(dependency: &Dependency, bundle: &Bundle) -> bool {
   bundle.ty == AssetType::Json && dependency.import_type == ImportType::JavaScript
 }
 
+/// The private name of an export of an asset whose exports are private, by its exported name,
+/// indexed like `private_export_name`.
+fn private_export_name_of(asset: &Asset, name: &SymbolName) -> Option<String> {
+  let symbols = &asset.symbols;
+  symbols
+    .exports
+    .iter()
+    .map(|export| &export.exported)
+    .chain(symbols.indirect.iter().map(|export| &export.exported))
+    .position(|exported| exported == name)
+    .map(private_export_name)
+}
+
 /// Resolves each dependency of an asset for packaging, collecting any synthetic
 /// assets that must be emitted alongside it.
 pub fn asset_dependencies<'a>(
@@ -323,12 +336,19 @@ pub fn asset_dependencies<'a>(
             if import.dep_index == dep_index as u32 {
               match &import.resolved {
                 SymbolResolution::Export {
-                  asset_index, name, ..
+                  asset_index,
+                  export_index,
+                  name,
                 } => {
+                  let target = bundle_graph.asset_graph.asset(*asset_index);
                   resolutions.push((
                     import.symbol.as_str(),
                     bundle_graph.asset_id(*asset_index),
-                    name.as_str(),
+                    if target.symbols.private_exports {
+                      Cow::Owned(private_export_name(*export_index as usize))
+                    } else {
+                      Cow::Borrowed(name.as_str())
+                    },
                   ));
                   if first_asset.is_none() {
                     first_asset = Some(*asset_index);
@@ -341,7 +361,7 @@ pub fn asset_dependencies<'a>(
                   resolutions.push((
                     import.symbol.as_str(),
                     bundle_graph.asset_id(*asset_index),
-                    name.as_str(),
+                    Cow::Borrowed(name.as_str()),
                   ));
                   if first_asset.is_none() {
                     first_asset = Some(*asset_index);
@@ -354,7 +374,7 @@ pub fn asset_dependencies<'a>(
                   resolutions.push((
                     import.symbol.as_str(),
                     bundle_graph.asset_id(*asset_index),
-                    "*",
+                    Cow::Borrowed("*"),
                   ));
                   if first_asset.is_none() {
                     first_asset = Some(*asset_index);
@@ -371,22 +391,42 @@ pub fn asset_dependencies<'a>(
 
         // TODO: add indirect/star exports
 
-        if !resolutions.is_empty() {
+        // The asset the importer requires, when it requires a single one, whose exports it reads
+        // by name: those it imports, and those it re-exports (e.g. `export {foo} from`).
+        let required = if !resolutions.is_empty() {
           if all_assets_match && let Some(res) = first_asset {
-            dependencies.insert(
-              (&**placeholder).into(),
-              Resolution::Asset(bundle_graph.asset_id(res)),
-            );
+            Some((res, resolutions))
           } else {
             dependencies.insert((&**placeholder).into(), Resolution::Symbols(resolutions));
+            None
           }
         } else if !used_deps.contains(&resolved) {
           dependencies.insert((&**placeholder).into(), Resolution::Excluded);
+          None
         } else {
-          dependencies.insert(
-            (&**placeholder).into(),
-            Resolution::Asset(bundle_graph.asset_id(resolved)),
-          );
+          Some((resolved, resolutions))
+        };
+
+        if let Some((required, resolutions)) = required {
+          let id = bundle_graph.asset_id(required);
+          let required = bundle_graph.asset_graph.asset(required);
+          let resolution = if required.symbols.private_exports {
+            let mut names: Vec<(&str, String)> = resolutions
+              .into_iter()
+              .map(|(symbol, _, name)| (symbol, name.into_owned()))
+              .collect();
+            for indirect in &asset.symbols.indirect {
+              if indirect.dep_index == dep_index as u32
+                && let Some(name) = private_export_name_of(required, &indirect.imported)
+              {
+                names.push((indirect.imported.as_str(), name));
+              }
+            }
+            Resolution::PrivateAsset(id, names)
+          } else {
+            Resolution::Asset(id)
+          };
+          dependencies.insert((&**placeholder).into(), resolution);
         }
       }
       BundleGraphDependencyResolution::None => {}
@@ -560,7 +600,7 @@ pub(super) fn static_import_ids(
     }
     let placeholder = dep.placeholder.as_ref().unwrap_or(&dep.specifier);
     match dependencies.get(&**placeholder) {
-      Some(Resolution::Asset(id)) => push(id),
+      Some(Resolution::Asset(id) | Resolution::PrivateAsset(id, _)) => push(id),
       Some(Resolution::External(specifier)) => push(specifier),
       Some(Resolution::Symbols(symbols)) => {
         for (_, id, _) in symbols {

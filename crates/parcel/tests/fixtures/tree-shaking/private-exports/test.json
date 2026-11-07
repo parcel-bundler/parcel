@@ -1,0 +1,21 @@
+[
+  {
+    "description": "private exports: modules only imported statically have their exports renamed",
+    "input": "index.js",
+    "options": {"mode": "production"},
+    "output": ["value", "default", "value", "default", "method", "star", "escapedExportName", "value-async"],
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["async.js", "barrel.js", "escaped.js", "index.js", "lib.js", "star.js"],
+        "contains": ["\"escapedExportName\"", "\"starExportName\""],
+        "notContains": ["privateExportName", "asyncExportName"]
+      }
+    ]
+  },
+  {
+    "description": "private exports: development keeps export names",
+    "input": "index.js",
+    "output": ["value", "default", "value", "default", "method", "star", "escapedExportName", "value-async"]
+  }
+]

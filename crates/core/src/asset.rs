@@ -339,6 +339,10 @@ impl_bitflags_serde!(AssetFlags);
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct AssetSymbols {
   pub used_namespace: bool,
+  /// Whether the names of this asset's exports are private to the build: every importer reads
+  /// them statically, so packagers may rename them (e.g. to shorter names when minifying). See
+  /// `mark_private_exports`.
+  pub private_exports: bool,
   pub imports: Vec<ImportedSymbol>,
   pub exports: Vec<LocalSymbol>,
   pub indirect: Vec<IndirectSymbol>,

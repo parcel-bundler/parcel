@@ -12,7 +12,7 @@
       {
         "type": "js",
         "assets": ["dep.js", "index.js"],
-        "contains": ["foo"],
+        "contains": ["=2"],
         "notContains": ["bar", "baz"]
       }
     ]

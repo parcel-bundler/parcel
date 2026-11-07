@@ -48,6 +48,41 @@ const IMPORT_META: &str = "$parcel$importMeta";
 const RUNTIME_NODE_PATH: &str = "v";
 const RUNTIME_BUNDLE_DIR: &str = "w";
 
+/// The private name of the export at `index` of an asset whose exports are private (see
+/// `AssetSymbols::private_exports`), indexed across its exports and then its indirect exports:
+/// the shortest identifiers in order.
+pub(crate) fn private_export_name(mut index: usize) -> String {
+  const FIRST: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$";
+  const REST: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$0123456789";
+  let mut name = String::new();
+  name.push(FIRST[index % FIRST.len()] as char);
+  index /= FIRST.len();
+  while index > 0 {
+    index -= 1;
+    name.push(REST[index % REST.len()] as char);
+    index /= REST.len();
+  }
+  name
+}
+
+/// The private names of an asset's exports, by exported name, if they are private.
+fn private_export_names(
+  asset: &Asset,
+) -> std::collections::HashMap<swc_core::ecma::atoms::Atom, swc_core::ecma::atoms::Atom> {
+  if !asset.symbols.private_exports {
+    return Default::default();
+  }
+  let symbols = &asset.symbols;
+  symbols
+    .exports
+    .iter()
+    .map(|export| &export.exported)
+    .chain(symbols.indirect.iter().map(|export| &export.exported))
+    .enumerate()
+    .map(|(index, name)| (name.as_str().into(), private_export_name(index).into()))
+    .collect()
+}
+
 fn runtime_name(
   should_optimize: bool,
   dev_name: &'static str,
@@ -539,6 +574,7 @@ fn render_asset_module<'a>(
       true,
       false,
       RUNTIME_REQUIRE.into(),
+      private_export_names(asset),
     );
     ast.finalize();
   }

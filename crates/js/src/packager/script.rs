@@ -37,6 +37,7 @@ pub fn link_script<'a>(
     false,
     false,
     require_name,
+    Default::default(),
   );
 }
 
