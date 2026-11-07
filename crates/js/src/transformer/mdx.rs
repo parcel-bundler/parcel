@@ -24,7 +24,11 @@ use mdxjs::{
 };
 use rustc_hash::FxHashSet;
 use swc_core::{
-  common::{DUMMY_SP, GLOBALS, Globals, Mark, SourceMap, comments::Comments, sync::Lrc},
+  common::{
+    DUMMY_SP, GLOBALS, Globals, Mark, SourceMap,
+    comments::{Comments, SingleThreadedComments},
+    sync::Lrc,
+  },
   ecma::{
     ast::{
       ArrayLit, BindingIdent, CallExpr, Callee, Decl, ExportDecl, ExportDefaultExpr,
@@ -39,11 +43,10 @@ use swc_core::{
   },
   quote,
 };
-use swc_node_comments::SwcComments;
 
 pub struct MdxResult {
   pub module: Module,
-  pub comments: SwcComments,
+  pub comments: SingleThreadedComments,
   pub assets: Vec<MdxAsset>,
 }
 
@@ -121,7 +124,7 @@ fn compile(config: &Config) -> Result<MdxResult, Message> {
   mdx_plugin_recma_document(&mut program, &options, Some(&location))?;
   mdx_plugin_recma_jsx_rewrite(&mut program, &options, Some(&location), &explicit_jsxs)?;
 
-  let comments = SwcComments::default();
+  let comments = SingleThreadedComments::default();
   for c in program.comments {
     comments.add_leading(c.span.lo, c.clone());
   }

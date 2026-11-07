@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
-use crate::transformer::{Config, transform_to_ast};
+use crate::transformer::{Config, thread_safe_comments, transform_to_ast};
 use glob_match::glob_match;
 use parcel_core::*;
 use parcel_macros::MacroError;
@@ -291,13 +291,24 @@ impl Transformer for JsTransformer {
       .flags
       .set(AssetFlags::HAS_TOP_LEVEL_AWAIT, res.has_top_level_await);
     let output = if JsContent::keeps_ast(&asset.target, options, &res.ast.program) {
+      let mut ast = res.ast;
+      // Minified output has no comments: swc's minifier and code generator print every comment
+      // they're given.
+      if !asset
+        .target
+        .flags
+        .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+      {
+        ast.comments = thread_safe_comments(&res.comments);
+      }
       JsOutput::Ast {
-        ast: res.ast,
+        ast,
         input_source_map,
       }
     } else {
       JsOutput::Code(GeneratedCode::new(
         res.ast,
+        &res.comments,
         input_source_map.as_ref(),
         asset.target.source_map.is_some(),
         res.esm_prologue_len,

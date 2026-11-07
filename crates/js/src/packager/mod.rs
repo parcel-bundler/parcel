@@ -297,6 +297,7 @@ impl JsContent {
       printer.add_source_map(map.map(SectionMap::new));
       printer.write_str(std::str::from_utf8(&code).unwrap())?;
     }
+    printer.end_source_map();
     printer.into_content()
   }
 }

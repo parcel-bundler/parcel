@@ -10,7 +10,6 @@ use swc_core::{
     react_compiler::{PluginOptions, SourceType, diagnostics::Severity, fast_check, transform},
   },
 };
-use swc_node_comments::SwcComments;
 
 use super::utils::{Diagnostic, DiagnosticSeverity, diagnostic, highlight};
 
@@ -28,7 +27,7 @@ pub struct ReactCompilerResult {
 pub fn react_compiler(
   program: &Program,
   code: &str,
-  comments: &SwcComments,
+  comments: &SingleThreadedComments,
   source_map: &SourceMap,
   is_type_script: bool,
   react_refresh: bool,
@@ -59,21 +58,18 @@ pub fn react_compiler(
     options.source_code = Some(code.to_owned());
   }
 
-  // The compiler reads lint suppressions from comments.
-  let leading: SingleThreadedCommentsMapInner = comments
-    .leading
-    .iter()
-    .map(|entry| (*entry.key(), entry.value().clone()))
-    .collect();
-  let trailing: SingleThreadedCommentsMapInner = comments
-    .trailing
-    .iter()
-    .map(|entry| (*entry.key(), entry.value().clone()))
-    .collect();
+  // The compiler reads lint suppressions from comments. It gets a copy, since a clone would share
+  // them, so that what it adds doesn't reach the passes after it.
+  let (leading, trailing) = comments.borrow_all();
   let comments = SingleThreadedComments::from_leading_and_trailing(
-    Rc::new(RefCell::new(leading)),
-    Rc::new(RefCell::new(trailing)),
+    Rc::new(RefCell::new(SingleThreadedCommentsMapInner::clone(
+      &leading,
+    ))),
+    Rc::new(RefCell::new(SingleThreadedCommentsMapInner::clone(
+      &trailing,
+    ))),
   );
+  drop((leading, trailing));
 
   let source_type = SourceType::from_program(program).with_typescript(is_type_script);
   let result = transform(program, source_type, code, Some(&comments), options);

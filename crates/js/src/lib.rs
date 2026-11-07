@@ -3,7 +3,10 @@ use std::sync::Arc;
 use crate::transformer::Ast;
 use parcel_core::*;
 use swc_core::{
-  common::{DUMMY_SP, SyntaxContext},
+  common::{
+    DUMMY_SP, SyntaxContext,
+    comments::{Comments, SingleThreadedComments},
+  },
   ecma::{
     ast::{Expr, ExprStmt, Ident, MetaPropExpr, MetaPropKind, Module, ModuleItem, Stmt},
     visit::{Visit, VisitWith},
@@ -83,9 +86,10 @@ struct GeneratedCode {
 const PROLOGUE_MARKER: &str = "$parcel$prologue$end";
 
 impl GeneratedCode {
-  /// Generates code for `ast`, which the JS transformer finalized.
+  /// Generates code for `ast`, which the JS transformer finalized, with its `comments`.
   fn new(
     mut ast: Ast,
+    comments: &SingleThreadedComments,
     input_source_map: Option<&InputSourceMap>,
     source_maps: bool,
     esm_prologue_len: usize,
@@ -104,7 +108,7 @@ impl GeneratedCode {
 
     let marked = (esm_prologue_len > 0 || react_refresh_wrapped)
       && insert_prologue_marker(&mut ast, esm_prologue_len, react_refresh_wrapped);
-    let (code, map) = ast_to_code(&ast, input_source_map, source_maps, None, false)?;
+    let (code, map) = ast_to_code(&ast, comments, input_source_map, source_maps, None, false)?;
     drop(ast);
     let mut code = String::from_utf8(code).map_err(|e| Diagnostic::from_message(e.to_string()))?;
 
@@ -178,12 +182,13 @@ fn without_source_root(mut map: String) -> String {
 /// which `source_root` is the path to (see `bundle_source_root`).
 fn ast_to_code(
   ast: &Ast,
+  comments: &dyn Comments,
   input_source_map: Option<&InputSourceMap>,
   source_maps: bool,
   source_root: Option<&str>,
   minify: bool,
 ) -> Result<(Vec<u8>, Option<String>), DiagnosticList> {
-  let (code, map) = ast.to_code(source_maps, source_root, minify)?;
+  let (code, map) = ast.to_code_with(comments, source_maps, source_root, minify)?;
   let (Some(map), Some(input)) = (&map, input_source_map) else {
     return Ok((code, map));
   };
@@ -249,7 +254,14 @@ impl JsContent {
       } => input_source_map.as_ref(),
       JsOutput::Code(_) => None,
     };
-    ast_to_code(ast, input_source_map, source_maps, source_root, minify)
+    ast_to_code(
+      ast,
+      &ast.comments,
+      input_source_map,
+      source_maps,
+      source_root,
+      minify,
+    )
   }
 }
 
