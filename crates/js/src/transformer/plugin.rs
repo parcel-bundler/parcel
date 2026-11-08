@@ -339,7 +339,10 @@ fn config(
 ) -> Result<Config, Diagnostic> {
   let resolver = parcel_resolver::Resolver::parcel(options.project_root);
 
-  let pkg = resolver.find_package(asset.loc.url.to_file_path()?, &**fs);
+  // From the asset's directory: starting at the file itself would first look for
+  // `<file>/package.json`, a wasted file system probe per asset.
+  let path = asset.loc.url.to_file_path()?;
+  let pkg = resolver.find_package(path.parent().unwrap_or(path), &**fs);
   let mut react_refresh = false;
   let mut jsx_pragma = None;
   let mut jsx_pragma_frag = None;
