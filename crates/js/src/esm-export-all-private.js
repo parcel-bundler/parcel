@@ -1,18 +1,14 @@
-exports.interopDefault = function (a) {
-  return a && a.__esModule ? a : {default: a};
-};
+/* exported $parcel$exportAll */
 
-exports.defineInteropFlag = function (a) {
-  Object.defineProperty(a, '__esModule', {value: true, configurable: true});
-};
-
-exports.exportAll = function (source, dest, names) {
-  // `names` are the public names of the exports of a module whose exports have private names (see
-  // `private_star_export_names`), in the order of their private names, comma separated.
-  (names === undefined ? Object.keys(source) : names.split(',')).forEach(
+// Re-exports a module's exports for `export *` in an optimized app (see esm-helpers.js), where
+// a module's exports may have private names. Then, `names` is an array of their public names in
+// the order of their private names, with holes for those it doesn't copy (see
+// `private_star_export_names`). Its strings are literals, which are interned when parsed, so
+// defining properties by them is as fast as by `Object.keys`.
+function $parcel$exportAll(source, dest, names) {
+  (names || Object.keys(source)).forEach(
     function (key, index) {
       if (
-        !key ||
         key === 'default' ||
         key === '__esModule' ||
         Object.prototype.hasOwnProperty.call(dest, key)
@@ -20,7 +16,7 @@ exports.exportAll = function (source, dest, names) {
         return;
       }
 
-      var from = names === undefined ? key : privateName(index);
+      var from = names ? privateName(index) : key;
       Object.defineProperty(dest, key, {
         enumerable: true,
         configurable: true,
@@ -46,12 +42,4 @@ exports.exportAll = function (source, dest, names) {
     }
     return name;
   }
-};
-
-exports.export = function (dest, destName, get) {
-  Object.defineProperty(dest, destName, {
-    enumerable: true,
-    configurable: true,
-    get: get,
-  });
-};
+}

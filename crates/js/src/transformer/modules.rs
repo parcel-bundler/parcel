@@ -13,36 +13,30 @@ use swc_core::{
 };
 
 use crate::{
-  runtime_modules::{ESM_HELPERS, esm_helper_function},
+  runtime_modules::EsmHelpers,
   transformer::{
     id,
     utils::{get_undefined_ident, match_export_name, match_export_name_ident},
   },
 };
 
-/// Converts `module` from ESM to CommonJS in place, returning whether it needs the ESM helpers and
-/// the length of its prologue (see `Esm2Cjs::prologue_len`).
-///
-/// With `bundle_helpers`, the module calls the helpers as functions its bundle defines (see
-/// `ESM_HELPER_FUNCTIONS`) instead of requiring the ESM helpers module, so that each module needn't
-/// require them and access each through it.
+/// Converts `module` from ESM to CommonJS in place, returning the ESM helpers it calls and the
+/// length of its prologue (see `Esm2Cjs::prologue_len`). The helpers are functions the packager
+/// defines alongside the module (see `EsmHelpers`), which it calls directly.
 pub fn esm2cjs(
   module: &mut Module,
   unresolved_mark: Mark,
   versions: Option<Versions>,
-  bundle_helpers: bool,
-) -> (bool, usize) {
+) -> (EsmHelpers, usize) {
   let mut visitor = Esm2Cjs {
     imports: HashMap::new(),
     require_names: HashMap::new(),
     interops: HashSet::new(),
     requires: vec![],
     exports: vec![],
-    needs_helpers: false,
-    bundle_helpers,
+    helpers: EsmHelpers::empty(),
     in_export_decl: false,
     in_function_scope: false,
-    mark: Mark::fresh(Mark::root()),
     unresolved_mark,
     unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
     versions,
@@ -51,7 +45,7 @@ pub fn esm2cjs(
   };
 
   module.visit_mut_with(&mut visitor);
-  (visitor.needs_helpers, visitor.prologue_len)
+  (visitor.helpers, visitor.prologue_len)
 }
 
 struct Esm2Cjs {
@@ -63,14 +57,12 @@ struct Esm2Cjs {
   interops: HashSet<JsWord>,
   // List of requires to insert at the top of the module.
   requires: Vec<ModuleItem>,
-  // List of exports to add.
-  exports: Vec<ModuleItem>,
-  needs_helpers: bool,
-  /// Whether helpers are called as the bundle's functions rather than through the helpers module.
-  bundle_helpers: bool,
+  // The exports to define, by name, with the getters of their values.
+  exports: Vec<(JsWord, Expr, Span)>,
+  // The ESM helpers the module calls.
+  helpers: EsmHelpers,
   in_export_decl: bool,
   in_function_scope: bool,
-  mark: Mark,
   unresolved_mark: Mark,
   unresolved_ctxt: SyntaxContext,
   versions: Option<Versions>,
@@ -178,7 +170,7 @@ impl Esm2Cjs {
         span: DUMMY_SP,
         name: Pat::Ident(ident.into()),
         init: Some(Box::new(self.create_helper_call(
-          "interopDefault".into(),
+          EsmHelpers::INTEROP_DEFAULT,
           vec![Expr::Ident(local)],
           DUMMY_SP,
         ))),
@@ -191,26 +183,13 @@ impl Esm2Cjs {
     self.interops.insert(src);
   }
 
-  fn create_helper_call(&mut self, name: JsWord, args: Vec<Expr>, span: Span) -> Expr {
-    self.needs_helpers = true;
-    let callee = if self.bundle_helpers {
-      Expr::Ident(Ident::new(
-        esm_helper_function(&name).into(),
-        DUMMY_SP,
-        self.unresolved_ctxt,
-      ))
-    } else {
-      let ident = Ident::new(
-        "parcelHelpers".into(),
-        DUMMY_SP,
-        SyntaxContext::empty().apply_mark(self.mark),
-      );
-      Expr::Member(MemberExpr {
-        obj: Box::new(Expr::Ident(ident)),
-        prop: MemberProp::Ident(IdentName::new(name, DUMMY_SP)),
-        span: DUMMY_SP,
-      })
-    };
+  fn create_helper_call(&mut self, helper: EsmHelpers, args: Vec<Expr>, span: Span) -> Expr {
+    self.helpers |= helper;
+    let callee = Expr::Ident(Ident::new(
+      helper.function().into(),
+      DUMMY_SP,
+      self.unresolved_ctxt,
+    ));
     Expr::Call(CallExpr {
       callee: Callee::Expr(Box::new(callee)),
       args: args
@@ -226,59 +205,107 @@ impl Esm2Cjs {
     })
   }
 
-  fn call_helper(&mut self, name: JsWord, args: Vec<Expr>, span: Span) -> ModuleItem {
+  fn call_helper(&mut self, helper: EsmHelpers, args: Vec<Expr>, span: Span) -> ModuleItem {
     ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-      expr: Box::new(self.create_helper_call(name, args, span)),
+      expr: Box::new(self.create_helper_call(helper, args, span)),
       span,
     }))
   }
 
   fn create_export(&mut self, exported: JsWord, local: Expr, span: Span) {
-    let export = self.call_helper(
-      "export".into(),
-      vec![
-        Expr::Ident(Ident::new("exports".into(), DUMMY_SP, self.unresolved_ctxt)),
-        Expr::Lit(Lit::Str(exported.into())),
-        if matches!(self.versions, Some(versions) if Feature::ArrowFunctions.should_enable(&versions, true, false)) {
-          Expr::Fn(FnExpr {
-            ident: None,
-            function: Box::new(Function {
-              body: Some(FunctionBody {
-                span: DUMMY_SP,
-                stmts: vec![Stmt::Return({
-                  ReturnStmt {
-                    span: DUMMY_SP,
-                    arg: Some(Box::new(local)),
-                  }
-                })],
-              }),
-              is_async: false,
-              is_generator: false,
-              params: vec![],
-              decorators: vec![],
-              span: DUMMY_SP,
-              ctxt: SyntaxContext::empty(),
-              return_type: None,
-              type_params: None,
-              this_param: None
-            }),
-          })
-        } else {
-          Expr::Arrow(ArrowExpr {
-            body: Box::new(ArrowFunctionBody::Expr(Box::new(local))),
-            is_async: false,
-            is_generator: false,
-            params: vec![],
+    let get = if matches!(self.versions, Some(versions) if Feature::ArrowFunctions.should_enable(&versions, true, false))
+    {
+      Expr::Fn(FnExpr {
+        ident: None,
+        function: Box::new(Function {
+          body: Some(FunctionBody {
             span: DUMMY_SP,
-            ctxt: SyntaxContext::empty(),
-            return_type: None,
-            type_params: None,
+            stmts: vec![Stmt::Return({
+              ReturnStmt {
+                span: DUMMY_SP,
+                arg: Some(Box::new(local)),
+              }
+            })],
+          }),
+          is_async: false,
+          is_generator: false,
+          params: vec![],
+          decorators: vec![],
+          span: DUMMY_SP,
+          ctxt: SyntaxContext::empty(),
+          return_type: None,
+          type_params: None,
+          this_param: None,
+        }),
+      })
+    } else {
+      Expr::Arrow(ArrowExpr {
+        body: Box::new(ArrowFunctionBody::Expr(Box::new(local))),
+        is_async: false,
+        is_generator: false,
+        params: vec![],
+        span: DUMMY_SP,
+        ctxt: SyntaxContext::empty(),
+        return_type: None,
+        type_params: None,
+      })
+    };
+    self.exports.push((exported, get, span));
+  }
+
+  /// Calls the `export` helper to define the module's exports, once for all of them with an object
+  /// of their getters, e.g. `$parcel$export(exports, {foo: () => foo})`. A `__proto__` key would
+  /// set the object's prototype instead, so that export is defined on its own.
+  fn define_exports(&mut self) -> Vec<ModuleItem> {
+    let ctxt = self.unresolved_ctxt;
+    let exports_ident = move || Expr::Ident(Ident::new("exports".into(), DUMMY_SP, ctxt));
+    let mut items = Vec::new();
+    let mut props = Vec::new();
+    let mut span = None;
+    for (exported, get, export_span) in std::mem::take(&mut self.exports) {
+      if &*exported == "__proto__" {
+        items.push(self.call_helper(
+          EsmHelpers::EXPORT,
+          vec![exports_ident(), Expr::Lit(Lit::Str(exported.into())), get],
+          export_span,
+        ));
+        continue;
+      }
+      span.get_or_insert(export_span);
+      // Reserved words are valid property names.
+      let mut chars = exported.chars();
+      let key =
+        if chars.next().is_some_and(Ident::is_valid_start) && chars.all(Ident::is_valid_continue) {
+          PropName::Ident(IdentName::new(exported, export_span))
+        } else {
+          PropName::Str(Str {
+            span: export_span,
+            value: exported.into(),
+            raw: None,
           })
-        },
-      ],
-      span,
-    );
-    self.exports.push(export)
+        };
+      props.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+        key,
+        value: Box::new(get),
+      }))));
+    }
+    if !props.is_empty() {
+      items.insert(
+        0,
+        self.call_helper(
+          EsmHelpers::EXPORT,
+          vec![
+            exports_ident(),
+            Expr::Object(ObjectLit {
+              span: DUMMY_SP,
+              props,
+            }),
+          ],
+          span.unwrap_or(DUMMY_SP),
+        ),
+      );
+    }
+    items
   }
 
   fn create_exports_assign(&mut self, name: JsWord, right: Expr, span: Span) -> ModuleItem {
@@ -445,7 +472,7 @@ impl VisitMut for Esm2Cjs {
             self.create_require(export_src.clone(), export.span);
             let require_name = self.get_require_name(&export_src, export.span);
             let export = self.call_helper(
-              "exportAll".into(),
+              EsmHelpers::EXPORT_ALL,
               vec![
                 Expr::Ident(require_name),
                 Expr::Ident(Ident::new("exports".into(), DUMMY_SP, self.unresolved_ctxt)),
@@ -590,9 +617,10 @@ impl VisitMut for Esm2Cjs {
       }
     }
 
+    let mut exports = self.define_exports();
     if needs_interop_flag {
       let helper = self.call_helper(
-        "defineInteropFlag".into(),
+        EsmHelpers::DEFINE_INTEROP_FLAG,
         vec![Expr::Ident(Ident::new(
           "exports".into(),
           DUMMY_SP,
@@ -600,36 +628,12 @@ impl VisitMut for Esm2Cjs {
         ))],
         DUMMY_SP,
       );
-      self.exports.insert(0, helper);
+      exports.insert(0, helper);
     }
 
-    let requires_helpers = self.needs_helpers && !self.bundle_helpers;
-    self.prologue_len = self.exports.len() + self.requires.len() + requires_helpers as usize;
+    self.prologue_len = exports.len() + self.requires.len();
     let mut body = Vec::with_capacity(self.prologue_len + items.len());
-    if requires_helpers {
-      body.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
-        span: DUMMY_SP,
-        ctxt: SyntaxContext::empty(),
-        kind: VarDeclKind::Var,
-        decls: vec![VarDeclarator {
-          span: DUMMY_SP,
-          name: Pat::Ident(
-            Ident::new(
-              "parcelHelpers".into(),
-              DUMMY_SP,
-              SyntaxContext::empty().apply_mark(self.mark),
-            )
-            .into(),
-          ),
-          init: Some(Box::new(Expr::Call(
-            crate::transformer::utils::create_require(ESM_HELPERS.into(), self.unresolved_mark),
-          ))),
-          definite: false,
-        }],
-        declare: false,
-      })))));
-    }
-    body.append(&mut self.exports);
+    body.append(&mut exports);
     body.append(&mut self.requires);
     body.append(&mut items);
     node.body = body;
@@ -705,29 +709,42 @@ mod tests {
   use crate::transformer::test_utils::run_with_transformation;
 
   #[test]
-  fn requires_esm_helpers() {
-    let (output, needs_helpers) =
-      run_with_transformation("export default 42", |context, module| {
-        let (needs_helpers, _) = esm2cjs(module, context.unresolved_mark, None, false);
-        needs_helpers
-      });
+  fn calls_esm_helpers() {
+    let (output, (helpers, prologue_len)) = run_with_transformation(
+      "export const foo = 42; export default function bar() {} export {foo as 'foo-bar'};",
+      |context, module| esm2cjs(module, context.unresolved_mark, None),
+    );
 
-    assert!(needs_helpers);
-    assert!(output.contains(r#"require("@parcel/parcel3/src/esmodule-helpers.js")"#));
+    assert_eq!(
+      helpers,
+      EsmHelpers::EXPORT | EsmHelpers::DEFINE_INTEROP_FLAG
+    );
+    assert!(!output.contains("require("));
+    assert!(output.contains("$parcel$defineInteropFlag(exports)"));
+    assert!(output.contains(
+      r#"$parcel$export(exports, {
+    foo: ()=>foo,
+    default: ()=>bar,
+    "foo-bar": ()=>foo
+})"#
+    ));
+    // The two helper calls.
+    assert_eq!(prologue_len, 2);
   }
 
   #[test]
-  fn calls_bundle_esm_helpers() {
-    let (output, (needs_helpers, prologue_len)) =
-      run_with_transformation("export const foo = 42", |context, module| {
-        esm2cjs(module, context.unresolved_mark, None, true)
-      });
+  fn defines_proto_export_on_its_own() {
+    let (output, prologue_len) = run_with_transformation(
+      "const a = 1, b = 2; export {a, b as __proto__};",
+      |context, module| esm2cjs(module, context.unresolved_mark, None).1,
+    );
 
-    assert!(needs_helpers);
-    assert!(!output.contains("esmodule-helpers"));
-    assert!(output.contains("$parcel$defineInteropFlag(exports)"));
-    assert!(output.contains(r#"$parcel$export(exports, "foo", ()=>foo)"#));
-    // The two helper calls, without a require of the helpers.
-    assert_eq!(prologue_len, 2);
+    assert!(output.contains(
+      r#"$parcel$export(exports, {
+    a: ()=>a
+})"#
+    ));
+    assert!(output.contains(r#"$parcel$export(exports, "__proto__", ()=>b)"#));
+    assert_eq!(prologue_len, 3);
   }
 }

@@ -26,6 +26,7 @@ use crate::{
     BundleShim, Resolution, SyntheticAsset, asset_dependencies, embedded_css_modules,
     insert_hot_update_node_replacements,
   },
+  runtime_modules::ESM_HELPER_FUNCTIONS,
 };
 
 #[derive(serde::Serialize, Debug)]
@@ -273,7 +274,16 @@ fn hot_update_code(asset: &Asset, id: &str, project_root: &PathId) -> String {
 
   // The code starts on its own line so that the map only needs a line offset, and ends on one so
   // that a trailing line comment can't swallow the closing brace.
-  let mut output = format!("parcelHotUpdate['{id}'] = function (module, exports, require) {{\n");
+  // The update runs outside its bundle, so the runtime passes it the ESM helpers the bundle defines
+  // (see `runtime_modules::ESM_HELPER_FUNCTIONS`), after the global object (see dev-runtime.js).
+  let mut output = format!(
+    "parcelHotUpdate['{id}'] = function (module, exports, require, $parcel$global, {}) {{\n",
+    ESM_HELPER_FUNCTIONS
+      .iter()
+      .map(|(_, function, _)| *function)
+      .collect::<Vec<_>>()
+      .join(", ")
+  );
   output.push_str(std::str::from_utf8(&code).unwrap());
   output.push_str("\n}");
   if let Some(map) = map {

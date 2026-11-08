@@ -39,7 +39,7 @@ use parcel_core::{
 };
 use parcel_macros::{MacroCallback, MacroError, Macros};
 
-use crate::runtime_modules::{ESM_HELPERS, REACT_REFRESH};
+use crate::runtime_modules::{EsmHelpers, REACT_REFRESH};
 use react_compiler::react_compiler;
 use react_lazy::ReactLazy;
 pub use swc_core::ecma::preset_env::{Version, Versions};
@@ -332,8 +332,8 @@ pub struct TransformAstResult {
   pub has_node_replacements: bool,
   pub needs_filename: bool,
   pub needs_dirname: bool,
-  /// Whether the module calls the ESM helpers its bundle defines (see `ESM_HELPER_FUNCTIONS`).
-  pub needs_esm_helpers: bool,
+  /// The ESM helpers the module calls, which the packager defines alongside it.
+  pub used_esm_helpers: EsmHelpers,
   /// Whether the module contains top-level await, i.e. evaluates asynchronously.
   pub has_top_level_await: bool,
   /// The number of statements the module starts with that define its exports and require its
@@ -767,14 +767,11 @@ pub fn transform_to_ast(
             module.visit_with(&mut ReactLazy::new(&collect, &mut result.dependencies));
           }
 
-          let mut needs_esm_helpers = false;
+          let mut used_esm_helpers = EsmHelpers::empty();
           let mut module = module;
-          // Optimized app bundles define the helpers themselves (see `ESM_HELPER_FUNCTIONS`).
-          let bundle_helpers = config.minify() && !config.is_library();
           if !config.is_library() || !config.is_esm_output() {
-            let (needs_helpers, prologue_len) =
-              esm2cjs(&mut module, unresolved_mark, versions, bundle_helpers);
-            needs_esm_helpers = needs_helpers;
+            let (helpers, prologue_len) = esm2cjs(&mut module, unresolved_mark, versions);
+            used_esm_helpers = helpers;
             result.esm_prologue_len = prologue_len;
           }
 
@@ -843,12 +840,7 @@ pub fn transform_to_ast(
             ));
           }
 
-          if needs_esm_helpers && bundle_helpers {
-            result.needs_esm_helpers = true;
-          } else if needs_esm_helpers {
-            runtime_dependencies.push(result.dependencies.len() as u32);
-            result.dependencies.push(config.runtime_dependency(ESM_HELPERS));
-          }
+          result.used_esm_helpers = used_esm_helpers;
 
           let rsc_runtime = match config.environment() {
             Environment::ReactServer => Some("@parcel/rsc/runtime/server"),

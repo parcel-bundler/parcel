@@ -28,6 +28,7 @@ pub use synthetic::{BundleShim, SyntheticAsset};
 pub use tree_shake::{Resolution, tree_shake};
 
 use crate::JsContent;
+use crate::runtime_modules::{APP_ESM_HELPERS, EsmHelpers};
 use printer::Printer;
 use script::{link_script, minify_script};
 
@@ -105,9 +106,14 @@ impl JsContent {
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     const RUNTIME: &str = include_str!(concat!(env!("OUT_DIR"), "/runtime.min.js"));
     const DEV_RUNTIME: &str = include_str!("../dev-runtime.js");
-    // Only optimized modules call them (see `runtime_modules::ESM_HELPER_FUNCTIONS`).
-    const ESM_HELPER_FUNCTIONS: &str =
-      include_str!(concat!(env!("OUT_DIR"), "/esm-helpers.min.js"));
+    // The functions modules converted from ESM call (see `EsmHelpers`). Optimized bundles define
+    // those their modules call, by their minified names (see `APP_ESM_HELPERS`). The dev runtime
+    // passes them to every module, including hot updates of modules that didn't call them before,
+    // so development bundles always define them all.
+    const DEV_ESM_HELPER_FUNCTIONS: &str = concat!(
+      include_str!("../esm-helpers.js"),
+      include_str!("../esm-export-all.js")
+    );
 
     let should_build_source_map = bundle.target.source_map.is_some();
     let should_optimize = bundle
@@ -291,15 +297,27 @@ impl JsContent {
     printer.newline()?;
     printer.newline()?;
 
-    if bundle.assets.iter().any(|asset_index| {
-      bundle_graph
-        .asset_graph
-        .asset(*asset_index)
-        .content
-        .downcast_ref::<JsContent>()
-        .is_some_and(|content| content.needs_esm_helpers)
-    }) {
-      printer.write_str(ESM_HELPER_FUNCTIONS)?;
+    if should_optimize {
+      let used = bundle
+        .assets
+        .iter()
+        .filter_map(|asset_index| {
+          bundle_graph
+            .asset_graph
+            .asset(*asset_index)
+            .content
+            .downcast_ref::<JsContent>()
+        })
+        .fold(EsmHelpers::empty(), |used, content| {
+          used | content.used_esm_helpers
+        });
+      for (function, code) in APP_ESM_HELPERS {
+        if EsmHelpers::from_function(function).is_some_and(|(helper, _)| used.contains(helper)) {
+          printer.write_str(code)?;
+        }
+      }
+    } else {
+      printer.write_str(DEV_ESM_HELPER_FUNCTIONS)?;
     }
 
     write_runtime_globals(

@@ -1663,12 +1663,6 @@ fn mark_private_exports(
           .imports
           .iter()
           .any(|import| import.dep_index == star.dep_index)
-        && !symbols
-          .exports
-          .iter()
-          .map(|export| &export.exported)
-          .chain(symbols.indirect.iter().map(|export| &export.exported))
-          .any(|exported| exported.as_str().contains(','))
       {
         *mapped.entry(source).or_default() += 1;
       } else {
@@ -1698,7 +1692,8 @@ fn mark_private_exports(
         .enumerate()
       {
         if requested && let SymbolName::Name(name) = exported {
-          saved += private_name_savings(name, index) - reexporters * (name.len() as i64 + 1);
+          // Each re-exporting module maps it from its public name, a string in an array.
+          saved += private_name_savings(name, index) - reexporters * (name.len() as i64 + 3);
         }
       }
       savings.insert(source, saved);

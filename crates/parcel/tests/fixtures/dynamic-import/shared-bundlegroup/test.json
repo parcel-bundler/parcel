@@ -2,7 +2,7 @@
   "description": "should support async importing the same module from different bundles",
   "input": "index.js",
   "bundles": [
-    {"assets": ["esmodule-helpers.js", "index.js"]},
+    {"assets": ["index.js"]},
     {"assets": ["a.js"]},
     {"assets": ["c.js"]},
     {"assets": ["b.js"]}

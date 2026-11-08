@@ -3,7 +3,7 @@
   "input": "index.js",
   "bundles": [
     {
-      "assets": ["esmodule-helpers.js", "index.js"],
+      "assets": ["index.js"],
       "contains": [
         "import * as __parcelExternal0 from \"crypto\";",
         "\"crypto\":__parcelExternal0,"

@@ -16,7 +16,7 @@
       "barrel",
       "escapedExportName",
       "value-async",
-      "mappedExportName,mapped,otherMappedExportName,other,ownExport,own",
+      "mappedExportName,mapped,otherMappedExportName,other,ownExport,own,with,comma,comma",
       "mapped",
       "indirect"
     ],
@@ -38,17 +38,17 @@
           "star.js"
         ],
         "contains": [
-          "\"escapedExportName\"",
-          "\"ownExport\"",
-          "\"indirectStarExportName\"",
-          "\"mappedExportName,otherMappedExportName\""
+          "escapedExportName:()=>",
+          "ownExport:()=>",
+          "indirectStarExportName:()=>",
+          "[\"mappedExportName\",,\"otherMappedExportName\",\"with,comma\"]"
         ],
         "notContains": [
           "privateExportName",
           "asyncExportName",
-          "\"starExportName\"",
-          "\"collidingStarExportName\"",
-          "\"barrelExportName\""
+          "starExportName:()=>",
+          "collidingStarExportName:()=>",
+          "barrelExportName:()=>"
         ]
       }
     ]
@@ -67,7 +67,7 @@
       "barrel",
       "escapedExportName",
       "value-async",
-      "mappedExportName,mapped,otherMappedExportName,other,ownExport,own",
+      "mappedExportName,mapped,otherMappedExportName,other,ownExport,own,with,comma,comma",
       "mapped",
       "indirect"
     ]

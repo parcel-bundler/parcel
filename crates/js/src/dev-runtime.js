@@ -71,12 +71,18 @@ function parcelRequire(name, jumped) {
     var module = (cache[name] = new parcelRequire.Module(name));
     module.require = localRequire;
 
+    // The ESM helpers the bundle defines are also passed to hot updates, which run outside of it
+    // (see `hot_update_code`).
     modules[name][0].call(
       module.exports,
       module,
       module.exports,
       localRequire,
       globalThis,
+      $parcel$export,
+      $parcel$exportAll,
+      $parcel$interopDefault,
+      $parcel$defineInteropFlag,
     );
 
     // A module that replaced its exports object (e.g. `module.exports = ...`) can't be updated in

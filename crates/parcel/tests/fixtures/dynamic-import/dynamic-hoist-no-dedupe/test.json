@@ -6,15 +6,13 @@
       "name": "a.js",
       "assets": [
         "a.js",
-        "common.js",
-        "esmodule-helpers.js"
+        "common.js"
       ]
     },
     {
       "assets": [
         "c.js",
-        "common.js",
-        "esmodule-helpers.js"
+        "common.js"
       ]
     },
     {

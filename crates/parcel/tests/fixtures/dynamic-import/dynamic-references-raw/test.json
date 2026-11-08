@@ -10,7 +10,6 @@
     },
     {
       "assets": [
-        "esmodule-helpers.js",
         "local.js"
       ]
     },

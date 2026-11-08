@@ -4,7 +4,7 @@
   "options": {"mode": "development"},
   "bundles": [
     {
-      "assets": ["esmodule-helpers.js", "icon.svg", "index.js", "jsxRuntime.module.js", "preact.module.js", "react.development.js", "react.js"],
+      "assets": ["icon.svg", "index.js", "jsxRuntime.module.js", "preact.module.js", "react.development.js", "react.js"],
       "contains": [
         "function SvgComponent",
         "_react.forwardRef",

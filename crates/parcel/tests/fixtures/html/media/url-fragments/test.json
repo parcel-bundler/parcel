@@ -16,6 +16,6 @@
     {"assets": ["logo.svg"]},
     {"assets": ["external.svg"]},
     {"assets": ["style.css"], "contains": [".svg#b\")"]},
-    {"assets": ["app.js", "esmodule-helpers.js"], "contains": ["+ \"#c\""]}
+    {"assets": ["app.js"], "contains": ["+ \"#c\""]}
   ]
 }

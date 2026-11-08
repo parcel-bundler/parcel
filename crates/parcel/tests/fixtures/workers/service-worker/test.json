@@ -30,7 +30,7 @@
       {
         "name": "module-worker.js",
         "environment": "service-worker",
-        "assets": ["esmodule-helpers.js", "module-worker.js"]
+        "assets": ["module-worker.js"]
       }
     ]
   },
@@ -44,7 +44,7 @@
       },
       {
         "name": "module-worker.js",
-        "assets": ["esmodule-helpers.js", "module-worker.js"]
+        "assets": ["module-worker.js"]
       }
     ]
   },

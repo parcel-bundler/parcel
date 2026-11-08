@@ -16,7 +16,7 @@ use swc_core::{
 };
 
 use crate::{
-  runtime_modules::{esm_helper_bundle_name, esm_helper_function},
+  runtime_modules::EsmHelpers,
   transformer::{
     Ast,
     utils::{is_unresolved, match_member_expr, match_property_name},
@@ -33,7 +33,7 @@ pub enum Resolution<'a> {
   /// name of each symbol the importer reads from it, and the names an `export *` of it copies its
   /// exports by, if the importer has one and is public (see `private_star_export_names`).
   #[serde(serialize_with = "serialize_private_asset")]
-  PrivateAsset(String, Vec<(&'a str, String)>, Option<String>),
+  PrivateAsset(String, Vec<(&'a str, String)>, Option<Vec<Option<&'a str>>>),
   Symbols(Vec<(&'a str, String, Cow<'a, str>)>),
   #[serde(serialize_with = "serialize_internalized")]
   Internalized(String),
@@ -62,7 +62,7 @@ where
 fn serialize_private_asset<S>(
   id: &String,
   _names: &[(&str, String)],
-  _star_names: &Option<String>,
+  _star_names: &Option<Vec<Option<&str>>>,
   serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
@@ -344,7 +344,7 @@ impl<'a> TreeShake<'a> {
   }
 
   /// The call to an ESM helper (e.g. `export`) that `node` is, if it is one.
-  fn helper_call<'n>(&self, node: &'n mut Stmt, helper: &str) -> Option<&'n mut CallExpr> {
+  fn helper_call<'n>(&self, node: &'n mut Stmt, helper: EsmHelpers) -> Option<&'n mut CallExpr> {
     let Stmt::Expr(stmt) = node else {
       return None;
     };
@@ -354,75 +354,81 @@ impl<'a> TreeShake<'a> {
     let Callee::Expr(callee) = &call.callee else {
       return None;
     };
-    let is_helper = match &**callee {
-      Expr::Member(member) => {
-        matches!(&*member.obj, Expr::Ident(id) if id.sym == "parcelHelpers")
-          && matches!(match_property_name(member), Some((name, _)) if name == helper)
-      }
-      Expr::Ident(id) => {
-        id.sym == esm_helper_function(helper) && is_unresolved(id, self.unresolved_mark)
-      }
-      _ => false,
-    };
+    let is_helper = matches!(&**callee, Expr::Ident(id)
+      if id.sym == helper.function() && is_unresolved(id, self.unresolved_mark));
     is_helper.then_some(call)
   }
 
-  /// The name argument of a call to the ESM `export` helper, if `node` is one.
-  fn export_helper_name<'n>(&self, node: &'n mut Stmt) -> Option<&'n mut Str> {
-    match self
-      .helper_call(node, "export")?
-      .args
-      .get_mut(1)
-      .map(|arg| &mut *arg.expr)
-    {
-      Some(Expr::Lit(Lit::Str(name))) => Some(name),
-      _ => None,
+  /// Removes the exports nothing uses from a call to the ESM `export` helper and renames those
+  /// whose names are private, returning whether it still defines any. It's either called with an
+  /// object of getters by name, or a name and its getter (see `define_exports`).
+  fn shake_exports(&mut self, call: &mut CallExpr) -> bool {
+    let is_used = |name: &JsWord| self.used_symbols.is_empty() || self.used_symbols.contains(name);
+    match call.args.get_mut(1).map(|arg| &mut *arg.expr) {
+      Some(Expr::Object(object)) => {
+        object.props.retain_mut(|prop| {
+          let PropOrSpread::Prop(prop) = prop else {
+            return true;
+          };
+          let Prop::KeyValue(KeyValueProp { key, .. }) = &mut **prop else {
+            return true;
+          };
+          let name: JsWord = match key {
+            PropName::Ident(name) => name.sym.clone(),
+            PropName::Str(name) => name.value.to_atom_lossy().into_owned(),
+            _ => return true,
+          };
+          if !is_used(&name) {
+            return false;
+          }
+          if let Some(private) = self.export_names.get(&name) {
+            *key = PropName::Ident(IdentName::new(private.clone(), DUMMY_SP));
+          }
+          true
+        });
+        !object.props.is_empty()
+      }
+      Some(Expr::Lit(Lit::Str(name))) => {
+        let value = name.value.to_atom_lossy().into_owned();
+        if let Some(private) = self.export_names.get(&value) {
+          *name = private.as_str().into();
+        }
+        is_used(&value)
+      }
+      _ => true,
     }
   }
 }
 
 impl<'a> VisitMut for TreeShake<'a> {
-  fn visit_mut_stmts(&mut self, stmts: &mut Vec<Stmt>) {
-    // Before visiting them, which renames the helper (see `visit_mut_ident`).
-    let exports: Vec<bool> = stmts
-      .iter_mut()
-      .map(|stmt| {
-        self
-          .helper_call(stmt, "export")
-          .is_some_and(|call| matches!(&call.callee, Callee::Expr(callee) if callee.is_ident()))
-      })
-      .collect();
-    stmts.visit_mut_children_with(self);
-    if exports.iter().filter(|&&export| export).nth(1).is_some() {
-      batch_exports(stmts, &exports);
-    }
-  }
-
   fn visit_mut_stmt(&mut self, node: &mut Stmt) {
     // Before visiting the call, which renames the helper it calls (see `visit_mut_ident`).
-    let has_used_symbols = !self.used_symbols.is_empty();
-    let has_export_names = !self.export_names.is_empty();
-    if (has_used_symbols || has_export_names)
-      && let Some(name) = self.export_helper_name(node)
+    if (!self.used_symbols.is_empty() || !self.export_names.is_empty())
+      && let Some(call) = self.helper_call(node, EsmHelpers::EXPORT)
+      && !self.shake_exports(call)
     {
-      let value = name.value.to_atom_lossy().into_owned();
-      if let Some(private) = self.export_names.get(&value) {
-        *name = private.as_str().into();
-      }
-      if has_used_symbols && !self.used_symbols.contains(&value) {
-        *node = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
-        self.mutated = true;
-        return;
-      }
+      *node = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
+      self.mutated = true;
+      return;
     }
 
     // An `export *` of a module whose exports are private copies them by their public names.
     if !self.private_imports.star_names.is_empty()
-      && let Some(call) = self.helper_call(node, "exportAll")
+      && let Some(call) = self.helper_call(node, EsmHelpers::EXPORT_ALL)
       && let Some(Expr::Ident(source)) = call.args.first().map(|arg| &*arg.expr)
       && let Some(names) = self.private_imports.star_names.get(&source.to_id())
     {
-      call.args.push(Expr::from(Str::from(names.clone())).into());
+      // An array of the names, with holes for those it doesn't copy.
+      call.args.push(
+        Expr::Array(ArrayLit {
+          span: DUMMY_SP,
+          elems: names
+            .iter()
+            .map(|name| name.clone().map(|name| Expr::from(Str::from(name)).into()))
+            .collect(),
+        })
+        .into(),
+      );
     }
 
     node.visit_mut_children_with(self);
@@ -794,92 +800,14 @@ impl<'a> VisitMut for TreeShake<'a> {
     if is_unresolved(node, self.unresolved_mark) {
       if node.sym == "require" {
         node.sym = self.require_name.clone();
-      } else if let Some(name) = esm_helper_bundle_name(&node.sym) {
-        node.sym = name.into();
-      }
-    }
-  }
-}
-
-/// Merges runs of calls to the bundle's `export` helper function (see `ESM_HELPER_FUNCTIONS`) that
-/// define exports on the same object into one call with an object of getters, e.g.
-/// `t(e,{a:()=>x,b:()=>y})`, which is shorter. `exports` says which statements were calls to it
-/// before tree shaking removed the unused ones.
-fn batch_exports(stmts: &mut Vec<Stmt>, exports: &[bool]) {
-  fn flush(batch: &mut Vec<CallExpr>, stmts: &mut Vec<Stmt>) {
-    let mut calls = std::mem::take(batch);
-    let call = if calls.len() == 1 {
-      calls.pop().unwrap()
-    } else {
-      let mut call = calls[0].clone();
-      let props = calls
-        .into_iter()
-        .map(|mut call| {
-          let get = call.args.pop().unwrap().expr;
-          let Expr::Lit(Lit::Str(name)) = *call.args.pop().unwrap().expr else {
-            unreachable!()
-          };
-          let key = match name.value.as_str() {
-            Some(name) if Ident::verify_symbol(name).is_ok() => {
-              PropName::Ident(IdentName::new(name.into(), DUMMY_SP))
-            }
-            _ => PropName::Str(name),
-          };
-          PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp { key, value: get })))
-        })
-        .collect();
-      call.args.truncate(1);
-      call.args.push(
-        Expr::Object(ObjectLit {
-          span: DUMMY_SP,
-          props,
-        })
-        .into(),
-      );
-      call
-    };
-    stmts.push(Stmt::Expr(ExprStmt {
-      span: DUMMY_SP,
-      expr: Box::new(Expr::Call(call)),
-    }));
-  }
-
-  let mut batch: Vec<CallExpr> = Vec::new();
-  for (stmt, &export) in std::mem::take(stmts).into_iter().zip(exports) {
-    let call = match stmt {
-      // Exports that tree shaking removed.
-      Stmt::Empty(_) if export => continue,
-      Stmt::Expr(ExprStmt { expr, .. })
-        if export
-          && let Expr::Call(call) = &*expr
-          && let [dest, name, _] = &call.args[..]
-          && dest.expr.is_ident()
-          // A `__proto__` key would set the object's prototype instead.
-          && matches!(&*name.expr, Expr::Lit(Lit::Str(name)) if name.value != *"__proto__") =>
+      } else if !self.is_library
+        && let Some((_, minified)) = EsmHelpers::from_function(&node.sym)
       {
-        let Expr::Call(call) = *expr else {
-          unreachable!()
-        };
-        call
+        // Optimized app bundles define the helpers by their minified names. Libraries define them
+        // by their full names (see `append_esm_helpers`).
+        node.sym = minified.into();
       }
-      stmt => {
-        if !batch.is_empty() {
-          flush(&mut batch, stmts);
-        }
-        stmts.push(stmt);
-        continue;
-      }
-    };
-    if let Some(first) = batch.first()
-      && let (Expr::Ident(first), Expr::Ident(dest)) = (&*first.args[0].expr, &*call.args[0].expr)
-      && first.to_id() != dest.to_id()
-    {
-      flush(&mut batch, stmts);
     }
-    batch.push(call);
-  }
-  if !batch.is_empty() {
-    flush(&mut batch, stmts);
   }
 }
 
@@ -891,7 +819,7 @@ struct PrivateImports {
   /// The private names of the exports the module reads through each binding.
   names: HashMap<Id, HashMap<JsWord, JsWord>>,
   /// The names the module's `export *` of each binding copies its exports by, if it has one.
-  star_names: HashMap<Id, String>,
+  star_names: HashMap<Id, Vec<Option<JsWord>>>,
 }
 
 fn private_imports(
@@ -944,10 +872,13 @@ impl Visit for PrivateImportNames<'_, '_> {
         {
           Some(Resolution::PrivateAsset(_, names, star_names)) => {
             if let Some(star_names) = star_names {
-              self
-                .imports
-                .star_names
-                .insert(binding.id.to_id(), star_names.clone());
+              self.imports.star_names.insert(
+                binding.id.to_id(),
+                star_names
+                  .iter()
+                  .map(|name| name.map(JsWord::from))
+                  .collect(),
+              );
             }
             names
               .iter()
@@ -958,7 +889,7 @@ impl Visit for PrivateImportNames<'_, '_> {
         }
       }
       // Declared after the require it interops with.
-      Some(Expr::Ident(required)) if callee.sym == esm_helper_function("interopDefault") => {
+      Some(Expr::Ident(required)) if callee.sym == EsmHelpers::INTEROP_DEFAULT.function() => {
         match self.imports.names.get(&required.to_id()) {
           Some(names) => names.clone(),
           None => return,

@@ -246,11 +246,11 @@ fn private_export_name_of(asset: &Asset, name: &SymbolName) -> Option<String> {
 }
 
 /// The public names of an asset's exports whose names are private, in the order of their private
-/// names (see `private_export_name`), comma separated, for an `export *` of it to copy them by.
-/// Those it doesn't copy (`default`, and exports that aren't packaged) are empty.
-fn private_star_export_names(asset: &Asset) -> String {
+/// names (see `private_export_name`), for an `export *` of it to copy them by. Those it doesn't
+/// copy (`default`, and exports that aren't packaged) are `None`.
+fn private_star_export_names(asset: &Asset) -> Vec<Option<&str>> {
   let symbols = &asset.symbols;
-  let mut names: Vec<&str> = symbols
+  let mut names: Vec<Option<&str>> = symbols
     .exports
     .iter()
     .map(|export| (&export.exported, export.requested))
@@ -261,14 +261,14 @@ fn private_star_export_names(asset: &Asset) -> String {
         .map(|export| (&export.exported, export.requested)),
     )
     .map(|(exported, requested)| match exported {
-      SymbolName::Name(name) if requested => &**name,
-      _ => "",
+      SymbolName::Name(name) if requested => Some(&**name),
+      _ => None,
     })
     .collect();
-  while names.last() == Some(&"") {
+  while names.last() == Some(&None) {
     names.pop();
   }
-  names.join(",")
+  names
 }
 
 /// Resolves each dependency of an asset for packaging, collecting any synthetic

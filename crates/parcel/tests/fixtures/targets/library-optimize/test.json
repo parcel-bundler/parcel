@@ -34,18 +34,13 @@
         "index.js"
       ],
       "contains": [
-        "exports,\"add\""
+        "(exports,{add:"
       ],
       "notContains": [
         "first",
         "result"
       ],
       "startsWith": "\"use client\";"
-    },
-    {
-      "assets": [
-        "esmodule-helpers.js"
-      ]
     }
   ]
 }

@@ -3,7 +3,7 @@
   "input": "index.js",
   "bundles": [
     {
-      "assets": ["index.js", "value.js", "esmodule-helpers.js"]
+      "assets": ["index.js", "value.js"]
     },
     {
       "assets": ["lazy.js", "barrel.js"],

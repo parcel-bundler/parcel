@@ -30,8 +30,8 @@ struct JsContent {
   rsc_runtime_dep: Option<u32>,
   needs_filename: bool,
   needs_dirname: bool,
-  /// Whether the asset calls the ESM helpers its bundle defines (see `ESM_HELPER_FUNCTIONS`).
-  needs_esm_helpers: bool,
+  /// The ESM helpers the asset calls, which the packager defines alongside it.
+  used_esm_helpers: runtime_modules::EsmHelpers,
   /// See `crate::transformer::async_module::wrap_async_module`.
   esm_prologue_len: usize,
   react_refresh_wrapped: bool,

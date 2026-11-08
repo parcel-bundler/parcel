@@ -3,7 +3,7 @@
   "input": "index.js",
   "bundles": [
     {"assets": ["index.js"]},
-    {"assets": ["esmodule-helpers.js", "story.js"]}
+    {"assets": ["story.js"]}
   ],
   "output": 42
 }

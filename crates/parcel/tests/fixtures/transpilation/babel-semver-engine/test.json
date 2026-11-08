@@ -3,7 +3,6 @@
   "input": ".",
   "bundles": [
     {"assets": ["foo.js"], "contains": ["function Foo"]},
-    {"assets": ["index.js"], "contains": ["function Bar"]},
-    {"assets": ["esmodule-helpers.js"]}
+    {"assets": ["index.js"], "contains": ["function Bar"]}
   ]
 }

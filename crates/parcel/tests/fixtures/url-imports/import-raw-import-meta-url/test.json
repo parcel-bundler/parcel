@@ -3,7 +3,7 @@
     "description": "should support referencing a raw asset with static URL and import.meta.url",
     "input": "index.js",
     "bundles": [
-      {"name": "index.js", "assets": ["esmodule-helpers.js", "index.js"]},
+      {"name": "index.js", "assets": ["index.js"]},
       {"type": "txt", "assets": ["test.txt"]}
     ]
   },
@@ -11,7 +11,7 @@
     "description": "should support referencing a raw asset with static URL and CJS __filename",
     "input": "cjs.js",
     "bundles": [
-      {"name": "cjs.js", "assets": ["cjs.js", "esmodule-helpers.js"]},
+      {"name": "cjs.js", "assets": ["cjs.js"]},
       {"type": "txt", "assets": ["test.txt"]}
     ]
   },
@@ -19,7 +19,7 @@
     "description": "should ignore new URL and import.meta.url with local binding",
     "input": "local-url.js",
     "bundles": [
-      {"assets": ["esmodule-helpers.js", "local-url.js"], "contains": ["file:///local-url.js"]}
+      {"assets": ["local-url.js"], "contains": ["file:///local-url.js"]}
     ]
   },
   {
