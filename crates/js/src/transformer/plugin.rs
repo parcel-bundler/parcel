@@ -91,8 +91,6 @@ impl Transformer for JsTransformer {
   ) -> Result<Asset, DiagnosticList> {
     let options = ctx.options;
     let fs = ctx.fs;
-    // Whether an earlier transformer produced the source, rather than it being the file's.
-    let rewritten = asset.content.downcast_ref::<FileContent>().is_none();
     let input_source_map = if asset.target.source_map.is_some() {
       input_source_map(
         &*asset.content,
@@ -290,7 +288,7 @@ impl Transformer for JsTransformer {
     asset
       .flags
       .set(AssetFlags::HAS_TOP_LEVEL_AWAIT, res.has_top_level_await);
-    let output = if JsContent::keeps_ast(&asset.target, options, &res.ast.program) {
+    let output = if JsContent::keeps_ast(&asset.target) {
       let mut ast = res.ast;
       // Minified output has no comments: swc's minifier and code generator print every comment
       // they're given.
@@ -312,8 +310,6 @@ impl Transformer for JsTransformer {
         input_source_map.as_ref(),
         asset.target.source_map.is_some(),
         res.esm_prologue_len,
-        res.react_refresh_wrapped,
-        rewritten,
       )?)
     };
     asset.content = Arc::new(JsContent {
@@ -325,7 +321,7 @@ impl Transformer for JsTransformer {
       needs_filename: res.needs_filename,
       needs_dirname: res.needs_dirname,
       esm_prologue_len: res.esm_prologue_len,
-      react_refresh_wrapped: res.react_refresh_wrapped,
+      react_refresh: res.react_refresh,
     });
     Ok(asset)
   }
@@ -431,10 +427,15 @@ fn config(
           }
         }
 
-        // React Refresh updates components in place over HMR. The transformer further limits it
+        // React Refresh updates components in place over HMR, in unoptimized output (whose
+        // modules the packager wraps as text, see `refresh`). The transformer further limits it
         // to browser code (see `Config::react_refresh`).
         react_refresh = options.mode == BuildMode::Development
           && options.hmr.is_some()
+          && !asset
+            .target
+            .flags
+            .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
           && pkg.has_dependency("react");
       }
     }
@@ -621,6 +622,7 @@ fn config(
     decorators,
     use_define_for_class_fields,
     is_development: options.mode == BuildMode::Development,
+    hmr: options.hmr.is_some(),
     react_refresh,
     react_compiler,
     trace_bailouts: options.log_level == LogLevel::Verbose,

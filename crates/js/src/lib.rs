@@ -1,17 +1,8 @@
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use crate::transformer::Ast;
 use parcel_core::*;
-use swc_core::{
-  common::{
-    DUMMY_SP, SyntaxContext,
-    comments::{Comments, SingleThreadedComments},
-  },
-  ecma::{
-    ast::{Expr, ExprStmt, Ident, MetaPropExpr, MetaPropKind, Module, ModuleItem, Stmt},
-    visit::{Visit, VisitWith},
-  },
-};
+use swc_core::common::comments::Comments;
 
 pub mod hmr;
 mod library_packager;
@@ -21,22 +12,6 @@ mod transformer;
 
 pub use runtime_modules::{RuntimeModule, runtime_module};
 pub use transformer::JsTransformer;
-
-/// Source text corresponding to locations produced by the JS transformer.
-/// Earlier transformers may have rewritten it without providing a source map.
-pub fn diagnostic_source(asset: &Asset) -> Option<String> {
-  let content = asset.content.downcast_ref::<JsContent>()?;
-  match &content.output {
-    JsOutput::Ast { ast, .. } => {
-      // The parser registers its input before any macro-generated source files.
-      let files = ast.source_map.files();
-      let file = files.first()?;
-      Some(file.src.to_string())
-    }
-    // Only kept when it differs from the file, which callers read otherwise.
-    JsOutput::Code(generated) => generated.source.as_deref().map(str::to_owned),
-  }
-}
 
 struct JsContent {
   source_size: usize,
@@ -48,7 +23,8 @@ struct JsContent {
   needs_dirname: bool,
   /// See `crate::transformer::async_module::wrap_async_module`.
   esm_prologue_len: usize,
-  react_refresh_wrapped: bool,
+  /// Whether the packager wraps the module for React Refresh (see `transformer::refresh`).
+  react_refresh: bool,
 }
 
 /// What a JS asset is packaged from.
@@ -67,6 +43,7 @@ enum JsOutput {
 }
 
 /// A module's code, generated when it was transformed.
+#[derive(Clone)]
 struct GeneratedCode {
   /// Shared, so that bundles reference it rather than copying it (see `ChunkedText`).
   code: Arc<str>,
@@ -77,152 +54,86 @@ struct GeneratedCode {
   /// for its imports if it's async (see `wrap_async_module`). None if the prologue is empty, so
   /// the module waits before its code.
   prologue_end: Option<usize>,
-  /// The source text the JS transformer parsed, if an earlier transformer produced it, for
-  /// `diagnostic_source`.
-  source: Option<Box<str>>,
 }
-
-/// Marks the end of a module's ESM prologue while generating its code (see `GeneratedCode`).
-const PROLOGUE_MARKER: &str = "$parcel$prologue$end";
 
 impl GeneratedCode {
   /// Generates code for `ast`, which the JS transformer finalized, with its `comments`.
   fn new(
     mut ast: Ast,
-    comments: &SingleThreadedComments,
+    comments: &dyn Comments,
     input_source_map: Option<&InputSourceMap>,
     source_maps: bool,
     esm_prologue_len: usize,
-    react_refresh_wrapped: bool,
-    rewritten: bool,
   ) -> Result<GeneratedCode, DiagnosticList> {
-    let source = if rewritten {
-      ast
-        .source_map
-        .files()
-        .first()
-        .map(|file| file.src.to_string().into_boxed_str())
+    // With an empty line after the prologue, where the module waits for its imports if it's async.
+    let (code, map, prologue_end) = if esm_prologue_len > 0 {
+      let (code, map, at) =
+        ast.to_code_split(comments, source_maps, None, false, esm_prologue_len)?;
+      (code, map, Some(at))
     } else {
-      None
+      let (code, map) = ast.to_code_with(comments, source_maps, None, false)?;
+      (code, map, None)
     };
-
-    let marked = (esm_prologue_len > 0 || react_refresh_wrapped)
-      && insert_prologue_marker(&mut ast, esm_prologue_len, react_refresh_wrapped);
-    let (code, map) = ast_to_code(&ast, comments, input_source_map, source_maps, None, false)?;
+    let map = compose_input_source_map(&ast, map, input_source_map, None)?;
     drop(ast);
-    let mut code = String::from_utf8(code).map_err(|e| Diagnostic::from_message(e.to_string()))?;
-
-    // Remove the marker, but not its line, so the source map stays valid without it.
-    let prologue_end = if marked {
-      let statement = format!("{PROLOGUE_MARKER};");
-      let line = code.find(&statement).and_then(|at| {
-        let start = code[..at].rfind('\n').map_or(0, |newline| newline + 1);
-        let end = at + statement.len();
-        (code[start..at].trim().is_empty() && code[end..].starts_with('\n')).then_some(start..end)
-      });
-      let Some(line) = line else {
-        return Err(
-          Diagnostic::from_message("Failed to find the end of a module's prologue".into()).into(),
-        );
-      };
-      let start = line.start;
-      code.replace_range(line, "");
-      Some(start)
-    } else {
-      None
-    };
-
+    let code = String::from_utf8(code).map_err(|e| Diagnostic::from_message(e.to_string()))?;
     Ok(GeneratedCode {
       code: code.into(),
-      map: map.map(|map| without_source_root(map).into()),
+      map: map.map(Into::into),
       prologue_end,
-      source,
     })
   }
 }
 
-/// Inserts `PROLOGUE_MARKER` where `wrap_async_module` waits for the module's imports, returning
-/// whether it did.
-fn insert_prologue_marker(ast: &mut Ast, prologue_len: usize, react_refresh_wrapped: bool) -> bool {
-  let marker = Stmt::Expr(ExprStmt {
-    span: DUMMY_SP,
-    expr: Box::new(Expr::Ident(Ident::new(
-      PROLOGUE_MARKER.into(),
-      DUMMY_SP,
-      SyntaxContext::empty(),
-    ))),
-  });
-  if react_refresh_wrapped {
-    let Some(ModuleItem::Stmt(Stmt::Try(try_stmt))) = ast.program.body.last_mut() else {
-      return false;
-    };
-    let stmts = &mut try_stmt.block.stmts;
-    stmts.insert(prologue_len.min(stmts.len()), marker);
-  } else {
-    let body = &mut ast.program.body;
-    body.insert(prologue_len.min(body.len()), ModuleItem::Stmt(marker));
-  }
-  true
-}
-
-/// Removes the `sourceRoot` of a map generated without one, which may be written as null.
-fn without_source_root(mut map: String) -> String {
-  // The pattern can't occur inside a string, where quotes are escaped.
-  for pattern in [r#""sourceRoot":null,"#, r#","sourceRoot":null"#] {
-    if let Some(at) = map.find(pattern) {
-      map.replace_range(at..at + pattern.len(), "");
-      break;
-    }
-  }
-  map
-}
-
-/// Generates code for `ast` (an asset's AST, possibly modified for packaging), with its source map
-/// composed through the asset's input map. The map's `sources` are relative to the project root,
-/// which `source_root` is the path to (see `bundle_source_root`).
-fn ast_to_code(
+/// `map`, generated for `ast`, composed through the asset's input map, if any.
+fn compose_input_source_map(
   ast: &Ast,
-  comments: &dyn Comments,
+  map: Option<String>,
   input_source_map: Option<&InputSourceMap>,
-  source_maps: bool,
   source_root: Option<&str>,
-  minify: bool,
-) -> Result<(Vec<u8>, Option<String>), DiagnosticList> {
-  let (code, map) = ast.to_code_with(comments, source_maps, source_root, minify)?;
-  let (Some(map), Some(input)) = (&map, input_source_map) else {
-    return Ok((code, map));
+) -> Result<Option<String>, DiagnosticList> {
+  let (Some(map), Some(input)) = (map.as_ref(), input_source_map) else {
+    return Ok(map);
   };
   // The parser registers the asset's own file first; macros may add more.
   let source = ast.source_map.files().first().map(|f| f.name.to_string());
-  let map = match source {
+  Ok(Some(match source {
     Some(source) => compose_source_map(map, &source, input, source_root)?,
     None => map.clone(),
-  };
-  Ok((code, Some(map)))
-}
-
-/// Whether `module` uses `import.meta`, which hot updates replace (see `hmr::hot_update_code`).
-fn uses_import_meta(module: &Module) -> bool {
-  struct Finder(bool);
-  impl Visit for Finder {
-    fn visit_meta_prop_expr(&mut self, expr: &MetaPropExpr) {
-      self.0 |= expr.kind == MetaPropKind::ImportMeta;
-    }
-  }
-  let mut finder = Finder(false);
-  module.visit_with(&mut finder);
-  finder.0
+  }))
 }
 
 impl JsContent {
   /// Whether an asset is packaged from its AST, rather than from code generated when it's
   /// transformed (see `JsOutput`).
-  fn keeps_ast(target: &Target, options: &ParcelOptions, module: &Module) -> bool {
+  fn keeps_ast(target: &Target) -> bool {
     target
       .flags
       .intersects(EnvironmentFlags::SHOULD_OPTIMIZE | EnvironmentFlags::IS_LIBRARY)
       || target.source_type == SourceType::Script
-      || (options.hmr.is_some() && uses_import_meta(module))
+  }
+
+  /// The asset's generated code, for unoptimized output, which wraps it as text: the code generated
+  /// when it was transformed, or else code generated from its AST now.
+  fn generated_code(&self, source_maps: bool) -> Result<Cow<'_, GeneratedCode>, DiagnosticList> {
+    match &self.output {
+      JsOutput::Code(generated) => Ok(Cow::Borrowed(generated)),
+      JsOutput::Ast {
+        ast,
+        input_source_map,
+      } => {
+        // Printing takes the comments it prints, so from a copy.
+        let ast = ast.clone();
+        let comments = ast.comments.clone();
+        Ok(Cow::Owned(GeneratedCode::new(
+          ast,
+          &comments,
+          input_source_map.as_ref(),
+          source_maps,
+          self.esm_prologue_len,
+        )?))
+      }
+    }
   }
 
   /// The asset's AST, for packaging that transforms it.
@@ -239,8 +150,9 @@ impl JsContent {
     }
   }
 
-  /// Generates code for `ast`, this asset's AST, possibly modified for packaging (see
-  /// `ast_to_code`).
+  /// Generates code for `ast`, this asset's AST, possibly modified for packaging, with its source
+  /// map composed through the asset's input map. The map's `sources` are relative to the project
+  /// root, which `source_root` is the path to (see `bundle_source_root`).
   fn to_code(
     &self,
     ast: &Ast,
@@ -248,20 +160,15 @@ impl JsContent {
     source_root: Option<&str>,
     minify: bool,
   ) -> Result<(Vec<u8>, Option<String>), DiagnosticList> {
-    let input_source_map = match &self.output {
-      JsOutput::Ast {
-        input_source_map, ..
-      } => input_source_map.as_ref(),
-      JsOutput::Code(_) => None,
+    let JsOutput::Ast {
+      input_source_map, ..
+    } = &self.output
+    else {
+      unreachable!("packaged from an AST, so it kept one (see `JsContent::ast`)");
     };
-    ast_to_code(
-      ast,
-      &ast.comments,
-      input_source_map,
-      source_maps,
-      source_root,
-      minify,
-    )
+    let (code, map) = ast.to_code(source_maps, source_root, minify)?;
+    let map = compose_input_source_map(ast, map, input_source_map.as_ref(), source_root)?;
+    Ok((code, map))
   }
 }
 

@@ -10,6 +10,7 @@ mod node_replacer;
 mod plugin;
 mod react_compiler;
 mod react_lazy;
+pub mod refresh;
 #[cfg(test)]
 mod test_utils;
 mod typeof_replacer;
@@ -45,7 +46,7 @@ use react_lazy::ReactLazy;
 pub use swc_core::ecma::preset_env::{Version, Versions};
 use swc_core::{
   common::{
-    BytePos, DUMMY_SP, FileName, Globals, Mark, SourceMap, SyntaxContext,
+    BytePos, FileName, Globals, Mark, SourceMap,
     comments::{Comment, Comments, SingleThreadedComments},
     errors::Handler,
     pass::Optional,
@@ -53,7 +54,7 @@ use swc_core::{
     sync::Lrc,
   },
   ecma::{
-    ast::{BlockStmt, Expr, ExprStmt, Ident, Lit, Module, ModuleItem, Program, Stmt, Str, TryStmt},
+    ast::{Expr, ExprStmt, Lit, Module, ModuleItem, Program, Stmt, Str},
     atoms::Atom as JsWord,
     codegen::text_writer::JsWriter,
     parser::{EsSyntax, Parser, StringInput, Syntax, TsSyntax, error::Error, lexer::Lexer},
@@ -73,7 +74,6 @@ use swc_core::{
     },
     visit::{FoldWith, VisitMutWith, VisitWith},
   },
-  quote,
 };
 use swc_node_comments::SwcComments;
 use typeof_replacer::*;
@@ -103,6 +103,10 @@ pub struct Config {
   pub decorators: bool,
   pub use_define_for_class_fields: bool,
   pub is_development: bool,
+  /// Whether hot module replacement is enabled. Hot updates are evaluated outside of the bundle,
+  /// so modules in unoptimized output reach the bundle's `import.meta` through `module.bundle`
+  /// (see `dev-runtime.js`).
+  pub hmr: bool,
   pub react_refresh: bool,
   /// React Compiler options, if it runs on this module.
   pub react_compiler: Option<swc_core::ecma::react_compiler::PluginOptions>,
@@ -193,6 +197,8 @@ impl Config {
       && !self.is_library()
       && !self.is_worker()
       && self.environment() != Environment::Worklet
+      // Classic scripts have no module object for the wrapper (see `refresh`).
+      && self.source_type() != SourceType::Script
       && self.react_refresh
   }
 
@@ -411,8 +417,8 @@ pub struct TransformAstResult {
   /// The number of statements the module starts with that define its exports and require its
   /// imports (see `async_module`).
   pub esm_prologue_len: usize,
-  /// Whether the module's body is wrapped for React Refresh, in the `try` block of its last statement.
-  pub react_refresh_wrapped: bool,
+  /// Whether the packager wraps the module for React Refresh (see `refresh`), which it depends on.
+  pub react_refresh: bool,
   pub directives: Vec<JsWord>,
 }
 
@@ -451,27 +457,64 @@ impl Ast {
     minify: bool,
   ) -> Result<(Vec<u8>, Option<String>), std::io::Error> {
     swc_core::common::GLOBALS.set(&*self.globals, || {
-      let mut map_buf = Vec::new();
-      let (buf, src_map_buf) = emit(
+      let (buf, src_map_buf) = emit_module(
         self.source_map.clone(),
         comments,
         &self.program,
         source_maps,
         minify,
       )?;
-      let map = if source_maps && {
-        let mut map = self
-          .source_map
-          .build_source_map(&src_map_buf, None, SourceMapConfig);
-        map.set_source_root(source_root.map(str::to_owned));
-        map.to_writer(&mut map_buf).is_ok()
-      } {
-        Some(String::from_utf8(map_buf).unwrap())
-      } else {
-        None
-      };
-      Ok((buf, map))
+      Ok((
+        buf,
+        self.build_source_map(source_maps, &src_map_buf, source_root),
+      ))
     })
+  }
+
+  /// Like `to_code_with`, but leaves an empty line after the program's first `split` items, and
+  /// returns its offset. Code can be inserted on it without changing the map. Takes the program
+  /// apart to print it, rather than copying it.
+  pub fn to_code_split(
+    &mut self,
+    comments: &dyn Comments,
+    source_maps: bool,
+    source_root: Option<&str>,
+    minify: bool,
+    split: usize,
+  ) -> Result<(Vec<u8>, Option<String>, usize), std::io::Error> {
+    let globals = self.globals.clone();
+    swc_core::common::GLOBALS.set(&globals, || {
+      let (buf, src_map_buf, split_offset) = emit_split(
+        self.source_map.clone(),
+        comments,
+        &mut self.program,
+        split,
+        source_maps,
+        minify,
+      )?;
+      let map = self.build_source_map(source_maps, &src_map_buf, source_root);
+      Ok((buf, map, split_offset))
+    })
+  }
+
+  fn build_source_map(
+    &self,
+    source_maps: bool,
+    src_map_buf: &SourceMapBuffer,
+    source_root: Option<&str>,
+  ) -> Option<String> {
+    if !source_maps {
+      return None;
+    }
+    let mut map = self
+      .source_map
+      .build_source_map(src_map_buf, None, SourceMapConfig);
+    map.set_source_root(source_root.map(str::to_owned));
+    let mut map_buf = Vec::new();
+    map
+      .to_writer(&mut map_buf)
+      .is_ok()
+      .then(|| String::from_utf8(map_buf).unwrap())
   }
 }
 
@@ -726,7 +769,8 @@ pub fn transform_to_ast(
               // Macro return values are parsed after the initial resolver pass. Resolve the
               // generated bindings so that minification cannot give declarations in the same
               // scope colliding names.
-              module.visit_mut_with(&mut (hygiene(), resolver(unresolved_mark, global_mark, false)));
+              module
+                .visit_mut_with(&mut (hygiene(), resolver(unresolved_mark, global_mark, false)));
             }
             for error in errors {
               diagnostics.push(macro_error_to_diagnostic(error, &source_map));
@@ -874,8 +918,9 @@ pub fn transform_to_ast(
               .and_then(|index| index.parse::<usize>().ok())
               .and_then(|index| mdx_assets.get(index))
             {
-              dependency.resolution =
-                DependencyResolution::Deferred(Arc::new(asset.to_request(&config, &dependency.specifier)));
+              dependency.resolution = DependencyResolution::Deferred(Arc::new(
+                asset.to_request(&config, &dependency.specifier),
+              ));
             }
           }
 
@@ -884,42 +929,22 @@ pub fn transform_to_ast(
           // Runtime modules the transformer inserted, whose namespaces the module imports.
           let mut runtime_dependencies = Vec::new();
 
-          if config.react_refresh() && result.dependencies.iter().any(|d| matches!(&*d.specifier, "react" | "react/jsx-runtime" | "react/jsx-dev-runtime" | "@emotion/react" | "@emotion/react/jsx-runtime" | "@emotion/react/jsx-dev-runtime")) {
-            result.react_refresh_wrapped = true;
-            // `module` and `require` are the module wrapper's, like the module's own references to
-            // them, so the packager binds them the same way.
-            let unresolved = SyntaxContext::empty().apply_mark(unresolved_mark);
-            let module_ident = Ident::new("module".into(), DUMMY_SP, unresolved);
-            let require_ident = Ident::new("require".into(), DUMMY_SP, unresolved);
-            module.body = vec![
-              quote!(
-                "var $parcel$ReactRefreshHelpers = $require('@parcel/parcel3/src/react-refresh.js');" as ModuleItem,
-                require: Ident = require_ident
-              ),
-              quote!("$parcel$ReactRefreshHelpers.init()" as ModuleItem),
-              quote!("var prevRefreshReg = globalThis.$RefreshReg$;" as ModuleItem),
-              quote!("var prevRefreshSig = globalThis.$RefreshSig$;" as ModuleItem),
-              quote!("$parcel$ReactRefreshHelpers.prelude($module);" as ModuleItem, module: Ident = module_ident.clone()),
-              ModuleItem::Stmt(Stmt::Try(Box::new(TryStmt {
-                block: BlockStmt {
-                  stmts: module.body
-                    .into_iter()
-                    .map(|item| item.expect_stmt())
-                    .chain(std::iter::once(quote!("$parcel$ReactRefreshHelpers.postlude($module);" as Stmt, module: Ident = module_ident)))
-                    .collect(),
-                  ..Default::default()
-                },
-                finalizer: Some(BlockStmt {
-                  stmts: vec![
-                    quote!("globalThis.$RefreshReg$ = prevRefreshReg;" as Stmt),
-                    quote!("globalThis.$RefreshSig$ = prevRefreshSig;" as Stmt)
-                  ],
-                  ..Default::default()
-                }),
-                ..Default::default()
-              })))
-            ];
-
+          if config.react_refresh()
+            && result.dependencies.iter().any(|d| {
+              matches!(
+                &*d.specifier,
+                "react"
+                  | "react/jsx-runtime"
+                  | "react/jsx-dev-runtime"
+                  | "@emotion/react"
+                  | "@emotion/react/jsx-runtime"
+                  | "@emotion/react/jsx-dev-runtime"
+              )
+            })
+          {
+            // The packager wraps the module (see `refresh`), so the transformer's output keeps the
+            // module's prologue at the top level, where async modules wait for their imports.
+            result.react_refresh = true;
             runtime_dependencies.push(result.dependencies.len() as u32);
             result.dependencies.push(config.dependency(
               DependencyKind::Require,
@@ -931,7 +956,9 @@ pub fn transform_to_ast(
 
           if needs_esm_helpers {
             runtime_dependencies.push(result.dependencies.len() as u32);
-            result.dependencies.push(config.runtime_dependency(ESM_HELPERS));
+            result
+              .dependencies
+              .push(config.runtime_dependency(ESM_HELPERS));
           }
 
           let rsc_runtime = match config.environment() {
@@ -940,7 +967,10 @@ pub fn transform_to_ast(
             _ => None,
           };
           if let Some(specifier) = rsc_runtime
-            && !result.directives.iter().any(|d| d == "use parcel-rsc-runtime")
+            && !result
+              .directives
+              .iter()
+              .any(|d| d == "use parcel-rsc-runtime")
           {
             let mut dependency = config.runtime_dependency(specifier);
             dependency.placeholder = Some("__parcel_rsc_runtime__".into());
@@ -1059,42 +1089,137 @@ fn parse(
   Ok((module, comments))
 }
 
-fn emit(
+/// Generates code for `module` as two modules, its first `split` items and the rest, with an empty
+/// line between them, whose offset it returns. Moves the items into the two and back.
+fn emit_split(
+  source_map: Lrc<SourceMap>,
+  comments: &dyn Comments,
+  module: &mut Module,
+  split: usize,
+  source_maps: bool,
+  minify: bool,
+) -> Result<(Vec<u8>, SourceMapBuffer, usize), std::io::Error> {
+  use swc_core::common::{Span, Spanned};
+  // The module's leading comments and shebang go with the first part, and its trailing comments
+  // with the second. The first part only prints the module's leading comments if no item starts
+  // where the module does, as printing the whole module would.
+  let skip_leading_comments = module
+    .body
+    .iter()
+    .any(|item| item.span().lo == module.span.lo);
+  let rest = module.body.split_off(split.min(module.body.len()));
+  let first = Module {
+    span: Span {
+      lo: if skip_leading_comments {
+        BytePos::DUMMY
+      } else {
+        module.span.lo
+      },
+      hi: BytePos::DUMMY,
+    },
+    body: std::mem::take(&mut module.body),
+    shebang: module.shebang.take(),
+  };
+  let rest = Module {
+    span: Span {
+      lo: BytePos::DUMMY,
+      hi: module.span.hi,
+    },
+    body: rest,
+    shebang: None,
+  };
+
+  let result = (|| {
+    let mut buf = vec![];
+    let mut src_map_buf = vec![];
+    emit_module_into(
+      source_map.clone(),
+      comments,
+      &first,
+      source_maps,
+      minify,
+      &mut buf,
+      &mut src_map_buf,
+    )?;
+    if !buf.is_empty() && !buf.ends_with(b"\n") {
+      buf.push(b'\n');
+    }
+    let split_offset = buf.len();
+    buf.push(b'\n');
+    // The second part is written after the first, but its mappings are relative to its own start.
+    let lines = buf.iter().filter(|&&byte| byte == b'\n').count() as u32;
+    let rest_mappings = src_map_buf.len();
+    emit_module_into(
+      source_map,
+      comments,
+      &rest,
+      source_maps,
+      minify,
+      &mut buf,
+      &mut src_map_buf,
+    )?;
+    for (_, line_col) in &mut src_map_buf[rest_mappings..] {
+      line_col.line += lines;
+    }
+    Ok((buf, src_map_buf, split_offset))
+  })();
+
+  module.body = first.body;
+  module.body.extend(rest.body);
+  module.shebang = first.shebang;
+  result
+}
+
+fn emit_module(
   source_map: Lrc<SourceMap>,
   comments: &dyn Comments,
   module: &Module,
   source_maps: bool,
   minify: bool,
 ) -> Result<(Vec<u8>, SourceMapBuffer), std::io::Error> {
-  let mut src_map_buf = vec![];
   let mut buf = vec![];
-  {
-    let writer = Box::new(JsWriter::new(
-      source_map.clone(),
-      "\n",
-      &mut buf,
-      if source_maps {
-        Some(&mut src_map_buf)
-      } else {
-        None
-      },
-    ));
-    let config = swc_core::ecma::codegen::Config::default()
-      .with_target(swc_core::ecma::ast::EsVersion::Es5)
-      // Make sure the output works regardless of whether it's loaded with the correct (utf8) encoding
-      .with_ascii_only(true)
-      .with_minify(minify);
-    let mut emitter = swc_core::ecma::codegen::Emitter {
-      cfg: config,
-      comments: Some(comments),
-      cm: source_map,
-      wr: writer,
-    };
-
-    emitter.emit_module(module)?;
-  }
-
+  let mut src_map_buf = vec![];
+  emit_module_into(
+    source_map,
+    comments,
+    module,
+    source_maps,
+    minify,
+    &mut buf,
+    &mut src_map_buf,
+  )?;
   Ok((buf, src_map_buf))
+}
+
+/// Generates code for `module`, appending it to `buf`, and its mappings to `src_map_buf`. The
+/// mappings' lines are relative to where the module starts.
+fn emit_module_into(
+  source_map: Lrc<SourceMap>,
+  comments: &dyn Comments,
+  module: &Module,
+  source_maps: bool,
+  minify: bool,
+  buf: &mut Vec<u8>,
+  src_map_buf: &mut SourceMapBuffer,
+) -> Result<(), std::io::Error> {
+  let writer = Box::new(JsWriter::new(
+    source_map.clone(),
+    "\n",
+    buf,
+    if source_maps { Some(src_map_buf) } else { None },
+  ));
+  let config = swc_core::ecma::codegen::Config::default()
+    .with_target(swc_core::ecma::ast::EsVersion::Es5)
+    // Make sure the output works regardless of whether it's loaded with the correct (utf8) encoding
+    .with_ascii_only(true)
+    .with_minify(minify);
+  let mut emitter = swc_core::ecma::codegen::Emitter {
+    cfg: config,
+    comments: Some(comments),
+    cm: source_map,
+    wr: writer,
+  };
+  emitter.emit_module(module)
 }
 
 // Exclude macro expansions from source maps.

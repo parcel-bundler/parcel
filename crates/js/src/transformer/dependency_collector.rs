@@ -505,7 +505,7 @@ impl<'a> DependencyCollector<'a> {
       if optional {
         return req;
       }
-      return create_url_constructor(req, self.config.is_esm_output(), optional);
+      return create_url_constructor(req, self.url_base(), optional);
     }
 
     // For library builds, we need to create something that can be statically analyzed by another bundler,
@@ -526,7 +526,7 @@ impl<'a> DependencyCollector<'a> {
 
     create_url_constructor(
       ast::Expr::Lit(ast::Lit::Str(specifier.into())),
-      self.config.is_esm_output(),
+      self.url_base(),
       optional,
     )
   }
@@ -1204,11 +1204,10 @@ impl<'a> Fold for DependencyCollector<'a> {
           if id.sym == "__parcel__URL__" {
             // new __parcel__URL__(url) -> new URL(url, import.meta.url)
             if let Some(args) = &node.args {
-              if let ast::Expr::New(new) = create_url_constructor(
-                *args[0].expr.clone().fold_with(self),
-                self.config.is_esm_output(),
-                false,
-              ) {
+              let base = self.url_base();
+              if let ast::Expr::New(new) =
+                create_url_constructor(*args[0].expr.clone().fold_with(self), base, false)
+              {
                 return new;
               }
             }
@@ -1538,21 +1537,38 @@ fn build_promise_chain(node: ast::CallExpr, require_node: ast::CallExpr) -> ast:
   node
 }
 
-fn create_url_constructor(url: ast::Expr, use_import_meta: bool, to_string: bool) -> ast::Expr {
+/// What a `new URL` for a dependency resolves its URL against.
+enum UrlBase {
+  /// `import.meta.url`, for ES module output.
+  ImportMeta,
+  /// `module.bundle.importMeta.url`, for ES module output with hot module replacement: hot updates
+  /// are evaluated outside of an ES module. `module` has this context (the unresolved one).
+  BundleImportMeta(SyntaxContext),
+  /// `"file:" + __filename`, for CommonJS output.
+  Filename,
+}
+
+fn create_url_constructor(url: ast::Expr, base: UrlBase, to_string: bool) -> ast::Expr {
   use ast::*;
 
-  let expr = if use_import_meta {
+  let import_meta = |obj: Expr| {
     Expr::Member(MemberExpr {
       span: DUMMY_SP,
-      obj: Box::new(Expr::MetaProp(MetaPropExpr {
-        kind: MetaPropKind::ImportMeta,
-        span: DUMMY_SP,
-      })),
+      obj: Box::new(obj),
       prop: MemberProp::Ident(IdentName::new("url".into(), DUMMY_SP)),
     })
-  } else {
-    // CJS output: "file:" + __filename
-    Expr::Bin(BinExpr {
+  };
+  let expr = match base {
+    UrlBase::ImportMeta => import_meta(Expr::MetaProp(MetaPropExpr {
+      kind: MetaPropKind::ImportMeta,
+      span: DUMMY_SP,
+    })),
+    UrlBase::BundleImportMeta(ctxt) => import_meta(Expr::Member(member_expr!(
+      ctxt,
+      DUMMY_SP,
+      module.bundle.importMeta
+    ))),
+    UrlBase::Filename => Expr::Bin(BinExpr {
       span: DUMMY_SP,
       left: Box::new(Expr::Lit(Lit::Str("file:".into()))),
       op: BinaryOp::Add,
@@ -1560,7 +1576,7 @@ fn create_url_constructor(url: ast::Expr, use_import_meta: bool, to_string: bool
         "__filename".into(),
         DUMMY_SP,
       ))),
-    })
+    }),
   };
 
   let mut url = Expr::New(NewExpr {
@@ -1864,6 +1880,18 @@ impl<'a> DependencyCollector<'a> {
         }
       }
       _ => None,
+    }
+  }
+
+  /// What `new URL`s for this module's dependencies resolve against.
+  fn url_base(&self) -> UrlBase {
+    if !self.config.is_esm_output() {
+      UrlBase::Filename
+    } else if self.config.hmr && !self.config.is_library() && !self.config.minify() {
+      // Only the dev runtime, in unoptimized output, provides the bundle's `import.meta`.
+      UrlBase::BundleImportMeta(SyntaxContext::empty().apply_mark(self.unresolved_mark))
+    } else {
+      UrlBase::ImportMeta
     }
   }
 

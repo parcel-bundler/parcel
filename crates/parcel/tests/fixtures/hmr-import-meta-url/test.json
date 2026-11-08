@@ -1,0 +1,56 @@
+[
+  {
+    "description": "should resolve dependency URLs against the bundle's import.meta with HMR, since hot updates run outside the bundle",
+    "input": "index.js",
+    "options": {
+      "hmr": true
+    },
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": [
+          "index.js"
+        ],
+        "contains": [
+          "module.bundle.importMeta.url"
+        ]
+      },
+      {
+        "type": "png",
+        "assets": [
+          "image.png"
+        ]
+      }
+    ],
+    "skipNodeModules": true
+  },
+  {
+    "description": "should resolve dependency URLs against import.meta in optimized builds with HMR, which have no dev runtime to provide the bundle's",
+    "input": "index.js",
+    "options": {
+      "hmr": true,
+      "minify": true
+    },
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": [
+          "index.js"
+        ],
+        "contains": [
+          "import.meta.url"
+        ],
+        "notContains": [
+          "importMeta"
+        ]
+      },
+      {
+        "type": "png",
+        "assets": [
+          "image.png"
+        ]
+      }
+    ],
+    "skipNodeModules": true
+  }
+]

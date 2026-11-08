@@ -24,12 +24,11 @@ use swc_core::{
 use crate::transformer::Ast;
 
 /// `prologue_len` is the number of statements the module starts with that define its exports and
-/// require its imports (from `esm2cjs`), within the `try` block of its last statement if it's wrapped
-/// for React Refresh.
+/// require its imports (from `esm2cjs`). For optimized output: unoptimized output adds the wrapper
+/// to the module's generated code as text (see `render_generated_module`).
 pub fn wrap_async_module(
   ast: &mut Ast,
   prologue_len: usize,
-  react_refresh_wrapped: bool,
   imports: &[String],
   has_top_level_await: bool,
 ) {
@@ -46,16 +45,8 @@ pub fn wrap_async_module(
       .into_iter()
       .map(|item| item.expect_stmt())
       .collect();
-    let stmts = if react_refresh_wrapped {
-      match body.last_mut() {
-        Some(Stmt::Try(try_stmt)) => &mut try_stmt.block.stmts,
-        _ => unreachable!("React Refresh wraps the module in a try statement"),
-      }
-    } else {
-      &mut body
-    };
-    let at = prologue_len.min(stmts.len());
-    stmts.splice(at..at, wait_for_imports(&gate, &wait));
+    let at = prologue_len.min(body.len());
+    body.splice(at..at, wait_for_imports(&gate, &wait));
     body.push(expr_stmt(call(member(&gate, "d"), vec![])));
 
     let function = Expr::Fn(FnExpr {

@@ -1,0 +1,11 @@
+{
+  "name": "hmr-import-meta-url-test",
+  "private": true,
+  "targets": {
+    "default": {
+      "context": "browser",
+      "outputFormat": "esmodule"
+    }
+  },
+  "type": "module"
+}

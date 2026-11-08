@@ -1,6 +1,6 @@
 [
   {
-    "description": "should wrap modules for React Refresh with HMR, binding the wrapper to the module (minified)",
+    "description": "should not wrap modules for React Refresh in optimized builds, even with HMR",
     "input": "index.js",
     "options": {
       "hmr": true,
@@ -12,11 +12,8 @@
         "assets": [
           "index.js"
         ],
-        "contains": [
-          "prelude("
-        ],
         "notContains": [
-          "prelude(module)",
+          "prelude(",
           "transformer-react-refresh-wrap"
         ]
       }
@@ -36,7 +33,7 @@
           "index.js"
         ],
         "contains": [
-          "$parcel$ReactRefreshHelpers.prelude(module)"
+          "$parcel$ReactRefreshHelpers.prelude($parcel$module)"
         ]
       }
     ],

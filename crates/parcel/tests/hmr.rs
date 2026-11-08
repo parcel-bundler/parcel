@@ -1568,6 +1568,115 @@ export function App() { return React.createElement('span'); }",
 }
 
 #[test]
+fn hmr_runtime_refreshes_react_components_that_declare_module() {
+  // A module's own `module` must not shadow the module object for the React Refresh wrapper:
+  // App.js declares one in its scope, and Async.js, which is async because it imports a module with
+  // top-level await, hoists one inside the async module wrapper.
+  let mut hmr = HmrRuntimeTest::new(&[
+    (
+      "/project/package.json",
+      r#"{"name": "project", "dependencies": {"react": "*"}}"#,
+    ),
+    (
+      "/project/node_modules/react/package.json",
+      r#"{"name": "react", "version": "19.0.0"}"#,
+    ),
+    (
+      "/project/node_modules/react/index.js",
+      "exports.createElement = function (type) { return type; };",
+    ),
+    ("/project/window.js", "globalThis.window = globalThis;"),
+    (
+      "/project/index.js",
+      "import './window.js';
+import {App} from './App.js';
+import {Async} from './Async.js';
+output(['index', typeof App, typeof Async]);",
+    ),
+    ("/project/data.js", "await 0;\nexport const label = 'data';"),
+    (
+      "/project/App.js",
+      "import React from 'react';
+const module = {};
+output('App 1');
+export function App() { return React.createElement('div'); }",
+    ),
+    (
+      "/project/Async.js",
+      "import React from 'react';
+import {label} from './data.js';
+var module = label;
+output(['Async', module]);
+export function Async() { return React.createElement('div'); }",
+    ),
+  ]);
+
+  hmr.update(&[(
+    "/project/App.js",
+    "import React from 'react';
+const module = {};
+output('App 2');
+export function App() { return React.createElement('span'); }",
+  )]);
+
+  // App.js is still a refresh boundary, so it re-runs alone.
+  assert!(!hmr.reloaded());
+  assert_eq!(
+    hmr.outputs(),
+    vec![
+      serde_json::json!("App 1"),
+      serde_json::json!(["Async", "data"]),
+      serde_json::json!(["index", "function", "function"]),
+      serde_json::json!("App 2"),
+    ]
+  );
+}
+
+#[test]
+fn hmr_runtime_refreshes_async_react_components() {
+  // App.js imports a module with top-level await, so it's async too: it waits for its imports
+  // inside the React Refresh wrapper, and is only a refresh boundary once its body has run.
+  let hmr = HmrRuntimeTest::new(&[
+    (
+      "/project/package.json",
+      r#"{"name": "project", "dependencies": {"react": "*"}}"#,
+    ),
+    (
+      "/project/node_modules/react/package.json",
+      r#"{"name": "react", "version": "19.0.0"}"#,
+    ),
+    (
+      "/project/node_modules/react/index.js",
+      "exports.createElement = function (type) { return type; };",
+    ),
+    ("/project/window.js", "globalThis.window = globalThis;"),
+    (
+      "/project/index.js",
+      "import './window.js';
+import {App} from './App.js';
+output(['index', typeof App, typeof globalThis.__REACT_DEVTOOLS_GLOBAL_HOOK__]);",
+    ),
+    ("/project/data.js", "await 0;\nexport const label = 'data';"),
+    (
+      "/project/App.js",
+      "import React from 'react';
+import {label} from './data.js';
+output(['App', label]);
+export function App() { return React.createElement('div'); }",
+    ),
+  ]);
+
+  assert!(!hmr.reloaded());
+  assert_eq!(
+    hmr.outputs(),
+    vec![
+      serde_json::json!(["App", "data"]),
+      serde_json::json!(["index", "function", "object"]),
+    ]
+  );
+}
+
+#[test]
 fn hmr_runtime_supports_accepting_dependency_updates() {
   let mut hmr = HmrRuntimeTest::new(&[
     (
