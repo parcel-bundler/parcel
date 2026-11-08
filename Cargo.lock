@@ -3187,7 +3187,6 @@ version = "0.1.0"
 dependencies = [
  "bitflags 2.13.1",
  "bytecount",
- "dashmap",
  "data-encoding",
  "fixedbitset",
  "glob-match",
@@ -3210,7 +3209,6 @@ dependencies = [
  "serde_json",
  "simd-utf16-len",
  "swc_core",
- "swc_node_comments",
 ]
 
 [[package]]
@@ -5775,17 +5773,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
-]
-
-[[package]]
-name = "swc_node_comments"
-version = "28.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
-dependencies = [
- "dashmap",
- "rustc-hash",
- "swc_atoms",
- "swc_common",
 ]
 
 [[package]]

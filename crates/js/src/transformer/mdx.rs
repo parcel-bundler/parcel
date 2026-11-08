@@ -6,7 +6,7 @@ use path_slash::PathExt;
 use crate::{
   runtime_modules::MDX_COMPONENTS,
   transformer::{
-    Config,
+    Config, ModuleComments,
     utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, diagnostic},
   },
 };
@@ -24,11 +24,7 @@ use mdxjs::{
 };
 use rustc_hash::FxHashSet;
 use swc_core::{
-  common::{
-    DUMMY_SP, GLOBALS, Globals, Mark, SourceMap,
-    comments::{Comments, SingleThreadedComments},
-    sync::Lrc,
-  },
+  common::{DUMMY_SP, GLOBALS, Globals, Mark, SourceMap, comments::Comments, sync::Lrc},
   ecma::{
     ast::{
       ArrayLit, BindingIdent, CallExpr, Callee, Decl, ExportDecl, ExportDefaultExpr,
@@ -46,7 +42,7 @@ use swc_core::{
 
 pub struct MdxResult {
   pub module: Module,
-  pub comments: SingleThreadedComments,
+  pub comments: ModuleComments,
   pub assets: Vec<MdxAsset>,
 }
 
@@ -124,7 +120,7 @@ fn compile(config: &Config) -> Result<MdxResult, Message> {
   mdx_plugin_recma_document(&mut program, &options, Some(&location))?;
   mdx_plugin_recma_jsx_rewrite(&mut program, &options, Some(&location), &explicit_jsxs)?;
 
-  let comments = SingleThreadedComments::default();
+  let comments = ModuleComments::default();
   for c in program.comments {
     comments.add_leading(c.span.lo, c.clone());
   }

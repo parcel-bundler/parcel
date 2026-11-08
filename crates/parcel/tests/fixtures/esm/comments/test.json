@@ -11,6 +11,11 @@
           "a doc block comment",
           "a comment in a dependency",
           "a trailing comment"
+        ],
+        "notContains": [
+          "dep.js.map",
+          "dep-source.js",
+          "dep-legacy.js.map"
         ]
       }
     ],

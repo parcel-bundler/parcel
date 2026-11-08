@@ -1,5 +1,6 @@
 pub mod async_module;
 mod collect;
+mod comments;
 mod dependency_collector;
 mod env_replacer;
 mod fs;
@@ -19,6 +20,7 @@ pub mod utils;
 pub use plugin::JsTransformer;
 
 use std::{
+  cell::RefCell,
   collections::{HashMap, HashSet},
   path::PathBuf,
   sync::Arc,
@@ -39,8 +41,10 @@ use parcel_core::{
   SourceUrl, SpecifierType, Target,
 };
 use parcel_macros::{MacroCallback, MacroError, Macros};
+use rustc_hash::FxHashSet;
 
 use crate::runtime_modules::{ESM_HELPERS, REACT_REFRESH};
+pub use comments::ModuleComments;
 use react_compiler::react_compiler;
 use react_lazy::ReactLazy;
 pub use swc_core::ecma::preset_env::{Version, Versions};
@@ -75,7 +79,6 @@ use swc_core::{
     visit::{FoldWith, VisitMutWith, VisitWith},
   },
 };
-use swc_node_comments::SwcComments;
 use typeof_replacer::*;
 pub use utils::{Diagnostic, DiagnosticSeverity, SourceType};
 use utils::{
@@ -295,41 +298,18 @@ pub(crate) fn react_target(target: &Arc<Target>, environment: Environment) -> Ar
   })
 }
 
+/// A module's program and comments. Cloning it copies the comments rather than sharing them:
+/// packaging transforms its copy of an asset's program, e.g. minifying it, which can change them.
+#[derive(Clone)]
 pub struct Ast {
   pub program: Module,
   pub globals: Arc<Globals>,
   pub source_map: Lrc<SourceMap>,
   /// The comments to print with the program. Thread safe, since builds that package the AST keep
   /// it until packaging, which may happen on other threads (see `JsContent::keeps_ast`).
-  pub comments: SwcComments,
+  pub comments: ModuleComments,
   pub global_mark: Mark,
   pub unresolved_mark: Mark,
-}
-
-impl Clone for Ast {
-  /// Copies the comments rather than sharing them: printing a program takes its comments, and the
-  /// same asset is printed into every bundle that contains it, and again in later builds.
-  fn clone(&self) -> Self {
-    Ast {
-      program: self.program.clone(),
-      globals: self.globals.clone(),
-      source_map: self.source_map.clone(),
-      comments: copy_comments(
-        self
-          .comments
-          .leading
-          .iter()
-          .map(|e| (*e.key(), e.value().clone())),
-        self
-          .comments
-          .trailing
-          .iter()
-          .map(|e| (*e.key(), e.value().clone())),
-      ),
-      global_mark: self.global_mark,
-      unresolved_mark: self.unresolved_mark,
-    }
-  }
 }
 
 impl Default for Ast {
@@ -342,60 +322,18 @@ impl Default for Ast {
       program: Default::default(),
       globals: Arc::new(globals),
       source_map: Default::default(),
-      comments: empty_comments(),
+      comments: Default::default(),
       global_mark,
       unresolved_mark,
     }
   }
 }
 
-/// An empty `SwcComments` with as few shards as possible. Its default has four per core, each a
-/// cache-padded lock, for both of its maps: ~32KB per AST on a 20-core machine. An AST is only
-/// used by one thread at a time, so the locks are never contended.
-fn empty_comments() -> SwcComments {
-  copy_comments(std::iter::empty(), std::iter::empty())
-}
-
-type CommentEntry = (BytePos, Vec<Comment>);
-
-fn copy_comments(
-  leading: impl Iterator<Item = CommentEntry>,
-  trailing: impl Iterator<Item = CommentEntry>,
-) -> SwcComments {
-  let map = |entries: &mut dyn Iterator<Item = CommentEntry>| {
-    let map = dashmap::DashMap::with_hasher_and_shard_amount(rustc_hash::FxBuildHasher, 2);
-    for (pos, comments) in entries {
-      map.insert(pos, comments);
-    }
-    Arc::new(map)
-  };
-  SwcComments {
-    leading: map(&mut { leading }),
-    trailing: map(&mut { trailing }),
-  }
-}
-
-/// A copy of a module's comments, in the thread-safe store an AST keeps until it's packaged.
-pub fn thread_safe_comments(comments: &SingleThreadedComments) -> SwcComments {
-  let (leading, trailing) = comments.borrow_all();
-  copy_comments(
-    leading
-      .iter()
-      .map(|(pos, comments)| (*pos, comments.clone())),
-    trailing
-      .iter()
-      .map(|(pos, comments)| (*pos, comments.clone())),
-  )
-}
-
 #[derive(Default)]
 #[non_exhaustive]
 pub struct TransformAstResult {
-  /// The program, without its comments, which are in `comments`.
+  /// The program and its comments.
   pub ast: Ast,
-  /// The module's comments. The caller keeps them with the AST (see `thread_safe_comments`), or
-  /// prints them with it.
-  pub comments: SingleThreadedComments,
   /// The target a "use client" or "use server" directive moved the module to.
   pub target: Option<Arc<Target>>,
   pub shebang: Option<String>,
@@ -424,31 +362,30 @@ pub struct TransformAstResult {
 
 impl Ast {
   pub fn finalize(&mut self) {
-    let comments = self.comments.clone();
-    self.finalize_with(&comments);
-  }
-
-  /// Like `finalize`, with the comments in `comments` rather than in the AST.
-  pub fn finalize_with(&mut self, comments: &dyn Comments) {
     swc_core::common::GLOBALS.set(&*self.globals, || {
       self
         .program
-        .visit_mut_with(&mut (reserved_words(), hygiene(), fixer(Some(comments))));
+        .visit_mut_with(&mut (reserved_words(), hygiene(), fixer(Some(&self.comments))));
     });
   }
 
   /// Generates code, and a source map if `source_maps` is set, whose `sources` are relative to
-  /// `source_root` if given. Takes the AST's comments as it prints them.
+  /// `source_root` if given. Printing leaves the comments as they are (see `PrintedComments`).
   pub fn to_code(
     &self,
     source_maps: bool,
     source_root: Option<&str>,
     minify: bool,
   ) -> Result<(Vec<u8>, Option<String>), std::io::Error> {
-    self.to_code_with(&self.comments, source_maps, source_root, minify)
+    self.to_code_with(
+      &PrintedComments::new(&self.comments),
+      source_maps,
+      source_root,
+      minify,
+    )
   }
 
-  /// Like `to_code`, with the comments in `comments` rather than in the AST.
+  /// Like `to_code`, but printing `comments`, e.g. the AST's own, taking those it prints.
   pub fn to_code_with(
     &self,
     comments: &dyn Comments,
@@ -471,12 +408,11 @@ impl Ast {
     })
   }
 
-  /// Like `to_code_with`, but leaves an empty line after the program's first `split` items, and
-  /// returns its offset. Code can be inserted on it without changing the map. Takes the program
-  /// apart to print it, rather than copying it.
+  /// Like `to_code`, but leaves an empty line after the program's first `split` items, and returns
+  /// its offset. Code can be inserted on it without changing the map. Takes the program apart to
+  /// print it, rather than copying it, and takes the comments it prints from the AST's.
   pub fn to_code_split(
     &mut self,
-    comments: &dyn Comments,
     source_maps: bool,
     source_root: Option<&str>,
     minify: bool,
@@ -486,7 +422,7 @@ impl Ast {
     swc_core::common::GLOBALS.set(&globals, || {
       let (buf, src_map_buf, split_offset) = emit_split(
         self.source_map.clone(),
-        comments,
+        &self.comments,
         &mut self.program,
         split,
         source_maps,
@@ -983,10 +919,10 @@ pub fn transform_to_ast(
             asset_symbols(collect, &result.dependencies, &runtime_dependencies);
 
           result.ast.program = module;
+          result.ast.comments = comments;
           if !config.minify() && !config.is_library() {
-            result.ast.finalize_with(&comments);
+            result.ast.finalize();
           }
-          result.comments = comments.clone();
           Ok(result)
         },
       )
@@ -1042,10 +978,9 @@ fn parse(
   filename: PathBuf,
   source_map: &Lrc<SourceMap>,
   config: &Config,
-) -> ParseResult<(Program, SingleThreadedComments)> {
+) -> ParseResult<(Program, ModuleComments)> {
   let source_file = source_map.new_source_file(Lrc::new(FileName::Real(filename)), code.to_owned());
-  // A module is transformed on one thread, and its comments aren't kept in its AST.
-  let comments = SingleThreadedComments::default();
+  let comments = ModuleComments::default();
   let syntax = if config.is_type_script() {
     Syntax::Typescript(TsSyntax {
       tsx: config.is_jsx(),
@@ -1086,7 +1021,22 @@ fn parse(
     return Err(errors);
   }
 
+  remove_source_url_comments(&comments);
   Ok((module, comments))
+}
+
+/// Removes `sourceMappingURL` and `sourceURL` comments, which name the input's own map and script,
+/// not the bundle's, and would stop Parcel adding the bundle's map's (see
+/// `source_mapping_url_comment`) if one ended up near the end of a bundle.
+fn remove_source_url_comments(comments: &ModuleComments) {
+  comments.retain(|comment| {
+    let text = comment.text.trim_start();
+    let Some(text) = text.strip_prefix(['#', '@']) else {
+      return true;
+    };
+    let text = text.trim_start();
+    !(text.starts_with("sourceMappingURL=") || text.starts_with("sourceURL="))
+  });
 }
 
 /// Generates code for `module` as two modules, its first `split` items and the rest, with an empty
@@ -1189,6 +1139,98 @@ fn emit_module(
     &mut src_map_buf,
   )?;
   Ok((buf, src_map_buf))
+}
+
+/// An AST's comments as printing sees them (see `Ast::to_code`), read without being removed, so that
+/// they can be printed again, e.g. into each bundle that contains the asset, or by bundles packaged
+/// at once. The printer takes the comments at each position as it prints them, so that it prints
+/// them once (e.g. for a statement and the expression it starts with). This remembers which
+/// positions it gave out instead. Code generated while transforming takes the comments, which
+/// aren't kept, as that's cheaper.
+struct PrintedComments<'a> {
+  comments: &'a dyn Comments,
+  taken_leading: RefCell<FxHashSet<BytePos>>,
+  taken_trailing: RefCell<FxHashSet<BytePos>>,
+}
+
+impl<'a> PrintedComments<'a> {
+  fn new(comments: &'a dyn Comments) -> Self {
+    PrintedComments {
+      comments,
+      taken_leading: RefCell::default(),
+      taken_trailing: RefCell::default(),
+    }
+  }
+}
+
+impl Comments for PrintedComments<'_> {
+  // Printing doesn't add or move comments.
+  fn add_leading(&self, _: BytePos, _: Comment) {}
+  fn add_leading_comments(&self, _: BytePos, _: Vec<Comment>) {}
+  fn move_leading(&self, _: BytePos, _: BytePos) {}
+  fn add_trailing(&self, _: BytePos, _: Comment) {}
+  fn add_trailing_comments(&self, _: BytePos, _: Vec<Comment>) {}
+  fn move_trailing(&self, _: BytePos, _: BytePos) {}
+  fn add_pure_comment(&self, _: BytePos) {}
+
+  fn has_leading(&self, pos: BytePos) -> bool {
+    !self.taken_leading.borrow().contains(&pos) && self.comments.has_leading(pos)
+  }
+
+  fn get_leading(&self, pos: BytePos) -> Option<Vec<Comment>> {
+    if self.taken_leading.borrow().contains(&pos) {
+      return None;
+    }
+    self.comments.get_leading(pos)
+  }
+
+  fn take_leading(&self, pos: BytePos) -> Option<Vec<Comment>> {
+    if !self.taken_leading.borrow_mut().insert(pos) {
+      return None;
+    }
+    self.comments.get_leading(pos)
+  }
+
+  fn has_trailing(&self, pos: BytePos) -> bool {
+    !self.taken_trailing.borrow().contains(&pos) && self.comments.has_trailing(pos)
+  }
+
+  fn get_trailing(&self, pos: BytePos) -> Option<Vec<Comment>> {
+    if self.taken_trailing.borrow().contains(&pos) {
+      return None;
+    }
+    self.comments.get_trailing(pos)
+  }
+
+  fn take_trailing(&self, pos: BytePos) -> Option<Vec<Comment>> {
+    if !self.taken_trailing.borrow_mut().insert(pos) {
+      return None;
+    }
+    self.comments.get_trailing(pos)
+  }
+
+  // These are provided as taking the comments and adding them back, which adding can't do here.
+  fn with_leading<F, Ret>(&self, pos: BytePos, f: F) -> Ret
+  where
+    F: FnOnce(&[Comment]) -> Ret,
+  {
+    f(&self.get_leading(pos).unwrap_or_default())
+  }
+
+  fn with_trailing<F, Ret>(&self, pos: BytePos, f: F) -> Ret
+  where
+    F: FnOnce(&[Comment]) -> Ret,
+  {
+    f(&self.get_trailing(pos).unwrap_or_default())
+  }
+
+  fn has_flag(&self, lo: BytePos, flag: &str) -> bool {
+    let comments = SingleThreadedComments::default();
+    if let Some(leading) = self.get_leading(lo) {
+      comments.add_leading_comments(lo, leading);
+    }
+    comments.has_flag(lo, flag)
+  }
 }
 
 /// Generates code for `module`, appending it to `buf`, and its mappings to `src_map_buf`. The
@@ -1304,25 +1346,28 @@ mod tests {
   }
 
   #[test]
-  fn each_copy_of_an_ast_prints_its_comments() {
+  fn printing_leaves_the_comments() {
     let result = transform_to_ast(
       Config {
         filename: PathId::new(Path::new("index.js")),
         project_root: PathId::new(Path::new("/")),
-        code: b"// kept\nfoo();\n".to_vec(),
+        code: b"// kept\nfoo(); // after\n".to_vec(),
         ..Default::default()
       },
       &parcel_core::MemoryFileSystem::new(),
       None,
     )
     .unwrap();
-    let mut ast = result.ast;
-    ast.comments = thread_safe_comments(&result.comments);
+    let ast = result.ast;
 
-    // Printing takes the comments it prints, e.g. when the same asset is in two bundles.
-    for copy in [ast.clone(), ast.clone()] {
-      let (code, _) = copy.to_code(false, None, false).unwrap();
-      assert!(String::from_utf8(code).unwrap().contains("// kept"));
+    // The same asset is printed into each bundle that contains it, or read, e.g. to hash it. Each
+    // comment is printed once, though several nodes start where the leading one is (the program,
+    // the statement, the call and its callee), and several end where the trailing one is.
+    for _ in 0..2 {
+      let (code, _) = ast.to_code(false, None, false).unwrap();
+      let code = String::from_utf8(code).unwrap();
+      assert_eq!(code.matches("// kept").count(), 1);
+      assert_eq!(code.matches("// after").count(), 1);
     }
   }
 

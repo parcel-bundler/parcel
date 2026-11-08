@@ -2,7 +2,6 @@ use std::{borrow::Cow, sync::Arc};
 
 use crate::transformer::Ast;
 use parcel_core::*;
-use swc_core::common::comments::Comments;
 
 pub mod hmr;
 mod library_packager;
@@ -57,21 +56,20 @@ struct GeneratedCode {
 }
 
 impl GeneratedCode {
-  /// Generates code for `ast`, which the JS transformer finalized, with its `comments`.
+  /// Generates code for `ast`, which the JS transformer finalized, taking its comments as it prints
+  /// them.
   fn new(
     mut ast: Ast,
-    comments: &dyn Comments,
     input_source_map: Option<&InputSourceMap>,
     source_maps: bool,
     esm_prologue_len: usize,
   ) -> Result<GeneratedCode, DiagnosticList> {
     // With an empty line after the prologue, where the module waits for its imports if it's async.
     let (code, map, prologue_end) = if esm_prologue_len > 0 {
-      let (code, map, at) =
-        ast.to_code_split(comments, source_maps, None, false, esm_prologue_len)?;
+      let (code, map, at) = ast.to_code_split(source_maps, None, false, esm_prologue_len)?;
       (code, map, Some(at))
     } else {
-      let (code, map) = ast.to_code_with(comments, source_maps, None, false)?;
+      let (code, map) = ast.to_code_with(&ast.comments, source_maps, None, false)?;
       (code, map, None)
     };
     let map = compose_input_source_map(&ast, map, input_source_map, None)?;
@@ -122,12 +120,9 @@ impl JsContent {
         ast,
         input_source_map,
       } => {
-        // Printing takes the comments it prints, so from a copy.
-        let ast = ast.clone();
-        let comments = ast.comments.clone();
+        // Printing takes the program apart and takes its comments, so it prints a copy.
         Ok(Cow::Owned(GeneratedCode::new(
-          ast,
-          &comments,
+          ast.clone(),
           input_source_map.as_ref(),
           source_maps,
           self.esm_prologue_len,

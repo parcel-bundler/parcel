@@ -76,6 +76,5 @@ swc_ecma_utils = { git = "https://github.com/devongovett/swc.git", branch = "min
 swc_ecma_visit = { git = "https://github.com/devongovett/swc.git", branch = "minifier-sequences-perf" }
 swc_eq_ignore_macros = { git = "https://github.com/devongovett/swc.git", branch = "minifier-sequences-perf" }
 swc_macros_common = { git = "https://github.com/devongovett/swc.git", branch = "minifier-sequences-perf" }
-swc_node_comments = { git = "https://github.com/devongovett/swc.git", branch = "minifier-sequences-perf" }
 swc_sourcemap = { git = "https://github.com/devongovett/swc.git", branch = "minifier-sequences-perf" }
 swc_visit = { git = "https://github.com/devongovett/swc.git", branch = "minifier-sequences-perf" }
