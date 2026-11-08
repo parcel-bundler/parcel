@@ -90,7 +90,8 @@ impl BundleShim {
     let asset_id = |a| graph.asset_id(a);
     match self {
       BundleShim::Url | BundleShim::Inline(InlineType::Text) | BundleShim::Sync => {
-        format!("b{bundle:x}")
+        // Padded so it can't be a short asset id (see `BundleGraph::asset_id`).
+        format!("b{bundle:016x}")
       }
       BundleShim::Async(a) => format!("a{bundle:x}_{}", asset_id(*a)),
       BundleShim::AsyncInterop(a) => format!("a{bundle:x}_{}i", asset_id(*a)),
@@ -103,31 +104,20 @@ impl BundleShim {
 impl SyntheticAsset {
   pub fn id(&self, bundle_graph: &BundleGraph, project_root: &PathId) -> String {
     match self {
-      SyntheticAsset::CssModuleExports(asset_index) => bundle_graph
-        .asset_graph
-        .asset(*asset_index)
-        .id(project_root),
+      SyntheticAsset::CssModuleExports(asset_index) => bundle_graph.asset_id(*asset_index),
       SyntheticAsset::Bundle { bundle, kind } => kind.id(*bundle, bundle_graph),
-      SyntheticAsset::Internalized(asset_index) => format!(
-        "i_{}",
-        bundle_graph
-          .asset_graph
-          .asset(*asset_index)
-          .id(project_root)
-      ),
+      SyntheticAsset::Internalized(asset_index) => {
+        format!("i_{}", bundle_graph.asset_id(*asset_index))
+      }
       SyntheticAsset::InternalizedInterop(asset_index) => format!(
         "{}_esm",
         SyntheticAsset::Internalized(*asset_index).id(bundle_graph, project_root)
       ),
       SyntheticAsset::Rsc(module) => module.id(bundle_graph),
       SyntheticAsset::AsyncEvaluator => ASYNC_EVALUATOR_ID.into(),
-      SyntheticAsset::AsyncEntry(asset_index) => format!(
-        "e_{}",
-        bundle_graph
-          .asset_graph
-          .asset(*asset_index)
-          .id(project_root)
-      ),
+      SyntheticAsset::AsyncEntry(asset_index) => {
+        format!("e_{}", bundle_graph.asset_id(*asset_index))
+      }
     }
   }
 
@@ -135,10 +125,9 @@ impl SyntheticAsset {
     &self,
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
-    project_root: &PathId,
   ) -> Option<AsyncRegistration> {
     match self {
-      SyntheticAsset::Rsc(module) => module.async_registration(bundle_graph, bundle, project_root),
+      SyntheticAsset::Rsc(module) => module.async_registration(bundle_graph, bundle),
       _ => None,
     }
   }
@@ -146,7 +135,6 @@ impl SyntheticAsset {
   pub fn dependencies<'a>(
     &self,
     bundle_graph: &'a BundleGraph,
-    project_root: &PathId,
   ) -> IndexMap<String, Resolution<'a>> {
     let mut dependencies = IndexMap::new();
     match self {
@@ -154,8 +142,10 @@ impl SyntheticAsset {
         kind: BundleShim::Async(entry_asset),
         ..
       } => {
-        let asset = &bundle_graph.asset_graph.asset(*entry_asset);
-        dependencies.insert("bundle".into(), Resolution::Asset(asset.id(project_root)));
+        dependencies.insert(
+          "bundle".into(),
+          Resolution::Asset(bundle_graph.asset_id(*entry_asset)),
+        );
       }
       SyntheticAsset::Bundle {
         bundle,
@@ -170,8 +160,10 @@ impl SyntheticAsset {
       // modules that imported the original through this one.
       SyntheticAsset::Rsc(module) => {
         if let Some(original) = module.required_asset() {
-          let asset = &bundle_graph.asset_graph.asset(original);
-          dependencies.insert("original".into(), Resolution::Asset(asset.id(project_root)));
+          dependencies.insert(
+            "original".into(),
+            Resolution::Asset(bundle_graph.asset_id(original)),
+          );
         }
       }
       _ => {}
@@ -217,7 +209,6 @@ impl SyntheticAsset {
             *bundle_index as usize,
             *main_entry_id,
             dest,
-            project_root,
             runtime_name(should_optimize, "require", RUNTIME_REQUIRE),
           )?;
         }
@@ -273,8 +264,7 @@ impl SyntheticAsset {
         }
       },
       SyntheticAsset::Internalized(asset_index) => {
-        let asset = bundle_graph.asset_graph.asset(*asset_index);
-        let id = asset.id(project_root);
+        let id = bundle_graph.asset_id(*asset_index);
         let require = runtime_name(should_optimize, "require", RUNTIME_REQUIRE);
         // Evaluation starts in a later job, like a native dynamic import, and never within
         // another module's evaluation.
@@ -301,7 +291,7 @@ impl SyntheticAsset {
         )?;
       }
       SyntheticAsset::Rsc(module) => {
-        module.write(dest, should_optimize, bundle_graph, bundle, project_root)?;
+        module.write(dest, should_optimize, bundle_graph, bundle)?;
       }
       SyntheticAsset::AsyncEvaluator => {
         dest.write_str(if should_optimize {
@@ -311,13 +301,12 @@ impl SyntheticAsset {
         })?;
       }
       SyntheticAsset::AsyncEntry(asset_index) => {
-        let asset = bundle_graph.asset_graph.asset(*asset_index);
         write!(
           dest,
           "module.exports={}",
           evaluate_async_expression(
             runtime_name(should_optimize, "require", RUNTIME_REQUIRE),
-            &asset.id(project_root)
+            &bundle_graph.asset_id(*asset_index)
           )
         )?;
       }
@@ -350,12 +339,10 @@ fn load_bundles<W: std::fmt::Write>(
   bundle_index: usize,
   main_entry_id: AssetIndex,
   res: &mut W,
-  project_root: &PathId,
   require_name: &str,
 ) -> core::fmt::Result {
-  let asset = &bundle_graph.asset_graph.asset(main_entry_id);
   let bundle = &bundle_graph.bundles[bundle_index];
-  let id = asset.id(project_root);
+  let id = bundle_graph.asset_id(main_entry_id);
   let load = if bundle_graph.is_async_asset(main_entry_id) {
     evaluate_async_expression(require_name, &id)
   } else {

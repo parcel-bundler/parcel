@@ -182,14 +182,13 @@ impl JsContent {
       }
     }
 
-    let rsc_server_entry =
-      if let Some(module) = rsc::server_entry(bundle, bundle_graph, &options.project_root)? {
-        let id = module.id(bundle_graph);
-        synthetic_assets.insert(SyntheticAsset::Rsc(module));
-        Some(id)
-      } else {
-        None
-      };
+    let rsc_server_entry = if let Some(module) = rsc::server_entry(bundle, bundle_graph)? {
+      let id = module.id(bundle_graph);
+      synthetic_assets.insert(SyntheticAsset::Rsc(module));
+      Some(id)
+    } else {
+      None
+    };
 
     let mut printer = Printer::new(should_build_source_map, should_optimize);
     if let Some(main) = bundle.main_entry_asset {
@@ -818,7 +817,7 @@ fn write_synthetic_module(
   should_optimize: bool,
 ) -> Result<(), DiagnosticList> {
   let id = synthetic_asset.id(bundle_graph, project_root);
-  let registration = synthetic_asset.async_registration(bundle_graph, bundle, project_root);
+  let registration = synthetic_asset.async_registration(bundle_graph, bundle);
   printer.write_module_header(id)?;
   if should_optimize {
     printer.write_str("function(module,exports){")?;
@@ -837,7 +836,7 @@ fn write_synthetic_module(
     get_inline_bundle_content,
     project_root,
   )?;
-  let deps = serde_json::to_string(&synthetic_asset.dependencies(bundle_graph, project_root))?;
+  let deps = serde_json::to_string(&synthetic_asset.dependencies(bundle_graph))?;
   if registration.is_some() {
     printer.write_str(ASYNC_MODULE_FOOTER)?;
   }
@@ -1064,7 +1063,7 @@ fn entry_id(bundle_graph: &BundleGraph, entry: AssetIndex, project_root: &PathId
   if bundle_graph.is_async_asset(entry) {
     SyntheticAsset::AsyncEntry(entry).id(bundle_graph, project_root)
   } else {
-    bundle_graph.asset_graph.asset(entry).id(project_root)
+    bundle_graph.asset_id(entry)
   }
 }
 

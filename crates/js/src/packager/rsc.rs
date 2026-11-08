@@ -293,7 +293,6 @@ pub(super) fn sync_boundary_bundles(bundle_graph: &BundleGraph, bundle: &Bundle)
 pub(super) fn server_entry(
   bundle: &Bundle,
   bundle_graph: &BundleGraph,
-  project_root: &PathId,
 ) -> Result<Option<RscModule>, DiagnosticList> {
   if bundle.flags.contains(BundleFlags::ENTRY)
     && bundle.target.environment == Environment::ReactServer
@@ -303,7 +302,7 @@ pub(super) fn server_entry(
     Ok(Some(RscModule::ServerEntry {
       entry: entry,
       runtime: runtime_asset(entry, asset, bundle_graph)?,
-      actions: server_actions(bundle_graph, project_root)?,
+      actions: server_actions(bundle_graph)?,
     }))
   } else {
     Ok(None)
@@ -547,10 +546,7 @@ pub(super) fn client_reference_dependencies(
   dependencies
 }
 
-fn server_actions(
-  bundle_graph: &BundleGraph,
-  project_root: &PathId,
-) -> Result<Vec<RscServerAction>, DiagnosticList> {
+fn server_actions(bundle_graph: &BundleGraph) -> Result<Vec<RscServerAction>, DiagnosticList> {
   let mut actions: IndexMap<String, RscServerAction> = IndexMap::new();
   for (asset_index, asset) in bundle_graph.asset_graph.assets.iter().enumerate() {
     let asset_index = AssetIndex(asset_index as u32);
@@ -586,7 +582,7 @@ fn server_actions(
           .then(|| bundle.stable_key())
       })
       .collect::<Vec<_>>();
-    let id = asset.id(project_root);
+    let id = bundle_graph.asset_id(asset_index);
     if let Some(action) = actions.get_mut(&id) {
       for name in names {
         if !action.bundles.contains(&name) {
@@ -661,7 +657,6 @@ impl RscModule {
     &self,
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
-    project_root: &PathId,
   ) -> Option<AsyncRegistration> {
     let RscModule::Resources {
       bundle: target_bundle,
@@ -689,12 +684,7 @@ impl RscModule {
       String::new()
     };
     Some(AsyncRegistration {
-      imports: vec![
-        bundle_graph
-          .asset_graph
-          .asset(plan.original_asset)
-          .id(project_root),
-      ],
+      imports: vec![bundle_graph.asset_id(plan.original_asset)],
       link,
     })
   }
@@ -711,12 +701,7 @@ impl RscModule {
   /// A stable id: the importer's asset id (from its path) and the dependency's index within it.
   /// Asset indices aren't stable between builds.
   pub fn id(&self, bundle_graph: &BundleGraph) -> String {
-    let asset_id = |asset| {
-      bundle_graph
-        .asset_graph
-        .asset(asset)
-        .id(&bundle_graph.project_root)
-    };
+    let asset_id = |asset| bundle_graph.asset_id(asset);
     match self {
       RscModule::Empty {
         importer,
@@ -753,7 +738,6 @@ impl RscModule {
     should_optimize: bool,
     bundle_graph: &BundleGraph,
     bundle: &Bundle,
-    project_root: &PathId,
   ) -> Result<(), DiagnosticList> {
     match self {
       RscModule::Empty { .. } => Ok(()),
@@ -769,7 +753,6 @@ impl RscModule {
         dest,
         should_optimize,
         bundle_graph,
-        project_root,
         *runtime,
         exports,
         bundles,
@@ -788,7 +771,6 @@ impl RscModule {
         dest,
         should_optimize,
         bundle_graph,
-        project_root,
         *runtime,
         *original,
         exports,
@@ -807,7 +789,6 @@ impl RscModule {
         should_optimize,
         bundle_graph,
         bundle,
-        project_root,
         *importer,
         *dependency,
         *runtime,
@@ -817,14 +798,7 @@ impl RscModule {
       ),
       RscModule::ServerEntry {
         runtime, actions, ..
-      } => write_server_entry(
-        dest,
-        should_optimize,
-        bundle_graph,
-        project_root,
-        *runtime,
-        actions,
-      ),
+      } => write_server_entry(dest, should_optimize, bundle_graph, *runtime, actions),
     }
   }
 }
@@ -833,7 +807,6 @@ fn write_client_reference<W: std::fmt::Write>(
   dest: &mut W,
   should_optimize: bool,
   bundle_graph: &BundleGraph,
-  project_root: &PathId,
   runtime: AssetIndex,
   exports: &[(SymbolName, SymbolResolution)],
   bundles: &[String],
@@ -841,7 +814,7 @@ fn write_client_reference<W: std::fmt::Write>(
   css_resources: &[String],
   is_async: bool,
 ) -> Result<(), DiagnosticList> {
-  write_preamble(dest, should_optimize, bundle_graph, project_root, runtime)?;
+  write_preamble(dest, should_optimize, bundle_graph, runtime)?;
   let mut bundles = serde_json::to_string(bundles)?;
   if !import_map.is_empty() {
     let import_map: serde_json::Map<String, serde_json::Value> = import_map
@@ -862,7 +835,7 @@ fn write_client_reference<W: std::fmt::Write>(
     }
     write!(dest, "];\n")?;
   }
-  for (export_as, referenced_asset, export_name) in resolved_exports(exports, bundle_graph) {
+  for (export_as, referenced_asset, export_name) in resolved_exports(exports) {
     let export_as = serde_json::to_string(export_as.as_str())?;
     write!(dest, "exports[{}]=", export_as)?;
     if !css_resources.is_empty() {
@@ -871,7 +844,7 @@ fn write_client_reference<W: std::fmt::Write>(
     write!(
       dest,
       "$rsc.createClientReference({},{},{})",
-      serde_json::to_string(&referenced_asset.id(project_root))?,
+      serde_json::to_string(&bundle_graph.asset_id(referenced_asset))?,
       serde_json::to_string(export_name.as_str())?,
       bundles,
     )?;
@@ -891,31 +864,29 @@ fn write_server_reference<W: std::fmt::Write>(
   dest: &mut W,
   should_optimize: bool,
   bundle_graph: &BundleGraph,
-  project_root: &PathId,
   runtime: AssetIndex,
   original: AssetIndex,
   exports: &[(SymbolName, SymbolResolution)],
   is_client: bool,
   is_async: bool,
 ) -> Result<(), DiagnosticList> {
-  let require = write_preamble(dest, should_optimize, bundle_graph, project_root, runtime)?;
+  let require = write_preamble(dest, should_optimize, bundle_graph, runtime)?;
   if is_client {
     // Dependency on a "use server" module from a client environment.
     // Create a client proxy module that will call the server.
-    for (export_as, referenced_asset, export_name) in resolved_exports(exports, bundle_graph) {
+    for (export_as, referenced_asset, export_name) in resolved_exports(exports) {
       write!(
         dest,
         "exports[{}]=$rsc.createServerReference({},{});\n",
         serde_json::to_string(export_as.as_str())?,
-        serde_json::to_string(&referenced_asset.id(project_root))?,
+        serde_json::to_string(&bundle_graph.asset_id(referenced_asset))?,
         serde_json::to_string(export_name.as_str())?,
       )?;
     }
   } else {
     // Dependency on a "use server" module from a server environment.
     // Mark each export as a server reference that can be passed to a client component as a prop.
-    let original_asset = &bundle_graph.asset_graph.asset(original);
-    let original_id = serde_json::to_string(&original_asset.id(project_root))?;
+    let original_id = serde_json::to_string(&bundle_graph.asset_id(original))?;
     write!(dest, "let $original={}({});\n", require, original_id)?;
     write!(dest, "for(let key in $original){{\n")?;
     write!(
@@ -942,7 +913,6 @@ fn write_resources<W: std::fmt::Write>(
   should_optimize: bool,
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
-  project_root: &PathId,
   importer: AssetIndex,
   dependency: u32,
   runtime: AssetIndex,
@@ -954,9 +924,9 @@ fn write_resources<W: std::fmt::Write>(
   let dependency = &importer_asset.dependencies[dependency as usize];
   let target_bundle = &bundle_graph.bundles[target_bundle_index as usize];
   let original_asset = &bundle_graph.asset_graph.asset(plan.original_asset);
-  let original_id = serde_json::to_string(&original_asset.id(project_root))?;
+  let original_id = serde_json::to_string(&bundle_graph.asset_id(plan.original_asset))?;
 
-  let require = write_preamble(dest, should_optimize, bundle_graph, project_root, runtime)?;
+  let require = write_preamble(dest, should_optimize, bundle_graph, runtime)?;
 
   write!(dest, "let $resources=[")?;
   for resource in &plan.resources {
@@ -983,10 +953,7 @@ fn write_resources<W: std::fmt::Write>(
       .map(|url| format!("import({})", serde_json::to_string(url).unwrap()))
       .collect::<Vec<_>>()
       .join(",");
-    let entry = bundle_graph
-      .asset_graph
-      .asset(client_entry)
-      .id(project_root);
+    let entry = bundle_graph.asset_id(client_entry);
     format!(
       "Promise.all([{}]).then(()=>parcelRequire({}))",
       imports,
@@ -1032,7 +999,7 @@ fn write_resources<W: std::fmt::Write>(
       write!(
         dest,
         ".then(()=>{}).then($original=>{{return $rsc.createResourcesProxy($original,{},$resources",
-        evaluate_async_expression(require, &original_asset.id(project_root)),
+        evaluate_async_expression(require, &bundle_graph.asset_id(plan.original_asset)),
         original_asset.flags.contains(AssetFlags::IS_ESM)
       )?;
     } else {
@@ -1080,11 +1047,10 @@ fn write_server_entry<W: std::fmt::Write>(
   dest: &mut W,
   should_optimize: bool,
   bundle_graph: &BundleGraph,
-  project_root: &PathId,
   runtime: AssetIndex,
   actions: &[RscServerAction],
 ) -> Result<(), DiagnosticList> {
-  write_preamble(dest, should_optimize, bundle_graph, project_root, runtime)?;
+  write_preamble(dest, should_optimize, bundle_graph, runtime)?;
   // React needs AsyncLocalStorage defined as a global for the edge environment.
   // Without this, preinit scripts won't be inserted during SSR.
   write!(dest, "$rsc.ensureAsyncLocalStorage();\n")?;
@@ -1092,11 +1058,10 @@ fn write_server_entry<W: std::fmt::Write>(
   if !actions.is_empty() {
     write!(dest, "$rsc.registerServerActions({{")?;
     for action in actions {
-      let asset = &bundle_graph.asset_graph.asset(action.asset_index);
       write!(
         dest,
         "{}:{},",
-        serde_json::to_string(&asset.id(project_root))?,
+        serde_json::to_string(&bundle_graph.asset_id(action.asset_index))?,
         serde_json::to_string(&action.bundles)?
       )?;
     }
@@ -1110,31 +1075,26 @@ fn write_preamble<W: std::fmt::Write>(
   dest: &mut W,
   should_optimize: bool,
   bundle_graph: &BundleGraph,
-  project_root: &PathId,
   runtime: AssetIndex,
 ) -> Result<&'static str, DiagnosticList> {
   let require = runtime_name(should_optimize, "require", RUNTIME_REQUIRE);
-  let runtime_asset = &bundle_graph.asset_graph.asset(runtime);
   write!(
     dest,
     "let $rsc={}({});\n",
     require,
-    serde_json::to_string(&runtime_asset.id(project_root))?
+    serde_json::to_string(&bundle_graph.asset_id(runtime))?
   )?;
   Ok(require)
 }
 
-fn resolved_exports<'a>(
-  exports: &'a [(SymbolName, SymbolResolution)],
-  bundle_graph: &'a BundleGraph,
-) -> impl Iterator<Item = (&'a SymbolName, &'a Asset, SymbolName)> {
+fn resolved_exports(
+  exports: &[(SymbolName, SymbolResolution)],
+) -> impl Iterator<Item = (&SymbolName, AssetIndex, SymbolName)> {
   exports.iter().filter_map(|(export_as, resolution)| {
-    let asset_index = resolution.asset_index()?;
-    let export_name = resolution.name()?.clone();
     Some((
       export_as,
-      bundle_graph.asset_graph.asset(asset_index),
-      export_name,
+      resolution.asset_index()?,
+      resolution.name()?.clone(),
     ))
   })
 }

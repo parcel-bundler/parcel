@@ -149,7 +149,11 @@ pub fn get_hmr_update<'a>(
 
     let mut output = String::new();
     if asset.ty == AssetType::Js {
-      output = hot_update_code(asset, &bundle_graph.project_root);
+      output = hot_update_code(
+        asset,
+        &bundle_graph.asset_id(id),
+        &bundle_graph.project_root,
+      );
     }
 
     let bundles = (asset.ty != AssetType::Js && asset.ty != AssetType::Css).then(|| {
@@ -169,7 +173,7 @@ pub fn get_hmr_update<'a>(
     });
 
     assets.push(HmrAsset {
-      id: Id::Asset(asset.id(&bundle_graph.project_root)),
+      id: Id::Asset(bundle_graph.asset_id(id)),
       ty: asset.ty.clone(),
       output,
       output_format: asset.target.output_format.clone(),
@@ -221,10 +225,7 @@ pub fn get_hmr_update<'a>(
     }
 
     let mut deps_by_bundle = HashMap::new();
-    deps_by_bundle.insert(
-      "TODO".into(),
-      synthetic_asset.dependencies(bundle_graph, &bundle_graph.project_root),
-    );
+    deps_by_bundle.insert("TODO".into(), synthetic_asset.dependencies(bundle_graph));
 
     assets.push(HmrAsset {
       id,
@@ -250,8 +251,7 @@ pub fn get_hmr_update<'a>(
 /// Wraps `asset`'s code so that evaluating it registers the new module factory. The runtime evals
 /// the update, so its source map is inlined, and the `sourceURL` names the evaluated script in
 /// stack traces and devtools.
-fn hot_update_code(asset: &Asset, project_root: &PathId) -> String {
-  let id = asset.id(project_root);
+fn hot_update_code(asset: &Asset, id: &str, project_root: &PathId) -> String {
   let (code, map) = match asset.content.downcast_ref::<JsContent>() {
     Some(content) => {
       let mut ast = content.ast.clone();
@@ -285,7 +285,7 @@ fn hot_update_code(asset: &Asset, project_root: &PathId) -> String {
       &mut output,
       "\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,{}\n//# sourceURL={}",
       data_encoding::BASE64.encode(map.as_bytes()),
-      hot_update_url(asset, project_root)
+      hot_update_url(asset, id, project_root)
     )
     .unwrap();
   }
@@ -294,10 +294,10 @@ fn hot_update_code(asset: &Asset, project_root: &PathId) -> String {
 
 /// The name of `asset`'s hot update in stack traces and devtools: the module's path from the
 /// project root, marked so that it isn't mistaken for the module itself.
-fn hot_update_url(asset: &Asset, project_root: &PathId) -> String {
+fn hot_update_url(asset: &Asset, id: &str, project_root: &PathId) -> String {
   let path = match asset.loc.url.to_file_path() {
     Ok(path) => path.relative(project_root),
-    Err(_) => return format!("/{}?hot-update", asset.id(project_root)),
+    Err(_) => return format!("/{id}?hot-update"),
   };
   let path = path
     .components()

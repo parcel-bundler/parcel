@@ -7,7 +7,7 @@ use fixedbitset::FixedBitSet;
 
 use crate::{
   AssetFlags, AssetIndex, AssetType, BundleBehavior, BundleFlags, DependencyResolution,
-  Environment, PathId, asset_graph::AssetGraph, bundle::Bundle,
+  Environment, EnvironmentFlags, PathId, asset_graph::AssetGraph, bundle::Bundle,
 };
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -120,6 +120,9 @@ pub struct BundleGraph<'a> {
   /// Each asset's `Asset::id_u64` relative to the project root the cache was created for, computed
   /// on first use. Indexed by asset index.
   asset_ids: OnceLock<(PathId, Box<[OnceLock<u64>]>)>,
+  /// Each asset's short id (see `short_asset_ids`) relative to the project root the cache was
+  /// created for, computed on first use. Indexed by asset index.
+  short_asset_ids: OnceLock<(PathId, Box<[Option<Box<str>>]>)>,
   bundle_environments: OnceLock<BundleEnvironments>,
 }
 
@@ -142,13 +145,45 @@ impl<'a> BundleGraph<'a> {
       bundle_indices: OnceLock::new(),
       context_closures: OnceLock::new(),
       asset_ids: OnceLock::new(),
+      short_asset_ids: OnceLock::new(),
       bundle_environments: OnceLock::new(),
     }
   }
 
-  /// The asset's stable id (`Asset::id`), cached since packaging needs it for every reference.
+  /// The asset's id in packaged output, cached since packaging needs it for every reference: a
+  /// short id in optimized targets (see `short_asset_ids`), otherwise its stable id (`Asset::id`).
   pub fn asset_id(&self, asset: AssetIndex) -> String {
-    format!("{:016x}", self.asset_id_u64(asset))
+    let (root, ids) = self
+      .short_asset_ids
+      .get_or_init(|| (self.project_root, self.short_asset_ids()));
+    let short = if *root == self.project_root {
+      ids.get(asset.index()).cloned().flatten()
+    } else {
+      // The project root was reassigned since the cache was created.
+      self.short_asset_ids()[asset.index()].clone()
+    };
+    match short {
+      Some(id) => id.into(),
+      None => format!("{:016x}", self.asset_id_u64(asset)),
+    }
+  }
+
+  /// Short ids for the assets of optimized targets (see `short_ids`), which every reference to
+  /// an asset in the output repeats.
+  fn short_asset_ids(&self) -> Box<[Option<Box<str>>]> {
+    let ids: Vec<Option<u64>> = (0..self.asset_graph.assets.len())
+      .map(|index| {
+        let index = AssetIndex::from_index(index);
+        self
+          .asset_graph
+          .asset(index)
+          .target
+          .flags
+          .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+          .then(|| self.asset_id_u64(index))
+      })
+      .collect();
+    short_ids(&ids)
   }
 
   /// The asset's stable id as a number (`Asset::id_u64`), cached.
@@ -478,5 +513,96 @@ impl<'a> BundleGraph<'a> {
           p | b.target.environment.into()
         })
     })
+  }
+}
+
+/// The shortest prefix of the base62 encoding of each id (least significant digit first) that is
+/// at least `MIN_SHORT_ID_LEN` characters long and differs from the same length prefix of every
+/// other id. That only depends on the set of ids, not their order, and an id only gets longer
+/// when another one shares its prefix. Being shorter than stable ids (`Asset::id`), they never
+/// collide with them.
+fn short_ids(ids: &[Option<u64>]) -> Box<[Option<Box<str>>]> {
+  const ALPHABET: &[u8; 62] = b"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const MIN_SHORT_ID_LEN: usize = 4;
+  let encode = |mut id: u64| {
+    let mut encoded = [0u8; 11];
+    for digit in &mut encoded {
+      *digit = ALPHABET[(id % 62) as usize];
+      id /= 62;
+    }
+    encoded
+  };
+  let encoded: Vec<Option<[u8; 11]>> = ids.iter().map(|id| id.map(encode)).collect();
+
+  // An id's prefix must be longer than the prefix it shares with its neighbors when sorted, which
+  // are the ids it shares the longest prefixes with. Duplicate assets share an id.
+  let mut sorted: Vec<[u8; 11]> = encoded.iter().flatten().copied().collect();
+  sorted.sort_unstable();
+  sorted.dedup();
+  let common = |a: &[u8; 11], b: &[u8; 11]| a.iter().zip(b).take_while(|(a, b)| a == b).count();
+  encoded
+    .iter()
+    .map(|encoded| {
+      let encoded = encoded.as_ref()?;
+      let position = sorted.binary_search(encoded).unwrap();
+      let mut len = MIN_SHORT_ID_LEN;
+      if position > 0 {
+        len = len.max(common(&sorted[position - 1], encoded) + 1);
+      }
+      if let Some(next) = sorted.get(position + 1) {
+        len = len.max(common(next, encoded) + 1);
+      }
+      let len = len.min(encoded.len());
+      Some(std::str::from_utf8(&encoded[..len]).unwrap().into())
+    })
+    .collect()
+}
+
+#[cfg(test)]
+mod short_id_tests {
+  use super::short_ids;
+
+  #[test]
+  fn short_ids_extend_shared_prefixes() {
+    let base = 5 + 7 * 62 + 11 * 62u64.pow(2) + 13 * 62u64.pow(3);
+    let ids = [
+      Some(base),
+      // Shares 4 digits with `base`.
+      Some(base + 62u64.pow(4)),
+      // Shares 5 digits with `base`.
+      Some(base + 62u64.pow(5)),
+      None,
+      Some(1),
+      // A duplicate asset.
+      Some(1),
+    ];
+    let short = short_ids(&ids);
+    let short: Vec<Option<&str>> = short.iter().map(|id| id.as_deref()).collect();
+    assert_eq!(
+      short,
+      [
+        Some("57bd00"),
+        Some("57bd1"),
+        Some("57bd01"),
+        None,
+        Some("1000"),
+        Some("1000"),
+      ]
+    );
+  }
+
+  #[test]
+  fn short_ids_dont_depend_on_order() {
+    let ids: Vec<Option<u64>> = (0..2000u64)
+      .map(|i| Some(i.wrapping_mul(0x9e3779b97f4a7c15) % 62u64.pow(5)))
+      .collect();
+    let short = short_ids(&ids);
+    let mut reversed = ids.clone();
+    reversed.reverse();
+    let mut reversed_short = short_ids(&reversed).into_vec();
+    reversed_short.reverse();
+    assert_eq!(short.to_vec(), reversed_short);
+    let unique: std::collections::HashSet<_> = short.iter().collect();
+    assert_eq!(unique.len(), ids.len());
   }
 }
