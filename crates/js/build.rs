@@ -17,7 +17,7 @@ use swc_core::ecma::minifier::option::{
 };
 use swc_core::ecma::parser::{EsSyntax, Parser, StringInput, Syntax, lexer::Lexer};
 use swc_core::ecma::transforms::base::{fixer::fixer, resolver};
-use swc_core::ecma::visit::{VisitMut, VisitMutWith};
+use swc_core::ecma::visit::{Visit, VisitMut, VisitMutWith, VisitWith};
 
 const RUNTIME_GLOBALS: &[(&str, &str)] = &[
   ("modules", "m"),
@@ -84,8 +84,23 @@ fn minify_runtime(source: &str) -> String {
 
     let unresolved_mark = Mark::new();
     let top_level_mark = Mark::new();
-    program.visit_mut_with(&mut RuntimeAbiRenamer);
     program.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
+    // The minifier keeps a top-level name that is already reserved, which would then be declared
+    // twice in the bundle (e.g. as both a variable and an ESM helper function).
+    let mut declarations = TopLevelDeclarations {
+      top_level_mark,
+      names: Vec::new(),
+    };
+    program.visit_with(&mut declarations);
+    for name in declarations.names {
+      if RUNTIME_GLOBALS
+        .iter()
+        .any(|(_, minified)| *minified == name)
+      {
+        panic!("a runtime source declares the reserved top-level name `{name}`; rename it");
+      }
+    }
+    program.visit_mut_with(&mut RuntimeAbiRenamer);
 
     let program = optimize(
       program,
@@ -117,6 +132,42 @@ fn minify_runtime(source: &str) -> String {
     program.visit_mut_with(&mut fixer(Some(&comments)));
     emit_runtime(program, source_map)
   })
+}
+
+/// The names of the bindings a program declares at its top level.
+struct TopLevelDeclarations {
+  top_level_mark: Mark,
+  names: Vec<String>,
+}
+
+impl Visit for TopLevelDeclarations {
+  fn visit_binding_ident(&mut self, node: &swc_core::ecma::ast::BindingIdent) {
+    self.visit_ident(&node.id);
+  }
+
+  fn visit_fn_decl(&mut self, node: &swc_core::ecma::ast::FnDecl) {
+    self.visit_ident(&node.ident);
+    node.function.visit_with(self);
+  }
+
+  fn visit_class_decl(&mut self, node: &swc_core::ecma::ast::ClassDecl) {
+    self.visit_ident(&node.ident);
+    node.class.visit_with(self);
+  }
+
+  fn visit_ident(&mut self, node: &swc_core::ecma::ast::Ident) {
+    if node.ctxt.outer() == self.top_level_mark {
+      self.names.push(node.sym.to_string());
+    }
+  }
+
+  fn visit_expr(&mut self, node: &swc_core::ecma::ast::Expr) {
+    // Only declarations, not references.
+    if let swc_core::ecma::ast::Expr::Ident(_) = node {
+      return;
+    }
+    node.visit_children_with(self);
+  }
 }
 
 struct RuntimeAbiRenamer;
