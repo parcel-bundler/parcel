@@ -1,0 +1,20 @@
+[
+  {
+    "description": "batched exports: an object of getters defines every export, including non-identifier names and __proto__",
+    "input": "index.js",
+    "options": {"mode": "production"},
+    "output": ["__proto__,dashed-name,first,increment,live,second", true, "first", "second", "proto", "dashed", 1, 2],
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["index.js", "lib.js"],
+        "contains": ["\"dashed-name\":()=>", ",\"__proto__\",()=>"]
+      }
+    ]
+  },
+  {
+    "description": "batched exports: development defines exports one at a time",
+    "input": "index.js",
+    "output": ["__proto__,dashed-name,first,increment,live,second", true, "first", "second", "proto", "dashed", 1, 2]
+  }
+]

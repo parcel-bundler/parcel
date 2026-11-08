@@ -382,6 +382,22 @@ impl<'a> TreeShake<'a> {
 }
 
 impl<'a> VisitMut for TreeShake<'a> {
+  fn visit_mut_stmts(&mut self, stmts: &mut Vec<Stmt>) {
+    // Before visiting them, which renames the helper (see `visit_mut_ident`).
+    let exports: Vec<bool> = stmts
+      .iter_mut()
+      .map(|stmt| {
+        self
+          .helper_call(stmt, "export")
+          .is_some_and(|call| matches!(&call.callee, Callee::Expr(callee) if callee.is_ident()))
+      })
+      .collect();
+    stmts.visit_mut_children_with(self);
+    if exports.iter().filter(|&&export| export).nth(1).is_some() {
+      batch_exports(stmts, &exports);
+    }
+  }
+
   fn visit_mut_stmt(&mut self, node: &mut Stmt) {
     // Before visiting the call, which renames the helper it calls (see `visit_mut_ident`).
     let has_used_symbols = !self.used_symbols.is_empty();
@@ -782,6 +798,88 @@ impl<'a> VisitMut for TreeShake<'a> {
         node.sym = name.into();
       }
     }
+  }
+}
+
+/// Merges runs of calls to the bundle's `export` helper function (see `ESM_HELPER_FUNCTIONS`) that
+/// define exports on the same object into one call with an object of getters, e.g.
+/// `t(e,{a:()=>x,b:()=>y})`, which is shorter. `exports` says which statements were calls to it
+/// before tree shaking removed the unused ones.
+fn batch_exports(stmts: &mut Vec<Stmt>, exports: &[bool]) {
+  fn flush(batch: &mut Vec<CallExpr>, stmts: &mut Vec<Stmt>) {
+    let mut calls = std::mem::take(batch);
+    let call = if calls.len() == 1 {
+      calls.pop().unwrap()
+    } else {
+      let mut call = calls[0].clone();
+      let props = calls
+        .into_iter()
+        .map(|mut call| {
+          let get = call.args.pop().unwrap().expr;
+          let Expr::Lit(Lit::Str(name)) = *call.args.pop().unwrap().expr else {
+            unreachable!()
+          };
+          let key = match name.value.as_str() {
+            Some(name) if Ident::verify_symbol(name).is_ok() => {
+              PropName::Ident(IdentName::new(name.into(), DUMMY_SP))
+            }
+            _ => PropName::Str(name),
+          };
+          PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp { key, value: get })))
+        })
+        .collect();
+      call.args.truncate(1);
+      call.args.push(
+        Expr::Object(ObjectLit {
+          span: DUMMY_SP,
+          props,
+        })
+        .into(),
+      );
+      call
+    };
+    stmts.push(Stmt::Expr(ExprStmt {
+      span: DUMMY_SP,
+      expr: Box::new(Expr::Call(call)),
+    }));
+  }
+
+  let mut batch: Vec<CallExpr> = Vec::new();
+  for (stmt, &export) in std::mem::take(stmts).into_iter().zip(exports) {
+    let call = match stmt {
+      // Exports that tree shaking removed.
+      Stmt::Empty(_) if export => continue,
+      Stmt::Expr(ExprStmt { expr, .. })
+        if export
+          && let Expr::Call(call) = &*expr
+          && let [dest, name, _] = &call.args[..]
+          && dest.expr.is_ident()
+          // A `__proto__` key would set the object's prototype instead.
+          && matches!(&*name.expr, Expr::Lit(Lit::Str(name)) if name.value != *"__proto__") =>
+      {
+        let Expr::Call(call) = *expr else {
+          unreachable!()
+        };
+        call
+      }
+      stmt => {
+        if !batch.is_empty() {
+          flush(&mut batch, stmts);
+        }
+        stmts.push(stmt);
+        continue;
+      }
+    };
+    if let Some(first) = batch.first()
+      && let (Expr::Ident(first), Expr::Ident(dest)) = (&*first.args[0].expr, &*call.args[0].expr)
+      && first.to_id() != dest.to_id()
+    {
+      flush(&mut batch, stmts);
+    }
+    batch.push(call);
+  }
+  if !batch.is_empty() {
+    flush(&mut batch, stmts);
   }
 }
 

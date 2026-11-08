@@ -3,7 +3,15 @@
 // The ESM helpers as functions of an optimized app bundle, which its modules call directly (see
 // `ESM_HELPER_FUNCTIONS`). Keep in sync with `runtime_modules/esmodule-helpers.js`.
 
+// Called with an object of getters by name to define several exports at once (see
+// `batch_exports`).
 function $parcel$export(dest, destName, get) {
+  if (typeof destName === 'object') {
+    Object.keys(destName).forEach(function (name) {
+      $parcel$export(dest, name, destName[name]);
+    });
+    return;
+  }
   Object.defineProperty(dest, destName, {
     enumerable: true,
     configurable: true,
