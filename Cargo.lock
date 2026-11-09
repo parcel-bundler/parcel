@@ -267,7 +267,7 @@ dependencies = [
 [[package]]
 name = "ast_node"
 version = "7.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "quote",
  "swc_macros_common",
@@ -366,7 +366,7 @@ dependencies = [
 [[package]]
 name = "better_scoped_tls"
 version = "1.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "scoped-tls",
 ]
@@ -1399,7 +1399,7 @@ dependencies = [
 [[package]]
 name = "from_variant"
 version = "3.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "swc_macros_common",
  "syn 2.0.119",
@@ -1678,7 +1678,7 @@ checksum = "1ad320b3b96fb2a455a0726d16efe0a5afdbd34b71dea5bc53b05ea057714d4e"
 [[package]]
 name = "hstr"
 version = "4.0.3"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "hashbrown 0.14.5",
  "new_debug_unreachable",
@@ -4988,7 +4988,7 @@ dependencies = [
 [[package]]
 name = "string_enum"
 version = "1.0.2"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "quote",
  "swc_macros_common",
@@ -5010,7 +5010,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "swc_allocator"
 version = "5.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "allocator-api2",
  "bumpalo",
@@ -5021,7 +5021,7 @@ dependencies = [
 [[package]]
 name = "swc_atoms"
 version = "10.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "hstr",
  "once_cell",
@@ -5031,7 +5031,7 @@ dependencies = [
 [[package]]
 name = "swc_common"
 version = "27.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "anyhow",
  "ast_node",
@@ -5057,7 +5057,7 @@ dependencies = [
 [[package]]
 name = "swc_config"
 version = "6.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "anyhow",
  "bytes-str",
@@ -5077,7 +5077,7 @@ dependencies = [
 [[package]]
 name = "swc_config_macro"
 version = "1.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5115,7 +5115,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_ast"
 version = "30.0.2"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "bitflags 2.13.1",
  "is-macro",
@@ -5134,7 +5134,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_codegen"
 version = "33.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "ascii",
  "compact_str",
@@ -5157,7 +5157,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_codegen_macros"
 version = "2.0.2"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "proc-macro2",
  "swc_macros_common",
@@ -5167,7 +5167,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_bugfixes"
 version = "58.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "rustc-hash",
  "swc_atoms",
@@ -5183,7 +5183,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_common"
 version = "47.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "swc_common",
  "swc_ecma_ast",
@@ -5194,7 +5194,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2015"
 version = "57.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "arrayvec",
  "indexmap 2.14.0",
@@ -5220,7 +5220,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2016"
 version = "52.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "swc_ecma_ast",
  "swc_ecma_transformer",
@@ -5232,7 +5232,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2017"
 version = "52.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "serde",
  "swc_common",
@@ -5246,7 +5246,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2018"
 version = "53.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "serde",
  "swc_ecma_ast",
@@ -5259,7 +5259,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2019"
 version = "52.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "swc_common",
  "swc_ecma_ast",
@@ -5272,7 +5272,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2020"
 version = "55.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "serde",
  "swc_common",
@@ -5288,7 +5288,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2021"
 version = "52.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "swc_ecma_ast",
  "swc_ecma_transformer",
@@ -5300,7 +5300,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2022"
 version = "55.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "rustc-hash",
  "swc_atoms",
@@ -5318,7 +5318,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_regexp"
 version = "10.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "icu_properties",
  "swc_ecma_regexp_ast",
@@ -5328,7 +5328,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_hooks"
 version = "2.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "swc_atoms",
  "swc_common",
@@ -5339,7 +5339,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_loader"
 version = "28.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "anyhow",
  "pathdiff",
@@ -5353,7 +5353,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_minifier"
 version = "64.0.3"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "arrayvec",
  "bitflags 2.13.1",
@@ -5387,7 +5387,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_parser"
 version = "47.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "bitflags 2.13.1",
  "either",
@@ -5430,7 +5430,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_quote_macros"
 version = "47.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "anyhow",
  "proc-macro2",
@@ -5447,7 +5447,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_react_compiler"
 version = "27.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "indexmap 2.14.0",
  "react_compiler",
@@ -5468,7 +5468,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_regexp"
 version = "0.16.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "phf 0.11.3",
  "rustc-hash",
@@ -5483,7 +5483,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_regexp_ast"
 version = "4.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "bitflags 2.13.1",
  "is-macro",
@@ -5495,12 +5495,12 @@ dependencies = [
 [[package]]
 name = "swc_ecma_regexp_common"
 version = "0.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 
 [[package]]
 name = "swc_ecma_regexp_visit"
 version = "0.16.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "serde",
  "swc_atoms",
@@ -5512,7 +5512,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transformer"
 version = "23.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "rustc-hash",
  "swc_atoms",
@@ -5530,7 +5530,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms"
 version = "65.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "par-core",
  "swc_common",
@@ -5544,7 +5544,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_base"
 version = "51.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "better_scoped_tls",
  "indexmap 2.14.0",
@@ -5565,7 +5565,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_classes"
 version = "51.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "swc_common",
  "swc_ecma_ast",
@@ -5577,7 +5577,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_compat"
 version = "59.0.2"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "indexmap 2.14.0",
  "par-core",
@@ -5604,7 +5604,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_macros"
 version = "1.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5615,7 +5615,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_module"
 version = "58.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "Inflector",
  "anyhow",
@@ -5642,7 +5642,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_optimization"
 version = "54.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "bytes-str",
  "dashmap",
@@ -5666,7 +5666,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_proposal"
 version = "51.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "either",
  "rustc-hash",
@@ -5683,7 +5683,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_react"
 version = "57.0.2"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "base64 0.22.1",
  "bytes-str",
@@ -5707,7 +5707,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_typescript"
 version = "57.0.3"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "bytes-str",
  "rustc-hash",
@@ -5724,7 +5724,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_utils"
 version = "36.1.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "dragonbox_ecma",
  "hashbrown 0.14.5",
@@ -5744,7 +5744,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_visit"
 version = "30.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "new_debug_unreachable",
  "num-bigint",
@@ -5758,7 +5758,7 @@ dependencies = [
 [[package]]
 name = "swc_eq_ignore_macros"
 version = "1.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5768,7 +5768,7 @@ dependencies = [
 [[package]]
 name = "swc_macros_common"
 version = "1.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5778,7 +5778,7 @@ dependencies = [
 [[package]]
 name = "swc_sourcemap"
 version = "10.0.3"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "base64-simd 0.8.0",
  "bitvec",
@@ -5796,7 +5796,7 @@ dependencies = [
 [[package]]
 name = "swc_visit"
 version = "2.0.2"
-source = "git+https://github.com/devongovett/swc.git?branch=minifier-sequences-perf#d21eef8a13d823da293242bc82ccefeb96836c07"
+source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
 dependencies = [
  "either",
 ]
