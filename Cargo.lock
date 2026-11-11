@@ -267,7 +267,8 @@ dependencies = [
 [[package]]
 name = "ast_node"
 version = "7.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edf54a7a1bf98e127c22e9e2b9d19619092c74283fdc14e4d67da69780f90db6"
 dependencies = [
  "quote",
  "swc_macros_common",
@@ -366,7 +367,8 @@ dependencies = [
 [[package]]
 name = "better_scoped_tls"
 version = "1.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7cd228125315b132eed175bf47619ac79b945b26e56b848ba203ae4ea8603609"
 dependencies = [
  "scoped-tls",
 ]
@@ -470,7 +472,7 @@ checksum = "36f64beae40a84da1b4b26ff2761a5b895c12adc41dc25aaee1c4f2bbfe97a6e"
 
 [[package]]
 name = "browserslist-rs"
-version = "0.21.2"
+version = "0.22.0"
 dependencies = [
  "oxc-browserslist",
  "serde",
@@ -1399,7 +1401,8 @@ dependencies = [
 [[package]]
 name = "from_variant"
 version = "3.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5ff35a391aef949120a0340d690269b3d9f63460a6106e99bd07b961f345ea9"
 dependencies = [
  "swc_macros_common",
  "syn 2.0.119",
@@ -1678,7 +1681,8 @@ checksum = "1ad320b3b96fb2a455a0726d16efe0a5afdbd34b71dea5bc53b05ea057714d4e"
 [[package]]
 name = "hstr"
 version = "4.0.3"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b904c58532ecdbf77f46013daec3ecfa9aec83ec17cf4c8053be80a9c1d8d15"
 dependencies = [
  "hashbrown 0.14.5",
  "new_debug_unreachable",
@@ -2453,7 +2457,7 @@ dependencies = [
 [[package]]
 name = "mdxjs"
 version = "1.0.4"
-source = "git+https://github.com/devongovett/mdxjs-rs.git?branch=swc-83#0804da2af1e92fd68d9b92c53a83e121d326b9e1"
+source = "git+https://github.com/vercel-labs/mdxjs-rs-turbopack.git?branch=turbopack#700e192fbdbad5874208addfbf421dcf1eca7a20"
 dependencies = [
  "markdown",
  "rustc-hash",
@@ -3719,9 +3723,9 @@ dependencies = [
 
 [[package]]
 name = "preset_env_base"
-version = "10.0.0"
+version = "11.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d994992e153a53166f8ceb44da6494f8eb5fa8057daa2d45e0947ac2f96cafa0"
+checksum = "a404b6c79afe9e6b1dd00aa8a9d528c913f4f5b2f716196f780025ab81400cef"
 dependencies = [
  "anyhow",
  "browserslist-rs",
@@ -4988,7 +4992,8 @@ dependencies = [
 [[package]]
 name = "string_enum"
 version = "1.0.2"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae36a4951ca7bd1cfd991c241584a9824a70f6aff1e7d4f693fb3f2465e4030e"
 dependencies = [
  "quote",
  "swc_macros_common",
@@ -5010,7 +5015,8 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "swc_allocator"
 version = "5.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f2e587c2b183333ba3547a916d180b7caaaa90610f1be5699710837bb635b8a"
 dependencies = [
  "allocator-api2",
  "bumpalo",
@@ -5021,7 +5027,8 @@ dependencies = [
 [[package]]
 name = "swc_atoms"
 version = "10.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50bb5f0ddb3d05cf1d46368de41dd82db7401fdd53f4b8271612be91573308a3"
 dependencies = [
  "hstr",
  "once_cell",
@@ -5031,7 +5038,8 @@ dependencies = [
 [[package]]
 name = "swc_common"
 version = "27.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1953f0e786c305582e21ef5a093cfe16cfeaa4231f56f780db82e4952b7ef5b2"
 dependencies = [
  "anyhow",
  "ast_node",
@@ -5057,7 +5065,8 @@ dependencies = [
 [[package]]
 name = "swc_config"
 version = "6.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf6924ef781f1f8af3dfdac9674e94f0ab0c20af6b88b2e116af57b1e755b591"
 dependencies = [
  "anyhow",
  "bytes-str",
@@ -5077,7 +5086,8 @@ dependencies = [
 [[package]]
 name = "swc_config_macro"
 version = "1.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b416e8ce6de17dc5ea496e10c7012b35bbc0e3fef38d2e065eed936490db0b3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5087,9 +5097,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "83.1.1"
+version = "84.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e00aaed696c80c926c4e75218e67a7ad4f8e00ee25f5b75acd470a1f323afdf7"
+checksum = "4e46e978a10163a1f7dc48174fa003262f8d675a1a87e7c35b2887e273edeb0d"
 dependencies = [
  "swc_allocator",
  "swc_atoms",
@@ -5115,7 +5125,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_ast"
 version = "30.0.2"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86bef17958307218ffee375556423bd47a82deb8f6ef8b54bc5a4086958cd1d1"
 dependencies = [
  "bitflags 2.13.1",
  "is-macro",
@@ -5134,7 +5145,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_codegen"
 version = "33.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4bb171b30bb7f179894e985085be5561cfef4b035a58d4ea51a2310570d4d9bc"
 dependencies = [
  "ascii",
  "compact_str",
@@ -5157,7 +5169,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_codegen_macros"
 version = "2.0.2"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e276dc62c0a2625a560397827989c82a93fd545fcf6f7faec0935a82cc4ddbb8"
 dependencies = [
  "proc-macro2",
  "swc_macros_common",
@@ -5167,7 +5180,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_bugfixes"
 version = "58.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78c3a4f4c4e68f717f2541076d39a83368d7794a615a174dbc4200fee730fd0e"
 dependencies = [
  "rustc-hash",
  "swc_atoms",
@@ -5183,7 +5197,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_common"
 version = "47.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e394af9ae1cf5c5943bea68f9d25203dfd866950ed4a659df5158003f8948770"
 dependencies = [
  "swc_common",
  "swc_ecma_ast",
@@ -5194,7 +5209,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2015"
 version = "57.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "347a8d0fa6c5888c6696ada5c6fd95253a92314537f31b0efe1c1a85d2794b5a"
 dependencies = [
  "arrayvec",
  "indexmap 2.14.0",
@@ -5220,7 +5236,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2016"
 version = "52.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2595a73b895df48bcbf9fa704435c611a840ca8b773343c6a1d78f25da23434"
 dependencies = [
  "swc_ecma_ast",
  "swc_ecma_transformer",
@@ -5232,7 +5249,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2017"
 version = "52.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4cbe3c66710b47613e5a096aebcd3bdb43eec27c2444f480d971295adf423c0a"
 dependencies = [
  "serde",
  "swc_common",
@@ -5246,7 +5264,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2018"
 version = "53.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5d2bcdb846f70cae453c37182cfec5ba33c6e949f5c4fdee4d2287caa043ca1"
 dependencies = [
  "serde",
  "swc_ecma_ast",
@@ -5259,7 +5278,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2019"
 version = "52.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "671dd058c8b2c282fe698ca22810a50c0ff90c59f19b1d8845ec55ccbc9501e5"
 dependencies = [
  "swc_common",
  "swc_ecma_ast",
@@ -5272,7 +5292,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2020"
 version = "55.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d20f7e9c6b6c1a2008739b1d7a75498f303eabfdc4fb5d45e5e24d3924d654b"
 dependencies = [
  "serde",
  "swc_common",
@@ -5288,7 +5309,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2021"
 version = "52.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "227b0b3b402567e9bd7dbdd6968c3ea05300b608f8f8fd8596f67e835b5163fb"
 dependencies = [
  "swc_ecma_ast",
  "swc_ecma_transformer",
@@ -5300,7 +5322,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2022"
 version = "55.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe67ff379ca661dc4730bf438f4cb619e34ce1454739d83bd3b0a1f6d434fbab"
 dependencies = [
  "rustc-hash",
  "swc_atoms",
@@ -5318,7 +5341,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_regexp"
 version = "10.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a78ba9079490409e44dde0b96c7c8f9dffd2c490d2a82eb2c7be0ed80d14649"
 dependencies = [
  "icu_properties",
  "swc_ecma_regexp_ast",
@@ -5328,7 +5352,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_hooks"
 version = "2.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af2927f285c88c51f7fed0a07316389ca1311a02761fbd31c0f3d29d53774a1a"
 dependencies = [
  "swc_atoms",
  "swc_common",
@@ -5339,7 +5364,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_loader"
 version = "28.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44d66078eeb24c35825b2863351e68e26b18b2b4bde4a1667aa6ec5e32941540"
 dependencies = [
  "anyhow",
  "pathdiff",
@@ -5352,8 +5378,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_minifier"
-version = "64.0.3"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+version = "64.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6470574261933520880ddc497cfba99b91ddba6ef537003277d49c863d3c67e"
 dependencies = [
  "arrayvec",
  "bitflags 2.13.1",
@@ -5386,8 +5413,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_parser"
-version = "47.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+version = "47.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2df5fd9367abbe9d4d2db5608df599b1d9f425a690e4ca61b304f7a23961410"
 dependencies = [
  "bitflags 2.13.1",
  "either",
@@ -5404,9 +5432,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_preset_env"
-version = "67.0.0"
+version = "68.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd47e9b64682008313f6dc4e9b123442a09eaad446289063e7b6c3c3b0170622"
+checksum = "ae4be113c31b82dfaa660d7cab3083e1003e300862c1338505bd23830b9c232a"
 dependencies = [
  "anyhow",
  "foldhash 0.1.5",
@@ -5430,7 +5458,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_quote_macros"
 version = "47.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c89f43f60bffadee4de41f7a638fe58a8dcefe4fc22991684d8fbd44fe38f3a9"
 dependencies = [
  "anyhow",
  "proc-macro2",
@@ -5447,7 +5476,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_react_compiler"
 version = "27.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e363ec4a6b3cb129b61975f4b495fa0ecab7d9ebcb214589a95aca0cf224e1b"
 dependencies = [
  "indexmap 2.14.0",
  "react_compiler",
@@ -5468,7 +5498,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_regexp"
 version = "0.16.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77ad021aa638e19200ffc277999268a07734aab06a3e06ab0c02c29bbd5bc577"
 dependencies = [
  "phf 0.11.3",
  "rustc-hash",
@@ -5483,7 +5514,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_regexp_ast"
 version = "4.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "154d3e03945e40abd710047da02f1608cfc18e0713d2f492605d199d9809588b"
 dependencies = [
  "bitflags 2.13.1",
  "is-macro",
@@ -5495,12 +5527,14 @@ dependencies = [
 [[package]]
 name = "swc_ecma_regexp_common"
 version = "0.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a0a09a9e4dc09c97f07273695bd4b58e46b99dbb0cb788ce0dad2a181eb1e94"
 
 [[package]]
 name = "swc_ecma_regexp_visit"
 version = "0.16.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae70e4ff270a35cbad280a0501d8b0067d1bf70f774ee0eb80d54966112ca9c1"
 dependencies = [
  "serde",
  "swc_atoms",
@@ -5512,7 +5546,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transformer"
 version = "23.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25c7178b3b195d55f2206683b56c474bd1f308d8fa429feffcccf0ae5a4f3b74"
 dependencies = [
  "rustc-hash",
  "swc_atoms",
@@ -5530,7 +5565,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms"
 version = "65.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f220d5177d8b403cc0dc02e9997637f375635c33c90fdde9817a4b66a22575ea"
 dependencies = [
  "par-core",
  "swc_common",
@@ -5544,7 +5580,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_base"
 version = "51.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc5dc7a85486a27483a9eb19737fd91cc31f74409e896ff950df522d5ce6179c"
 dependencies = [
  "better_scoped_tls",
  "indexmap 2.14.0",
@@ -5565,7 +5602,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_classes"
 version = "51.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0eef98e7aec98db2286734e2eadc3b69eff175099c1cf024d1ef9299f5089578"
 dependencies = [
  "swc_common",
  "swc_ecma_ast",
@@ -5577,7 +5615,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_compat"
 version = "59.0.2"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b540ee32411a2493aa28d4782f35401539924359dfa23fd7f731f3811716d67"
 dependencies = [
  "indexmap 2.14.0",
  "par-core",
@@ -5604,7 +5643,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_macros"
 version = "1.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc777288799bf6786e5200325a56e4fbabba590264a4a48a0c70b16ad0cf5cd8"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5614,8 +5654,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_module"
-version = "58.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+version = "58.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6bc372efddc294640bfd10ee2a5ae6225da76d411d9e7c5c492b77b064af06e"
 dependencies = [
  "Inflector",
  "anyhow",
@@ -5642,7 +5683,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_optimization"
 version = "54.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64c11dd8ba1393d4636cf4a7cd9697927f06957acdf78f663ccd97129db91245"
 dependencies = [
  "bytes-str",
  "dashmap",
@@ -5666,7 +5708,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_proposal"
 version = "51.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c297f34c1ae5b1d35cc88496280b707ecb55d9bb540e5cb384757e4f2dfe72a0"
 dependencies = [
  "either",
  "rustc-hash",
@@ -5683,7 +5726,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_react"
 version = "57.0.2"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "976dc553655e405a6879d9c2d5977bb76165a7a2ab249d5687768632ffb86c66"
 dependencies = [
  "base64 0.22.1",
  "bytes-str",
@@ -5707,7 +5751,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_typescript"
 version = "57.0.3"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ec0a0850a03db3a20d2950f8217f27edab0cab6bf941a4f5d15ec944fab88c2"
 dependencies = [
  "bytes-str",
  "rustc-hash",
@@ -5724,7 +5769,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_utils"
 version = "36.1.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b59b32185a6e5dabfc087ab27fbab048f64dfd73e8290aa339a4aaffcb8fb439"
 dependencies = [
  "dragonbox_ecma",
  "hashbrown 0.14.5",
@@ -5744,7 +5790,8 @@ dependencies = [
 [[package]]
 name = "swc_ecma_visit"
 version = "30.0.0"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc14fd3354020d23d7d4bbe37136c01f9887e84f106967e965ea2c03c002b6ea"
 dependencies = [
  "new_debug_unreachable",
  "num-bigint",
@@ -5758,7 +5805,8 @@ dependencies = [
 [[package]]
 name = "swc_eq_ignore_macros"
 version = "1.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c16ce73424a6316e95e09065ba6a207eba7765496fed113702278b7711d4b632"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5768,7 +5816,8 @@ dependencies = [
 [[package]]
 name = "swc_macros_common"
 version = "1.0.1"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aae1efbaa74943dc5ad2a2fb16cbd78b77d7e4d63188f3c5b4df2b4dcd2faaae"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5778,7 +5827,8 @@ dependencies = [
 [[package]]
 name = "swc_sourcemap"
 version = "10.0.3"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df9ce7c46dc9730284761c88b34d15a8cfbaf40884705f3deec65b9493765ac8"
 dependencies = [
  "base64-simd 0.8.0",
  "bitvec",
@@ -5796,7 +5846,8 @@ dependencies = [
 [[package]]
 name = "swc_visit"
 version = "2.0.2"
-source = "git+https://github.com/devongovett/swc.git?branch=never-merges#0495ddb29b0b131eff18b7a9eb0e5ba90c980e45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7df72a1be54e379864cebf04f26abb4d7ee637977f62f8ec8387233f7a27e88"
 dependencies = [
  "either",
 ]
