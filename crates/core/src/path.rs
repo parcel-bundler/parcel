@@ -243,7 +243,7 @@ impl<'de> serde::Deserialize<'de> for PathId {
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct SegmentId(u32);
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct SubPath(smallvec::SmallVec<[SegmentId; 4]>);
 
 impl SubPath {
@@ -376,6 +376,19 @@ pub struct PathInterner {
   nodes: boxcar::Vec<Node>,
 }
 
+/// A `papaya::HashMap` for keys that are added once and then looked up over and over.
+///
+/// papaya's default incremental resizing copies entries into a grown table as later writes
+/// happen, and lookups search both tables until the copy is done. A map whose keys have
+/// stopped changing gets few writes, so the copy may never finish, making every lookup much
+/// slower (interning ~17x). Resizing all at once avoids that.
+pub(crate) fn read_mostly_map<K, V, S: Default>() -> HashMap<K, V, S> {
+  HashMap::builder()
+    .hasher(S::default())
+    .resize_mode(papaya::ResizeMode::Blocking)
+    .build()
+}
+
 impl Default for PathInterner {
   fn default() -> Self {
     PathInterner::new()
@@ -385,9 +398,9 @@ impl Default for PathInterner {
 impl PathInterner {
   pub fn new() -> Self {
     PathInterner {
-      segment_ids: HashMap::default(),
+      segment_ids: read_mostly_map(),
       segments: boxcar::Vec::new(),
-      edge_ids: HashMap::default(),
+      edge_ids: read_mostly_map(),
       nodes: boxcar::Vec::new(),
     }
   }
@@ -822,6 +835,11 @@ impl PathInterner {
   fn intern_node(&self, parent: Option<PathId>, segment: SegmentId) -> PathId {
     let node = Node { parent, segment };
     let edge_ids = self.edge_ids.pin();
+    // Almost always interned already, and a lookup is cheaper than `get_or_insert_with`, which
+    // goes through papaya's general read-modify-write path.
+    if let Some(id) = edge_ids.get(&node) {
+      return *id;
+    }
     *edge_ids.get_or_insert_with(node, || PathId::from_index(self.nodes.push(node)))
   }
 }
@@ -852,6 +870,7 @@ impl Iterator for Ancestors<'_> {
 #[cfg(test)]
 mod tests {
   use super::*;
+
   use crate::test_utils::path as test_path;
   use path_slash::PathExt;
 

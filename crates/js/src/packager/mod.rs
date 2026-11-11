@@ -1,9 +1,13 @@
 use std::{fmt::Write, sync::Arc};
 
-use crate::transformer::{Ast, async_module::wrap_async_module};
+use crate::transformer::{
+  Ast,
+  async_module::wrap_async_module,
+  refresh::{react_refresh_text, unused_name},
+};
 use indexmap::{IndexMap, IndexSet};
 use parcel_core::*;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use swc_core::{
   common::{DUMMY_SP, SyntaxContext},
   ecma::ast::{
@@ -27,8 +31,9 @@ use synthetic::AsyncRegistration;
 pub use synthetic::{BundleShim, SyntheticAsset};
 pub use tree_shake::{Resolution, tree_shake};
 
-use crate::JsContent;
+use crate::{GeneratedCode, JsContent};
 use printer::Printer;
+pub(crate) use printer::{MapJson, SectionMap, SourceMapSection, source_map_index};
 use script::{link_script, minify_script};
 
 const RUNTIME_MODULES: &str = "m";
@@ -90,24 +95,58 @@ impl JsContent {
     // resolutions, such as synchronous bundles in ESM output, must be emitted
     // as top-level imports before the module table.
     let mut synthetic_assets = IndexSet::new();
-    let mut asset_plans = Vec::with_capacity(bundle.assets.len());
-    let mut script_dependencies = IndexMap::new();
-    for asset_index in &bundle.assets {
-      let asset = &bundle_graph.asset_graph.asset(*asset_index);
-      let dependencies = asset_dependencies(
-        *asset_index,
-        asset,
+    let script_dependencies = match script {
+      Some(asset_index) => asset_dependencies(
+        asset_index,
+        bundle_graph.asset_graph.asset(asset_index),
         bundle_graph,
         Some(bundle),
         &mut synthetic_assets,
-        get_inline_bundle_content,
+        None,
         &options.project_root,
-      )?;
-      if script == Some(*asset_index) {
-        script_dependencies = dependencies;
-      } else {
-        asset_plans.push((*asset_index, dependencies));
-      }
+      )?,
+      None => IndexMap::new(),
+    };
+
+    // Each module's dependencies are resolved, and the module generated (tree shaken, minified and
+    // printed), independently of the others, so do both in parallel. Each collects the synthetic
+    // assets it needs, which are merged in bundle order, as if resolved one after the other.
+    let source_root: Option<Arc<str>> =
+      bundle_source_root(bundle, &options.project_root).map(Into::into);
+    let rendered = bundle
+      .assets
+      .par_iter()
+      .filter(|asset_index| script != Some(**asset_index))
+      .map(|&asset_index| {
+        let asset = bundle_graph.asset_graph.asset(asset_index);
+        let mut synthetic = IndexSet::new();
+        let dependencies = asset_dependencies(
+          asset_index,
+          asset,
+          bundle_graph,
+          Some(bundle),
+          &mut synthetic,
+          None,
+          &options.project_root,
+        )?;
+        let module = render_asset_module(
+          asset,
+          bundle_graph.asset_id(asset_index),
+          bundle,
+          bundle_graph.is_async_asset(asset_index),
+          dependencies,
+          source_root.as_ref(),
+          should_build_source_map,
+          should_optimize,
+        )?;
+        Ok((synthetic, module))
+      })
+      .collect::<Vec<Result<_, DiagnosticList>>>();
+    let mut modules = Vec::with_capacity(rendered.len());
+    for result in rendered {
+      let (synthetic, module) = result?;
+      synthetic_assets.extend(synthetic);
+      modules.push(module);
     }
 
     let script = match script {
@@ -186,24 +225,6 @@ impl JsContent {
     )?;
 
     let mut first: bool = true;
-
-    // Each module is generated (tree shaken, minified and printed) independently, so render them in
-    // parallel and write them out in bundle order.
-    let modules = asset_plans
-      .into_par_iter()
-      .map(|(asset_index, dependencies)| {
-        render_asset_module(
-          bundle_graph.asset_graph.asset(asset_index),
-          bundle_graph.asset_id(asset_index),
-          bundle,
-          bundle_graph.is_async_asset(asset_index),
-          dependencies,
-          options,
-          should_build_source_map,
-          should_optimize,
-        )
-      })
-      .collect::<Result<Vec<_>, DiagnosticList>>()?;
     for module in modules {
       if !first {
         printer.write_char(',')?;
@@ -277,9 +298,10 @@ impl JsContent {
     }
     if let Some((code, map)) = script {
       printer.newline()?;
-      printer.add_source_map(map)?;
+      printer.add_source_map(map.map(SectionMap::new));
       printer.write_str(std::str::from_utf8(&code).unwrap())?;
     }
+    printer.end_source_map();
     printer.into_content()
   }
 }
@@ -297,7 +319,7 @@ fn package_script(
     .target
     .flags
     .contains(EnvironmentFlags::SHOULD_OPTIMIZE);
-  let mut ast = content.ast.clone();
+  let mut ast = content.ast()?.clone();
   insert_node_replacements(&mut ast, content, asset, bundle, should_optimize);
   insert_node_replacement_helpers(
     &mut ast,
@@ -434,25 +456,69 @@ fn write_bundle_references(
 /// A module of the bundle's module table, generated independently of the others.
 struct RenderedModule {
   id: String,
-  code: Vec<u8>,
-  map: Option<Box<serde_json::value::RawValue>>,
+  /// Code written before the module's own, outside of its source map.
+  prefix: String,
+  code: ModuleCode,
+  /// Code written after the module's own.
+  suffix: String,
+  map: Option<SectionMap>,
   /// The serialized dependencies written after an unoptimized module, or `None` for an optimized
   /// JS module, which is written as an expression.
   trailer: Option<String>,
 }
 
+enum ModuleCode {
+  Owned(Vec<u8>),
+  /// Code generated when the module was transformed, which the bundle references rather than
+  /// copies, with text inserted at an offset (where an async module waits for its imports).
+  Shared {
+    code: Arc<str>,
+    insert: Option<(usize, String)>,
+  },
+}
+
 impl RenderedModule {
+  fn new(id: String, code: Vec<u8>, map: Option<String>, trailer: Option<String>) -> Self {
+    RenderedModule {
+      id,
+      prefix: String::new(),
+      code: ModuleCode::Owned(code),
+      suffix: String::new(),
+      map: map.map(SectionMap::new),
+      trailer,
+    }
+  }
+
   fn write(self, printer: &mut Printer) -> Result<(), DiagnosticList> {
     printer.write_module_header(self.id)?;
-    printer.add_raw_source_map(self.map);
-    match self.trailer {
-      None => printer.write_expression_code(&self.code)?,
-      Some(deps) => {
-        printer.write_str(std::str::from_utf8(&self.code).unwrap())?;
+    printer.write_str(&self.prefix)?;
+    printer.add_source_map(self.map);
+    match (self.trailer, self.code) {
+      (None, ModuleCode::Owned(code)) => printer.write_expression_code(code)?,
+      (None, ModuleCode::Shared { .. }) => {
+        unreachable!("optimized bundles render modules from their AST")
+      }
+      (Some(deps), code) => {
+        match code {
+          ModuleCode::Owned(code) => printer.write_owned(
+            String::from_utf8(code).map_err(|e| Diagnostic::from_message(e.to_string()))?,
+          ),
+          ModuleCode::Shared { code, insert: None } => printer.write_shared(&code, 0..code.len()),
+          ModuleCode::Shared {
+            code,
+            insert: Some((at, text)),
+          } => {
+            printer.write_shared(&code, 0..at);
+            printer.write_str(&text)?;
+            printer.write_shared(&code, at..code.len());
+          }
+        }
+        printer.write_str(&self.suffix)?;
         printer.write_module_trailer(deps)?;
       }
     }
-    printer.end_source_map()
+    printer.end_source_map();
+    Ok(())
   }
 }
 
@@ -462,87 +528,259 @@ fn render_asset_module<'a>(
   bundle: &Bundle,
   is_async: bool,
   dependencies: IndexMap<String, Resolution<'a>>,
-  options: &ParcelOptions,
+  source_root: Option<&Arc<str>>,
   should_build_source_map: bool,
   should_optimize: bool,
 ) -> Result<RenderedModule, DiagnosticList> {
   let Some(content) = asset.content.downcast_ref::<JsContent>() else {
-    return Ok(RenderedModule {
+    return Ok(RenderedModule::new(
       id,
-      code: asset.content.read()?,
-      map: None,
-      trailer: Some(serde_json::to_string(&dependencies)?),
-    });
+      asset.content.read()?,
+      None,
+      Some(serde_json::to_string(&dependencies)?),
+    ));
   };
 
-  let mut ast = content.ast.clone();
+  // Unoptimized output wraps the module's generated code as text, optimized output is tree shaken
+  // and minified from its AST.
+  if !should_optimize {
+    let generated = content.generated_code(should_build_source_map)?;
+    return render_generated_module(
+      asset,
+      content,
+      &generated,
+      id,
+      bundle,
+      is_async,
+      dependencies,
+      source_root.filter(|_| should_build_source_map),
+      should_build_source_map,
+    );
+  }
+
+  let mut ast = content.ast()?.clone();
   if is_async {
     // The runtime's module evaluator runs it (see `tla-runtime.js`).
     wrap_async_module(
       &mut ast,
       content.esm_prologue_len,
-      content.react_refresh_wrapped,
       &static_import_ids(asset, &dependencies),
       asset.flags.contains(AssetFlags::HAS_TOP_LEVEL_AWAIT),
     );
-    // Rename bindings so the wrapper's names can't collide with the module's. Optimized output is
-    // finalized after tree shaking below.
-    if !should_optimize {
-      ast.finalize();
-    }
   }
-  insert_node_replacements(&mut ast, content, asset, bundle, should_optimize);
-  let trailer = if should_optimize {
-    None
-  } else {
-    Some(serde_json::to_string(&dependencies)?)
-  };
+  insert_node_replacements(&mut ast, content, asset, bundle, true);
 
-  if should_optimize {
-    let used_symbols = asset
-      .symbols
-      .exports
-      .iter()
-      .filter_map(|e| {
-        if e.requested {
-          Some(e.exported.as_str().into())
-        } else {
-          None
-        }
-      })
-      .chain(asset.symbols.indirect.iter().filter_map(|e| {
-        if e.requested {
-          Some(e.exported.as_str().into())
-        } else {
-          None
-        }
-      }))
-      .collect();
-    tree_shake(
-      &mut ast,
-      used_symbols,
-      dependencies,
-      true,
-      false,
-      RUNTIME_REQUIRE.into(),
-    );
-    ast.finalize();
-  }
+  let used_symbols = asset
+    .symbols
+    .exports
+    .iter()
+    .filter(|e| e.requested)
+    .map(|e| e.exported.as_str().into())
+    .chain(
+      asset
+        .symbols
+        .indirect
+        .iter()
+        .filter(|e| e.requested)
+        .map(|e| e.exported.as_str().into()),
+    )
+    .collect();
+  tree_shake(
+    &mut ast,
+    used_symbols,
+    dependencies,
+    true,
+    false,
+    RUNTIME_REQUIRE.into(),
+  );
+  ast.finalize();
   let (code, map) = content.to_code(
     &ast,
     should_build_source_map,
-    bundle_source_root(bundle, &options.project_root).as_deref(),
-    should_optimize,
+    source_root.map(|root| &**root),
+    true,
   )?;
+  // Optimized modules are written as expressions, without their dependencies.
+  Ok(RenderedModule::new(id, code, map, None))
+}
+
+/// Renders a module from the code generated when it was transformed, applying what packaging adds
+/// to it as text (see `wrap_generated_code`).
+fn render_generated_module<'a>(
+  asset: &Asset,
+  content: &JsContent,
+  generated: &GeneratedCode,
+  id: String,
+  bundle: &Bundle,
+  is_async: bool,
+  dependencies: IndexMap<String, Resolution<'a>>,
+  source_root: Option<&Arc<str>>,
+  should_build_source_map: bool,
+) -> Result<RenderedModule, DiagnosticList> {
+  let bundle_dir = bundle
+    .dist_path()
+    .parent()
+    .unwrap_or(bundle.target.dist_dir);
+  let async_imports = is_async
+    .then(|| serde_json::to_string(&static_import_ids(asset, &dependencies)))
+    .transpose()?;
+  let wrapper = wrap_generated_code(
+    asset,
+    content,
+    generated,
+    bundle_dir,
+    |value| {
+      format!(
+        "{}.resolve({}, {value})",
+        runtime_name(false, NODE_PATH, RUNTIME_NODE_PATH),
+        runtime_name(false, BUNDLE_DIR, RUNTIME_BUNDLE_DIR)
+      )
+    },
+    async_imports.as_deref(),
+  );
 
   Ok(RenderedModule {
     id,
-    code,
-    map: map
-      .map(serde_json::value::RawValue::from_string)
-      .transpose()?,
-    trailer,
+    prefix: wrapper.prefix,
+    code: ModuleCode::Shared {
+      code: generated.code.clone(),
+      insert: wrapper.insert,
+    },
+    suffix: wrapper.suffix,
+    map: generated_section_map(generated, should_build_source_map, source_root.cloned()),
+    trailer: Some(serde_json::to_string(&dependencies)?),
   })
+}
+
+/// What the packager writes around a module's generated code, as text, outside of its lines, so
+/// that its source map applies as is (see `wrap_generated_code`).
+pub(crate) struct TextWrapper {
+  pub(crate) prefix: String,
+  /// Text to write at an offset in the code, on the empty line after the module's prologue, which
+  /// has no mappings.
+  pub(crate) insert: Option<(usize, String)>,
+  pub(crate) suffix: String,
+}
+
+/// What packaging adds to a module's `generated` code as text: the declarations of its Node
+/// replacements, resolved with `resolve_node_replacement` from `node_replacements_from`, and the
+/// async module wrapper (as `wrap_async_module` does to an AST), if `async_imports` gives the JSON
+/// array of the module's static imports, around the React Refresh one (see `refresh`), which goes
+/// around the code. Used for modules in bundles and in hot updates, which aren't async.
+pub(crate) fn wrap_generated_code(
+  asset: &Asset,
+  content: &JsContent,
+  generated: &GeneratedCode,
+  node_replacements_from: PathId,
+  resolve_node_replacement: impl Fn(&str) -> String,
+  async_imports: Option<&str>,
+) -> TextWrapper {
+  let source = &*generated.code;
+  let mut prefix = String::new();
+  write_node_replacement_decls(
+    &mut prefix,
+    content,
+    asset,
+    node_replacements_from,
+    resolve_node_replacement,
+  );
+
+  let refresh = content.react_refresh.then(|| react_refresh_text(source));
+  if let Some(refresh) = &refresh {
+    prefix.push_str(&refresh.outer);
+  }
+
+  let mut wait_for_imports = None;
+  let mut async_suffix = None;
+  if let Some(imports) = async_imports {
+    // The runtime's module evaluator runs it (see `tla-runtime.js`).
+    let gate = unused_name(source, "$parcel$tla");
+    let wait = unused_name(source, "$parcel$wait");
+    let error = unused_name(source, "$parcel$error");
+    let has_top_level_await = u8::from(asset.flags.contains(AssetFlags::HAS_TOP_LEVEL_AWAIT));
+    prefix.push_str(&format!(
+      "require(\"_tla\").enter(module, {imports}, {has_top_level_await}, async function({gate}) {{\ntry {{\n"
+    ));
+    wait_for_imports = Some(format!(
+      "var {wait} = {gate}(); if ({wait}) (await {wait})();"
+    ));
+    async_suffix = Some(format!(
+      "{gate}.d();\n}} catch ({error}) {{\n{gate}.c({error});\n}}\n}});"
+    ));
+  }
+
+  if let Some(refresh) = &refresh {
+    prefix.push_str(&refresh.inner);
+  }
+
+  let mut insert = None;
+  if let Some(wait_for_imports) = wait_for_imports {
+    match generated.prologue_end {
+      Some(at) => insert = Some((at, wait_for_imports)),
+      None => {
+        prefix.push_str(&wait_for_imports);
+        prefix.push('\n');
+      }
+    }
+  }
+
+  let mut suffix = String::new();
+  if (async_suffix.is_some() || refresh.is_some()) && !source.ends_with('\n') {
+    suffix.push('\n');
+  }
+  if let Some(refresh) = refresh {
+    suffix.push_str(&refresh.suffix);
+  }
+  suffix.extend(async_suffix);
+
+  TextWrapper {
+    prefix,
+    insert,
+    suffix,
+  }
+}
+
+/// The source map of `generated` code, as a section of a bundle's or hot update's map, if one is
+/// being built.
+pub(crate) fn generated_section_map(
+  generated: &GeneratedCode,
+  should_build_source_map: bool,
+  source_root: Option<Arc<str>>,
+) -> Option<SectionMap> {
+  generated
+    .map
+    .as_ref()
+    .filter(|_| should_build_source_map)
+    .map(|json| SectionMap {
+      json: MapJson::Shared(json.clone()),
+      source_root,
+    })
+}
+
+/// Writes the declarations of the `__filename` and `__dirname` that a Node module uses, one per
+/// line, with values that `resolve` creates from their paths (as JS strings) relative to `from`.
+/// Like `insert_node_replacement_decls`, for generated code.
+fn write_node_replacement_decls(
+  out: &mut String,
+  content: &JsContent,
+  asset: &Asset,
+  from: PathId,
+  resolve: impl Fn(&str) -> String,
+) {
+  if !content.needs_filename && !content.needs_dirname {
+    return;
+  }
+
+  let (filename, dirname) = node_replacement_paths(asset, from);
+  for (needed, name, value) in [
+    (content.needs_filename, "__filename", filename),
+    (content.needs_dirname, "__dirname", dirname),
+  ] {
+    if needed {
+      let value = serde_json::to_string(&value).unwrap();
+      out.push_str(&format!("var {name} = {};\n", resolve(&value)));
+    }
+  }
 }
 
 fn write_node_replacement_helpers(
@@ -555,7 +793,7 @@ fn write_node_replacement_helpers(
     .target
     .flags
     .contains(EnvironmentFlags::SHOULD_OPTIMIZE);
-  // Hot updates may add modules that need the helpers (see `insert_hot_update_node_replacements`).
+  // Hot updates may add modules that need the helpers (see `hmr::hot_update_code`).
   let hot_updates_need_helpers =
     options.hmr.is_some() && !should_optimize && bundle.target.environment.is_node();
   if !hot_updates_need_helpers
@@ -609,25 +847,6 @@ pub(super) fn insert_node_replacements(
       "$path.resolve($bundle_dir, $value)",
       path: Ident = path,
       bundle_dir: Ident = bundle_dir,
-      value: Expr = value.into()
-    )
-  });
-}
-
-/// Like `insert_node_replacements`, for a module in a hot update. Updates are evaluated outside of
-/// the bundles they apply to, so the bundle's helpers are reached through `module.bundle` (see the
-/// dev runtime), and the paths are relative to the dist root because the
-/// module may be in bundles in different directories.
-pub(crate) fn insert_hot_update_node_replacements(
-  ast: &mut Ast,
-  content: &JsContent,
-  asset: &Asset,
-) {
-  insert_node_replacement_decls(ast, content, asset, asset.target.dist_dir, |ctxt, value| {
-    let module = Ident::new("module".into(), DUMMY_SP, ctxt);
-    quote_expr!(
-      "$module.bundle.nodePath.resolve($module.bundle.bundleDir, $module.bundle.distDir, $value)",
-      module: Ident = module,
       value: Expr = value.into()
     )
   });
@@ -965,7 +1184,7 @@ fn write_runtime_globals(
       true,
     )?;
     // Hot updates are evaluated outside of the bundle, so the runtime exposes its `import.meta` to
-    // them (see `replace_import_meta`).
+    // them, as `module.bundle.importMeta` (see the transformer's `UrlBase`).
     if options.hmr.is_some() && bundle.target.output_format == OutputFormat::Esmodule {
       printer.write_var(IMPORT_META, "import.meta", true)?;
     }

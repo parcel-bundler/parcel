@@ -63,6 +63,37 @@ impl FileSystem for OsFileSystem {
     path.with_path(|p| std::fs::write(p, contents))
   }
 
+  fn write_vectored(&self, path: PathId, chunks: &[&[u8]]) -> Result<()> {
+    use std::io::Write;
+    let mut file = path.with_path(|p| std::fs::File::create(p))?;
+
+    // `writev` writes as many chunks at once as it accepts (std limits each call to `IOV_MAX`).
+    #[cfg(unix)]
+    {
+      use std::io::IoSlice;
+      let mut slices: Vec<IoSlice<'_>> = chunks
+        .iter()
+        .filter(|chunk| !chunk.is_empty())
+        .map(|chunk| IoSlice::new(chunk))
+        .collect();
+      let mut slices = &mut slices[..];
+      while !slices.is_empty() {
+        let written = file.write_vectored(slices)?;
+        if written == 0 {
+          return Err(std::io::ErrorKind::WriteZero.into());
+        }
+        IoSlice::advance_slices(&mut slices, written);
+      }
+      Ok(())
+    }
+
+    // Elsewhere, std writes one chunk per call, so the chunks are joined and written at once.
+    #[cfg(not(unix))]
+    {
+      file.write_all(&chunks.concat())
+    }
+  }
+
   fn copy(&self, from: PathId, to: PathId) -> Result<()> {
     from.with_path(|from| to.with_path(|to| std::fs::copy(from, to).map(|_| ())))
   }

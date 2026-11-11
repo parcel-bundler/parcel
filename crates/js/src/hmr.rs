@@ -1,6 +1,7 @@
 use std::{
   collections::{HashMap, HashSet},
   fmt::Write,
+  sync::Arc,
 };
 
 use indexmap::{IndexMap, IndexSet};
@@ -9,22 +10,13 @@ use parcel_core::{
   get_bundle_content,
 };
 
-use crate::transformer::Ast;
 use parcel_css::css_module_export_sources;
-use swc_core::{
-  common::{DUMMY_SP, SyntaxContext},
-  ecma::{
-    ast::{Expr, Ident, MetaPropExpr, MetaPropKind},
-    visit::{VisitMut, VisitMutWith},
-  },
-  quote_expr,
-};
 
 use crate::{
   JsContent,
   packager::{
-    BundleShim, Resolution, SyntheticAsset, asset_dependencies, embedded_css_modules,
-    insert_hot_update_node_replacements,
+    BundleShim, Resolution, SectionMap, SourceMapSection, SyntheticAsset, asset_dependencies,
+    embedded_css_modules, generated_section_map, source_map_index, wrap_generated_code,
   },
 };
 
@@ -116,7 +108,7 @@ pub fn get_hmr_update<'a>(
       bundle_graph,
       None,
       &mut additional_assets,
-      &|bundle_index| {
+      Some(&|bundle_index| {
         get_bundle_content(
           config,
           bundle_graph,
@@ -124,7 +116,7 @@ pub fn get_hmr_update<'a>(
           options,
           &Default::default(),
         )
-      },
+      }),
       &bundle_graph.project_root,
     )
     .unwrap();
@@ -252,35 +244,57 @@ pub fn get_hmr_update<'a>(
 /// stack traces and devtools.
 fn hot_update_code(asset: &Asset, project_root: &PathId) -> String {
   let id = asset.id(project_root);
-  let (code, map) = match asset.content.downcast_ref::<JsContent>() {
+  let source_maps = asset.target.source_map.is_some();
+  // Resolved from the origin's root, where a bundle in the dist root resolves its `sources` to.
+  let source_root = "/";
+  // Code before and after the module's own, outside of its source map.
+  let (prefix, code, suffix, map): (String, Arc<str>, String, Option<SectionMap>) = match asset
+    .content
+    .downcast_ref::<JsContent>()
+  {
     Some(content) => {
-      let mut ast = content.ast.clone();
-      insert_hot_update_node_replacements(&mut ast, content, asset);
-      replace_import_meta(&mut ast);
-      content
-        .to_code(
-          &ast,
-          asset.target.source_map.is_some(),
-          // Resolved from the origin's root, where a bundle in the dist root resolves its
-          // `sources` to.
-          Some("/"),
-          false,
-        )
-        .unwrap()
+      // Wrapped as text, like an unoptimized bundle's modules (see `render_generated_module`).
+      let generated = content.generated_code(source_maps).unwrap();
+      let wrapper = wrap_generated_code(
+        asset,
+        content,
+        &generated,
+        asset.target.dist_dir,
+        |value| {
+          format!(
+            "module.bundle.nodePath.resolve(module.bundle.bundleDir, module.bundle.distDir, {value})"
+          )
+        },
+        None,
+      );
+      let map = generated_section_map(&generated, source_maps, Some(source_root.into()));
+      (wrapper.prefix, generated.code.clone(), wrapper.suffix, map)
     }
-    None => (asset.content.read().unwrap(), None),
+    None => (
+      String::new(),
+      String::from_utf8(asset.content.read().unwrap())
+        .unwrap()
+        .into(),
+      String::new(),
+      None,
+    ),
   };
 
   // The code starts on its own line so that the map only needs a line offset, and ends on one so
   // that a trailing line comment can't swallow the closing brace.
   let mut output = format!("parcelHotUpdate['{id}'] = function (module, exports, require) {{\n");
-  output.push_str(std::str::from_utf8(&code).unwrap());
+  output.push_str(&prefix);
+  output.push_str(&code);
+  output.push_str(&suffix);
   output.push_str("\n}");
   if let Some(map) = map {
-    // Like a bundle's map (see `SourceMapIndex`).
-    let map = format!(
-      r#"{{"version":3,"sources":[],"sections":[{{"offset":{{"line":1,"column":0}},"map":{map}}}]}}"#
-    );
+    // Like a bundle's map.
+    let map = source_map_index(vec![SourceMapSection {
+      line: 1 + prefix.matches('\n').count() as u32,
+      column: 0,
+      map,
+    }])
+    .to_string();
     write!(
       &mut output,
       "\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,{}\n//# sourceURL={}",
@@ -305,34 +319,4 @@ fn hot_update_url(asset: &Asset, project_root: &PathId) -> String {
     .collect::<Vec<_>>()
     .join("/");
   format!("/{path}?hot-update")
-}
-
-/// Replaces `import.meta`, which ESM bundles leave in modules (e.g. `new URL(url, import.meta.url)`),
-/// with the `import.meta` of the bundle running the module, since updates aren't evaluated as ES
-/// modules.
-fn replace_import_meta(ast: &mut Ast) {
-  struct ImportMetaReplacer(SyntaxContext);
-
-  impl VisitMut for ImportMetaReplacer {
-    fn visit_mut_expr(&mut self, expr: &mut Expr) {
-      if let Expr::MetaProp(MetaPropExpr {
-        kind: MetaPropKind::ImportMeta,
-        ..
-      }) = expr
-      {
-        *expr = *quote_expr!(
-          "$module.bundle.importMeta",
-          module: Ident = Ident::new("module".into(), DUMMY_SP, self.0)
-        );
-      } else {
-        expr.visit_mut_children_with(self);
-      }
-    }
-  }
-
-  let globals = ast.globals.clone();
-  swc_core::common::GLOBALS.set(&globals, || {
-    let ctxt = SyntaxContext::empty().apply_mark(ast.unresolved_mark);
-    ast.program.visit_mut_with(&mut ImportMetaReplacer(ctxt));
-  });
 }

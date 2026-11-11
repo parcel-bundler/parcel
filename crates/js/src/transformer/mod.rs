@@ -1,5 +1,6 @@
 pub mod async_module;
 mod collect;
+mod comments;
 mod dependency_collector;
 mod env_replacer;
 mod fs;
@@ -10,6 +11,7 @@ mod node_replacer;
 mod plugin;
 mod react_compiler;
 mod react_lazy;
+pub mod refresh;
 #[cfg(test)]
 mod test_utils;
 mod typeof_replacer;
@@ -18,6 +20,7 @@ pub mod utils;
 pub use plugin::JsTransformer;
 
 use std::{
+  cell::RefCell,
   collections::{HashMap, HashSet},
   path::PathBuf,
   sync::Arc,
@@ -38,18 +41,24 @@ use parcel_core::{
   SourceUrl, SpecifierType, Target,
 };
 use parcel_macros::{MacroCallback, MacroError, Macros};
+use rustc_hash::FxHashSet;
 
 use crate::runtime_modules::{ESM_HELPERS, REACT_REFRESH};
+pub use comments::ModuleComments;
 use react_compiler::react_compiler;
 use react_lazy::ReactLazy;
 pub use swc_core::ecma::preset_env::{Version, Versions};
 use swc_core::{
   common::{
-    DUMMY_SP, FileName, Globals, Mark, SourceMap, SyntaxContext, errors::Handler, pass::Optional,
-    source_map::SourceMapGenConfig, sync::Lrc,
+    BytePos, FileName, Globals, Mark, SourceMap,
+    comments::{Comment, Comments, SingleThreadedComments},
+    errors::Handler,
+    pass::Optional,
+    source_map::SourceMapGenConfig,
+    sync::Lrc,
   },
   ecma::{
-    ast::{BlockStmt, Expr, ExprStmt, Ident, Lit, Module, ModuleItem, Program, Stmt, Str, TryStmt},
+    ast::{Expr, ExprStmt, Lit, Module, ModuleItem, Program, Stmt, Str},
     atoms::Atom as JsWord,
     codegen::text_writer::JsWriter,
     parser::{EsSyntax, Parser, StringInput, Syntax, TsSyntax, error::Error, lexer::Lexer},
@@ -69,9 +78,7 @@ use swc_core::{
     },
     visit::{FoldWith, VisitMutWith, VisitWith},
   },
-  quote,
 };
-use swc_node_comments::SwcComments;
 use typeof_replacer::*;
 pub use utils::{Diagnostic, DiagnosticSeverity, SourceType};
 use utils::{
@@ -99,6 +106,10 @@ pub struct Config {
   pub decorators: bool,
   pub use_define_for_class_fields: bool,
   pub is_development: bool,
+  /// Whether hot module replacement is enabled. Hot updates are evaluated outside of the bundle,
+  /// so modules in unoptimized output reach the bundle's `import.meta` through `module.bundle`
+  /// (see `dev-runtime.js`).
+  pub hmr: bool,
   pub react_refresh: bool,
   /// React Compiler options, if it runs on this module.
   pub react_compiler: Option<swc_core::ecma::react_compiler::PluginOptions>,
@@ -189,6 +200,8 @@ impl Config {
       && !self.is_library()
       && !self.is_worker()
       && self.environment() != Environment::Worklet
+      // Classic scripts have no module object for the wrapper (see `refresh`).
+      && self.source_type() != SourceType::Script
       && self.react_refresh
   }
 
@@ -285,12 +298,16 @@ pub(crate) fn react_target(target: &Arc<Target>, environment: Environment) -> Ar
   })
 }
 
+/// A module's program and comments. Cloning it copies the comments rather than sharing them:
+/// packaging transforms its copy of an asset's program, e.g. minifying it, which can change them.
 #[derive(Clone)]
 pub struct Ast {
   pub program: Module,
   pub globals: Arc<Globals>,
   pub source_map: Lrc<SourceMap>,
-  pub comments: SwcComments,
+  /// The comments to print with the program. Thread safe, since builds that package the AST keep
+  /// it until packaging, which may happen on other threads (see `JsContent::keeps_ast`).
+  pub comments: ModuleComments,
   pub global_mark: Mark,
   pub unresolved_mark: Mark,
 }
@@ -315,6 +332,7 @@ impl Default for Ast {
 #[derive(Default)]
 #[non_exhaustive]
 pub struct TransformAstResult {
+  /// The program and its comments.
   pub ast: Ast,
   /// The target a "use client" or "use server" directive moved the module to.
   pub target: Option<Arc<Target>>,
@@ -337,8 +355,8 @@ pub struct TransformAstResult {
   /// The number of statements the module starts with that define its exports and require its
   /// imports (see `async_module`).
   pub esm_prologue_len: usize,
-  /// Whether the module's body is wrapped for React Refresh, in the `try` block of its last statement.
-  pub react_refresh_wrapped: bool,
+  /// Whether the packager wraps the module for React Refresh (see `refresh`), which it depends on.
+  pub react_refresh: bool,
   pub directives: Vec<JsWord>,
 }
 
@@ -352,35 +370,87 @@ impl Ast {
   }
 
   /// Generates code, and a source map if `source_maps` is set, whose `sources` are relative to
-  /// `source_root` if given.
+  /// `source_root` if given. Printing leaves the comments as they are (see `PrintedComments`).
   pub fn to_code(
     &self,
     source_maps: bool,
     source_root: Option<&str>,
     minify: bool,
   ) -> Result<(Vec<u8>, Option<String>), std::io::Error> {
+    self.to_code_with(
+      &PrintedComments::new(&self.comments),
+      source_maps,
+      source_root,
+      minify,
+    )
+  }
+
+  /// Like `to_code`, but printing `comments`, e.g. the AST's own, taking those it prints.
+  pub fn to_code_with(
+    &self,
+    comments: &dyn Comments,
+    source_maps: bool,
+    source_root: Option<&str>,
+    minify: bool,
+  ) -> Result<(Vec<u8>, Option<String>), std::io::Error> {
     swc_core::common::GLOBALS.set(&*self.globals, || {
-      let mut map_buf = Vec::new();
-      let (buf, src_map_buf) = emit(
+      let (buf, src_map_buf) = emit_module(
         self.source_map.clone(),
-        &self.comments,
+        comments,
         &self.program,
         source_maps,
         minify,
       )?;
-      let map = if source_maps && {
-        let mut map = self
-          .source_map
-          .build_source_map(&src_map_buf, None, SourceMapConfig);
-        map.set_source_root(source_root.map(str::to_owned));
-        map.to_writer(&mut map_buf).is_ok()
-      } {
-        Some(String::from_utf8(map_buf).unwrap())
-      } else {
-        None
-      };
-      Ok((buf, map))
+      Ok((
+        buf,
+        self.build_source_map(source_maps, &src_map_buf, source_root),
+      ))
     })
+  }
+
+  /// Like `to_code`, but leaves an empty line after the program's first `split` items, and returns
+  /// its offset. Code can be inserted on it without changing the map. Takes the program apart to
+  /// print it, rather than copying it, and takes the comments it prints from the AST's.
+  pub fn to_code_split(
+    &mut self,
+    source_maps: bool,
+    source_root: Option<&str>,
+    minify: bool,
+    split: usize,
+  ) -> Result<(Vec<u8>, Option<String>, usize), std::io::Error> {
+    let globals = self.globals.clone();
+    swc_core::common::GLOBALS.set(&globals, || {
+      let (buf, src_map_buf, split_offset) = emit_split(
+        self.source_map.clone(),
+        &self.comments,
+        &mut self.program,
+        split,
+        source_maps,
+        minify,
+      )?;
+      let map = self.build_source_map(source_maps, &src_map_buf, source_root);
+      Ok((buf, map, split_offset))
+    })
+  }
+
+  fn build_source_map(
+    &self,
+    source_maps: bool,
+    src_map_buf: &SourceMapBuffer,
+    source_root: Option<&str>,
+  ) -> Option<String> {
+    if !source_maps {
+      return None;
+    }
+    let mut map = self
+      .source_map
+      .build_source_map(src_map_buf, None, SourceMapConfig);
+    map.set_source_root(source_root.map(str::to_owned));
+    let mut map_buf = Vec::new();
+    map
+      .to_writer(&mut map_buf)
+      .is_ok()
+      .then(|| String::from_utf8(map_buf).unwrap())
   }
 }
 
@@ -635,7 +705,8 @@ pub fn transform_to_ast(
               // Macro return values are parsed after the initial resolver pass. Resolve the
               // generated bindings so that minification cannot give declarations in the same
               // scope colliding names.
-              module.visit_mut_with(&mut (hygiene(), resolver(unresolved_mark, global_mark, false)));
+              module
+                .visit_mut_with(&mut (hygiene(), resolver(unresolved_mark, global_mark, false)));
             }
             for error in errors {
               diagnostics.push(macro_error_to_diagnostic(error, &source_map));
@@ -783,8 +854,9 @@ pub fn transform_to_ast(
               .and_then(|index| index.parse::<usize>().ok())
               .and_then(|index| mdx_assets.get(index))
             {
-              dependency.resolution =
-                DependencyResolution::Deferred(Arc::new(asset.to_request(&config, &dependency.specifier)));
+              dependency.resolution = DependencyResolution::Deferred(Arc::new(
+                asset.to_request(&config, &dependency.specifier),
+              ));
             }
           }
 
@@ -793,42 +865,22 @@ pub fn transform_to_ast(
           // Runtime modules the transformer inserted, whose namespaces the module imports.
           let mut runtime_dependencies = Vec::new();
 
-          if config.react_refresh() && result.dependencies.iter().any(|d| matches!(&*d.specifier, "react" | "react/jsx-runtime" | "react/jsx-dev-runtime" | "@emotion/react" | "@emotion/react/jsx-runtime" | "@emotion/react/jsx-dev-runtime")) {
-            result.react_refresh_wrapped = true;
-            // `module` and `require` are the module wrapper's, like the module's own references to
-            // them, so the packager binds them the same way.
-            let unresolved = SyntaxContext::empty().apply_mark(unresolved_mark);
-            let module_ident = Ident::new("module".into(), DUMMY_SP, unresolved);
-            let require_ident = Ident::new("require".into(), DUMMY_SP, unresolved);
-            module.body = vec![
-              quote!(
-                "var $parcel$ReactRefreshHelpers = $require('@parcel/parcel3/src/react-refresh.js');" as ModuleItem,
-                require: Ident = require_ident
-              ),
-              quote!("$parcel$ReactRefreshHelpers.init()" as ModuleItem),
-              quote!("var prevRefreshReg = globalThis.$RefreshReg$;" as ModuleItem),
-              quote!("var prevRefreshSig = globalThis.$RefreshSig$;" as ModuleItem),
-              quote!("$parcel$ReactRefreshHelpers.prelude($module);" as ModuleItem, module: Ident = module_ident.clone()),
-              ModuleItem::Stmt(Stmt::Try(Box::new(TryStmt {
-                block: BlockStmt {
-                  stmts: module.body
-                    .into_iter()
-                    .map(|item| item.expect_stmt())
-                    .chain(std::iter::once(quote!("$parcel$ReactRefreshHelpers.postlude($module);" as Stmt, module: Ident = module_ident)))
-                    .collect(),
-                  ..Default::default()
-                },
-                finalizer: Some(BlockStmt {
-                  stmts: vec![
-                    quote!("globalThis.$RefreshReg$ = prevRefreshReg;" as Stmt),
-                    quote!("globalThis.$RefreshSig$ = prevRefreshSig;" as Stmt)
-                  ],
-                  ..Default::default()
-                }),
-                ..Default::default()
-              })))
-            ];
-
+          if config.react_refresh()
+            && result.dependencies.iter().any(|d| {
+              matches!(
+                &*d.specifier,
+                "react"
+                  | "react/jsx-runtime"
+                  | "react/jsx-dev-runtime"
+                  | "@emotion/react"
+                  | "@emotion/react/jsx-runtime"
+                  | "@emotion/react/jsx-dev-runtime"
+              )
+            })
+          {
+            // The packager wraps the module (see `refresh`), so the transformer's output keeps the
+            // module's prologue at the top level, where async modules wait for their imports.
+            result.react_refresh = true;
             runtime_dependencies.push(result.dependencies.len() as u32);
             result.dependencies.push(config.dependency(
               DependencyKind::Require,
@@ -840,7 +892,9 @@ pub fn transform_to_ast(
 
           if needs_esm_helpers {
             runtime_dependencies.push(result.dependencies.len() as u32);
-            result.dependencies.push(config.runtime_dependency(ESM_HELPERS));
+            result
+              .dependencies
+              .push(config.runtime_dependency(ESM_HELPERS));
           }
 
           let rsc_runtime = match config.environment() {
@@ -849,7 +903,10 @@ pub fn transform_to_ast(
             _ => None,
           };
           if let Some(specifier) = rsc_runtime
-            && !result.directives.iter().any(|d| d == "use parcel-rsc-runtime")
+            && !result
+              .directives
+              .iter()
+              .any(|d| d == "use parcel-rsc-runtime")
           {
             let mut dependency = config.runtime_dependency(specifier);
             dependency.placeholder = Some("__parcel_rsc_runtime__".into());
@@ -862,6 +919,7 @@ pub fn transform_to_ast(
             asset_symbols(collect, &result.dependencies, &runtime_dependencies);
 
           result.ast.program = module;
+          result.ast.comments = comments;
           if !config.minify() && !config.is_library() {
             result.ast.finalize();
           }
@@ -920,9 +978,9 @@ fn parse(
   filename: PathBuf,
   source_map: &Lrc<SourceMap>,
   config: &Config,
-) -> ParseResult<(Program, SwcComments)> {
+) -> ParseResult<(Program, ModuleComments)> {
   let source_file = source_map.new_source_file(Lrc::new(FileName::Real(filename)), code.to_owned());
-  let comments = SwcComments::default();
+  let comments = ModuleComments::default();
   let syntax = if config.is_type_script() {
     Syntax::Typescript(TsSyntax {
       tsx: config.is_jsx(),
@@ -963,45 +1021,247 @@ fn parse(
     return Err(errors);
   }
 
+  remove_source_url_comments(&comments);
   Ok((module, comments))
 }
 
-fn emit(
+/// Removes `sourceMappingURL` and `sourceURL` comments, which name the input's own map and script,
+/// not the bundle's, and would stop Parcel adding the bundle's map's (see
+/// `source_mapping_url_comment`) if one ended up near the end of a bundle.
+fn remove_source_url_comments(comments: &ModuleComments) {
+  comments.retain(|comment| {
+    let text = comment.text.trim_start();
+    let Some(text) = text.strip_prefix(['#', '@']) else {
+      return true;
+    };
+    let text = text.trim_start();
+    !(text.starts_with("sourceMappingURL=") || text.starts_with("sourceURL="))
+  });
+}
+
+/// Generates code for `module` as two modules, its first `split` items and the rest, with an empty
+/// line between them, whose offset it returns. Moves the items into the two and back.
+fn emit_split(
   source_map: Lrc<SourceMap>,
-  comments: &SwcComments,
+  comments: &dyn Comments,
+  module: &mut Module,
+  split: usize,
+  source_maps: bool,
+  minify: bool,
+) -> Result<(Vec<u8>, SourceMapBuffer, usize), std::io::Error> {
+  use swc_core::common::{Span, Spanned};
+  // The module's leading comments and shebang go with the first part, and its trailing comments
+  // with the second. The first part only prints the module's leading comments if no item starts
+  // where the module does, as printing the whole module would.
+  let skip_leading_comments = module
+    .body
+    .iter()
+    .any(|item| item.span().lo == module.span.lo);
+  let rest = module.body.split_off(split.min(module.body.len()));
+  let first = Module {
+    span: Span {
+      lo: if skip_leading_comments {
+        BytePos::DUMMY
+      } else {
+        module.span.lo
+      },
+      hi: BytePos::DUMMY,
+    },
+    body: std::mem::take(&mut module.body),
+    shebang: module.shebang.take(),
+  };
+  let rest = Module {
+    span: Span {
+      lo: BytePos::DUMMY,
+      hi: module.span.hi,
+    },
+    body: rest,
+    shebang: None,
+  };
+
+  let result = (|| {
+    let mut buf = vec![];
+    let mut src_map_buf = vec![];
+    emit_module_into(
+      source_map.clone(),
+      comments,
+      &first,
+      source_maps,
+      minify,
+      &mut buf,
+      &mut src_map_buf,
+    )?;
+    if !buf.is_empty() && !buf.ends_with(b"\n") {
+      buf.push(b'\n');
+    }
+    let split_offset = buf.len();
+    buf.push(b'\n');
+    // The second part is written after the first, but its mappings are relative to its own start.
+    let lines = buf.iter().filter(|&&byte| byte == b'\n').count() as u32;
+    let rest_mappings = src_map_buf.len();
+    emit_module_into(
+      source_map,
+      comments,
+      &rest,
+      source_maps,
+      minify,
+      &mut buf,
+      &mut src_map_buf,
+    )?;
+    for (_, line_col) in &mut src_map_buf[rest_mappings..] {
+      line_col.line += lines;
+    }
+    Ok((buf, src_map_buf, split_offset))
+  })();
+
+  module.body = first.body;
+  module.body.extend(rest.body);
+  module.shebang = first.shebang;
+  result
+}
+
+fn emit_module(
+  source_map: Lrc<SourceMap>,
+  comments: &dyn Comments,
   module: &Module,
   source_maps: bool,
   minify: bool,
 ) -> Result<(Vec<u8>, SourceMapBuffer), std::io::Error> {
-  let mut src_map_buf = vec![];
   let mut buf = vec![];
-  {
-    let writer = Box::new(JsWriter::new(
-      source_map.clone(),
-      "\n",
-      &mut buf,
-      if source_maps {
-        Some(&mut src_map_buf)
-      } else {
-        None
-      },
-    ));
-    let config = swc_core::ecma::codegen::Config::default()
-      .with_target(swc_core::ecma::ast::EsVersion::Es5)
-      // Make sure the output works regardless of whether it's loaded with the correct (utf8) encoding
-      .with_ascii_only(true)
-      .with_minify(minify);
-    let mut emitter = swc_core::ecma::codegen::Emitter {
-      cfg: config,
-      comments: Some(comments),
-      cm: source_map,
-      wr: writer,
-    };
+  let mut src_map_buf = vec![];
+  emit_module_into(
+    source_map,
+    comments,
+    module,
+    source_maps,
+    minify,
+    &mut buf,
+    &mut src_map_buf,
+  )?;
+  Ok((buf, src_map_buf))
+}
 
-    emitter.emit_module(module)?;
+/// An AST's comments as printing sees them (see `Ast::to_code`), read without being removed, so that
+/// they can be printed again, e.g. into each bundle that contains the asset, or by bundles packaged
+/// at once. The printer takes the comments at each position as it prints them, so that it prints
+/// them once (e.g. for a statement and the expression it starts with). This remembers which
+/// positions it gave out instead. Code generated while transforming takes the comments, which
+/// aren't kept, as that's cheaper.
+struct PrintedComments<'a> {
+  comments: &'a dyn Comments,
+  taken_leading: RefCell<FxHashSet<BytePos>>,
+  taken_trailing: RefCell<FxHashSet<BytePos>>,
+}
+
+impl<'a> PrintedComments<'a> {
+  fn new(comments: &'a dyn Comments) -> Self {
+    PrintedComments {
+      comments,
+      taken_leading: RefCell::default(),
+      taken_trailing: RefCell::default(),
+    }
+  }
+}
+
+impl Comments for PrintedComments<'_> {
+  // Printing doesn't add or move comments.
+  fn add_leading(&self, _: BytePos, _: Comment) {}
+  fn add_leading_comments(&self, _: BytePos, _: Vec<Comment>) {}
+  fn move_leading(&self, _: BytePos, _: BytePos) {}
+  fn add_trailing(&self, _: BytePos, _: Comment) {}
+  fn add_trailing_comments(&self, _: BytePos, _: Vec<Comment>) {}
+  fn move_trailing(&self, _: BytePos, _: BytePos) {}
+  fn add_pure_comment(&self, _: BytePos) {}
+
+  fn has_leading(&self, pos: BytePos) -> bool {
+    !self.taken_leading.borrow().contains(&pos) && self.comments.has_leading(pos)
   }
 
-  Ok((buf, src_map_buf))
+  fn get_leading(&self, pos: BytePos) -> Option<Vec<Comment>> {
+    if self.taken_leading.borrow().contains(&pos) {
+      return None;
+    }
+    self.comments.get_leading(pos)
+  }
+
+  fn take_leading(&self, pos: BytePos) -> Option<Vec<Comment>> {
+    if !self.taken_leading.borrow_mut().insert(pos) {
+      return None;
+    }
+    self.comments.get_leading(pos)
+  }
+
+  fn has_trailing(&self, pos: BytePos) -> bool {
+    !self.taken_trailing.borrow().contains(&pos) && self.comments.has_trailing(pos)
+  }
+
+  fn get_trailing(&self, pos: BytePos) -> Option<Vec<Comment>> {
+    if self.taken_trailing.borrow().contains(&pos) {
+      return None;
+    }
+    self.comments.get_trailing(pos)
+  }
+
+  fn take_trailing(&self, pos: BytePos) -> Option<Vec<Comment>> {
+    if !self.taken_trailing.borrow_mut().insert(pos) {
+      return None;
+    }
+    self.comments.get_trailing(pos)
+  }
+
+  // These are provided as taking the comments and adding them back, which adding can't do here.
+  fn with_leading<F, Ret>(&self, pos: BytePos, f: F) -> Ret
+  where
+    F: FnOnce(&[Comment]) -> Ret,
+  {
+    f(&self.get_leading(pos).unwrap_or_default())
+  }
+
+  fn with_trailing<F, Ret>(&self, pos: BytePos, f: F) -> Ret
+  where
+    F: FnOnce(&[Comment]) -> Ret,
+  {
+    f(&self.get_trailing(pos).unwrap_or_default())
+  }
+
+  fn has_flag(&self, lo: BytePos, flag: &str) -> bool {
+    let comments = SingleThreadedComments::default();
+    if let Some(leading) = self.get_leading(lo) {
+      comments.add_leading_comments(lo, leading);
+    }
+    comments.has_flag(lo, flag)
+  }
+}
+
+/// Generates code for `module`, appending it to `buf`, and its mappings to `src_map_buf`. The
+/// mappings' lines are relative to where the module starts.
+fn emit_module_into(
+  source_map: Lrc<SourceMap>,
+  comments: &dyn Comments,
+  module: &Module,
+  source_maps: bool,
+  minify: bool,
+  buf: &mut Vec<u8>,
+  src_map_buf: &mut SourceMapBuffer,
+) -> Result<(), std::io::Error> {
+  let writer = Box::new(JsWriter::new(
+    source_map.clone(),
+    "\n",
+    buf,
+    if source_maps { Some(src_map_buf) } else { None },
+  ));
+  let config = swc_core::ecma::codegen::Config::default()
+    .with_target(swc_core::ecma::ast::EsVersion::Es5)
+    // Make sure the output works regardless of whether it's loaded with the correct (utf8) encoding
+    .with_ascii_only(true)
+    .with_minify(minify);
+  let mut emitter = swc_core::ecma::codegen::Emitter {
+    cfg: config,
+    comments: Some(comments),
+    cm: source_map,
+    wr: writer,
+  };
+  emitter.emit_module(module)
 }
 
 // Exclude macro expansions from source maps.
@@ -1083,6 +1343,32 @@ mod tests {
       ..Default::default()
     });
     assert!(directive_target(&library, &use_client).is_none());
+  }
+
+  #[test]
+  fn printing_leaves_the_comments() {
+    let result = transform_to_ast(
+      Config {
+        filename: PathId::new(Path::new("index.js")),
+        project_root: PathId::new(Path::new("/")),
+        code: b"// kept\nfoo(); // after\n".to_vec(),
+        ..Default::default()
+      },
+      &parcel_core::MemoryFileSystem::new(),
+      None,
+    )
+    .unwrap();
+    let ast = result.ast;
+
+    // The same asset is printed into each bundle that contains it, or read, e.g. to hash it. Each
+    // comment is printed once, though several nodes start where the leading one is (the program,
+    // the statement, the call and its callee), and several end where the trailing one is.
+    for _ in 0..2 {
+      let (code, _) = ast.to_code(false, None, false).unwrap();
+      let code = String::from_utf8(code).unwrap();
+      assert_eq!(code.matches("// kept").count(), 1);
+      assert_eq!(code.matches("// after").count(), 1);
+    }
   }
 
   #[test]

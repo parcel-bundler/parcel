@@ -3,6 +3,7 @@ mod asset_graph;
 mod bundle;
 mod bundle_graph;
 mod bundler;
+mod chunked_text;
 mod config;
 mod content;
 mod context;
@@ -38,6 +39,7 @@ pub use asset_graph::{AssetGraph, AssetGraphBuilder, AssetIndex, AssetNode, Asse
 pub use bundle::*;
 pub use bundle_graph::*;
 pub use bundler::*;
+pub use chunked_text::{ChunkedText, ChunkedTextContent};
 pub use config::*;
 pub use content::*;
 pub use context::PluginContext;
@@ -263,11 +265,13 @@ impl Parcel {
     deleted: &[PathId],
   ) -> Result<InvalidateResult, DiagnosticList> {
     // JS runtimes cache modules and any state derived from what they read, which can't be
-    // invalidated piecemeal, so their reads are treated like configuration.
+    // invalidated piecemeal, so their reads are treated like configuration. Runtimes record the
+    // same reads again on later builds (e.g. resolving each `require`), so drop the repeats.
     if let Some(tracker) = &self.options.plugin_tracker {
       self
         .config_invalidations
         .add(AssetNodeIndex(0), tracker.take());
+      self.config_invalidations.dedup();
     }
 
     if self.is_config_change(changed, created, deleted) {

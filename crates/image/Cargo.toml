@@ -20,7 +20,8 @@ fast_image_resize = { version = "5.4.0", default-features = false, features = [
   "only_u8x4",
 ] }
 webp = "0.3.1"
-oxipng = { version = "9.1.2", default-features = false, features = [
+# Compresses large images' data on several threads (devongovett/libdeflater's parallel feature).
+oxipng = { git = "https://github.com/devongovett/oxipng", branch = "parallel-deflate", default-features = false, features = [
   "parallel",
 ] }
 mozjpeg-sys = "2.0.0"

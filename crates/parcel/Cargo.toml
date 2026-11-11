@@ -51,7 +51,7 @@ fixedbitset = "0.5.7"
 percent-encoding = "2.2.0"
 either = "1.17.0"
 anstyle = "*"
-parcel_sourcemap = { version = "2.1.1", features = ["json"] }
+parcel_sourcemap = { version = "2.1.2", features = ["json"] }
 unicode-width = "0.2"
 rayon = "1.7.0"
 flate2 = { version = "1.1.9", default-features = false, features = [

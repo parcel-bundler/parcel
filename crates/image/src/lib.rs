@@ -9,6 +9,42 @@ mod jpeg;
 
 pub struct ImageTransformer {}
 
+/// Losslessly recompresses PNG and JPEG bundles in optimized builds. This runs while packaging rather
+/// than in the transformer: it can take a while for a large image, which would otherwise hold up
+/// the asset graph, and so every other bundle.
+pub struct ImageOptimizer {}
+
+impl Optimizer for ImageOptimizer {
+  fn optimize(
+    &self,
+    _bundle_graph: &BundleGraph,
+    bundle: &Bundle,
+    contents: Arc<dyn Content>,
+    _options: &ParcelOptions,
+  ) -> Result<Arc<dyn Content>, DiagnosticList> {
+    if !bundle
+      .target
+      .flags
+      .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+    {
+      return Ok(contents);
+    }
+
+    let optimized = match bundle.ty {
+      AssetType::Png => {
+        let bytes = contents.read()?;
+        oxipng::optimize_from_memory(&bytes, &Default::default()).unwrap_or(bytes)
+      }
+      AssetType::Jpeg => {
+        let bytes = contents.read()?;
+        optimize_jpeg_lossless(&bytes).unwrap_or(bytes)
+      }
+      _ => return Ok(contents),
+    };
+    Ok(Arc::new(BufferContent::new(optimized)))
+  }
+}
+
 impl Transformer for ImageTransformer {
   fn transform(
     &self,
@@ -178,55 +214,8 @@ impl Transformer for ImageTransformer {
       ));
 
       match format.as_ref().unwrap_or(&asset.ty) {
-        AssetType::Png => {
-          if asset
-            .target
-            .flags
-            .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
-          {
-            let png = oxipng::RawImage::new(
-              img.width(),
-              img.height(),
-              match img.color() {
-                image::ColorType::Rgb8 | image::ColorType::Rgb16 | image::ColorType::Rgb32F => {
-                  oxipng::ColorType::RGB {
-                    transparent_color: None,
-                  }
-                }
-                image::ColorType::Rgba8 | image::ColorType::Rgba16 | image::ColorType::Rgba32F => {
-                  oxipng::ColorType::RGBA
-                }
-                image::ColorType::L8 | image::ColorType::L16 => oxipng::ColorType::Grayscale {
-                  transparent_shade: None,
-                },
-                image::ColorType::La8 | image::ColorType::La16 => oxipng::ColorType::GrayscaleAlpha,
-                _ => unreachable!(),
-              },
-              match img.color() {
-                image::ColorType::Rgb8
-                | image::ColorType::Rgba8
-                | image::ColorType::L8
-                | image::ColorType::La8 => oxipng::BitDepth::Eight,
-                image::ColorType::Rgb16
-                | image::ColorType::Rgba16
-                | image::ColorType::L16
-                | image::ColorType::La16 => oxipng::BitDepth::Sixteen,
-                _ => unreachable!(),
-              },
-              img.into_bytes(),
-            )
-            .map_err(|e| Diagnostic::from_message(e.to_string()))?;
-            let res = png
-              .create_optimized_png(&Default::default())
-              .map_err(|e| Diagnostic::from_message(e.to_string()))?;
-            *output.get_mut() = res;
-          } else {
-            img
-              .write_with_encoder(image::codecs::png::PngEncoder::new(&mut output))
-              .map_err(|e| Diagnostic::from_message(e.to_string()))?;
-          }
-          Ok(())
-        }
+        // Recompressed by `ImageOptimizer` when packaging.
+        AssetType::Png => img.write_with_encoder(image::codecs::png::PngEncoder::new(&mut output)),
         AssetType::Jpeg => {
           img.write_with_encoder(MozJpegEncoder::new(&mut output, quality.unwrap_or(80)))
         }
@@ -259,25 +248,8 @@ impl Transformer for ImageTransformer {
       if let Some(format) = format {
         asset.ty = format;
       }
-    } else if asset
-      .target
-      .flags
-      .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
-    {
-      match &asset.ty {
-        AssetType::Png => {
-          let bytes = asset.content.read()?;
-          let result = oxipng::optimize_from_memory(&bytes, &Default::default()).unwrap_or(bytes);
-          asset.content = Arc::new(BufferContent::new(result));
-        }
-        AssetType::Jpeg => {
-          let bytes = asset.content.read()?;
-          let result = optimize_jpeg_lossless(&bytes).unwrap_or(bytes);
-          asset.content = Arc::new(BufferContent::new(result));
-        }
-        _ => {}
-      }
     }
+    // PNG and JPEG are recompressed by `ImageOptimizer` when packaging.
 
     Ok(asset)
   }

@@ -865,24 +865,14 @@ fn add_conflict_frame(
   diagnostic: &mut Diagnostic,
   loc: &parcel_core::SourceLocation,
   importer: &Asset,
-  mut message: String,
+  message: String,
   options: &ParcelOptions,
 ) {
-  let original = loc
+  let code = loc
     .url
     .to_file_path()
     .ok()
     .and_then(|path| options.input_fs.read_to_string(path).ok());
-  let source = (loc.url == importer.loc.url)
-    .then(|| parcel_js::diagnostic_source(importer))
-    .flatten();
-  if source
-    .as_ref()
-    .is_some_and(|code| original.as_ref() != Some(code))
-  {
-    message.push_str(" (transformed source)");
-  }
-  let code = source.or(original);
   let highlight = CodeHighlight::from_loc(loc, Some(message));
   if diagnostic.code_frames.iter().any(|f| {
     f.url.as_ref() == Some(&loc.url) && f.code == code && f.code_highlights.contains(&highlight)

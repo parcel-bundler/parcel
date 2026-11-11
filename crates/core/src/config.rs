@@ -122,6 +122,31 @@ impl<T: ?Sized> PipelineMap<T> {
     }
   }
 
+  /// Like `get`, but a named pipeline that has no entry for `path` falls back to the unnamed
+  /// patterns rather than to no plugins. For optimizers: a bundle whose main asset was imported
+  /// through a named pipeline, e.g. `url:./image.png`, is optimized like any other unless the
+  /// config gives that pipeline its own optimizers.
+  pub fn get_or_unnamed<'a, P: AsRef<str>>(
+    &'a self,
+    path: Cow<'a, str>,
+    pipeline: &Option<P>,
+  ) -> Pipeline<'a, T> {
+    let pipeline = pipeline
+      .as_ref()
+      .map(|pipeline| pipeline.as_ref())
+      .filter(|pipeline| {
+        let basename = Path::new(&*path)
+          .file_name()
+          .and_then(OsStr::to_str)
+          .unwrap_or(&path);
+        self
+          .0
+          .iter()
+          .any(|(pattern, _)| is_match(pattern, &path, basename, pipeline))
+      });
+    self.get(path, &pipeline)
+  }
+
   /// The pipeline to transform the file at `path` with when it is imported as `import_type`, given
   /// the `pipeline` it was resolved with. A JavaScript import without a named pipeline uses the
   /// `js` pipeline where one applies, e.g. to turn JSON into a module. A JavaScript import must
@@ -573,6 +598,30 @@ mod tests {
         .get("app.js".into(), &Some("missing"))
         .next()
         .is_none()
+    );
+  }
+
+  #[test]
+  fn get_or_unnamed_falls_back_when_a_named_pipeline_has_no_entry() {
+    let pipelines = PipelineMap(vec![
+      (
+        "data-url:*".into(),
+        vec![PipelineNode::Spread, plugin("data-url")],
+      ),
+      ("*.png".into(), vec![plugin("image")]),
+    ]);
+
+    assert_eq!(
+      names(pipelines.get_or_unnamed("a.png".into(), &Some("url"))),
+      ["image"]
+    );
+    assert_eq!(
+      names(pipelines.get_or_unnamed("a.png".into(), &Some("data-url"))),
+      ["image", "data-url"]
+    );
+    assert_eq!(
+      names(pipelines.get_or_unnamed::<&str>("a.png".into(), &None)),
+      ["image"]
     );
   }
 

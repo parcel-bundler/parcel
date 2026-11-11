@@ -9,7 +9,7 @@ use parcel_resolver::{AliasValue, BrowserField, Specifier};
 use serde::{Deserialize, Deserializer, de::Error};
 use swc_core::ecma::react_compiler::{CompilerTarget, GatingConfig, default_plugin_options};
 
-use crate::JsContent;
+use crate::{GeneratedCode, JsContent, JsOutput};
 
 #[derive(Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -288,17 +288,39 @@ impl Transformer for JsTransformer {
     asset
       .flags
       .set(AssetFlags::HAS_TOP_LEVEL_AWAIT, res.has_top_level_await);
+    let output = if JsContent::keeps_ast(&asset.target) {
+      let mut ast = res.ast;
+      // Minified output has no comments: swc's minifier and code generator print every comment
+      // they're given.
+      if asset
+        .target
+        .flags
+        .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+      {
+        ast.comments = Default::default();
+      }
+      JsOutput::Ast {
+        ast,
+        input_source_map,
+      }
+    } else {
+      JsOutput::Code(GeneratedCode::new(
+        res.ast,
+        input_source_map.as_ref(),
+        asset.target.source_map.is_some(),
+        res.esm_prologue_len,
+      )?)
+    };
     asset.content = Arc::new(JsContent {
       source_size,
-      ast: res.ast,
+      output,
       shebang: res.shebang,
       directives,
       rsc_runtime_dep,
       needs_filename: res.needs_filename,
       needs_dirname: res.needs_dirname,
       esm_prologue_len: res.esm_prologue_len,
-      react_refresh_wrapped: res.react_refresh_wrapped,
-      input_source_map,
+      react_refresh: res.react_refresh,
     });
     Ok(asset)
   }
@@ -312,7 +334,10 @@ fn config(
 ) -> Result<Config, Diagnostic> {
   let resolver = parcel_resolver::Resolver::parcel(options.project_root);
 
-  let pkg = resolver.find_package(asset.loc.url.to_file_path()?, &**fs);
+  // From the asset's directory: starting at the file itself would first look for
+  // `<file>/package.json`, a wasted file system probe per asset.
+  let path = asset.loc.url.to_file_path()?;
+  let pkg = resolver.find_package(path.parent().unwrap_or(path), &**fs);
   let mut react_refresh = false;
   let mut jsx_pragma = None;
   let mut jsx_pragma_frag = None;
@@ -401,10 +426,15 @@ fn config(
           }
         }
 
-        // React Refresh updates components in place over HMR. The transformer further limits it
+        // React Refresh updates components in place over HMR, in unoptimized output (whose
+        // modules the packager wraps as text, see `refresh`). The transformer further limits it
         // to browser code (see `Config::react_refresh`).
         react_refresh = options.mode == BuildMode::Development
           && options.hmr.is_some()
+          && !asset
+            .target
+            .flags
+            .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
           && pkg.has_dependency("react");
       }
     }
@@ -591,6 +621,7 @@ fn config(
     decorators,
     use_define_for_class_fields,
     is_development: options.mode == BuildMode::Development,
+    hmr: options.hmr.is_some(),
     react_refresh,
     react_compiler,
     trace_bailouts: options.log_level == LogLevel::Verbose,

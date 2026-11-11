@@ -10,7 +10,7 @@ use parcel_core::{
 };
 use parcel_css::{CssTransformer, StyleAttrTransformer};
 use parcel_html::{HtmlTransformer, SvgToJsxTransformer, SvgTransformer, XmlTransformer};
-use parcel_image::ImageTransformer;
+use parcel_image::{ImageOptimizer, ImageTransformer};
 use parcel_js::JsTransformer;
 use parcel_plugin_abi::{
   CPlugin, PARCEL_ABI_VERSION, PluginKind,
@@ -150,6 +150,7 @@ impl PluginFactory for DefaultPluginFactory {
   ) -> Result<Arc<dyn Optimizer>, DiagnosticList> {
     match name {
       "@parcel/optimizer-data-url" => Ok(Arc::new(DataUrlOptimizer {})),
+      "@parcel/optimizer-image" => Ok(Arc::new(ImageOptimizer {})),
       _ => Ok(
         match self.resolve_plugin(PluginKind::Optimizer, name, from, config)? {
           ResolvedPlugin::Native(plugin) => plugin,

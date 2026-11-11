@@ -395,11 +395,11 @@ fn plugin_fs_reads_are_tracked_by_the_plugin_tracker() {
       )
       .unwrap();
     assert_eq!(result.content.read().unwrap(), value.as_bytes());
-    assert!(
-      plugin_tracker
-        .take()
-        .invalidate_on_file_change
-        .contains(&config_path)
+    // Recorded once per take, however often it's read.
+    let recorded = plugin_tracker.take().invalidate_on_file_change;
+    assert_eq!(
+      recorded.iter().filter(|path| **path == config_path).count(),
+      1
     );
     assert!(asset_tracker.take().invalidate_on_file_change.is_empty());
   }

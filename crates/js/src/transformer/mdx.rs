@@ -6,7 +6,7 @@ use path_slash::PathExt;
 use crate::{
   runtime_modules::MDX_COMPONENTS,
   transformer::{
-    Config,
+    Config, ModuleComments,
     utils::{CodeHighlight, Diagnostic, DiagnosticSeverity, diagnostic},
   },
 };
@@ -39,11 +39,10 @@ use swc_core::{
   },
   quote,
 };
-use swc_node_comments::SwcComments;
 
 pub struct MdxResult {
   pub module: Module,
-  pub comments: SwcComments,
+  pub comments: ModuleComments,
   pub assets: Vec<MdxAsset>,
 }
 
@@ -121,7 +120,7 @@ fn compile(config: &Config) -> Result<MdxResult, Message> {
   mdx_plugin_recma_document(&mut program, &options, Some(&location))?;
   mdx_plugin_recma_jsx_rewrite(&mut program, &options, Some(&location), &explicit_jsxs)?;
 
-  let comments = SwcComments::default();
+  let comments = ModuleComments::default();
   for c in program.comments {
     comments.add_leading(c.span.lo, c.clone());
   }

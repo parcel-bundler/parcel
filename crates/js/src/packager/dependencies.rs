@@ -240,7 +240,8 @@ pub fn asset_dependencies<'a>(
   bundle_graph: &'a BundleGraph,
   bundle: Option<&'a Bundle>,
   additional_assets: &mut IndexSet<SyntheticAsset>,
-  get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+  // Only library builds embed inline bundles' content in their dependencies' resolutions.
+  get_inline_bundle_content: Option<&dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>>,
   project_root: &PathId,
 ) -> Result<IndexMap<String, Resolution<'a>>, DiagnosticList> {
   let mut dependencies = IndexMap::new();
@@ -417,6 +418,14 @@ pub fn asset_dependencies<'a>(
           if dep.bundle_behavior == BundleBehavior::Inline
             || resolved_bundle.bundle_behavior == BundleBehavior::Inline
           {
+            let Some(get_inline_bundle_content) = get_inline_bundle_content else {
+              return Err(
+                Diagnostic::from_message(
+                  "Inline bundle content is only available when packaging a library".into(),
+                )
+                .into(),
+              );
+            };
             let content = get_inline_bundle_content(bundle_index as usize).unwrap();
             let resolution = match dep.import_type {
               ImportType::Bytes => Resolution::Bytes(content.read()?),

@@ -1,0 +1,42 @@
+[
+  {
+    "description": "should keep source comments in development builds",
+    "input": "src/index.js",
+    "bundles": [
+      {
+        "assets": ["dep.js", "esmodule-helpers.js", "index.js"],
+        "contains": [
+          "legal banner",
+          "a regular line comment",
+          "a doc block comment",
+          "a comment in a dependency",
+          "a trailing comment"
+        ],
+        "notContains": [
+          "dep.js.map",
+          "dep-source.js",
+          "dep-legacy.js.map"
+        ]
+      }
+    ],
+    "output": 1
+  },
+  {
+    "description": "should not keep comments in minified builds",
+    "input": "src/index.js",
+    "options": {"mode": "production"},
+    "bundles": [
+      {
+        "assets": ["dep.js", "esmodule-helpers.js", "index.js"],
+        "notContains": [
+          "legal banner",
+          "a regular line comment",
+          "a doc block comment",
+          "a comment in a dependency",
+          "a trailing comment"
+        ]
+      }
+    ],
+    "output": 1
+  }
+]

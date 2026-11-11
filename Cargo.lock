@@ -472,7 +472,7 @@ checksum = "36f64beae40a84da1b4b26ff2761a5b895c12adc41dc25aaee1c4f2bbfe97a6e"
 
 [[package]]
 name = "browserslist-rs"
-version = "0.21.2"
+version = "0.22.0"
 dependencies = [
  "oxc-browserslist",
  "serde",
@@ -2244,20 +2244,19 @@ checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
 
 [[package]]
 name = "libdeflate-sys"
-version = "1.25.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72753e0008ea87963d2f0770042d0df7abe51fafbb8dcaf618ac440f2f1fec0a"
+version = "1.26.1"
+source = "git+https://github.com/devongovett/libdeflater?branch=parallel#9bf65c02052b972151d40866c2fff5eab36d8ddd"
 dependencies = [
  "cc",
 ]
 
 [[package]]
 name = "libdeflater"
-version = "1.25.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1ee41cf6fb1bb6030dfb59ffb7bc01ab26aade44142084c87f0fc7a1658fe71"
+version = "1.26.1"
+source = "git+https://github.com/devongovett/libdeflater?branch=parallel#9bf65c02052b972151d40866c2fff5eab36d8ddd"
 dependencies = [
  "libdeflate-sys",
+ "rayon",
 ]
 
 [[package]]
@@ -2458,7 +2457,7 @@ dependencies = [
 [[package]]
 name = "mdxjs"
 version = "1.0.4"
-source = "git+https://github.com/devongovett/mdxjs-rs.git?branch=swc-83#0804da2af1e92fd68d9b92c53a83e121d326b9e1"
+source = "git+https://github.com/vercel-labs/mdxjs-rs-turbopack.git?branch=turbopack#700e192fbdbad5874208addfbf421dcf1eca7a20"
 dependencies = [
  "markdown",
  "rustc-hash",
@@ -2857,12 +2856,9 @@ dependencies = [
 
 [[package]]
 name = "oxipng"
-version = "9.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26c613f0f566526a647c7473f6a8556dbce22c91b13485ee4b4ec7ab648e4973"
+version = "10.2.1"
+source = "git+https://github.com/devongovett/oxipng?branch=parallel-deflate#ef7589cc9571694a7dd87b62c2eaac653b0ff78b"
 dependencies = [
- "bitvec",
- "crossbeam-channel",
  "indexmap 2.14.0",
  "libdeflater",
  "log",
@@ -2874,7 +2870,7 @@ dependencies = [
 [[package]]
 name = "oxvg_ast"
 version = "0.0.9"
-source = "git+https://github.com/devongovett/oxvg.git?branch=lightningcss-master-external-references#644c2809db5478122425c992e7a2af8dee2924ed"
+source = "git+https://github.com/devongovett/oxvg.git?branch=attr-id-index#a833165590d57c57b8eb7ab331cb58350b2efa19"
 dependencies = [
  "bitflags 2.13.1",
  "cfg-if",
@@ -2898,7 +2894,7 @@ dependencies = [
 [[package]]
 name = "oxvg_collections"
 version = "0.0.9"
-source = "git+https://github.com/devongovett/oxvg.git?branch=lightningcss-master-external-references#644c2809db5478122425c992e7a2af8dee2924ed"
+source = "git+https://github.com/devongovett/oxvg.git?branch=attr-id-index#a833165590d57c57b8eb7ab331cb58350b2efa19"
 dependencies = [
  "bitflags 2.13.1",
  "cssparser",
@@ -2915,7 +2911,7 @@ dependencies = [
 [[package]]
 name = "oxvg_optimiser"
 version = "0.0.9"
-source = "git+https://github.com/devongovett/oxvg.git?branch=lightningcss-master-external-references#644c2809db5478122425c992e7a2af8dee2924ed"
+source = "git+https://github.com/devongovett/oxvg.git?branch=attr-id-index#a833165590d57c57b8eb7ab331cb58350b2efa19"
 dependencies = [
  "anyhow",
  "bitflags 2.13.1",
@@ -2944,7 +2940,7 @@ dependencies = [
 [[package]]
 name = "oxvg_parse"
 version = "0.0.9"
-source = "git+https://github.com/devongovett/oxvg.git?branch=lightningcss-master-external-references#644c2809db5478122425c992e7a2af8dee2924ed"
+source = "git+https://github.com/devongovett/oxvg.git?branch=attr-id-index#a833165590d57c57b8eb7ab331cb58350b2efa19"
 dependencies = [
  "cssparser",
  "lightningcss",
@@ -2953,7 +2949,7 @@ dependencies = [
 [[package]]
 name = "oxvg_path"
 version = "0.0.9"
-source = "git+https://github.com/devongovett/oxvg.git?branch=lightningcss-master-external-references#644c2809db5478122425c992e7a2af8dee2924ed"
+source = "git+https://github.com/devongovett/oxvg.git?branch=attr-id-index#a833165590d57c57b8eb7ab331cb58350b2efa19"
 dependencies = [
  "bitflags 2.13.1",
  "geo",
@@ -2971,7 +2967,7 @@ dependencies = [
 [[package]]
 name = "oxvg_serialize"
 version = "0.0.9"
-source = "git+https://github.com/devongovett/oxvg.git?branch=lightningcss-master-external-references#644c2809db5478122425c992e7a2af8dee2924ed"
+source = "git+https://github.com/devongovett/oxvg.git?branch=attr-id-index#a833165590d57c57b8eb7ab331cb58350b2efa19"
 dependencies = [
  "cssparser",
  "lightningcss",
@@ -3106,6 +3102,7 @@ dependencies = [
  "serde_json",
  "sha2-const-stable",
  "smallvec",
+ "thread_local",
  "url",
  "xxhash-rust",
 ]
@@ -3216,7 +3213,6 @@ dependencies = [
  "serde_json",
  "simd-utf16-len",
  "swc_core",
- "swc_node_comments",
 ]
 
 [[package]]
@@ -3349,9 +3345,9 @@ dependencies = [
 
 [[package]]
 name = "parcel_sourcemap"
-version = "2.1.1"
+version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "485b74d7218068b2b7c0e3ff12fbc61ae11d57cb5d8224f525bd304c6be05bbb"
+checksum = "8903065c1579cf9f38ee9caca6336d43d990f2a0ebc8e27045c6130fb29a00fb"
 dependencies = [
  "base64-simd 0.7.0",
  "data-url",
@@ -3727,9 +3723,9 @@ dependencies = [
 
 [[package]]
 name = "preset_env_base"
-version = "10.0.0"
+version = "11.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d994992e153a53166f8ceb44da6494f8eb5fa8057daa2d45e0947ac2f96cafa0"
+checksum = "a404b6c79afe9e6b1dd00aa8a9d528c913f4f5b2f716196f780025ab81400cef"
 dependencies = [
  "anyhow",
  "browserslist-rs",
@@ -5101,9 +5097,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "83.1.1"
+version = "84.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e00aaed696c80c926c4e75218e67a7ad4f8e00ee25f5b75acd470a1f323afdf7"
+checksum = "4e46e978a10163a1f7dc48174fa003262f8d675a1a87e7c35b2887e273edeb0d"
 dependencies = [
  "swc_allocator",
  "swc_atoms",
@@ -5128,9 +5124,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_ast"
-version = "30.0.1"
+version = "30.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6984a0dd5f7e0bde49a1f0a26b58a3258efb15f5a22baa340f0656fb7bd6b537"
+checksum = "86bef17958307218ffee375556423bd47a82deb8f6ef8b54bc5a4086958cd1d1"
 dependencies = [
  "bitflags 2.13.1",
  "is-macro",
@@ -5382,9 +5378,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_minifier"
-version = "64.0.1"
+version = "64.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1dcb9e441bd94edf0f179c30bc44b07a1894e4f2a1978126ad298f155e33adee"
+checksum = "c6470574261933520880ddc497cfba99b91ddba6ef537003277d49c863d3c67e"
 dependencies = [
  "arrayvec",
  "bitflags 2.13.1",
@@ -5417,9 +5413,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_parser"
-version = "47.0.0"
+version = "47.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ad049339465686a7526cba8e355a13f7422a66dd05f3e0887f33fed84fba69a"
+checksum = "e2df5fd9367abbe9d4d2db5608df599b1d9f425a690e4ca61b304f7a23961410"
 dependencies = [
  "bitflags 2.13.1",
  "either",
@@ -5436,9 +5432,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_preset_env"
-version = "67.0.0"
+version = "68.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd47e9b64682008313f6dc4e9b123442a09eaad446289063e7b6c3c3b0170622"
+checksum = "ae4be113c31b82dfaa660d7cab3083e1003e300862c1338505bd23830b9c232a"
 dependencies = [
  "anyhow",
  "foldhash 0.1.5",
@@ -5618,9 +5614,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_compat"
-version = "59.0.0"
+version = "59.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c3af9cb408afe630122d6f1d453d64e217937dd0161f41d50526b6c1ad0cb12"
+checksum = "2b540ee32411a2493aa28d4782f35401539924359dfa23fd7f731f3811716d67"
 dependencies = [
  "indexmap 2.14.0",
  "par-core",
@@ -5658,9 +5654,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_module"
-version = "58.0.0"
+version = "58.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c6b42adde1263a93caf9ae5254190a7181518563afd4173fd34082ecf47c3eb"
+checksum = "f6bc372efddc294640bfd10ee2a5ae6225da76d411d9e7c5c492b77b064af06e"
 dependencies = [
  "Inflector",
  "anyhow",
@@ -5729,9 +5725,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_react"
-version = "57.0.1"
+version = "57.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "902c431638325e07e6badf3e963da70a1c14b255ae2ce9618ae685d84295e3d7"
+checksum = "976dc553655e405a6879d9c2d5977bb76165a7a2ab249d5687768632ffb86c66"
 dependencies = [
  "base64 0.22.1",
  "bytes-str",
@@ -5754,9 +5750,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_typescript"
-version = "57.0.2"
+version = "57.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4e22c2a48fa5597d536a153a8b1831a587b177e0ef6b19954ffcfeb6ab01e12"
+checksum = "8ec0a0850a03db3a20d2950f8217f27edab0cab6bf941a4f5d15ec944fab88c2"
 dependencies = [
  "bytes-str",
  "rustc-hash",
@@ -5829,22 +5825,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "swc_node_comments"
-version = "28.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05d538da0d42288caadfb4b9e189040312324362994b13adb619fea222e4bfcb"
-dependencies = [
- "dashmap",
- "rustc-hash",
- "swc_atoms",
- "swc_common",
-]
-
-[[package]]
 name = "swc_sourcemap"
-version = "10.0.2"
+version = "10.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c421e5e39e43a4b1b70c07922d7bffd5c22e8eff1340c0b15d0bfd0328822ee"
+checksum = "df9ce7c46dc9730284761c88b34d15a8cfbaf40884705f3deec65b9493765ac8"
 dependencies = [
  "base64-simd 0.8.0",
  "bitvec",

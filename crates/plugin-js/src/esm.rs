@@ -15,7 +15,6 @@ use parcel_resolver::ModuleType;
 use rquickjs::{
   Ctx, Module,
   loader::{Loader, Resolver},
-  module::WriteOptions,
 };
 
 pub fn create_esm_loader(
@@ -181,7 +180,7 @@ impl Loader for ModuleLoader {
         if name.ends_with(".css") {
           Module::declare(ctx.clone(), name, "")?
         } else {
-          let mut source = self
+          let source = self
             .fs
             .read_to_string(PathId::new(Path::new(name)))
             .map_err(|e| rquickjs::Error::Loading {
@@ -189,31 +188,21 @@ impl Loader for ModuleLoader {
               message: Some(e.to_string()),
             })?;
 
-          // Another thread may already have compiled this module (including any TypeScript
-          // transpilation); if so, deserialize its bytecode instead of re-parsing.
+          // Transpiled and compiled by the first thread to load this module, and by any that
+          // load it meanwhile; later ones deserialize its bytecode (see `declare_module`).
           let source_hash = bytecode::source_hash(&source);
-          if let Some(bytes) = bytecode::get(bytecode::Kind::Module, name, source_hash) {
-            // SAFETY: the bytes were produced by `Module::write` below for this same source.
-            unsafe { Module::load(ctx.clone(), &bytes)? }
-          } else {
+          bytecode::declare_module(ctx, name, source_hash, || {
             if name.ends_with(".ts") || name.ends_with(".tsx") {
-              source = crate::transpile::transpile_ts(name, source, ModuleKind::Esm).map_err(
-                |message| rquickjs::Error::Loading {
+              crate::transpile::transpile_ts(name, source, ModuleKind::Esm).map_err(|message| {
+                rquickjs::Error::Loading {
                   name: name.into(),
                   message: Some(message),
-                },
-              )?;
+                }
+              })
+            } else {
+              Ok(source)
             }
-
-            let module = Module::declare(ctx.clone(), name, source)?;
-            bytecode::insert(
-              bytecode::Kind::Module,
-              name,
-              source_hash,
-              module.write(WriteOptions::default())?.into(),
-            );
-            module
-          }
+          })?
         }
       }
       ModuleType::CommonJs => self.load_cjs(ctx, name)?,

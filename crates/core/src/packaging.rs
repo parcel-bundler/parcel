@@ -27,6 +27,10 @@ use crate::{
 /// Packaged inline bundles, keyed by bundle index and the directory the content was packaged for.
 pub type InlineBundleCache = papaya::HashMap<(usize, PathId), Arc<Mutex<Option<Arc<dyn Content>>>>>;
 
+fn inline_bundle_cache() -> InlineBundleCache {
+  crate::path::read_mostly_map()
+}
+
 /// The previous build's output for a bundle, keyed by its template dist path.
 pub(crate) struct PrevBundle {
   /// The bundle's assets, sorted.
@@ -83,7 +87,7 @@ fn packaging_plan(
   let name = bundle.dist_path.unwrap().relative(&bundle.target.dist_dir);
   let optimizers: Vec<_> = config
     .optimizers
-    .get(Cow::Borrowed(name.to_str().unwrap()), &pipeline)
+    .get_or_unnamed(Cow::Borrowed(name.to_str().unwrap()), &pipeline)
     .collect();
 
   let mut declared = content.bundle_dependencies(bundle_graph, bundle);
@@ -352,7 +356,7 @@ pub(crate) fn package_bundles(
     components: &components,
     dependents: &dependents,
     remaining: remaining.into_iter().map(AtomicUsize::new).collect(),
-    cache: InlineBundleCache::new(),
+    cache: inline_bundle_cache(),
     content_hashes: (0..bundles.len()).map(|_| OnceLock::new()).collect(),
     written_paths: Mutex::new(written_paths),
     error: Mutex::new(None),
@@ -472,7 +476,7 @@ impl<'a, 'g> Scheduler<'a, 'g> {
     for &member in members {
       bundles[member].name_state.mark_provisional();
     }
-    let first_pass_cache = InlineBundleCache::new();
+    let first_pass_cache = inline_bundle_cache();
     let first_pass = members
       .par_iter()
       .map(|&member| self.package(member, &first_pass_cache))
@@ -506,7 +510,7 @@ impl<'a, 'g> Scheduler<'a, 'g> {
       .iter()
       .any(|&member| bundles[member].dist_path() != bundles[member].dist_path.unwrap())
     {
-      let second_pass_cache = InlineBundleCache::new();
+      let second_pass_cache = inline_bundle_cache();
       members
         .par_iter()
         .map(|&member| self.package(member, &second_pass_cache))

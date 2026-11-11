@@ -1,18 +1,15 @@
-use std::{cell::RefCell, rc::Rc};
-
 use swc_core::{
-  common::{
-    BytePos, SourceMap, Span,
-    comments::{SingleThreadedComments, SingleThreadedCommentsMapInner},
-  },
+  common::{BytePos, SourceMap, Span},
   ecma::{
     ast::Program,
     react_compiler::{PluginOptions, SourceType, diagnostics::Severity, fast_check, transform},
   },
 };
-use swc_node_comments::SwcComments;
 
-use super::utils::{Diagnostic, DiagnosticSeverity, diagnostic, highlight};
+use super::{
+  ModuleComments,
+  utils::{Diagnostic, DiagnosticSeverity, diagnostic, highlight},
+};
 
 pub struct ReactCompilerResult {
   /// The compiled program, or None if the compiler made no changes.
@@ -28,7 +25,7 @@ pub struct ReactCompilerResult {
 pub fn react_compiler(
   program: &Program,
   code: &str,
-  comments: &SwcComments,
+  comments: &ModuleComments,
   source_map: &SourceMap,
   is_type_script: bool,
   react_refresh: bool,
@@ -59,21 +56,9 @@ pub fn react_compiler(
     options.source_code = Some(code.to_owned());
   }
 
-  // The compiler reads lint suppressions from comments.
-  let leading: SingleThreadedCommentsMapInner = comments
-    .leading
-    .iter()
-    .map(|entry| (*entry.key(), entry.value().clone()))
-    .collect();
-  let trailing: SingleThreadedCommentsMapInner = comments
-    .trailing
-    .iter()
-    .map(|entry| (*entry.key(), entry.value().clone()))
-    .collect();
-  let comments = SingleThreadedComments::from_leading_and_trailing(
-    Rc::new(RefCell::new(leading)),
-    Rc::new(RefCell::new(trailing)),
-  );
+  // The compiler reads lint suppressions from comments. It gets a copy, so that what it adds
+  // doesn't reach the passes after it.
+  let comments = comments.to_single_threaded();
 
   let source_type = SourceType::from_program(program).with_typescript(is_type_script);
   let result = transform(program, source_type, code, Some(&comments), options);

@@ -42,12 +42,12 @@ impl JsContent {
       bundle_graph,
       Some(bundle),
       &mut synthetic_assets,
-      get_inline_bundle_content,
+      Some(get_inline_bundle_content),
       &options.project_root,
     )?;
 
     let (code, map) = if let Some(content) = asset.content.downcast_ref::<JsContent>() {
-      let mut ast = content.ast.clone();
+      let mut ast = content.ast()?.clone();
       if let Some(shebang) = &content.shebang {
         ast.program.shebang = Some(shebang.as_str().into());
       }

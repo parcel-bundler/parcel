@@ -134,7 +134,8 @@ fn join(base: &Path, path: &Path) -> PathBuf {
 
 /// Remaps the mappings in `map_json` that point into `source` through `input`,
 /// leaving mappings into other sources untouched. Mappings with no counterpart
-/// in the input map are dropped. The result has `source_root` as its `sourceRoot`, like `map_json`.
+/// in the input map are dropped. The result has `source_root` as its `sourceRoot`, like `map_json`,
+/// and none without one.
 pub fn compose_source_map(
   map_json: &str,
   source: &str,
@@ -203,4 +204,28 @@ fn copy_location(
     source,
     name,
   ))
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn composed_maps_only_have_a_source_root_if_given_one() {
+    let map = r#"{"version":3,"sources":["a.js"],"names":[],"mappings":"AAAA"}"#;
+    let input = SourceMap::from_json(
+      "/",
+      r#"{"version":3,"sources":["a.ts"],"names":[],"mappings":"AAAA"}"#,
+    )
+    .unwrap();
+
+    let composed: serde_json::Value =
+      serde_json::from_str(&compose_source_map(map, "a.js", &input, None).unwrap()).unwrap();
+    assert!(composed.get("sourceRoot").is_none());
+    assert_eq!(composed["sources"], serde_json::json!(["a.ts"]));
+
+    let composed: serde_json::Value =
+      serde_json::from_str(&compose_source_map(map, "a.js", &input, Some("../")).unwrap()).unwrap();
+    assert_eq!(composed["sourceRoot"], "../");
+  }
 }
