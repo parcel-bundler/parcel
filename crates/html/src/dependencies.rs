@@ -126,26 +126,42 @@ pub fn collect_dependencies<'arena>(
     });
   }
 
+  // Pages without module scripts get an empty script, so that they include the HMR runtime and
+  // reload when they change.
   if hmr && !collector.has_module_scripts {
     if let Some(body) = dom.find(expanded_name!(html "body")) {
-      let key: StrTendril = "hmr.js".into();
-      let src = collector.add_dep(key.clone(), false, Priority::Parallel, 0, None);
-      collector.assets.push(Asset {
-        ty: AssetType::Js,
-        content: Arc::new(BufferContent::new(Vec::new())),
-        unique_key: Some(key.to_string().into()),
-        flags: AssetFlags::empty(),
-        target: collector.target.clone(),
-        bundle_behavior: BundleBehavior::None,
-        loc: SourceLocation {
-          url: collector.url.clone(),
-          start: Default::default(),
-          end: Default::default(),
-        },
-        pipeline: None,
-        dependencies: Vec::new(),
-        symbols: AssetSymbols::default(),
-      });
+      let target = collector.create_env(OutputFormat::Global, SourceType::Module);
+      let mut dep = Dependency {
+        specifier: "hmr.js".into(),
+        specifier_type: SpecifierType::Url,
+        priority: Priority::Parallel,
+        target: target.clone(),
+        flags: DependencyFlags::empty(),
+        bundle_behavior: BundleBehavior::Isolated,
+        import_type: ImportType::Url,
+        placeholder: Default::default(),
+        loc: None,
+        resolve_from: Some(collector.url.clone()),
+        range: None,
+        conditions: ExportsCondition::empty(),
+        resolution: DependencyResolution::Deferred(Arc::new(AssetRequest {
+          loc: SourceLocation {
+            url: collector.url.clone(),
+            start: Default::default(),
+            end: Default::default(),
+          },
+          ty: AssetType::Js,
+          content: Arc::new(BufferContent::new(Vec::new())),
+          pipeline: None,
+          target,
+          side_effects: true,
+          unique_key: Some("hmr.js".into()),
+        })),
+        concurrent_group: 0,
+        custom_conditions: Default::default(),
+      };
+      let src: StrTendril = dep.set_placeholder().into();
+      collector.deps.push(dep);
 
       let script = NodeData::Element {
         name: QualName::new(None, ns!(html), local_name!("script")),

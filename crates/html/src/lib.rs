@@ -516,7 +516,7 @@ impl Transformer for HtmlTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    _ctx: &parcel_core::PluginContext,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
     asset.target = Target::normalize(&asset.target, &asset.ty);
     let code = asset.content.read()?;
@@ -524,8 +524,9 @@ impl Transformer for HtmlTransformer {
       code,
       url: asset.loc.url.clone(),
       xml: asset.ty == AssetType::Xhtml,
+      // Pages without module scripts get one, so that they include the HMR runtime and reload.
+      hmr: ctx.options.hmr.is_some() && asset.target.environment.is_browser(),
       target: asset.target.clone(),
-      hmr: false,
     });
 
     if !res.errors.is_empty() {

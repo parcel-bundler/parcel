@@ -6,8 +6,8 @@ use std::{
 
 use indexmap::{IndexMap, IndexSet};
 use parcel_core::{
-  Asset, AssetIndex, AssetType, BundleGraph, OutputFormat, ParcelConfig, ParcelOptions, PathId,
-  get_bundle_content,
+  Asset, AssetIndex, AssetType, BundleBehavior, BundleGraph, OutputFormat, ParcelConfig,
+  ParcelOptions, PathId, get_bundle_content,
 };
 
 use parcel_css::css_module_export_sources;
@@ -73,6 +73,18 @@ pub fn get_hmr_update<'a>(
     .iter()
     .any(|(id, _)| bundle_graph.is_async_asset(*id))
   {
+    return HmrUpdate::Reload;
+  }
+
+  // The runtime can't update a page's HTML in place, nor non-JS content inlined into it, such as
+  // `<style>` elements and `style` attributes.
+  if changed_assets.iter().any(|(id, asset)| {
+    matches!(asset.ty, AssetType::Html | AssetType::Xhtml)
+      || (asset.ty != AssetType::Js
+        && bundle_graph.bundles.iter().any(|bundle| {
+          bundle.bundle_behavior == BundleBehavior::Inline && bundle.assets.contains(id)
+        }))
+  }) {
     return HmrUpdate::Reload;
   }
 
