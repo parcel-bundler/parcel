@@ -74,8 +74,10 @@ pub(super) fn plan(
   });
 
   let mut contexts = vec![OrderedContent::default(); bundle_roots.len()];
-  for (root_index, root_asset) in bundle_roots.iter_active() {
-    contexts[root_index] = analysis.for_context(root_asset, |asset| {
+  // A root of several concurrently imported members loads the CSS of all of
+  // them, so its context starts at every member, not just the representative.
+  for (root_index, _) in bundle_roots.iter_active() {
+    contexts[root_index] = analysis.for_context(bundle_roots.members(root_index), |asset| {
       // An imported root stylesheet that is available from an earlier
       // occurrence still holds its import position: its bundle is referenced
       // there by a cross-bundle @import, which nothing may precede.
@@ -755,7 +757,7 @@ fn report_conflicts(
         let parents = paths.entry(root).or_insert_with(|| {
           let mut parents = HashMap::new();
           analysis.for_context_with_imports(
-            root_assets[&root],
+            roots.members(root),
             |_| true,
             |parent, child| {
               parents.insert(child, parent);
