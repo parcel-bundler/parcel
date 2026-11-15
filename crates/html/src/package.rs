@@ -171,8 +171,9 @@ fn escape_inline_script(code: &StrTendril) -> StrTendril {
 ///
 /// The layout document becomes the page. The content of the page's `<body>` (with the
 /// `<parcel:layout>` element unwrapped) fills the layout's `<parcel:slot>` elements: elements with a
-/// `slot="name"` attribute go to `<parcel:slot name="name">`, and everything else to the unnamed
-/// slot. A slot that receives no content keeps its children as a fallback. Elements in the page's
+/// `parcel:slot="name"` attribute go to `<parcel:slot name="name">`, and everything else to the
+/// unnamed slot. A slot that receives no content keeps its children as a fallback. Content for a
+/// slot the layout doesn't have is dropped (see `remove_unslotted`). Elements in the page's
 /// `<head>` are appended to the layout's, replacing those with the same key (e.g. `<title>`), and
 /// attributes on the page's `<html>` and `<body>` are merged onto the layout's. Head elements within
 /// the page's content (e.g. a `<title>` in markdown) are hoisted into the layout's `<head>` too, but
@@ -237,10 +238,17 @@ pub fn apply_layout<'arena>(
       // Hoisted.
       continue;
     }
-    let name = node
-      .get_attribute(expanded_name!("", "slot"))
-      .unwrap_or_default();
-    node.remove_attribute(expanded_name!("", "slot"));
+    let name = if let NodeData::Element { attrs, .. } = &node.data {
+      let index = attrs
+        .borrow()
+        .iter()
+        .position(|a| is_slot_attribute(&a.name));
+      index
+        .map(|index| attrs.borrow_mut().remove(index).value)
+        .unwrap_or_default()
+    } else {
+      Default::default()
+    };
     slotted.entry(name).or_default().push(node);
   }
 
@@ -275,6 +283,14 @@ pub fn apply_layout<'arena>(
   for node in children(layout) {
     dom.append(node);
   }
+}
+
+/// The `parcel:slot` attribute, which names the layout slot an element is for. Namespaced so it
+/// doesn't conflict with the HTML `slot` attribute used by shadow DOM.
+fn is_slot_attribute(name: &html5ever::QualName) -> bool {
+  // `parcel:slot` in HTML, or `slot` in the Parcel namespace in XML.
+  (name.ns == ns!() && name.local.as_ref() == "parcel:slot")
+    || (name.ns.as_ref() == "http://parceljs.org" && name.local.as_ref() == "slot")
 }
 
 fn children<'arena>(node: Ref<'arena>) -> Vec<Ref<'arena>> {
@@ -500,6 +516,10 @@ pub fn insert_bundle_references<'arena>(
           } else {
             attr.value = bundle.contents.0.clone();
           }
+        } else if is_slot_attribute(&attr.name) {
+          // elements with the parcel:slot attribute outside a layout are removed.
+          // Slots in layouts are inserted in an earlier pass.
+          node.detach();
         }
       }
 

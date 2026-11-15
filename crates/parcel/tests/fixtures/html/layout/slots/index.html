@@ -1,6 +1,8 @@
 <body class="page" data-page="slots">
 <parcel:layout src="layout.html">
-  <nav slot="toc"><a href="#intro">Intro</a></nav>
+  <nav parcel:slot="toc"><a href="#intro">Intro</a></nav>
+  <aside parcel:slot="missing">For a slot this layout doesn't have</aside>
+  <my-card><span slot="title">Native shadow DOM slot</span></my-card>
   <h1 id="intro">Intro</h1>
   <p>Content</p>
 </parcel:layout>

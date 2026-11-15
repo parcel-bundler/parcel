@@ -10,7 +10,7 @@ pub struct MarkdownOptions {
   pub layout: Option<String>,
   #[serde(default)]
   pub gfm: bool,
-  /// Adds ids to headings, and renders a table of contents as `<ol slot="toc">`.
+  /// Adds ids to headings, and renders a table of contents as `<ol parcel:slot="toc">`.
   #[serde(default)]
   pub toc: bool,
   /// Adds ids to headings, and wraps their contents in a link to themselves.
@@ -88,7 +88,7 @@ struct Heading<'arena> {
 /// Gives each h2-h6 heading without an id one derived from its text. The h1 is the page title,
 /// which doesn't need an anchor, and would otherwise take the id of a section with the same name.
 ///
-/// With `toc`, appends a table of contents of the h2-h4 headings to the body as `<ol slot="toc">`,
+/// With `toc`, appends a table of contents of the h2-h4 headings to the body as `<ol parcel:slot="toc">`,
 /// so a layout can place it with `<parcel:slot name="toc">`.
 ///
 /// With `anchors`, wraps the contents of each h2-h6 heading in a link to itself. The heading's own
@@ -284,7 +284,13 @@ fn render_toc<'arena>(
       Some(_) => {}
       None => {
         let list = element(arena, "ol");
-        list.set_attribute(expanded_name!("", "slot"), "toc");
+        list.set_attribute(
+          ExpandedName {
+            ns: &ns!(),
+            local: &"parcel:slot".into(),
+          },
+          "toc",
+        );
         root = Some(list);
         stack.push((heading.depth, list, None));
       }
