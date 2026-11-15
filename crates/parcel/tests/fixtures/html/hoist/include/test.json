@@ -1,0 +1,4 @@
+{
+  "description": "should hoist head elements from parcel:include content, but not user-authored html",
+  "input": "index.html"
+}

@@ -67,6 +67,7 @@ pub fn collect_dependencies<'arena, 'a>(
 ) {
   let mut collector = DependencyCollector::new(arena, url, ty, target, options);
   collector.rss = collector.ty == AssetType::Xml && is_rss(dom);
+  collector.root = Some(dom);
 
   dom.walk(&mut |node| match &node.data {
     NodeData::Element { name, .. } => {
@@ -166,6 +167,12 @@ pub fn collect_dependencies<'arena, 'a>(
     }
   }
 
+  if !collector.hoisted.is_empty() {
+    if let Some(head) = dom.find(expanded_name!(html "head")) {
+      crate::head::insert_into_head(head, std::mem::take(&mut collector.hoisted));
+    }
+  }
+
   (
     collector.deps,
     collector.imports,
@@ -188,6 +195,9 @@ struct DependencyCollector<'arena, 'a> {
   rss: bool,
   options: &'a ParcelOptions,
   macro_imports: HashMap<String, String>,
+  /// The document root, and the head elements produced by macros, hoisted after the walk.
+  root: Option<&'arena Node<'arena>>,
+  hoisted: Vec<&'arena Node<'arena>>,
 }
 
 impl<'arena, 'a> DependencyCollector<'arena, 'a> {
@@ -212,6 +222,8 @@ impl<'arena, 'a> DependencyCollector<'arena, 'a> {
       rss: false,
       options,
       macro_imports: HashMap::new(),
+      root: None,
+      hoisted: Vec::new(),
     }
   }
 
@@ -1003,7 +1015,13 @@ impl<'arena, 'a> DependencyCollector<'arena, 'a> {
         .one(result);
         // html5ever places fragment children under a synthetic HTML root.
         let root = fragment.first_child.get().unwrap();
-        while let Some(child) = root.last_child.get() {
+        if self
+          .root
+          .is_some_and(|dom| crate::head::can_hoist_from(node, dom))
+        {
+          crate::head::collect_hoistable(root, &mut self.hoisted);
+        }
+        while let Some(child) = root.first_child.get() {
           node.insert_before(child);
         }
         node.detach();

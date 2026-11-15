@@ -1,0 +1,4 @@
+{
+  "description": "should hoist head elements from page content into a layout, letting the page override the layout's includes",
+  "input": "index.html"
+}

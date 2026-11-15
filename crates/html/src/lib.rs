@@ -21,6 +21,7 @@ pub use xml::{XmlTransformer, transform_xml};
 
 mod arena;
 mod dependencies;
+mod head;
 mod jsx;
 mod optimize;
 mod oxvg;

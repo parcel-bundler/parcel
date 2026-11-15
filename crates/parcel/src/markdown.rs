@@ -42,15 +42,14 @@ impl Transformer for MarkdownTransformer {
     _ctx: &parcel_core::PluginContext,
   ) -> Result<parcel_core::Asset, parcel_core::DiagnosticList> {
     let content = asset.content.read_string()?;
-    let mut result = markdown::to_html_with_options(
-      &content,
-      &if self.gfm {
-        markdown::Options::gfm()
-      } else {
-        markdown::Options::default()
-      },
-    )
-    .unwrap();
+    let mut options = if self.gfm {
+      markdown::Options::gfm()
+    } else {
+      markdown::Options::default()
+    };
+    options.compile.allow_dangerous_html = true;
+    options.compile.gfm_tagfilter = false;
+    let mut result = markdown::to_html_with_options(&content, &options).unwrap();
     if let Some(layout) = &self.layout {
       let layout = layout.relative_url(&asset.loc.url.to_file_path()?);
       result = format!("<parcel:layout src={:?}>{}</parcel:layout>", layout, result);

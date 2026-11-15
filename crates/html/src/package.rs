@@ -7,6 +7,7 @@ use crate::{
   SerializableTendril,
   arena::{Node, NodeData, Ref, Sink},
   dependencies::{is_func_iri_attr, is_parcel_tag, parse_xml_stylesheet, serialize_xml_stylesheet},
+  head::{can_hoist_from, collect_hoistable, head_key, insert_into_head},
   srcset::{parse_srcset, serialize_srcset},
 };
 use html5ever::{ExpandedName, expanded_name, local_name, namespace_url, ns, tendril::StrTendril};
@@ -173,7 +174,9 @@ fn escape_inline_script(code: &StrTendril) -> StrTendril {
 /// `slot="name"` attribute go to `<parcel:slot name="name">`, and everything else to the unnamed
 /// slot. A slot that receives no content keeps its children as a fallback. Elements in the page's
 /// `<head>` are appended to the layout's, replacing those with the same key (e.g. `<title>`), and
-/// attributes on the page's `<html>` and `<body>` are merged onto the layout's.
+/// attributes on the page's `<html>` and `<body>` are merged onto the layout's. Head elements within
+/// the page's content (e.g. a `<title>` in markdown) are hoisted into the layout's `<head>` too, but
+/// those in the layout's own body are left in place.
 ///
 /// Slots are collected before content is moved in, so a `<parcel:slot>` within the page (i.e. a
 /// layout that itself uses a layout) is passed through for the next page to fill.
@@ -220,8 +223,20 @@ pub fn apply_layout<'arena>(
     _ => children(page_layout),
   };
 
+  let mut hoisted = Vec::new();
+  for &node in &content {
+    collect_hoistable(node, &mut hoisted);
+  }
+  for &node in &hoisted {
+    node.detach();
+  }
+
   let mut slotted: HashMap<StrTendril, Vec<Ref<'arena>>> = HashMap::new();
   for node in content {
+    if node.parent.get().is_none() {
+      // Hoisted.
+      continue;
+    }
     let name = node
       .get_attribute(expanded_name!("", "slot"))
       .unwrap_or_default();
@@ -244,16 +259,8 @@ pub fn apply_layout<'arena>(
     dom.find(expanded_name!(html "head")),
     layout.find(expanded_name!(html "head")),
   ) {
-    for node in children(page_head) {
-      if let Some(key) = head_key(node) {
-        for existing in children(layout_head) {
-          if head_key(existing).as_ref() == Some(&key) {
-            existing.detach();
-          }
-        }
-      }
-      layout_head.append(node);
-    }
+    insert_into_head(layout_head, children(page_head));
+    insert_into_head(layout_head, hoisted);
   }
 
   merge_attributes(
@@ -292,46 +299,6 @@ fn find_parcel_tag<'arena>(node: Ref<'arena>, tag: &str) -> Option<Ref<'arena>> 
     }
   });
   found
-}
-
-/// Identifies `<head>` elements that a page's copy replaces rather than adds to.
-fn head_key(node: Ref) -> Option<String> {
-  let NodeData::Element { name, .. } = &node.data else {
-    return None;
-  };
-  if name.ns != ns!(html) {
-    return None;
-  }
-  let attr = |name: &str| {
-    node.get_attribute(ExpandedName {
-      ns: &ns!(),
-      local: &name.into(),
-    })
-  };
-  match name.local.as_ref() {
-    "title" | "base" => Some(name.local.to_string()),
-    "meta" => {
-      if attr("charset").is_some() {
-        Some("meta charset".into())
-      } else if let Some(name) = attr("name") {
-        Some(format!("meta name={}", name.to_ascii_lowercase()))
-      } else if let Some(property) = attr("property") {
-        Some(format!("meta property={property}"))
-      } else {
-        attr("http-equiv").map(|v| format!("meta http-equiv={}", v.to_ascii_lowercase()))
-      }
-    }
-    "link" => {
-      let rel = attr("rel")?.to_ascii_lowercase();
-      if rel == "canonical" {
-        Some("link canonical".into())
-      } else {
-        attr("href").map(|href| format!("link {rel} {href}"))
-      }
-    }
-    "script" => attr("src").map(|src| format!("script {src}")),
-    _ => None,
-  }
 }
 
 /// Copies attributes from the page's `<html>` or `<body>` onto the layout's. The page's values win,
@@ -388,6 +355,8 @@ pub fn insert_bundle_references<'arena>(
     .map(|node| *node as *const Node)
     .collect();
   let mut inserted: HashMap<*const Node, HashSet<SerializableTendril>> = HashMap::new();
+  // Head elements from included content, moved into <head> after the walk.
+  let mut hoisted = Vec::new();
 
   dom.walk(&mut |node| {
     if let NodeData::Element { name, attrs, .. } = &node.data {
@@ -485,7 +454,10 @@ pub fn insert_bundle_references<'arena>(
               .one(&*bundle.contents.0);
               // html5ever places fragment children under a synthetic HTML root.
               let root = fragment.first_child.get().unwrap();
-              while let Some(child) = root.last_child.get() {
+              if can_hoist_from(node, dom) {
+                collect_hoistable(root, &mut hoisted);
+              }
+              while let Some(child) = root.first_child.get() {
                 node.insert_before(child);
               }
               node.detach();
@@ -538,6 +510,8 @@ pub fn insert_bundle_references<'arena>(
   });
 
   if let Some(head) = dom.find(expanded_name!(html "head")) {
+    insert_into_head(head, hoisted);
+
     // A layout's head already references the bundles its own page loads, which may be shared with
     // this page's.
     let existing: HashSet<String> = children(head).into_iter().filter_map(head_key).collect();
