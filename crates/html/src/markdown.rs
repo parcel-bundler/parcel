@@ -16,6 +16,13 @@ pub struct MarkdownOptions {
   /// Adds ids to headings, and wraps their contents in a link to themselves.
   #[serde(default)]
   pub anchors: bool,
+  /// Adds a `<title>` with the text of the first `<h1>`, unless the page has one.
+  #[serde(default)]
+  pub title: bool,
+  /// Adds a `<meta name="description">` with the text of the first paragraph, unless the page has
+  /// one.
+  #[serde(default)]
+  pub description: bool,
 }
 
 #[derive(Default)]
@@ -24,6 +31,8 @@ pub struct MarkdownTransformer {
   pub gfm: bool,
   pub toc: bool,
   pub anchors: bool,
+  pub title: bool,
+  pub description: bool,
 }
 
 impl MarkdownTransformer {
@@ -40,6 +49,8 @@ impl MarkdownTransformer {
         gfm: options.gfm,
         toc: options.toc,
         anchors: options.anchors,
+        title: options.title,
+        description: options.description,
       })
     } else {
       Ok(MarkdownTransformer::default())
@@ -66,8 +77,8 @@ impl Transformer for MarkdownTransformer {
       let layout = layout.relative_url(&asset.loc.url.to_file_path()?);
       result = format!("<parcel:layout src={:?}>{}</parcel:layout>", layout, result);
     }
-    let result = if self.toc || self.anchors {
-      process_headings(result.as_bytes(), self.toc, self.anchors)?
+    let result = if self.toc || self.anchors || self.title || self.description {
+      self.process_html(result.as_bytes())?
     } else {
       result.into_bytes()
     };
@@ -85,29 +96,91 @@ struct Heading<'arena> {
   depth: u8,
 }
 
-/// Gives each h2-h6 heading without an id one derived from its text. The h1 is the page title,
-/// which doesn't need an anchor, and would otherwise take the id of a section with the same name.
-///
-/// With `toc`, appends a table of contents of the h2-h4 headings to the body as `<ol parcel:slot="toc">`,
-/// so a layout can place it with `<parcel:slot name="toc">`.
-///
-/// With `anchors`, wraps the contents of each h2-h6 heading in a link to itself. The heading's own
-/// text names the link, so screen readers announce the heading as usual, and no extra text (which
-/// would need translating) or ARIA is needed. Any `#` symbol is left to CSS.
-fn process_headings(html: &[u8], toc: bool, anchors: bool) -> Result<Vec<u8>, Diagnostic> {
-  let arena = Arena::new();
-  let dom = html5ever::driver::parse_document(Sink::new(&arena), Default::default())
-    .from_utf8()
-    .one(html);
-  let Some(body) = dom.find(expanded_name!(html "body")) else {
-    return Ok(html.to_vec());
-  };
+impl MarkdownTransformer {
+  /// Post-processes the compiled HTML as a DOM.
+  ///
+  /// With `toc` or `anchors`, gives each h2-h6 heading without an id one derived from its text.
+  /// The h1 is the page title, which doesn't need an anchor, and would otherwise take the id of a
+  /// section with the same name.
+  ///
+  /// With `toc`, appends a table of contents of the h2-h4 headings to the body as
+  /// `<ol parcel:slot="toc">`, so a layout can place it with `<parcel:slot name="toc">`.
+  ///
+  /// With `anchors`, wraps the contents of each h2-h6 heading in a link to itself. The heading's
+  /// own text names the link, so screen readers announce the heading as usual, and no extra text
+  /// (which would need translating) or ARIA is needed. Any `#` symbol is left to CSS.
+  ///
+  /// With `title` and `description`, adds a `<title>` and `<meta name="description">` to the
+  /// `<head>` from the first `<h1>` and the first paragraph, unless the page already has them.
+  fn process_html(&self, html: &[u8]) -> Result<Vec<u8>, Diagnostic> {
+    let arena = Arena::new();
+    let dom = html5ever::driver::parse_document(Sink::new(&arena), Default::default())
+      .from_utf8()
+      .one(html);
+    let (Some(head), Some(body)) = (
+      dom.find(expanded_name!(html "head")),
+      dom.find(expanded_name!(html "body")),
+    ) else {
+      return Ok(html.to_vec());
+    };
 
-  let mut headings = Vec::new();
-  let mut used = HashSet::new();
-  collect_headings(body, &mut headings, &mut used);
+    let mut headings = Vec::new();
+    let mut used = HashSet::new();
+    collect_headings(body, &mut headings, &mut used);
 
-  for heading in &headings {
+    if self.title && !has_element(dom, &|n| is_element(n, expanded_name!(html "title"))) {
+      let title = headings
+        .iter()
+        .find(|h| h.depth == 1)
+        .map(|h| collapse_whitespace(&h.node.text_content()))
+        .filter(|t| !t.is_empty());
+      if let Some(title) = title {
+        let element = element(&arena, "title");
+        element.append(text(&arena, &title));
+        head.append(element);
+      }
+    }
+
+    if self.description && !has_element(dom, &is_meta_description) {
+      let description = dom
+        .find(expanded_name!(html "p"))
+        .map(|p| collapse_whitespace(&p.text_content()))
+        .filter(|d| !d.is_empty());
+      if let Some(description) = description {
+        let element = element(&arena, "meta");
+        element.set_attribute(expanded_name!("", "name"), "description");
+        element.set_attribute(expanded_name!("", "content"), &description);
+        head.append(element);
+      }
+    }
+
+    if self.toc || self.anchors {
+      add_heading_ids(&headings, &mut used);
+    }
+
+    if self.anchors {
+      for heading in &headings {
+        if heading.depth > 1 {
+          add_anchor(&arena, heading.node);
+        }
+      }
+    }
+
+    if self.toc {
+      if let Some(toc) = render_toc(&arena, &headings) {
+        body.prepend(toc);
+      }
+    }
+
+    let mut vec = Vec::new();
+    let handle: SerializableHandle = dom.into();
+    html5ever::serialize::serialize(&mut vec, &handle, Default::default())?;
+    Ok(vec)
+  }
+}
+
+fn add_heading_ids(headings: &[Heading], used: &mut HashSet<String>) {
+  for heading in headings {
     if heading.depth == 1
       || heading
         .node
@@ -116,7 +189,7 @@ fn process_headings(html: &[u8], toc: bool, anchors: bool) -> Result<Vec<u8>, Di
     {
       continue;
     }
-    let slug = slugify(&text_content(heading.node));
+    let slug = slugify(&heading.node.text_content());
     if slug.is_empty() {
       continue;
     }
@@ -129,25 +202,6 @@ fn process_headings(html: &[u8], toc: bool, anchors: bool) -> Result<Vec<u8>, Di
     heading.node.set_attribute(expanded_name!("", "id"), &id);
     used.insert(id);
   }
-
-  if anchors {
-    for heading in &headings {
-      if heading.depth > 1 {
-        add_anchor(&arena, heading.node);
-      }
-    }
-  }
-
-  if toc {
-    if let Some(toc) = render_toc(&arena, &headings) {
-      body.prepend(toc);
-    }
-  }
-
-  let mut vec = Vec::new();
-  let handle: SerializableHandle = dom.into();
-  html5ever::serialize::serialize(&mut vec, &handle, Default::default())?;
-  Ok(vec)
 }
 
 /// Collects the HTML headings in document order, and the ids already in use. Foreign content and
@@ -213,14 +267,35 @@ fn add_anchor<'arena>(arena: &'arena Arena<Node<'arena>>, heading: Ref<'arena>) 
   heading.append(link);
 }
 
-fn text_content(node: Ref) -> String {
-  let mut text = String::new();
-  node.walk(&mut |n| {
-    if let NodeData::Text { contents } = &n.data {
-      text.push_str(&contents.borrow());
-    }
-  });
-  text
+fn is_element(node: Ref, expected: ExpandedName) -> bool {
+  matches!(&node.data, NodeData::Element { name, .. } if name.expanded() == expected)
+}
+
+fn is_meta_description(node: Ref) -> bool {
+  is_element(node, expanded_name!(html "meta"))
+    && node
+      .get_attribute(expanded_name!("", "name"))
+      .is_some_and(|name| name.eq_ignore_ascii_case("description"))
+}
+
+/// Whether the document has an element matching `predicate`, e.g. a `<title>` the author wrote.
+fn has_element<'arena>(dom: Ref<'arena>, predicate: &dyn Fn(Ref<'arena>) -> bool) -> bool {
+  let mut found = false;
+  dom.walk(&mut |n| found |= predicate(n));
+  found
+}
+
+fn text<'arena>(arena: &'arena Arena<Node<'arena>>, text: &str) -> Ref<'arena> {
+  arena.alloc(Node::new(
+    NodeData::Text {
+      contents: RefCell::new(text.into()),
+    },
+    0,
+  ))
+}
+
+fn collapse_whitespace(text: &str) -> String {
+  text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn slugify(text: &str) -> String {
@@ -301,7 +376,7 @@ fn render_toc<'arena>(
     link.set_attribute(expanded_name!("", "href"), &format!("#{}", id));
     link.append(arena.alloc(Node::new(
       NodeData::Text {
-        contents: RefCell::new(text_content(heading.node).into()),
+        contents: RefCell::new(heading.node.text_content().into()),
       },
       0,
     )));

@@ -1,0 +1,14 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "*.md": [
+      {
+        "plugin": "@parcel/transformer-markdown",
+        "config": {
+          "title": true,
+          "description": true
+        }
+      }
+    ]
+  }
+}
