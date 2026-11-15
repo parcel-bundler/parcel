@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" xmlns:parcel="http://parceljs.org">
+  <title>Example Feed</title>
+  <entry>
+    <title>Post 1</title>
+    <link href="/post.html"/>
+    <content type="html">&lt;p&gt;Post 1&lt;/p&gt;&lt;img src="/100x100-614262c6f1bc7046.png"&gt;
+
+&lt;p&gt;Included &lt;a href="/post.html"&gt;post&lt;/a&gt;&lt;/p&gt;
+</content>
+  </entry><entry>
+    <title>Post 2</title>
+    <link href="/post.html"/>
+    <content type="html">&lt;p&gt;Post 2&lt;/p&gt;&lt;img src="/100x100-614262c6f1bc7046.png"&gt;
+
+&lt;p&gt;Included &lt;a href="/post.html"&gt;post&lt;/a&gt;&lt;/p&gt;
+</content>
+  </entry>
+</feed>

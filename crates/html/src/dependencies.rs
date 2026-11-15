@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use crate::arena::{Node, NodeData, SerializableHandle, Sink};
 use crate::srcset::{parse_srcset, serialize_srcset};
-use crate::xml::{ATOM_NS, is_rss};
+use crate::xml::{ATOM_NS, EmbeddedContent, expand_html_in, is_rss};
 use html5ever::tendril::{StrTendril, format_tendril};
 use html5ever::{Attribute, ExpandedName, QualName, expanded_name, local_name, namespace_url, ns};
 use parcel_core::{
@@ -64,6 +64,44 @@ pub fn collect_dependencies<'arena, 'a>(
   Vec<ImportedSymbol>,
   Vec<Asset>,
   Vec<Diagnostic>,
+) {
+  let (deps, imports, assets, errors, _) = collect(arena, dom, url, ty, target, hmr, options);
+  (deps, imports, assets, errors)
+}
+
+/// Collects the dependencies of an XML document. Also returns the embedded HTML (e.g. Atom
+/// `<content type="html">`) that macros produced, which was expanded so it could be walked, and
+/// must be collapsed again along with the rest.
+pub(crate) fn collect_xml_dependencies<'arena, 'a>(
+  arena: &'arena Arena<Node<'arena>>,
+  dom: &'arena Node<'arena>,
+  url: SourceUrl,
+  target: Arc<Target>,
+  options: &'a ParcelOptions,
+) -> (
+  Vec<Dependency>,
+  Vec<ImportedSymbol>,
+  Vec<Asset>,
+  Vec<Diagnostic>,
+  Vec<EmbeddedContent<'arena>>,
+) {
+  collect(arena, dom, url, AssetType::Xml, target, false, options)
+}
+
+fn collect<'arena, 'a>(
+  arena: &'arena Arena<Node<'arena>>,
+  dom: &'arena Node<'arena>,
+  url: SourceUrl,
+  ty: AssetType,
+  target: Arc<Target>,
+  hmr: bool,
+  options: &'a ParcelOptions,
+) -> (
+  Vec<Dependency>,
+  Vec<ImportedSymbol>,
+  Vec<Asset>,
+  Vec<Diagnostic>,
+  Vec<EmbeddedContent<'arena>>,
 ) {
   let mut collector = DependencyCollector::new(arena, url, ty, target, options);
   collector.rss = collector.ty == AssetType::Xml && is_rss(dom);
@@ -153,6 +191,7 @@ pub fn collect_dependencies<'arena, 'a>(
     collector.imports,
     collector.assets,
     collector.errors,
+    collector.embedded,
   )
 }
 
@@ -173,6 +212,8 @@ struct DependencyCollector<'arena, 'a> {
   /// Imported macro elements whose output is currently being walked. An element isn't expanded
   /// again within its own output, so a macro can render the native element it's named after.
   expanding_imports: Vec<String>,
+  /// Embedded HTML in the output of macros in XML documents. See `collect_xml_dependencies`.
+  embedded: Vec<EmbeddedContent<'arena>>,
   /// The document root, and the head elements produced by macros, hoisted after the walk.
   root: Option<&'arena Node<'arena>>,
   hoisted: Vec<&'arena Node<'arena>>,
@@ -250,6 +291,7 @@ impl<'arena, 'a> DependencyCollector<'arena, 'a> {
       options,
       macro_imports: HashMap::new(),
       expanding_imports: Vec::new(),
+      embedded: Vec::new(),
       root: None,
       hoisted: Vec::new(),
     }
@@ -317,8 +359,9 @@ impl<'arena, 'a> DependencyCollector<'arena, 'a> {
         return;
       }
 
-      // Arbitrary XML vocabularies must not acquire HTML attribute semantics.
-      if name.ns != ns!(html) && name.ns != ns!(svg) {
+      // Arbitrary XML vocabularies must not acquire HTML attribute semantics. Parcel's own
+      // elements (e.g. <parcel:macro>) are handled below.
+      if name.ns != ns!(html) && name.ns != ns!(svg) && name.ns.as_ref() != "http://parceljs.org" {
         return;
       }
     }
@@ -583,7 +626,32 @@ impl<'arena, 'a> DependencyCollector<'arena, 'a> {
         // - https://vk.com/dev/publications
         let mut is_dep = false;
         let mut needs_stable_name = true;
-        if let Some(property) = node.get_attribute(expanded_name!("", "property")) {
+        if node
+          .get_attribute(expanded_name!("", "http-equiv"))
+          .is_some_and(|v| v.eq_ignore_ascii_case("refresh"))
+        {
+          // <meta http-equiv="refresh" content="N; url=URL"> redirects to URL. The delay is kept
+          // in a temporary attribute so the URL can be replaced like any other during packaging.
+          if let Some(content) = node.get_attribute(expanded_name!("", "content")) {
+            if let Some((delay, url)) = parse_refresh(&content) {
+              let placeholder = self.add_dep(
+                url.into(),
+                false,
+                Priority::Lazy,
+                node.line,
+                Some(UrlReference::Document),
+              );
+              node.set_attribute(expanded_name!("", "content"), &placeholder);
+              node.set_attribute(
+                ExpandedName {
+                  ns: &ns!(),
+                  local: &"data-parcel-refresh".into(),
+                },
+                delay,
+              );
+            }
+          }
+        } else if let Some(property) = node.get_attribute(expanded_name!("", "property")) {
           is_dep = matches!(
             property.as_ref(),
             "og:image"
@@ -1011,9 +1079,23 @@ impl<'arena, 'a> DependencyCollector<'arena, 'a> {
       }
     }
 
+    // XML documents (feeds, SVG) are parsed and serialized as XML, so macros can produce
+    // namespaced elements.
+    let xml = self.ty != AssetType::Html;
     let mut content = Vec::new();
-    let _ =
-      html5ever::serialize::serialize(&mut content, &SerializableHandle(node), Default::default());
+    if xml {
+      let mut child = node.first_child.get();
+      while let Some(c) = child {
+        let _ = crate::serialize_xml::serialize(&mut content, c);
+        child = c.next_sibling.get();
+      }
+    } else {
+      let _ = html5ever::serialize::serialize(
+        &mut content,
+        &SerializableHandle(node),
+        Default::default(),
+      );
+    }
 
     match parcel_plugin_js::call_macro(
       self.options,
@@ -1039,15 +1121,31 @@ impl<'arena, 'a> DependencyCollector<'arena, 'a> {
       },
     ) {
       Ok((JsValue::String(result), _deps)) => {
-        let fragment = html5ever::driver::parse_fragment(
-          Sink::new(&self.arena),
-          html5ever::ParseOpts::default(),
-          xml5ever::QualName::new(None, ns!(html), local_name!("div")),
-          Vec::new(),
-        )
-        .one(result);
-        // html5ever places fragment children under a synthetic HTML root.
-        let root = fragment.first_child.get().unwrap();
+        let root = if xml {
+          match parse_xml_fragment(&self.arena, node, &result) {
+            Some(root) => {
+              if self.ty == AssetType::Xml {
+                let embedded = expand_html_in(&self.arena, root, self.rss);
+                self.embedded.extend(embedded);
+              }
+              root
+            }
+            None => {
+              self.add_diagnostic("HTML macro returned invalid XML", node.line);
+              return;
+            }
+          }
+        } else {
+          let fragment = html5ever::driver::parse_fragment(
+            Sink::new(&self.arena),
+            html5ever::ParseOpts::default(),
+            xml5ever::QualName::new(None, ns!(html), local_name!("div")),
+            Vec::new(),
+          )
+          .one(result);
+          // html5ever places fragment children under a synthetic HTML root.
+          fragment.first_child.get().unwrap()
+        };
         if self
           .root
           .is_some_and(|dom| crate::head::can_hoist_from(node, dom))
@@ -1083,6 +1181,92 @@ impl<'arena, 'a> DependencyCollector<'arena, 'a> {
       }
     }
   }
+}
+
+/// Splits the `content` of `<meta http-equiv="refresh">` into the delay and URL, if it has one.
+/// https://html.spec.whatwg.org/multipage/semantics.html#shared-declarative-refresh-steps
+fn parse_refresh(content: &str) -> Option<(&str, &str)> {
+  let content = content.trim_start();
+  let delay_end = content
+    .find(|c: char| !c.is_ascii_digit() && c != '.')
+    .unwrap_or(content.len());
+  let (delay, rest) = content.split_at(delay_end);
+  if delay.is_empty() {
+    return None;
+  }
+  let rest = rest.trim_start_matches(|c: char| c.is_ascii_whitespace() || c == ';' || c == ',');
+  let rest = if rest.len() >= 3 && rest[..3].eq_ignore_ascii_case("url") {
+    rest[3..].trim_start().strip_prefix('=')?.trim_start()
+  } else {
+    rest
+  };
+  let url = match rest.chars().next() {
+    Some(quote @ ('\'' | '"')) => rest[1..].split(quote).next().unwrap_or(""),
+    _ => rest.trim_end(),
+  };
+  if url.is_empty() {
+    None
+  } else {
+    Some((delay, url))
+  }
+}
+
+/// Parses XML in the context of `context`, so it inherits the namespace declarations in scope
+/// there (e.g. the default Atom namespace of a feed). Returns an element containing the result.
+fn parse_xml_fragment<'arena>(
+  arena: &'arena Arena<Node<'arena>>,
+  context: &'arena Node<'arena>,
+  xml: &str,
+) -> Option<&'arena Node<'arena>> {
+  let mut ancestors = Vec::new();
+  let mut parent = context.parent.get();
+  while let Some(p) = parent {
+    ancestors.push(p);
+    parent = p.parent.get();
+  }
+  // Outermost first, so inner declarations override outer ones.
+  let mut declarations = indexmap::IndexMap::new();
+  for ancestor in ancestors.iter().rev() {
+    if let NodeData::Element { attrs, .. } = &ancestor.data {
+      for attr in attrs.borrow().iter() {
+        let name = match (&attr.name.prefix, attr.name.local.as_ref()) {
+          (Some(prefix), local) if prefix.as_ref() == "xmlns" => format!("xmlns:{}", local),
+          (None, "xmlns") => "xmlns".to_string(),
+          _ => continue,
+        };
+        declarations.insert(name, attr.value.to_string());
+      }
+    }
+  }
+
+  let mut wrapper = String::from("<parcel-macro-output");
+  for (name, value) in &declarations {
+    wrapper.push_str(&format!(
+      " {}=\"{}\"",
+      name,
+      value
+        .replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;")
+    ));
+  }
+  wrapper.push('>');
+  wrapper.push_str(xml);
+  wrapper.push_str("</parcel-macro-output>");
+
+  let dom = xml5ever::driver::parse_document(Sink::new(arena), Default::default())
+    .from_utf8()
+    .one(wrapper.as_bytes());
+  let mut child = dom.first_child.get();
+  while let Some(c) = child {
+    if let NodeData::Element { name, .. } = &c.data {
+      if name.local.as_ref() == "parcel-macro-output" {
+        return Some(c);
+      }
+    }
+    child = c.next_sibling.get();
+  }
+  None
 }
 
 /// Whether a presentation attribute's `url()` may reference an image rather than an element.

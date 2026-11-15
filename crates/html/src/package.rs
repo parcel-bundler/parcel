@@ -357,6 +357,9 @@ pub fn insert_bundle_references<'arena>(
   let mut inserted: HashMap<*const Node, HashSet<SerializableTendril>> = HashMap::new();
   // Head elements from included content, moved into <head> after the walk.
   let mut hoisted = Vec::new();
+  // In a document without an HTML <head> (e.g. HTML embedded in a feed), included head elements
+  // have nowhere to go, and are dropped rather than left in the content.
+  let has_head = dom.find(expanded_name!(html "head")).is_some();
 
   dom.walk(&mut |node| {
     if let NodeData::Element { name, attrs, .. } = &node.data {
@@ -456,6 +459,12 @@ pub fn insert_bundle_references<'arena>(
               let root = fragment.first_child.get().unwrap();
               if can_hoist_from(node, dom) {
                 collect_hoistable(root, &mut hoisted);
+              } else if !has_head {
+                let mut metadata = Vec::new();
+                collect_hoistable(root, &mut metadata);
+                for node in metadata {
+                  node.detach();
+                }
               }
               while let Some(child) = root.first_child.get() {
                 node.insert_before(child);
@@ -490,6 +499,26 @@ pub fn insert_bundle_references<'arena>(
             attr.value = placeholder;
           } else {
             attr.value = bundle.contents.0.clone();
+          }
+        }
+      }
+
+      // <meta http-equiv="refresh" content="N; url=URL">: the URL was replaced above, so
+      // restore the delay that was split off during transformation.
+      if name.expanded() == expanded_name!(html "meta") {
+        if let Some(delay) = node.get_attribute(ExpandedName {
+          ns: &ns!(),
+          local: &"data-parcel-refresh".into(),
+        }) {
+          node.remove_attribute(ExpandedName {
+            ns: &ns!(),
+            local: &"data-parcel-refresh".into(),
+          });
+          if let Some(url) = node.get_attribute(expanded_name!("", "content")) {
+            node.set_attribute(
+              expanded_name!("", "content"),
+              &format!("{}; url={}", delay, url),
+            );
           }
         }
       }

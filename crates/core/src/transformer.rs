@@ -142,6 +142,7 @@ fn transform(
   ctx: &PluginContext,
 ) -> Result<Asset, DiagnosticList> {
   let options = ctx.options;
+  let requested_pipeline = asset.pipeline.clone();
   let mut input = asset;
 
   while let Some(plugin) = pipeline.next() {
@@ -158,6 +159,12 @@ fn transform(
     }
 
     input = result;
+  }
+
+  // A type change falls back to the default pipeline when the named one has no transformers for
+  // the new type, which clears `pipeline` so plugins see the pipeline they actually run in.
+  if input.pipeline.is_none() {
+    input.pipeline = requested_pipeline;
   }
 
   Ok(input)
