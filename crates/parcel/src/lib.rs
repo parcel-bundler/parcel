@@ -29,7 +29,6 @@ mod launch_editor;
 mod library_bundler;
 #[cfg(target_os = "macos")]
 mod macos;
-mod markdown;
 mod namer;
 mod open_browser;
 mod plugin_factory;

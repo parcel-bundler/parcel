@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize, Serializer};
 use swc_core::ecma::codegen::to_code;
 use typed_arena::Arena;
 
+pub use markdown::MarkdownTransformer;
 pub use package::{BundleReference, InlineBundle};
 pub use xml::{XmlTransformer, transform_xml};
 
@@ -23,6 +24,7 @@ mod arena;
 mod dependencies;
 mod head;
 mod jsx;
+mod markdown;
 mod optimize;
 mod oxvg;
 mod package;

@@ -34,6 +34,7 @@ ref-cast = "1.0"
 parcel-core = { path = "../core" }
 percent-encoding = "2.2.0"
 xxhash-rust = { version = "0.8.2", features = ["xxh3"] }
+markdown = "1.0.0"
 
 [dev-dependencies]
 indoc = "1.0.3"

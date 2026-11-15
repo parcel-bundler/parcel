@@ -9,7 +9,9 @@ use parcel_core::{
   Reporter, SourceUrl, Transformer, json_source_location,
 };
 use parcel_css::{CssTransformer, StyleAttrTransformer};
-use parcel_html::{HtmlTransformer, SvgToJsxTransformer, SvgTransformer, XmlTransformer};
+use parcel_html::{
+  HtmlTransformer, MarkdownTransformer, SvgToJsxTransformer, SvgTransformer, XmlTransformer,
+};
 use parcel_image::{ImageOptimizer, ImageTransformer};
 use parcel_js::JsTransformer;
 use parcel_plugin_abi::{
@@ -23,9 +25,9 @@ use parcel_tailwind::TailwindTransformer;
 use crate::{
   bundler::DefaultBundler, data_url::DataUrlOptimizer, glob_resolver::GlobResolver,
   inline::InlineTransformer, json::JsonTransformer, jsonld::JsonLdTransformer,
-  library_bundler::LibraryBundler, markdown::MarkdownTransformer, namer::DefaultNamer,
-  raw::RawTransformer, resolver::DefaultResolver, toml::TomlTransformer,
-  webmanifest::WebManifestTransformer, yaml::YamlTransformer,
+  library_bundler::LibraryBundler, namer::DefaultNamer, raw::RawTransformer,
+  resolver::DefaultResolver, toml::TomlTransformer, webmanifest::WebManifestTransformer,
+  yaml::YamlTransformer,
 };
 
 /// The version of Parcel that plugins' `engines.parcel` ranges are checked against.
@@ -99,9 +101,7 @@ impl PluginFactory for DefaultPluginFactory {
       "@parcel/transformer-tailwind" => Arc::new(TailwindTransformer {}),
       "@parcel/transformer-inline" => Arc::new(InlineTransformer {}),
       "@parcel/transformer-raw" => Arc::new(RawTransformer {}),
-      "@parcel/transformer-markdown" => {
-        Arc::new(MarkdownTransformer::new(config, from, self.fs.clone())?)
-      }
+      "@parcel/transformer-markdown" => Arc::new(MarkdownTransformer::new(config, from)?),
       _ => match self.resolve_plugin(PluginKind::Transformer, name, from, config)? {
         ResolvedPlugin::Native(plugin) => plugin,
         ResolvedPlugin::Js(plugin) => plugin,

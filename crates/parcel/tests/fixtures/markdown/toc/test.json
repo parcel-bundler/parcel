@@ -1,0 +1,7 @@
+{
+  "description": "should add heading ids and a table of contents",
+  "input": "index.md",
+  "bundles": [
+    {"type": "html", "assets": ["index.md"]},
+    {"type": "html", "assets": ["layout.html"]}  ]
+}
