@@ -1,0 +1,9 @@
+{
+  "description": "should support layouts that use a layout",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "html", "assets": ["blog.html"]},
+    {"type": "html", "assets": ["base.html"]}
+  ]
+}

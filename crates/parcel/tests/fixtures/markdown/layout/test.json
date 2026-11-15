@@ -2,6 +2,6 @@
   "description": "should support building markdown",
   "input": "index.md",
   "bundles": [
-    {"type": "html", "assets": ["index.md"]}
-  ]
+    {"type": "html", "assets": ["index.md"]},
+    {"type": "html", "assets": ["layout.html"]}  ]
 }

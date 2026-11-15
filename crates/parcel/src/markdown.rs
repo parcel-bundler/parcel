@@ -11,7 +11,7 @@ pub struct MarkdownOptions {
 
 #[derive(Default)]
 pub struct MarkdownTransformer {
-  pub layout: Option<String>,
+  pub layout: Option<PathId>,
   pub gfm: bool,
 }
 
@@ -23,12 +23,10 @@ impl MarkdownTransformer {
   ) -> Result<MarkdownTransformer, Diagnostic> {
     if let Some(config) = config {
       let options = serde_json::from_value::<MarkdownOptions>(config)?;
-      let layout = match options.layout {
-        Some(layout) => Some(fs.read_to_string(path.resolve(Path::new(&layout)))?),
-        None => None,
-      };
       Ok(MarkdownTransformer {
-        layout,
+        layout: options
+          .layout
+          .map(|layout| path.resolve(Path::new(&layout))),
         gfm: options.gfm,
       })
     } else {
@@ -54,7 +52,8 @@ impl Transformer for MarkdownTransformer {
     )
     .unwrap();
     if let Some(layout) = &self.layout {
-      result = layout.replace("<parcel:content></parcel:content>", &result);
+      let layout = layout.relative_url(&asset.loc.url.to_file_path()?);
+      result = format!("<parcel:layout src={:?}>{}</parcel:layout>", layout, result);
     }
     asset.content = Arc::new(BufferContent::new_string(result));
     asset.ty = AssetType::Html;

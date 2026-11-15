@@ -672,7 +672,7 @@ impl<'arena, 'a> DependencyCollector<'arena, 'a> {
       expanded_name!(svg "cursor") | expanded_name!(svg "color-profile") => {
         self.handle_document_attr(node, expanded_name!(xlink "href"), false);
       }
-      n if is_parcel_tag(&n, "include") => {
+      n if is_parcel_tag(&n, "include") || is_parcel_tag(&n, "layout") => {
         // <parcel:include src="..." /> adds an inline dependency on `src` which replaces it during packaging.
         if let Some(src) = node.get_attribute(expanded_name!("", "src")) {
           let mut dep = Dependency {

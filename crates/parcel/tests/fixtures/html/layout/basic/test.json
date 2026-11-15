@@ -1,0 +1,8 @@
+{
+  "description": "should wrap a page in a parcel:layout and merge its head",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "html", "assets": ["layout.html"]}
+  ]
+}

@@ -285,6 +285,10 @@ pub fn package_html(options: PackageOptions) -> Result<PackageResult, ()> {
       .one(options.code.as_slice())
   };
 
+  if !options.xml {
+    package::apply_layout(&arena, dom, &options.inline_bundles);
+  }
+
   insert_bundle_references(
     &arena,
     dom,

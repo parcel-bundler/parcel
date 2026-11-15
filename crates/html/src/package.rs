@@ -166,6 +166,204 @@ fn escape_inline_script(code: &StrTendril) -> StrTendril {
   escaped.into()
 }
 
+/// Wraps a page in the layout referenced by its `<parcel:layout src="...">` element.
+///
+/// The layout document becomes the page. The content of the page's `<body>` (with the
+/// `<parcel:layout>` element unwrapped) fills the layout's `<parcel:slot>` elements: elements with a
+/// `slot="name"` attribute go to `<parcel:slot name="name">`, and everything else to the unnamed
+/// slot. A slot that receives no content keeps its children as a fallback. Elements in the page's
+/// `<head>` are appended to the layout's, replacing those with the same key (e.g. `<title>`), and
+/// attributes on the page's `<html>` and `<body>` are merged onto the layout's.
+///
+/// Slots are collected before content is moved in, so a `<parcel:slot>` within the page (i.e. a
+/// layout that itself uses a layout) is passed through for the next page to fill.
+pub fn apply_layout<'arena>(
+  arena: &'arena Arena<Node<'arena>>,
+  dom: Ref<'arena>,
+  inline_bundles: &HashMap<SerializableTendril, InlineBundle>,
+) {
+  let Some(page_layout) = find_parcel_tag(dom, "layout") else {
+    return;
+  };
+  let Some(bundle) = page_layout
+    .get_attribute(expanded_name!("", "src"))
+    .and_then(|src| inline_bundles.get(&SerializableTendril(src)))
+  else {
+    return;
+  };
+
+  let layout = html5ever::driver::parse_document(Sink::new(arena), Default::default())
+    .one(&*bundle.contents.0);
+
+  let mut slots = Vec::new();
+  layout.walk(&mut |n| {
+    if let NodeData::Element { name, .. } = &n.data {
+      if is_parcel_tag(&name.expanded(), "slot") {
+        slots.push(n);
+      }
+    }
+  });
+
+  // The page's content, in document order, with <parcel:layout> unwrapped.
+  let page_body = dom.find(expanded_name!(html "body"));
+  let content = match page_layout.parent.get() {
+    Some(parent) if page_body.is_some_and(|body| std::ptr::eq(parent, body)) => children(parent)
+      .into_iter()
+      .flat_map(|n| {
+        if std::ptr::eq(n, page_layout) {
+          children(n)
+        } else {
+          vec![n]
+        }
+      })
+      .collect(),
+    _ => children(page_layout),
+  };
+
+  let mut slotted: HashMap<StrTendril, Vec<Ref<'arena>>> = HashMap::new();
+  for node in content {
+    let name = node
+      .get_attribute(expanded_name!("", "slot"))
+      .unwrap_or_default();
+    node.remove_attribute(expanded_name!("", "slot"));
+    slotted.entry(name).or_default().push(node);
+  }
+
+  for slot in slots {
+    let name = slot
+      .get_attribute(expanded_name!("", "name"))
+      .unwrap_or_default();
+    let nodes = slotted.remove(&name).unwrap_or_else(|| children(slot));
+    for node in nodes {
+      slot.insert_before(node);
+    }
+    slot.detach();
+  }
+
+  if let (Some(page_head), Some(layout_head)) = (
+    dom.find(expanded_name!(html "head")),
+    layout.find(expanded_name!(html "head")),
+  ) {
+    for node in children(page_head) {
+      if let Some(key) = head_key(node) {
+        for existing in children(layout_head) {
+          if head_key(existing).as_ref() == Some(&key) {
+            existing.detach();
+          }
+        }
+      }
+      layout_head.append(node);
+    }
+  }
+
+  merge_attributes(
+    dom.find(expanded_name!(html "html")),
+    layout.find(expanded_name!(html "html")),
+  );
+  merge_attributes(page_body, layout.find(expanded_name!(html "body")));
+
+  for node in children(dom) {
+    node.detach();
+  }
+  for node in children(layout) {
+    dom.append(node);
+  }
+}
+
+fn children<'arena>(node: Ref<'arena>) -> Vec<Ref<'arena>> {
+  let mut children = Vec::new();
+  let mut child = node.first_child.get();
+  while let Some(c) = child {
+    children.push(c);
+    child = c.next_sibling.get();
+  }
+  children
+}
+
+fn find_parcel_tag<'arena>(node: Ref<'arena>, tag: &str) -> Option<Ref<'arena>> {
+  let mut found = None;
+  node.walk(&mut |n| {
+    if found.is_none() {
+      if let NodeData::Element { name, .. } = &n.data {
+        if is_parcel_tag(&name.expanded(), tag) {
+          found = Some(n);
+        }
+      }
+    }
+  });
+  found
+}
+
+/// Identifies `<head>` elements that a page's copy replaces rather than adds to.
+fn head_key(node: Ref) -> Option<String> {
+  let NodeData::Element { name, .. } = &node.data else {
+    return None;
+  };
+  if name.ns != ns!(html) {
+    return None;
+  }
+  let attr = |name: &str| {
+    node.get_attribute(ExpandedName {
+      ns: &ns!(),
+      local: &name.into(),
+    })
+  };
+  match name.local.as_ref() {
+    "title" | "base" => Some(name.local.to_string()),
+    "meta" => {
+      if attr("charset").is_some() {
+        Some("meta charset".into())
+      } else if let Some(name) = attr("name") {
+        Some(format!("meta name={}", name.to_ascii_lowercase()))
+      } else if let Some(property) = attr("property") {
+        Some(format!("meta property={property}"))
+      } else {
+        attr("http-equiv").map(|v| format!("meta http-equiv={}", v.to_ascii_lowercase()))
+      }
+    }
+    "link" => {
+      let rel = attr("rel")?.to_ascii_lowercase();
+      if rel == "canonical" {
+        Some("link canonical".into())
+      } else {
+        attr("href").map(|href| format!("link {rel} {href}"))
+      }
+    }
+    "script" => attr("src").map(|src| format!("script {src}")),
+    _ => None,
+  }
+}
+
+/// Copies attributes from the page's `<html>` or `<body>` onto the layout's. The page's values win,
+/// except `class`, which is combined.
+fn merge_attributes<'arena>(from: Option<Ref<'arena>>, to: Option<Ref<'arena>>) {
+  let (
+    Some(from),
+    Some(NodeData::Element {
+      attrs: to_attrs, ..
+    }),
+  ) = (from, to.map(|n| &n.data))
+  else {
+    return;
+  };
+  let NodeData::Element { attrs, .. } = &from.data else {
+    return;
+  };
+  let mut to_attrs = to_attrs.borrow_mut();
+  for attr in attrs.borrow().iter() {
+    match to_attrs.iter_mut().find(|a| a.name == attr.name) {
+      Some(existing) if attr.name.expanded() == expanded_name!("", "class") => {
+        let mut value = existing.value.clone();
+        value.push_char(' ');
+        value.push_tendril(&attr.value);
+        existing.value = value;
+      }
+      Some(existing) => existing.value = attr.value.clone(),
+      None => to_attrs.push(attr.clone()),
+    }
+  }
+}
+
 pub fn insert_bundle_references<'arena>(
   arena: &'arena Arena<Node<'arena>>,
   dom: &'arena Node<'arena>,
@@ -340,8 +538,14 @@ pub fn insert_bundle_references<'arena>(
   });
 
   if let Some(head) = dom.find(expanded_name!(html "head")) {
+    // A layout's head already references the bundles its own page loads, which may be shared with
+    // this page's.
+    let existing: HashSet<String> = children(head).into_iter().filter_map(head_key).collect();
     for bundle in bundles.into_iter().rev() {
-      head.prepend(bundle.create_element(arena, None));
+      let element = bundle.create_element(arena, None);
+      if head_key(element).is_none_or(|key| !existing.contains(&key)) {
+        head.prepend(element);
+      }
     }
 
     if !import_map.is_empty() {

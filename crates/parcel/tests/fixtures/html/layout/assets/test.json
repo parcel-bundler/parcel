@@ -1,0 +1,4 @@
+{
+  "description": "should resolve a layout's dependencies relative to the layout and not duplicate references",
+  "input": "index.html"
+}
