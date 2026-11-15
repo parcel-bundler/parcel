@@ -113,6 +113,7 @@ pub fn transform_xml(options: TransformOptions) -> TransformResult {
     AssetType::Xml,
     options.target,
     false,
+    options.options,
   );
   if let Err(err) = collapse_html(&arena, &embedded) {
     errors.push(err);
@@ -139,7 +140,7 @@ impl Transformer for XmlTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    _ctx: &parcel_core::PluginContext,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
     asset.target = Target::normalize(&asset.target, &asset.ty);
     let result = transform_xml(TransformOptions {
@@ -148,6 +149,7 @@ impl Transformer for XmlTransformer {
       xml: true,
       target: asset.target.clone(),
       hmr: false,
+      options: ctx.options,
     });
     if !result.errors.is_empty() {
       return Err(DiagnosticList(result.errors));
@@ -267,6 +269,7 @@ mod tests {
       xml: true,
       target: Default::default(),
       hmr: false,
+      options: &Default::default(),
     });
     assert!(result.errors.is_empty());
     result

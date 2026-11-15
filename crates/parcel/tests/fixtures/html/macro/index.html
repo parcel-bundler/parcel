@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>HTML macros</title>
+  <parcel:import name="code" src="macro.mjs#code"></parcel:import>
+</head>
+<body>
+  <parcel:macro src="macro.mjs" prop="test">content</parcel:macro>
+  <parcel:macro src="macro.mjs#other"><em>test</em></parcel:macro>
+  <code lang="js">hi</code>
+</body>
+</html>

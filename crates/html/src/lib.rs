@@ -52,15 +52,13 @@ impl<'de> serde::Deserialize<'de> for SerializableTendril {
   }
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TransformOptions {
-  #[serde(with = "serde_bytes")]
+pub struct TransformOptions<'a> {
   pub code: Vec<u8>,
   pub url: SourceUrl,
   pub xml: bool,
   pub target: Arc<Target>,
   pub hmr: bool,
+  pub options: &'a ParcelOptions,
 }
 
 #[derive(Serialize)]
@@ -94,6 +92,7 @@ pub fn transform_html(options: TransformOptions) -> TransformResult {
     AssetType::Html,
     options.target,
     options.hmr,
+    options.options,
   );
 
   let mut vec = Vec::new();
@@ -136,6 +135,7 @@ pub fn transform_svg(options: TransformOptions) -> TransformResult {
     AssetType::Svg,
     options.target,
     options.hmr,
+    options.options,
   );
   let exports = svg_exports(dom);
 
@@ -516,7 +516,7 @@ impl Transformer for HtmlTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    _ctx: &parcel_core::PluginContext,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
     asset.target = Target::normalize(&asset.target, &asset.ty);
     let code = asset.content.read()?;
@@ -526,6 +526,7 @@ impl Transformer for HtmlTransformer {
       xml: asset.ty == AssetType::Xhtml,
       target: asset.target.clone(),
       hmr: false,
+      options: ctx.options,
     });
 
     if !res.errors.is_empty() {
@@ -884,7 +885,7 @@ impl Transformer for SvgTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    _ctx: &parcel_core::PluginContext,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
     asset.target = Target::normalize(&asset.target, &asset.ty);
     let code = asset.content.read()?;
@@ -894,6 +895,7 @@ impl Transformer for SvgTransformer {
       xml: false,
       target: asset.target.clone(),
       hmr: false,
+      options: ctx.options,
     });
 
     asset.bundle_behavior = BundleBehavior::Isolated;
@@ -1032,6 +1034,7 @@ mod tests {
       xml: false,
       target: Default::default(),
       hmr: false,
+      options: &Default::default(),
     });
 
     assert_eq!(

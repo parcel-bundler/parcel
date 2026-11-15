@@ -1,9 +1,10 @@
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 
-use crate::arena::{Node, NodeData};
+use crate::arena::{Node, NodeData, SerializableHandle, Sink};
 use crate::srcset::{parse_srcset, serialize_srcset};
 use crate::xml::{ATOM_NS, is_rss};
 use html5ever::tendril::{StrTendril, format_tendril};
@@ -12,12 +13,13 @@ use parcel_core::{
   Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, BufferContent, BundleBehavior,
   CodeFrame, CodeHighlight, Dependency, DependencyFlags, DependencyResolution, Diagnostic,
   DiagnosticSeverity, EnvironmentFeature, ExportsCondition, ImportType, ImportedSymbol, Location,
-  OutputFormat, Priority, SourceLocation, SourceType, SourceUrl, SpecifierType, SymbolResolution,
-  Target, UrlReference,
+  OutputFormat, ParcelOptions, Priority, SourceLocation, SourceType, SourceUrl, SpecifierType,
+  SymbolResolution, Target, UrlReference,
 };
 use typed_arena::Arena;
 use xml5ever::LocalName;
 use xml5ever::interface::ElemName;
+use xml5ever::tendril::TendrilSink;
 
 /// Parse and canonically re-serialize a media attribute, matching the
 /// canonical form the CSS transformer uses for `@import` conditions. Returns
@@ -49,20 +51,21 @@ fn canonical_media(value: &str) -> Option<Box<str>> {
   }
 }
 
-pub fn collect_dependencies<'arena>(
+pub fn collect_dependencies<'arena, 'a>(
   arena: &'arena Arena<Node<'arena>>,
   dom: &'arena Node<'arena>,
   url: SourceUrl,
   ty: AssetType,
   target: Arc<Target>,
   hmr: bool,
+  options: &'a ParcelOptions,
 ) -> (
   Vec<Dependency>,
   Vec<ImportedSymbol>,
   Vec<Asset>,
   Vec<Diagnostic>,
 ) {
-  let mut collector = DependencyCollector::new(arena, url, ty, target);
+  let mut collector = DependencyCollector::new(arena, url, ty, target, options);
   collector.rss = collector.ty == AssetType::Xml && is_rss(dom);
 
   dom.walk(&mut |node| match &node.data {
@@ -171,7 +174,7 @@ pub fn collect_dependencies<'arena>(
   )
 }
 
-struct DependencyCollector<'arena> {
+struct DependencyCollector<'arena, 'a> {
   arena: &'arena Arena<Node<'arena>>,
   url: SourceUrl,
   ty: AssetType,
@@ -183,14 +186,17 @@ struct DependencyCollector<'arena> {
   has_module_scripts: bool,
   errors: Vec<Diagnostic>,
   rss: bool,
+  options: &'a ParcelOptions,
+  macro_imports: HashMap<String, String>,
 }
 
-impl<'arena> DependencyCollector<'arena> {
+impl<'arena, 'a> DependencyCollector<'arena, 'a> {
   fn new(
     arena: &'arena Arena<Node<'arena>>,
     url: SourceUrl,
     ty: AssetType,
     target: Arc<Target>,
+    options: &'a ParcelOptions,
   ) -> Self {
     DependencyCollector {
       arena,
@@ -204,6 +210,8 @@ impl<'arena> DependencyCollector<'arena> {
       has_module_scripts: false,
       errors: Vec::new(),
       rss: false,
+      options,
+      macro_imports: HashMap::new(),
     }
   }
 
@@ -665,6 +673,7 @@ impl<'arena> DependencyCollector<'arena> {
         self.handle_document_attr(node, expanded_name!(xlink "href"), false);
       }
       n if is_parcel_tag(&n, "include") => {
+        // <parcel:include src="..." /> adds an inline dependency on `src` which replaces it during packaging.
         if let Some(src) = node.get_attribute(expanded_name!("", "src")) {
           let mut dep = Dependency {
             specifier: src.to_string().into_boxed_str(),
@@ -686,6 +695,31 @@ impl<'arena> DependencyCollector<'arena> {
 
           node.set_attribute(expanded_name!("", "src"), dep.set_placeholder());
           self.deps.push(dep);
+        }
+      }
+      n if is_parcel_tag(&n, "import") => {
+        // <parcel:import name="foo" src="foo.js#export"> imports a macro and defines an element named <foo> to be replaced with it.
+        if let (Some(name), Some(src)) = (
+          node.get_attribute(expanded_name!("", "name")),
+          node.get_attribute(expanded_name!("", "src")),
+        ) {
+          self.macro_imports.insert(name.to_string(), src.to_string());
+          node.detach();
+        }
+      }
+      n if is_parcel_tag(&n, "macro") => {
+        // <parcel:macro src="foo.js#name" prop="value">content</parcel:macro> calls the `name` function
+        // in foo.js, passing in "content" and `{prop: 'value'} as arguments.
+        if let Some(src) = node.get_attribute(expanded_name!("", "src")) {
+          let (script, export) = src.split_once('#').unwrap_or((&src, "default"));
+          self.call_macro(script, export, node, false)
+        }
+      }
+      n if matches!(*n.ns(), ns!() | ns!(html)) && !self.macro_imports.is_empty() => {
+        if let Some(src) = self.macro_imports.get(&**n.local_name()) {
+          let src = src.clone();
+          let (script, export) = src.split_once('#').unwrap_or((&src, "default"));
+          self.call_macro(script, export, node, true)
         }
       }
       _ => {}
@@ -908,6 +942,85 @@ impl<'arena> DependencyCollector<'arena> {
       }
     }
     self.deps.push(dep);
+  }
+
+  fn call_macro(
+    &mut self,
+    script: &str,
+    export: &str,
+    node: &'arena Node<'arena>,
+    allow_src: bool,
+  ) {
+    use parcel_macros::{JsValue, MacroError};
+
+    let mut props = indexmap::IndexMap::new();
+    if let NodeData::Element { attrs, .. } = &node.data {
+      for attr in attrs.borrow_mut().iter_mut() {
+        if !allow_src && &attr.name.local == "src" {
+          continue;
+        }
+        props.insert(
+          attr.name.local.to_string(),
+          JsValue::String(attr.value.to_string()),
+        );
+      }
+    }
+
+    let mut content = Vec::new();
+    let _ =
+      html5ever::serialize::serialize(&mut content, &SerializableHandle(node), Default::default());
+
+    match parcel_plugin_js::call_macro(
+      self.options,
+      self.url.clone(),
+      self.target.clone(),
+      self
+        .url
+        .join(script)
+        .to_file_path()
+        .unwrap()
+        .to_path_buf()
+        .to_str()
+        .unwrap()
+        .to_string(),
+      export.to_owned(),
+      vec![
+        JsValue::String(String::from_utf8(content).unwrap()),
+        JsValue::Object(props),
+      ],
+      parcel_macros::Location {
+        line: node.line,
+        col: 1,
+      },
+    ) {
+      Ok((JsValue::String(result), _deps)) => {
+        let fragment = html5ever::driver::parse_fragment(
+          Sink::new(&self.arena),
+          html5ever::ParseOpts::default(),
+          xml5ever::QualName::new(None, ns!(html), local_name!("div")),
+          Vec::new(),
+        )
+        .one(result);
+        // html5ever places fragment children under a synthetic HTML root.
+        let root = fragment.first_child.get().unwrap();
+        while let Some(child) = root.last_child.get() {
+          node.insert_before(child);
+        }
+        node.detach();
+      }
+      Err(err) => {
+        let message = match err {
+          MacroError::LoadError(ref err, _) | MacroError::ExecutionError(ref err, _) => {
+            err.as_str()
+          }
+          _ => "Error running macro",
+        };
+        self.add_diagnostic(message, node.line);
+      }
+      Ok(_) => {
+        self.add_diagnostic("HTML macros must return strings", node.line);
+      }
+    }
   }
 }
 

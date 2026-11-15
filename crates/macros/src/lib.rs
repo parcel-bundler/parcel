@@ -21,7 +21,7 @@ use swc_core::{
 #[cfg(feature = "napi")]
 pub mod napi;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum MacroError {
   /// Could not statically evaluate macro argument.
   EvaluationError(Span),

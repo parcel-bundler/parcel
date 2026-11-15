@@ -17,6 +17,8 @@ oxvg_collections = { version = "0.0.9", git = "https://github.com/devongovett/ox
 oxvg_optimiser = { version = "0.0.9", git = "https://github.com/devongovett/oxvg.git", branch = "attr-id-index" }
 oxvg_serialize = { version = "0.0.9", git = "https://github.com/devongovett/oxvg.git", branch = "attr-id-index" }
 lightningcss = { version = "1.0.0-alpha.72", default-features = false }
+parcel-plugin-js = { path = "../plugin-js" }
+parcel-macros = { path = "../macros" }
 anyhow = "*"
 swc_core = { version = "84.0.3", features = [
   "common",

@@ -3160,6 +3160,8 @@ dependencies = [
  "oxvg_optimiser",
  "oxvg_serialize",
  "parcel-core",
+ "parcel-macros",
+ "parcel-plugin-js",
  "percent-encoding",
  "pretty_assertions",
  "ref-cast",
