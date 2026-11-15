@@ -1,0 +1,7 @@
+{
+  "description": "should support building markdown",
+  "input": "index.md",
+  "bundles": [
+    {"type": "html", "assets": ["index.md"]}
+  ]
+}

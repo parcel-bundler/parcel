@@ -3033,6 +3033,7 @@ dependencies = [
  "libc",
  "lightningcss",
  "log",
+ "markdown",
  "mimalloc",
  "node-semver",
  "parcel-core",

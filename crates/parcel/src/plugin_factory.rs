@@ -23,9 +23,9 @@ use parcel_tailwind::TailwindTransformer;
 use crate::{
   bundler::DefaultBundler, data_url::DataUrlOptimizer, glob_resolver::GlobResolver,
   inline::InlineTransformer, json::JsonTransformer, jsonld::JsonLdTransformer,
-  library_bundler::LibraryBundler, namer::DefaultNamer, raw::RawTransformer,
-  resolver::DefaultResolver, toml::TomlTransformer, webmanifest::WebManifestTransformer,
-  yaml::YamlTransformer,
+  library_bundler::LibraryBundler, markdown::MarkdownTransformer, namer::DefaultNamer,
+  raw::RawTransformer, resolver::DefaultResolver, toml::TomlTransformer,
+  webmanifest::WebManifestTransformer, yaml::YamlTransformer,
 };
 
 /// The version of Parcel that plugins' `engines.parcel` ranges are checked against.
@@ -99,6 +99,9 @@ impl PluginFactory for DefaultPluginFactory {
       "@parcel/transformer-tailwind" => Arc::new(TailwindTransformer {}),
       "@parcel/transformer-inline" => Arc::new(InlineTransformer {}),
       "@parcel/transformer-raw" => Arc::new(RawTransformer {}),
+      "@parcel/transformer-markdown" => {
+        Arc::new(MarkdownTransformer::new(config, from, self.fs.clone())?)
+      }
       _ => match self.resolve_plugin(PluginKind::Transformer, name, from, config)? {
         ResolvedPlugin::Native(plugin) => plugin,
         ResolvedPlugin::Js(plugin) => plugin,
