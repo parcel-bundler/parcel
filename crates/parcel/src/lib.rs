@@ -48,7 +48,7 @@ pub fn make_parcel(
   options: BuildOptions,
 ) -> Result<parcel_core::Parcel, DiagnosticList> {
   let make_factory: Arc<parcel_core::FactoryBuilder> =
-    Arc::new(|fs| Box::new(DefaultPluginFactory::new(fs)) as Box<dyn PluginFactory>);
+    Arc::new(|options| Box::new(DefaultPluginFactory::new(options)) as Box<dyn PluginFactory>);
   parcel_core::Parcel::new(entries, options, make_factory)
 }
 
@@ -494,7 +494,13 @@ fn invalidate_events(
   events: &[parcel_watcher::Event],
 ) -> Option<InvalidateResult> {
   let (changed, created, deleted) = split_events(events);
-  let result = parcel.invalidate(&changed, &created, &deleted).ok()?;
+  // A failure leaves `parcel` as it was, with the last good configuration, so its reporters can
+  // still say why: an edit that broke the .parcelrc, or a file a plugin reads while it
+  // initializes.
+  let result = parcel
+    .invalidate(&changed, &created, &deleted)
+    .inspect_err(|err| parcel.options.log_diagnostics(LogLevel::Error, &err.0))
+    .ok()?;
   result.needs_rebuild().then_some(result)
 }
 

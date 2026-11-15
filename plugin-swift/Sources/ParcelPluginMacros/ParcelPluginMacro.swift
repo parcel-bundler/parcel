@@ -26,15 +26,13 @@ public struct ParcelPluginMacro: DeclarationMacro {
     let exports = "ParcelPlugin.PluginExports<\(base.trimmedDescription)>"
     return [
       """
-      @_cdecl("parcel_plugin_init")
-      public func __parcel_plugin_init(
-        _ api: UnsafeRawPointer?,
-        _ config: UnsafePointer<UInt8>?,
-        _ configLength: Int,
+      @_cdecl("parcel_plugin_init2")
+      public func __parcel_plugin_init2(
+        _ args: UnsafeRawPointer?,
         _ state: UnsafeMutablePointer<UnsafeMutableRawPointer?>?,
         _ diagnostic: UnsafeMutableRawPointer?
       ) -> UInt8 {
-        \(raw: exports).initialize(api, config, configLength, state, diagnostic)
+        \(raw: exports).initialize(args, state, diagnostic)
       }
       """,
       """

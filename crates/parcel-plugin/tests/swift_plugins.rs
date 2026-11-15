@@ -169,6 +169,8 @@ fn load(
     "test-plugin",
     kind,
     config,
+    PathId::root(),
+    &ParcelOptions::default(),
   ))
 }
 

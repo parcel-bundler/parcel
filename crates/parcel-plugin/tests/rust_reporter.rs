@@ -62,6 +62,8 @@ fn test_rust_reporter_receives_every_event_kind() {
     "test-plugin",
     PluginKind::Reporter,
     None,
+    PathId::root(),
+    &ParcelOptions::default(),
   )
   .expect("load plugin");
   let options = ParcelOptions::default();

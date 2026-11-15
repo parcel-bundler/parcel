@@ -5,8 +5,8 @@ use std::{
 
 use parcel_core::{
   AssetType, CodeFrame, CodeHighlight, Diagnostic, DiagnosticList, DiagnosticSeverity, FileKind,
-  FileSystem, JsonSourceLocationType, Namer, Optimizer, ParcelConfig, PathId, PluginFactory,
-  Reporter, SourceUrl, Transformer, json_source_location,
+  FileSystem, JsonSourceLocationType, Namer, Optimizer, ParcelConfig, ParcelOptions, PathId,
+  PluginFactory, Reporter, SourceUrl, Transformer, json_source_location,
 };
 use parcel_css::{CssTransformer, StyleAttrTransformer};
 use parcel_html::{HtmlTransformer, SvgToJsxTransformer, SvgTransformer, XmlTransformer};
@@ -41,14 +41,18 @@ pub const PARCEL_VERSION: &str = match option_env!("PARCEL_VERSION") {
 pub struct DefaultPluginFactory {
   resolver: parcel_resolver::Resolver<'static>,
   fs: Arc<dyn FileSystem>,
+  /// What native plugins can read while they initialize. Their `input_fs` is `fs`.
+  options: Arc<ParcelOptions>,
   warnings: Mutex<Vec<Diagnostic>>,
 }
 
 impl DefaultPluginFactory {
-  pub fn new(fs: Arc<dyn FileSystem>) -> Self {
+  /// A factory that reads plugins and configs through `options.input_fs`.
+  pub fn new(options: Arc<ParcelOptions>) -> Self {
     DefaultPluginFactory {
       resolver: parcel_resolver::Resolver::node(parcel_resolver::PathId::root()),
-      fs,
+      fs: options.input_fs.clone(),
+      options,
       warnings: Mutex::new(Vec::new()),
     }
   }
@@ -268,6 +272,7 @@ impl DefaultPluginFactory {
             dir,
             &package,
             config.as_ref(),
+            from,
           )?));
         }
       }
@@ -302,6 +307,8 @@ impl DefaultPluginFactory {
         name,
         kind,
         config.as_ref(),
+        from,
+        &self.options,
       )?))),
       _ => Ok(ResolvedPlugin::Js(Arc::new(JsPlugin::new(
         path, name, config,
@@ -377,8 +384,9 @@ impl DefaultPluginFactory {
     })
   }
 
-  /// Loads the shared library of a native plugin package. Every failure is
-  /// reported, since no fallback to resolving it as a module could succeed.
+  /// Loads the shared library of a native plugin package, as named by the
+  /// .parcelrc at `from`. Every failure is reported, since no fallback to
+  /// resolving it as a module could succeed.
   fn load_native_plugin(
     &self,
     module: &str,
@@ -386,6 +394,7 @@ impl DefaultPluginFactory {
     dir: PathId,
     package: &PluginPackage,
     config: Option<&serde_json::Value>,
+    from: PathId,
   ) -> Result<Arc<CPlugin>, DiagnosticList> {
     if package.parcel.abi != Some(PARCEL_ABI_VERSION) {
       let abi = package.parcel.abi.map_or_else(
@@ -433,7 +442,14 @@ impl DefaultPluginFactory {
           .into(),
         );
       };
-      return Ok(Arc::new(CPlugin::new(path, module, kind, config)?));
+      return Ok(Arc::new(CPlugin::new(
+        path,
+        module,
+        kind,
+        config,
+        from,
+        &self.options,
+      )?));
     }
 
     let Some(artifact) = package.artifact() else {
@@ -474,7 +490,14 @@ impl DefaultPluginFactory {
       _ => self.resolve_artifact_package(module, artifact, dir)?,
     };
 
-    Ok(Arc::new(CPlugin::new(path, module, kind, config)?))
+    Ok(Arc::new(CPlugin::new(
+      path,
+      module,
+      kind,
+      config,
+      from,
+      &self.options,
+    )?))
   }
 
   /// Resolves the library of a platform-specific artifact package.

@@ -42,10 +42,10 @@ func TestFactoriesMustReturnAPlugin(t *testing.T) {
 			{nil, "implements none of"},
 			{struct{}{}, "returned struct {}, which implements none of"},
 		} {
-			pluginFactory = func([]byte) (any, error) { return test.plugin, nil }
+			pluginFactory = func(*Config, *Options) (any, error) { return test.plugin, nil }
 			diag, free := sizedDiagnostic(diagnosticSize)
 			var state unsafe.Pointer
-			status := parcel_plugin_init(parcelAPI(), nil, 0, &state, diag)
+			status := initPlugin(parcelAPI(), &state, diag)
 			if status == okStatus() || state != nil {
 				t.Fatalf("%v: expected init to fail", test.plugin)
 			}

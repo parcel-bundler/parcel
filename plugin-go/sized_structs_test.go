@@ -147,11 +147,11 @@ func TestReportSkipsUndersizedAndUnknownEvents(t *testing.T) {
 	previousFactory := pluginFactory
 	defer func() { pluginFactory = previousFactory }()
 	reporter := &recordingReporter{}
-	pluginFactory = func([]byte) (any, error) { return reporter, nil }
+	pluginFactory = func(*Config, *Options) (any, error) { return reporter, nil }
 
 	withSizedStructHost(func(sizedHost) {
 		var state unsafe.Pointer
-		if status := parcel_plugin_init(parcelAPI(), nil, 0, &state, nil); status != okStatus() {
+		if status := initPlugin(parcelAPI(), &state, nil); status != okStatus() {
 			t.Fatalf("plugin initialization failed with status %d", status)
 		}
 		defer parcel_plugin_deinit(state)

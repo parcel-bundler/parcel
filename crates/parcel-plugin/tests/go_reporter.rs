@@ -65,6 +65,8 @@ fn test_go_reporter_receives_every_event_kind() {
     "test-plugin",
     PluginKind::Reporter,
     None,
+    PathId::root(),
+    &ParcelOptions::default(),
   )
   .expect("load plugin");
   let options = ParcelOptions::default();
@@ -141,6 +143,8 @@ fn test_a_go_plugin_that_is_not_a_reporter_says_so() {
     "test-plugin",
     PluginKind::Reporter,
     None,
+    PathId::root(),
+    &ParcelOptions::default(),
   )
   .expect("load plugin");
   let error = plugin

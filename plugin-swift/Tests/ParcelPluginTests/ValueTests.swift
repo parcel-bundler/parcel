@@ -215,3 +215,17 @@ import Testing
 #else
   import Foundation
 #endif
+
+/// Paths in a plugin's options resolve against the .parcelrc they came from.
+@Suite struct InitContextTests {
+  @Test func resolvePath() {
+    let scope = CallScope("test")
+    defer { scope.close() }
+    let context = InitContext(
+      configPath: "/project/config/.parcelrc", options: Options(raw: 0, scope: scope))
+    #expect(context.resolvePath("./banner.txt") == "/project/config/banner.txt")
+    #expect(context.resolvePath("banner.txt") == "/project/config/banner.txt")
+    #expect(context.resolvePath("../src/./a b.txt") == "/project/src/a b.txt")
+    #expect(context.resolvePath("/elsewhere/../banner.txt") == "/banner.txt")
+  }
+}

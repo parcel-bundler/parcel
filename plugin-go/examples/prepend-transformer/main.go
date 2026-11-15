@@ -54,12 +54,12 @@ func (t *PrependTransformer) Transform(asset *parcel.Asset, _ *parcel.Options) e
 }
 
 func init() {
-	parcel.RegisterPlugin(func(config []byte) (any, error) {
+	parcel.RegisterPlugin(func(config *parcel.Config, _ *parcel.Options) (any, error) {
 		var c struct {
 			Line *string `json:"line"`
 		}
-		if len(config) > 0 {
-			if err := json.Unmarshal(config, &c); err != nil {
+		if len(config.Bytes) > 0 {
+			if err := json.Unmarshal(config.Bytes, &c); err != nil {
 				return nil, err
 			}
 		}

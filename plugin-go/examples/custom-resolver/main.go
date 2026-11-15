@@ -32,7 +32,7 @@ func (r *CustomResolver) Resolve(dep *parcel.Dependency, specifier, pipeline str
 }
 
 func init() {
-	parcel.RegisterPlugin(func(_ []byte) (any, error) {
+	parcel.RegisterPlugin(func(_ *parcel.Config, _ *parcel.Options) (any, error) {
 		return &CustomResolver{}, nil
 	})
 }

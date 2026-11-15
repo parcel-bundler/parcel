@@ -16,7 +16,7 @@ final class CustomReporter: Reporter {
   // or an actor.
   private let builds = Atomic<Int>(0)
 
-  init(config: NoConfig) {}
+  init(config: NoConfig, context: InitContext) {}
 
   func buildStart(options: Options) async throws {
     let build = builds.add(1, ordering: .relaxed).newValue

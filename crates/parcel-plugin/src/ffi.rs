@@ -125,7 +125,7 @@ impl InitStatus {
   pub const Incompatible: InitStatus = InitStatus(2);
 }
 #[repr(transparent)]
-#[doc = " Result of a plugin's `parcel_plugin_init()`.\n\n A plugin that cannot use the `ParcelApi` table it was\n handed returns `PARCEL_INIT_INCOMPATIBLE` without writing a diagnostic — it\n has no way to allocate one, since allocating goes through the very table it\n just rejected. Parcel writes that diagnostic instead."]
+#[doc = " Result of a plugin's `parcel_plugin_init2()` (or `parcel_plugin_init()`).\n\n A plugin that cannot use the `ParcelApi` table it was\n handed returns `PARCEL_INIT_INCOMPATIBLE` without writing a diagnostic — it\n has no way to allocate one, since allocating goes through the very table it\n just rejected. Parcel writes that diagnostic instead."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct InitStatus(pub u8);
 impl ResolutionType {
@@ -1203,6 +1203,37 @@ const _: () = {
     [::std::mem::offset_of!(ReportEvent, changed_assets) - 56usize];
   ["Offset of field: ReportEvent::changed_asset_count"]
     [::std::mem::offset_of!(ReportEvent, changed_asset_count) - 64usize];
+};
+#[doc = " The inputs to `parcel_plugin_init2()`.\n\n Parcel allocates it and sets `size` to `sizeof(InitArgs)` as Parcel was\n built. Fields may be appended in later versions: check one with\n `PARCEL_HAS_FIELD()` before reading it, unless it is in the first layout\n (through `options`), which every Parcel calling `parcel_plugin_init2()` fills\n in. Everything it points to is valid only until `parcel_plugin_init2()`\n returns: copy what you need into your state."]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct InitArgs {
+  #[doc = " `sizeof(InitArgs)` as Parcel was built. Always the first member."]
+  pub size: usize,
+  #[doc = " The host functions. Check `parcel_api_compatible(&args->api->header)`\n before using it, or anything else Parcel passed."]
+  pub api: *const ParcelApi,
+  #[doc = " The .parcelrc entry's options, as JSON. Not NUL-terminated. Empty when the\n entry has none."]
+  pub config: *const u8,
+  pub config_len: usize,
+  #[doc = " The absolute path of the .parcelrc file whose entry named the plugin: the\n file itself, not its directory. When the entry comes from a config that\n file `extends`, this is that config's path. Resolve relative paths in\n `config` against its directory. Not NUL-terminated."]
+  pub config_path: *const u8,
+  pub config_path_len: usize,
+  #[doc = " The build's options, for the duration of this call, as every other entry\n point receives them. Files read through it with `parcel_fs_read_file()`\n and friends are tracked: a change to any of them reinitializes every\n plugin. Never store it; `parcel_asset_resolve()` is not available."]
+  pub options: Options,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+  ["Size of InitArgs"][::std::mem::size_of::<InitArgs>() - 56usize];
+  ["Alignment of InitArgs"][::std::mem::align_of::<InitArgs>() - 8usize];
+  ["Offset of field: InitArgs::size"][::std::mem::offset_of!(InitArgs, size) - 0usize];
+  ["Offset of field: InitArgs::api"][::std::mem::offset_of!(InitArgs, api) - 8usize];
+  ["Offset of field: InitArgs::config"][::std::mem::offset_of!(InitArgs, config) - 16usize];
+  ["Offset of field: InitArgs::config_len"][::std::mem::offset_of!(InitArgs, config_len) - 24usize];
+  ["Offset of field: InitArgs::config_path"]
+    [::std::mem::offset_of!(InitArgs, config_path) - 32usize];
+  ["Offset of field: InitArgs::config_path_len"]
+    [::std::mem::offset_of!(InitArgs, config_path_len) - 40usize];
+  ["Offset of field: InitArgs::options"][::std::mem::offset_of!(InitArgs, options) - 48usize];
 };
 
 /// The end of the last function in [`ParcelApi`]'s first published layout, and so

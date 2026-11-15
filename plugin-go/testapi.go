@@ -193,7 +193,7 @@ import (
 )
 
 // hostAPI allocates a host function table matching what this SDK was built
-// against, as Parcel would pass to parcel_plugin_init. sizeDelta and abiDelta
+// against, as Parcel would pass to parcel_plugin_init2. sizeDelta and abiDelta
 // adjust the reported size and ABI version to stand in for a Parcel that appended
 // functions or made a breaking change. The function pointers are left nil.
 //
@@ -215,6 +215,16 @@ func firstLayoutDelta() int {
 // freeHostAPI releases a table returned by [hostAPI].
 func freeHostAPI(api *C.struct_ParcelApi) {
 	C.free(unsafe.Pointer(api))
+}
+
+// initPlugin calls parcel_plugin_init2 as Parcel would, with api and an empty
+// config, writing the plugin's state to state.
+func initPlugin(api *C.struct_ParcelApi, state *unsafe.Pointer, diag *C.DiagnosticOptions) C.InitStatus {
+	args := (*C.InitArgs)(C.calloc(1, C.sizeof_InitArgs))
+	defer C.free(unsafe.Pointer(args))
+	args.size = C.sizeof_InitArgs
+	args.api = api
+	return parcel_plugin_init2(args, state, diag)
 }
 
 // okStatus and incompatibleStatus expose the C enum values to tests, which
@@ -393,7 +403,7 @@ func withUTF8Host(body func(lastCall func() string)) {
 	body(func() string { return C.GoString(C.test_get_last_call()) })
 }
 
-// pluginState returns the state parcel_plugin_init would produce for plugin,
+// pluginState returns the state parcel_plugin_init2 would produce for plugin,
 // without installing a host table the way init does, and a function that frees
 // it.
 func pluginState(plugin any) (unsafe.Pointer, func()) {

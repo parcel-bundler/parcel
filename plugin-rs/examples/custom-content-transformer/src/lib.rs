@@ -68,7 +68,7 @@ impl AssetContent for UppercaseContent {
 struct CustomContentTransformer;
 
 impl Plugin for CustomContentTransformer {
-  fn new(_config: &[u8]) -> Result<Self, Diagnostic> {
+  fn new(_config: &parcel_plugin::Config, _options: &Options) -> Result<Self, Diagnostic> {
     Ok(Self)
   }
 

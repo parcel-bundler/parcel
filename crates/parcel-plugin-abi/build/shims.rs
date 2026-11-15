@@ -17,7 +17,7 @@ pub const FIRST_LAYOUT_END: &str = "diagnostic_get_code_highlight";
 /// Appends a `static inline` wrapper for every `ParcelApi` field, so C and Go
 /// plugins call `parcel_asset_get_content(...)` exactly as they did when the host
 /// exported it as a linkable symbol. The plugin defines `parcel_api` once and
-/// points it at the table Parcel passes to `parcel_plugin_init`.
+/// points it at the table Parcel passes to `parcel_plugin_init2`.
 ///
 /// Functions appended after [`FIRST_LAYOUT_END`] get wrappers that check the
 /// table has them, doing nothing and returning zero on a host too old to, plus a
@@ -42,7 +42,7 @@ pub fn add_api_shims_ending_at(header: &str, first_layout_end: &str) -> String {
   };
 
   let mut shims = String::from(
-    "\n/**\n * The host functions Parcel passed to `parcel_plugin_init()`. Plugins define this\n\
+    "\n/**\n * The host functions Parcel passed to `parcel_plugin_init2()`. Plugins define this\n\
      \x20* once and assign it before calling anything below.\n */\nextern const struct ParcelApi *parcel_api;\n\n",
   );
   shims.push_str(&format!(
@@ -54,7 +54,7 @@ pub fn add_api_shims_ending_at(header: &str, first_layout_end: &str) -> String {
   ));
   shims.push_str(
     "/**\n * Whether `api` is usable by a plugin built against this header. Check it in\n\
-     \x20* `parcel_plugin_init()` before anything else.\n\
+     \x20* `parcel_plugin_init2()` before anything else.\n\
      \x20*\n\
      \x20* The ABI version must match: appending never changes the size of an existing\n\
      \x20* field, so a changed signature is invisible to `size`. The table may be smaller\n\
@@ -177,7 +177,7 @@ fn entry_point_prototypes(header: &str) -> String {
 
   format!(
     "\n/**\n * The entry points a plugin defines, matching the `ParcelPlugin*Fn` types Parcel loads\n\
-     \x20* them as. Define those your plugin implements: `parcel_plugin_init()` always, and the\n\
+     \x20* them as. Define those your plugin implements: `parcel_plugin_init2()` always, and the\n\
      \x20* rest for each kind of plugin it is used as.\n\
      \x20*\n\
      \x20* Define `PARCEL_NO_ENTRY_POINT_PROTOTYPES` before including this header when the\n\

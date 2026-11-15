@@ -6,7 +6,7 @@
 import ParcelPlugin
 
 struct CustomResolver: Resolver {
-  init(config: NoConfig) {}
+  init(config: NoConfig, context: InitContext) {}
 
   func resolve(
     _ dependency: Dependency, specifier: String, pipeline: String?, options: Options

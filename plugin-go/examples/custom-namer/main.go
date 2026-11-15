@@ -34,7 +34,7 @@ func (*CustomNamer) Name(bundleGraph *parcel.BundleGraph, bundle *parcel.Bundle,
 }
 
 func init() {
-	parcel.RegisterPlugin(func(_ []byte) (any, error) {
+	parcel.RegisterPlugin(func(_ *parcel.Config, _ *parcel.Options) (any, error) {
 		return &CustomNamer{}, nil
 	})
 }

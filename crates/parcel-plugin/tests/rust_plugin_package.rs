@@ -388,7 +388,7 @@ fn test_library_without_init_reports_a_useful_error() {
       library,
     )
   });
-  assert_rebuild_error(&error, "does not export a parcel_plugin_init function");
+  assert_rebuild_error(&error, "does not export a parcel_plugin_init2 function");
 }
 
 #[test]

@@ -9,13 +9,13 @@ import Synchronization
 
 /// The `ParcelApi` table this library was initialized with, as an address.
 ///
-/// Parcel calls `parcel_plugin_init` once per `.parcelrc` entry naming this
+/// Parcel calls `parcel_plugin_init2` once per `.parcelrc` entry naming this
 /// library, possibly concurrently, and always with the same table. A different
 /// table means two Parcel instances are sharing this library, which cannot work:
 /// whichever lost would be calling the other's functions.
 private let installedAPI = Atomic<UInt>(0)
 
-/// Checks and stores the table Parcel passed to `parcel_plugin_init`.
+/// Checks and stores the table Parcel passed to `parcel_plugin_init2`.
 ///
 /// Returns `false` when the table cannot be used, in which case no host function
 /// may be called — not even to write a diagnostic, since allocating one goes

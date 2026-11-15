@@ -6,7 +6,7 @@
 import ParcelPlugin
 
 struct CustomNamer: Namer {
-  init(config: NoConfig) {}
+  init(config: NoConfig, context: InitContext) {}
 
   func name(_ bundle: OutputBundle, in bundleGraph: BundleGraph, options: Options) async throws
     -> String?

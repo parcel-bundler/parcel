@@ -209,7 +209,7 @@ func TestConstantsMatchHeader(t *testing.T) {
 		"PARCEL_ABI_VERSION": "checked by parcel_api_compatible",
 	}
 	for _, prefix := range []string{
-		"PARCEL_INIT_",       // returned by parcel_plugin_init, never seen by plugin code
+		"PARCEL_INIT_",       // returned by parcel_plugin_init2, never seen by plugin code
 		"PARCEL_RESOLUTION_", // switched on as C constants by writeResolveResult and Resolve
 		"PARCEL_EVENT_",      // switched on as C constants by parcel_plugin_report
 		"PARCEL_IO_",         // switched on as C constants by the file system wrappers

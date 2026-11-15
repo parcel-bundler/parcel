@@ -7,12 +7,12 @@
 //! at the crate root:
 //!
 //! ```rust,ignore
-//! use parcel_plugin::{Asset, Diagnostic, Plugin, register_plugin};
+//! use parcel_plugin::{Asset, Config, Diagnostic, Options, Plugin, register_plugin};
 //!
 //! struct MyPlugin;
 //!
 //! impl Plugin for MyPlugin {
-//!     fn new(_config: &[u8]) -> Result<Self, Diagnostic> {
+//!     fn new(_config: &Config, _options: &Options) -> Result<Self, Diagnostic> {
 //!         Ok(MyPlugin)
 //!     }
 //!     fn transform(&self, asset: &mut Asset, _options: &Options) -> Result<(), Diagnostic> {
@@ -25,7 +25,7 @@
 //! register_plugin!(MyPlugin);
 //! ```
 //!
-//! The macro generates all seven ABI symbols: `parcel_plugin_init` (calls
+//! The macro generates all seven ABI symbols: `parcel_plugin_init2` (calls
 //! `MyPlugin::new`), `parcel_plugin_deinit` (drops the boxed value),
 //! `parcel_plugin_transform`, `parcel_plugin_resolve`, `parcel_plugin_name`,
 //! `parcel_plugin_optimize`, and `parcel_plugin_report`. Override only the
@@ -34,7 +34,7 @@
 //! do nothing so a reporter only implements the events it handles.
 //!
 //! Plugins need no linker configuration. Parcel passes a table of host functions
-//! to `parcel_plugin_init`, which [`register_plugin!`] stores before calling your
+//! to `parcel_plugin_init2`, which [`register_plugin!`] stores before calling your
 //! [`Plugin::new`], so the library has no undefined symbols to resolve at load
 //! time on any platform.
 //!
@@ -162,6 +162,51 @@ pub struct Options<'a> {
   lifetime: PhantomData<&'a ()>,
 }
 
+/// A `.parcelrc` entry's configuration, passed to [`Plugin::new`].
+pub struct Config<'a> {
+  bytes: &'a [u8],
+  path: &'a Path,
+}
+
+impl<'a> Config<'a> {
+  pub(crate) fn new(bytes: &'a [u8], path: &'a Path) -> Self {
+    Config { bytes, path }
+  }
+
+  /// The entry's options as UTF-8 JSON. Empty when it has none.
+  pub fn bytes(&self) -> &'a [u8] {
+    self.bytes
+  }
+
+  /// The absolute path of the `.parcelrc` file whose entry named the plugin.
+  /// When the entry comes from a config that file `extends`, this is that
+  /// config's path.
+  pub fn path(&self) -> &'a Path {
+    self.path
+  }
+
+  /// Resolves `path`, as written in the options, against the directory of the
+  /// `.parcelrc` they came from. An absolute `path` is returned as is. `.` and
+  /// `..` are resolved lexically, without following symlinks.
+  pub fn resolve_path(&self, path: impl AsRef<Path>) -> PathBuf {
+    use std::path::Component;
+    let joined = self.path.parent().unwrap_or(Path::new("")).join(path);
+    let mut resolved = PathBuf::new();
+    for component in joined.components() {
+      match component {
+        Component::CurDir => {}
+        Component::ParentDir => {
+          if !resolved.pop() {
+            resolved.push(component);
+          }
+        }
+        component => resolved.push(component),
+      }
+    }
+    resolved
+  }
+}
+
 impl<'a> Options<'a> {
   pub(crate) unsafe fn from_raw(raw: u64) -> Self {
     Options {
@@ -235,8 +280,9 @@ impl<'a> Options<'a> {
   ///
   /// Read files through this rather than `std::fs`: Parcel records the path, so
   /// a change to the file re-runs the transform that read it, and a file that was
-  /// missing re-runs it when created. Only available while transforming or
-  /// resolving.
+  /// missing re-runs it when created. Read from [`Plugin::new`], a change
+  /// initializes every plugin again. Only available while initializing,
+  /// transforming or resolving.
   pub fn read_file(&self, path: impl AsRef<Path>) -> std::io::Result<Vec<u8>> {
     let path = path_arg(path.as_ref())?;
     let mut buf = Buffer::default();
@@ -2222,13 +2268,13 @@ impl ResolveResult {
 /// keep any state that changes behind a `Mutex` or in atomics.
 ///
 /// ```rust,ignore
-/// use parcel_plugin::{Asset, Diagnostic, Plugin, register_plugin};
+/// use parcel_plugin::{Asset, Config, Diagnostic, Options, Plugin, register_plugin};
 ///
 /// struct MyPlugin { prefix: String }
 ///
 /// impl Plugin for MyPlugin {
-///     fn new(config: &[u8]) -> Result<Self, Diagnostic> {
-///         // parse config, e.g. via serde_json
+///     fn new(config: &Config, _options: &Options) -> Result<Self, Diagnostic> {
+///         // parse config.bytes(), e.g. via serde_json
 ///         Ok(MyPlugin { prefix: "hello".into() })
 ///     }
 ///     fn transform(&self, asset: &mut Asset, _options: &Options) -> Result<(), Diagnostic> {
@@ -2242,8 +2288,12 @@ impl ResolveResult {
 pub trait Plugin: Sized + Send + Sync {
   /// Called once for each `.parcelrc` entry naming the plugin, which may name it
   /// more than once with different configs, before any other method. `config`
-  /// is that entry's config as UTF-8 JSON (empty when it has none).
-  fn new(config: &[u8]) -> Result<Self, Diagnostic>;
+  /// is that entry's config, and where it came from.
+  ///
+  /// Files read through `options`, such as with [`Options::read_file`], are
+  /// tracked: when one changes, Parcel starts over and calls `new` again, so
+  /// read configuration files that way rather than with `std::fs`.
+  fn new(config: &Config, options: &Options) -> Result<Self, Diagnostic>;
 
   /// Called once per asset that matches the plugin's configured glob.
   /// The default returns an error; override when acting as a transformer.
@@ -2318,7 +2368,7 @@ pub trait Plugin: Sized + Send + Sync {
 // ── register_plugin! macro ────────────────────────────────────────────────
 
 /// Generates all seven ABI exports for a type that implements [`Plugin`]:
-/// `parcel_plugin_init`, `parcel_plugin_deinit`, `parcel_plugin_transform`,
+/// `parcel_plugin_init2`, `parcel_plugin_deinit`, `parcel_plugin_transform`,
 /// `parcel_plugin_resolve`, `parcel_plugin_name`, `parcel_plugin_optimize`, and
 /// `parcel_plugin_report`.
 ///
@@ -2326,7 +2376,7 @@ pub trait Plugin: Sized + Send + Sync {
 /// register_plugin!(MyPlugin);
 /// ```
 ///
-/// `parcel_plugin_init` calls [`Plugin::new`] and boxes the result as the
+/// `parcel_plugin_init2` calls [`Plugin::new`] and boxes the result as the
 /// per-entry state pointer, and `parcel_plugin_deinit` drops the box. The other
 /// five borrow it as `&MyPlugin` and call the corresponding trait method. Each
 /// catches panics, reporting them as diagnostics rather than unwinding into
@@ -2335,14 +2385,12 @@ pub trait Plugin: Sized + Send + Sync {
 macro_rules! register_plugin {
   ($type:ty) => {
     #[unsafe(no_mangle)]
-    pub unsafe extern "C" fn parcel_plugin_init(
-      api: *const ::core::ffi::c_void,
-      config: *const u8,
-      config_len: usize,
+    pub unsafe extern "C" fn parcel_plugin_init2(
+      args: *const ::core::ffi::c_void,
       state: *mut *mut ::core::ffi::c_void,
       diagnostic: *mut ::core::ffi::c_void,
     ) -> u8 {
-      unsafe { $crate::__private::init::<$type>(api, config, config_len, state, diagnostic) }
+      unsafe { $crate::__private::init::<$type>(args, state, diagnostic) }
     }
 
     #[unsafe(no_mangle)]

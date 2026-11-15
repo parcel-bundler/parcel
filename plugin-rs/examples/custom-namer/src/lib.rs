@@ -5,7 +5,7 @@ use parcel_plugin::{Bundle, BundleGraph, Diagnostic, Options, Plugin, register_p
 struct CustomNamer;
 
 impl Plugin for CustomNamer {
-  fn new(_config: &[u8]) -> Result<Self, Diagnostic> {
+  fn new(_config: &parcel_plugin::Config, _options: &Options) -> Result<Self, Diagnostic> {
     Ok(CustomNamer)
   }
 

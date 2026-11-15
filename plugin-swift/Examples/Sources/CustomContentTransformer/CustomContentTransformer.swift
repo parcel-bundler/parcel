@@ -57,7 +57,7 @@ struct UppercaseContent: AssetContent {
 }
 
 struct CustomContentTransformer: Transformer {
-  init(config: NoConfig) {}
+  init(config: NoConfig, context: InitContext) {}
 
   func transform(_ asset: Asset, options: Options) async throws {
     let source = try asset.content().trimmingWhitespace()

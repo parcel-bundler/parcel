@@ -89,7 +89,7 @@ func summarize(diagnostics *parcel.Diagnostics) string {
 }
 
 func init() {
-	parcel.RegisterPlugin(func(_ []byte) (any, error) {
+	parcel.RegisterPlugin(func(_ *parcel.Config, _ *parcel.Options) (any, error) {
 		return &CustomReporter{}, nil
 	})
 }

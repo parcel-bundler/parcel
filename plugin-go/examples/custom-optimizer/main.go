@@ -34,7 +34,7 @@ func (*CustomOptimizer) Optimize(bundleGraph *parcel.BundleGraph, bundle *parcel
 }
 
 func init() {
-	parcel.RegisterPlugin(func(_ []byte) (any, error) {
+	parcel.RegisterPlugin(func(_ *parcel.Config, _ *parcel.Options) (any, error) {
 		return &CustomOptimizer{}, nil
 	})
 }

@@ -48,8 +48,11 @@ func (*TxtTransformer) Transform(asset *parcel.Asset, _ *parcel.Options) error {
 }
 
 func init() {
-	// Called for each .parcelrc entry naming the plugin, with that entry's config as JSON.
-	parcel.RegisterPlugin(func(config []byte) (any, error) {
+	// Called for each .parcelrc entry naming the plugin, with that entry's config.
+	// config.Bytes is its JSON, and config.ResolvePath resolves a path in it
+	// against the .parcelrc. Read files with options.ReadFile, so Parcel
+	// reinitializes the plugin when they change.
+	parcel.RegisterPlugin(func(config *parcel.Config, options *parcel.Options) (any, error) {
 		return &TxtTransformer{}, nil
 	})
 }

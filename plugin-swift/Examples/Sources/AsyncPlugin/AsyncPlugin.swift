@@ -23,7 +23,7 @@ actor TransformCounter {
 struct AsyncPlugin: Transformer, Resolver {
   let counter = TransformCounter()
 
-  init(config: NoConfig) async {}
+  init(config: NoConfig, context: InitContext) async {}
 
   func transform(_ asset: Asset, options: Options) async throws {
     let lines = try asset.content().split(separator: "\n").map(String.init)

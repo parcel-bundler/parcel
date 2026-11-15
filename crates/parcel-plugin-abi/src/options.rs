@@ -16,9 +16,10 @@ use crate::{
 /// What an [`Options`] handle points to.
 ///
 /// The handle is opaque to plugins, so it can carry more than the options
-/// themselves. During a transform or a resolve it also carries the
+/// themselves. During an init, a transform or a resolve it also carries the
 /// [`PluginContext`]: the file system that records every path a plugin reads as
-/// an invalidation, and the resolver chain `parcel_asset_resolve` runs. Elsewhere
+/// an invalidation, and the resolver chain `parcel_asset_resolve` runs (empty
+/// during init, when the resolvers are still being loaded). Elsewhere
 /// it is `None`, and those functions report an error rather than read files
 /// nothing would ever invalidate.
 ///
@@ -47,7 +48,7 @@ impl<'a> OptionsContext<'a> {
     }
   }
 
-  /// For transforms and resolves.
+  /// For inits, transforms and resolves.
   pub fn with_plugin(plugin: &'a PluginContext<'a>) -> Self {
     OptionsContext {
       options: plugin.options,

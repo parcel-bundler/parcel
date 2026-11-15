@@ -21,7 +21,7 @@ package parcel
 #define PARCEL_NO_ENTRY_POINT_PROTOTYPES
 #include "plugin.h"
 
-// parcel_api is defined in api.c and assigned by parcel_plugin_init below.
+// parcel_api is defined in api.c and assigned by parcel_plugin_init2 below.
 // Plugins link against no Parcel symbols, so no linker flags are needed on any
 // platform. This preamble must stay free of definitions: the file has //export
 // directives, so cgo copies it into more than one translation unit.
@@ -32,6 +32,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path/filepath"
 	"runtime"
 	"runtime/cgo"
 	"sync"
@@ -122,16 +123,41 @@ type OptimizeResult struct {
 	SourceMap string
 }
 
+// Config is a .parcelrc entry's configuration, passed to the factory given to
+// [RegisterPlugin].
+type Config struct {
+	// Bytes is the entry's options as JSON, nil when it has none.
+	Bytes []byte
+	// Path is the absolute path of the .parcelrc file whose entry named the
+	// plugin. When the entry comes from a config that file extends, this is that
+	// config's path.
+	Path string
+}
+
+// ResolvePath resolves path, as written in the options, against the directory
+// of the .parcelrc they came from. An absolute path is returned cleaned.
+func (c *Config) ResolvePath(path string) string {
+	if filepath.IsAbs(path) {
+		return filepath.Clean(path)
+	}
+	return filepath.Join(filepath.Dir(c.Path), path)
+}
+
 // pluginFactory is the registered plugin factory function.
-var pluginFactory func(config []byte) (any, error)
+var pluginFactory func(config *Config, options *Options) (any, error)
 
 // RegisterPlugin sets the factory Parcel calls for each .parcelrc entry naming
-// the plugin, with that entry's config as JSON (nil when it has none). The
-// factory returns the plugin: a value implementing at least one of
-// [Transformer], [Resolver], [Namer], [Optimizer] and the reporter interfaces.
+// the plugin, with that entry's config. The factory returns the plugin: a value
+// implementing at least one of [Transformer], [Resolver], [Namer], [Optimizer]
+// and the reporter interfaces.
+//
+// Files the factory reads through options, such as with [Options.ReadFile], are
+// tracked: when one changes, Parcel starts over and calls the factory again, so
+// read configuration files that way rather than with the os package. options is
+// valid only until the factory returns.
 //
 // Call RegisterPlugin once, from an init() function in the plugin's main package.
-func RegisterPlugin(factory func(config []byte) (any, error)) {
+func RegisterPlugin(factory func(config *Config, options *Options) (any, error)) {
 	pluginFactory = factory
 }
 
@@ -174,8 +200,14 @@ func isReporter(plugin any) bool {
 // .parcelrc entries naming this library at once.
 var installAPI sync.Mutex
 
-//export parcel_plugin_init
-func parcel_plugin_init(api *C.struct_ParcelApi, config *C.uint8_t, configLen C.uintptr_t, outState *unsafe.Pointer, diag *C.DiagnosticOptions) (status C.InitStatus) {
+//export parcel_plugin_init2
+func parcel_plugin_init2(args *C.InitArgs, outState *unsafe.Pointer, diag *C.DiagnosticOptions) (status C.InitStatus) {
+	if args == nil {
+		return C.InitStatus(C.PARCEL_INIT_INCOMPATIBLE)
+	}
+	// Every field read here is in the first layout, which any Parcel calling
+	// parcel_plugin_init2 fills in.
+	api := args.api
 	defer func() {
 		if value := recover(); value != nil {
 			status = C.InitStatus(C.PARCEL_INIT_ERROR)
@@ -199,11 +231,14 @@ func parcel_plugin_init(api *C.struct_ParcelApi, config *C.uint8_t, configLen C.
 		writeDiagnostic(diag, errNotRegistered)
 		return C.InitStatus(C.PARCEL_INIT_ERROR)
 	}
-	var data []byte
-	if configLen > 0 && config != nil {
-		data = goBytes(unsafe.Pointer(config), uintptr(configLen))
+	config := &Config{}
+	if args.config_len > 0 && args.config != nil {
+		config.Bytes = goBytes(unsafe.Pointer(args.config), uintptr(args.config_len))
 	}
-	plugin, err := pluginFactory(data)
+	if args.config_path_len > 0 && args.config_path != nil {
+		config.Path = string(goBytes(unsafe.Pointer(args.config_path), uintptr(args.config_path_len)))
+	}
+	plugin, err := pluginFactory(config, &Options{ptr: args.options})
 	if err == nil && !hasRole(plugin) {
 		err = fmt.Errorf("the plugin factory returned %T, which implements none of Transformer, Resolver, Namer, Optimizer and the reporter interfaces", plugin)
 	}

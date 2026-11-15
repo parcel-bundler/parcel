@@ -1,14 +1,14 @@
 /*
  * Parcel's native plugin ABI. A plugin is a shared library that defines the
  * parcel_plugin_* entry points declared at the end of this file, and calls back
- * into Parcel through the ParcelApi table it receives in parcel_plugin_init().
+ * into Parcel through the ParcelApi table it receives in parcel_plugin_init2().
  *
  * Threading: Parcel calls a plugin from many threads, and calls overlap. Every
  * call for one .parcelrc entry receives the same `state`, so anything in it that
  * changes needs synchronizing. Today, transforms and resolves run in parallel
  * with each other, as do optimizers and custom content packaging, and log
  * events reach parcel_plugin_report() on whichever thread logged them, alongside
- * everything else. parcel_plugin_init() may run concurrently for different
+ * everything else. parcel_plugin_init2() may run concurrently for different
  * entries; parcel_plugin_deinit() runs once no other call for its entry is
  * running. Custom content callbacks run on any thread, possibly in a later
  * build, and possibly after parcel_plugin_deinit().
@@ -306,7 +306,7 @@ typedef uint8_t IoStatus;
 #endif // __cplusplus
 
 /**
- * Result of a plugin's `parcel_plugin_init()`.
+ * Result of a plugin's `parcel_plugin_init2()` (or `parcel_plugin_init()`).
  *
  * A plugin that cannot use the `ParcelApi` table it was
  * handed returns `PARCEL_INIT_INCOMPATIBLE` without writing a diagnostic — it
@@ -1089,9 +1089,55 @@ typedef struct ReportEvent {
 } ReportEvent;
 
 /**
- * `parcel_plugin_init()`: called once for each .parcelrc entry naming the
- * plugin, with that entry's options as JSON in `config`, before any other entry
- * point. It may be called concurrently, and always with the same `api` table.
+ * The inputs to `parcel_plugin_init2()`.
+ *
+ * Parcel allocates it and sets `size` to `sizeof(InitArgs)` as Parcel was
+ * built. Fields may be appended in later versions: check one with
+ * `PARCEL_HAS_FIELD()` before reading it, unless it is in the first layout
+ * (through `options`), which every Parcel calling `parcel_plugin_init2()` fills
+ * in. Everything it points to is valid only until `parcel_plugin_init2()`
+ * returns: copy what you need into your state.
+ */
+typedef struct InitArgs {
+  /**
+   * `sizeof(InitArgs)` as Parcel was built. Always the first member.
+   */
+  uintptr_t size;
+  /**
+   * The host functions. Check `parcel_api_compatible(&args->api->header)`
+   * before using it, or anything else Parcel passed.
+   */
+  const struct ParcelApi *api;
+  /**
+   * The .parcelrc entry's options, as JSON. Not NUL-terminated. Empty when the
+   * entry has none.
+   */
+  const uint8_t *config;
+  uintptr_t config_len;
+  /**
+   * The absolute path of the .parcelrc file whose entry named the plugin: the
+   * file itself, not its directory. When the entry comes from a config that
+   * file `extends`, this is that config's path. Resolve relative paths in
+   * `config` against its directory. Not NUL-terminated.
+   */
+  const uint8_t *config_path;
+  uintptr_t config_path_len;
+  /**
+   * The build's options, for the duration of this call, as every other entry
+   * point receives them. Files read through it with `parcel_fs_read_file()`
+   * and friends are tracked: a change to any of them reinitializes every
+   * plugin. Never store it; `parcel_asset_resolve()` is not available.
+   */
+  Options options;
+} InitArgs;
+
+/**
+ * `parcel_plugin_init()`: the original form of `parcel_plugin_init2()`, which
+ * Parcel calls instead when a plugin exports both. It receives only the entry's
+ * options as JSON in `config`: no `Options`, so it cannot read files or the
+ * project root, and no path to the .parcelrc that configured it. Kept so that
+ * plugins built before `parcel_plugin_init2()` keep loading; new plugins should
+ * define `parcel_plugin_init2()` instead.
  *
  * Check `parcel_api_compatible(&api->header)` first, and return
  * `PARCEL_INIT_INCOMPATIBLE` without touching `api` if it fails. Store anything
@@ -1104,6 +1150,21 @@ typedef InitStatus (*ParcelPluginInitFn)(const struct ParcelApi *api,
                                          uintptr_t config_len,
                                          void **state,
                                          struct DiagnosticOptions *diagnostic);
+
+/**
+ * `parcel_plugin_init2()`: called once for each .parcelrc entry naming the
+ * plugin, before any other entry point. It may be called concurrently, and
+ * always with the same `args->api` table.
+ *
+ * Check `parcel_api_compatible(&args->api->header)` first, and return
+ * `PARCEL_INIT_INCOMPATIBLE` without touching anything else if it fails. Store
+ * anything the other entry points need in `*state`, which every later call for
+ * this entry receives. On failure, return `PARCEL_INIT_ERROR` and fill in
+ * `diagnostic`.
+ */
+typedef InitStatus (*ParcelPluginInit2Fn)(const struct InitArgs *args,
+                                          void **state,
+                                          struct DiagnosticOptions *diagnostic);
 
 /**
  * `parcel_plugin_deinit()`: releases `state` once Parcel is done with the
@@ -1187,7 +1248,7 @@ typedef void (*ParcelPluginReportFn)(const struct ReportEvent *event,
 
 
 /**
- * The host functions Parcel passed to `parcel_plugin_init()`. Plugins define this
+ * The host functions Parcel passed to `parcel_plugin_init2()`. Plugins define this
  * once and assign it before calling anything below.
  */
 extern const struct ParcelApi *parcel_api;
@@ -1202,7 +1263,7 @@ extern const struct ParcelApi *parcel_api;
 
 /**
  * Whether `api` is usable by a plugin built against this header. Check it in
- * `parcel_plugin_init()` before anything else.
+ * `parcel_plugin_init2()` before anything else.
  *
  * The ABI version must match: appending never changes the size of an existing
  * field, so a changed signature is invisible to `size`. The table may be smaller
@@ -1586,7 +1647,7 @@ static inline bool parcel_diagnostic_get_code_highlight(struct CodeHighlightInfo
 
 /**
  * The entry points a plugin defines, matching the `ParcelPlugin*Fn` types Parcel loads
- * them as. Define those your plugin implements: `parcel_plugin_init()` always, and the
+ * them as. Define those your plugin implements: `parcel_plugin_init2()` always, and the
  * rest for each kind of plugin it is used as.
  *
  * Define `PARCEL_NO_ENTRY_POINT_PROTOTYPES` before including this header when the
@@ -1596,6 +1657,8 @@ static inline bool parcel_diagnostic_get_code_highlight(struct CodeHighlightInfo
 #ifndef PARCEL_NO_ENTRY_POINT_PROTOTYPES
 
 InitStatus parcel_plugin_init(const struct ParcelApi *api, const uint8_t *config, uintptr_t config_len, void **state, struct DiagnosticOptions *diagnostic);
+
+InitStatus parcel_plugin_init2(const struct InitArgs *args, void **state, struct DiagnosticOptions *diagnostic);
 
 void parcel_plugin_deinit(void *state);
 

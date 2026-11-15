@@ -15,7 +15,7 @@ struct PrependTransformer: Transformer {
 
   let line: String
 
-  init(config: Config) {
+  init(config: Config, context: InitContext) {
     line = config.line ?? "/* Built with Parcel */"
   }
 
