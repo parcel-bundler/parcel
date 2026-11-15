@@ -1297,6 +1297,65 @@ fn html_inline_script_update_add_remove() {
 }
 
 #[test]
+fn html_include_update() {
+  // `<parcel:include>` embeds another HTML file's packaged content. Editing the included file
+  // must repackage the page that includes it.
+  let mut t = IncrementalTest::with_entries(
+    &[
+      (
+        "/project/index.html",
+        "<html><body><parcel:include src=\"include.html\"></parcel:include></body></html>",
+      ),
+      ("/project/include.html", "<p>include v1</p>"),
+    ],
+    &["/project/index.html"],
+  );
+
+  t.change(&[("/project/include.html", "<p>include v2</p>")], &[]);
+  let out = t.output("/project/dist/index.html");
+  assert!(out.contains("include v2"), "got: {out}");
+}
+
+#[test]
+fn html_layout_update() {
+  // Editing a layout must repackage every page that uses it, including pages that only reach
+  // it through a nested layout.
+  let mut t = IncrementalTest::with_entries(
+    &[
+      (
+        "/project/a.html",
+        "<title>A</title><parcel:layout src=\"layout.html\"><p>page a</p></parcel:layout>",
+      ),
+      (
+        "/project/b.html",
+        "<title>B</title><parcel:layout src=\"nested.html\"><p>page b</p></parcel:layout>",
+      ),
+      (
+        "/project/nested.html",
+        "<parcel:layout src=\"layout.html\"><section><parcel:slot></parcel:slot></section></parcel:layout>",
+      ),
+      (
+        "/project/layout.html",
+        "<!doctype html><html><head></head><body><header>layout v1</header><main><parcel:slot></parcel:slot></main></body></html>",
+      ),
+    ],
+    &["/project/a.html", "/project/b.html"],
+  );
+
+  t.change(
+    &[(
+      "/project/layout.html",
+      "<!doctype html><html><head></head><body><header>layout v2</header><main><parcel:slot></parcel:slot></main></body></html>",
+    )],
+    &[],
+  );
+  for page in ["/project/dist/a.html", "/project/dist/b.html"] {
+    let out = t.output(page);
+    assert!(out.contains("layout v2"), "{page}: {out}");
+  }
+}
+
+#[test]
 fn html_external_script_and_css_update() {
   // An HTML entry with an external script and stylesheet. Updating each must repackage the
   // right bundles; adding and removing references must add/delete outputs.

@@ -69,32 +69,7 @@ pub fn collect_dependencies<'arena, 'a>(
   collector.rss = collector.ty == AssetType::Xml && is_rss(dom);
   collector.root = Some(dom);
 
-  dom.walk(&mut |node| match &node.data {
-    NodeData::Element { name, .. } => {
-      collector.visit_element(node, name);
-    }
-    NodeData::ProcessingInstruction { target, contents } => {
-      let mut contents = contents.borrow_mut();
-      if target.as_ref() == "xml-stylesheet" {
-        if let Ok(mut attrs) = parse_xml_stylesheet(contents.borrow().as_ref()) {
-          for attr in &mut attrs {
-            if attr.name.expanded() == expanded_name!("", "href") {
-              attr.value = collector.add_dep(
-                attr.value.clone(),
-                false,
-                Priority::Parallel,
-                node.line,
-                None,
-              );
-            }
-          }
-
-          *contents = serialize_xml_stylesheet(attrs);
-        }
-      }
-    }
-    _ => {}
-  });
+  collector.walk(dom);
 
   for asset in &collector.assets {
     collector.deps.push(Dependency {
@@ -195,12 +170,64 @@ struct DependencyCollector<'arena, 'a> {
   rss: bool,
   options: &'a ParcelOptions,
   macro_imports: HashMap<String, String>,
+  /// Imported macro elements whose output is currently being walked. An element isn't expanded
+  /// again within its own output, so a macro can render the native element it's named after.
+  expanding_imports: Vec<String>,
   /// The document root, and the head elements produced by macros, hoisted after the walk.
   root: Option<&'arena Node<'arena>>,
   hoisted: Vec<&'arena Node<'arena>>,
 }
 
 impl<'arena, 'a> DependencyCollector<'arena, 'a> {
+  /// Visits `node` and its descendants (including `<template>` contents) in document order.
+  /// Visiting may replace a node (e.g. a macro with its output), in which case the replacement
+  /// is walked by the visitor itself.
+  fn walk(&mut self, node: &'arena Node<'arena>) {
+    self.visit_node(node);
+    if let NodeData::Element {
+      template_contents: Some(template_contents),
+      ..
+    } = &node.data
+    {
+      self.walk(template_contents);
+    }
+
+    let mut child = node.first_child.get();
+    while let Some(c) = child {
+      child = c.next_sibling.get();
+      self.walk(c);
+    }
+  }
+
+  fn visit_node(&mut self, node: &'arena Node<'arena>) {
+    match &node.data {
+      NodeData::Element { name, .. } => {
+        self.visit_element(node, name);
+      }
+      NodeData::ProcessingInstruction { target, contents } => {
+        let mut contents = contents.borrow_mut();
+        if target.as_ref() == "xml-stylesheet" {
+          if let Ok(mut attrs) = parse_xml_stylesheet(contents.borrow().as_ref()) {
+            for attr in &mut attrs {
+              if attr.name.expanded() == expanded_name!("", "href") {
+                attr.value = self.add_dep(
+                  attr.value.clone(),
+                  false,
+                  Priority::Parallel,
+                  node.line,
+                  None,
+                );
+              }
+            }
+
+            *contents = serialize_xml_stylesheet(attrs);
+          }
+        }
+      }
+      _ => {}
+    }
+  }
+
   fn new(
     arena: &'arena Arena<Node<'arena>>,
     url: SourceUrl,
@@ -222,6 +249,7 @@ impl<'arena, 'a> DependencyCollector<'arena, 'a> {
       rss: false,
       options,
       macro_imports: HashMap::new(),
+      expanding_imports: Vec::new(),
       root: None,
       hoisted: Vec::new(),
     }
@@ -728,10 +756,15 @@ impl<'arena, 'a> DependencyCollector<'arena, 'a> {
         }
       }
       n if matches!(*n.ns(), ns!() | ns!(html)) && !self.macro_imports.is_empty() => {
-        if let Some(src) = self.macro_imports.get(&**n.local_name()) {
-          let src = src.clone();
-          let (script, export) = src.split_once('#').unwrap_or((&src, "default"));
-          self.call_macro(script, export, node, true)
+        let name = &**n.local_name();
+        if let Some(src) = self.macro_imports.get(name) {
+          if !self.expanding_imports.iter().any(|n| n == name) {
+            let src = src.clone();
+            let (script, export) = src.split_once('#').unwrap_or((&src, "default"));
+            self.expanding_imports.push(name.to_owned());
+            self.call_macro(script, export, node, true);
+            self.expanding_imports.pop();
+          }
         }
       }
       _ => {}
@@ -1021,10 +1054,20 @@ impl<'arena, 'a> DependencyCollector<'arena, 'a> {
         {
           crate::head::collect_hoistable(root, &mut self.hoisted);
         }
+        let mut output = Vec::new();
         while let Some(child) = root.first_child.get() {
           node.insert_before(child);
+          output.push(child);
         }
         node.detach();
+        // The macro's content was replaced by its output, so it shouldn't be walked.
+        while let Some(child) = node.first_child.get() {
+          child.detach();
+        }
+        // Collect dependencies (and call nested macros) in the output.
+        for child in output {
+          self.walk(child);
+        }
       }
       Err(err) => {
         let message = match err {
