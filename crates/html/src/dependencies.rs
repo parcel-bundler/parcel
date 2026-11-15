@@ -16,6 +16,8 @@ use parcel_core::{
   Target, UrlReference,
 };
 use typed_arena::Arena;
+use xml5ever::LocalName;
+use xml5ever::interface::ElemName;
 
 /// Parse and canonically re-serialize a media attribute, matching the
 /// canonical form the CSS transformer uses for `@import` conditions. Returns
@@ -662,6 +664,30 @@ impl<'arena> DependencyCollector<'arena> {
       expanded_name!(svg "cursor") | expanded_name!(svg "color-profile") => {
         self.handle_document_attr(node, expanded_name!(xlink "href"), false);
       }
+      n if is_parcel_tag(&n, "include") => {
+        if let Some(src) = node.get_attribute(expanded_name!("", "src")) {
+          let mut dep = Dependency {
+            specifier: src.to_string().into_boxed_str(),
+            specifier_type: SpecifierType::Url,
+            flags: DependencyFlags::empty(),
+            priority: Default::default(),
+            target: self.target.clone(),
+            bundle_behavior: BundleBehavior::Inline,
+            import_type: ImportType::Url,
+            placeholder: Default::default(),
+            loc: self.create_loc(node.line),
+            resolve_from: Some(self.url.clone()),
+            range: None,
+            conditions: ExportsCondition::empty(),
+            resolution: DependencyResolution::None,
+            concurrent_group: 0,
+            custom_conditions: Default::default(),
+          };
+
+          node.set_attribute(expanded_name!("", "src"), dep.set_placeholder());
+          self.deps.push(dep);
+        }
+      }
       _ => {}
     }
 
@@ -976,4 +1002,15 @@ pub fn serialize_xml_stylesheet(attrs: Vec<Attribute>) -> StrTendril {
   }
 
   s
+}
+
+#[inline]
+pub fn is_parcel_tag(n: &ExpandedName, name: &str) -> bool {
+  (n.ns() == &ns!(html) && is_parcel_html_tag(n.local_name(), name))
+    || (n.ns() == "http://parceljs.org" && n.local_name() == name)
+}
+
+#[inline]
+fn is_parcel_html_tag(local: &LocalName, name: &str) -> bool {
+  local.starts_with("parcel:") && &local[7..] == name
 }

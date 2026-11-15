@@ -5,13 +5,14 @@ use std::{
 
 use crate::{
   SerializableTendril,
-  arena::{Node, NodeData, Ref},
-  dependencies::{is_func_iri_attr, parse_xml_stylesheet, serialize_xml_stylesheet},
+  arena::{Node, NodeData, Ref, Sink},
+  dependencies::{is_func_iri_attr, is_parcel_tag, parse_xml_stylesheet, serialize_xml_stylesheet},
   srcset::{parse_srcset, serialize_srcset},
 };
 use html5ever::{ExpandedName, expanded_name, local_name, namespace_url, ns, tendril::StrTendril};
 use serde::Deserialize;
 use typed_arena::Arena;
+use xml5ever::tendril::TendrilSink;
 
 #[derive(Deserialize)]
 #[serde(tag = "type", content = "value")]
@@ -271,6 +272,25 @@ pub fn insert_bundle_references<'arena>(
             if let Some(bundle) = inline_bundles.get(&SerializableTendril(key)) {
               node.remove_attribute(data_parcel_key.clone());
               node.set_text_content(arena, bundle.contents.0.clone());
+            }
+          }
+        }
+        n if is_parcel_tag(&n, "include") => {
+          if let Some(src) = node.get_attribute(expanded_name!("", "src")) {
+            if let Some(bundle) = inline_bundles.get(&SerializableTendril(src)) {
+              let fragment = html5ever::driver::parse_fragment(
+                Sink::new(&arena),
+                html5ever::ParseOpts::default(),
+                xml5ever::QualName::new(None, ns!(html), local_name!("div")),
+                Vec::new(),
+              )
+              .one(&*bundle.contents.0);
+              // html5ever places fragment children under a synthetic HTML root.
+              let root = fragment.first_child.get().unwrap();
+              while let Some(child) = root.last_child.get() {
+                node.insert_before(child);
+              }
+              node.detach();
             }
           }
         }

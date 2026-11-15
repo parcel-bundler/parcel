@@ -1,0 +1,9 @@
+{
+  "description": "should handle parcel:include",
+  "input": "index.xhtml",
+  "options": {"mode": "production"},
+  "bundles": [
+    {"type": "xhtml", "assets": ["index.xhtml"]},
+    {"type": "xhtml", "assets": ["include.xhtml"]}
+  ]
+}
