@@ -641,7 +641,12 @@ impl<'arena, 'a> DependencyCollector<'arena, 'a> {
           // <meta http-equiv="refresh" content="N; url=URL"> redirects to URL. The delay is kept
           // in a temporary attribute so the URL can be replaced like any other during packaging.
           if let Some(content) = node.get_attribute(expanded_name!("", "content")) {
-            if let Some((delay, url)) = parse_refresh(&content) {
+            // Like links, URLs without an extension are virtual paths (e.g. /docs/), left as is.
+            let parsed = parse_refresh(&content).filter(|(_, url)| {
+              let path = url.split(['#', '?']).next().unwrap_or(url);
+              path.rfind('.').unwrap_or(0) >= 1
+            });
+            if let Some((delay, url)) = parsed {
               let placeholder = self.add_dep(
                 url.into(),
                 false,
