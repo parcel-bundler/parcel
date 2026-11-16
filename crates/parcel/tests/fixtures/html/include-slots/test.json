@@ -1,0 +1,10 @@
+{
+  "description": "should fill the slots of an included document with the content of parcel:include",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "html", "assets": ["card.html"]},
+    {"type": "html", "assets": ["badge.html"]},
+    {"type": "html", "assets": ["other.html"]}
+  ]
+}
