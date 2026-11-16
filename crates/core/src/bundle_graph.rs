@@ -276,6 +276,17 @@ impl<'a> BundleGraph<'a> {
       .map(|&bundle_index| bundle_index as usize)
   }
 
+  /// The inline bundles that dependencies of `bundle`'s assets resolve to (see
+  /// `bundle_dependency_targets`).
+  pub fn inline_bundle_dependency_targets<'b>(
+    &'b self,
+    bundle: &'b Bundle,
+  ) -> impl Iterator<Item = usize> + 'b {
+    self
+      .bundle_dependency_targets(bundle)
+      .filter(|&index| self.bundles[index].bundle_behavior == BundleBehavior::Inline)
+  }
+
   /// Bundles that code in `root`'s execution context may load or resolve by stable key (see
   /// `Bundle::is_context_root`): everything reachable through bundle references and Parcel's
   /// loader, without entering other contexts. Workers, URL imports and other roots are included,

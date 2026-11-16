@@ -92,6 +92,21 @@ pub trait Content: Any + Send + Sync {
     Vec::new()
   }
 
+  /// Inline bundles whose content `package` embeds in `bundle`, through `get_inline_bundle_content`.
+  /// These are packaged ahead of `bundle` (once for each directory they're embedded in), so it can
+  /// read them without waiting. Unlike `bundle_dependencies`, this shouldn't over-approximate, since
+  /// a bundle listed but not embedded is packaged for nothing. Inline bundles not listed are
+  /// packaged when `package` asks for them, and only those also in `bundle_dependencies` (which
+  /// `package` may access at all) are scheduled.
+  ///
+  /// Defaults to every inline bundle that the bundle's dependencies resolve to, which is what most
+  /// packagers embed.
+  fn embedded_bundles(&self, bundle_graph: &BundleGraph, bundle: &Bundle) -> Vec<usize> {
+    bundle_graph
+      .inline_bundle_dependency_targets(bundle)
+      .collect()
+  }
+
   /// Assets outside `bundle` whose content or symbols `package` reads for it, e.g. the class
   /// names of a CSS module that a JS bundle imports. Incremental builds re-package `bundle` when
   /// they change. It may over-approximate, at the cost of re-packaging more often.

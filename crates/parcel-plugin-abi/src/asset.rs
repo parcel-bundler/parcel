@@ -299,6 +299,15 @@ impl Content for CContent {
     dependencies
   }
 
+  fn embedded_bundles(
+    &self,
+    _bundle_graph: &parcel_core::BundleGraph,
+    _bundle: &parcel_core::Bundle,
+  ) -> Vec<usize> {
+    // Native packagers can't read inline bundles' content yet.
+    Vec::new()
+  }
+
   fn package(
     &self,
     bundle_graph: &parcel_core::BundleGraph,

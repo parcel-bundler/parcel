@@ -285,10 +285,22 @@ pub(crate) fn package_bundles(
 
   // Declared dependencies of every bundle, including inline bundles, which are embedded in other
   // bundles, so their name dependencies are also their embedders' dependencies.
-  let declared = bundles
+  // Also the inline bundles each bundle's packager embeds, which are packaged ahead of it.
+  let (declared, embedded): (Vec<_>, Vec<_>) = bundles
     .par_iter()
-    .map(|bundle| packaging_plan(config, bundle_graph, bundle).map(|(_, _, declared)| declared))
-    .collect::<Result<Vec<_>, _>>()?;
+    .map(|bundle| {
+      packaging_plan(config, bundle_graph, bundle).map(|(content, _, mut declared)| {
+        // Only bundles that `package` may access at all (see `Content::embedded_bundles`).
+        declared.sort_unstable();
+        declared.dedup();
+        let mut embedded = content.embedded_bundles(bundle_graph, bundle);
+        embedded.retain(|index| declared.binary_search(index).is_ok());
+        (declared, embedded)
+      })
+    })
+    .collect::<Result<Vec<_>, _>>()?
+    .into_iter()
+    .unzip();
   let dependencies: Vec<Vec<usize>> = (0..bundles.len())
     .map(|index| {
       if bundles[index].bundle_behavior == BundleBehavior::Inline {
@@ -300,7 +312,9 @@ pub(crate) fn package_bundles(
 
   // Inline bundles are packaged once for each directory they're embedded in (see `relocate`),
   // ahead of the bundles that embed them, so those find the content already packaged. Each
-  // inline bundle and directory is a unit, numbered after the bundles in the graph below.
+  // inline bundle and directory is a unit, numbered after the bundles in the graph below. Only
+  // bundles that packagers declare they embed (`Content::embedded_bundles`) are scheduled: others
+  // may not be needed at all, and are packaged on demand.
   let mut units: Vec<(usize, PathId)> = Vec::new();
   let mut unit_ids: HashMap<(usize, PathId), usize> = HashMap::new();
   let mut edges: Vec<Vec<usize>> = dependencies.clone();
@@ -316,7 +330,7 @@ pub(crate) fn package_bundles(
       } else {
         units[node - bundles.len()].0
       };
-      for &dependency in &declared[embedder] {
+      for &dependency in &embedded[embedder] {
         if bundles[dependency].bundle_behavior != BundleBehavior::Inline {
           continue;
         }
