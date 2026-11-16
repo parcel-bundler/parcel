@@ -202,7 +202,7 @@ impl Content for XmlContent {
     options: &ParcelOptions,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     let (code, bundles, inline_bundles, stylesheet_media, element_refs) =
-      prepare_to_package(graph, bundle, get_inline)?;
+      prepare_to_package(graph, bundle, get_inline, None)?;
     let arena = Arena::new();
     let dom = xml5ever::driver::parse_document(Sink::new(&arena), Default::default())
       .from_utf8()
