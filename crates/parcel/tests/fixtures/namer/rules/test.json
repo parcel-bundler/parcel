@@ -1,0 +1,13 @@
+{
+  "options": {"config": ".parcelrc"},
+  "description": "should name bundles by the rules in the default namer's config",
+  "input": ["src/home/index.html", "src/404.html"],
+  "bundles": [
+    {"name": "index.html", "type": "html", "assets": ["index.html"], "contains": ["href=\"/docs/index.html\"", "src=\"/js/app-", "href=\"/css/style.css\""]},
+    {"name": "404.html", "type": "html", "assets": ["404.html"]},
+    {"name": "docs/index.html", "type": "html", "assets": ["docs.html"], "contains": ["href=\"/guide/intro/index.html\""]},
+    {"name": "guide/intro/index.html", "type": "html", "assets": ["intro.html"]},
+    {"type": "js", "assets": ["app.js"]},
+    {"name": "css/style.css", "type": "css", "assets": ["style.css"]}
+  ]
+}

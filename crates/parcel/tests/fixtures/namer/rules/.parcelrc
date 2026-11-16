@@ -1,0 +1,17 @@
+{
+  "extends": "@parcel/config-default",
+  "namers": [
+    {
+      "plugin": "@parcel/namer-default",
+      "config": {
+        "rules": {
+          "src/home/index.html": "index.html",
+          "src/404.html": "404.html",
+          "src/**/*.html": "$1/$2/index.html",
+          "src/**/*.css": "css/$2.[ext]",
+          "src/**/*.js": "js/$2-[hash].[ext]"
+        }
+      }
+    }
+  ]
+}

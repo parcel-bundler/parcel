@@ -135,7 +135,11 @@ impl PluginFactory for DefaultPluginFactory {
     from: PathId,
   ) -> Result<Arc<dyn Namer>, DiagnosticList> {
     match name {
-      "@parcel/namer-default" => Ok(Arc::new(DefaultNamer {})),
+      "@parcel/namer-default" => Ok(Arc::new(if let Some(config) = config {
+        serde_json::from_value::<DefaultNamer>(config)?.resolve_paths(from)
+      } else {
+        DefaultNamer::default()
+      })),
       _ => Ok(
         match self.resolve_plugin(PluginKind::Namer, name, from, config)? {
           ResolvedPlugin::Native(plugin) => plugin,
