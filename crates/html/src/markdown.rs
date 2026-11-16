@@ -73,8 +73,9 @@ impl Transformer for MarkdownTransformer {
     options.compile.allow_dangerous_html = true;
     options.compile.gfm_tagfilter = false;
     let mut result = markdown::to_html_with_options(&content, &options).unwrap();
+    let page_path = asset.loc.url.to_file_path()?;
     if let Some(layout) = &self.layout {
-      let layout = layout.relative_url(&asset.loc.url.to_file_path()?);
+      let layout = layout.relative_url(&page_path);
       result = format!("<parcel:layout src={:?}>{}</parcel:layout>", layout, result);
     }
     let result = if self.toc || self.anchors || self.title || self.description {

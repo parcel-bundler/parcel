@@ -59,13 +59,15 @@ pub fn collect_dependencies<'arena, 'a>(
   target: Arc<Target>,
   hmr: bool,
   options: &'a ParcelOptions,
+  macro_imports: &[(String, String)],
 ) -> (
   Vec<Dependency>,
   Vec<ImportedSymbol>,
   Vec<Asset>,
   Vec<Diagnostic>,
 ) {
-  let (deps, imports, assets, errors, _) = collect(arena, dom, url, ty, target, hmr, options);
+  let (deps, imports, assets, errors, _) =
+    collect(arena, dom, url, ty, target, hmr, options, macro_imports);
   (deps, imports, assets, errors)
 }
 
@@ -85,7 +87,7 @@ pub(crate) fn collect_xml_dependencies<'arena, 'a>(
   Vec<Diagnostic>,
   Vec<EmbeddedContent<'arena>>,
 ) {
-  collect(arena, dom, url, AssetType::Xml, target, false, options)
+  collect(arena, dom, url, AssetType::Xml, target, false, options, &[])
 }
 
 fn collect<'arena, 'a>(
@@ -96,6 +98,7 @@ fn collect<'arena, 'a>(
   target: Arc<Target>,
   hmr: bool,
   options: &'a ParcelOptions,
+  macro_imports: &[(String, String)],
 ) -> (
   Vec<Dependency>,
   Vec<ImportedSymbol>,
@@ -104,6 +107,11 @@ fn collect<'arena, 'a>(
   Vec<EmbeddedContent<'arena>>,
 ) {
   let mut collector = DependencyCollector::new(arena, url, ty, target, options);
+  // Macros configured for every document, as if declared with <parcel:import>. Imports in the
+  // document itself take precedence.
+  collector
+    .macro_imports
+    .extend(macro_imports.iter().cloned());
   collector.rss = collector.ty == AssetType::Xml && is_rss(dom);
   collector.root = Some(dom);
 

@@ -76,7 +76,7 @@ impl PluginFactory for DefaultPluginFactory {
       }),
       "@parcel/transformer-style-attr" => Arc::new(StyleAttrTransformer {}),
       "@parcel/transformer-html" => Arc::new(if let Some(config) = config {
-        serde_json::from_value(config)?
+        serde_json::from_value::<HtmlTransformer>(config)?.resolve_paths(from)
       } else {
         HtmlTransformer::default()
       }),

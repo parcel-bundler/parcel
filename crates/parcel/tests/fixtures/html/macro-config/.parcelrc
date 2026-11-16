@@ -1,0 +1,16 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "*.html": [
+      {
+        "plugin": "@parcel/transformer-html",
+        "config": {
+          "macros": {
+            "x-box": "macros/box.mjs#box",
+            "x-item": "macros/box.mjs#item"
+          }
+        }
+      }
+    ]
+  }
+}

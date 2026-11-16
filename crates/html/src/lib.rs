@@ -62,6 +62,9 @@ pub struct TransformOptions<'a> {
   pub target: Arc<Target>,
   pub hmr: bool,
   pub options: &'a ParcelOptions,
+  /// Custom elements that call macros, as if declared with `<parcel:import name src>`: the
+  /// element name, and the macro's URL relative to the document.
+  pub macro_imports: Vec<(String, String)>,
 }
 
 #[derive(Serialize)]
@@ -96,6 +99,7 @@ pub fn transform_html(options: TransformOptions) -> TransformResult {
     options.target,
     options.hmr,
     options.options,
+    &options.macro_imports,
   );
 
   let mut vec = Vec::new();
@@ -139,6 +143,7 @@ pub fn transform_svg(options: TransformOptions) -> TransformResult {
     options.target,
     options.hmr,
     options.options,
+    &[],
   );
   let exports = svg_exports(dom);
 
@@ -492,6 +497,57 @@ pub struct HtmlTransformer {
     deserialize_with = "deserialize_html_optimize"
   )]
   optimize: Option<Arc<optimize::OptimizeOptions>>,
+  /// Custom elements that call macros in every document, e.g. `{"code-sample": "macros.js#sample"}`,
+  /// as if each had a `<parcel:import name="code-sample" src="macros.js#sample">`. Paths are
+  /// relative to the config file, and resolved by `resolve_paths`.
+  #[serde(default)]
+  macros: indexmap::IndexMap<String, String>,
+  #[serde(skip)]
+  macro_paths: Vec<(String, PathId, Option<String>)>,
+}
+
+impl HtmlTransformer {
+  /// Resolves the paths in the config relative to the config file it came from.
+  pub fn resolve_paths(mut self, from: PathId) -> Self {
+    self.macro_paths = self
+      .macros
+      .iter()
+      .map(|(name, src)| {
+        let (file, export) = match src.split_once('#') {
+          Some((file, export)) => (file, Some(export.to_owned())),
+          None => (src.as_str(), None),
+        };
+        (
+          name.clone(),
+          from.resolve(std::path::Path::new(file)),
+          export,
+        )
+      })
+      .collect();
+    self
+  }
+
+  /// The configured macros, with URLs relative to the document at `url`.
+  fn macro_imports(&self, url: &SourceUrl) -> Result<Vec<(String, String)>, Diagnostic> {
+    if self.macro_paths.is_empty() {
+      return Ok(Vec::new());
+    }
+    let path = url.to_file_path()?;
+    Ok(
+      self
+        .macro_paths
+        .iter()
+        .map(|(name, file, export)| {
+          let mut src = file.relative_url(&path);
+          if let Some(export) = export {
+            src.push('#');
+            src.push_str(export);
+          }
+          (name.clone(), src)
+        })
+        .collect(),
+    )
+  }
 }
 
 fn default_html_optimize() -> Option<Arc<optimize::OptimizeOptions>> {
@@ -515,6 +571,8 @@ impl Default for HtmlTransformer {
   fn default() -> Self {
     HtmlTransformer {
       optimize: default_html_optimize(),
+      macros: Default::default(),
+      macro_paths: Vec::new(),
     }
   }
 }
@@ -534,6 +592,7 @@ impl Transformer for HtmlTransformer {
       target: asset.target.clone(),
       hmr: false,
       options: ctx.options,
+      macro_imports: self.macro_imports(&asset.loc.url)?,
     });
 
     if !res.errors.is_empty() {
@@ -903,6 +962,7 @@ impl Transformer for SvgTransformer {
       target: asset.target.clone(),
       hmr: false,
       options: ctx.options,
+      macro_imports: Vec::new(),
     });
 
     asset.bundle_behavior = BundleBehavior::Isolated;
@@ -1042,6 +1102,7 @@ mod tests {
       target: Default::default(),
       hmr: false,
       options: &Default::default(),
+      macro_imports: Vec::new(),
     });
 
     assert_eq!(

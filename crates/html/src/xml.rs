@@ -157,6 +157,7 @@ impl Transformer for XmlTransformer {
       target: asset.target.clone(),
       hmr: false,
       options: ctx.options,
+      macro_imports: Vec::new(),
     });
     if !result.errors.is_empty() {
       return Err(DiagnosticList(result.errors));
@@ -277,6 +278,7 @@ mod tests {
       target: Default::default(),
       hmr: false,
       options: &Default::default(),
+      macro_imports: Vec::new(),
     });
     assert!(result.errors.is_empty());
     result

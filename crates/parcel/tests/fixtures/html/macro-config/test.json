@@ -1,0 +1,7 @@
+{
+  "description": "should call macros configured on the html transformer, relative to the config file",
+  "input": "pages/index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]}
+  ]
+}
