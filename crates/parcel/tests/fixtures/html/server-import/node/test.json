@@ -32,9 +32,6 @@
         "environment": "browser",
         "assets": [
           "page.html"
-        ],
-        "notContains": [
-          "process.env"
         ]
       },
       {

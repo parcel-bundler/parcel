@@ -26,6 +26,9 @@ pub struct BundleRoots {
   mandatory_roots: FixedBitSet,
   // Effective behavior per root, combining asset metadata with incoming dependency overrides.
   bundle_behaviors: Vec<BundleBehavior>,
+  // Roots that are also embedded by inline dependencies, but need their own (non-inline) output
+  // too, e.g. a page that is both an entry and included in another. They get an inline copy.
+  inline_copies: FixedBitSet,
   // Asset index -> index of the first `manualSharedBundles` rule matching it, or u8::MAX.
   manual_bundles: Vec<u8>,
 }
@@ -65,6 +68,13 @@ impl BundleRoots {
 
     let mut manual_bundles = vec![u8::MAX; asset_graph.assets.len()];
 
+    // Inline dependencies embed their target, so its behavior is inline regardless of the asset's
+    // own (e.g. HTML is isolated, but an included or layout HTML file is embedded). If the asset
+    // also needs an output of its own (it's an entry or referenced another way), it keeps that
+    // behavior and inline dependencies use a copy of it.
+    let mut inline_targets = FixedBitSet::with_capacity(asset_graph.assets.len());
+    let mut referenced_targets = entry_assets.clone();
+
     // Use dfs so we only process live assets, not deleted assets from a previous build.
     for (asset_index, asset, _) in asset_graph.dfs() {
       if let Some(rule) = manual_shared_bundle(asset) {
@@ -82,6 +92,14 @@ impl BundleRoots {
         if dep.bundle_behavior != BundleBehavior::None || dep.priority != Priority::Sync {
           if let Some((resolved_asset_index, _)) = asset_graph.resolved_asset(dep) {
             let bundle_behavior = dep.bundle_behavior;
+            if bundle_behavior == BundleBehavior::Inline {
+              inline_targets.insert(resolved_asset_index.index());
+              mandatory_assets.insert(resolved_asset_index.index());
+              independent_assets.insert(resolved_asset_index.index());
+              bundle_roots.insert(resolved_asset_index.index());
+              continue;
+            }
+            referenced_targets.insert(resolved_asset_index.index());
             let target_bundle_behavior = &mut asset_bundle_behaviors[resolved_asset_index.index()];
             if bundle_behavior != BundleBehavior::None
               && *target_bundle_behavior == BundleBehavior::None
@@ -123,6 +141,17 @@ impl BundleRoots {
       }
     }
 
+    let mut inline_copy_assets = FixedBitSet::with_capacity(asset_graph.assets.len());
+    for asset in inline_targets.ones() {
+      if referenced_targets.contains(asset) {
+        if asset_bundle_behaviors[asset] != BundleBehavior::Inline {
+          inline_copy_assets.insert(asset);
+        }
+      } else {
+        asset_bundle_behaviors[asset] = BundleBehavior::Inline;
+      }
+    }
+
     // All entries, mandatory outputs, and assets with effective bundle behavior
     // are roots. Compress their retained metadata into the dense root index,
     // merging targets exclusive to one concurrent group into one root.
@@ -133,6 +162,7 @@ impl BundleRoots {
     let mut entry_roots = FixedBitSet::with_capacity(capacity);
     let mut mandatory_roots = FixedBitSet::with_capacity(capacity);
     let mut bundle_behaviors = Vec::with_capacity(capacity);
+    let mut inline_copies = FixedBitSet::with_capacity(capacity);
     for asset in bundle_roots.ones().map(AssetIndex::from_index) {
       if !independent_assets.contains(asset.index()) {
         continue;
@@ -145,6 +175,9 @@ impl BundleRoots {
       }
       if mandatory_assets.contains(asset.index()) {
         mandatory_roots.insert(root);
+      }
+      if inline_copy_assets.contains(asset.index()) {
+        inline_copies.insert(root);
       }
       bundle_behaviors.push(asset_bundle_behaviors[asset.index()]);
       root_members.push(asset);
@@ -184,8 +217,15 @@ impl BundleRoots {
       entry_roots,
       mandatory_roots,
       bundle_behaviors,
+      inline_copies,
       manual_bundles,
     }
+  }
+
+  /// Whether inline dependencies on this root embed a copy of it, because the root itself isn't
+  /// inline.
+  pub fn has_inline_copy(&self, root: usize) -> bool {
+    self.inline_copies.contains(root)
   }
 
   // The `manualSharedBundles` rule `asset` matches, if any.

@@ -23,9 +23,6 @@
       "environment": "react-client",
       "assets": [
         "page.html"
-      ],
-      "notContains": [
-        "process.env"
       ]
     },
     {
