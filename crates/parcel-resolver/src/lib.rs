@@ -921,21 +921,25 @@ impl<'a> ResolveRequest<'a> {
     &self,
     package: &PackageJson,
   ) -> Result<Option<Resolution>, ResolverError> {
-    // Try all entry fields.
-    if let Some((entry, field)) = package
-      .entries(self.resolver.entries, &self.resolver.cache)
-      .next()
-    {
-      if let Some(res) = self.load_path(&entry, Some(package))? {
-        return Ok(Some(res));
+    // Try all entry fields. An entry that resolves to the package directory
+    // itself would make `load_directory` call back into this function forever,
+    // so skip it and let the directory index be tried instead (see #10388).
+    let package_dir = package.path.parent();
+    for (entry, field) in package.entries(self.resolver.entries, &self.resolver.cache) {
+      if package_dir == Some(&entry) {
+        continue;
+      }
+
+      return if let Some(res) = self.load_path(&entry, Some(package))? {
+        Ok(Some(res))
       } else {
-        return Err(ResolverError::ModuleEntryNotFound {
+        Err(ResolverError::ModuleEntryNotFound {
           module: package.name.to_owned(),
           entry_path: entry.as_path().to_path_buf(),
           package_path: package.path.as_path().to_path_buf(),
           field,
-        });
-      }
+        })
+      };
     }
 
     Ok(None)
@@ -1618,6 +1622,20 @@ mod tests {
           .unwrap()
           .resolution,
         Resolution::Path(root().join("foo.js"))
+      );
+    }
+  }
+
+  #[test]
+  fn empty_main_directory_entry() {
+    for name in ["empty-main", "dot-main", "dotslash-main"] {
+      assert_eq!(
+        test_resolver()
+          .resolve(name, &root().join("foo.js"), SpecifierType::Esm)
+          .result
+          .unwrap()
+          .resolution,
+        Resolution::Path(root().join("node_modules").join(name).join("index.js"))
       );
     }
   }
