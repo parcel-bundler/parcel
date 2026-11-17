@@ -1416,7 +1416,7 @@ __metadata:
     os-browserify: "npm:^0.3.0"
     oxfmt: "npm:^0.73.0"
     path-browserify: "npm:^1.0.1"
-    postcss: "npm:^8.5.3"
+    postcss: "npm:^8.5.23"
     postcss-custom-properties: "npm:^12.1.11"
     postcss-import: "npm:^16.1.0"
     posthtml-include: "npm:^2.0.1"
@@ -1502,7 +1502,7 @@ __metadata:
   dependencies:
     "@parcel/plugin": "workspace:^"
     json5: "npm:^2.2.3"
-    postcss: "npm:^8.5.3"
+    postcss: "npm:^8.5.23"
   languageName: unknown
   linkType: soft
 
@@ -1540,7 +1540,7 @@ __metadata:
   resolution: "@parcel/transformer-sugarss@workspace:packages-v3/sugarss"
   dependencies:
     "@parcel/plugin": "workspace:^"
-    postcss: "npm:^8.5.3"
+    postcss: "npm:^8.5.23"
     sugarss: "npm:^4.0.1"
   languageName: unknown
   linkType: soft
@@ -5049,12 +5049,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nanoid@npm:^3.3.8":
-  version: 3.3.11
-  resolution: "nanoid@npm:3.3.11"
+"nanoid@npm:^3.3.16":
+  version: 3.3.20
+  resolution: "nanoid@npm:3.3.20"
   bin:
     nanoid: bin/nanoid.cjs
-  checksum: 10c0/40e7f70b3d15f725ca072dfc4f74e81fcf1fbb02e491cf58ac0c79093adc9b0a73b152bcde57df4b79cd097e13023d7504acb38404a4da7bc1cd8e887b82fe0b
+  checksum: 10c0/856e8bf3bddb959d65997bd94908be030dbc5e6ed88fb3af2a638e51d1938f4d4f454c7c7231aba340775224f88b8cfd3ce1693c70471bfd05f5b6a2227c0c1e
   languageName: node
   linkType: hard
 
@@ -5730,14 +5730,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"postcss@npm:^8.5.3":
-  version: 8.5.3
-  resolution: "postcss@npm:8.5.3"
+"postcss@npm:^8.5.23":
+  version: 8.5.23
+  resolution: "postcss@npm:8.5.23"
   dependencies:
-    nanoid: "npm:^3.3.8"
+    nanoid: "npm:^3.3.16"
     picocolors: "npm:^1.1.1"
     source-map-js: "npm:^1.2.1"
-  checksum: 10c0/b75510d7b28c3ab728c8733dd01538314a18c52af426f199a3c9177e63eb08602a3938bfb66b62dc01350b9aed62087eabbf229af97a1659eb8d3513cec823b3
+  checksum: 10c0/ed714e635b330bb42666ecdd0c0b4f30224ded15b0b0052d6bc2b92832f2cf17d1c1141359453f96f0a84f8fbf4c405a74df187f559163b8f31131b2535455aa
   languageName: node
   linkType: hard
 
@@ -6764,9 +6764,9 @@ __metadata:
   linkType: hard
 
 "source-map-js@npm:^1.2.1":
-  version: 1.2.1
-  resolution: "source-map-js@npm:1.2.1"
-  checksum: 10c0/7bda1fc4c197e3c6ff17de1b8b2c20e60af81b63a52cb32ec5a5d67a20a7d42651e2cb34ebe93833c5a2a084377e17455854fee3e21e7925c64a51b6a52b0faf
+  version: 1.2.2
+  resolution: "source-map-js@npm:1.2.2"
+  checksum: 10c0/d5d6dec62266834f83dd4f8a2606a196fb1a006ca5d53b0ef80ee513b7eba2f4e2ae241f4bc129ae7e9b80dea24f6e3d92b446b7e6e96be7653cab8888168a94
   languageName: node
   linkType: hard
 

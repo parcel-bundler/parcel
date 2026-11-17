@@ -26,6 +26,6 @@
   "dependencies": {
     "@parcel/plugin": "workspace:^",
     "json5": "^2.2.3",
-    "postcss": "^8.5.3"
+    "postcss": "^8.5.23"
   }
 }
