@@ -186,8 +186,9 @@ impl<'a> Config<'a> {
   }
 
   /// Resolves `path`, as written in the options, against the directory of the
-  /// `.parcelrc` they came from. An absolute `path` is returned as is. `.` and
-  /// `..` are resolved lexically, without following symlinks.
+  /// `.parcelrc` they came from. An absolute `path` is used as is. `.` and `..`
+  /// are resolved lexically, without following symlinks, and `..` at the root
+  /// stays there, as the Go and Swift SDKs resolve it.
   pub fn resolve_path(&self, path: impl AsRef<Path>) -> PathBuf {
     use std::path::Component;
     let joined = self.path.parent().unwrap_or(Path::new("")).join(path);
@@ -195,11 +196,14 @@ impl<'a> Config<'a> {
     for component in joined.components() {
       match component {
         Component::CurDir => {}
-        Component::ParentDir => {
-          if !resolved.pop() {
-            resolved.push(component);
+        Component::ParentDir => match resolved.file_name() {
+          Some(_) => {
+            resolved.pop();
           }
-        }
+          None if resolved.has_root() => {}
+          // Only a relative path can climb above where it starts.
+          None => resolved.push(component),
+        },
         component => resolved.push(component),
       }
     }
@@ -268,10 +272,9 @@ impl<'a> Options<'a> {
   pub fn log_diagnostic(&self, diagnostic: &Diagnostic) {
     // Filled and dropped here: the host copies what it needs rather than taking
     // ownership, unlike the diagnostic a plugin method returns. Dropping the
-    // `Buffer`s, which only a Parcel too old to build a list needs, frees them.
+    // `Buffer`s frees the message `write_to_raw` falls back to, if any.
     with_sized(|raw: &mut ffi::DiagnosticOptions| {
-      let list =
-        || api::host_opt!(diagnostics_create).map_or(0, |create| unsafe { create(self.raw) });
+      let list = unsafe { host!(diagnostics_create)(self.raw) };
       unsafe { diagnostic.write_to_raw(raw, list) };
       unsafe { host!(options_log_diagnostic)(self.raw, raw) };
       unsafe { ptr::drop_in_place(raw) };
@@ -609,11 +612,9 @@ impl Default for DiagnosticSeverity {
 pub struct Diagnostic {
   pub message: String,
   pub severity: DiagnosticSeverity,
-  /// Excerpts of the code the diagnostic is about. A Parcel too old to show
-  /// more than one shows just the first, with its first highlight.
+  /// Excerpts of the code the diagnostic is about.
   pub code_frames: Vec<CodeFrame>,
-  /// Suggestions for fixing the problem. A Parcel too old to show more than one
-  /// shows just the first.
+  /// Suggestions for fixing the problem.
   pub hints: Vec<String>,
   /// A URL to documentation about the diagnostic (optional).
   pub documentation_url: Option<String>,
@@ -665,8 +666,6 @@ impl Diagnostic {
   ///             .with_highlight(CodeHighlight::at(1, 5).to(1, 5).with_message("first here")),
   ///     );
   /// ```
-  ///
-  /// A Parcel too old to show more than one frame shows just the first.
   pub fn with_code_frame(mut self, frame: CodeFrame) -> Self {
     self.code_frames.push(frame);
     self
@@ -693,14 +692,14 @@ impl Diagnostic {
     }
   }
 
-  /// Writes this diagnostic into a [`ffi::DiagnosticOptions`], field by field,
-  /// leaving its `size` alone.
+  /// Writes this diagnostic into a [`ffi::DiagnosticOptions`]: builds it in
+  /// `list`, the out-param's own or a new one to log through, and sets
+  /// `raw.diagnostics` to it. Parcel only borrows what the list's builders are
+  /// passed, so nothing is allocated.
   ///
-  /// It is built in the list `list` returns, and `raw.diagnostics` set to it:
-  /// the out-param's own, or a new one to log through. Parcel only borrows what
-  /// the list's builders are passed, so nothing is allocated. A Parcel too old
-  /// to build one gets the struct's own fields instead, which hold just the
-  /// first frame, highlight and hint.
+  /// Should the list reject it, which no Parcel providing `init2` does for a
+  /// diagnostic this builds, the struct's own `message` is set instead, so a
+  /// failure is never mistaken for success.
   ///
   /// # Safety
   ///
@@ -708,7 +707,7 @@ impl Diagnostic {
   pub(crate) unsafe fn write_to_raw(
     &self,
     raw: *mut ffi::DiagnosticOptions,
-    list: impl FnOnce() -> ffi::Diagnostics,
+    list: ffi::Diagnostics,
   ) {
     if raw.is_null() {
       return;
@@ -717,37 +716,12 @@ impl Diagnostic {
       unsafe { (*raw).diagnostics = diagnostics };
       return;
     }
-    let list = list();
     if self.build_in_list(list) {
       unsafe { (*raw).diagnostics = list };
-      return;
-    }
-
-    let frame = self.code_frames.first();
-    let highlight = frame.and_then(|frame| frame.highlights.first());
-    unsafe {
-      (*raw).message = alloc(self.message());
-      (*raw).severity = self.severity;
-      // A frame of a file on disk is the only kind the struct's own fields
-      // describe. Parcel reads the path lossily, so one that is not UTF-8 still
-      // points somewhere close.
-      if let Some(path) = frame.and_then(|frame| frame.file_path.as_ref()) {
-        (*raw).file_path = alloc(path);
-      }
-      if let Some(highlight) = highlight {
-        (*raw).line = highlight.start_line;
-        (*raw).column = highlight.start_column;
-        (*raw).end_line = highlight.end_line;
-        (*raw).end_column = highlight.end_column;
-        if let Some(message) = &highlight.message {
-          (*raw).highlight_message = alloc(message);
-        }
-      }
-      if let Some(hint) = self.hints.first() {
-        (*raw).hint = alloc(hint);
-      }
-      if let Some(url) = &self.documentation_url {
-        (*raw).documentation_url = alloc(url);
+    } else {
+      unsafe {
+        (*raw).message = alloc(self.message());
+        (*raw).severity = self.severity;
       }
     }
   }
@@ -763,19 +737,12 @@ impl Diagnostic {
   }
 
   /// Builds this diagnostic in `list`. Returns false, having added nothing,
-  /// when there is no list or Parcel cannot build one.
+  /// when Parcel rejects it.
   fn build_in_list(&self, list: ffi::Diagnostics) -> bool {
-    let (Some(push), Some(add_code_frame), Some(add_code_highlight), Some(add_hint)) = (
-      api::host_opt!(diagnostics_push),
-      api::host_opt!(diagnostics_add_code_frame),
-      api::host_opt!(diagnostics_add_code_highlight),
-      api::host_opt!(diagnostics_add_hint),
-    ) else {
-      return false;
-    };
-    if list == 0 {
-      return false;
-    }
+    let push = host!(diagnostics_push);
+    let add_code_frame = host!(diagnostics_add_code_frame);
+    let add_code_highlight = host!(diagnostics_add_code_highlight);
+    let add_hint = host!(diagnostics_add_hint);
 
     // Parcel copies what it keeps before each call returns, so every string is
     // passed by reference to this diagnostic's own.
@@ -2670,6 +2637,30 @@ mod tests {
     flags.set(AssetFlags::IS_SOURCE, false);
     assert_eq!(flags, AssetFlags::IS_ESM);
     assert!(!(!AssetFlags::IS_ESM).contains(AssetFlags::IS_ESM));
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn config_paths_resolve_against_the_parcelrc() {
+    let config = Config::new(b"", Path::new("/project/config/.parcelrc"));
+    let resolve = |path: &str| config.resolve_path(path);
+    assert_eq!(
+      resolve("./banner.txt"),
+      Path::new("/project/config/banner.txt")
+    );
+    assert_eq!(
+      resolve("banner.txt"),
+      Path::new("/project/config/banner.txt")
+    );
+    assert_eq!(
+      resolve("../src/./a b.txt"),
+      Path::new("/project/src/a b.txt")
+    );
+    assert_eq!(
+      resolve("/elsewhere/../banner.txt"),
+      Path::new("/banner.txt")
+    );
+    assert_eq!(resolve("/a/../../b"), Path::new("/b"));
   }
 
   #[test]

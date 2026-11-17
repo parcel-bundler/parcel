@@ -110,8 +110,9 @@ impl_extensible!(
 /// frees the buffers it allocated. Empty when it reported none.
 ///
 /// `context` is the call's, which an attached `diagnostics` list must belong to.
-/// Without one, as during init or a custom content read, only the diagnostic the
-/// struct itself describes is read.
+/// Without one, only the diagnostic the struct itself describes is read: a call
+/// with no `Options`, such as a custom content read, reads its out-param's list
+/// with [`read_out_diagnostic`] instead.
 ///
 /// To read one the plugin still owns — a logged diagnostic, say — use
 /// [`copy_cdiagnostic`].

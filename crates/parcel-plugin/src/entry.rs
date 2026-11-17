@@ -35,8 +35,8 @@ pub(crate) fn guard<R>(
     )),
   };
   // A NULL out-param is written nothing; otherwise it is the one Parcel passed,
-  // whose list to build a diagnostic in is already there, or 0 on an older Parcel.
-  unsafe { error.write_to_raw(diagnostic, || (*diagnostic).diagnostics) };
+  // whose list to build a diagnostic in is already there.
+  unsafe { error.write_to_raw(diagnostic, (*diagnostic).diagnostics) };
   None
 }
 
@@ -59,9 +59,13 @@ unsafe fn init_typed<T: Plugin>(
   if args.is_null() {
     return ffi::InitStatus::Incompatible;
   }
-  // Every field read here is in the first layout, which any Parcel calling
-  // `parcel_plugin_init2` fills in.
-  let args = unsafe { &*args };
+  // Copied up to the `size` Parcel reports, since a Parcel built before a field
+  // this SDK knows was appended allocates less. Every field read here is in the
+  // first layout, which any Parcel calling `parcel_plugin_init2` fills in.
+  let min_size = std::mem::offset_of!(ffi::InitArgs, options) + size_of::<ffi::Options>();
+  let Some(args) = (unsafe { crate::read_sized(args, min_size) }) else {
+    return ffi::InitStatus::Incompatible;
+  };
 
   // Must come first: every other SDK call, including writing a diagnostic, goes
   // through this table. Returning Incompatible rather than a message is what

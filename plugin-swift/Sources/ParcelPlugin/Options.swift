@@ -58,15 +58,9 @@ public struct Options: Sendable {
       withSized(CParcelABI.DiagnosticOptions.self) { raw in
         diagnostic.write(to: raw, list: { parcel_diagnostics_create(self.raw) })
         // The host copies what it needs rather than taking ownership, unlike a
-        // diagnostic returned from an entry point, so these are ours to free.
-        // Only a Parcel too old to build a list needs them.
-        defer {
-          parcel_buffer_free(&raw.pointee.message)
-          parcel_buffer_free(&raw.pointee.file_path)
-          parcel_buffer_free(&raw.pointee.hint)
-          parcel_buffer_free(&raw.pointee.highlight_message)
-          parcel_buffer_free(&raw.pointee.documentation_url)
-        }
+        // diagnostic returned from an entry point, so the message `write` falls
+        // back to, if any, is ours to free.
+        defer { parcel_buffer_free(&raw.pointee.message) }
         parcel_options_log_diagnostic(self.raw, raw)
       }
     }

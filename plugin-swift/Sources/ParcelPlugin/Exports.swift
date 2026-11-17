@@ -23,9 +23,11 @@ public enum PluginExports<P: Plugin> {
     _ state: UnsafeMutablePointer<UnsafeMutableRawPointer?>?,
     _ diagnostic: UnsafeMutableRawPointer?
   ) -> UInt8 {
-    // Every field read here is in the first layout, which any Parcel calling
-    // `parcel_plugin_init2` fills in.
-    guard let args = args?.assumingMemoryBound(to: InitArgs.self).pointee else {
+    // Copied up to the `size` Parcel reports, since a Parcel built before a
+    // field this SDK knows was appended allocates less. Every field read here is
+    // in the first layout, which any Parcel calling `parcel_plugin_init2` fills in.
+    let minSize = MemoryLayout<InitArgs>.offset(of: \.options)! + MemoryLayout<UInt64>.size
+    guard let args, let args = readSized(args, as: InitArgs.self, minSize: minSize) else {
       return 2  // PARCEL_INIT_INCOMPATIBLE
     }
     // Must come first: every other SDK call, including writing a diagnostic,

@@ -482,10 +482,13 @@ impl_extensible!(
 
 /// Appends the diagnostic `diagnostic` describes to `diagnostics`.
 ///
-/// `diagnostics` must be a list the plugin may add to: the one in the
-/// `DiagnosticOptions` an entry point received, or one from
-/// `parcel_diagnostics_create()`. Returns false, adding nothing, for any other
-/// list, or when the diagnostic has no message or its `size` is unset.
+/// `diagnostics` must be a list from the current call. The plugin may add to
+/// the one in the `DiagnosticOptions` an entry point received, and to those
+/// from `parcel_diagnostics_create()`. Returns false, adding nothing, for a
+/// list Parcel handed it to read, such as a failed read's, or when the
+/// diagnostic has no message or its `size` is unset. Parcel cannot tell any
+/// other value from a list: passing one, such as a list kept from an earlier
+/// call, or an `Options` handle, is undefined behavior.
 pub extern "C" fn parcel_diagnostics_push(
   diagnostics: Diagnostics,
   diagnostic: *const DiagnosticEntryOptions,

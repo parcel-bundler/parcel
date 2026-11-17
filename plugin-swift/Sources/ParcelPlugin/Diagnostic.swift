@@ -22,11 +22,9 @@ internal import CParcelABI
 public struct Diagnostic: Error, Hashable, Sendable, CustomStringConvertible {
   public var message: String
   public var severity: Severity
-  /// Excerpts of the code the diagnostic is about. A Parcel too old to show more
-  /// than one shows just the first, with its first highlight.
+  /// Excerpts of the code the diagnostic is about.
   public var codeFrames: [CodeFrame]
-  /// Suggestions for fixing the problem. A Parcel too old to show more than one
-  /// shows just the first.
+  /// Suggestions for fixing the problem.
   public var hints: [String]
   /// A URL to documentation about the diagnostic.
   public var documentationURL: String?
@@ -107,19 +105,15 @@ public struct Diagnostic: Error, Hashable, Sendable, CustomStringConvertible {
     }
   }
 
-  /// Fills a diagnostic, field by field, leaving its `size` alone: either one
-  /// Parcel allocated, or one from ``withSized(_:_:)``.
+  /// Fills a diagnostic, either one Parcel allocated or one from
+  /// ``withSized(_:_:)``: builds it in a list and sets `diagnostics` to it.
+  /// That is `list()` when given, which creates one to log through, or else the
+  /// out-param's own, which Parcel fills in. Parcel only borrows what the list's
+  /// builders are passed, so nothing is allocated.
   ///
-  /// It is built in a list and `diagnostics` set to it: `list()` when given,
-  /// which creates one to log through, or else the out-param's own, which
-  /// Parcel fills in. Parcel only borrows what the list's builders are passed,
-  /// so nothing is allocated. A Parcel too old to build one gets the struct's
-  /// own fields instead, which hold just the first frame, highlight and hint, in
-  /// buffers the host frees, except where noted.
-  ///
-  /// Every field written here is in the first layout. One appended after the
-  /// first alpha must only be written when `raw.pointee.size` has room for it,
-  /// since an older Parcel allocates less.
+  /// Should the list reject it, which no Parcel providing `init2` does for a
+  /// diagnostic this builds, the struct's own `message` is set instead, in a
+  /// buffer the host frees, so a failure is never mistaken for success.
   func write(
     to raw: UnsafeMutablePointer<CParcelABI.DiagnosticOptions>,
     list: (() -> UInt64)? = nil
@@ -131,30 +125,9 @@ public struct Diagnostic: Error, Hashable, Sendable, CustomStringConvertible {
     let list = list?() ?? raw.pointee.diagnostics
     if buildIn(list) {
       raw.pointee.diagnostics = list
-      return
-    }
-
-    raw.pointee.message = allocBuffer(reportedMessage)
-    raw.pointee.severity = severity.rawValue
-    let frame = codeFrames.first
-    // A frame of a file on disk is the only kind the struct's own fields describe.
-    if let filePath = frame?.filePath, !filePath.isEmpty {
-      raw.pointee.file_path = allocBuffer(filePath)
-    }
-    if let highlight = frame?.highlights.first {
-      raw.pointee.line = highlight.startLine
-      raw.pointee.column = highlight.startColumn
-      raw.pointee.end_line = highlight.endLine
-      raw.pointee.end_column = highlight.endColumn
-      if let message = highlight.message, !message.isEmpty {
-        raw.pointee.highlight_message = allocBuffer(message)
-      }
-    }
-    if let hint = hints.first, !hint.isEmpty {
-      raw.pointee.hint = allocBuffer(hint)
-    }
-    if let documentationURL, !documentationURL.isEmpty {
-      raw.pointee.documentation_url = allocBuffer(documentationURL)
+    } else {
+      raw.pointee.message = allocBuffer(reportedMessage)
+      raw.pointee.severity = severity.rawValue
     }
   }
 
@@ -163,9 +136,8 @@ public struct Diagnostic: Error, Hashable, Sendable, CustomStringConvertible {
   private var reportedMessage: String { message.isEmpty ? "unknown error" : message }
 
   /// Builds this diagnostic in `list`. Returns false, having added nothing, when
-  /// there is no list or Parcel cannot build one.
+  /// Parcel rejects it.
   private func buildIn(_ list: UInt64) -> Bool {
-    guard list != 0 else { return false }
     // Parcel copies what it keeps before each call returns, so every string is
     // passed by reference to this diagnostic's own.
     let pushed = withBorrowed([reportedMessage, documentationURL]) { strings in

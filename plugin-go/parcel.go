@@ -492,8 +492,11 @@ func writeDiagnostic(raw *C.DiagnosticOptions, err error) {
 // and setting raw.diagnostics to it: the one list returns when it is not nil,
 // which creates one to log through, or else the out-param's own, which Parcel
 // fills in. Parcel only borrows what the list's builders are passed, so nothing
-// is allocated. A Parcel too old to build one gets the struct's own fields
-// instead, which hold just the first frame, highlight and hint.
+// is allocated.
+//
+// Should the list reject it, which no Parcel providing parcel_plugin_init2
+// does for a diagnostic this builds, the struct's own message is set instead,
+// so a failure is never mistaken for success.
 func writeDiagnosticWithList(raw *C.DiagnosticOptions, err error, list func() C.Diagnostics) {
 	if raw == nil || err == nil {
 		return
@@ -519,41 +522,19 @@ func writeDiagnosticWithList(raw *C.DiagnosticOptions, err error, list func() C.
 	}
 	if d.buildInList(target, message) {
 		raw.diagnostics = target
-		return
+	} else {
+		raw.message = allocBuffer(message)
+		raw.severity = C.DiagnosticSeverity(d.Severity)
 	}
-
-	raw.message = allocBuffer(message)
-	raw.severity = C.DiagnosticSeverity(d.Severity)
-	if len(d.CodeFrames) > 0 {
-		// A frame of a file on disk is the only kind the struct's own fields
-		// describe.
-		frame := d.CodeFrames[0]
-		raw.file_path = allocBuffer(frame.FilePath)
-		if len(frame.Highlights) > 0 {
-			highlight := frame.Highlights[0]
-			raw.line = C.uint32_t(highlight.StartLine)
-			raw.column = C.uint32_t(highlight.StartColumn)
-			raw.end_line = C.uint32_t(highlight.EndLine)
-			raw.end_column = C.uint32_t(highlight.EndColumn)
-			raw.highlight_message = allocBuffer(highlight.Message)
-		}
-	}
-	if len(d.Hints) > 0 {
-		raw.hint = allocBuffer(d.Hints[0])
-	}
-	raw.documentation_url = allocBuffer(d.DocumentationURL)
 }
 
 // buildInList builds d, with message, in list. It returns false, having added
-// nothing, when there is no list or Parcel cannot build one.
+// nothing, when Parcel rejects it.
 //
 // Parcel copies what it keeps before each call returns, so every string is
 // passed by reference to d's own. They are pinned, since cgo forbids passing C
 // a struct that holds an unpinned pointer into the Go heap.
 func (d *Diagnostic) buildInList(list C.Diagnostics, message string) bool {
-	if list == 0 {
-		return false
-	}
 	var pinner runtime.Pinner
 	defer pinner.Unpin()
 	borrow := func(s string) (*C.uint8_t, C.uintptr_t) {
@@ -1277,11 +1258,9 @@ const (
 type Diagnostic struct {
 	Message  string
 	Severity DiagnosticSeverity
-	// CodeFrames are excerpts of the code the diagnostic is about. A Parcel too
-	// old to show more than one shows just the first, with its first highlight.
+	// CodeFrames are excerpts of the code the diagnostic is about.
 	CodeFrames []CodeFrame
-	// Hints are suggestions for fixing the problem. A Parcel too old to show
-	// more than one shows just the first.
+	// Hints are suggestions for fixing the problem.
 	Hints []string
 	// DocumentationURL optionally links to documentation about the diagnostic.
 	DocumentationURL string
@@ -1765,13 +1744,9 @@ func (o *Options) LogDiagnostic(diagnostic *Diagnostic) {
 		return C.parcel_diagnostics_create(o.ptr)
 	})
 	// The host copies what it needs rather than taking ownership, unlike the
-	// diagnostic a plugin returns as an error, so these are ours to free. Only a
-	// Parcel too old to build a list needs them.
+	// diagnostic a plugin returns as an error, so the message
+	// writeDiagnosticWithList falls back to, if any, is ours to free.
 	defer C.parcel_buffer_free(&raw.message)
-	defer C.parcel_buffer_free(&raw.file_path)
-	defer C.parcel_buffer_free(&raw.hint)
-	defer C.parcel_buffer_free(&raw.highlight_message)
-	defer C.parcel_buffer_free(&raw.documentation_url)
 	C.parcel_options_log_diagnostic(o.ptr, &raw)
 }
 
