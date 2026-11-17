@@ -62,7 +62,7 @@ pub struct TransformOptions<'a> {
   pub target: Arc<Target>,
   pub hmr: bool,
   pub options: &'a ParcelOptions,
-  /// Custom elements that call macros, as if declared with `<parcel:import name src>`: the
+  /// Custom elements that call macros, as if declared with `<parcel:define name src>`: the
   /// element name, and the macro's URL relative to the document.
   pub macro_imports: Vec<(String, String)>,
 }
@@ -498,7 +498,7 @@ pub struct HtmlTransformer {
   )]
   optimize: Option<Arc<optimize::OptimizeOptions>>,
   /// Custom elements that call macros in every document, e.g. `{"code-sample": "macros.js#sample"}`,
-  /// as if each had a `<parcel:import name="code-sample" src="macros.js#sample">`. Paths are
+  /// as if each had a `<parcel:define name="code-sample" src="macros.js#sample">`. Paths are
   /// relative to the config file, and resolved by `resolve_paths`.
   #[serde(default)]
   macros: indexmap::IndexMap<String, String>,

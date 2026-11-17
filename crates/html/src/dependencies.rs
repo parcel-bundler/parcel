@@ -107,7 +107,7 @@ fn collect<'arena, 'a>(
   Vec<EmbeddedContent<'arena>>,
 ) {
   let mut collector = DependencyCollector::new(arena, url, ty, target, options);
-  // Macros configured for every document, as if declared with <parcel:import>. Imports in the
+  // Macros configured for every document, as if declared with <parcel:define>. Imports in the
   // document itself take precedence.
   collector
     .macro_imports
@@ -818,8 +818,8 @@ impl<'arena, 'a> DependencyCollector<'arena, 'a> {
           self.deps.push(dep);
         }
       }
-      n if is_parcel_tag(&n, "import") => {
-        // <parcel:import name="foo" src="foo.js#export"> imports a macro and defines an element named <foo> to be replaced with it.
+      n if is_parcel_tag(&n, "define") => {
+        // <parcel:define name="foo" src="foo.js#export"> defines an element named <foo> that calls the macro.
         if let (Some(name), Some(src)) = (
           node.get_attribute(expanded_name!("", "name")),
           node.get_attribute(expanded_name!("", "src")),
