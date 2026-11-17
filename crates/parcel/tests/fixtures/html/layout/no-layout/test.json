@@ -1,0 +1,7 @@
+{
+  "description": "drops content for layout slots when there is no layout",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]}
+  ]
+}

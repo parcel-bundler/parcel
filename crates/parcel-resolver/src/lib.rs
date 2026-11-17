@@ -49,6 +49,7 @@ use bitflags::bitflags;
 pub use error::ResolverError;
 pub use package_json::{
   AliasValue, BrowserField, ExportsResolution, Fields, ModuleType, PackageJson, PackageJsonError,
+  replace_captures,
 };
 use parcel_core::{ExportsCondition, IncludeNodeModules, SubPath};
 #[cfg(not(target_arch = "wasm32"))]

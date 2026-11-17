@@ -1,0 +1,10 @@
+{
+  "description": "an html file that is both linked and included is written as its own page, and an inline copy is embedded",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"], "contains": ["<a href=\"/part.html\">Part</a>", "<p>Part <img src=\"/100x100"]},
+    {"name": "part.html", "type": "html", "assets": ["part.html"], "contains": ["<p>Part <img src=\"/100x100"]},
+    {"type": "html", "assets": ["part.html"]},
+    {"type": "png", "assets": ["100x100.png"]}
+  ]
+}

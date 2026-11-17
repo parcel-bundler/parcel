@@ -1,21 +1,25 @@
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 
-use crate::arena::{Node, NodeData};
+use crate::arena::{Node, NodeData, SerializableHandle, Sink};
 use crate::srcset::{parse_srcset, serialize_srcset};
-use crate::xml::{ATOM_NS, is_rss};
+use crate::xml::{ATOM_NS, EmbeddedContent, expand_html_in, is_rss};
 use html5ever::tendril::{StrTendril, format_tendril};
 use html5ever::{Attribute, ExpandedName, QualName, expanded_name, local_name, namespace_url, ns};
 use parcel_core::{
   Asset, AssetFlags, AssetRequest, AssetSymbols, AssetType, BufferContent, BundleBehavior,
   CodeFrame, CodeHighlight, Dependency, DependencyFlags, DependencyResolution, Diagnostic,
   DiagnosticSeverity, EnvironmentFeature, ExportsCondition, ImportType, ImportedSymbol, Location,
-  OutputFormat, Priority, SourceLocation, SourceType, SourceUrl, SpecifierType, SymbolResolution,
-  Target, UrlReference,
+  OutputFormat, ParcelOptions, Priority, SourceLocation, SourceType, SourceUrl, SpecifierType,
+  SymbolResolution, Target, UrlReference,
 };
 use typed_arena::Arena;
+use xml5ever::LocalName;
+use xml5ever::interface::ElemName;
+use xml5ever::tendril::TendrilSink;
 
 /// Parse and canonically re-serialize a media attribute, matching the
 /// canonical form the CSS transformer uses for `@import` conditions. Returns
@@ -47,48 +51,71 @@ fn canonical_media(value: &str) -> Option<Box<str>> {
   }
 }
 
-pub fn collect_dependencies<'arena>(
+pub fn collect_dependencies<'arena, 'a>(
   arena: &'arena Arena<Node<'arena>>,
   dom: &'arena Node<'arena>,
   url: SourceUrl,
   ty: AssetType,
   target: Arc<Target>,
   hmr: bool,
+  options: &'a ParcelOptions,
+  macro_imports: &[(String, String)],
 ) -> (
   Vec<Dependency>,
   Vec<ImportedSymbol>,
   Vec<Asset>,
   Vec<Diagnostic>,
 ) {
-  let mut collector = DependencyCollector::new(arena, url, ty, target);
+  let (deps, imports, assets, errors, _) =
+    collect(arena, dom, url, ty, target, hmr, options, macro_imports);
+  (deps, imports, assets, errors)
+}
+
+/// Collects the dependencies of an XML document. Also returns the embedded HTML (e.g. Atom
+/// `<content type="html">`) that macros produced, which was expanded so it could be walked, and
+/// must be collapsed again along with the rest.
+pub(crate) fn collect_xml_dependencies<'arena, 'a>(
+  arena: &'arena Arena<Node<'arena>>,
+  dom: &'arena Node<'arena>,
+  url: SourceUrl,
+  target: Arc<Target>,
+  options: &'a ParcelOptions,
+) -> (
+  Vec<Dependency>,
+  Vec<ImportedSymbol>,
+  Vec<Asset>,
+  Vec<Diagnostic>,
+  Vec<EmbeddedContent<'arena>>,
+) {
+  collect(arena, dom, url, AssetType::Xml, target, false, options, &[])
+}
+
+fn collect<'arena, 'a>(
+  arena: &'arena Arena<Node<'arena>>,
+  dom: &'arena Node<'arena>,
+  url: SourceUrl,
+  ty: AssetType,
+  target: Arc<Target>,
+  hmr: bool,
+  options: &'a ParcelOptions,
+  macro_imports: &[(String, String)],
+) -> (
+  Vec<Dependency>,
+  Vec<ImportedSymbol>,
+  Vec<Asset>,
+  Vec<Diagnostic>,
+  Vec<EmbeddedContent<'arena>>,
+) {
+  let mut collector = DependencyCollector::new(arena, url, ty, target, options);
+  // Macros configured for every document, as if declared with <parcel:define>. Imports in the
+  // document itself take precedence.
+  collector
+    .macro_imports
+    .extend(macro_imports.iter().cloned());
   collector.rss = collector.ty == AssetType::Xml && is_rss(dom);
+  collector.root = Some(dom);
 
-  dom.walk(&mut |node| match &node.data {
-    NodeData::Element { name, .. } => {
-      collector.visit_element(node, name);
-    }
-    NodeData::ProcessingInstruction { target, contents } => {
-      let mut contents = contents.borrow_mut();
-      if target.as_ref() == "xml-stylesheet" {
-        if let Ok(mut attrs) = parse_xml_stylesheet(contents.borrow().as_ref()) {
-          for attr in &mut attrs {
-            if attr.name.expanded() == expanded_name!("", "href") {
-              attr.value = collector.add_dep(
-                attr.value.clone(),
-                false,
-                Priority::Parallel,
-                node.line,
-                None,
-              );
-            }
-          }
-
-          *contents = serialize_xml_stylesheet(attrs);
-        }
-      }
-    }
-    _ => {}
-  });
+  collector.walk(dom);
 
   for asset in &collector.assets {
     collector.deps.push(Dependency {
@@ -177,15 +204,22 @@ pub fn collect_dependencies<'arena>(
     }
   }
 
+  if !collector.hoisted.is_empty() {
+    if let Some(head) = dom.find(expanded_name!(html "head")) {
+      crate::head::insert_into_head(head, std::mem::take(&mut collector.hoisted));
+    }
+  }
+
   (
     collector.deps,
     collector.imports,
     collector.assets,
     collector.errors,
+    collector.embedded,
   )
 }
 
-struct DependencyCollector<'arena> {
+struct DependencyCollector<'arena, 'a> {
   arena: &'arena Arena<Node<'arena>>,
   url: SourceUrl,
   ty: AssetType,
@@ -197,14 +231,74 @@ struct DependencyCollector<'arena> {
   has_module_scripts: bool,
   errors: Vec<Diagnostic>,
   rss: bool,
+  options: &'a ParcelOptions,
+  macro_imports: HashMap<String, String>,
+  /// Imported macro elements whose output is currently being walked. An element isn't expanded
+  /// again within its own output, so a macro can render the native element it's named after.
+  expanding_imports: Vec<String>,
+  /// Embedded HTML in the output of macros in XML documents. See `collect_xml_dependencies`.
+  embedded: Vec<EmbeddedContent<'arena>>,
+  /// The document root, and the head elements produced by macros, hoisted after the walk.
+  root: Option<&'arena Node<'arena>>,
+  hoisted: Vec<&'arena Node<'arena>>,
 }
 
-impl<'arena> DependencyCollector<'arena> {
+impl<'arena, 'a> DependencyCollector<'arena, 'a> {
+  /// Visits `node` and its descendants (including `<template>` contents) in document order.
+  /// Visiting may replace a node (e.g. a macro with its output), in which case the replacement
+  /// is walked by the visitor itself.
+  fn walk(&mut self, node: &'arena Node<'arena>) {
+    self.visit_node(node);
+    if let NodeData::Element {
+      template_contents: Some(template_contents),
+      ..
+    } = &node.data
+    {
+      self.walk(template_contents);
+    }
+
+    let mut child = node.first_child.get();
+    while let Some(c) = child {
+      child = c.next_sibling.get();
+      self.walk(c);
+    }
+  }
+
+  fn visit_node(&mut self, node: &'arena Node<'arena>) {
+    match &node.data {
+      NodeData::Element { name, .. } => {
+        self.visit_element(node, name);
+      }
+      NodeData::ProcessingInstruction { target, contents } => {
+        let mut contents = contents.borrow_mut();
+        if target.as_ref() == "xml-stylesheet" {
+          if let Ok(mut attrs) = parse_xml_stylesheet(contents.borrow().as_ref()) {
+            for attr in &mut attrs {
+              if attr.name.expanded() == expanded_name!("", "href") {
+                attr.value = self.add_dep(
+                  attr.value.clone(),
+                  false,
+                  Priority::Parallel,
+                  node.line,
+                  None,
+                );
+              }
+            }
+
+            *contents = serialize_xml_stylesheet(attrs);
+          }
+        }
+      }
+      _ => {}
+    }
+  }
+
   fn new(
     arena: &'arena Arena<Node<'arena>>,
     url: SourceUrl,
     ty: AssetType,
     target: Arc<Target>,
+    options: &'a ParcelOptions,
   ) -> Self {
     DependencyCollector {
       arena,
@@ -218,6 +312,12 @@ impl<'arena> DependencyCollector<'arena> {
       has_module_scripts: false,
       errors: Vec::new(),
       rss: false,
+      options,
+      macro_imports: HashMap::new(),
+      expanding_imports: Vec::new(),
+      embedded: Vec::new(),
+      root: None,
+      hoisted: Vec::new(),
     }
   }
 
@@ -283,8 +383,9 @@ impl<'arena> DependencyCollector<'arena> {
         return;
       }
 
-      // Arbitrary XML vocabularies must not acquire HTML attribute semantics.
-      if name.ns != ns!(html) && name.ns != ns!(svg) {
+      // Arbitrary XML vocabularies must not acquire HTML attribute semantics. Parcel's own
+      // elements (e.g. <parcel:macro>) are handled below.
+      if name.ns != ns!(html) && name.ns != ns!(svg) && name.ns.as_ref() != "http://parceljs.org" {
         return;
       }
     }
@@ -549,7 +650,37 @@ impl<'arena> DependencyCollector<'arena> {
         // - https://vk.com/dev/publications
         let mut is_dep = false;
         let mut needs_stable_name = true;
-        if let Some(property) = node.get_attribute(expanded_name!("", "property")) {
+        if node
+          .get_attribute(expanded_name!("", "http-equiv"))
+          .is_some_and(|v| v.eq_ignore_ascii_case("refresh"))
+        {
+          // <meta http-equiv="refresh" content="N; url=URL"> redirects to URL. The delay is kept
+          // in a temporary attribute so the URL can be replaced like any other during packaging.
+          if let Some(content) = node.get_attribute(expanded_name!("", "content")) {
+            // Like links, URLs without an extension are virtual paths (e.g. /docs/), left as is.
+            let parsed = parse_refresh(&content).filter(|(_, url)| {
+              let path = url.split(['#', '?']).next().unwrap_or(url);
+              path.rfind('.').unwrap_or(0) >= 1
+            });
+            if let Some((delay, url)) = parsed {
+              let placeholder = self.add_dep(
+                url.into(),
+                false,
+                Priority::Lazy,
+                node.line,
+                Some(UrlReference::Document),
+              );
+              node.set_attribute(expanded_name!("", "content"), &placeholder);
+              node.set_attribute(
+                ExpandedName {
+                  ns: &ns!(),
+                  local: &"data-parcel-refresh".into(),
+                },
+                delay,
+              );
+            }
+          }
+        } else if let Some(property) = node.get_attribute(expanded_name!("", "property")) {
           is_dep = matches!(
             property.as_ref(),
             "og:image"
@@ -677,6 +808,61 @@ impl<'arena> DependencyCollector<'arena> {
       }
       expanded_name!(svg "cursor") | expanded_name!(svg "color-profile") => {
         self.handle_document_attr(node, expanded_name!(xlink "href"), false);
+      }
+      n if is_parcel_tag(&n, "include") || is_parcel_tag(&n, "layout") => {
+        // <parcel:include src="..." /> adds an inline dependency on `src` which replaces it during packaging.
+        if let Some(src) = node.get_attribute(expanded_name!("", "src")) {
+          let mut dep = Dependency {
+            specifier: src.to_string().into_boxed_str(),
+            specifier_type: SpecifierType::Url,
+            flags: DependencyFlags::empty(),
+            priority: Default::default(),
+            target: self.target.clone(),
+            bundle_behavior: BundleBehavior::Inline,
+            import_type: ImportType::Url,
+            placeholder: Default::default(),
+            loc: self.create_loc(node.line),
+            resolve_from: Some(self.url.clone()),
+            range: None,
+            conditions: ExportsCondition::empty(),
+            resolution: DependencyResolution::None,
+            concurrent_group: 0,
+            custom_conditions: Default::default(),
+          };
+
+          node.set_attribute(expanded_name!("", "src"), dep.set_placeholder());
+          self.deps.push(dep);
+        }
+      }
+      n if is_parcel_tag(&n, "define") => {
+        // <parcel:define name="foo" src="foo.js#export"> defines an element named <foo> that calls the macro.
+        if let (Some(name), Some(src)) = (
+          node.get_attribute(expanded_name!("", "name")),
+          node.get_attribute(expanded_name!("", "src")),
+        ) {
+          self.macro_imports.insert(name.to_string(), src.to_string());
+          node.detach();
+        }
+      }
+      n if is_parcel_tag(&n, "macro") => {
+        // <parcel:macro src="foo.js#name" prop="value">content</parcel:macro> calls the `name` function
+        // in foo.js, passing in "content" and `{prop: 'value'} as arguments.
+        if let Some(src) = node.get_attribute(expanded_name!("", "src")) {
+          let (script, export) = src.split_once('#').unwrap_or((&src, "default"));
+          self.call_macro(script, export, node, false)
+        }
+      }
+      n if matches!(*n.ns(), ns!() | ns!(html)) && !self.macro_imports.is_empty() => {
+        let name = &**n.local_name();
+        if let Some(src) = self.macro_imports.get(name) {
+          if !self.expanding_imports.iter().any(|n| n == name) {
+            let src = src.clone();
+            let (script, export) = src.split_once('#').unwrap_or((&src, "default"));
+            self.expanding_imports.push(name.to_owned());
+            self.call_macro(script, export, node, true);
+            self.expanding_imports.pop();
+          }
+        }
       }
       _ => {}
     }
@@ -899,6 +1085,217 @@ impl<'arena> DependencyCollector<'arena> {
     }
     self.deps.push(dep);
   }
+
+  fn call_macro(
+    &mut self,
+    script: &str,
+    export: &str,
+    node: &'arena Node<'arena>,
+    allow_src: bool,
+  ) {
+    use parcel_macros::{JsValue, MacroError};
+
+    let mut props = indexmap::IndexMap::new();
+    if let NodeData::Element { attrs, .. } = &node.data {
+      for attr in attrs.borrow_mut().iter_mut() {
+        if !allow_src && &attr.name.local == "src" {
+          continue;
+        }
+        props.insert(
+          attr.name.local.to_string(),
+          JsValue::String(attr.value.to_string()),
+        );
+      }
+    }
+
+    // XML documents (feeds, SVG) are parsed and serialized as XML, so macros can produce
+    // namespaced elements.
+    let xml = self.ty != AssetType::Html;
+    let mut content = Vec::new();
+    if xml {
+      let mut child = node.first_child.get();
+      while let Some(c) = child {
+        let _ = crate::serialize_xml::serialize(&mut content, c);
+        child = c.next_sibling.get();
+      }
+    } else {
+      let _ = html5ever::serialize::serialize(
+        &mut content,
+        &SerializableHandle(node),
+        Default::default(),
+      );
+    }
+
+    match parcel_plugin_js::call_macro(
+      self.options,
+      self.url.clone(),
+      self.target.clone(),
+      self
+        .url
+        .join(script)
+        .to_file_path()
+        .unwrap()
+        .to_path_buf()
+        .to_str()
+        .unwrap()
+        .to_string(),
+      export.to_owned(),
+      vec![
+        JsValue::String(String::from_utf8(content).unwrap()),
+        JsValue::Object(props),
+      ],
+      parcel_macros::Location {
+        line: node.line,
+        col: 1,
+      },
+    ) {
+      Ok((JsValue::String(result), _deps)) => {
+        let root = if xml {
+          match parse_xml_fragment(&self.arena, node, &result) {
+            Some(root) => {
+              if self.ty == AssetType::Xml {
+                let embedded = expand_html_in(&self.arena, root, self.rss);
+                self.embedded.extend(embedded);
+              }
+              root
+            }
+            None => {
+              self.add_diagnostic("HTML macro returned invalid XML", node.line);
+              return;
+            }
+          }
+        } else {
+          let fragment = html5ever::driver::parse_fragment(
+            Sink::new(&self.arena),
+            html5ever::ParseOpts::default(),
+            xml5ever::QualName::new(None, ns!(html), local_name!("div")),
+            Vec::new(),
+          )
+          .one(result);
+          // html5ever places fragment children under a synthetic HTML root.
+          fragment.first_child.get().unwrap()
+        };
+        if self
+          .root
+          .is_some_and(|dom| crate::head::can_hoist_from(node, dom))
+        {
+          crate::head::collect_hoistable(root, &mut self.hoisted);
+        }
+        let mut output = Vec::new();
+        while let Some(child) = root.first_child.get() {
+          node.insert_before(child);
+          output.push(child);
+        }
+        node.detach();
+        // The macro's content was replaced by its output, so it shouldn't be walked.
+        while let Some(child) = node.first_child.get() {
+          child.detach();
+        }
+        // Collect dependencies (and call nested macros) in the output.
+        for child in output {
+          self.walk(child);
+        }
+      }
+      Err(err) => {
+        let message = match err {
+          MacroError::LoadError(ref err, _) | MacroError::ExecutionError(ref err, _) => {
+            err.as_str()
+          }
+          _ => "Error running macro",
+        };
+        self.add_diagnostic(message, node.line);
+      }
+      Ok(_) => {
+        self.add_diagnostic("HTML macros must return strings", node.line);
+      }
+    }
+  }
+}
+
+/// Splits the `content` of `<meta http-equiv="refresh">` into the delay and URL, if it has one.
+/// https://html.spec.whatwg.org/multipage/semantics.html#shared-declarative-refresh-steps
+fn parse_refresh(content: &str) -> Option<(&str, &str)> {
+  let content = content.trim_start();
+  let delay_end = content
+    .find(|c: char| !c.is_ascii_digit() && c != '.')
+    .unwrap_or(content.len());
+  let (delay, rest) = content.split_at(delay_end);
+  if delay.is_empty() {
+    return None;
+  }
+  let rest = rest.trim_start_matches(|c: char| c.is_ascii_whitespace() || c == ';' || c == ',');
+  let rest = if rest.len() >= 3 && rest[..3].eq_ignore_ascii_case("url") {
+    rest[3..].trim_start().strip_prefix('=')?.trim_start()
+  } else {
+    rest
+  };
+  let url = match rest.chars().next() {
+    Some(quote @ ('\'' | '"')) => rest[1..].split(quote).next().unwrap_or(""),
+    _ => rest.trim_end(),
+  };
+  if url.is_empty() {
+    None
+  } else {
+    Some((delay, url))
+  }
+}
+
+/// Parses XML in the context of `context`, so it inherits the namespace declarations in scope
+/// there (e.g. the default Atom namespace of a feed). Returns an element containing the result.
+fn parse_xml_fragment<'arena>(
+  arena: &'arena Arena<Node<'arena>>,
+  context: &'arena Node<'arena>,
+  xml: &str,
+) -> Option<&'arena Node<'arena>> {
+  let mut ancestors = Vec::new();
+  let mut parent = context.parent.get();
+  while let Some(p) = parent {
+    ancestors.push(p);
+    parent = p.parent.get();
+  }
+  // Outermost first, so inner declarations override outer ones.
+  let mut declarations = indexmap::IndexMap::new();
+  for ancestor in ancestors.iter().rev() {
+    if let NodeData::Element { attrs, .. } = &ancestor.data {
+      for attr in attrs.borrow().iter() {
+        let name = match (&attr.name.prefix, attr.name.local.as_ref()) {
+          (Some(prefix), local) if prefix.as_ref() == "xmlns" => format!("xmlns:{}", local),
+          (None, "xmlns") => "xmlns".to_string(),
+          _ => continue,
+        };
+        declarations.insert(name, attr.value.to_string());
+      }
+    }
+  }
+
+  let mut wrapper = String::from("<parcel-macro-output");
+  for (name, value) in &declarations {
+    wrapper.push_str(&format!(
+      " {}=\"{}\"",
+      name,
+      value
+        .replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;")
+    ));
+  }
+  wrapper.push('>');
+  wrapper.push_str(xml);
+  wrapper.push_str("</parcel-macro-output>");
+
+  let dom = xml5ever::driver::parse_document(Sink::new(arena), Default::default())
+    .from_utf8()
+    .one(wrapper.as_bytes());
+  let mut child = dom.first_child.get();
+  while let Some(c) = child {
+    if let NodeData::Element { name, .. } = &c.data {
+      if name.local.as_ref() == "parcel-macro-output" {
+        return Some(c);
+      }
+    }
+    child = c.next_sibling.get();
+  }
+  None
 }
 
 /// Whether a presentation attribute's `url()` may reference an image rather than an element.
@@ -992,4 +1389,15 @@ pub fn serialize_xml_stylesheet(attrs: Vec<Attribute>) -> StrTendril {
   }
 
   s
+}
+
+#[inline]
+pub fn is_parcel_tag(n: &ExpandedName, name: &str) -> bool {
+  (n.ns() == &ns!(html) && is_parcel_html_tag(n.local_name(), name))
+    || (n.ns() == "http://parceljs.org" && n.local_name() == name)
+}
+
+#[inline]
+fn is_parcel_html_tag(local: &LocalName, name: &str) -> bool {
+  local.starts_with("parcel:") && &local[7..] == name
 }

@@ -1,0 +1,7 @@
+{
+  "description": "should add a title and description from the first h1 and paragraph",
+  "input": "index.md",
+  "bundles": [
+    {"type": "html", "assets": ["index.md"]}
+  ]
+}

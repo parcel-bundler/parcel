@@ -1,0 +1,7 @@
+{
+  "description": "should call macros for custom elements configured on the html transformer, in markdown",
+  "input": "index.md",
+  "bundles": [
+    {"type": "html", "assets": ["index.md"]}
+  ]
+}

@@ -10,7 +10,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   sync::{
-    Arc, Mutex, OnceLock,
+    Arc, Mutex, OnceLock, TryLockError,
     atomic::{AtomicBool, AtomicUsize, Ordering},
   },
 };
@@ -25,7 +25,38 @@ use crate::{
 };
 
 /// Packaged inline bundles, keyed by bundle index and the directory the content was packaged for.
-pub type InlineBundleCache = papaya::HashMap<(usize, PathId), Arc<Mutex<Option<Arc<dyn Content>>>>>;
+pub type InlineBundleCache = papaya::HashMap<(usize, PathId), Arc<InlineSlot>>;
+
+/// An inline bundle's content for one directory, once packaged.
+#[derive(Default)]
+pub struct InlineSlot {
+  content: OnceLock<Arc<dyn Content>>,
+  /// Held while the content is packaged on demand (see `package_bundle`).
+  packaging: Mutex<()>,
+}
+
+/// The directory a bundle is written to, which the inline bundles it embeds are packaged for.
+fn bundle_dir(bundle: &Bundle) -> PathId {
+  bundle
+    .dist_path()
+    .parent()
+    .unwrap_or(bundle.target.dist_dir)
+}
+
+/// `inline`, as packaged for embedding in a bundle in `dir`: inline content is embedded in that
+/// bundle, so relative URLs inside it must resolve from there rather than from the inline bundle's
+/// own (never written) path.
+fn relocate(inline: &Bundle, dir: PathId) -> Cow<'_, Bundle> {
+  let inline_path = inline.dist_path();
+  if inline_path.parent() == Some(dir) {
+    Cow::Borrowed(inline)
+  } else {
+    Cow::Owned(Bundle {
+      dist_path: Some(dir.child(inline_path.file_name())),
+      ..inline.clone()
+    })
+  }
+}
 
 fn inline_bundle_cache() -> InlineBundleCache {
   crate::path::read_mostly_map()
@@ -119,29 +150,34 @@ fn package_bundle(
   options: &ParcelOptions,
   cache: &InlineBundleCache,
 ) -> Result<Arc<dyn Content>, DiagnosticList> {
-  // If this is an inline bundle, it's possible that it's inlined into many parent bundles.
-  // To avoid packaging the same bundle many times, we have a cache by bundle index and directory.
-  // Each entry is a Mutex<Option<dyn Content>>. The mutex is initially empty, and locked
-  // while the content is packaging. If the bundle is requested a second time concurrently,
-  // that thread waits on the lock and reuses the same content.
-  let slot = if bundle.bundle_behavior == BundleBehavior::Inline {
-    let dir = bundle
-      .dist_path()
-      .parent()
-      .unwrap_or(bundle.target.dist_dir);
-    Some(
-      cache
-        .pin()
-        .get_or_insert_with((bundle_index, dir), || Arc::new(Mutex::new(None)))
-        .clone(),
-    )
-  } else {
-    None
-  };
-
-  // TODO: error instead of deadlocking if there is a cycle in inline bundles. Currently this cannot happen.
-  let mut lock = slot.as_ref().map(|slot| slot.lock().unwrap());
-  if let Some(content) = lock.as_ref().and_then(|c| (*c).as_ref()) {
+  // An inline bundle may be embedded in many bundles, so its content is cached by bundle index
+  // and directory. The scheduler usually packages it before the bundles that embed it (see
+  // `package_bundles`), so it's already here. Otherwise (e.g. in a naming cycle with the bundle
+  // embedding it), it's packaged on demand.
+  //
+  // If it's already being packaged on demand, it's packaged again rather than waiting, and the
+  // result isn't cached. Waiting can deadlock: packagers use rayon, so while a thread packages it
+  // and waits on parallel work, it may steal another bundle's job that needs this same bundle, and
+  // block on itself (or two threads may each package a bundle the other's stolen job needs).
+  // Packaging is deterministic, so the content is the same.
+  let slot = (bundle.bundle_behavior == BundleBehavior::Inline).then(|| {
+    cache
+      .pin()
+      .get_or_insert_with((bundle_index, bundle_dir(bundle)), Default::default)
+      .clone()
+  });
+  if let Some(content) = slot.as_ref().and_then(|slot| slot.content.get()) {
+    return Ok(content.clone());
+  }
+  let packaging = slot
+    .as_ref()
+    .and_then(|slot| match slot.packaging.try_lock() {
+      Ok(guard) => Some(guard),
+      Err(TryLockError::Poisoned(err)) => Some(err.into_inner()),
+      Err(TryLockError::WouldBlock) => None,
+    });
+  // Another thread may have finished packaging it in the meantime.
+  if let Some(content) = slot.as_ref().and_then(|slot| slot.content.get()) {
     return Ok(content.clone());
   }
 
@@ -172,28 +208,8 @@ fn package_bundle(
       return get_bundle_content(config, bundle_graph, inline_index, options, cache);
     }
 
-    // Inline content is embedded in this bundle, so relative URLs inside it must resolve from
-    // this bundle's directory rather than from the inline bundle's own (never written) path.
-    let dir = bundle
-      .dist_path()
-      .parent()
-      .unwrap_or(bundle.target.dist_dir);
-    let inline_path = inline.dist_path();
-    if inline_path.parent() == Some(dir) {
-      return package_bundle(config, bundle_graph, inline_index, inline, options, cache);
-    }
-    let relocated = Bundle {
-      dist_path: Some(dir.child(inline_path.file_name())),
-      ..inline.clone()
-    };
-    package_bundle(
-      config,
-      bundle_graph,
-      inline_index,
-      &relocated,
-      options,
-      cache,
-    )
+    let inline = relocate(inline, bundle_dir(bundle));
+    package_bundle(config, bundle_graph, inline_index, &inline, options, cache)
   };
 
   let mut content =
@@ -203,8 +219,8 @@ fn package_bundle(
     content = optimizer.optimize(&bundle_graph, &bundle, content, options)?;
   }
 
-  if let Some(slot) = &mut lock {
-    **slot = Some(content.clone());
+  if let (Some(slot), Some(_)) = (&slot, &packaging) {
+    let _ = slot.content.set(content.clone());
   }
   Ok(content)
 }
@@ -267,45 +283,94 @@ pub(crate) fn package_bundles(
     .map(|bundle| is_content_hashed(bundle, options))
     .collect();
 
-  // Declared dependencies of every bundle, including inline bundles, which are packaged inside the
-  // bundles that embed them, so their dependencies are their embedders' dependencies. Without
-  // content hashing (e.g. in development) nothing waits, so there's no need to ask.
-  let declared = if pending.contains(&true) {
-    bundles
-      .par_iter()
-      .map(|bundle| packaging_plan(config, bundle_graph, bundle).map(|(_, _, declared)| declared))
-      .collect::<Result<Vec<_>, _>>()?
-  } else {
-    vec![Vec::new(); bundles.len()]
-  };
+  // Declared dependencies of every bundle, including inline bundles, which are embedded in other
+  // bundles, so their name dependencies are also their embedders' dependencies.
+  // Also the inline bundles each bundle's packager embeds, which are packaged ahead of it.
+  let (declared, embedded): (Vec<_>, Vec<_>) = bundles
+    .par_iter()
+    .map(|bundle| {
+      packaging_plan(config, bundle_graph, bundle).map(|(content, _, mut declared)| {
+        // Only bundles that `package` may access at all (see `Content::embedded_bundles`).
+        declared.sort_unstable();
+        declared.dedup();
+        let mut embedded = content.embedded_bundles(bundle_graph, bundle);
+        embedded.retain(|index| declared.binary_search(index).is_ok());
+        (declared, embedded)
+      })
+    })
+    .collect::<Result<Vec<_>, _>>()?
+    .into_iter()
+    .unzip();
   let dependencies: Vec<Vec<usize>> = (0..bundles.len())
     .map(|index| {
-      if bundles[index].bundle_behavior == BundleBehavior::Inline || declared[index].is_empty() {
+      if bundles[index].bundle_behavior == BundleBehavior::Inline {
         return Vec::new();
       }
-      let mut dependencies = Vec::new();
-      let mut visited = vec![false; bundles.len()];
-      let mut stack = declared[index].clone();
-      while let Some(dependency) = stack.pop() {
-        if std::mem::replace(&mut visited[dependency], true) {
-          continue;
-        }
-        if bundles[dependency].bundle_behavior == BundleBehavior::Inline {
-          stack.extend(&declared[dependency]);
-        } else if pending[dependency] && dependency != index {
-          dependencies.push(dependency);
-        }
-      }
-      dependencies.sort_unstable();
-      dependencies
+      dependencies_through_inline(index, bundles, &declared, &pending)
     })
     .collect();
 
+  // Inline bundles are packaged once for each directory they're embedded in (see `relocate`),
+  // ahead of the bundles that embed them, so those find the content already packaged. Each
+  // inline bundle and directory is a unit, numbered after the bundles in the graph below. Only
+  // bundles that packagers declare they embed (`Content::embedded_bundles`) are scheduled: others
+  // may not be needed at all, and are packaged on demand.
+  let mut units: Vec<(usize, PathId)> = Vec::new();
+  let mut unit_ids: HashMap<(usize, PathId), usize> = HashMap::new();
+  let mut edges: Vec<Vec<usize>> = dependencies.clone();
+  for (index, bundle) in bundles.iter().enumerate() {
+    if bundle.bundle_behavior == BundleBehavior::Inline {
+      continue;
+    }
+    let dir = bundle_dir(bundle);
+    let mut stack = vec![index];
+    while let Some(node) = stack.pop() {
+      let embedder = if node < bundles.len() {
+        node
+      } else {
+        units[node - bundles.len()].0
+      };
+      for &dependency in &embedded[embedder] {
+        if bundles[dependency].bundle_behavior != BundleBehavior::Inline {
+          continue;
+        }
+        let unit = *unit_ids.entry((dependency, dir)).or_insert_with(|| {
+          units.push((dependency, dir));
+          // A unit waits on the pending names its inline bundle embeds, directly or through
+          // the inline bundles it embeds in turn.
+          edges.push(dependencies_through_inline(
+            dependency, bundles, &declared, &pending,
+          ));
+          stack.push(bundles.len() + units.len() - 1);
+          units.len() - 1
+        });
+        let unit_node = bundles.len() + unit;
+        if !edges[node].contains(&unit_node) {
+          edges[node].push(unit_node);
+        }
+      }
+    }
+  }
+
+  // Only units embedded, directly or not, by a dirty bundle will be packaged.
+  let mut unit_needed = vec![false; units.len()];
+  let mut stack: Vec<usize> = (0..bundles.len())
+    .filter(|&index| dirty[index] && bundles[index].bundle_behavior != BundleBehavior::Inline)
+    .collect();
+  while let Some(node) = stack.pop() {
+    for &next in &edges[node] {
+      if next >= bundles.len() && !std::mem::replace(&mut unit_needed[next - bundles.len()], true) {
+        stack.push(next);
+      }
+    }
+  }
+
   let nodes: Vec<usize> = (0..bundles.len())
     .filter(|&index| bundles[index].bundle_behavior != BundleBehavior::Inline)
+    .chain(bundles.len()..bundles.len() + units.len())
     .collect();
-  let components = strongly_connected_components(&nodes, &dependencies, bundles.len());
-  let mut component_of = vec![usize::MAX; bundles.len()];
+  let components = strongly_connected_components(&nodes, &edges, edges.len());
+  let mut component_of = vec![usize::MAX; edges.len()];
   for (component, members) in components.iter().enumerate() {
     for &member in members {
       component_of[member] = component;
@@ -318,7 +383,7 @@ pub(crate) fn package_bundles(
   for (component, members) in components.iter().enumerate() {
     let mut waits_on: Vec<usize> = members
       .iter()
-      .flat_map(|&member| &dependencies[member])
+      .flat_map(|&member| &edges[member])
       .map(|&dependency| component_of[dependency])
       .filter(|&dependency| dependency != component)
       .collect();
@@ -353,6 +418,8 @@ pub(crate) fn package_bundles(
     sender,
     pending: &pending,
     dependencies: &dependencies,
+    units: &units,
+    unit_needed: &unit_needed,
     components: &components,
     dependents: &dependents,
     remaining: remaining.into_iter().map(AtomicUsize::new).collect(),
@@ -382,6 +449,7 @@ pub(crate) fn package_bundles(
   debug_assert!(
     nodes
       .iter()
+      .filter(|&&index| index < bundles.len())
       .all(|&index| !pending[index] || bundles[index].has_final_path()),
     "every pending bundle must be named after packaging"
   );
@@ -394,6 +462,33 @@ pub(crate) fn package_bundles(
   })
 }
 
+/// The pending bundles that `index` depends on, directly or through the inline bundles it embeds.
+fn dependencies_through_inline(
+  index: usize,
+  bundles: &[Bundle],
+  declared: &[Vec<usize>],
+  pending: &[bool],
+) -> Vec<usize> {
+  let mut dependencies = Vec::new();
+  if !pending.contains(&true) || declared[index].is_empty() {
+    return dependencies;
+  }
+  let mut visited = vec![false; bundles.len()];
+  let mut stack = declared[index].clone();
+  while let Some(dependency) = stack.pop() {
+    if std::mem::replace(&mut visited[dependency], true) {
+      continue;
+    }
+    if bundles[dependency].bundle_behavior == BundleBehavior::Inline {
+      stack.extend(&declared[dependency]);
+    } else if pending[dependency] && dependency != index {
+      dependencies.push(dependency);
+    }
+  }
+  dependencies.sort_unstable();
+  dependencies
+}
+
 struct Scheduler<'a, 'g> {
   config: &'a ParcelConfig,
   bundle_graph: &'a BundleGraph<'g>,
@@ -404,6 +499,9 @@ struct Scheduler<'a, 'g> {
   pending: &'a [bool],
   /// Pending bundles each bundle depends on, including through inline bundles.
   dependencies: &'a [Vec<usize>],
+  /// Inline bundles and the directory they're packaged for; graph nodes after the bundles.
+  units: &'a [(usize, PathId)],
+  unit_needed: &'a [bool],
   components: &'a [Vec<usize>],
   dependents: &'a [Vec<usize>],
   /// The number of components each component still waits on.
@@ -437,8 +535,33 @@ impl<'a, 'g> Scheduler<'a, 'g> {
   }
 
   fn process(&self, component: usize) -> Result<(), DiagnosticList> {
-    let members = &self.components[component];
     let bundles = &self.bundle_graph.bundles;
+    let (members, units): (Vec<usize>, Vec<usize>) = self.components[component]
+      .iter()
+      .partition(|&&node| node < bundles.len());
+
+    // A component of inline bundles alone packages them for the bundles that embed them. Inline
+    // bundles in a component with other bundles (e.g. one embedding the name of a bundle it's
+    // embedded in) are packaged on demand, along with them.
+    if members.is_empty() {
+      for unit in units {
+        let unit = unit - bundles.len();
+        if self.unit_needed[unit] {
+          let (index, dir) = self.units[unit];
+          let bundle = relocate(&bundles[index], dir);
+          package_bundle(
+            self.config,
+            self.bundle_graph,
+            index,
+            &bundle,
+            self.options,
+            &self.cache,
+          )?;
+        }
+      }
+      return Ok(());
+    }
+    let members = &members;
 
     // Reuse the previous output if nothing it contains could have changed.
     let needs_packaging = members.iter().any(|&member| {
@@ -476,7 +599,7 @@ impl<'a, 'g> Scheduler<'a, 'g> {
     for &member in members {
       bundles[member].name_state.mark_provisional();
     }
-    let first_pass_cache = inline_bundle_cache();
+    let first_pass_cache = self.seeded_cache();
     let first_pass = members
       .par_iter()
       .map(|&member| self.package(member, &first_pass_cache))
@@ -510,7 +633,7 @@ impl<'a, 'g> Scheduler<'a, 'g> {
       .iter()
       .any(|&member| bundles[member].dist_path() != bundles[member].dist_path.unwrap())
     {
-      let second_pass_cache = inline_bundle_cache();
+      let second_pass_cache = self.seeded_cache();
       members
         .par_iter()
         .map(|&member| self.package(member, &second_pass_cache))
@@ -523,6 +646,21 @@ impl<'a, 'g> Scheduler<'a, 'g> {
       self.write(member, content)?;
     }
     Ok(())
+  }
+
+  /// A cache for one pass of packaging a naming cycle: inline bundles embedding members' names are
+  /// packaged again for each pass, but those packaged ahead of the cycle can't embed its names.
+  fn seeded_cache(&self) -> InlineBundleCache {
+    let cache = inline_bundle_cache();
+    {
+      let cache = cache.pin();
+      for (key, slot) in self.cache.pin().iter() {
+        if slot.content.get().is_some() {
+          cache.insert(*key, slot.clone());
+        }
+      }
+    }
+    cache
   }
 
   /// Whether a pending bundle's final path differs from the previous build's.

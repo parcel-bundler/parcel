@@ -3,12 +3,115 @@ use std::{
   path::{Component, Path, PathBuf},
 };
 
+use glob_match::glob_match_with_captures;
+use indexmap::IndexMap;
 use parcel_core::{
-  Asset, AssetType, Bundle, BundleEnvironments, BundleFlags, BundleGraph, Diagnostic,
-  DiagnosticList, EnvironmentFlags, Namer, OutputFormat, PathId,
+  Asset, AssetType, Bundle, BundleBehavior, BundleEnvironments, BundleFlags, BundleGraph,
+  Diagnostic, DiagnosticList, EnvironmentFlags, Namer, OutputFormat, PathId,
 };
+use parcel_resolver::replace_captures;
+use path_slash::PathExt;
+use serde::Deserialize;
 
-pub struct DefaultNamer {}
+/// The default namer. Bundles are named after their main entry asset, relative to the common
+/// directory of all entries, or after their id if they have none (e.g. shared bundles).
+///
+/// `rules` in its .parcelrc config overrides the names of bundles with a main entry, e.g.
+/// `{"src/blog/*/*.md": "blog/$1/index.html", "src/**/*.md": "$1/$2/index.html"}`:
+/// - Keys are globs matched against the main entry's path, relative to the .parcelrc. The first
+///   matching rule (in the order written) whose pattern applies to the bundle names it.
+/// - Values are paths relative to the dist directory. `$N` inserts the Nth capture of the glob
+///   (each `*`, `**` or `?`), `[ext]` the bundle's extension, and `[hash]` its content hash.
+///   Names without `[hash]` aren't content hashed. Empty segments (e.g. from a `**` matching no
+///   directories) are removed.
+/// - A pattern ending in a fixed extension (e.g. `.html`) only applies to bundles of that type, so
+///   the other bundles of the same entry (e.g. its CSS) fall through to later rules or the default.
+///
+/// `shared` names the bundles without a main entry: shared bundles, and e.g. CSS imported from
+/// JS. Keys are globs matched against the bundle's default name, `<hash>.<ext>`, e.g.
+/// `{"*.{js,mjs,cjs}": "js/[hash].[ext]", "*": "assets/[hash].[ext]"}`. Values are patterns as
+/// for `rules`, where `$1` is the hash for a `*` matching it.
+#[derive(Default, Deserialize)]
+pub struct DefaultNamer {
+  #[serde(default)]
+  rules: IndexMap<String, String>,
+  #[serde(default)]
+  shared: IndexMap<String, String>,
+  /// The directory the rule globs are relative to: the directory of the .parcelrc.
+  #[serde(skip)]
+  root: Option<PathId>,
+}
+
+impl DefaultNamer {
+  /// Resolves the rule globs relative to the config file they came from.
+  pub fn resolve_paths(mut self, from: PathId) -> Self {
+    self.root = from.parent();
+    self
+  }
+
+  /// The name given by the first rule that applies to `bundle`, relative to the dist directory.
+  fn name_from_rules(&self, asset: &Asset, bundle: &Bundle, ext: &str) -> Option<PathBuf> {
+    let root = self.root?;
+    if self.rules.is_empty() || bundle.bundle_behavior == BundleBehavior::Inline {
+      return None;
+    }
+    let path = asset.loc.url.to_file_path().ok()?;
+    let path = path.relative(&root).to_slash_lossy();
+
+    self
+      .rules
+      .iter()
+      .find_map(|(glob, pattern)| apply_rule(glob, pattern, &path, bundle, ext))
+  }
+
+  /// The name given by the first `shared` rule matching the default name of `bundle`, which has
+  /// no main entry.
+  fn name_from_shared_rules(&self, bundle: &Bundle, ext: &str) -> Option<PathBuf> {
+    if bundle.bundle_behavior == BundleBehavior::Inline {
+      return None;
+    }
+    let name = format!("{}.{}", bundle.hash_reference(), ext);
+    self
+      .shared
+      .iter()
+      .find_map(|(glob, pattern)| apply_rule(glob, pattern, &name, bundle, ext))
+  }
+}
+
+/// Names a bundle by `pattern` if `glob` matches `path` and the pattern applies to its type.
+fn apply_rule(
+  glob: &str,
+  pattern: &str,
+  path: &str,
+  bundle: &Bundle,
+  ext: &str,
+) -> Option<PathBuf> {
+  let captures = glob_match_with_captures(glob, path)?;
+  if !pattern_applies(pattern, ext) {
+    return None;
+  }
+  let name = replace_captures(pattern, path, &captures)
+    .replace("[ext]", ext)
+    .replace("[hash]", &bundle.hash_reference());
+  Some(
+    name
+      .split('/')
+      .filter(|segment| !segment.is_empty() && *segment != ".")
+      .collect(),
+  )
+}
+
+/// Whether a rule's pattern applies to a bundle with the extension `ext`: patterns ending in a
+/// fixed extension only apply to bundles with that extension.
+fn pattern_applies(pattern: &str, ext: &str) -> bool {
+  let file_name = pattern.rsplit('/').next().unwrap_or(pattern);
+  match file_name.rsplit_once('.') {
+    Some((stem, pattern_ext)) if !stem.is_empty() && !pattern_ext.contains(['[', '$']) => {
+      pattern_ext == ext
+    }
+    _ => true,
+  }
+}
 
 impl Namer for DefaultNamer {
   fn name(
@@ -55,6 +158,9 @@ impl Namer for DefaultNamer {
 
     if let Some(entry) = bundle.main_entry_asset {
       let asset = &bundle_graph.asset_graph.asset(entry);
+      if let Some(name) = self.name_from_rules(asset, bundle, ext) {
+        return Ok(Some(prefix.join(&name)));
+      }
       if bundle.target.flags.contains(EnvironmentFlags::IS_LIBRARY) {
         let relative = relative_path(
           asset,
@@ -96,6 +202,10 @@ impl Namer for DefaultNamer {
         let name = file_path.file_prefix().unwrap();
         return Ok(Some(format_name(prefix, bundle, name, ext)));
       }
+    }
+
+    if let Some(name) = self.name_from_shared_rules(bundle, ext) {
+      return Ok(Some(prefix.join(&name)));
     }
 
     Ok(Some(prefix.child(&format!(
@@ -158,6 +268,20 @@ mod test_utils;
 
 #[cfg(test)]
 mod tests {
+  use super::pattern_applies;
+
+  #[test]
+  fn rule_patterns_with_a_fixed_extension_only_apply_to_that_type() {
+    assert!(pattern_applies("$1/index.html", "html"));
+    assert!(!pattern_applies("$1/index.html", "css"));
+    assert!(pattern_applies("assets/$1.[ext]", "css"));
+    assert!(pattern_applies("assets/$1-[hash].[ext]", "js"));
+    assert!(pattern_applies("assets/$1.$2", "png"));
+    assert!(pattern_applies("$1/README", "md"));
+    assert!(pattern_applies("dir.v2/$1", "js"));
+    assert!(pattern_applies(".htaccess", "txt"));
+  }
+
   use super::*;
 
   fn path(path: &str) -> PathId {

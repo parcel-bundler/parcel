@@ -1,0 +1,10 @@
+{
+  "description": "should support macros in xml, including embedded html in their output",
+  "input": "feed.xml",
+  "bundles": [
+    {"type": "xml", "assets": ["feed.xml"]},
+    {"type": "html", "assets": ["post.html"]},
+    {"type": "html", "assets": ["fragment.html"]},
+    {"type": "png", "assets": ["100x100.png"]}
+  ]
+}

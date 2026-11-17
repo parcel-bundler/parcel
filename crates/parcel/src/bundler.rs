@@ -357,12 +357,37 @@ impl Bundler for DefaultBundler {
         (bundle_index, bundle_index)
       };
       root_to_bundle[root_index] = bundle_index;
+
+      // A root that is embedded by inline dependencies but isn't inline itself (e.g. an HTML page
+      // that is both an entry and included in another) gets an inline copy of its content.
+      let inline = bundle_roots.has_inline_copy(root_index).then(|| {
+        let mut copy = bundles[bundle_index].clone();
+        copy.id = {
+          let mut hasher = xxhash_rust::xxh3::Xxh3Default::new();
+          3.hash(&mut hasher);
+          bundles[bundle_index].id.hash(&mut hasher);
+          hasher.digest()
+        };
+        copy.bundle_behavior = BundleBehavior::Inline;
+        copy.flags = BundleFlags::empty();
+        copy.assets = bundles[content_bundle_index].assets.clone();
+        copy.referenced_bundles = Vec::new();
+        let copy_index = bundles.len();
+        bundles.push(copy);
+        mirrored_bundles
+          .entry(content_bundle_index)
+          .or_default()
+          .push(copy_index);
+        copy_index
+      });
+
       for &member in bundle_roots.members(root_index) {
         root_bundles.insert(
           member,
           RootBundle {
             load: bundle_index,
             content: content_bundle_index,
+            inline,
           },
         );
       }
@@ -519,6 +544,7 @@ impl Bundler for DefaultBundler {
             RootBundle {
               load: bundle_index,
               content: bundle_index,
+              inline: None,
             },
           );
         }
@@ -619,6 +645,8 @@ impl Bundler for DefaultBundler {
 struct RootBundle {
   load: usize,
   content: usize,
+  /// A copy of the content for inline dependencies, if the root itself isn't inline.
+  inline: Option<usize>,
 }
 
 /// All physical placements, including mirrored entries and duplicated assets.
@@ -748,15 +776,20 @@ fn resolve_bundle_dependencies(
       } else {
         // Duplicating an importer does not change its lazy/URL/inline loading
         // boundary. Keep the root's loadable output as the shared resolution.
+        // Inline dependencies embed the root's inline copy if it has one.
+        let bundle_index = match root.inline {
+          Some(inline) if dep.bundle_behavior == BundleBehavior::Inline => inline,
+          _ => root.load,
+        };
         dependency_resolutions.insert(
           dependency_id,
           BundleGraphDependencyResolution::Bundle {
-            bundle_index: root.load as u32,
+            bundle_index: bundle_index as u32,
             asset_index: target,
           },
         );
         if dep.flags.contains(DependencyFlags::NEEDS_STABLE_NAME) {
-          bundles[root.load].flags |= BundleFlags::NEEDS_STABLE_NAME;
+          bundles[bundle_index].flags |= BundleFlags::NEEDS_STABLE_NAME;
         }
       }
     }

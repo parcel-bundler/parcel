@@ -17,6 +17,7 @@
     "*.style": ["@parcel/transformer-style-attr"],
     "*.{html,xhtml}": ["@parcel/transformer-html"],
     "*.{xml,rss,atom}": ["@parcel/transformer-xml"],
+    "*.md": ["@parcel/transformer-markdown"],
     "*.jsonld": ["@parcel/transformer-jsonld"],
     "*.webmanifest": ["@parcel/transformer-webmanifest"],
     "webmanifest:*.{json,webmanifest}": ["@parcel/transformer-webmanifest"],

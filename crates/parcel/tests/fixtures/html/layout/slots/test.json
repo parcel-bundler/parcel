@@ -1,0 +1,8 @@
+{
+  "description": "should fill named parcel:slot elements, keep fallback content, and merge body attributes",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "html", "assets": ["layout.html"]}
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "description": "should support macros in html",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "html", "assets": ["other.html"]}
+  ]
+}

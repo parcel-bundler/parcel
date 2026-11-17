@@ -826,7 +826,11 @@ fn replace_path_captures<'a>(
 
 /// Inserts captures matched in a glob against `path` using a pattern string.
 /// Replacements are inserted using JS-like $N syntax, e.g. $1 for the first capture.
-fn replace_captures<'a>(s: &'a str, path: &str, captures: &Vec<Range<usize>>) -> Cow<'a, str> {
+pub fn replace_captures<'a>(
+  s: &'a str,
+  path: &str,
+  captures: &Vec<Range<usize>>,
+) -> Cow<'a, str> {
   let mut res = Cow::Borrowed(s);
   let bytes = s.as_bytes();
   for (idx, _) in s.match_indices('$').rev() {

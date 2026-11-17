@@ -1,0 +1,7 @@
+{
+  "description": "should not add a title or description when the page has them",
+  "input": "index.md",
+  "bundles": [
+    {"type": "html", "assets": ["index.md"]}
+  ]
+}

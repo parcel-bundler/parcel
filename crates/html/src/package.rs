@@ -5,13 +5,15 @@ use std::{
 
 use crate::{
   SerializableTendril,
-  arena::{Node, NodeData, Ref},
-  dependencies::{is_func_iri_attr, parse_xml_stylesheet, serialize_xml_stylesheet},
+  arena::{Node, NodeData, Ref, Sink},
+  dependencies::{is_func_iri_attr, is_parcel_tag, parse_xml_stylesheet, serialize_xml_stylesheet},
+  head::{can_hoist_from, collect_hoistable, head_key, insert_into_head},
   srcset::{parse_srcset, serialize_srcset},
 };
 use html5ever::{ExpandedName, expanded_name, local_name, namespace_url, ns, tendril::StrTendril};
 use serde::Deserialize;
 use typed_arena::Arena;
+use xml5ever::tendril::TendrilSink;
 
 #[derive(Deserialize)]
 #[serde(tag = "type", content = "value")]
@@ -165,6 +167,220 @@ fn escape_inline_script(code: &StrTendril) -> StrTendril {
   escaped.into()
 }
 
+/// Wraps a page in the layout referenced by its `<parcel:layout src="...">` element.
+///
+/// The layout document becomes the page. The content of the page's `<body>` (with the
+/// `<parcel:layout>` element unwrapped) fills the layout's `<parcel:slot>` elements: elements with a
+/// `parcel:slot="name"` attribute go to `<parcel:slot name="name">`, and everything else to the
+/// unnamed slot. A slot that receives no content keeps its children as a fallback. Content for a
+/// slot the layout doesn't have is dropped (see `remove_unslotted`). Elements in the page's
+/// `<head>` are appended to the layout's, replacing those with the same key (e.g. `<title>`), and
+/// attributes on the page's `<html>` and `<body>` are merged onto the layout's. Head elements within
+/// the page's content (e.g. a `<title>` in markdown) are hoisted into the layout's `<head>` too, but
+/// those in the layout's own body are left in place.
+///
+/// Slots are collected before content is moved in, so a `<parcel:slot>` within the page (i.e. a
+/// layout that itself uses a layout) is passed through for the next page to fill.
+pub fn apply_layout<'arena>(
+  arena: &'arena Arena<Node<'arena>>,
+  dom: Ref<'arena>,
+  inline_bundles: &HashMap<SerializableTendril, InlineBundle>,
+) {
+  let Some(page_layout) = find_parcel_tag(dom, "layout") else {
+    return;
+  };
+  let Some(bundle) = page_layout
+    .get_attribute(expanded_name!("", "src"))
+    .and_then(|src| inline_bundles.get(&SerializableTendril(src)))
+  else {
+    return;
+  };
+
+  let layout = html5ever::driver::parse_document(Sink::new(arena), Default::default())
+    .one(&*bundle.contents.0);
+
+  let slots = collect_slots(layout);
+
+  // The page's content, in document order, with <parcel:layout> unwrapped.
+  let page_body = dom.find(expanded_name!(html "body"));
+  let content = match page_layout.parent.get() {
+    Some(parent) if page_body.is_some_and(|body| std::ptr::eq(parent, body)) => children(parent)
+      .into_iter()
+      .flat_map(|n| {
+        if std::ptr::eq(n, page_layout) {
+          children(n)
+        } else {
+          vec![n]
+        }
+      })
+      .collect(),
+    _ => children(page_layout),
+  };
+
+  let mut hoisted = Vec::new();
+  for &node in &content {
+    collect_hoistable(node, &mut hoisted);
+  }
+  for &node in &hoisted {
+    node.detach();
+  }
+
+  // Hoisted nodes were detached.
+  let content = content
+    .into_iter()
+    .filter(|node| node.parent.get().is_some())
+    .collect();
+  fill_slots(slots, content);
+
+  if let (Some(page_head), Some(layout_head)) = (
+    dom.find(expanded_name!(html "head")),
+    layout.find(expanded_name!(html "head")),
+  ) {
+    insert_into_head(layout_head, children(page_head));
+    insert_into_head(layout_head, hoisted);
+  }
+
+  merge_attributes(
+    dom.find(expanded_name!(html "html")),
+    layout.find(expanded_name!(html "html")),
+  );
+  merge_attributes(page_body, layout.find(expanded_name!(html "body")));
+
+  for node in children(dom) {
+    node.detach();
+  }
+  for node in children(layout) {
+    dom.append(node);
+  }
+}
+
+/// The `<parcel:slot>` elements in `root`, in document order. They're collected before any content
+/// is moved in, so slots within the content are passed through for an outer layout or include.
+fn collect_slots<'arena>(root: Ref<'arena>) -> Vec<Ref<'arena>> {
+  let mut slots = Vec::new();
+  root.walk(&mut |n| {
+    if let NodeData::Element { name, .. } = &n.data {
+      if is_parcel_tag(&name.expanded(), "slot") {
+        slots.push(n);
+      }
+    }
+  });
+  slots
+}
+
+/// Moves `content` into `slots`, replacing them: elements with a `parcel:slot="name"` attribute go
+/// to `<parcel:slot name="name">`, and everything else to the unnamed slot. A slot that receives no
+/// content is replaced by its children as a fallback, and content for a slot that doesn't exist is
+/// dropped.
+fn fill_slots<'arena>(slots: Vec<Ref<'arena>>, content: Vec<Ref<'arena>>) {
+  let mut slotted: HashMap<StrTendril, Vec<Ref<'arena>>> = HashMap::new();
+  for node in content {
+    let name = if let NodeData::Element { attrs, .. } = &node.data {
+      let index = attrs
+        .borrow()
+        .iter()
+        .position(|a| is_slot_attribute(&a.name));
+      index
+        .map(|index| attrs.borrow_mut().remove(index).value)
+        .unwrap_or_default()
+    } else {
+      Default::default()
+    };
+    slotted.entry(name).or_default().push(node);
+  }
+
+  for slot in slots {
+    let name = slot
+      .get_attribute(expanded_name!("", "name"))
+      .unwrap_or_default();
+    let nodes = slotted.remove(&name).unwrap_or_else(|| children(slot));
+    for node in nodes {
+      slot.insert_before(node);
+    }
+    slot.detach();
+  }
+
+  for node in slotted.into_values().flatten() {
+    node.detach();
+  }
+}
+
+/// Whether `node` is within the content of a `<parcel:include>`, which fills its slots.
+fn in_include<'arena>(node: Ref<'arena>) -> bool {
+  let mut ancestor = node.parent.get();
+  while let Some(a) = ancestor {
+    if let NodeData::Element { name, .. } = &a.data {
+      if is_parcel_tag(&name.expanded(), "include") {
+        return true;
+      }
+    }
+    ancestor = a.parent.get();
+  }
+  false
+}
+
+/// The `parcel:slot` attribute, which names the layout slot an element is for. Namespaced so it
+/// doesn't conflict with the HTML `slot` attribute used by shadow DOM.
+fn is_slot_attribute(name: &html5ever::QualName) -> bool {
+  // `parcel:slot` in HTML, or `slot` in the Parcel namespace in XML.
+  (name.ns == ns!() && name.local.as_ref() == "parcel:slot")
+    || (name.ns.as_ref() == "http://parceljs.org" && name.local.as_ref() == "slot")
+}
+
+fn children<'arena>(node: Ref<'arena>) -> Vec<Ref<'arena>> {
+  let mut children = Vec::new();
+  let mut child = node.first_child.get();
+  while let Some(c) = child {
+    children.push(c);
+    child = c.next_sibling.get();
+  }
+  children
+}
+
+fn find_parcel_tag<'arena>(node: Ref<'arena>, tag: &str) -> Option<Ref<'arena>> {
+  let mut found = None;
+  node.walk(&mut |n| {
+    if found.is_none() {
+      if let NodeData::Element { name, .. } = &n.data {
+        if is_parcel_tag(&name.expanded(), tag) {
+          found = Some(n);
+        }
+      }
+    }
+  });
+  found
+}
+
+/// Copies attributes from the page's `<html>` or `<body>` onto the layout's. The page's values win,
+/// except `class`, which is combined.
+fn merge_attributes<'arena>(from: Option<Ref<'arena>>, to: Option<Ref<'arena>>) {
+  let (
+    Some(from),
+    Some(NodeData::Element {
+      attrs: to_attrs, ..
+    }),
+  ) = (from, to.map(|n| &n.data))
+  else {
+    return;
+  };
+  let NodeData::Element { attrs, .. } = &from.data else {
+    return;
+  };
+  let mut to_attrs = to_attrs.borrow_mut();
+  for attr in attrs.borrow().iter() {
+    match to_attrs.iter_mut().find(|a| a.name == attr.name) {
+      Some(existing) if attr.name.expanded() == expanded_name!("", "class") => {
+        let mut value = existing.value.clone();
+        value.push_char(' ');
+        value.push_tendril(&attr.value);
+        existing.value = value;
+      }
+      Some(existing) => existing.value = attr.value.clone(),
+      None => to_attrs.push(attr.clone()),
+    }
+  }
+}
+
 pub fn insert_bundle_references<'arena>(
   arena: &'arena Arena<Node<'arena>>,
   dom: &'arena Node<'arena>,
@@ -189,6 +405,14 @@ pub fn insert_bundle_references<'arena>(
     .map(|node| *node as *const Node)
     .collect();
   let mut inserted: HashMap<*const Node, HashSet<SerializableTendril>> = HashMap::new();
+  // Head elements from included content, moved into <head> after the walk.
+  let mut hoisted = Vec::new();
+  // <parcel:include> elements, expanded after the walk so that their content (which fills the
+  // included document's slots) is processed like the rest of the page first.
+  let mut includes = Vec::new();
+  // In a document without an HTML <head> (e.g. HTML embedded in a feed), included head elements
+  // have nowhere to go, and are dropped rather than left in the content.
+  let has_head = dom.find(expanded_name!(html "head")).is_some();
 
   dom.walk(&mut |node| {
     if let NodeData::Element { name, attrs, .. } = &node.data {
@@ -274,6 +498,13 @@ pub fn insert_bundle_references<'arena>(
             }
           }
         }
+        n if is_parcel_tag(&n, "include") => {
+          if let Some(src) = node.get_attribute(expanded_name!("", "src")) {
+            if let Some(bundle) = inline_bundles.get(&SerializableTendril(src)) {
+              includes.push((node, bundle));
+            }
+          }
+        }
         _ => {}
       }
 
@@ -301,6 +532,30 @@ pub fn insert_bundle_references<'arena>(
           } else {
             attr.value = bundle.contents.0.clone();
           }
+        } else if is_slot_attribute(&attr.name) && !in_include(node) {
+          // Elements with the parcel:slot attribute outside a layout or include are removed.
+          // Slots in layouts are filled in an earlier pass, and those in includes after this one.
+          node.detach();
+        }
+      }
+
+      // <meta http-equiv="refresh" content="N; url=URL">: the URL was replaced above, so
+      // restore the delay that was split off during transformation.
+      if name.expanded() == expanded_name!(html "meta") {
+        if let Some(delay) = node.get_attribute(ExpandedName {
+          ns: &ns!(),
+          local: &"data-parcel-refresh".into(),
+        }) {
+          node.remove_attribute(ExpandedName {
+            ns: &ns!(),
+            local: &"data-parcel-refresh".into(),
+          });
+          if let Some(url) = node.get_attribute(expanded_name!("", "content")) {
+            node.set_attribute(
+              expanded_name!("", "content"),
+              &format!("{}; url={}", delay, url),
+            );
+          }
         }
       }
     } else if let NodeData::ProcessingInstruction { target, contents } = &node.data {
@@ -319,9 +574,46 @@ pub fn insert_bundle_references<'arena>(
     }
   });
 
+  // In document order, so an include within another's content is expanded once it's in place.
+  for (node, bundle) in includes {
+    let fragment = html5ever::driver::parse_fragment(
+      Sink::new(&arena),
+      html5ever::ParseOpts::default(),
+      xml5ever::QualName::new(None, ns!(html), local_name!("div")),
+      Vec::new(),
+    )
+    .one(&*bundle.contents.0);
+    // html5ever places fragment children under a synthetic HTML root.
+    let root = fragment.first_child.get().unwrap();
+    if can_hoist_from(node, dom) {
+      collect_hoistable(root, &mut hoisted);
+    } else if !has_head {
+      let mut metadata = Vec::new();
+      collect_hoistable(root, &mut metadata);
+      for node in metadata {
+        node.detach();
+      }
+    }
+    // The include's content fills the included document's slots, like a page fills a layout's.
+    let slots = collect_slots(root);
+    fill_slots(slots, children(node));
+    while let Some(child) = root.first_child.get() {
+      node.insert_before(child);
+    }
+    node.detach();
+  }
+
   if let Some(head) = dom.find(expanded_name!(html "head")) {
+    insert_into_head(head, hoisted);
+
+    // A layout's head already references the bundles its own page loads, which may be shared with
+    // this page's.
+    let existing: HashSet<String> = children(head).into_iter().filter_map(head_key).collect();
     for bundle in bundles.into_iter().rev() {
-      head.prepend(bundle.create_element(arena, None));
+      let element = bundle.create_element(arena, None);
+      if head_key(element).is_none_or(|key| !existing.contains(&key)) {
+        head.prepend(element);
+      }
     }
 
     if !import_map.is_empty() {

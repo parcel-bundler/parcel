@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head><title>Slots</title></head>
+<body>
+  <parcel:include src="card.html">
+    <h2 parcel:slot="title">Custom title</h2>
+    <p>Body with <a href="other.html">a link</a>.</p>
+    <parcel:include src="badge.html"><span parcel:slot="label">Nested</span></parcel:include>
+    <p parcel:slot="missing">Dropped</p>
+  </parcel:include>
+  <parcel:include src="card.html"></parcel:include>
+</body>
+</html>

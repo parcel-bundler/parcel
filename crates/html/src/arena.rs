@@ -231,6 +231,9 @@ impl<'arena> Node<'arena> {
         NodeData::Text { contents } => {
           code += contents.borrow().as_ref();
         }
+        NodeData::Element { .. } => {
+          code += &c.text_content();
+        }
         _ => {}
       }
       child = c.next_sibling.get();

@@ -1,0 +1,23 @@
+{
+  "extends": "@parcel/config-default",
+  "bundler": {
+    "plugin": "@parcel/bundler-default",
+    "config": {
+      "minBundleSize": 0
+    }
+  },
+  "namers": [
+    {
+      "plugin": "@parcel/namer-default",
+      "config": {
+        "rules": {
+          "*.js": "js/$1.[ext]"
+        },
+        "shared": {
+          "*.{js,mjs,cjs}": "js/shared.[ext]",
+          "*": "assets/styles.[ext]"
+        }
+      }
+    }
+  ]
+}

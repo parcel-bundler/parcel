@@ -1,0 +1,46 @@
+{
+  "options": {
+    "config": ".parcelrc"
+  },
+  "description": "should write links to pages named by the html transformer's directoryIndex as their directory, including links to the page itself",
+  "input": [
+    "index.html",
+    "docs/index.html",
+    "about.html"
+  ],
+  "bundles": [
+    {
+      "name": "index.html",
+      "type": "html",
+      "assets": [
+        "index.html"
+      ],
+      "contains": [
+        "href=\"/docs/#install\"",
+        "href=\"/about.html\"",
+        "url=/docs/"
+      ]
+    },
+    {
+      "name": "docs/index.html",
+      "type": "html",
+      "assets": [
+        "index.html"
+      ],
+      "contains": [
+        "href=\"/\"",
+        "href=\"/docs/#top\""
+      ]
+    },
+    {
+      "name": "about.html",
+      "type": "html",
+      "assets": [
+        "about.html"
+      ],
+      "contains": [
+        "href=\"/docs/?page=2\""
+      ]
+    }
+  ]
+}

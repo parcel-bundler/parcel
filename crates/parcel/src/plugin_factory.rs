@@ -9,7 +9,9 @@ use parcel_core::{
   Reporter, SourceUrl, Transformer, json_source_location,
 };
 use parcel_css::{CssTransformer, StyleAttrTransformer};
-use parcel_html::{HtmlTransformer, SvgToJsxTransformer, SvgTransformer, XmlTransformer};
+use parcel_html::{
+  HtmlTransformer, MarkdownTransformer, SvgToJsxTransformer, SvgTransformer, XmlTransformer,
+};
 use parcel_image::{ImageOptimizer, ImageTransformer};
 use parcel_js::JsTransformer;
 use parcel_plugin_abi::{
@@ -74,7 +76,7 @@ impl PluginFactory for DefaultPluginFactory {
       }),
       "@parcel/transformer-style-attr" => Arc::new(StyleAttrTransformer {}),
       "@parcel/transformer-html" => Arc::new(if let Some(config) = config {
-        serde_json::from_value(config)?
+        serde_json::from_value::<HtmlTransformer>(config)?.resolve_paths(from)
       } else {
         HtmlTransformer::default()
       }),
@@ -99,6 +101,7 @@ impl PluginFactory for DefaultPluginFactory {
       "@parcel/transformer-tailwind" => Arc::new(TailwindTransformer {}),
       "@parcel/transformer-inline" => Arc::new(InlineTransformer {}),
       "@parcel/transformer-raw" => Arc::new(RawTransformer {}),
+      "@parcel/transformer-markdown" => Arc::new(MarkdownTransformer::new(config, from)?),
       _ => match self.resolve_plugin(PluginKind::Transformer, name, from, config)? {
         ResolvedPlugin::Native(plugin) => plugin,
         ResolvedPlugin::Js(plugin) => plugin,
@@ -132,7 +135,11 @@ impl PluginFactory for DefaultPluginFactory {
     from: PathId,
   ) -> Result<Arc<dyn Namer>, DiagnosticList> {
     match name {
-      "@parcel/namer-default" => Ok(Arc::new(DefaultNamer {})),
+      "@parcel/namer-default" => Ok(Arc::new(if let Some(config) = config {
+        serde_json::from_value::<DefaultNamer>(config)?.resolve_paths(from)
+      } else {
+        DefaultNamer::default()
+      })),
       _ => Ok(
         match self.resolve_plugin(PluginKind::Namer, name, from, config)? {
           ResolvedPlugin::Native(plugin) => plugin,

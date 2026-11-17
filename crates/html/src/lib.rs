@@ -16,12 +16,15 @@ use serde::{Deserialize, Serialize, Serializer};
 use swc_core::ecma::codegen::to_code;
 use typed_arena::Arena;
 
+pub use markdown::MarkdownTransformer;
 pub use package::{BundleReference, InlineBundle};
 pub use xml::{XmlTransformer, transform_xml};
 
 mod arena;
 mod dependencies;
+mod head;
 mod jsx;
+mod markdown;
 mod optimize;
 mod oxvg;
 mod package;
@@ -52,15 +55,16 @@ impl<'de> serde::Deserialize<'de> for SerializableTendril {
   }
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TransformOptions {
-  #[serde(with = "serde_bytes")]
+pub struct TransformOptions<'a> {
   pub code: Vec<u8>,
   pub url: SourceUrl,
   pub xml: bool,
   pub target: Arc<Target>,
   pub hmr: bool,
+  pub options: &'a ParcelOptions,
+  /// Custom elements that call macros, as if declared with `<parcel:define name src>`: the
+  /// element name, and the macro's URL relative to the document.
+  pub macro_imports: Vec<(String, String)>,
 }
 
 #[derive(Serialize)]
@@ -94,6 +98,8 @@ pub fn transform_html(options: TransformOptions) -> TransformResult {
     AssetType::Html,
     options.target,
     options.hmr,
+    options.options,
+    &options.macro_imports,
   );
 
   let mut vec = Vec::new();
@@ -136,6 +142,8 @@ pub fn transform_svg(options: TransformOptions) -> TransformResult {
     AssetType::Svg,
     options.target,
     options.hmr,
+    options.options,
+    &[],
   );
   let exports = svg_exports(dom);
 
@@ -284,6 +292,10 @@ pub fn package_html(options: PackageOptions) -> Result<PackageResult, ()> {
       .from_utf8()
       .one(options.code.as_slice())
   };
+
+  if !options.xml {
+    package::apply_layout(&arena, dom, &options.inline_bundles);
+  }
 
   insert_bundle_references(
     &arena,
@@ -485,6 +497,62 @@ pub struct HtmlTransformer {
     deserialize_with = "deserialize_html_optimize"
   )]
   optimize: Option<Arc<optimize::OptimizeOptions>>,
+  /// Custom elements that call macros in every document, e.g. `{"code-sample": "macros.js#sample"}`,
+  /// as if each had a `<parcel:define name="code-sample" src="macros.js#sample">`. Paths are
+  /// relative to the config file, and resolved by `resolve_paths`.
+  #[serde(default)]
+  macros: indexmap::IndexMap<String, String>,
+  #[serde(skip)]
+  macro_paths: Vec<(String, PathId, Option<String>)>,
+  /// The file a server responds with for a directory, e.g. `"index.html"`. Links to pages with
+  /// this name are written as their directory (`/docs/` rather than `/docs/index.html`). Off by
+  /// default, because such links don't work when opening files directly (file://).
+  #[serde(default, rename = "directoryIndex")]
+  directory_index: Option<Arc<str>>,
+}
+
+impl HtmlTransformer {
+  /// Resolves the paths in the config relative to the config file it came from.
+  pub fn resolve_paths(mut self, from: PathId) -> Self {
+    self.macro_paths = self
+      .macros
+      .iter()
+      .map(|(name, src)| {
+        let (file, export) = match src.split_once('#') {
+          Some((file, export)) => (file, Some(export.to_owned())),
+          None => (src.as_str(), None),
+        };
+        (
+          name.clone(),
+          from.resolve(std::path::Path::new(file)),
+          export,
+        )
+      })
+      .collect();
+    self
+  }
+
+  /// The configured macros, with URLs relative to the document at `url`.
+  fn macro_imports(&self, url: &SourceUrl) -> Result<Vec<(String, String)>, Diagnostic> {
+    if self.macro_paths.is_empty() {
+      return Ok(Vec::new());
+    }
+    let path = url.to_file_path()?;
+    Ok(
+      self
+        .macro_paths
+        .iter()
+        .map(|(name, file, export)| {
+          let mut src = file.relative_url(&path);
+          if let Some(export) = export {
+            src.push('#');
+            src.push_str(export);
+          }
+          (name.clone(), src)
+        })
+        .collect(),
+    )
+  }
 }
 
 fn default_html_optimize() -> Option<Arc<optimize::OptimizeOptions>> {
@@ -508,6 +576,9 @@ impl Default for HtmlTransformer {
   fn default() -> Self {
     HtmlTransformer {
       optimize: default_html_optimize(),
+      macros: Default::default(),
+      macro_paths: Vec::new(),
+      directory_index: None,
     }
   }
 }
@@ -527,6 +598,8 @@ impl Transformer for HtmlTransformer {
       // Pages without module scripts get one, so that they include the HMR runtime and reload.
       hmr: ctx.options.hmr.is_some() && asset.target.environment.is_browser(),
       target: asset.target.clone(),
+      options: ctx.options,
+      macro_imports: self.macro_imports(&asset.loc.url)?,
     });
 
     if !res.errors.is_empty() {
@@ -538,6 +611,7 @@ impl Transformer for HtmlTransformer {
       code: res.code,
       url: asset.loc.url.clone(),
       optimize: self.optimize.clone(),
+      directory_index: self.directory_index.clone(),
     });
     add_dependencies(&mut asset, res.dependencies, res.symbols);
 
@@ -550,6 +624,7 @@ pub struct HtmlContent {
   code: Vec<u8>,
   url: SourceUrl,
   optimize: Option<Arc<optimize::OptimizeOptions>>,
+  directory_index: Option<Arc<str>>,
 }
 
 impl Content for HtmlContent {
@@ -581,7 +656,12 @@ impl Content for HtmlContent {
     assert_eq!(bundle.assets.len(), 1);
 
     let (code, bundles, inline_bundles, stylesheet_media, element_refs) =
-      prepare_to_package(bundle_graph, bundle, get_inline_bundle_content)?;
+      prepare_to_package(
+        bundle_graph,
+        bundle,
+        get_inline_bundle_content,
+        self.directory_index.as_deref(),
+      )?;
 
     let res = package_html(PackageOptions {
       code,
@@ -716,10 +796,21 @@ fn bundle_reference(
   }
 }
 
+/// Writes a link to a page named `directory_index` as its directory: `docs/index.html` becomes
+/// `docs/`, and `index.html` (in the same directory) becomes `./`.
+fn strip_directory_index(url: &mut String, directory_index: &str) {
+  if url == directory_index {
+    *url = "./".into();
+  } else if url.ends_with(directory_index) && url[..url.len() - directory_index.len()].ends_with('/') {
+    url.truncate(url.len() - directory_index.len());
+  }
+}
+
 fn prepare_to_package(
   bundle_graph: &BundleGraph,
   bundle: &Bundle,
   get_inline_bundle_content: &dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>,
+  directory_index: Option<&str>,
 ) -> Result<
   (
     Vec<u8>,
@@ -760,6 +851,12 @@ fn prepare_to_package(
             .into_owned()
         } else {
           let mut url = reference_url(referenced_bundle, bundle);
+          // Only pages are navigated to, so other bundles keep their file names.
+          if let Some(directory_index) = directory_index
+            && matches!(referenced_bundle.ty, AssetType::Html | AssetType::Xhtml)
+          {
+            strip_directory_index(&mut url, directory_index);
+          }
           url.push_str(dep.url_suffix().unwrap_or_default());
           url
         };
@@ -818,6 +915,28 @@ fn prepare_to_package(
             refs,
           );
         }
+      }
+      // A link to the document itself (e.g. in navigation shared by every page) resolves to its
+      // own asset rather than a bundle. It's written as the document's URL, which differs from the
+      // specifier when the namer moves the document (e.g. docs.md to docs/index.html). A hashed name
+      // isn't known until the content is, so those links keep the specifier.
+      BundleGraphDependencyResolution::Asset(a)
+        if a == bundle.assets[0]
+          && matches!(bundle.ty, AssetType::Html | AssetType::Xhtml)
+          && !bundle.may_be_content_hashed() =>
+      {
+        let mut url = reference_url(bundle, bundle);
+        if let Some(directory_index) = directory_index {
+          strip_directory_index(&mut url, directory_index);
+        }
+        url.push_str(dep.url_suffix().unwrap_or_default());
+        inline_bundles.insert(
+          SerializableTendril((*dep.placeholder.clone().unwrap()).into()),
+          InlineBundle {
+            contents: SerializableTendril(url.into()),
+            module: false,
+          },
+        );
       }
       _ => {
         inline_bundles.insert(
@@ -885,7 +1004,7 @@ impl Transformer for SvgTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    _ctx: &parcel_core::PluginContext,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
     asset.target = Target::normalize(&asset.target, &asset.ty);
     let code = asset.content.read()?;
@@ -895,6 +1014,8 @@ impl Transformer for SvgTransformer {
       xml: false,
       target: asset.target.clone(),
       hmr: false,
+      options: ctx.options,
+      macro_imports: Vec::new(),
     });
 
     asset.bundle_behavior = BundleBehavior::Isolated;
@@ -980,7 +1101,7 @@ impl Content for SvgContent {
     assert_eq!(bundle.assets.len(), 1);
 
     let (code, bundles, inline_bundles, stylesheet_media, element_refs) =
-      prepare_to_package(bundle_graph, bundle, get_inline_bundle_content)?;
+      prepare_to_package(bundle_graph, bundle, get_inline_bundle_content, None)?;
 
     let res = package_svg(PackageOptions {
       code,
@@ -1033,6 +1154,8 @@ mod tests {
       xml: false,
       target: Default::default(),
       hmr: false,
+      options: &Default::default(),
+      macro_imports: Vec::new(),
     });
 
     assert_eq!(
@@ -1060,5 +1183,26 @@ mod tests {
       std::str::from_utf8(&res.code).unwrap(),
       r#"<html><head><script type="application/json" data-parcel-manifest="">{"a-0123456789abcdef.js":"a-abcdefgh.js","x":"<\/script>"}</script><script src="app.js"></script></head><body></body></html>"#
     );
+  }
+}
+
+#[cfg(test)]
+mod directory_index_tests {
+  use super::strip_directory_index;
+
+  #[test]
+  fn strips_directory_index() {
+    let strip = |url: &str| {
+      let mut url = url.to_string();
+      strip_directory_index(&mut url, "index.html");
+      url
+    };
+    assert_eq!(strip("/index.html"), "/");
+    assert_eq!(strip("/docs/index.html"), "/docs/");
+    assert_eq!(strip("../docs/index.html"), "../docs/");
+    assert_eq!(strip("index.html"), "./");
+    assert_eq!(strip("https://example.com/a/index.html"), "https://example.com/a/");
+    assert_eq!(strip("/docs/myindex.html"), "/docs/myindex.html");
+    assert_eq!(strip("/about.html"), "/about.html");
   }
 }

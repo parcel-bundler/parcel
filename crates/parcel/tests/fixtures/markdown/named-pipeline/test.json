@@ -1,0 +1,10 @@
+{
+  "description": "a named pipeline asset stays separate from the same file in the default pipeline, even after a type change",
+  "input": "index.html",
+  "bundles": [
+    {"type": "html", "assets": ["index.html"]},
+    {"type": "html", "assets": ["page.md"]},
+    {"type": "html", "assets": ["page.md"]},
+    {"type": "html", "assets": ["layout.html"]}
+  ]
+}

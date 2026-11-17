@@ -1,0 +1,33 @@
+{
+  "options": {
+    "config": ".parcelrc"
+  },
+  "description": "should name bundles without a main entry by the shared rules in the default namer's config",
+  "input": "index.js",
+  "bundles": [
+    {
+      "name": "js/index.js",
+      "type": "js",
+      "assets": [
+        "esmodule-helpers.js",
+        "index.js"
+      ]
+    },
+    {
+      "name": "js/shared.js",
+      "type": "js",
+      "assets": [
+        "a.js",
+        "b.js",
+        "value.js"
+      ]
+    },
+    {
+      "name": "assets/styles.css",
+      "type": "css",
+      "assets": [
+        "style.css"
+      ]
+    }
+  ]
+}

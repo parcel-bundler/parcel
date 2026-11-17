@@ -791,6 +791,7 @@ fn duplicated_importers_each_reference_the_target_content() {
     RootBundle {
       load: 4,
       content: 3,
+      inline: None,
     },
   )]);
   let mut resolutions = HashMap::new();
@@ -815,6 +816,7 @@ fn partially_colocated_dependencies_only_reference_from_nonlocal_copies() {
       RootBundle {
         load: 2,
         content: 2,
+        inline: None,
       },
     )]);
     let mut resolutions = HashMap::new();
@@ -838,6 +840,7 @@ fn duplicated_targets_reuse_each_importers_existing_provider() {
     RootBundle {
       load: 5,
       content: 5,
+      inline: None,
     },
   )]);
   let mut resolutions = HashMap::new();
@@ -859,6 +862,7 @@ fn reference_cycles_without_a_provider_still_add_one() {
     RootBundle {
       load: 2,
       content: 2,
+      inline: None,
     },
   )]);
   let mut resolutions = HashMap::new();
@@ -890,6 +894,7 @@ fn duplicated_importers_preserve_explicit_loading_boundaries() {
       RootBundle {
         load: 3,
         content: 2,
+        inline: None,
       },
     )]);
     let mut resolutions = HashMap::new();
@@ -924,6 +929,7 @@ fn mirrored_dependencies_remain_local_without_matching_first_owners() {
     RootBundle {
       load: 0,
       content: 0,
+      inline: None,
     },
   )]);
   let mut resolutions = HashMap::new();
@@ -941,6 +947,7 @@ fn duplicated_importers_keep_internalized_dependencies() {
     RootBundle {
       load: 2,
       content: 2,
+      inline: None,
     },
   )]);
   let dependency = DependencyId {

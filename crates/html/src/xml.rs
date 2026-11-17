@@ -8,7 +8,6 @@ use typed_arena::Arena;
 use crate::{
   InlineBundle, SerializableTendril, TransformOptions, TransformResult,
   arena::{Node, NodeData, Ref, SerializableHandle, Sink},
-  dependencies::collect_dependencies,
   optimize::{OptimizeOptions, optimize},
   package::insert_bundle_references,
   prepare_to_package, prepare_to_package_dependencies, serialize_xml,
@@ -27,7 +26,7 @@ pub(crate) fn is_rss(dom: Ref<'_>) -> bool {
   false
 }
 
-struct EmbeddedContent<'arena> {
+pub(crate) struct EmbeddedContent<'arena> {
   node: Ref<'arena>,
   escaped: bool,
 }
@@ -38,9 +37,17 @@ fn expand_html<'arena>(
   arena: &'arena Arena<Node<'arena>>,
   dom: Ref<'arena>,
 ) -> Vec<EmbeddedContent<'arena>> {
-  let rss = is_rss(dom);
+  expand_html_in(arena, dom, is_rss(dom))
+}
+
+/// Expands the embedded HTML within `root`, e.g. the output of a macro.
+pub(crate) fn expand_html_in<'arena>(
+  arena: &'arena Arena<Node<'arena>>,
+  root: Ref<'arena>,
+  rss: bool,
+) -> Vec<EmbeddedContent<'arena>> {
   let mut embedded = Vec::new();
-  dom.walk(&mut |node| {
+  root.walk(&mut |node| {
     if let NodeData::Element { name, .. } = &node.data {
       let escaped = if rss && name.ns.is_empty() && name.local.as_ref() == "description" {
         true
@@ -80,7 +87,7 @@ fn expand_html<'arena>(
   embedded
 }
 
-fn collapse_html<'arena>(
+pub(crate) fn collapse_html<'arena>(
   arena: &'arena Arena<Node<'arena>>,
   embedded: &[EmbeddedContent<'arena>],
 ) -> Result<(), Diagnostic> {
@@ -105,15 +112,16 @@ pub fn transform_xml(options: TransformOptions) -> TransformResult {
   let dom = xml5ever::driver::parse_document(Sink::new(&arena), Default::default())
     .from_utf8()
     .one(options.code.as_slice());
-  let embedded = expand_html(&arena, dom);
-  let (dependencies, imports, assets, mut errors) = collect_dependencies(
-    &arena,
-    dom,
-    options.url,
-    AssetType::Xml,
-    options.target,
-    false,
-  );
+  let mut embedded = expand_html(&arena, dom);
+  let (dependencies, imports, assets, mut errors, macro_embedded) =
+    crate::dependencies::collect_xml_dependencies(
+      &arena,
+      dom,
+      options.url,
+      options.target,
+      options.options,
+    );
+  embedded.extend(macro_embedded);
   if let Err(err) = collapse_html(&arena, &embedded) {
     errors.push(err);
   }
@@ -139,7 +147,7 @@ impl Transformer for XmlTransformer {
   fn transform(
     &self,
     mut asset: Asset,
-    _ctx: &parcel_core::PluginContext,
+    ctx: &parcel_core::PluginContext,
   ) -> Result<Asset, DiagnosticList> {
     asset.target = Target::normalize(&asset.target, &asset.ty);
     let result = transform_xml(TransformOptions {
@@ -148,6 +156,8 @@ impl Transformer for XmlTransformer {
       xml: true,
       target: asset.target.clone(),
       hmr: false,
+      options: ctx.options,
+      macro_imports: Vec::new(),
     });
     if !result.errors.is_empty() {
       return Err(DiagnosticList(result.errors));
@@ -192,7 +202,7 @@ impl Content for XmlContent {
     options: &ParcelOptions,
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     let (code, bundles, inline_bundles, stylesheet_media, element_refs) =
-      prepare_to_package(graph, bundle, get_inline)?;
+      prepare_to_package(graph, bundle, get_inline, None)?;
     let arena = Arena::new();
     let dom = xml5ever::driver::parse_document(Sink::new(&arena), Default::default())
       .from_utf8()
@@ -267,6 +277,8 @@ mod tests {
       xml: true,
       target: Default::default(),
       hmr: false,
+      options: &Default::default(),
+      macro_imports: Vec::new(),
     });
     assert!(result.errors.is_empty());
     result
