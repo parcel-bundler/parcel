@@ -6,6 +6,8 @@
 //! that incremental rebuilds converge to exactly what a from-scratch build would produce:
 //! no stale content, no stale output files, no missed invalidations.
 
+#[path = "support/sass_plugin.rs"]
+mod sass_plugin;
 #[path = "../../core/tests/support/mod.rs"]
 mod test_utils;
 
@@ -2525,20 +2527,7 @@ fn stylesheets_loaded_with_their_references_do_not_depend_on_them() {
 /// editing a partial, and creating a file that now wins resolution.
 #[test]
 fn native_plugin_file_reads_invalidate() {
-  // A dev-dependency of this crate, so cargo builds it into the directory holding this test binary.
-  let library = std::env::current_exe()
-    .unwrap()
-    .parent()
-    .unwrap()
-    .join(format!(
-      "{}parcel_transformer_sass.{}",
-      std::env::consts::DLL_PREFIX,
-      std::env::consts::DLL_EXTENSION
-    ));
-  let library = std::fs::canonicalize(&library).unwrap_or_else(|_| {
-    panic!("{library:?} not found; is parcel-transformer-sass still a dev-dependency?")
-  });
-  let library = library.to_str().unwrap();
+  let library = sass_plugin::sass_plugin().to_str().unwrap();
   let package = format!(
     r#"{{"name": "@parcel/transformer-sass", "parcel": {{"abi": 1, "artifacts": {{"none": "none"}}, "devLibrary": {library:?}}}}}"#
   );
