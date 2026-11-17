@@ -20,6 +20,7 @@ use parcel_core::{FileSystem, PathId};
 use crate::transformer::{
   collect::{Collect, Import},
   id,
+  utils::is_unresolved,
 };
 
 pub fn inline_fs<'a>(
@@ -248,6 +249,33 @@ impl<'a> Fold for Evaluator<'a> {
           Callee::Expr(expr) => expr,
           _ => return node,
         };
+
+        // `require.resolve('./file')` — resolve relative to the current file
+        // so `fs.readFileSync(require.resolve(...))` can be inlined
+        // (parcel #2363). Only the unresolved global `require` counts; a
+        // locally shadowed `require` is left alone. Bare specifiers are not
+        // resolved here. No extension probing: the existing
+        // `evaluate_fs_arg` canonicalization rejects paths that do not exist.
+        if let Expr::Member(member) = &**callee {
+          if let Expr::Ident(ident) = &*member.obj {
+            if ident.sym == "require"
+              && is_unresolved(ident, self.inline.collect.unresolved_mark)
+              && matches!(&member.prop, MemberProp::Ident(prop) if prop.sym == "resolve")
+              && call.args.len() == 1
+              && call.args[0].spread.is_none()
+            {
+              if let Expr::Lit(Lit::Str(str_)) = &*call.args[0].expr {
+                let spec = str_.value.to_string_lossy();
+                if spec.starts_with('.') {
+                  let resolved = self.inline.filename.resolve(Path::new(spec.as_ref()));
+                  return Expr::Lit(Lit::Str(resolved.to_path_buf().to_slash_lossy().into()));
+                } else if spec.starts_with('/') {
+                  return Expr::Lit(Lit::Str(spec.as_ref().into()));
+                }
+              }
+            }
+          }
+        }
 
         if let Some((source, specifier)) = self.inline.match_module_reference(callee) {
           match (source.to_string().as_str(), specifier.to_string().as_str()) {
