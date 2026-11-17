@@ -1,3 +1,5 @@
+#[path = "support/sass_plugin.rs"]
+mod sass_plugin;
 #[path = "../../core/tests/support/mod.rs"]
 mod test_utils;
 
@@ -895,6 +897,10 @@ fn run_test_json_test(path: &Path, test: serde_json::Value) {
 // #[testing_macros::fixture("../../packages/core/integration-tests/test/integration/**/test.json")]
 #[testing_macros::fixture("../../crates/parcel/tests/fixtures/**/test.json")]
 fn test(file: PathBuf) {
+  // The Sass fixtures load the plugin through their node_modules/@parcel/transformer-sass.
+  if file.components().any(|c| c.as_os_str() == "sass") {
+    sass_plugin::sass_plugin();
+  }
   run_test_json(&file);
 }
 

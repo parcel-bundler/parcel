@@ -3044,7 +3044,6 @@ dependencies = [
  "parcel-plugin-js",
  "parcel-resolver",
  "parcel-tailwind",
- "parcel-transformer-sass",
  "parcel-watcher",
  "parcel_sourcemap",
  "path-slash",

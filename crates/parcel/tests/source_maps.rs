@@ -1,3 +1,6 @@
+#[path = "support/sass_plugin.rs"]
+mod sass_plugin;
+
 use std::{
   collections::HashMap,
   path::{Path, PathBuf},
@@ -194,16 +197,7 @@ fn prod_sass_source_map_maps_through_native_plugin() {
 /// The Sass plugin hands its map to Parcel with `parcel_asset_set_content_utf8_with_map`, which is
 /// the only place a partial's position survives: its rules are inlined into the compiled CSS.
 fn assert_sass_source_map(mode: BuildMode, minify: Option<bool>) {
-  // A dev-dependency of this crate, so cargo builds it next to this test binary.
-  let library = std::env::current_exe()
-    .unwrap()
-    .parent()
-    .unwrap()
-    .join(format!(
-      "{}parcel_transformer_sass.{}",
-      std::env::consts::DLL_PREFIX,
-      std::env::consts::DLL_EXTENSION
-    ));
+  let library = sass_plugin::sass_plugin();
   let package = format!(
     r#"{{"name": "@parcel/transformer-sass", "parcel": {{"abi": 1, "artifacts": {{"none": "none"}}, "devLibrary": {:?}}}}}"#,
     library.to_str().unwrap()
