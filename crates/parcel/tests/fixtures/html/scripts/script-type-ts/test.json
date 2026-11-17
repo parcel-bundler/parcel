@@ -1,0 +1,14 @@
+{
+  "description": "inline TypeScript script should be emitted with a JavaScript type attribute",
+  "input": "index.html",
+  "options": {"mode": "development"},
+  "bundles": [
+    {"type": "js", "assets": ["index.html"]},
+    {
+      "type": "html",
+      "assets": ["index.html"],
+      "contains": ["type=\"application/javascript\""],
+      "not_contains": ["application/ts"]
+    }
+  ]
+}
