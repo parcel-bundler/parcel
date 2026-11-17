@@ -131,14 +131,16 @@ impl OrderAnalysis {
     }
   }
 
-  /// Determine CSS order for one root. Traverse available assets too, but
-  /// include only assets for which `required` is true in this context's output.
+  /// Determine CSS order for one loading context, which starts at one or more
+  /// root assets (several for concurrently imported modules) in the given
+  /// order. Traverse available assets too, but include only assets for which
+  /// `required` is true in this context's output.
   pub fn for_context(
     &mut self,
-    root: AssetIndex,
+    roots: &[AssetIndex],
     required: impl Fn(AssetIndex) -> bool,
   ) -> OrderedContent {
-    self.for_context_with_imports(root, required, |_, _| {})
+    self.for_context_with_imports(roots, required, |_, _| {})
   }
 
   /// Also report the imports that determine this context's order. Keeping the
@@ -147,11 +149,14 @@ impl OrderAnalysis {
   /// last import. This follows the same deduplication as the ordering walk.
   pub fn for_context_with_imports(
     &mut self,
-    root: AssetIndex,
+    roots: &[AssetIndex],
     required: impl Fn(AssetIndex) -> bool,
     import: impl FnMut(AssetIndex, AssetIndex),
   ) -> OrderedContent {
-    if !self.nodes[root.index()].flags.contains(OrderFlags::HAS_CSS) {
+    if !roots
+      .iter()
+      .any(|root| self.nodes[root.index()].flags.contains(OrderFlags::HAS_CSS))
+    {
       return OrderedContent::default();
     }
     self.scratch.seen.grow(self.nodes.len());
@@ -165,7 +170,9 @@ impl OrderAnalysis {
       last_layer_position: None,
       output: OrderedContent::default(),
     };
-    walk.collect_entries(root);
+    for &root in roots {
+      walk.collect_entries(root);
+    }
     walk.scratch.clear_seen();
     while let Some(entry) = walk.scratch.entries.pop() {
       walk.visit(entry);
@@ -536,14 +543,14 @@ mod tests {
     nodes[2].layer_count = 1;
     let mut analysis = analysis(nodes);
     assert_eq!(
-      analysis.for_context(AssetIndex(0), |_| true),
+      analysis.for_context(&[AssetIndex(0)], |_| true),
       OrderedContent {
         assets: vec![AssetIndex(2), AssetIndex(1), AssetIndex(0)],
         keep_together: vec![0..3],
       }
     );
     assert_eq!(
-      analysis.for_context(AssetIndex(3), |_| true),
+      analysis.for_context(&[AssetIndex(3)], |_| true),
       OrderedContent {
         assets: vec![AssetIndex(1), AssetIndex(3)],
         keep_together: vec![],
@@ -557,7 +564,7 @@ mod tests {
     nodes[1].pre_import_layers = true;
     let mut analysis = analysis(nodes);
     assert_eq!(
-      analysis.for_context(AssetIndex(0), |_| true),
+      analysis.for_context(&[AssetIndex(0)], |_| true),
       OrderedContent {
         assets: vec![AssetIndex(3), AssetIndex(1), AssetIndex(2), AssetIndex(0)],
         keep_together: vec![0..2],
@@ -572,7 +579,7 @@ mod tests {
     nodes[2].pre_import_layers = true;
     let mut analysis = analysis(nodes);
     assert_eq!(
-      analysis.for_context(AssetIndex(0), |_| true),
+      analysis.for_context(&[AssetIndex(0)], |_| true),
       OrderedContent {
         assets: vec![
           AssetIndex(3),
@@ -588,7 +595,7 @@ mod tests {
       .flags
       .insert(OrderFlags::PRE_IMPORT_LAYERS);
     assert_eq!(
-      analysis.for_context(AssetIndex(0), |_| true).keep_together,
+      analysis.for_context(&[AssetIndex(0)], |_| true).keep_together,
       vec![0..5]
     );
   }
@@ -599,7 +606,7 @@ mod tests {
     nodes[1].layer_count = 1;
     let mut analysis = analysis(nodes);
     assert_eq!(
-      analysis.for_context(AssetIndex(0), |_| true),
+      analysis.for_context(&[AssetIndex(0)], |_| true),
       OrderedContent {
         assets: vec![AssetIndex(2), AssetIndex(1), AssetIndex(0)],
         keep_together: vec![],
@@ -611,7 +618,7 @@ mod tests {
   fn external_import_keeps_only_following_content() {
     let mut analysis = analysis(vec![css(&[1, u32::MAX, 2]), css(&[]), css(&[])]);
     assert_eq!(
-      analysis.for_context(AssetIndex(0), |_| true),
+      analysis.for_context(&[AssetIndex(0)], |_| true),
       OrderedContent {
         assets: vec![AssetIndex(1), AssetIndex(2), AssetIndex(0)],
         keep_together: vec![1..3],
@@ -630,7 +637,7 @@ mod tests {
       css(&[]),
     ]);
     assert_eq!(
-      analysis.for_context(AssetIndex(0), |_| true),
+      analysis.for_context(&[AssetIndex(0)], |_| true),
       OrderedContent {
         assets: vec![
           AssetIndex(1),
@@ -651,19 +658,19 @@ mod tests {
     nodes[0].is_css = false;
     let mut analysis = analysis(nodes);
     assert_eq!(
-      analysis.for_context(AssetIndex(0), |_| true).assets,
+      analysis.for_context(&[AssetIndex(0)], |_| true).assets,
       vec![AssetIndex(1), AssetIndex(3), AssetIndex(2)],
     );
     assert_eq!(
       analysis
-        .for_context(AssetIndex(0), |a| a != AssetIndex(3))
+        .for_context(&[AssetIndex(0)], |a| a != AssetIndex(3))
         .assets,
       vec![AssetIndex(1), AssetIndex(2)],
     );
     // Filtering an importer does not prune its required dependencies.
     assert_eq!(
       analysis
-        .for_context(AssetIndex(0), |a| a == AssetIndex(3))
+        .for_context(&[AssetIndex(0)], |a| a == AssetIndex(3))
         .assets,
       vec![AssetIndex(3)],
     );
@@ -688,7 +695,7 @@ mod tests {
     for only_shared in [false, true] {
       let mut parents = std::collections::HashMap::new();
       let output = analysis.for_context_with_imports(
-        AssetIndex(0),
+        &[AssetIndex(0)],
         |a| !only_shared || a == AssetIndex(5),
         |parent, child| {
           parents.insert(child, parent);
@@ -719,7 +726,7 @@ mod tests {
     let mut analysis = analysis(nodes);
     let mut parents = std::collections::HashMap::new();
     analysis.for_context_with_imports(
-      AssetIndex(0),
+      &[AssetIndex(0)],
       |_| true,
       |parent, child| {
         parents.insert(child, parent);
@@ -738,7 +745,7 @@ mod tests {
   fn cycles_terminate_without_repeating_assets() {
     let mut analysis = analysis(vec![css(&[1]), css(&[0])]);
     assert_eq!(
-      analysis.for_context(AssetIndex(0), |_| true).assets,
+      analysis.for_context(&[AssetIndex(0)], |_| true).assets,
       vec![AssetIndex(1), AssetIndex(0)],
     );
   }
@@ -749,17 +756,17 @@ mod tests {
     nodes[1].layer_count = 1;
     nodes[2].layer_count = 1;
     let mut analysis = analysis(nodes);
-    let full = analysis.for_context(AssetIndex(0), |_| true);
+    let full = analysis.for_context(&[AssetIndex(0)], |_| true);
     // The repeated target was retained in the preceding context. Filtering it
     // out must also remove its repeated-import interval, not reuse its position.
     assert_eq!(
-      analysis.for_context(AssetIndex(0), |a| a != AssetIndex(1)),
+      analysis.for_context(&[AssetIndex(0)], |a| a != AssetIndex(1)),
       OrderedContent {
         assets: vec![AssetIndex(2), AssetIndex(0)],
         keep_together: vec![],
       }
     );
-    assert_eq!(analysis.for_context(AssetIndex(0), |_| true), full);
+    assert_eq!(analysis.for_context(&[AssetIndex(0)], |_| true), full);
   }
 
   #[test]
@@ -805,7 +812,7 @@ mod tests {
       }
       nodes.push(css(&[]));
       let mut analysis = analysis(nodes);
-      let output = analysis.for_context(AssetIndex(0), |_| true);
+      let output = analysis.for_context(&[AssetIndex(0)], |_| true);
       if css_chain {
         assert_eq!(
           output.assets,

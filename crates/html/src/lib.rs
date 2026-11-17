@@ -595,8 +595,9 @@ impl Transformer for HtmlTransformer {
       code,
       url: asset.loc.url.clone(),
       xml: asset.ty == AssetType::Xhtml,
+      // Pages without module scripts get one, so that they include the HMR runtime and reload.
+      hmr: ctx.options.hmr.is_some() && asset.target.environment.is_browser(),
       target: asset.target.clone(),
-      hmr: false,
       options: ctx.options,
       macro_imports: self.macro_imports(&asset.loc.url)?,
     });

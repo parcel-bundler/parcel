@@ -616,9 +616,20 @@ struct HmrRuntimeTest {
 
 impl HmrRuntimeTest {
   fn new(files: &[(&str, &str)]) -> Self {
-    let (mut parcel, input_fs) = setup(files);
+    Self::with_entry(files, "/project/index.js")
+  }
+
+  /// Runs the first JS bundle of `entry`, e.g. the scripts of an HTML page.
+  fn with_entry(files: &[(&str, &str)], entry: &str) -> Self {
+    let (mut parcel, input_fs) = setup_entries(files, &[entry]);
     let graph = parcel.build().expect("initial build failed");
-    let initial_bundle_path = graph.bundles[0].dist_path().to_path_buf();
+    let initial_bundle_path = graph
+      .bundles
+      .iter()
+      .find(|bundle| bundle.ty == AssetType::Js)
+      .expect("no JS bundle")
+      .dist_path()
+      .to_path_buf();
     drop(graph);
 
     let outputs = Arc::new(Mutex::new(Vec::<serde_json::Value>::new()));
@@ -1920,4 +1931,127 @@ if (module.hot) module.hot.accept();",
   let after: Vec<&str> = outputs[1][1].as_str().unwrap().split(' ').collect();
   assert_eq!(after.len(), 3, "{outputs:?}");
   assert!(after[2].ends_with("_c"), "{outputs:?}");
+}
+
+fn html_update_after_change(
+  files: &[(&str, &str)],
+  path: &str,
+  contents: &str,
+) -> serde_json::Value {
+  let (mut parcel, input_fs) = setup_entries(files, &["/project/index.html"]);
+  let (update, _, _) = hmr_update_after_change(&mut parcel, &input_fs, path, contents);
+  update
+}
+
+#[test]
+fn html_page_without_scripts_includes_the_hmr_runtime() {
+  let (mut parcel, _) = setup_entries(
+    &[("/project/index.html", "<html><body><p>v1</p></body></html>")],
+    &["/project/index.html"],
+  );
+  let fs = parcel.options.output_fs.clone();
+  let graph = parcel.build().expect("build failed");
+  let read = |path: PathId| String::from_utf8(fs.read(path).unwrap()).unwrap();
+  let js = graph
+    .bundles
+    .iter()
+    .find(|bundle| bundle.ty == AssetType::Js)
+    .expect("the page should have a script for the HMR runtime");
+  let html = graph
+    .bundles
+    .iter()
+    .find(|bundle| bundle.ty == AssetType::Html)
+    .unwrap();
+  let html = read(html.dist_path());
+  let js_path = js.dist_path();
+  let name = js_path.file_name();
+  assert!(
+    html.contains(&format!("{name}\"></script></body>")),
+    "{html}"
+  );
+  let code = read(js.dist_path());
+  assert!(code.contains("WebSocket"));
+}
+
+#[test]
+fn hmr_runtime_reloads_html_page_without_scripts_when_it_changes() {
+  let mut hmr = HmrRuntimeTest::with_entry(
+    &[("/project/index.html", "<p>v1</p>")],
+    "/project/index.html",
+  );
+  hmr.update(&[("/project/index.html", "<p>v2</p>")]);
+  assert!(hmr.reloaded());
+}
+
+#[test]
+fn hmr_runtime_reloads_when_html_changes() {
+  let mut hmr = HmrRuntimeTest::with_entry(
+    &[
+      (
+        "/project/index.html",
+        r#"<p>v1</p><script type="module" src="index.js"></script>"#,
+      ),
+      (
+        "/project/index.js",
+        "output('index'); if (module.hot) module.hot.accept();",
+      ),
+    ],
+    "/project/index.html",
+  );
+  hmr.update(&[(
+    "/project/index.html",
+    r#"<p>v2</p><script type="module" src="index.js"></script>"#,
+  )]);
+  assert!(hmr.reloaded());
+}
+
+#[test]
+fn hmr_runtime_reloads_when_an_inline_style_attribute_changes() {
+  let mut hmr = HmrRuntimeTest::with_entry(
+    &[
+      (
+        "/project/index.html",
+        r#"<p style="color: red">hi</p><script type="module" src="index.js"></script>"#,
+      ),
+      (
+        "/project/index.js",
+        "output('index'); if (module.hot) module.hot.accept();",
+      ),
+    ],
+    "/project/index.html",
+  );
+  hmr.update(&[(
+    "/project/index.html",
+    r#"<p style="color: blue">hi</p><script type="module" src="index.js"></script>"#,
+  )]);
+  assert!(hmr.reloaded());
+}
+
+#[test]
+fn hmr_reloads_when_an_inline_style_element_changes() {
+  let update = html_update_after_change(
+    &[(
+      "/project/index.html",
+      "<style>p { color: red }</style><p>hi</p>",
+    )],
+    "/project/index.html",
+    "<style>p { color: blue }</style><p>hi</p>",
+  );
+  assert_eq!(update, serde_json::json!({"type": "reload"}));
+}
+
+#[test]
+fn hmr_reloads_when_a_stylesheet_imported_by_an_inline_style_element_changes() {
+  let update = html_update_after_change(
+    &[
+      (
+        "/project/index.html",
+        "<style>@import './a.css';</style><p>hi</p>",
+      ),
+      ("/project/a.css", "p { color: red }"),
+    ],
+    "/project/a.css",
+    "p { color: blue }",
+  );
+  assert_eq!(update, serde_json::json!({"type": "reload"}));
 }

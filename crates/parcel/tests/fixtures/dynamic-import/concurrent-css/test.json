@@ -1,0 +1,31 @@
+[
+  {
+    "description": "concurrently imported modules load the stylesheets of every member",
+    "input": "index.js",
+    "skipNodeModules": true,
+    "bundles": [
+      {
+        "name": "index.js",
+        "assets": [
+          "index.js"
+        ],
+        "contains": [
+          "module.bundle.loadCSS("
+        ]
+      },
+      {
+        "assets": [
+          "a.js",
+          "b.js"
+        ]
+      },
+      {
+        "type": "css",
+        "assets": [
+          "a.css",
+          "b.css"
+        ]
+      }
+    ]
+  }
+]
