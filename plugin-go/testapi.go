@@ -174,8 +174,6 @@ static void install_accessor_api(struct ParcelApi *api) {
   api->options_get_log_level = test_options_get_log_level;
 }
 
-static const size_t offsetof_diagnostics_create = offsetof(struct ParcelApi, diagnostics_create);
-
 static void install_sized_struct_api(struct ParcelApi *api) {
   api->buffer_free = test_buffer_free;
   api->buffer_alloc = test_buffer_alloc;
@@ -301,7 +299,8 @@ const (
 // Its table ends before the diagnostic list builders, as a Parcel that predates
 // them would, so a diagnostic a plugin writes lands in the struct's own fields.
 func withSizedStructHost(body func(host sizedHost)) {
-	api := hostAPI(int(C.offsetof_diagnostics_create)-int(C.sizeof_struct_ParcelApi), 0)
+	var table C.struct_ParcelApi
+	api := hostAPI(int(unsafe.Offsetof(table.diagnostics_create))-int(C.sizeof_struct_ParcelApi), 0)
 	defer freeHostAPI(api)
 	C.install_sized_struct_api(api)
 	previous := C.parcel_api
