@@ -485,6 +485,16 @@ func recoverCleanupPanic() {
 // older Parcel's smaller struct. Every field written here is in the first layout; a field
 // added later must check raw.size before writing it.
 func writeDiagnostic(raw *C.DiagnosticOptions, err error) {
+	writeDiagnosticWithList(raw, err, nil)
+}
+
+// writeDiagnosticWithList is writeDiagnostic, building the diagnostic in a list
+// and setting raw.diagnostics to it: the one list returns when it is not nil,
+// which creates one to log through, or else the out-param's own, which Parcel
+// fills in. Parcel only borrows what the list's builders are passed, so nothing
+// is allocated. A Parcel too old to build one gets the struct's own fields
+// instead, which hold just the first frame, highlight and hint.
+func writeDiagnosticWithList(raw *C.DiagnosticOptions, err error, list func() C.Diagnostics) {
 	if raw == nil || err == nil {
 		return
 	}
@@ -502,23 +512,100 @@ func writeDiagnostic(raw *C.DiagnosticOptions, err error) {
 		// turn this failure into a success.
 		message = "unknown error"
 	}
-	writeBuffer := func(buf *C.Buffer, s string) {
-		if len(s) == 0 {
-			return
-		}
-		data := []byte(s)
-		*buf = C.parcel_buffer_alloc((*C.uint8_t)(unsafe.Pointer(&data[0])), C.uintptr_t(len(data)))
+
+	target := raw.diagnostics
+	if list != nil {
+		target = list()
 	}
-	writeBuffer(&raw.message, message)
+	if d.buildInList(target, message) {
+		raw.diagnostics = target
+		return
+	}
+
+	raw.message = allocBuffer(message)
 	raw.severity = C.DiagnosticSeverity(d.Severity)
-	writeBuffer(&raw.file_path, d.FilePath)
-	raw.line = C.uint32_t(d.Line)
-	raw.column = C.uint32_t(d.Column)
-	writeBuffer(&raw.hint, d.Hint)
-	raw.end_line = C.uint32_t(d.EndLine)
-	raw.end_column = C.uint32_t(d.EndColumn)
-	writeBuffer(&raw.highlight_message, d.HighlightMessage)
-	writeBuffer(&raw.documentation_url, d.DocumentationURL)
+	if len(d.CodeFrames) > 0 {
+		// A frame of a file on disk is the only kind the struct's own fields
+		// describe.
+		frame := d.CodeFrames[0]
+		raw.file_path = allocBuffer(frame.FilePath)
+		if len(frame.Highlights) > 0 {
+			highlight := frame.Highlights[0]
+			raw.line = C.uint32_t(highlight.StartLine)
+			raw.column = C.uint32_t(highlight.StartColumn)
+			raw.end_line = C.uint32_t(highlight.EndLine)
+			raw.end_column = C.uint32_t(highlight.EndColumn)
+			raw.highlight_message = allocBuffer(highlight.Message)
+		}
+	}
+	if len(d.Hints) > 0 {
+		raw.hint = allocBuffer(d.Hints[0])
+	}
+	raw.documentation_url = allocBuffer(d.DocumentationURL)
+}
+
+// buildInList builds d, with message, in list. It returns false, having added
+// nothing, when there is no list or Parcel cannot build one.
+//
+// Parcel copies what it keeps before each call returns, so every string is
+// passed by reference to d's own. They are pinned, since cgo forbids passing C
+// a struct that holds an unpinned pointer into the Go heap.
+func (d *Diagnostic) buildInList(list C.Diagnostics, message string) bool {
+	if list == 0 {
+		return false
+	}
+	var pinner runtime.Pinner
+	defer pinner.Unpin()
+	borrow := func(s string) (*C.uint8_t, C.uintptr_t) {
+		if len(s) > 0 {
+			pinner.Pin(unsafe.StringData(s))
+		}
+		return stringPtr(s), C.uintptr_t(len(s))
+	}
+
+	var entry C.DiagnosticEntryOptions
+	entry.size = C.sizeof_DiagnosticEntryOptions
+	entry.severity = C.DiagnosticSeverity(d.Severity)
+	entry.message, entry.message_len = borrow(message)
+	entry.documentation_url, entry.documentation_url_len = borrow(d.DocumentationURL)
+	if !C.parcel_diagnostics_push(list, &entry) {
+		return false
+	}
+
+	for _, frame := range d.CodeFrames {
+		var options C.CodeFrameOptions
+		options.size = C.sizeof_CodeFrameOptions
+		options.file_path, options.file_path_len = borrow(frame.FilePath)
+		options.url, options.url_len = borrow(frame.URL)
+		options.code, options.code_len = borrow(frame.Code)
+		options.language, options.language_len = borrow(frame.Language)
+		C.parcel_diagnostics_add_code_frame(list, &options)
+		for _, highlight := range frame.Highlights {
+			var options C.CodeHighlightOptions
+			options.size = C.sizeof_CodeHighlightOptions
+			options.start_line = C.uint32_t(highlight.StartLine)
+			options.start_column = C.uint32_t(highlight.StartColumn)
+			options.end_line = C.uint32_t(highlight.EndLine)
+			options.end_column = C.uint32_t(highlight.EndColumn)
+			options.message, options.message_len = borrow(highlight.Message)
+			C.parcel_diagnostics_add_code_highlight(list, &options)
+		}
+	}
+	for _, hint := range d.Hints {
+		// Passed directly rather than in a struct, so there is nothing to pin.
+		C.parcel_diagnostics_add_hint(list, stringPtr(hint), C.uintptr_t(len(hint)))
+	}
+	return true
+}
+
+// allocBuffer copies s into a buffer Parcel allocated, or returns an empty
+// buffer for an empty string.
+func allocBuffer(s string) C.Buffer {
+	if len(s) == 0 {
+		return C.Buffer{}
+	}
+	data := []byte(s)
+	return C.parcel_buffer_alloc((*C.uint8_t)(unsafe.Pointer(&data[0])), C.uintptr_t(len(data)))
 }
 
 // Asset represents the asset being transformed. All methods translate directly
@@ -1180,29 +1267,22 @@ const (
 // Example:
 //
 //	return &parcel.Diagnostic{
-//	    Message:  "unsupported syntax",
-//	    FilePath: asset.FilePath(),
-//	    Line:     10,
-//	    Column:   5,
-//	    Hint:     "remove the unsupported feature",
+//	    Message: "unsupported syntax",
+//	    CodeFrames: []parcel.CodeFrame{{
+//	        FilePath:   asset.FilePath(),
+//	        Highlights: []parcel.CodeHighlight{{StartLine: 10, StartColumn: 5}},
+//	    }},
+//	    Hints: []string{"remove the unsupported feature"},
 //	}
 type Diagnostic struct {
 	Message  string
 	Severity DiagnosticSeverity
-	// FilePath is an optional absolute path for a source code frame.
-	FilePath string
-	// Line is the 1-based start line for a code highlight (0 = not set).
-	Line uint32
-	// Column is the 1-based start column (0 = not set).
-	Column uint32
-	// EndLine and EndColumn are the 1-based position of the last highlighted
-	// character (0 = highlight just the start).
-	EndLine   uint32
-	EndColumn uint32
-	// HighlightMessage is an optional message shown at the code highlight.
-	HighlightMessage string
-	// Hint is an optional hint string.
-	Hint string
+	// CodeFrames are excerpts of the code the diagnostic is about. A Parcel too
+	// old to show more than one shows just the first, with its first highlight.
+	CodeFrames []CodeFrame
+	// Hints are suggestions for fixing the problem. A Parcel too old to show
+	// more than one shows just the first.
+	Hints []string
 	// DocumentationURL optionally links to documentation about the diagnostic.
 	DocumentationURL string
 
@@ -1519,7 +1599,8 @@ type CodeFrame struct {
 }
 
 // CodeHighlight is a highlighted range in a [CodeFrame]. Lines and columns are
-// 1-based, and the end is the last highlighted character.
+// 1-based, and the end is the last highlighted character. An EndLine of 0
+// highlights just the character at the start.
 type CodeHighlight struct {
 	StartLine   uint32
 	StartColumn uint32
@@ -1680,9 +1761,12 @@ func (o *Options) LogDiagnostic(diagnostic *Diagnostic) {
 	// Ours to allocate this time: zeroed, with the size this SDK was built with.
 	var raw C.DiagnosticOptions
 	raw.size = C.sizeof_DiagnosticOptions
-	writeDiagnostic(&raw, diagnostic)
+	writeDiagnosticWithList(&raw, diagnostic, func() C.Diagnostics {
+		return C.parcel_diagnostics_create(o.ptr)
+	})
 	// The host copies what it needs rather than taking ownership, unlike the
-	// diagnostic a plugin returns as an error, so these are ours to free.
+	// diagnostic a plugin returns as an error, so these are ours to free. Only a
+	// Parcel too old to build a list needs them.
 	defer C.parcel_buffer_free(&raw.message)
 	defer C.parcel_buffer_free(&raw.file_path)
 	defer C.parcel_buffer_free(&raw.hint)

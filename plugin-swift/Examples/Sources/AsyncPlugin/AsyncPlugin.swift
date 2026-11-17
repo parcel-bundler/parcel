@@ -48,7 +48,8 @@ struct AsyncPlugin: Transformer, Resolver {
 
     // Runs the resolver chain, which starts with this same library.
     guard case .file(let suffix) = try asset.resolve("greeting:suffix") else {
-      throw Diagnostic("could not resolve greeting:suffix", filePath: asset.filePath)
+      throw Diagnostic(
+        "could not resolve greeting:suffix", codeFrames: [.file(asset.filePath)])
     }
     let suffixPath = suffix.path
     let suffixFile = suffixPath.split(separator: "/").last.map(String.init) ?? suffixPath

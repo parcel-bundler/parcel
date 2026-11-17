@@ -63,8 +63,11 @@ pub(crate) unsafe fn plugin_path<'a>(bytes: &'a [u8], is_utf8: bool) -> Option<&
   }
 }
 
-/// Byte buffer owned by Parcel.
-/// Plugins may allocate a buffer with `parcel_buffer_alloc` and release with `parcel_buffer_free()`.
+/// Bytes in memory Parcel allocated, which change hands with the buffer: Parcel
+/// fills one in for the plugin to free with `parcel_buffer_free()`, and an entry
+/// point returns one, from `parcel_buffer_alloc()`, for Parcel to free. Inputs to
+/// a call are passed as a pointer and length instead, since Parcel only borrows
+/// them.
 /// Use `parcel_buffer_write` or `parcel_buffer_write_utf8` to copy data into an existing Buffer,
 /// replacing and dropping the existing content if any. Do not set the fields in this struct manually.
 ///

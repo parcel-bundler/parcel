@@ -109,7 +109,7 @@ tasks at once.
 
 ## Errors
 
-Throw a `Diagnostic` to fail a call with a code frame and a hint. Any other
+Throw a `Diagnostic` to fail a call with code frames and hints. Any other
 `Error` is reported with its description. To warn without failing, use
 `options.log(.warning("..."))`.
 

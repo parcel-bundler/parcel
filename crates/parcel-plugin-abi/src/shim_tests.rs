@@ -129,10 +129,10 @@ int main(void) {
     return;
   };
 
-  // Until the first alpha is released the first layout is the whole table, so
-  // FIRST_LAYOUT_END must move with every function added. From the alpha on,
-  // the table grows past it, and this compares against the alpha's last function.
-  let min_size = size_of::<crate::ParcelApi>();
+  // The first layout ends at the alpha's last function. Everything after it was
+  // appended since, and is checked per call.
+  let min_size =
+    std::mem::offset_of!(crate::ParcelApi, diagnostic_get_code_highlight) + size_of::<usize>();
   assert_eq!(
     output.trim(),
     format!("{min_size} {} 1 0 0", size_of::<crate::ParcelApi>())

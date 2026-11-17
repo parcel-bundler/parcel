@@ -294,6 +294,22 @@ fn swift_resolver() {
   );
 }
 
+#[test]
+fn swift_resolver_fails_with_several_code_frames() {
+  let dir = require_swift!(plugin_dir());
+  common::assert_resolver_fails_with_several_code_frames(
+    &dir.join(format!("CustomResolver.{LIB_EXT}")),
+  );
+}
+
+#[test]
+fn swift_resolver_logs_a_warning_with_several_code_frames() {
+  let dir = require_swift!(plugin_dir());
+  common::assert_resolver_logs_a_warning_with_several_code_frames(
+    &dir.join(format!("CustomResolver.{LIB_EXT}")),
+  );
+}
+
 // ── Namer ───────────────────────────────────────────────────────────────────
 
 #[test]

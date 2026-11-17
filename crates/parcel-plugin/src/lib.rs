@@ -268,9 +268,11 @@ impl<'a> Options<'a> {
   pub fn log_diagnostic(&self, diagnostic: &Diagnostic) {
     // Filled and dropped here: the host copies what it needs rather than taking
     // ownership, unlike the diagnostic a plugin method returns. Dropping the
-    // `Buffer`s is what frees them.
+    // `Buffer`s, which only a Parcel too old to build a list needs, frees them.
     with_sized(|raw: &mut ffi::DiagnosticOptions| {
-      unsafe { diagnostic.write_to_raw(raw) };
+      let list =
+        || api::host_opt!(diagnostics_create).map_or(0, |create| unsafe { create(self.raw) });
+      unsafe { diagnostic.write_to_raw(raw, list) };
       unsafe { host!(options_log_diagnostic)(self.raw, raw) };
       unsafe { ptr::drop_in_place(raw) };
     })
@@ -595,8 +597,7 @@ impl Default for DiagnosticSeverity {
 /// Use the builder methods to attach optional context:
 /// ```rust,ignore
 /// return Err(Diagnostic::new("bad input")
-///     .with_file(asset.file_path())
-///     .at(10, 5)
+///     .with_code_frame(CodeFrame::file(asset.file_path()).with_highlight(CodeHighlight::at(10, 5)))
 ///     .with_hint("check the syntax"));
 /// ```
 ///
@@ -608,20 +609,12 @@ impl Default for DiagnosticSeverity {
 pub struct Diagnostic {
   pub message: String,
   pub severity: DiagnosticSeverity,
-  /// Absolute file path for a source code frame (optional).
-  pub file_path: Option<PathBuf>,
-  /// 1-based start line for the code highlight (0 = not set).
-  pub line: u32,
-  /// 1-based start column (0 = not set).
-  pub column: u32,
-  /// 1-based line of the last highlighted character (0 = just the start).
-  pub end_line: u32,
-  /// 1-based column of the last highlighted character.
-  pub end_column: u32,
-  /// A message shown at the code highlight (optional).
-  pub highlight_message: Option<String>,
-  /// A single hint string (optional).
-  pub hint: Option<String>,
+  /// Excerpts of the code the diagnostic is about. A Parcel too old to show
+  /// more than one shows just the first, with its first highlight.
+  pub code_frames: Vec<CodeFrame>,
+  /// Suggestions for fixing the problem. A Parcel too old to show more than one
+  /// shows just the first.
+  pub hints: Vec<String>,
   /// A URL to documentation about the diagnostic (optional).
   pub documentation_url: Option<String>,
   /// Diagnostics Parcel reported during this call, such as why a read failed,
@@ -656,36 +649,26 @@ impl Diagnostic {
     }
   }
 
-  /// Attaches a source file path for a code frame.
-  pub fn with_file(mut self, file_path: impl Into<PathBuf>) -> Self {
-    self.file_path = Some(file_path.into());
-    self
-  }
-
-  /// Sets the 1-based line and column for a code highlight.
-  pub fn at(mut self, line: u32, column: u32) -> Self {
-    self.line = line;
-    self.column = column;
-    self
-  }
-
-  /// Extends the code highlight to the 1-based line and column of its last
-  /// character. Without this, it highlights just the one at [`at`](Self::at).
-  pub fn to(mut self, end_line: u32, end_column: u32) -> Self {
-    self.end_line = end_line;
-    self.end_column = end_column;
-    self
-  }
-
-  /// Attaches a message shown at the code highlight.
-  pub fn with_highlight_message(mut self, message: impl Into<String>) -> Self {
-    self.highlight_message = Some(message.into());
-    self
-  }
-
-  /// Attaches a hint string.
+  /// Attaches a hint string. Call it again to attach more.
   pub fn with_hint(mut self, hint: impl Into<String>) -> Self {
-    self.hint = Some(hint.into());
+    self.hints.push(hint.into());
+    self
+  }
+
+  /// Attaches a code frame. Call it again to attach more:
+  ///
+  /// ```rust,ignore
+  /// Diagnostic::new("`a` is declared twice")
+  ///     .with_code_frame(CodeFrame::file(a_path).with_highlight(CodeHighlight::at(3, 5)))
+  ///     .with_code_frame(
+  ///         CodeFrame::file(b_path)
+  ///             .with_highlight(CodeHighlight::at(1, 5).to(1, 5).with_message("first here")),
+  ///     );
+  /// ```
+  ///
+  /// A Parcel too old to show more than one frame shows just the first.
+  pub fn with_code_frame(mut self, frame: CodeFrame) -> Self {
+    self.code_frames.push(frame);
     self
   }
 
@@ -710,14 +693,23 @@ impl Diagnostic {
     }
   }
 
-  /// Writes this diagnostic into a host-allocated [`ffi::DiagnosticOptions`], field by
-  /// field, leaving its `size` alone.
-  /// Intended for use inside macro-generated entry points only.
+  /// Writes this diagnostic into a [`ffi::DiagnosticOptions`], field by field,
+  /// leaving its `size` alone.
+  ///
+  /// It is built in the list `list` returns, and `raw.diagnostics` set to it:
+  /// the out-param's own, or a new one to log through. Parcel only borrows what
+  /// the list's builders are passed, so nothing is allocated. A Parcel too old
+  /// to build one gets the struct's own fields instead, which hold just the
+  /// first frame, highlight and hint.
   ///
   /// # Safety
   ///
   /// `raw` must be NULL or a diagnostic Parcel allocated, or one from `with_sized`.
-  pub(crate) unsafe fn write_to_raw(&self, raw: *mut ffi::DiagnosticOptions) {
+  pub(crate) unsafe fn write_to_raw(
+    &self,
+    raw: *mut ffi::DiagnosticOptions,
+    list: impl FnOnce() -> ffi::Diagnostics,
+  ) {
     if raw.is_null() {
       return;
     }
@@ -725,29 +717,115 @@ impl Diagnostic {
       unsafe { (*raw).diagnostics = diagnostics };
       return;
     }
+    let list = list();
+    if self.build_in_list(list) {
+      unsafe { (*raw).diagnostics = list };
+      return;
+    }
+
+    let frame = self.code_frames.first();
+    let highlight = frame.and_then(|frame| frame.highlights.first());
     unsafe {
-      (*raw).message = host!(buffer_alloc)(self.message.as_ptr(), self.message.len());
+      (*raw).message = alloc(self.message());
       (*raw).severity = self.severity;
-      if let Some(path) = &self.file_path {
-        // Parcel reads it lossily, so a path that is not UTF-8 still points somewhere close.
-        let path = path.to_string_lossy();
-        (*raw).file_path = host!(buffer_alloc)(path.as_ptr(), path.len());
+      // A frame of a file on disk is the only kind the struct's own fields
+      // describe. Parcel reads the path lossily, so one that is not UTF-8 still
+      // points somewhere close.
+      if let Some(path) = frame.and_then(|frame| frame.file_path.as_ref()) {
+        (*raw).file_path = alloc(path);
       }
-      (*raw).line = self.line;
-      (*raw).column = self.column;
-      if let Some(hint) = &self.hint {
-        (*raw).hint = host!(buffer_alloc)(hint.as_ptr(), hint.len());
+      if let Some(highlight) = highlight {
+        (*raw).line = highlight.start_line;
+        (*raw).column = highlight.start_column;
+        (*raw).end_line = highlight.end_line;
+        (*raw).end_column = highlight.end_column;
+        if let Some(message) = &highlight.message {
+          (*raw).highlight_message = alloc(message);
+        }
       }
-      (*raw).end_line = self.end_line;
-      (*raw).end_column = self.end_column;
-      if let Some(message) = &self.highlight_message {
-        (*raw).highlight_message = host!(buffer_alloc)(message.as_ptr(), message.len());
+      if let Some(hint) = self.hints.first() {
+        (*raw).hint = alloc(hint);
       }
       if let Some(url) = &self.documentation_url {
-        (*raw).documentation_url = host!(buffer_alloc)(url.as_ptr(), url.len());
+        (*raw).documentation_url = alloc(url);
       }
     }
   }
+
+  /// The message to report: Parcel reads an empty one as no diagnostic at all,
+  /// which would turn a failure into a success.
+  fn message(&self) -> &str {
+    if self.message.is_empty() {
+      "unknown error"
+    } else {
+      &self.message
+    }
+  }
+
+  /// Builds this diagnostic in `list`. Returns false, having added nothing,
+  /// when there is no list or Parcel cannot build one.
+  fn build_in_list(&self, list: ffi::Diagnostics) -> bool {
+    let (Some(push), Some(add_code_frame), Some(add_code_highlight), Some(add_hint)) = (
+      api::host_opt!(diagnostics_push),
+      api::host_opt!(diagnostics_add_code_frame),
+      api::host_opt!(diagnostics_add_code_highlight),
+      api::host_opt!(diagnostics_add_hint),
+    ) else {
+      return false;
+    };
+    if list == 0 {
+      return false;
+    }
+
+    // Parcel copies what it keeps before each call returns, so every string is
+    // passed by reference to this diagnostic's own.
+    let pushed = with_sized(|diagnostic: &mut ffi::DiagnosticEntryOptions| {
+      diagnostic.severity = self.severity;
+      (diagnostic.message, diagnostic.message_len) = str_parts(Some(self.message()));
+      (
+        diagnostic.documentation_url,
+        diagnostic.documentation_url_len,
+      ) = str_parts(self.documentation_url.as_deref());
+      unsafe { push(list, diagnostic) }
+    });
+    if !pushed {
+      return false;
+    }
+
+    for frame in &self.code_frames {
+      with_sized(|options: &mut ffi::CodeFrameOptions| {
+        (options.file_path, options.file_path_len) = str_parts(frame.file_path.as_deref());
+        (options.url, options.url_len) = str_parts(frame.url.as_deref());
+        (options.code, options.code_len) = str_parts(frame.code.as_deref());
+        (options.language, options.language_len) = str_parts(frame.language.as_deref());
+        unsafe { add_code_frame(list, options) };
+      });
+      for highlight in &frame.highlights {
+        with_sized(|options: &mut ffi::CodeHighlightOptions| {
+          options.start_line = highlight.start_line;
+          options.start_column = highlight.start_column;
+          options.end_line = highlight.end_line;
+          options.end_column = highlight.end_column;
+          (options.message, options.message_len) = str_parts(highlight.message.as_deref());
+          unsafe { add_code_highlight(list, options) };
+        });
+      }
+    }
+    for hint in &self.hints {
+      unsafe { add_hint(list, hint.as_ptr(), hint.len()) };
+    }
+    true
+  }
+}
+
+/// `text` as the pointer and length Parcel borrows it as: NULL and 0 for none.
+fn str_parts(text: Option<&str>) -> (*const u8, usize) {
+  text.map_or((ptr::null(), 0), |text| (text.as_ptr(), text.len()))
+}
+
+/// `text` in a buffer Parcel allocated.
+fn alloc(text: &str) -> Buffer {
+  unsafe { host!(buffer_alloc)(text.as_ptr(), text.len()) }
 }
 
 impl std::fmt::Display for Diagnostic {
@@ -1023,6 +1101,38 @@ pub struct CodeFrame {
   pub highlights: Vec<CodeHighlight>,
 }
 
+impl CodeFrame {
+  /// A frame showing the file at the absolute `path` on disk.
+  pub fn file(path: impl AsRef<Path>) -> Self {
+    CodeFrame {
+      file_path: Some(path.as_ref().to_string_lossy().into_owned()),
+      ..Default::default()
+    }
+  }
+
+  /// A frame showing `code`, which is not a file on disk, such as generated
+  /// code. `url` names it, and `language` is a file extension for syntax
+  /// highlighting.
+  pub fn code(
+    url: impl Into<String>,
+    code: impl Into<String>,
+    language: Option<impl Into<String>>,
+  ) -> Self {
+    CodeFrame {
+      url: Some(url.into()),
+      code: Some(code.into()),
+      language: language.map(Into::into),
+      ..Default::default()
+    }
+  }
+
+  /// Highlights part of the frame. Call it again to highlight more.
+  pub fn with_highlight(mut self, highlight: CodeHighlight) -> Self {
+    self.highlights.push(highlight);
+    self
+  }
+}
+
 /// A highlighted range in a [`CodeFrame`]. Lines and columns are 1-based, and
 /// the end is the last highlighted character.
 #[non_exhaustive]
@@ -1034,6 +1144,30 @@ pub struct CodeHighlight {
   pub end_column: u32,
   /// A message shown at the highlight.
   pub message: Option<String>,
+}
+
+impl CodeHighlight {
+  /// Highlights the character at the 1-based `line` and `column`.
+  pub fn at(line: u32, column: u32) -> Self {
+    CodeHighlight {
+      start_line: line,
+      start_column: column,
+      ..Default::default()
+    }
+  }
+
+  /// Extends the highlight to the 1-based line and column of its last character.
+  pub fn to(mut self, end_line: u32, end_column: u32) -> Self {
+    self.end_line = end_line;
+    self.end_column = end_column;
+    self
+  }
+
+  /// Attaches a message shown at the highlight.
+  pub fn with_message(mut self, message: impl Into<String>) -> Self {
+    self.message = Some(message.into());
+    self
+  }
 }
 
 // ── Asset ──────────────────────────────────────────────────────────────────

@@ -595,7 +595,9 @@ mod tests {
       .flags
       .insert(OrderFlags::PRE_IMPORT_LAYERS);
     assert_eq!(
-      analysis.for_context(&[AssetIndex(0)], |_| true).keep_together,
+      analysis
+        .for_context(&[AssetIndex(0)], |_| true)
+        .keep_together,
       vec![0..5]
     );
   }

@@ -108,7 +108,7 @@ package per platform and removes `devLibrary`.
   everything obtained from them, is valid only until the method returns. Never keep one, or use it
   from a goroutine that outlives the call.
 - **Errors.** Return an `error` to fail a call. Return a `*parcel.Diagnostic` (directly or wrapped
-  with `%w`) for a code frame, a hint, or a documentation link. An error from a call into Parcel,
+  with `%w`) for code frames, hints, or a documentation link. An error from a call into Parcel,
   such as `Asset.Content`, carries Parcel's own diagnostics, which returning it reports unchanged.
   Panics are recovered and reported as diagnostics.
 - **Text.** Strings marked as text must be valid UTF-8. A Go string can hold any bytes, so the SDK

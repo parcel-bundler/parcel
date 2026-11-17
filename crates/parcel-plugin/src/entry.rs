@@ -34,8 +34,9 @@ pub(crate) fn guard<R>(
       panic_message(payload)
     )),
   };
-  // A NULL out-param is written nothing; otherwise it is the one Parcel passed.
-  unsafe { error.write_to_raw(diagnostic) };
+  // A NULL out-param is written nothing; otherwise it is the one Parcel passed,
+  // whose list to build a diagnostic in is already there, or 0 on an older Parcel.
+  unsafe { error.write_to_raw(diagnostic, || (*diagnostic).diagnostics) };
   None
 }
 

@@ -1179,10 +1179,8 @@ fn diagnostics_fixture() -> Vec<parcel_core::Diagnostic> {
 
 /// Builds a handle the way `CPlugin::report` does, and runs `call` against it.
 fn with_diagnostics(diagnostics: &[parcel_core::Diagnostic], call: impl FnOnce(DiagnosticsRef)) {
-  let view = crate::diagnostics::DiagnosticsView {
-    diagnostics: Cow::Borrowed(diagnostics),
-  };
-  call(&view as *const crate::diagnostics::DiagnosticsView as DiagnosticsRef);
+  let view = crate::diagnostics::DiagnosticsView::read_only(Cow::Borrowed(diagnostics));
+  call(view.handle());
 }
 
 #[test]
@@ -2568,4 +2566,190 @@ fn binary_content_fails_to_read_as_text() {
     &mut diagnostics
   ));
   assert_eq!(parcel_diagnostics_get_count(diagnostics), 1);
+}
+
+fn push_message(list: Diagnostics, message: &str) -> bool {
+  let diagnostic = DiagnosticEntryOptions {
+    message: message.as_ptr(),
+    message_len: message.len(),
+    ..Default::default()
+  };
+  parcel_diagnostics_push(list, &diagnostic)
+}
+
+fn add_frame(list: Diagnostics, file_path: &str) -> bool {
+  let frame = CodeFrameOptions {
+    file_path: file_path.as_ptr(),
+    file_path_len: file_path.len(),
+    ..Default::default()
+  };
+  parcel_diagnostics_add_code_frame(list, &frame)
+}
+
+fn add_highlight(list: Diagnostics, line: u32, message: Option<&str>) -> bool {
+  let message = message.unwrap_or("");
+  let highlight = CodeHighlightOptions {
+    start_line: line,
+    start_column: 2,
+    end_line: line,
+    end_column: 5,
+    message: message.as_ptr(),
+    message_len: message.len(),
+    ..Default::default()
+  };
+  parcel_diagnostics_add_code_highlight(list, &highlight)
+}
+
+/// A plugin fails a call by pushing to the list its out-param starts with:
+/// diagnostics with any number of code frames, highlights and hints.
+#[test]
+fn diagnostics_pushed_to_the_out_param_fail_the_call() {
+  let options = ParcelOptions::default();
+  let context = OptionsContext::new(&options);
+  let mut out = context.out_param();
+  let list = out.diagnostics;
+  assert_ne!(
+    list, 0,
+    "Parcel should hand every call a list to report through"
+  );
+
+  assert!(push_message(list, "two places disagree"));
+  assert!(add_frame(
+    list,
+    &test_utils::path("/project/a.js").to_string_lossy()
+  ));
+  assert!(add_highlight(list, 1, Some("here")));
+  assert!(add_highlight(list, 3, None));
+  let (url, code, language) = ("custom:generated", "let x = 1;", "js");
+  let in_memory = CodeFrameOptions {
+    url: url.as_ptr(),
+    url_len: url.len(),
+    code: code.as_ptr(),
+    code_len: code.len(),
+    language: language.as_ptr(),
+    language_len: language.len(),
+    ..Default::default()
+  };
+  assert!(parcel_diagnostics_add_code_frame(list, &in_memory));
+  assert!(add_highlight(list, 1, Some("and here")));
+  for hint in ["first hint", "second hint"] {
+    assert!(parcel_diagnostics_add_hint(list, hint.as_ptr(), hint.len()));
+  }
+  assert!(push_message(list, "and another thing"));
+
+  let diagnostics = read_cdiagnostic(&mut out, Some(&context));
+  assert_eq!(diagnostics.len(), 2);
+  let first = &diagnostics[0];
+  assert_eq!(first.message, "two places disagree");
+  assert_eq!(first.hints, ["first hint", "second hint"]);
+  assert_eq!(first.code_frames.len(), 2);
+
+  let file = &first.code_frames[0];
+  assert_eq!(file.url, Some(SourceUrl::from_path(&path("/project/a.js"))));
+  assert_eq!(file.code_highlights.len(), 2);
+  assert_eq!(file.code_highlights[0].message.as_deref(), Some("here"));
+  assert_eq!(
+    (
+      file.code_highlights[0].start.line,
+      file.code_highlights[0].start.column
+    ),
+    (1, 2)
+  );
+  assert_eq!(
+    (
+      file.code_highlights[0].end.line,
+      file.code_highlights[0].end.column
+    ),
+    (1, 5)
+  );
+  assert_eq!(file.code_highlights[1].message, None);
+
+  let generated = &first.code_frames[1];
+  assert_eq!(
+    generated.url,
+    Some(SourceUrl::parse("custom:generated").unwrap())
+  );
+  assert_eq!(generated.code.as_deref(), Some("let x = 1;"));
+  assert_eq!(generated.language, Some(AssetType::Js));
+  assert_eq!(generated.code_highlights.len(), 1);
+
+  assert_eq!(diagnostics[1].message, "and another thing");
+  assert!(diagnostics[1].code_frames.is_empty());
+}
+
+/// A plugin that never touches the list, as one built before it existed, does
+/// not fail the call.
+#[test]
+fn an_untouched_out_param_reports_nothing() {
+  let options = ParcelOptions::default();
+  let context = OptionsContext::new(&options);
+  let mut out = context.out_param();
+  assert!(read_cdiagnostic(&mut out, Some(&context)).is_empty());
+}
+
+/// The builders add to a diagnostic and frame that exist, in a list the plugin
+/// may add to, and to nothing else.
+#[test]
+fn diagnostics_builders_reject_what_they_cannot_add_to() {
+  let options = ParcelOptions::default();
+  let context = OptionsContext::new(&options);
+  let list = context.out_param().diagnostics;
+
+  // Nothing to add to yet.
+  assert!(!add_frame(list, "/a.js"));
+  assert!(!parcel_diagnostics_add_hint(list, b"hint".as_ptr(), 4));
+  assert!(push_message(list, "message"));
+  assert!(
+    !add_highlight(list, 1, None),
+    "there is no frame to add it to"
+  );
+  assert!(add_frame(list, "/a.js"));
+  assert!(!add_highlight(list, 0, None), "lines are 1-based");
+  assert!(!parcel_diagnostics_add_hint(list, ptr::null(), 0));
+
+  // A diagnostic needs a message.
+  let empty = DiagnosticEntryOptions::default();
+  assert!(!parcel_diagnostics_push(list, &empty));
+  let unsized_entry = DiagnosticEntryOptions {
+    size: 0,
+    message: b"message".as_ptr(),
+    message_len: 7,
+    ..Default::default()
+  };
+  assert!(!parcel_diagnostics_push(list, &unsized_entry));
+  assert!(!parcel_diagnostics_push(list, ptr::null()));
+
+  // Lists Parcel handed the plugin are reported exactly as they were.
+  let handed_out = context.hand_out(vec![parcel_core::Diagnostic::from_message(
+    "read failed".into(),
+  )]);
+  assert!(!push_message(handed_out, "more"));
+  assert_eq!(parcel_diagnostics_get_count(handed_out), 1);
+  assert!(!push_message(0, "nowhere"));
+}
+
+/// A list the plugin creates is what it logs a diagnostic with several frames
+/// through.
+#[test]
+fn created_lists_are_reported_through_a_diagnostic() {
+  let options = ParcelOptions::default();
+  let context = OptionsContext::new(&options);
+  let list = parcel_diagnostics_create(context.handle());
+  assert_ne!(list, 0);
+  assert_eq!(parcel_diagnostics_create(0), 0);
+
+  assert!(push_message(list, "a warning"));
+  assert!(add_frame(list, "/a.js"));
+  assert!(add_frame(list, "/b.js"));
+  // Readable like any other list while it is being built.
+  assert_eq!(parcel_diagnostics_get_count(list), 1);
+  assert_eq!(parcel_diagnostic_get_code_frame_count(list, 0), 2);
+
+  let logged = DiagnosticOptions {
+    diagnostics: list,
+    ..Default::default()
+  };
+  let diagnostics = unsafe { copy_plugin_cdiagnostic(&logged, Some(&context)) };
+  assert_eq!(diagnostics.len(), 1);
+  assert_eq!(diagnostics[0].code_frames.len(), 2);
 }

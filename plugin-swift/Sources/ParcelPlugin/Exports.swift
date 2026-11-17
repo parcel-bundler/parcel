@@ -309,7 +309,7 @@ public enum PluginExports<P: Plugin> {
       reportError(
         Diagnostic(
           "\(plugin.typeName) is configured as \(description), but is not one",
-          hint: "Conform \(plugin.typeName) to \(Self.protocolName(description))."),
+          hints: ["Conform \(plugin.typeName) to \(Self.protocolName(description))."]),
         to: diagnostic)
       return nil
     }

@@ -396,9 +396,9 @@ impl CPlugin {
       .unwrap_or_default();
 
     let mut state = ptr::null_mut();
-    let mut diagnostic = DiagnosticOptions::default();
     let plugin_context = PluginContext::new(options, &options.input_fs);
     let context = OptionsContext::with_plugin(&plugin_context);
+    let mut diagnostic = context.out_param();
     let status = if let Some(init2) = init2 {
       let config_path = config_path.to_path_buf().to_string_lossy().into_owned();
       let args = InitArgs {
@@ -491,7 +491,7 @@ impl Transformer for CPlugin {
       (self.entry_points.transform).ok_or_else(|| self.missing("parcel_plugin_transform"))?;
 
     let context = OptionsContext::with_plugin(ctx);
-    let mut diagnostic = DiagnosticOptions::default();
+    let mut diagnostic = context.out_param();
     transform(
       &mut asset as *mut CoreAsset as Asset,
       context.handle(),
@@ -519,10 +519,9 @@ impl Resolver for CPlugin {
       (self.entry_points.resolve).ok_or_else(|| self.missing("parcel_plugin_resolve"))?;
 
     let mut result = ResolveResult::default();
-    let mut diagnostic = DiagnosticOptions::default();
-
     let pipeline_bytes = pipeline.map(|p| p.as_bytes());
     let context = OptionsContext::with_plugin(ctx);
+    let mut diagnostic = context.out_param();
 
     resolve(
       dep as *const CoreDependency as Dependency,
@@ -660,7 +659,7 @@ impl parcel_core::Namer for CPlugin {
 
     let context = OptionsContext::new(options);
     let mut name = Buffer::default();
-    let mut diagnostic = DiagnosticOptions::default();
+    let mut diagnostic = context.out_param();
     name_fn(
       bundle_graph as *const parcel_core::BundleGraph as BundleGraph,
       bundle as *const parcel_core::Bundle as Bundle,
@@ -705,13 +704,13 @@ impl Reporter for CPlugin {
 
     // Both of these are borrowed by `c_event` below, so they have to outlive it.
     let diagnostics = match event {
-      ReporterEvent::BuildFailure { diagnostics } => Some(DiagnosticsView {
-        diagnostics: Cow::Borrowed(&diagnostics.0),
-      }),
+      ReporterEvent::BuildFailure { diagnostics } => {
+        Some(DiagnosticsView::read_only(Cow::Borrowed(&diagnostics.0)))
+      }
       ReporterEvent::Log(log) => match log.message {
-        LogMessage::Diagnostics(diagnostics) => Some(DiagnosticsView {
-          diagnostics: Cow::Borrowed(diagnostics),
-        }),
+        LogMessage::Diagnostics(diagnostics) => {
+          Some(DiagnosticsView::read_only(Cow::Borrowed(diagnostics)))
+        }
         LogMessage::Text(_) => None,
       },
       _ => None,
@@ -771,7 +770,7 @@ impl Reporter for CPlugin {
     }
 
     let context = OptionsContext::new(options);
-    let mut diagnostic = DiagnosticOptions::default();
+    let mut diagnostic = context.out_param();
     report(&c_event, context.handle(), self.state, &mut diagnostic);
 
     if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, &context) {
@@ -797,8 +796,8 @@ impl Optimizer for CPlugin {
       .map(|contents| contents.source_map().to_vec());
     let contents = contents.read()?;
     let mut result = OptimizeResult::default();
-    let mut diagnostic = DiagnosticOptions::default();
     let context = OptionsContext::new(options);
+    let mut diagnostic = context.out_param();
 
     optimize(
       bundle_graph as *const parcel_core::BundleGraph as BundleGraph,

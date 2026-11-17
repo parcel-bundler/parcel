@@ -1,4 +1,4 @@
-use parcel_plugin::{Asset, Config, Diagnostic, LogLevel, Options, Plugin, register_plugin};
+use parcel_plugin::{Asset, CodeFrame, Config, Diagnostic, LogLevel, Options, Plugin, register_plugin};
 
 /// Prepends a line to each asset, such as a license comment or a polyfill
 /// import, and keeps the source map an earlier transformer attached, so the
@@ -22,7 +22,7 @@ impl Plugin for PrependTransformer {
       // Read through Parcel, so that editing the file rebuilds with its new contents.
       let path = config.resolve_path(file);
       let line = options.read_to_string(&path).map_err(|e| {
-        Diagnostic::new(format!("Could not read {}: {e}", path.display())).with_file(config.path())
+        Diagnostic::new(format!("Could not read {}: {e}", path.display())).with_code_frame(CodeFrame::file(config.path()))
       })?;
       options.log(
         LogLevel::Verbose,

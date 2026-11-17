@@ -56,9 +56,10 @@ public struct Options: Sendable {
   public func log(_ diagnostic: Diagnostic) {
     scope.shared("Options") {
       withSized(CParcelABI.DiagnosticOptions.self) { raw in
-        diagnostic.write(to: raw)
+        diagnostic.write(to: raw, list: { parcel_diagnostics_create(self.raw) })
         // The host copies what it needs rather than taking ownership, unlike a
         // diagnostic returned from an entry point, so these are ours to free.
+        // Only a Parcel too old to build a list needs them.
         defer {
           parcel_buffer_free(&raw.pointee.message)
           parcel_buffer_free(&raw.pointee.file_path)

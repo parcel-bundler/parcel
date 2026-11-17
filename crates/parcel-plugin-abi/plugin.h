@@ -16,6 +16,16 @@
  * Lifetimes: a handle is valid only until the call that received or obtained it
  * returns, unless its documentation says otherwise. Never keep one in plugin
  * state or custom content.
+ *
+ * Memory: what Parcel reads during a call, it only borrows. Strings and bytes a
+ * plugin passes into a call, as a pointer and length, whether as arguments or in
+ * an options struct, may point at the plugin's own memory, and Parcel copies
+ * what it keeps before returning. What Parcel reads after a call returns, it
+ * owns: an entry point's output, such as its `DiagnosticOptions` or
+ * `ResolveResult`, holds `Buffer`s the plugin allocated with
+ * parcel_buffer_alloc(), which Parcel frees. And a `Buffer` Parcel fills in for
+ * the plugin, such as a getter's, is the plugin's to free with
+ * parcel_buffer_free().
  */
 
 #ifndef PARCEL_PLUGIN_H
@@ -544,8 +554,11 @@ typedef struct ParcelApiHeader {
 } ParcelApiHeader;
 
 /**
- * Byte buffer owned by Parcel.
- * Plugins may allocate a buffer with `parcel_buffer_alloc` and release with `parcel_buffer_free()`.
+ * Bytes in memory Parcel allocated, which change hands with the buffer: Parcel
+ * fills one in for the plugin to free with `parcel_buffer_free()`, and an entry
+ * point returns one, from `parcel_buffer_alloc()`, for Parcel to free. Inputs to
+ * a call are passed as a pointer and length instead, since Parcel only borrows
+ * them.
  * Use `parcel_buffer_write` or `parcel_buffer_write_utf8` to copy data into an existing Buffer,
  * replacing and dropping the existing content if any. Do not set the fields in this struct manually.
  *
@@ -595,16 +608,27 @@ typedef uint64_t Asset;
  * Describes a diagnostic a plugin reports: the error an entry point fails with,
  * or a warning it logs with `parcel_options_log_diagnostic()`.
  *
- * Parcel allocates the one each entry point receives, zeroed apart from `size`,
- * and frees every `Buffer` in it once the call returns; fill them with
- * `parcel_buffer_alloc()`. The call fails when `message` or `diagnostics` is set.
- * To log one, initialize it as `DiagnosticOptions d = {.size = sizeof(DiagnosticOptions)};`,
- * and free its buffers after the call: Parcel copies what it needs.
+ * Parcel allocates the one each entry point receives, zeroed apart from `size`
+ * and `diagnostics`, and frees every `Buffer` in it once the call returns; fill
+ * them with `parcel_buffer_alloc()`. The call fails when `message` is set, or
+ * `diagnostics` holds any. To log one, initialize it as
+ * `DiagnosticOptions d = {.size = sizeof(DiagnosticOptions)};`, and free its
+ * buffers after the call: Parcel copies what it needs.
  *
- * It describes one diagnostic with at most one code frame, highlight and hint.
+ * Its own fields describe one diagnostic with at most one code frame,
+ * highlight and hint. Anything more is built in a list instead:
+ * `parcel_diagnostics_push()` a diagnostic to it, then add to it with
+ * `parcel_diagnostics_add_code_frame()`, `parcel_diagnostics_add_code_highlight()`
+ * and `parcel_diagnostics_add_hint()`, which take their strings as a pointer
+ * and length, so nothing needs allocating. The list to fail an entry point with
+ * is already in the `diagnostics` field of the one it received; to log one,
+ * create a list with `parcel_diagnostics_create()` and set `diagnostics` to it.
+ * Where Parcel provides these, building every diagnostic this way, leaving the
+ * struct's own fields empty, is simplest.
+ *
  * To report diagnostics Parcel handed the plugin, such as those of a failed read,
- * set `diagnostics` to their list. Parcel reports them exactly as they were, after
- * the diagnostic `message` describes, if it is set too.
+ * set `diagnostics` to their list instead. Either way, Parcel reports the list's
+ * diagnostics after the one `message` describes, if it is set too.
  *
  * Only write fields that fit within `size`, which an older Parcel sets lower than
  * `sizeof(DiagnosticOptions)`; `PARCEL_HAS_FIELD()` checks. Parcel ignores fields it
@@ -646,8 +670,9 @@ typedef struct DiagnosticOptions {
    */
   struct Buffer documentation_url;
   /**
-   * Diagnostics Parcel handed the plugin during this call, to report as well, or 0. A list from
-   * any other call is ignored.
+   * Diagnostics to report as well, or 0: a list the plugin built or Parcel handed it during this
+   * call. A list from any other call is ignored. In the one an entry point receives, Parcel sets
+   * it to an empty list for the plugin to push to; an older Parcel leaves it 0.
    */
   Diagnostics diagnostics;
 } DiagnosticOptions;
@@ -872,6 +897,97 @@ typedef struct CodeHighlightInfo {
 } CodeHighlightInfo;
 
 /**
+ * A diagnostic to append to a list with `parcel_diagnostics_push()`. Add its
+ * code frames and hints with the calls that follow.
+ *
+ * Initialize it as `DiagnosticEntryOptions d = {.size = sizeof(DiagnosticEntryOptions)};`.
+ * Like every input to a call, Parcel only reads it during the call: its
+ * strings may point at the plugin's own memory, which the plugin still owns.
+ * None of them is NUL-terminated.
+ */
+typedef struct DiagnosticEntryOptions {
+  /**
+   * `sizeof(DiagnosticEntryOptions)` as the plugin was built. Always the first member.
+   */
+  uintptr_t size;
+  DiagnosticSeverity severity;
+  /**
+   * What went wrong. Required.
+   */
+  const uint8_t *message;
+  uintptr_t message_len;
+  /**
+   * A URL to documentation about the diagnostic. Empty when it has none.
+   */
+  const uint8_t *documentation_url;
+  uintptr_t documentation_url_len;
+} DiagnosticEntryOptions;
+
+/**
+ * A code frame to add with `parcel_diagnostics_add_code_frame()`: an excerpt of
+ * a file the diagnostic is about. Add its highlights with
+ * `parcel_diagnostics_add_code_highlight()`.
+ *
+ * Initialize it as `CodeFrameOptions f = {.size = sizeof(CodeFrameOptions)};`.
+ * Parcel only reads it during the call. None of its strings is NUL-terminated.
+ */
+typedef struct CodeFrameOptions {
+  /**
+   * `sizeof(CodeFrameOptions)` as the plugin was built. Always the first member.
+   */
+  uintptr_t size;
+  /**
+   * The absolute path of the file, for one on disk. Empty to name it with `url`.
+   */
+  const uint8_t *file_path;
+  uintptr_t file_path_len;
+  /**
+   * The URL of the file, for one that is not on disk. Ignored when `file_path` is set.
+   */
+  const uint8_t *url;
+  uintptr_t url_len;
+  /**
+   * The code to show. Empty to show the file's contents.
+   */
+  const uint8_t *code;
+  uintptr_t code_len;
+  /**
+   * The code's language, as a file extension, for syntax highlighting. Empty when unknown.
+   */
+  const uint8_t *language;
+  uintptr_t language_len;
+} CodeFrameOptions;
+
+/**
+ * A highlight to add with `parcel_diagnostics_add_code_highlight()`. Lines and
+ * columns are 1-based, and the end is the last highlighted character.
+ *
+ * Initialize it as `CodeHighlightOptions h = {.size = sizeof(CodeHighlightOptions)};`.
+ * Parcel only reads it during the call. `message` is not NUL-terminated.
+ */
+typedef struct CodeHighlightOptions {
+  /**
+   * `sizeof(CodeHighlightOptions)` as the plugin was built. Always the first member.
+   */
+  uintptr_t size;
+  /**
+   * Required.
+   */
+  uint32_t start_line;
+  uint32_t start_column;
+  /**
+   * 0 to highlight just the character at the start.
+   */
+  uint32_t end_line;
+  uint32_t end_column;
+  /**
+   * A message shown at the highlight. Empty when it has none.
+   */
+  const uint8_t *message;
+  uintptr_t message_len;
+} CodeHighlightOptions;
+
+/**
  * The host functions available to a plugin.
  */
 typedef struct ParcelApi {
@@ -1019,6 +1135,12 @@ typedef struct ParcelApi {
                                         uintptr_t index,
                                         uintptr_t frame,
                                         uintptr_t highlight);
+  Diagnostics (*diagnostics_create)(Options options);
+  bool (*diagnostics_push)(Diagnostics diagnostics, const struct DiagnosticEntryOptions *diagnostic);
+  bool (*diagnostics_add_code_frame)(Diagnostics diagnostics, const struct CodeFrameOptions *frame);
+  bool (*diagnostics_add_code_highlight)(Diagnostics diagnostics,
+                                         const struct CodeHighlightOptions *highlight);
+  bool (*diagnostics_add_hint)(Diagnostics diagnostics, const uint8_t *hint, uintptr_t hint_len);
 } ParcelApi;
 
 /**
@@ -1643,6 +1765,76 @@ static inline bool parcel_diagnostic_get_code_frame(struct CodeFrameInfo *out, D
 
 static inline bool parcel_diagnostic_get_code_highlight(struct CodeHighlightInfo *out, DiagnosticsRef diagnostics, uintptr_t index, uintptr_t frame, uintptr_t highlight) {
   return parcel_api->diagnostic_get_code_highlight(out, diagnostics, index, frame, highlight);
+}
+
+/** Appended after the first layout: check `parcel_api_has_diagnostics_create()`. */
+static inline bool parcel_api_has_diagnostics_create(void) {
+  return PARCEL_API_HAS(diagnostics_create);
+}
+
+/** Does nothing and returns zero when Parcel is too old to provide it. */
+static inline Diagnostics parcel_diagnostics_create(Options options) {
+  if (!PARCEL_API_HAS(diagnostics_create)) {
+    Diagnostics zero = {0};
+    return zero;
+  }
+  return parcel_api->diagnostics_create(options);
+}
+
+/** Appended after the first layout: check `parcel_api_has_diagnostics_push()`. */
+static inline bool parcel_api_has_diagnostics_push(void) {
+  return PARCEL_API_HAS(diagnostics_push);
+}
+
+/** Does nothing and returns zero when Parcel is too old to provide it. */
+static inline bool parcel_diagnostics_push(Diagnostics diagnostics, const struct DiagnosticEntryOptions *diagnostic) {
+  if (!PARCEL_API_HAS(diagnostics_push)) {
+    bool zero = {0};
+    return zero;
+  }
+  return parcel_api->diagnostics_push(diagnostics, diagnostic);
+}
+
+/** Appended after the first layout: check `parcel_api_has_diagnostics_add_code_frame()`. */
+static inline bool parcel_api_has_diagnostics_add_code_frame(void) {
+  return PARCEL_API_HAS(diagnostics_add_code_frame);
+}
+
+/** Does nothing and returns zero when Parcel is too old to provide it. */
+static inline bool parcel_diagnostics_add_code_frame(Diagnostics diagnostics, const struct CodeFrameOptions *frame) {
+  if (!PARCEL_API_HAS(diagnostics_add_code_frame)) {
+    bool zero = {0};
+    return zero;
+  }
+  return parcel_api->diagnostics_add_code_frame(diagnostics, frame);
+}
+
+/** Appended after the first layout: check `parcel_api_has_diagnostics_add_code_highlight()`. */
+static inline bool parcel_api_has_diagnostics_add_code_highlight(void) {
+  return PARCEL_API_HAS(diagnostics_add_code_highlight);
+}
+
+/** Does nothing and returns zero when Parcel is too old to provide it. */
+static inline bool parcel_diagnostics_add_code_highlight(Diagnostics diagnostics, const struct CodeHighlightOptions *highlight) {
+  if (!PARCEL_API_HAS(diagnostics_add_code_highlight)) {
+    bool zero = {0};
+    return zero;
+  }
+  return parcel_api->diagnostics_add_code_highlight(diagnostics, highlight);
+}
+
+/** Appended after the first layout: check `parcel_api_has_diagnostics_add_hint()`. */
+static inline bool parcel_api_has_diagnostics_add_hint(void) {
+  return PARCEL_API_HAS(diagnostics_add_hint);
+}
+
+/** Does nothing and returns zero when Parcel is too old to provide it. */
+static inline bool parcel_diagnostics_add_hint(Diagnostics diagnostics, const uint8_t *hint, uintptr_t hint_len) {
+  if (!PARCEL_API_HAS(diagnostics_add_hint)) {
+    bool zero = {0};
+    return zero;
+  }
+  return parcel_api->diagnostics_add_hint(diagnostics, hint, hint_len);
 }
 
 /**

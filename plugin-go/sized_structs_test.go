@@ -87,7 +87,7 @@ func TestDependencyResolutionMapsUnknownTypesToInvalid(t *testing.T) {
 
 func TestLogDiagnosticSetsSize(t *testing.T) {
 	withSizedStructHost(func(host sizedHost) {
-		(&Options{}).LogDiagnostic(&Diagnostic{Message: "careful", Hint: "a hint"})
+		(&Options{}).LogDiagnostic(&Diagnostic{Message: "careful", Hints: []string{"a hint"}})
 		if host.diagnosticSize() != diagnosticSize {
 			t.Fatalf("expected Diagnostic.size %d, got %d", diagnosticSize, host.diagnosticSize())
 		}
@@ -113,13 +113,17 @@ func TestWriteDiagnosticWritesTheRangeAndLinks(t *testing.T) {
 		diag, free := sizedDiagnostic(diagnosticSize)
 		defer free()
 		writeDiagnostic(diag, &Diagnostic{
-			Message:          "unexpected token",
-			FilePath:         "/project/a.js",
-			Line:             1,
-			Column:           9,
-			EndLine:          1,
-			EndColumn:        12,
-			HighlightMessage: "expected an expression",
+			Message: "unexpected token",
+			CodeFrames: []CodeFrame{{
+				FilePath: "/project/a.js",
+				Highlights: []CodeHighlight{{
+					StartLine:   1,
+					StartColumn: 9,
+					EndLine:     1,
+					EndColumn:   12,
+					Message:     "expected an expression",
+				}},
+			}},
 			DocumentationURL: "https://parceljs.org/errors/example",
 		})
 		endLine, endColumn, highlight, docs := rangeAndLinks(diag)

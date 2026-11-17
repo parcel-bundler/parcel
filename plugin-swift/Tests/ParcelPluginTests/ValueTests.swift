@@ -205,7 +205,7 @@ import Testing
     #expect(
       ParcelPlugin.Diagnostic(FileSystemError.notFound(path: "/x")).message
         == "/x: no such file or directory")
-    let diagnostic = ParcelPlugin.Diagnostic.warning("careful", hint: "hint")
+    let diagnostic = ParcelPlugin.Diagnostic.warning("careful", hints: ["hint"])
     #expect(ParcelPlugin.Diagnostic(diagnostic) == diagnostic)
   }
 }

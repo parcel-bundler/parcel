@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use parcel_plugin::{
-  Asset, Config, DependencyOptions, Diagnostic, ExportsConditions, FileKind, ImportType, Options,
-  Plugin, ResolveResult, register_plugin,
+  Asset, CodeFrame, CodeHighlight, Config, DependencyOptions, Diagnostic, ExportsConditions,
+  FileKind, ImportType, Options, Plugin, ResolveResult, register_plugin,
 };
 use sasso::{CanonicalUrl, CanonicalizeContext, Importer, ImporterError, ImporterResult, Syntax};
 
@@ -58,9 +58,9 @@ impl Plugin for SassTransformer {
     };
 
     let result = sasso::compile_with_source_map(&code, &sass_options).map_err(|e| {
-      Diagnostic::new(e.message)
-        .with_file(file_path.clone())
-        .at(e.line as u32, e.col as u32)
+      Diagnostic::new(e.message).with_code_frame(
+        CodeFrame::file(&file_path).with_highlight(CodeHighlight::at(e.line as u32, e.col as u32)),
+      )
     })?;
 
     // The map's sources are the absolute paths of the stylesheet and everything it imported.

@@ -17,6 +17,16 @@ header = """/*
  * Lifetimes: a handle is valid only until the call that received or obtained it
  * returns, unless its documentation says otherwise. Never keep one in plugin
  * state or custom content.
+ *
+ * Memory: what Parcel reads during a call, it only borrows. Strings and bytes a
+ * plugin passes into a call, as a pointer and length, whether as arguments or in
+ * an options struct, may point at the plugin's own memory, and Parcel copies
+ * what it keeps before returning. What Parcel reads after a call returns, it
+ * owns: an entry point's output, such as its `DiagnosticOptions` or
+ * `ResolveResult`, holds `Buffer`s the plugin allocated with
+ * parcel_buffer_alloc(), which Parcel frees. And a `Buffer` Parcel fills in for
+ * the plugin, such as a getter's, is the plugin's to free with
+ * parcel_buffer_free().
  */"""
 include_guard = "PARCEL_PLUGIN_H"
 cpp_compat = true

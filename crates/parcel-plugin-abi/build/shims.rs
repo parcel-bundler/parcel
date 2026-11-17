@@ -9,9 +9,8 @@
 /// functions unchecked, while those appended after it are checked against the
 /// table's `size` on each call.
 ///
-/// Until the first alpha is released, no plugin has been built against an older
-/// table, so this moves to the end of the table with every function added. From
-/// the alpha on, it never changes.
+/// The first alpha has been released, so this never changes again: functions
+/// added since are appended after it.
 pub const FIRST_LAYOUT_END: &str = "diagnostic_get_code_highlight";
 
 /// Appends a `static inline` wrapper for every `ParcelApi` field, so C and Go

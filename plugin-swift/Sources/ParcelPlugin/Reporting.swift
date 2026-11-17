@@ -125,6 +125,31 @@ public struct CodeFrame: Hashable, Sendable {
   /// The code's language, as a file extension, when known.
   public var language: String?
   public var highlights: [CodeHighlight]
+
+  public init(
+    filePath: String? = nil, url: String? = nil, code: String? = nil, language: String? = nil,
+    highlights: [CodeHighlight] = []
+  ) {
+    self.filePath = filePath
+    self.url = url
+    self.code = code
+    self.language = language
+    self.highlights = highlights
+  }
+
+  /// A frame showing the file at the absolute `path` on disk.
+  public static func file(_ path: String, highlights: [CodeHighlight] = []) -> CodeFrame {
+    CodeFrame(filePath: path, highlights: highlights)
+  }
+
+  /// A frame showing `code`, which is not a file on disk, such as generated
+  /// code. `url` names it, and `language` is a file extension for syntax
+  /// highlighting.
+  public static func code(
+    _ code: String, url: String, language: String? = nil, highlights: [CodeHighlight] = []
+  ) -> CodeFrame {
+    CodeFrame(url: url, code: code, language: language, highlights: highlights)
+  }
 }
 
 /// A highlighted range in a ``CodeFrame``. Lines and columns are 1-based, and
@@ -136,4 +161,18 @@ public struct CodeHighlight: Hashable, Sendable {
   public var endColumn: UInt32
   /// A message shown at the highlight.
   public var message: String?
+
+  /// Highlights from the 1-based `startLine` and `startColumn` to the line and
+  /// column of the last highlighted character, or just the one character when
+  /// `endLine` is 0.
+  public init(
+    startLine: UInt32, startColumn: UInt32, endLine: UInt32 = 0, endColumn: UInt32 = 0,
+    message: String? = nil
+  ) {
+    self.startLine = startLine
+    self.startColumn = startColumn
+    self.endLine = endLine
+    self.endColumn = endColumn
+    self.message = message
+  }
 }
