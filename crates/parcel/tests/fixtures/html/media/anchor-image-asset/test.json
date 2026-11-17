@@ -1,0 +1,14 @@
+{
+  "description": "should treat an image linked from an anchor as an asset, not an entry point (#1917)",
+  "input": "index.html",
+  "bundles": [
+    {
+      "type": "html",
+      "assets": ["index.html"],
+      "contains": ["{{bundle:foo.svg}}", "{{bundle:foo_400w.svg}}"],
+      "notContains": ["images/foo.svg"]
+    },
+    {"type": "svg", "assets": ["foo.svg"]},
+    {"type": "svg", "assets": ["foo_400w.svg"]}
+  ]
+}
