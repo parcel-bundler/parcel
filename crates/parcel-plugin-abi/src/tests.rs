@@ -2677,6 +2677,38 @@ fn diagnostics_pushed_to_the_out_param_fail_the_call() {
   assert!(diagnostics[1].code_frames.is_empty());
 }
 
+/// A frame of a file on disk can show other code than the file's, e.g. an
+/// asset's content after an earlier transformer changed it.
+#[test]
+fn file_code_frames_can_show_the_plugins_code() {
+  let options = ParcelOptions::default();
+  let context = OptionsContext::new(&options);
+  let mut out = context.out_param();
+  let list = out.diagnostics;
+
+  assert!(push_message(list, "bad syntax"));
+  let file_path = test_utils::path("/project/a.js")
+    .to_string_lossy()
+    .into_owned();
+  let code = "let a = ;";
+  let frame = CodeFrameOptions {
+    file_path: file_path.as_ptr(),
+    file_path_len: file_path.len(),
+    code: code.as_ptr(),
+    code_len: code.len(),
+    ..Default::default()
+  };
+  assert!(parcel_diagnostics_add_code_frame(list, &frame));
+
+  let diagnostics = read_cdiagnostic(&mut out, Some(&context));
+  let frame = &diagnostics[0].code_frames[0];
+  assert_eq!(
+    frame.url,
+    Some(SourceUrl::from_path(&path("/project/a.js")))
+  );
+  assert_eq!(frame.code.as_deref(), Some(code));
+}
+
 /// A plugin that never touches the list, as one built before it existed, does
 /// not fail the call.
 #[test]

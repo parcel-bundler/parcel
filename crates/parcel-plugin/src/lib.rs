@@ -1093,6 +1093,19 @@ impl CodeFrame {
     }
   }
 
+  /// Shows `code` instead of what is on disk, e.g. an asset's content after an
+  /// earlier transformer changed it, which the highlights refer to.
+  ///
+  /// ```rust,ignore
+  /// CodeFrame::file(asset.file_path())
+  ///     .with_code(asset.content()?)
+  ///     .with_highlight(CodeHighlight::at(1, 5))
+  /// ```
+  pub fn with_code(mut self, code: impl Into<String>) -> Self {
+    self.code = Some(code.into());
+    self
+  }
+
   /// Highlights part of the frame. Call it again to highlight more.
   pub fn with_highlight(mut self, highlight: CodeHighlight) -> Self {
     self.highlights.push(highlight);
@@ -2637,6 +2650,17 @@ mod tests {
     flags.set(AssetFlags::IS_SOURCE, false);
     assert_eq!(flags, AssetFlags::IS_ESM);
     assert!(!(!AssetFlags::IS_ESM).contains(AssetFlags::IS_ESM));
+  }
+
+  #[test]
+  fn code_frames_of_files_can_show_other_code() {
+    let frame = CodeFrame::file("/a.js")
+      .with_code("let a = 1;")
+      .with_highlight(CodeHighlight::at(1, 5));
+    assert_eq!(frame.file_path.as_deref(), Some("/a.js"));
+    assert_eq!(frame.code.as_deref(), Some("let a = 1;"));
+    assert_eq!(frame.url, None);
+    assert_eq!(frame.highlights.len(), 1);
   }
 
   #[cfg(unix)]
