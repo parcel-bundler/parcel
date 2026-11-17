@@ -32,6 +32,34 @@ describe('RequestTracker', () => {
     assert(called === false);
   });
 
+  it('should invalidate requests when an option changes back to its original value', async () => {
+    let tracker = new RequestTracker({
+      farm,
+      options: {...options, mode: 'development'},
+    });
+    await tracker.runRequest({
+      id: 'other-option-user',
+      type: 7,
+      run: ({api}) => api.invalidateOnOptionChange('mode'),
+      input: null,
+    });
+    let calls = 0;
+    for (let mode of ['development', 'production', 'development']) {
+      tracker.options = {...tracker.options, mode};
+      tracker.graph.invalidateOptionNodes(tracker.options);
+      await tracker.runRequest({
+        id: 'option-change',
+        type: 7,
+        run: ({api}) => {
+          api.invalidateOnOptionChange('mode');
+          calls++;
+        },
+        input: null,
+      });
+    }
+    assert.equal(calls, 3);
+  });
+
   it('should rerun requests that have been invalidated', async () => {
     let tracker = new RequestTracker({farm, options});
     await tracker.runRequest({

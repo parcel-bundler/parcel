@@ -8,6 +8,7 @@ export type FeatureFlags = _FeatureFlags;
 export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   exampleFeature: false,
   useWatchmanWatcher: false,
+  useImportMaps: true,
 };
 
 let featureFlagValues: FeatureFlags = {...DEFAULT_FEATURE_FLAGS};

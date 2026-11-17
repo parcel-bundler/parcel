@@ -7,4 +7,6 @@ export type FeatureFlags = {|
    * Use node.js implementation of @parcel/watcher watchman backend
    */
   +useWatchmanWatcher: boolean,
+  /** Generate import maps for supported browser targets. Disable for restrictive CSPs. */
+  +useImportMaps: boolean,
 |};

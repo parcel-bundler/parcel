@@ -3186,6 +3186,34 @@ describe('html', function () {
       assert.equal(value, 7);
     });
 
+    it('should invalidate cached bundles when import maps are toggled', async function () {
+      await fsFixture(overlayFS, dir)`
+        index.html:
+          <script src="./main.js" type="module"></script>
+        main.js:
+          globalThis.output = async () => (await import('./async.js')).value;
+        async.js:
+          export const value = 42;
+      `;
+
+      for (let useImportMaps of [true, false, true]) {
+        let b = await bundle(path.join(dir, 'index.html'), {
+          inputFS: overlayFS,
+          mode: 'production',
+          shouldDisableCache: false,
+          featureFlags: {useImportMaps},
+        });
+        let html = await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8');
+        assert.equal(
+          html.includes('importmap'),
+          useImportMaps,
+          `useImportMaps=${useImportMaps}: ${html}`,
+        );
+        let result = await run(b, null, {require: false});
+        assert.equal(await result.output(), 42);
+      }
+    });
+
     it('should generate an import map with relative public url', async function () {
       await fsFixture(overlayFS, dir)`
         index.html:

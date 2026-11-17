@@ -17,7 +17,7 @@ import {
 import invariant from 'assert';
 
 export default (new Packager({
-  async package({bundle, bundleGraph, getInlineBundleContents}) {
+  async package({bundle, bundleGraph, getInlineBundleContents, options}) {
     let assets = [];
     bundle.traverseAssets(asset => {
       assets.push(asset);
@@ -28,7 +28,11 @@ export default (new Packager({
     let asset = assets[0];
     let code = await asset.getBuffer();
 
-    let {bundles, importMap} = getBundleReferences(bundleGraph, bundle);
+    let {bundles, importMap} = getBundleReferences(
+      bundleGraph,
+      bundle,
+      options.featureFlags.useImportMaps,
+    );
     let inlineBundles = await getInlineBundles(
       bundleGraph,
       bundle,
@@ -111,11 +115,12 @@ async function getInlineBundles(
   return inlineBundles;
 }
 
-function getBundleReferences(bundleGraph, htmlBundle) {
+function getBundleReferences(bundleGraph, htmlBundle, useImportMaps) {
   let bundles: HtmlBundleReference[] = [];
   let importMap = {};
 
-  let useImportMap = htmlBundle.env.supports('import-meta-resolve');
+  let useImportMap =
+    useImportMaps && htmlBundle.env.supports('import-meta-resolve');
   let referencedBundles = new Set(bundleGraph.getReferencedBundles(htmlBundle));
   let nonRecursiveReferencedBundles = new Set(
     bundleGraph.getReferencedBundles(htmlBundle, {recursive: false}),

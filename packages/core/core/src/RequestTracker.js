@@ -462,6 +462,7 @@ export class RequestGraph extends ContentGraph<
       if (
         hashFromOption(options[keyFromOptionContentKey(node.id)]) !== node.hash
       ) {
+        node.hash = hashFromOption(options[keyFromOptionContentKey(node.id)]);
         let parentNodes = this.getNodeIdsConnectedTo(
           nodeId,
           requestGraphEdgeTypes.invalidated_by_update,
