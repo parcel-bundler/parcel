@@ -80,7 +80,9 @@ export default (new Runtime({
 
     let useRuntimeManifest = shouldUseRuntimeManifest(bundle, options);
     let useImportMaps =
-      useRuntimeManifest && shouldUseImportMaps(bundleGraph, bundle);
+      useRuntimeManifest &&
+      options.featureFlags.useImportMaps &&
+      shouldUseImportMaps(bundleGraph, bundle);
 
     let {asyncDependencies, otherDependencies} = getDependencies(bundle);
 

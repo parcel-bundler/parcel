@@ -1,6 +1,12 @@
 import assert from 'assert';
 import path from 'path';
-import {assertBundles, bundle, distDir, outputFS} from '@parcel/test-utils';
+import {
+  assertBundles,
+  bundle,
+  distDir,
+  outputFS,
+  runBundle,
+} from '@parcel/test-utils';
 
 describe('webextension', function () {
   it('should resolve a full webextension bundle', async function () {
@@ -130,5 +136,31 @@ describe('webextension', function () {
       ),
     );
   });
+  for (let shouldScopeHoist of [true, false]) {
+    it(`should load dynamic imports without import maps (scope hoisting: ${shouldScopeHoist})`, async function () {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          'integration/webextension-import-maps/manifest.json',
+        ),
+        {
+          mode: 'production',
+          config: '@parcel/config-webextension',
+          featureFlags: {useImportMaps: false},
+          defaultTargetOptions: {
+            shouldScopeHoist,
+            engines: {browsers: ['Chrome >= 120']},
+          },
+        },
+      );
+      let htmlBundle = b.getBundles().find(b => b.type === 'html');
+      let html = await outputFS.readFile(htmlBundle.filePath, 'utf8');
+      assert(!html.includes('importmap'));
+
+      let result = await runBundle(b, htmlBundle, null, {require: false});
+      assert.equal(await result.output(), 42);
+    });
+  }
+
   // TODO: Test error-checking
 });
