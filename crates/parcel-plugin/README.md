@@ -8,7 +8,7 @@ namers, optimizers and reporters.
 crate-type = ["cdylib"]
 
 [dependencies]
-parcel-plugin = "0.1"
+parcel-plugin = "0.2"
 serde_json = "1" # used by the example below
 ```
 

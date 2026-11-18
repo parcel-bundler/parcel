@@ -1,6 +1,6 @@
 [package]
 name = "parcel-plugin"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Rust SDK for building native Parcel plugins"
 authors = ["Devon Govett <devongovett@gmail.com>"]
