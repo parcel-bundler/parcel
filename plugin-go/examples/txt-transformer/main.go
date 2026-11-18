@@ -36,7 +36,7 @@ func (t *TxtTransformer) Transform(asset *parcel.Asset, _ *parcel.Options) error
 }
 
 func init() {
-	parcel.RegisterPlugin(func(_ []byte) (any, error) {
+	parcel.RegisterPlugin(func(_ *parcel.Config, _ *parcel.Options) (any, error) {
 		return &TxtTransformer{}, nil
 	})
 }

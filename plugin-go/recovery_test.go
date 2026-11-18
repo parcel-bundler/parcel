@@ -56,7 +56,7 @@ func TestPanicError(t *testing.T) {
 func TestIncompatibleHostAPIIsRejected(t *testing.T) {
 	previousFactory := pluginFactory
 	defer func() { pluginFactory = previousFactory }()
-	pluginFactory = func([]byte) (any, error) {
+	pluginFactory = func(*Config, *Options) (any, error) {
 		t.Fatal("plugin was constructed against an incompatible host")
 		return nil, nil
 	}
@@ -87,7 +87,7 @@ func assertIncompatible(t *testing.T, api *_Ctype_struct_ParcelApi, what string)
 	var state unsafe.Pointer
 	var diag _Ctype_DiagnosticOptions
 
-	status := parcel_plugin_init(api, nil, 0, &state, &diag)
+	status := initPlugin(api, &state, &diag)
 
 	if status != incompatibleStatus() {
 		t.Fatalf("expected PARCEL_INIT_INCOMPATIBLE for %s, got status %d", what, status)
@@ -104,21 +104,21 @@ func TestPluginPanicsDoNotCrossCBoundary(t *testing.T) {
 	previousFactory := pluginFactory
 	defer func() { pluginFactory = previousFactory }()
 
-	pluginFactory = func([]byte) (any, error) {
+	pluginFactory = func(*Config, *Options) (any, error) {
 		panic("init panic")
 	}
 	api := hostAPI(0, 0)
 	defer freeHostAPI(api)
 	var state unsafe.Pointer
-	if status := parcel_plugin_init(api, nil, 0, &state, nil); status == okStatus() {
+	if status := initPlugin(api, &state, nil); status == okStatus() {
 		t.Fatal("panicking plugin factory reported success")
 	}
 
-	pluginFactory = func([]byte) (any, error) {
+	pluginFactory = func(*Config, *Options) (any, error) {
 		return &panickingPlugin{}, nil
 	}
 	state = nil
-	if status := parcel_plugin_init(api, nil, 0, &state, nil); status != okStatus() {
+	if status := initPlugin(api, &state, nil); status != okStatus() {
 		t.Fatalf("plugin initialization failed with status %d", status)
 	}
 	if state == nil {

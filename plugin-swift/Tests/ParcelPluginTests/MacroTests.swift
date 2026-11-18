@@ -14,7 +14,7 @@ final class MacroTests: XCTestCase {
         in: BasicMacroExpansionContext()
       ).map(\.description).joined(separator: "\n"))
     for symbol in [
-      "init", "deinit", "transform", "resolve", "name", "optimize", "report",
+      "init2", "deinit", "transform", "resolve", "name", "optimize", "report",
     ] {
       XCTAssertTrue(
         expanded.contains("@_cdecl(\"parcel_plugin_\(symbol)\")"), "missing parcel_plugin_\(symbol)")

@@ -7,12 +7,12 @@
 //! at the crate root:
 //!
 //! ```rust,ignore
-//! use parcel_plugin::{Asset, Diagnostic, Plugin, register_plugin};
+//! use parcel_plugin::{Asset, Config, Diagnostic, Options, Plugin, register_plugin};
 //!
 //! struct MyPlugin;
 //!
 //! impl Plugin for MyPlugin {
-//!     fn new(_config: &[u8]) -> Result<Self, Diagnostic> {
+//!     fn new(_config: &Config, _options: &Options) -> Result<Self, Diagnostic> {
 //!         Ok(MyPlugin)
 //!     }
 //!     fn transform(&self, asset: &mut Asset, _options: &Options) -> Result<(), Diagnostic> {
@@ -25,7 +25,7 @@
 //! register_plugin!(MyPlugin);
 //! ```
 //!
-//! The macro generates all seven ABI symbols: `parcel_plugin_init` (calls
+//! The macro generates all seven ABI symbols: `parcel_plugin_init2` (calls
 //! `MyPlugin::new`), `parcel_plugin_deinit` (drops the boxed value),
 //! `parcel_plugin_transform`, `parcel_plugin_resolve`, `parcel_plugin_name`,
 //! `parcel_plugin_optimize`, and `parcel_plugin_report`. Override only the
@@ -34,7 +34,7 @@
 //! do nothing so a reporter only implements the events it handles.
 //!
 //! Plugins need no linker configuration. Parcel passes a table of host functions
-//! to `parcel_plugin_init`, which [`register_plugin!`] stores before calling your
+//! to `parcel_plugin_init2`, which [`register_plugin!`] stores before calling your
 //! [`Plugin::new`], so the library has no undefined symbols to resolve at load
 //! time on any platform.
 //!
@@ -162,6 +162,55 @@ pub struct Options<'a> {
   lifetime: PhantomData<&'a ()>,
 }
 
+/// A `.parcelrc` entry's configuration, passed to [`Plugin::new`].
+pub struct Config<'a> {
+  bytes: &'a [u8],
+  path: &'a Path,
+}
+
+impl<'a> Config<'a> {
+  pub(crate) fn new(bytes: &'a [u8], path: &'a Path) -> Self {
+    Config { bytes, path }
+  }
+
+  /// The entry's options as UTF-8 JSON. Empty when it has none.
+  pub fn bytes(&self) -> &'a [u8] {
+    self.bytes
+  }
+
+  /// The absolute path of the `.parcelrc` file whose entry named the plugin.
+  /// When the entry comes from a config that file `extends`, this is that
+  /// config's path.
+  pub fn path(&self) -> &'a Path {
+    self.path
+  }
+
+  /// Resolves `path`, as written in the options, against the directory of the
+  /// `.parcelrc` they came from. An absolute `path` is used as is. `.` and `..`
+  /// are resolved lexically, without following symlinks, and `..` at the root
+  /// stays there, as the Go and Swift SDKs resolve it.
+  pub fn resolve_path(&self, path: impl AsRef<Path>) -> PathBuf {
+    use std::path::Component;
+    let joined = self.path.parent().unwrap_or(Path::new("")).join(path);
+    let mut resolved = PathBuf::new();
+    for component in joined.components() {
+      match component {
+        Component::CurDir => {}
+        Component::ParentDir => match resolved.file_name() {
+          Some(_) => {
+            resolved.pop();
+          }
+          None if resolved.has_root() => {}
+          // Only a relative path can climb above where it starts.
+          None => resolved.push(component),
+        },
+        component => resolved.push(component),
+      }
+    }
+    resolved
+  }
+}
+
 impl<'a> Options<'a> {
   pub(crate) unsafe fn from_raw(raw: u64) -> Self {
     Options {
@@ -223,9 +272,10 @@ impl<'a> Options<'a> {
   pub fn log_diagnostic(&self, diagnostic: &Diagnostic) {
     // Filled and dropped here: the host copies what it needs rather than taking
     // ownership, unlike the diagnostic a plugin method returns. Dropping the
-    // `Buffer`s is what frees them.
+    // `Buffer`s frees the message `write_to_raw` falls back to, if any.
     with_sized(|raw: &mut ffi::DiagnosticOptions| {
-      unsafe { diagnostic.write_to_raw(raw) };
+      let list = unsafe { host!(diagnostics_create)(self.raw) };
+      unsafe { diagnostic.write_to_raw(raw, list) };
       unsafe { host!(options_log_diagnostic)(self.raw, raw) };
       unsafe { ptr::drop_in_place(raw) };
     })
@@ -235,8 +285,9 @@ impl<'a> Options<'a> {
   ///
   /// Read files through this rather than `std::fs`: Parcel records the path, so
   /// a change to the file re-runs the transform that read it, and a file that was
-  /// missing re-runs it when created. Only available while transforming or
-  /// resolving.
+  /// missing re-runs it when created. Read from [`Plugin::new`], a change
+  /// initializes every plugin again. Only available while initializing,
+  /// transforming or resolving.
   pub fn read_file(&self, path: impl AsRef<Path>) -> std::io::Result<Vec<u8>> {
     let path = path_arg(path.as_ref())?;
     let mut buf = Buffer::default();
@@ -549,8 +600,7 @@ impl Default for DiagnosticSeverity {
 /// Use the builder methods to attach optional context:
 /// ```rust,ignore
 /// return Err(Diagnostic::new("bad input")
-///     .with_file(asset.file_path())
-///     .at(10, 5)
+///     .with_code_frame(CodeFrame::file(asset.file_path()).with_highlight(CodeHighlight::at(10, 5)))
 ///     .with_hint("check the syntax"));
 /// ```
 ///
@@ -562,20 +612,10 @@ impl Default for DiagnosticSeverity {
 pub struct Diagnostic {
   pub message: String,
   pub severity: DiagnosticSeverity,
-  /// Absolute file path for a source code frame (optional).
-  pub file_path: Option<PathBuf>,
-  /// 1-based start line for the code highlight (0 = not set).
-  pub line: u32,
-  /// 1-based start column (0 = not set).
-  pub column: u32,
-  /// 1-based line of the last highlighted character (0 = just the start).
-  pub end_line: u32,
-  /// 1-based column of the last highlighted character.
-  pub end_column: u32,
-  /// A message shown at the code highlight (optional).
-  pub highlight_message: Option<String>,
-  /// A single hint string (optional).
-  pub hint: Option<String>,
+  /// Excerpts of the code the diagnostic is about.
+  pub code_frames: Vec<CodeFrame>,
+  /// Suggestions for fixing the problem.
+  pub hints: Vec<String>,
   /// A URL to documentation about the diagnostic (optional).
   pub documentation_url: Option<String>,
   /// Diagnostics Parcel reported during this call, such as why a read failed,
@@ -610,36 +650,24 @@ impl Diagnostic {
     }
   }
 
-  /// Attaches a source file path for a code frame.
-  pub fn with_file(mut self, file_path: impl Into<PathBuf>) -> Self {
-    self.file_path = Some(file_path.into());
-    self
-  }
-
-  /// Sets the 1-based line and column for a code highlight.
-  pub fn at(mut self, line: u32, column: u32) -> Self {
-    self.line = line;
-    self.column = column;
-    self
-  }
-
-  /// Extends the code highlight to the 1-based line and column of its last
-  /// character. Without this, it highlights just the one at [`at`](Self::at).
-  pub fn to(mut self, end_line: u32, end_column: u32) -> Self {
-    self.end_line = end_line;
-    self.end_column = end_column;
-    self
-  }
-
-  /// Attaches a message shown at the code highlight.
-  pub fn with_highlight_message(mut self, message: impl Into<String>) -> Self {
-    self.highlight_message = Some(message.into());
-    self
-  }
-
-  /// Attaches a hint string.
+  /// Attaches a hint string. Call it again to attach more.
   pub fn with_hint(mut self, hint: impl Into<String>) -> Self {
-    self.hint = Some(hint.into());
+    self.hints.push(hint.into());
+    self
+  }
+
+  /// Attaches a code frame. Call it again to attach more:
+  ///
+  /// ```rust,ignore
+  /// Diagnostic::new("`a` is declared twice")
+  ///     .with_code_frame(CodeFrame::file(a_path).with_highlight(CodeHighlight::at(3, 5)))
+  ///     .with_code_frame(
+  ///         CodeFrame::file(b_path)
+  ///             .with_highlight(CodeHighlight::at(1, 5).to(1, 5).with_message("first here")),
+  ///     );
+  /// ```
+  pub fn with_code_frame(mut self, frame: CodeFrame) -> Self {
+    self.code_frames.push(frame);
     self
   }
 
@@ -664,14 +692,23 @@ impl Diagnostic {
     }
   }
 
-  /// Writes this diagnostic into a host-allocated [`ffi::DiagnosticOptions`], field by
-  /// field, leaving its `size` alone.
-  /// Intended for use inside macro-generated entry points only.
+  /// Writes this diagnostic into a [`ffi::DiagnosticOptions`]: builds it in
+  /// `list`, the out-param's own or a new one to log through, and sets
+  /// `raw.diagnostics` to it. Parcel only borrows what the list's builders are
+  /// passed, so nothing is allocated.
+  ///
+  /// Should the list reject it, which no Parcel providing `init2` does for a
+  /// diagnostic this builds, the struct's own `message` is set instead, so a
+  /// failure is never mistaken for success.
   ///
   /// # Safety
   ///
   /// `raw` must be NULL or a diagnostic Parcel allocated, or one from `with_sized`.
-  pub(crate) unsafe fn write_to_raw(&self, raw: *mut ffi::DiagnosticOptions) {
+  pub(crate) unsafe fn write_to_raw(
+    &self,
+    raw: *mut ffi::DiagnosticOptions,
+    list: ffi::Diagnostics,
+  ) {
     if raw.is_null() {
       return;
     }
@@ -679,29 +716,83 @@ impl Diagnostic {
       unsafe { (*raw).diagnostics = diagnostics };
       return;
     }
-    unsafe {
-      (*raw).message = host!(buffer_alloc)(self.message.as_ptr(), self.message.len());
-      (*raw).severity = self.severity;
-      if let Some(path) = &self.file_path {
-        // Parcel reads it lossily, so a path that is not UTF-8 still points somewhere close.
-        let path = path.to_string_lossy();
-        (*raw).file_path = host!(buffer_alloc)(path.as_ptr(), path.len());
-      }
-      (*raw).line = self.line;
-      (*raw).column = self.column;
-      if let Some(hint) = &self.hint {
-        (*raw).hint = host!(buffer_alloc)(hint.as_ptr(), hint.len());
-      }
-      (*raw).end_line = self.end_line;
-      (*raw).end_column = self.end_column;
-      if let Some(message) = &self.highlight_message {
-        (*raw).highlight_message = host!(buffer_alloc)(message.as_ptr(), message.len());
-      }
-      if let Some(url) = &self.documentation_url {
-        (*raw).documentation_url = host!(buffer_alloc)(url.as_ptr(), url.len());
+    if self.build_in_list(list) {
+      unsafe { (*raw).diagnostics = list };
+    } else {
+      unsafe {
+        (*raw).message = alloc(self.message());
+        (*raw).severity = self.severity;
       }
     }
   }
+
+  /// The message to report: Parcel reads an empty one as no diagnostic at all,
+  /// which would turn a failure into a success.
+  fn message(&self) -> &str {
+    if self.message.is_empty() {
+      "unknown error"
+    } else {
+      &self.message
+    }
+  }
+
+  /// Builds this diagnostic in `list`. Returns false, having added nothing,
+  /// when Parcel rejects it.
+  fn build_in_list(&self, list: ffi::Diagnostics) -> bool {
+    let push = host!(diagnostics_push);
+    let add_code_frame = host!(diagnostics_add_code_frame);
+    let add_code_highlight = host!(diagnostics_add_code_highlight);
+    let add_hint = host!(diagnostics_add_hint);
+
+    // Parcel copies what it keeps before each call returns, so every string is
+    // passed by reference to this diagnostic's own.
+    let pushed = with_sized(|diagnostic: &mut ffi::DiagnosticEntryOptions| {
+      diagnostic.severity = self.severity;
+      (diagnostic.message, diagnostic.message_len) = str_parts(Some(self.message()));
+      (
+        diagnostic.documentation_url,
+        diagnostic.documentation_url_len,
+      ) = str_parts(self.documentation_url.as_deref());
+      unsafe { push(list, diagnostic) }
+    });
+    if !pushed {
+      return false;
+    }
+
+    for frame in &self.code_frames {
+      with_sized(|options: &mut ffi::CodeFrameOptions| {
+        (options.file_path, options.file_path_len) = str_parts(frame.file_path.as_deref());
+        (options.url, options.url_len) = str_parts(frame.url.as_deref());
+        (options.code, options.code_len) = str_parts(frame.code.as_deref());
+        (options.language, options.language_len) = str_parts(frame.language.as_deref());
+        unsafe { add_code_frame(list, options) };
+      });
+      for highlight in &frame.highlights {
+        with_sized(|options: &mut ffi::CodeHighlightOptions| {
+          options.start_line = highlight.start_line;
+          options.start_column = highlight.start_column;
+          options.end_line = highlight.end_line;
+          options.end_column = highlight.end_column;
+          (options.message, options.message_len) = str_parts(highlight.message.as_deref());
+          unsafe { add_code_highlight(list, options) };
+        });
+      }
+    }
+    for hint in &self.hints {
+      unsafe { add_hint(list, hint.as_ptr(), hint.len()) };
+    }
+    true
+  }
+}
+
+/// `text` as the pointer and length Parcel borrows it as: NULL and 0 for none.
+fn str_parts(text: Option<&str>) -> (*const u8, usize) {
+  text.map_or((ptr::null(), 0), |text| (text.as_ptr(), text.len()))
+}
+
+/// `text` in a buffer Parcel allocated.
+fn alloc(text: &str) -> Buffer {
+  unsafe { host!(buffer_alloc)(text.as_ptr(), text.len()) }
 }
 
 impl std::fmt::Display for Diagnostic {
@@ -977,6 +1068,51 @@ pub struct CodeFrame {
   pub highlights: Vec<CodeHighlight>,
 }
 
+impl CodeFrame {
+  /// A frame showing the file at the absolute `path` on disk.
+  pub fn file(path: impl AsRef<Path>) -> Self {
+    CodeFrame {
+      file_path: Some(path.as_ref().to_string_lossy().into_owned()),
+      ..Default::default()
+    }
+  }
+
+  /// A frame showing `code`, which is not a file on disk, such as generated
+  /// code. `url` names it, and `language` is a file extension for syntax
+  /// highlighting.
+  pub fn code(
+    url: impl Into<String>,
+    code: impl Into<String>,
+    language: Option<impl Into<String>>,
+  ) -> Self {
+    CodeFrame {
+      url: Some(url.into()),
+      code: Some(code.into()),
+      language: language.map(Into::into),
+      ..Default::default()
+    }
+  }
+
+  /// Shows `code` instead of what is on disk, e.g. an asset's content after an
+  /// earlier transformer changed it, which the highlights refer to.
+  ///
+  /// ```rust,ignore
+  /// CodeFrame::file(asset.file_path())
+  ///     .with_code(asset.content()?)
+  ///     .with_highlight(CodeHighlight::at(1, 5))
+  /// ```
+  pub fn with_code(mut self, code: impl Into<String>) -> Self {
+    self.code = Some(code.into());
+    self
+  }
+
+  /// Highlights part of the frame. Call it again to highlight more.
+  pub fn with_highlight(mut self, highlight: CodeHighlight) -> Self {
+    self.highlights.push(highlight);
+    self
+  }
+}
+
 /// A highlighted range in a [`CodeFrame`]. Lines and columns are 1-based, and
 /// the end is the last highlighted character.
 #[non_exhaustive]
@@ -988,6 +1124,30 @@ pub struct CodeHighlight {
   pub end_column: u32,
   /// A message shown at the highlight.
   pub message: Option<String>,
+}
+
+impl CodeHighlight {
+  /// Highlights the character at the 1-based `line` and `column`.
+  pub fn at(line: u32, column: u32) -> Self {
+    CodeHighlight {
+      start_line: line,
+      start_column: column,
+      ..Default::default()
+    }
+  }
+
+  /// Extends the highlight to the 1-based line and column of its last character.
+  pub fn to(mut self, end_line: u32, end_column: u32) -> Self {
+    self.end_line = end_line;
+    self.end_column = end_column;
+    self
+  }
+
+  /// Attaches a message shown at the highlight.
+  pub fn with_message(mut self, message: impl Into<String>) -> Self {
+    self.message = Some(message.into());
+    self
+  }
 }
 
 // ── Asset ──────────────────────────────────────────────────────────────────
@@ -2222,13 +2382,13 @@ impl ResolveResult {
 /// keep any state that changes behind a `Mutex` or in atomics.
 ///
 /// ```rust,ignore
-/// use parcel_plugin::{Asset, Diagnostic, Plugin, register_plugin};
+/// use parcel_plugin::{Asset, Config, Diagnostic, Options, Plugin, register_plugin};
 ///
 /// struct MyPlugin { prefix: String }
 ///
 /// impl Plugin for MyPlugin {
-///     fn new(config: &[u8]) -> Result<Self, Diagnostic> {
-///         // parse config, e.g. via serde_json
+///     fn new(config: &Config, _options: &Options) -> Result<Self, Diagnostic> {
+///         // parse config.bytes(), e.g. via serde_json
 ///         Ok(MyPlugin { prefix: "hello".into() })
 ///     }
 ///     fn transform(&self, asset: &mut Asset, _options: &Options) -> Result<(), Diagnostic> {
@@ -2242,8 +2402,12 @@ impl ResolveResult {
 pub trait Plugin: Sized + Send + Sync {
   /// Called once for each `.parcelrc` entry naming the plugin, which may name it
   /// more than once with different configs, before any other method. `config`
-  /// is that entry's config as UTF-8 JSON (empty when it has none).
-  fn new(config: &[u8]) -> Result<Self, Diagnostic>;
+  /// is that entry's config, and where it came from.
+  ///
+  /// Files read through `options`, such as with [`Options::read_file`], are
+  /// tracked: when one changes, Parcel starts over and calls `new` again, so
+  /// read configuration files that way rather than with `std::fs`.
+  fn new(config: &Config, options: &Options) -> Result<Self, Diagnostic>;
 
   /// Called once per asset that matches the plugin's configured glob.
   /// The default returns an error; override when acting as a transformer.
@@ -2318,7 +2482,7 @@ pub trait Plugin: Sized + Send + Sync {
 // ── register_plugin! macro ────────────────────────────────────────────────
 
 /// Generates all seven ABI exports for a type that implements [`Plugin`]:
-/// `parcel_plugin_init`, `parcel_plugin_deinit`, `parcel_plugin_transform`,
+/// `parcel_plugin_init2`, `parcel_plugin_deinit`, `parcel_plugin_transform`,
 /// `parcel_plugin_resolve`, `parcel_plugin_name`, `parcel_plugin_optimize`, and
 /// `parcel_plugin_report`.
 ///
@@ -2326,7 +2490,7 @@ pub trait Plugin: Sized + Send + Sync {
 /// register_plugin!(MyPlugin);
 /// ```
 ///
-/// `parcel_plugin_init` calls [`Plugin::new`] and boxes the result as the
+/// `parcel_plugin_init2` calls [`Plugin::new`] and boxes the result as the
 /// per-entry state pointer, and `parcel_plugin_deinit` drops the box. The other
 /// five borrow it as `&MyPlugin` and call the corresponding trait method. Each
 /// catches panics, reporting them as diagnostics rather than unwinding into
@@ -2335,14 +2499,12 @@ pub trait Plugin: Sized + Send + Sync {
 macro_rules! register_plugin {
   ($type:ty) => {
     #[unsafe(no_mangle)]
-    pub unsafe extern "C" fn parcel_plugin_init(
-      api: *const ::core::ffi::c_void,
-      config: *const u8,
-      config_len: usize,
+    pub unsafe extern "C" fn parcel_plugin_init2(
+      args: *const ::core::ffi::c_void,
       state: *mut *mut ::core::ffi::c_void,
       diagnostic: *mut ::core::ffi::c_void,
     ) -> u8 {
-      unsafe { $crate::__private::init::<$type>(api, config, config_len, state, diagnostic) }
+      unsafe { $crate::__private::init::<$type>(args, state, diagnostic) }
     }
 
     #[unsafe(no_mangle)]
@@ -2488,6 +2650,41 @@ mod tests {
     flags.set(AssetFlags::IS_SOURCE, false);
     assert_eq!(flags, AssetFlags::IS_ESM);
     assert!(!(!AssetFlags::IS_ESM).contains(AssetFlags::IS_ESM));
+  }
+
+  #[test]
+  fn code_frames_of_files_can_show_other_code() {
+    let frame = CodeFrame::file("/a.js")
+      .with_code("let a = 1;")
+      .with_highlight(CodeHighlight::at(1, 5));
+    assert_eq!(frame.file_path.as_deref(), Some("/a.js"));
+    assert_eq!(frame.code.as_deref(), Some("let a = 1;"));
+    assert_eq!(frame.url, None);
+    assert_eq!(frame.highlights.len(), 1);
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn config_paths_resolve_against_the_parcelrc() {
+    let config = Config::new(b"", Path::new("/project/config/.parcelrc"));
+    let resolve = |path: &str| config.resolve_path(path);
+    assert_eq!(
+      resolve("./banner.txt"),
+      Path::new("/project/config/banner.txt")
+    );
+    assert_eq!(
+      resolve("banner.txt"),
+      Path::new("/project/config/banner.txt")
+    );
+    assert_eq!(
+      resolve("../src/./a b.txt"),
+      Path::new("/project/src/a b.txt")
+    );
+    assert_eq!(
+      resolve("/elsewhere/../banner.txt"),
+      Path::new("/banner.txt")
+    );
+    assert_eq!(resolve("/a/../../b"), Path::new("/b"));
   }
 
   #[test]

@@ -17,9 +17,12 @@ use crate::{
 /// read as the enum.
 pub type InitStatusFFI = u8;
 
-/// `parcel_plugin_init()`: called once for each .parcelrc entry naming the
-/// plugin, with that entry's options as JSON in `config`, before any other entry
-/// point. It may be called concurrently, and always with the same `api` table.
+/// `parcel_plugin_init()`: the original form of `parcel_plugin_init2()`, which
+/// Parcel calls instead when a plugin exports both. It receives only the entry's
+/// options as JSON in `config`: no `Options`, so it cannot read files or the
+/// project root, and no path to the .parcelrc that configured it. Kept so that
+/// plugins built before `parcel_plugin_init2()` keep loading; new plugins should
+/// define `parcel_plugin_init2()` instead.
 ///
 /// Check `parcel_api_compatible(&api->header)` first, and return
 /// `PARCEL_INIT_INCOMPATIBLE` without touching `api` if it fails. Store anything
@@ -30,6 +33,58 @@ pub type ParcelPluginInitFn = extern "C" fn(
   api: *const ParcelApi,
   config: *const u8,
   config_len: usize,
+  state: *mut *mut c_void,
+  diagnostic: *mut DiagnosticOptions,
+) -> InitStatusFFI;
+
+/// The inputs to `parcel_plugin_init2()`.
+///
+/// Parcel allocates it and sets `size` to `sizeof(InitArgs)` as Parcel was
+/// built. Fields may be appended in later versions: check one with
+/// `PARCEL_HAS_FIELD()` before reading it, unless it is in the first layout
+/// (through `options`), which every Parcel calling `parcel_plugin_init2()` fills
+/// in. Everything it points to is valid only until `parcel_plugin_init2()`
+/// returns: copy what you need into your state.
+#[repr(C)]
+pub struct InitArgs {
+  /// `sizeof(InitArgs)` as Parcel was built. Always the first member.
+  pub size: usize,
+  /// The host functions. Check `parcel_api_compatible(&args->api->header)`
+  /// before using it, or anything else Parcel passed.
+  pub api: *const ParcelApi,
+  /// The .parcelrc entry's options, as JSON. Not NUL-terminated. Empty when the
+  /// entry has none.
+  pub config: *const u8,
+  pub config_len: usize,
+  /// The absolute path of the .parcelrc file whose entry named the plugin: the
+  /// file itself, not its directory. When the entry comes from a config that
+  /// file `extends`, this is that config's path. Resolve relative paths in
+  /// `config` against its directory. Not NUL-terminated.
+  pub config_path: *const u8,
+  pub config_path_len: usize,
+  /// The build's options, for the duration of this call, as every other entry
+  /// point receives them. Files read through it with `parcel_fs_read_file()`
+  /// and friends are tracked: a change to any of them reinitializes every
+  /// plugin. Never store it; `parcel_asset_resolve()` is not available.
+  pub options: Options,
+}
+
+impl_extensible!(
+  InitArgs,
+  min_size = std::mem::offset_of!(InitArgs, options) + size_of::<Options>()
+);
+
+/// `parcel_plugin_init2()`: called once for each .parcelrc entry naming the
+/// plugin, before any other entry point. It may be called concurrently, and
+/// always with the same `args->api` table.
+///
+/// Check `parcel_api_compatible(&args->api->header)` first, and return
+/// `PARCEL_INIT_INCOMPATIBLE` without touching anything else if it fails. Store
+/// anything the other entry points need in `*state`, which every later call for
+/// this entry receives. On failure, return `PARCEL_INIT_ERROR` and fill in
+/// `diagnostic`.
+pub type ParcelPluginInit2Fn = extern "C" fn(
+  args: *const InitArgs,
   state: *mut *mut c_void,
   diagnostic: *mut DiagnosticOptions,
 ) -> InitStatusFFI;

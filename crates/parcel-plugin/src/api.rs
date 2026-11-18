@@ -1,7 +1,7 @@
 //! Access to the host functions Parcel passes in at initialization.
 //!
 //! Plugins do not link against Parcel's symbols. Parcel hands the plugin a
-//! [`ParcelApi`] table when it calls `parcel_plugin_init`, and every SDK call
+//! [`ParcelApi`] table when it calls `parcel_plugin_init2`, and every SDK call
 //! goes through it.
 
 use std::ptr;
@@ -14,10 +14,10 @@ use crate::ffi::{PARCEL_ABI_VERSION, PARCEL_API_MIN_SIZE, ParcelApi, ParcelApiHe
 /// that reason, since a `&ParcelApi` would claim every field is there to read.
 static API: AtomicPtr<ParcelApi> = AtomicPtr::new(ptr::null_mut());
 
-/// Stores the table Parcel passed to `parcel_plugin_init`. Called by
+/// Stores the table Parcel passed to `parcel_plugin_init2`. Called by
 /// [`register_plugin!`](crate::register_plugin) before anything else.
 ///
-/// Parcel calls `parcel_plugin_init` once per pipeline entry, so this runs more
+/// Parcel calls `parcel_plugin_init2` once per pipeline entry, so this runs more
 /// than once whenever the same library appears in a .parcelrc more than once —
 /// with a different config each time. That is fine: the table is per-process and
 /// identical every time, while the per-entry state is the pointer `Plugin::new`
@@ -34,7 +34,7 @@ static API: AtomicPtr<ParcelApi> = AtomicPtr::new(ptr::null_mut());
 /// Returns `false` if the table cannot be used, in which case nothing here has
 /// been stored and no SDK function may be called. There is deliberately no
 /// diagnostic: allocating one goes through the very table being rejected, so
-/// `parcel_plugin_init` reports `InitStatus::Incompatible` and Parcel writes the
+/// `parcel_plugin_init2` reports `InitStatus::Incompatible` and Parcel writes the
 /// message instead.
 ///
 /// # Safety
@@ -75,7 +75,7 @@ pub(crate) fn api() -> *const ParcelApi {
   let api = API.load(Ordering::Acquire);
   assert!(
     !api.is_null(),
-    "Parcel plugin API used before parcel_plugin_init"
+    "Parcel plugin API used before parcel_plugin_init2"
   );
   api
 }

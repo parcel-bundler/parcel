@@ -1,15 +1,17 @@
 //! File system access for plugins.
 //!
 //! Every function here goes through the file system Parcel handed the current
-//! transform or resolve call, which records each path it touches. A file a plugin
-//! reads this way invalidates the asset being processed when it changes, and a
-//! file the plugin looked for but did not find invalidates it when created — so
-//! watch mode and the cache stay correct without the plugin tracking anything
-//! itself. Reading with the plugin's own file APIs instead would work once, and
-//! then serve stale output forever.
+//! init, transform or resolve call, which records each path it touches. A file a
+//! plugin reads this way invalidates the asset being processed when it changes,
+//! and a file the plugin looked for but did not find invalidates it when created
+//! — so watch mode and the cache stay correct without the plugin tracking
+//! anything itself. During `parcel_plugin_init2()`, what is invalidated is the
+//! whole configuration: Parcel starts over, initializing every plugin again.
+//! Reading with the plugin's own file APIs instead would work once, and then
+//! serve stale output forever.
 //!
-//! Only transform and resolve calls have such a file system. Called from any
-//! other entry point, these functions report `PARCEL_IO_ERROR`.
+//! Only init, transform and resolve calls have such a file system. Called from
+//! any other entry point, these functions report `PARCEL_IO_ERROR`.
 
 use parcel_core::{FileKind as CoreFileKind, PathId};
 
@@ -62,7 +64,8 @@ unsafe fn write_error(buf: *mut Buffer, message: String) -> IoStatus {
   IoStatus::PARCEL_IO_ERROR
 }
 
-const NO_FS: &str = "File system access is only available while transforming or resolving";
+const NO_FS: &str =
+  "File system access is only available while initializing, transforming or resolving";
 
 /// Reads the file at the absolute `path` into `*buf`.
 ///

@@ -10,8 +10,8 @@ use parcel_core::{
 
 use crate::{
   Asset, AssetRef, Buffer, Bundle, BundleBehavior, BundleBehaviorFFI, BundleGraph,
-  DiagnosticOptions, Diagnostics, Options, OptionsContext, options_context, plugin_str,
-  read_cdiagnostic, trusted_utf8, write_buffer,
+  DiagnosticOptions, Diagnostics, Options, OptionsContext, diagnostics::DiagnosticsView,
+  options_context, plugin_str, read_cdiagnostic, read_out_diagnostic, trusted_utf8, write_buffer,
 };
 
 #[repr(u32)]
@@ -240,7 +240,9 @@ impl Content for CContent {
 
   fn read(&self) -> Result<Vec<u8>, CoreDiagnostic> {
     let mut buf = Buffer::default();
-    let mut diagnostic = DiagnosticOptions::default();
+    // No `Options` here, but still a list to report through.
+    let out = DiagnosticsView::writable();
+    let mut diagnostic = out.out_param();
 
     (self.read)(self.ptr, &mut buf, &mut diagnostic);
 
@@ -250,7 +252,10 @@ impl Content for CContent {
       Vec::new()
     };
 
-    if let Some(diag) = read_cdiagnostic(&mut diagnostic, None).into_iter().next() {
+    if let Some(diag) = read_out_diagnostic(&mut diagnostic, &out)
+      .into_iter()
+      .next()
+    {
       return Err(diag);
     }
 
@@ -259,7 +264,9 @@ impl Content for CContent {
 
   fn read_string(&self) -> Result<Cow<'_, str>, CoreDiagnostic> {
     let mut buf = Buffer::default();
-    let mut diagnostic = DiagnosticOptions::default();
+    // No `Options` here, but still a list to report through.
+    let out = DiagnosticsView::writable();
+    let mut diagnostic = out.out_param();
 
     (self.read)(self.ptr, &mut buf, &mut diagnostic);
 
@@ -269,7 +276,10 @@ impl Content for CContent {
       Vec::new()
     };
 
-    if let Some(diag) = read_cdiagnostic(&mut diagnostic, None).into_iter().next() {
+    if let Some(diag) = read_out_diagnostic(&mut diagnostic, &out)
+      .into_iter()
+      .next()
+    {
       return Err(diag);
     }
 
@@ -318,7 +328,7 @@ impl Content for CContent {
     if let Some(package) = self.package {
       let context = OptionsContext::new(options);
       let mut buf = Buffer::default();
-      let mut diagnostic = DiagnosticOptions::default();
+      let mut diagnostic = context.out_param();
 
       (package)(
         self.ptr,

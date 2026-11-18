@@ -522,12 +522,22 @@ impl CodeFrame {
     }
   }
 
+  /// What the frame shows: a file's path relative to the working directory, or
+  /// the URL of anything else, such as code a plugin generated.
+  fn source_name(url: &SourceUrl) -> String {
+    match url.to_file_path() {
+      Ok(path) => {
+        let cwd = PathId::new(&std::env::current_dir().unwrap_or_default());
+        path.relative(&cwd).to_string_lossy().into_owned()
+      }
+      Err(_) => url.to_string(),
+    }
+  }
+
   fn location(&self) -> String {
     let mut location = String::new();
     if let Some(url) = &self.url {
-      let cwd = PathId::new(&std::env::current_dir().unwrap_or_default());
-      let relative = url.to_file_path().unwrap().relative(&cwd);
-      location.push_str(&relative.to_string_lossy());
+      location.push_str(&Self::source_name(url));
       if let Some(highlight) = self.code_highlights.first() {
         use std::fmt::Write;
         write!(
@@ -712,10 +722,7 @@ impl CodeFrame {
         .fg_color(Some(Color::Ansi(AnsiColor::BrightBlack)))
         .underline();
 
-      let cwd = PathId::new(&std::env::current_dir().unwrap_or_default());
-      let relative = url.to_file_path().unwrap().relative(&cwd);
-
-      write!(dest, "{style}{}", relative.to_string_lossy())?;
+      write!(dest, "{style}{}", Self::source_name(url))?;
       if let Some(highlight) = self.code_highlights.first() {
         write!(dest, ":{}:{}", highlight.start.line, highlight.start.column)?;
       }
@@ -1164,6 +1171,27 @@ mod tests {
       json_source_location("{}", "/missing", JsonSourceLocationType::Value).unwrap(),
       None
     );
+  }
+
+  /// A frame of code that is not a file, such as one a plugin generated, is
+  /// named by its URL rather than taking the reporter down.
+  #[test]
+  fn renders_code_frames_of_urls_that_are_not_files() {
+    let frame = CodeFrame {
+      code: Some("export default 1;\n".into()),
+      url: Some(SourceUrl::parse("custom:generated").unwrap()),
+      language: Some(AssetType::Js),
+      code_highlights: vec![CodeHighlight {
+        message: None,
+        start: Location { line: 1, column: 1 },
+        end: Location { line: 1, column: 6 },
+      }],
+    };
+    let mut ansi = Vec::new();
+    frame.report(&mut ansi).unwrap();
+    let ansi = String::from_utf8(ansi).unwrap();
+    assert!(ansi.contains("custom:generated"), "{ansi}");
+    assert_eq!(frame.location(), "custom:generated:1:1");
   }
 
   #[test]

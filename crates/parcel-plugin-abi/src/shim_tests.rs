@@ -77,6 +77,12 @@ InitStatus parcel_plugin_init(const struct ParcelApi *api, const uint8_t *config
                               uintptr_t config_len, void **state, DiagnosticOptions *diagnostic) {
   return parcel_api_compatible(&api->header) ? PARCEL_INIT_OK : PARCEL_INIT_INCOMPATIBLE;
 }
+InitStatus parcel_plugin_init2(const InitArgs *args, void **state, DiagnosticOptions *diagnostic) {
+  if (!parcel_api_compatible(&args->api->header)) return PARCEL_INIT_INCOMPATIBLE;
+  Buffer buf = {0};
+  parcel_fs_read_file(&buf, args->options, args->config_path, args->config_path_len);
+  return PARCEL_INIT_OK;
+}
 void parcel_plugin_deinit(void *state) {}
 void parcel_plugin_transform(Asset asset, Options options, void *state, DiagnosticOptions *diagnostic) {
   /* A transformer's own asset is readable through the AssetRef getters. */
@@ -101,6 +107,7 @@ void parcel_plugin_report(const ReportEvent *event, Options options, void *state
 
 /* And each is what Parcel loads it as. */
 ParcelPluginInitFn init = parcel_plugin_init;
+ParcelPluginInit2Fn init2 = parcel_plugin_init2;
 ParcelPluginDeinitFn deinit = parcel_plugin_deinit;
 ParcelPluginTransformFn transform = parcel_plugin_transform;
 ParcelPluginResolveFn resolve = parcel_plugin_resolve;
@@ -122,10 +129,10 @@ int main(void) {
     return;
   };
 
-  // Until the first alpha is released the first layout is the whole table, so
-  // FIRST_LAYOUT_END must move with every function added. From the alpha on,
-  // the table grows past it, and this compares against the alpha's last function.
-  let min_size = size_of::<crate::ParcelApi>();
+  // The first layout ends at the alpha's last function. Everything after it was
+  // appended since, and is checked per call.
+  let min_size =
+    std::mem::offset_of!(crate::ParcelApi, diagnostic_get_code_highlight) + size_of::<usize>();
   assert_eq!(
     output.trim(),
     format!("{min_size} {} 1 0 0", size_of::<crate::ParcelApi>())

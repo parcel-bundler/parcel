@@ -1,12 +1,13 @@
 use std::path::{Path, PathBuf};
 
 use parcel_plugin::{
-  Asset, DependencyOptions, Diagnostic, ExportsConditions, FileKind, ImportType, Options, Plugin,
-  ResolveResult, register_plugin,
+  Asset, CodeFrame, CodeHighlight, Config, DependencyOptions, Diagnostic, ExportsConditions,
+  FileKind, ImportType, Options, Plugin, ResolveResult, register_plugin,
 };
 use sasso::{CanonicalUrl, CanonicalizeContext, Importer, ImporterError, ImporterResult, Syntax};
 
 pub struct SassTransformer {
+  /// Absolute: relative ones in the config are resolved against its .parcelrc.
   load_paths: Vec<PathBuf>,
 }
 
@@ -18,15 +19,19 @@ struct SassOptions {
 }
 
 impl Plugin for SassTransformer {
-  fn new(config: &[u8]) -> Result<Self, Diagnostic> {
-    let options: SassOptions = if config.is_empty() {
+  fn new(config: &Config, _options: &Options) -> Result<Self, Diagnostic> {
+    let options: SassOptions = if config.bytes().is_empty() {
       Default::default()
     } else {
-      serde_json::from_slice(config)
+      serde_json::from_slice(config.bytes())
         .map_err(|err| Diagnostic::new(format!("Invalid Sass config: {err}")))?
     };
     Ok(SassTransformer {
-      load_paths: options.load_paths,
+      load_paths: options
+        .load_paths
+        .iter()
+        .map(|path| config.resolve_path(path))
+        .collect(),
     })
   }
 
@@ -35,19 +40,10 @@ impl Plugin for SassTransformer {
     // Sass works with URLs, which for files on disk are their paths.
     let file_path = asset.file_path().to_string_lossy().into_owned();
 
-    // The plugin is not told where the config that names it lives, so relative
-    // load paths are taken relative to the project root.
-    let project_root = PathBuf::from(options.project_root());
-    let load_paths: Vec<PathBuf> = self
-      .load_paths
-      .iter()
-      .map(|p| project_root.join(p))
-      .collect();
-
     let importer = ParcelImporter {
       asset,
       options,
-      load_paths: &load_paths,
+      load_paths: &self.load_paths,
       entry: &file_path,
     };
     let mut sass_options = sasso::Options::default();
@@ -62,9 +58,9 @@ impl Plugin for SassTransformer {
     };
 
     let result = sasso::compile_with_source_map(&code, &sass_options).map_err(|e| {
-      Diagnostic::new(e.message)
-        .with_file(file_path.clone())
-        .at(e.line as u32, e.col as u32)
+      Diagnostic::new(e.message).with_code_frame(
+        CodeFrame::file(&file_path).with_highlight(CodeHighlight::at(e.line as u32, e.col as u32)),
+      )
     })?;
 
     // The map's sources are the absolute paths of the stylesheet and everything it imported.

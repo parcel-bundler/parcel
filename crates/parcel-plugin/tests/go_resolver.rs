@@ -13,7 +13,14 @@ const LIB_EXT: &str = "dll";
 
 /// Builds the Go custom-resolver plugin from source and returns the path to the
 /// compiled shared library. Returns `None` if Go is not installed.
+/// Built once, since the tests run concurrently and would otherwise write the
+/// same library at the same time.
 fn build_go_resolver_plugin() -> Option<std::path::PathBuf> {
+  static BUILT: std::sync::OnceLock<Option<std::path::PathBuf>> = std::sync::OnceLock::new();
+  BUILT.get_or_init(build).clone()
+}
+
+fn build() -> Option<std::path::PathBuf> {
   if !common::go_available() {
     return None;
   }
@@ -100,4 +107,25 @@ fn test_go_resolver_plugin() {
     "Expected bundle to contain 'Hello from native resolver!', got:\n{}",
     content
   );
+}
+
+/// A Go plugin fails with a diagnostic that has several code frames,
+/// highlights and hints.
+#[test]
+fn test_go_resolver_fails_with_several_code_frames() {
+  let Some(plugin_path) = build_go_resolver_plugin() else {
+    eprintln!("Go not available – skipping Go resolver test");
+    return;
+  };
+  common::assert_resolver_fails_with_several_code_frames(&plugin_path);
+}
+
+/// A Go plugin logs a warning with several code frames without failing.
+#[test]
+fn test_go_resolver_logs_a_warning_with_several_code_frames() {
+  let Some(plugin_path) = build_go_resolver_plugin() else {
+    eprintln!("Go not available – skipping Go resolver test");
+    return;
+  };
+  common::assert_resolver_logs_a_warning_with_several_code_frames(&plugin_path);
 }

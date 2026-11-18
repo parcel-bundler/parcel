@@ -8,10 +8,14 @@
 #[path = "../../../core/tests/support/mod.rs"]
 mod test_utils;
 
-use std::{path::Path, sync::Arc};
+use std::{
+  path::Path,
+  sync::{Arc, Mutex},
+};
 
 use parcel_core::{
-  AssetType, BuildOptions, FileSystem, LogLevel, OsFileSystem, OverlayFileSystem, PathId,
+  AssetType, BuildOptions, CodeFrame, Diagnostic, DiagnosticList, FileSystem, LogEvent, LogLevel,
+  LogMessage, OsFileSystem, OverlayFileSystem, ParcelOptions, PathId, Reporter, ReporterEvent,
 };
 use parcel_sourcemap::SourceMap;
 
@@ -268,4 +272,137 @@ pub fn assert_read_error_passes_through_the_plugin(
     .collect();
   assert_eq!(reported.len(), 1, "got: {diagnostics:?}");
   assert!(reported[0].origin.is_some(), "got: {diagnostics:?}");
+}
+
+/// Records every diagnostic logged.
+#[derive(Default)]
+struct DiagnosticRecorder(Mutex<Vec<Diagnostic>>);
+
+impl Reporter for DiagnosticRecorder {
+  fn report(&self, event: &ReporterEvent, _options: &ParcelOptions) -> Result<(), DiagnosticList> {
+    if let ReporterEvent::Log(LogEvent {
+      message: LogMessage::Diagnostics(diagnostics),
+      ..
+    }) = event
+    {
+      self.0.lock().unwrap().extend(diagnostics.iter().cloned());
+    }
+    Ok(())
+  }
+}
+
+/// Builds `entry` in the native-resolver-diagnostics fixture with the
+/// custom-resolver example at `library`, returning the build's result and every
+/// diagnostic it logged.
+fn build_resolver_diagnostics_fixture(
+  entry: &str,
+  library: &Path,
+) -> (
+  Result<parcel_core::BundleGraph<'static>, DiagnosticList>,
+  Vec<Diagnostic>,
+) {
+  let stem = library.file_stem().unwrap().to_string_lossy();
+  let dir = std::env::temp_dir().join(format!("parcel-resolver-diagnostics-{stem}-{entry}"));
+  std::fs::create_dir_all(&dir).expect("create test directory");
+  let parcelrc_path = dir.join(".parcelrc");
+  std::fs::write(
+    &parcelrc_path,
+    format!(
+      r#"{{"extends":"@parcel/config-default","resolvers":[{:?}, "..."]}}"#,
+      library.to_str().unwrap()
+    ),
+  )
+  .expect("write parcelrc");
+
+  let reporter = Arc::new(DiagnosticRecorder::default());
+  let fixture_dir =
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/native-resolver-diagnostics");
+  let result = parcel::build(
+    &vec![entry.into()],
+    BuildOptions {
+      cwd: PathId::new(&fixture_dir),
+      config: Some(parcelrc_path.to_str().unwrap().to_owned()),
+      input_fs: Arc::new(OsFileSystem {}),
+      output_fs: Arc::new(OverlayFileSystem::new()),
+      mode: parcel_core::BuildMode::Development,
+      optimize: None,
+      content_hash: None,
+      env: Default::default(),
+      log_level: LogLevel::Verbose,
+      source_map: None,
+      dist_dir: None,
+      public_url: Default::default(),
+      hmr: None,
+      reporters: vec![reporter.clone()],
+    },
+  );
+  let logged = std::mem::take(&mut *reporter.0.lock().unwrap());
+  (result, logged)
+}
+
+fn file_name(frame: &CodeFrame) -> String {
+  let url = frame.url.as_ref().expect("frame has a URL").to_string();
+  url.rsplit('/').next().unwrap().to_owned()
+}
+
+/// The custom-resolver example at `library` fails to resolve a missing
+/// `custom:` module with two code frames, one of generated code, and two hints.
+pub fn assert_resolver_fails_with_several_code_frames(library: &Path) {
+  let (result, _) = build_resolver_diagnostics_fixture("missing.js", library);
+  let error = result.expect_err("resolving a missing module should fail");
+
+  let diagnostic = error
+    .0
+    .iter()
+    .find(|d| d.message == "Could not find custom module `nonexistent`")
+    .unwrap_or_else(|| panic!("no diagnostic from the resolver in {error:?}"));
+  assert_eq!(
+    diagnostic.hints.len(),
+    2,
+    "both hints should be reported: {diagnostic:?}"
+  );
+  assert!(diagnostic.hints[0].starts_with("Create "), "{diagnostic:?}");
+  assert_eq!(diagnostic.hints[1], "Or import a module that exists");
+
+  let [import, suggestion] = &diagnostic.code_frames[..] else {
+    panic!("expected two code frames: {diagnostic:?}");
+  };
+  assert_eq!(file_name(import), "missing.js");
+  assert_eq!(
+    import.code_highlights[0].message.as_deref(),
+    Some("`custom:nonexistent` imported here")
+  );
+  assert_eq!(
+    suggestion.url.as_ref().unwrap().to_string(),
+    "custom:nonexistent"
+  );
+  assert_eq!(
+    suggestion.code.as_deref(),
+    Some("export default \"nonexistent\";\n")
+  );
+  assert_eq!(suggestion.language, Some(AssetType::Js));
+  assert_eq!(
+    suggestion.code_highlights[0].message.as_deref(),
+    Some("create it like this")
+  );
+}
+
+/// The custom-resolver example at `library` logs a warning with two code frames
+/// for a `custom-deprecated:` import, without failing the build.
+pub fn assert_resolver_logs_a_warning_with_several_code_frames(library: &Path) {
+  let (result, logged) = build_resolver_diagnostics_fixture("deprecated.js", library);
+  result.unwrap_or_else(|e| panic!("parcel build failed: {e:?}"));
+
+  let warning = logged
+    .iter()
+    .find(|d| d.message == "`custom-deprecated:` is deprecated")
+    .unwrap_or_else(|| panic!("no warning from the resolver in {logged:?}"));
+  assert_eq!(warning.severity, parcel_core::DiagnosticSeverity::Warning);
+  assert_eq!(warning.hints, ["Import `custom:greeting` instead"]);
+  let frames: Vec<String> = warning.code_frames.iter().map(file_name).collect();
+  assert_eq!(frames, ["deprecated.js", "greeting.js"]);
+  assert_eq!(
+    warning.code_frames[1].code_highlights[0].message.as_deref(),
+    Some("resolved to this")
+  );
 }

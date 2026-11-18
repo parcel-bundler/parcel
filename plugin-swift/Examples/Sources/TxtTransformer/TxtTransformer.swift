@@ -13,7 +13,7 @@ struct TxtTransformer: Transformer {
 
   let prefix: String
 
-  init(config: Config) {
+  init(config: Config, context: InitContext) {
     prefix = config.prefix ?? ""
   }
 

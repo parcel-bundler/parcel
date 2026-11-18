@@ -121,6 +121,70 @@ static void test_options_log_diagnostic(Options options, const struct Diagnostic
   test_diagnostic_size = diagnostic->size;
 }
 
+// The one diagnostics list the host below hands out, both in the out-params
+// sizedDiagnostic returns and from diagnostics_create. It records the sizes of
+// the structs a plugin builds a diagnostic with, and the last diagnostic pushed
+// to it.
+#define TEST_DIAGNOSTICS_LIST 11
+static size_t test_entry_size, test_frame_size, test_highlight_size;
+static int test_pushed_count, test_frame_count, test_hint_count;
+static uint32_t test_highlight_end_line, test_highlight_end_column;
+static char test_pushed_message[256], test_highlight_message[256], test_documentation_url[256];
+static size_t test_get_entry_size(void) { return test_entry_size; }
+static size_t test_get_frame_size(void) { return test_frame_size; }
+static size_t test_get_highlight_size(void) { return test_highlight_size; }
+static int test_get_pushed_count(void) { return test_pushed_count; }
+static const char *test_get_pushed_message(void) { return test_pushed_message; }
+static uint32_t test_get_highlight_end_line(void) { return test_highlight_end_line; }
+static uint32_t test_get_highlight_end_column(void) { return test_highlight_end_column; }
+static const char *test_get_highlight_message(void) { return test_highlight_message; }
+static const char *test_get_documentation_url(void) { return test_documentation_url; }
+
+static void test_copy_string(char *dst, size_t cap, const uint8_t *src, uintptr_t len) {
+  size_t n = len < cap - 1 ? len : cap - 1;
+  if (n) memcpy(dst, src, n);
+  dst[n] = 0;
+}
+
+static void test_reset_diagnostics(void) {
+  test_entry_size = test_frame_size = test_highlight_size = 0;
+  test_pushed_count = test_frame_count = test_hint_count = 0;
+  test_highlight_end_line = test_highlight_end_column = 0;
+  test_pushed_message[0] = test_highlight_message[0] = test_documentation_url[0] = 0;
+}
+
+static Diagnostics test_diagnostics_create(Options options) { return TEST_DIAGNOSTICS_LIST; }
+
+static bool test_diagnostics_push(Diagnostics list, const struct DiagnosticEntryOptions *diagnostic) {
+  if (list != TEST_DIAGNOSTICS_LIST || diagnostic->message_len == 0) return false;
+  test_entry_size = diagnostic->size;
+  test_pushed_count++;
+  test_frame_count = test_hint_count = 0;
+  test_copy_string(test_pushed_message, sizeof(test_pushed_message), diagnostic->message, diagnostic->message_len);
+  test_copy_string(test_documentation_url, sizeof(test_documentation_url), diagnostic->documentation_url,
+                   diagnostic->documentation_url_len);
+  return true;
+}
+
+static bool test_diagnostics_add_code_frame(Diagnostics list, const struct CodeFrameOptions *frame) {
+  test_frame_size = frame->size;
+  test_frame_count++;
+  return list == TEST_DIAGNOSTICS_LIST;
+}
+
+static bool test_diagnostics_add_code_highlight(Diagnostics list, const struct CodeHighlightOptions *highlight) {
+  test_highlight_size = highlight->size;
+  test_highlight_end_line = highlight->end_line;
+  test_highlight_end_column = highlight->end_column;
+  test_copy_string(test_highlight_message, sizeof(test_highlight_message), highlight->message, highlight->message_len);
+  return list == TEST_DIAGNOSTICS_LIST;
+}
+
+static bool test_diagnostics_add_hint(Diagnostics list, const uint8_t *hint, uintptr_t hint_len) {
+  test_hint_count++;
+  return list == TEST_DIAGNOSTICS_LIST;
+}
+
 // The host function a plugin last called to hand over content or a name.
 static const char *test_last_call = "";
 static const char *test_get_last_call(void) { return test_last_call; }
@@ -183,6 +247,12 @@ static void install_sized_struct_api(struct ParcelApi *api) {
   api->bundle_graph_get_dependency_resolution = test_bundle_graph_get_dependency_resolution;
   api->target_get_engines = test_target_get_engines;
   api->options_log_diagnostic = test_options_log_diagnostic;
+  api->diagnostics_create = test_diagnostics_create;
+  api->diagnostics_push = test_diagnostics_push;
+  api->diagnostics_add_code_frame = test_diagnostics_add_code_frame;
+  api->diagnostics_add_code_highlight = test_diagnostics_add_code_highlight;
+  api->diagnostics_add_hint = test_diagnostics_add_hint;
+  test_reset_diagnostics();
 }
 */
 import "C"
@@ -193,7 +263,7 @@ import (
 )
 
 // hostAPI allocates a host function table matching what this SDK was built
-// against, as Parcel would pass to parcel_plugin_init. sizeDelta and abiDelta
+// against, as Parcel would pass to parcel_plugin_init2. sizeDelta and abiDelta
 // adjust the reported size and ABI version to stand in for a Parcel that appended
 // functions or made a breaking change. The function pointers are left nil.
 //
@@ -217,6 +287,16 @@ func freeHostAPI(api *C.struct_ParcelApi) {
 	C.free(unsafe.Pointer(api))
 }
 
+// initPlugin calls parcel_plugin_init2 as Parcel would, with api and an empty
+// config, writing the plugin's state to state.
+func initPlugin(api *C.struct_ParcelApi, state *unsafe.Pointer, diag *C.DiagnosticOptions) C.InitStatus {
+	args := (*C.InitArgs)(C.calloc(1, C.sizeof_InitArgs))
+	defer C.free(unsafe.Pointer(args))
+	args.size = C.sizeof_InitArgs
+	args.api = api
+	return parcel_plugin_init2(args, state, diag)
+}
+
 // okStatus and incompatibleStatus expose the C enum values to tests, which
 // cannot reference C types themselves.
 func okStatus() C.InitStatus {
@@ -227,9 +307,16 @@ func incompatibleStatus() C.InitStatus {
 	return C.InitStatus(C.PARCEL_INIT_INCOMPATIBLE)
 }
 
-// diagnosticWritten reports whether a plugin filled in a diagnostic.
+// diagnosticWritten reports whether a plugin filled in a diagnostic: built one
+// in the test host's list, or set the struct's own message.
 func diagnosticWritten(diag *C.DiagnosticOptions) bool {
-	return diag != nil && diag.message.data != nil
+	if diag == nil {
+		return false
+	}
+	if diag.diagnostics == C.TEST_DIAGNOSTICS_LIST {
+		return C.test_get_pushed_count() > 0
+	}
+	return diag.message.data != nil
 }
 
 // testSourceMap is the map the host from [withSourceMapHost] returns for
@@ -257,6 +344,9 @@ func (sizedHost) dependencySize() uintptr    { return uintptr(C.test_get_depende
 func (sizedHost) resolveResultSize() uintptr { return uintptr(C.test_get_resolve_result_size()) }
 func (sizedHost) resolutionSize() uintptr    { return uintptr(C.test_get_resolution_size()) }
 func (sizedHost) diagnosticSize() uintptr    { return uintptr(C.test_get_diagnostic_size()) }
+func (sizedHost) entrySize() uintptr         { return uintptr(C.test_get_entry_size()) }
+func (sizedHost) frameSize() uintptr         { return uintptr(C.test_get_frame_size()) }
+func (sizedHost) highlightSize() uintptr     { return uintptr(C.test_get_highlight_size()) }
 func (sizedHost) enginesSize() uintptr       { return uintptr(C.test_get_engines_size()) }
 func (sizedHost) specifier() string          { return C.GoString(C.test_get_specifier()) }
 
@@ -266,6 +356,9 @@ const (
 	resolveResultSize     = C.sizeof_ResolveResult
 	resolutionSize        = C.sizeof_BundleGraphDependencyResolution
 	diagnosticSize        = C.sizeof_DiagnosticOptions
+	entrySize             = C.sizeof_DiagnosticEntryOptions
+	frameSize             = C.sizeof_CodeFrameOptions
+	highlightSize         = C.sizeof_CodeHighlightOptions
 	enginesSize           = C.sizeof_Engines
 	reportEventSize       = C.sizeof_ReportEvent
 )
@@ -285,6 +378,8 @@ const (
 // rejects a dependency added to the asset with handle 0. Its resolve answers
 // with the ResolutionType given as the asset handle, and its dependency
 // resolution with the BundleGraphResolutionType given as the asset index.
+// Its diagnostic list builders record what a plugin builds, for
+// [diagnosticMessage] and [rangeAndLinks] to read back.
 func withSizedStructHost(body func(host sizedHost)) {
 	api := hostAPI(0, 0)
 	defer freeHostAPI(api)
@@ -337,32 +432,33 @@ func assetWithHandle(handle uint64) *Asset {
 	return &Asset{ptr: C.Asset(handle)}
 }
 
-// sizedDiagnostic returns a zeroed Diagnostic whose size is set, as Parcel passes
-// one to an entry point, and a function that frees it.
+// sizedDiagnostic returns a zeroed Diagnostic whose size is set and whose list
+// is the one the host from [withSizedStructHost] records, as Parcel passes one
+// to an entry point, and a function that frees it.
 func sizedDiagnostic(size uintptr) (*C.DiagnosticOptions, func()) {
 	diag := (*C.DiagnosticOptions)(C.calloc(1, C.sizeof_DiagnosticOptions))
 	diag.size = C.uintptr_t(size)
+	diag.diagnostics = C.TEST_DIAGNOSTICS_LIST
+	C.test_reset_diagnostics()
 	return diag, func() {
 		C.test_buffer_free(&diag.message)
 		C.free(unsafe.Pointer(diag))
 	}
 }
 
-// rangeAndLinks reports what a plugin wrote to a diagnostic's highlight end,
-// highlight message and documentation URL, freeing the buffers among them.
-func rangeAndLinks(diag *C.DiagnosticOptions) (endLine, endColumn uint32, highlightMessage, documentationURL string) {
-	read := func(buf *C.Buffer) string {
-		if buf.data == nil {
-			return ""
-		}
-		defer C.test_buffer_free(buf)
-		return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), C.int(buf.len))
-	}
-	return uint32(diag.end_line), uint32(diag.end_column), read(&diag.highlight_message), read(&diag.documentation_url)
+// rangeAndLinks reports the end and message of the last highlight, and the
+// documentation URL, of the diagnostic last built in the test host's list.
+func rangeAndLinks() (endLine, endColumn uint32, highlightMessage, documentationURL string) {
+	return uint32(C.test_get_highlight_end_line()), uint32(C.test_get_highlight_end_column()),
+		C.GoString(C.test_get_highlight_message()), C.GoString(C.test_get_documentation_url())
 }
 
-// diagnosticMessage returns the message a plugin wrote to diag, or "".
+// diagnosticMessage returns the message a plugin wrote to diag: of the
+// diagnostic last built in the test host's list, or else the struct's own.
 func diagnosticMessage(diag *C.DiagnosticOptions) string {
+	if diag.diagnostics == C.TEST_DIAGNOSTICS_LIST && C.test_get_pushed_count() > 0 {
+		return C.GoString(C.test_get_pushed_message())
+	}
 	return goString(unsafe.Pointer(diag.message.data), uintptr(diag.message.len))
 }
 
@@ -393,7 +489,7 @@ func withUTF8Host(body func(lastCall func() string)) {
 	body(func() string { return C.GoString(C.test_get_last_call()) })
 }
 
-// pluginState returns the state parcel_plugin_init would produce for plugin,
+// pluginState returns the state parcel_plugin_init2 would produce for plugin,
 // without installing a host table the way init does, and a function that frees
 // it.
 func pluginState(plugin any) (unsafe.Pointer, func()) {

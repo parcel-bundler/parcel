@@ -16,15 +16,17 @@ use crate::{
 /// What an [`Options`] handle points to.
 ///
 /// The handle is opaque to plugins, so it can carry more than the options
-/// themselves. During a transform or a resolve it also carries the
+/// themselves. During an init, a transform or a resolve it also carries the
 /// [`PluginContext`]: the file system that records every path a plugin reads as
-/// an invalidation, and the resolver chain `parcel_asset_resolve` runs. Elsewhere
+/// an invalidation, and the resolver chain `parcel_asset_resolve` runs (empty
+/// during init, when the resolvers are still being loaded). Elsewhere
 /// it is `None`, and those functions report an error rather than read files
 /// nothing would ever invalidate.
 ///
 /// It also owns the [`Diagnostics`] lists Parcel hands the plugin during the
-/// call, so that they live exactly as long as the call and the plugin never has
-/// to free one.
+/// call, and those the plugin builds, so that they live exactly as long as the
+/// call and the plugin never has to free one. Among them is the list the call's
+/// diagnostic out-param starts out pointing to, from [`OptionsContext::out_param`].
 ///
 /// Lives on the host's stack for the duration of the plugin call that receives
 /// the handle, exactly as the bare options pointer did.
@@ -35,6 +37,10 @@ pub(crate) struct OptionsContext<'a> {
   /// Boxed, so a handle stays valid as more are added. Behind a mutex because a
   /// plugin may call into Parcel from several threads during one call.
   diagnostics: Mutex<Vec<Box<DiagnosticsView<'static>>>>,
+  /// The list the plugin reports a failure through. Not boxed, so that a call
+  /// that reports nothing allocates nothing: its handle points into this
+  /// context, which stays put for the duration of the call.
+  out: DiagnosticsView<'static>,
 }
 
 impl<'a> OptionsContext<'a> {
@@ -44,39 +50,57 @@ impl<'a> OptionsContext<'a> {
       options,
       plugin: None,
       diagnostics: Mutex::default(),
+      out: DiagnosticsView::writable(),
     }
   }
 
-  /// For transforms and resolves.
+  /// For inits, transforms and resolves.
   pub fn with_plugin(plugin: &'a PluginContext<'a>) -> Self {
     OptionsContext {
       options: plugin.options,
       plugin: Some(plugin),
       diagnostics: Mutex::default(),
+      out: DiagnosticsView::writable(),
     }
   }
 
   /// Hands the plugin `diagnostics` as a list that lives until this call returns.
   pub fn hand_out(&self, diagnostics: Vec<CoreDiagnostic>) -> Diagnostics {
-    let view = Box::new(DiagnosticsView {
-      diagnostics: Cow::Owned(diagnostics),
-    });
-    let handle = &*view as *const DiagnosticsView as Diagnostics;
+    self.keep(DiagnosticsView::read_only(Cow::Owned(diagnostics)))
+  }
+
+  /// An empty list the plugin can add to, that lives until this call returns.
+  pub fn create_list(&self) -> Diagnostics {
+    self.keep(DiagnosticsView::writable())
+  }
+
+  fn keep(&self, view: DiagnosticsView<'static>) -> Diagnostics {
+    let view = Box::new(view);
+    let handle = view.handle();
     self.diagnostics.lock().unwrap().push(view);
     handle
   }
 
-  /// The diagnostics in `handle`, if it is a list this call handed out. Any other
-  /// handle, including one from an earlier call, is ignored: it may be freed.
+  /// The diagnostic out-param to pass to an entry point, whose `diagnostics` is
+  /// the call's list for reporting a failure: one the plugin can push to
+  /// without creating it.
+  pub fn out_param(&self) -> DiagnosticOptions {
+    self.out.out_param()
+  }
+
+  /// The diagnostics in `handle`, if it is a list this call handed out or the
+  /// plugin built during it. Any other handle, including one from an earlier
+  /// call, is ignored: it may be freed.
   pub fn call_diagnostics(&self, handle: Diagnostics) -> Option<Vec<CoreDiagnostic>> {
     if handle == 0 {
       return None;
     }
+    if handle == self.out.handle() {
+      return Some(self.out.to_vec());
+    }
     let lists = self.diagnostics.lock().unwrap();
-    let view = lists
-      .iter()
-      .find(|view| &***view as *const DiagnosticsView as Diagnostics == handle)?;
-    Some(view.diagnostics.to_vec())
+    let view = lists.iter().find(|view| view.handle() == handle)?;
+    Some(view.to_vec())
   }
 
   pub fn fs(&self) -> Option<&'a dyn FileSystem> {

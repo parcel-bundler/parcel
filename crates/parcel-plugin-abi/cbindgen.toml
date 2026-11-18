@@ -2,14 +2,14 @@ language = "C"
 header = """/*
  * Parcel's native plugin ABI. A plugin is a shared library that defines the
  * parcel_plugin_* entry points declared at the end of this file, and calls back
- * into Parcel through the ParcelApi table it receives in parcel_plugin_init().
+ * into Parcel through the ParcelApi table it receives in parcel_plugin_init2().
  *
  * Threading: Parcel calls a plugin from many threads, and calls overlap. Every
  * call for one .parcelrc entry receives the same `state`, so anything in it that
  * changes needs synchronizing. Today, transforms and resolves run in parallel
  * with each other, as do optimizers and custom content packaging, and log
  * events reach parcel_plugin_report() on whichever thread logged them, alongside
- * everything else. parcel_plugin_init() may run concurrently for different
+ * everything else. parcel_plugin_init2() may run concurrently for different
  * entries; parcel_plugin_deinit() runs once no other call for its entry is
  * running. Custom content callbacks run on any thread, possibly in a later
  * build, and possibly after parcel_plugin_deinit().
@@ -17,6 +17,16 @@ header = """/*
  * Lifetimes: a handle is valid only until the call that received or obtained it
  * returns, unless its documentation says otherwise. Never keep one in plugin
  * state or custom content.
+ *
+ * Memory: what Parcel reads during a call, it only borrows. Strings and bytes a
+ * plugin passes into a call, as a pointer and length, whether as arguments or in
+ * an options struct, may point at the plugin's own memory, and Parcel copies
+ * what it keeps before returning. What Parcel reads after a call returns, it
+ * owns: an entry point's output, such as its `DiagnosticOptions` or
+ * `ResolveResult`, holds `Buffer`s the plugin allocated with
+ * parcel_buffer_alloc(), which Parcel frees. And a `Buffer` Parcel fills in for
+ * the plugin, such as a getter's, is the plugin's to free with
+ * parcel_buffer_free().
  */"""
 include_guard = "PARCEL_PLUGIN_H"
 cpp_compat = true
@@ -24,7 +34,7 @@ no_includes = true
 sys_includes = ["stddef.h", "stdint.h", "stdbool.h"]
 
 [export]
-include = ["ParcelApi", "InitStatus", "DiagnosticOptions", "DiagnosticSeverity", "ResolveResult", "ResolutionType", "OptimizeResult", "ReportEvent", "ReportEventType", "LogLevel", "SpecifierType", "Priority", "BundleBehavior", "ImportType", "DependencyFlags", "ExportsConditions", "AssetFlags", "EnvironmentFlags", "BundleFlags", "FileKind", "BundleGraphDependencyResolution", "Engines", "PARCEL_INVALID_ASSET_INDEX", "AssetRef", "ParcelPluginInitFn", "ParcelPluginDeinitFn", "ParcelPluginTransformFn", "ParcelPluginResolveFn", "ParcelPluginNameFn", "ParcelPluginOptimizeFn", "ParcelPluginReportFn"]
+include = ["ParcelApi", "InitStatus", "DiagnosticOptions", "DiagnosticSeverity", "ResolveResult", "ResolutionType", "OptimizeResult", "ReportEvent", "ReportEventType", "LogLevel", "SpecifierType", "Priority", "BundleBehavior", "ImportType", "DependencyFlags", "ExportsConditions", "AssetFlags", "EnvironmentFlags", "BundleFlags", "FileKind", "BundleGraphDependencyResolution", "Engines", "PARCEL_INVALID_ASSET_INDEX", "AssetRef", "InitArgs", "ParcelPluginInitFn", "ParcelPluginInit2Fn", "ParcelPluginDeinitFn", "ParcelPluginTransformFn", "ParcelPluginResolveFn", "ParcelPluginNameFn", "ParcelPluginOptimizeFn", "ParcelPluginReportFn"]
 exclude = ["CPlugin", "AssetFlagsFFI", "DependencyFlagsFFI", "ExportsConditionsFFI", "EnvironmentFlagsFFI", "BundleFlagsFFI", "FileKindFFI", "SpecifierTypeFFI", "PriorityFFI", "BundleBehaviorFFI", "ImportTypeFFI", "DiagnosticSeverityFFI", "ResolutionTypeFFI", "LogLevelFFI", "InitStatusFFI"]
 
 [export.rename]

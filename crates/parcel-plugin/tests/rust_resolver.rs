@@ -1,3 +1,5 @@
+mod common;
+
 use std::{path::Path, sync::Arc};
 
 use parcel_core::{BuildOptions, FileSystem, LogLevel, OsFileSystem, OverlayFileSystem, PathId};
@@ -101,4 +103,17 @@ fn test_rust_resolver_plugin() {
     "Expected bundle to contain 'Hello from native resolver!', got:\n{}",
     content
   );
+}
+
+/// A native plugin fails with a diagnostic that has several code frames,
+/// highlights and hints.
+#[test]
+fn test_rust_resolver_fails_with_several_code_frames() {
+  common::assert_resolver_fails_with_several_code_frames(&build_rust_resolver_plugin());
+}
+
+/// A native plugin logs a warning with several code frames without failing.
+#[test]
+fn test_rust_resolver_logs_a_warning_with_several_code_frames() {
+  common::assert_resolver_logs_a_warning_with_several_code_frames(&build_rust_resolver_plugin());
 }

@@ -7,7 +7,10 @@ use parcel_core::{
   DiagnosticSeverity as CoreDiagnosticSeverity, Location, PathId, SourceUrl,
 };
 
-use crate::{Buffer, Diagnostics, OptionsContext, extensible::read_extensible, parcel_buffer_free};
+use crate::{
+  Buffer, Diagnostics, OptionsContext, diagnostics::DiagnosticsView, extensible::read_extensible,
+  parcel_buffer_free,
+};
 
 // DiagnosticSeverity — CDiagnostic.severity field
 #[repr(u8)]
@@ -42,16 +45,27 @@ impl_enum_conversion! {
 /// Describes a diagnostic a plugin reports: the error an entry point fails with,
 /// or a warning it logs with `parcel_options_log_diagnostic()`.
 ///
-/// Parcel allocates the one each entry point receives, zeroed apart from `size`,
-/// and frees every `Buffer` in it once the call returns; fill them with
-/// `parcel_buffer_alloc()`. The call fails when `message` or `diagnostics` is set.
-/// To log one, initialize it as `DiagnosticOptions d = {.size = sizeof(DiagnosticOptions)};`,
-/// and free its buffers after the call: Parcel copies what it needs.
+/// Parcel allocates the one each entry point receives, zeroed apart from `size`
+/// and `diagnostics`, and frees every `Buffer` in it once the call returns; fill
+/// them with `parcel_buffer_alloc()`. The call fails when `message` is set, or
+/// `diagnostics` holds any. To log one, initialize it as
+/// `DiagnosticOptions d = {.size = sizeof(DiagnosticOptions)};`, and free its
+/// buffers after the call: Parcel copies what it needs.
 ///
-/// It describes one diagnostic with at most one code frame, highlight and hint.
+/// Its own fields describe one diagnostic with at most one code frame,
+/// highlight and hint. Anything more is built in a list instead:
+/// `parcel_diagnostics_push()` a diagnostic to it, then add to it with
+/// `parcel_diagnostics_add_code_frame()`, `parcel_diagnostics_add_code_highlight()`
+/// and `parcel_diagnostics_add_hint()`, which take their strings as a pointer
+/// and length, so nothing needs allocating. The list to fail an entry point with
+/// is already in the `diagnostics` field of the one it received; to log one,
+/// create a list with `parcel_diagnostics_create()` and set `diagnostics` to it.
+/// Where Parcel provides these, building every diagnostic this way, leaving the
+/// struct's own fields empty, is simplest.
+///
 /// To report diagnostics Parcel handed the plugin, such as those of a failed read,
-/// set `diagnostics` to their list. Parcel reports them exactly as they were, after
-/// the diagnostic `message` describes, if it is set too.
+/// set `diagnostics` to their list instead. Either way, Parcel reports the list's
+/// diagnostics after the one `message` describes, if it is set too.
 ///
 /// Only write fields that fit within `size`, which an older Parcel sets lower than
 /// `sizeof(DiagnosticOptions)`; `PARCEL_HAS_FIELD()` checks. Parcel ignores fields it
@@ -78,8 +92,9 @@ pub struct DiagnosticOptions {
   pub end_column: u32,
   /// A URL to documentation about the diagnostic.
   pub documentation_url: Buffer,
-  /// Diagnostics Parcel handed the plugin during this call, to report as well, or 0. A list from
-  /// any other call is ignored.
+  /// Diagnostics to report as well, or 0: a list the plugin built or Parcel handed it during this
+  /// call. A list from any other call is ignored. In the one an entry point receives, Parcel sets
+  /// it to an empty list for the plugin to push to; an older Parcel leaves it 0.
   pub diagnostics: Diagnostics,
 }
 
@@ -95,8 +110,9 @@ impl_extensible!(
 /// frees the buffers it allocated. Empty when it reported none.
 ///
 /// `context` is the call's, which an attached `diagnostics` list must belong to.
-/// Without one, as during init or a custom content read, only the diagnostic the
-/// struct itself describes is read.
+/// Without one, only the diagnostic the struct itself describes is read: a call
+/// with no `Options`, such as a custom content read, reads its out-param's list
+/// with [`read_out_diagnostic`] instead.
 ///
 /// To read one the plugin still owns — a logged diagnostic, say — use
 /// [`copy_cdiagnostic`].
@@ -118,6 +134,20 @@ pub(crate) fn read_cdiagnostic(
     parcel_buffer_free(buffer);
   }
 
+  diagnostics
+}
+
+/// [`read_cdiagnostic`], for a call with no [`OptionsContext`], whose
+/// out-param's list is `out`.
+pub(crate) fn read_out_diagnostic(
+  diag: &mut DiagnosticOptions,
+  out: &DiagnosticsView,
+) -> Vec<CoreDiagnostic> {
+  let attached = diag.diagnostics;
+  let mut diagnostics = read_cdiagnostic(diag, None);
+  if attached == out.handle() {
+    diagnostics.extend(out.to_vec());
+  }
   diagnostics
 }
 

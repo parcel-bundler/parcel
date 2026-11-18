@@ -21,7 +21,7 @@ package parcel
 #define PARCEL_NO_ENTRY_POINT_PROTOTYPES
 #include "plugin.h"
 
-// parcel_api is defined in api.c and assigned by parcel_plugin_init below.
+// parcel_api is defined in api.c and assigned by parcel_plugin_init2 below.
 // Plugins link against no Parcel symbols, so no linker flags are needed on any
 // platform. This preamble must stay free of definitions: the file has //export
 // directives, so cgo copies it into more than one translation unit.
@@ -32,6 +32,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path/filepath"
 	"runtime"
 	"runtime/cgo"
 	"sync"
@@ -122,16 +123,41 @@ type OptimizeResult struct {
 	SourceMap string
 }
 
+// Config is a .parcelrc entry's configuration, passed to the factory given to
+// [RegisterPlugin].
+type Config struct {
+	// Bytes is the entry's options as JSON, nil when it has none.
+	Bytes []byte
+	// Path is the absolute path of the .parcelrc file whose entry named the
+	// plugin. When the entry comes from a config that file extends, this is that
+	// config's path.
+	Path string
+}
+
+// ResolvePath resolves path, as written in the options, against the directory
+// of the .parcelrc they came from. An absolute path is returned cleaned.
+func (c *Config) ResolvePath(path string) string {
+	if filepath.IsAbs(path) {
+		return filepath.Clean(path)
+	}
+	return filepath.Join(filepath.Dir(c.Path), path)
+}
+
 // pluginFactory is the registered plugin factory function.
-var pluginFactory func(config []byte) (any, error)
+var pluginFactory func(config *Config, options *Options) (any, error)
 
 // RegisterPlugin sets the factory Parcel calls for each .parcelrc entry naming
-// the plugin, with that entry's config as JSON (nil when it has none). The
-// factory returns the plugin: a value implementing at least one of
-// [Transformer], [Resolver], [Namer], [Optimizer] and the reporter interfaces.
+// the plugin, with that entry's config. The factory returns the plugin: a value
+// implementing at least one of [Transformer], [Resolver], [Namer], [Optimizer]
+// and the reporter interfaces.
+//
+// Files the factory reads through options, such as with [Options.ReadFile], are
+// tracked: when one changes, Parcel starts over and calls the factory again, so
+// read configuration files that way rather than with the os package. options is
+// valid only until the factory returns.
 //
 // Call RegisterPlugin once, from an init() function in the plugin's main package.
-func RegisterPlugin(factory func(config []byte) (any, error)) {
+func RegisterPlugin(factory func(config *Config, options *Options) (any, error)) {
 	pluginFactory = factory
 }
 
@@ -174,8 +200,14 @@ func isReporter(plugin any) bool {
 // .parcelrc entries naming this library at once.
 var installAPI sync.Mutex
 
-//export parcel_plugin_init
-func parcel_plugin_init(api *C.struct_ParcelApi, config *C.uint8_t, configLen C.uintptr_t, outState *unsafe.Pointer, diag *C.DiagnosticOptions) (status C.InitStatus) {
+//export parcel_plugin_init2
+func parcel_plugin_init2(args *C.InitArgs, outState *unsafe.Pointer, diag *C.DiagnosticOptions) (status C.InitStatus) {
+	if args == nil {
+		return C.InitStatus(C.PARCEL_INIT_INCOMPATIBLE)
+	}
+	// Every field read here is in the first layout, which any Parcel calling
+	// parcel_plugin_init2 fills in.
+	api := args.api
 	defer func() {
 		if value := recover(); value != nil {
 			status = C.InitStatus(C.PARCEL_INIT_ERROR)
@@ -199,11 +231,14 @@ func parcel_plugin_init(api *C.struct_ParcelApi, config *C.uint8_t, configLen C.
 		writeDiagnostic(diag, errNotRegistered)
 		return C.InitStatus(C.PARCEL_INIT_ERROR)
 	}
-	var data []byte
-	if configLen > 0 && config != nil {
-		data = goBytes(unsafe.Pointer(config), uintptr(configLen))
+	config := &Config{}
+	if args.config_len > 0 && args.config != nil {
+		config.Bytes = goBytes(unsafe.Pointer(args.config), uintptr(args.config_len))
 	}
-	plugin, err := pluginFactory(data)
+	if args.config_path_len > 0 && args.config_path != nil {
+		config.Path = string(goBytes(unsafe.Pointer(args.config_path), uintptr(args.config_path_len)))
+	}
+	plugin, err := pluginFactory(config, &Options{ptr: args.options})
 	if err == nil && !hasRole(plugin) {
 		err = fmt.Errorf("the plugin factory returned %T, which implements none of Transformer, Resolver, Namer, Optimizer and the reporter interfaces", plugin)
 	}
@@ -450,6 +485,19 @@ func recoverCleanupPanic() {
 // older Parcel's smaller struct. Every field written here is in the first layout; a field
 // added later must check raw.size before writing it.
 func writeDiagnostic(raw *C.DiagnosticOptions, err error) {
+	writeDiagnosticWithList(raw, err, nil)
+}
+
+// writeDiagnosticWithList is writeDiagnostic, building the diagnostic in a list
+// and setting raw.diagnostics to it: the one list returns when it is not nil,
+// which creates one to log through, or else the out-param's own, which Parcel
+// fills in. Parcel only borrows what the list's builders are passed, so nothing
+// is allocated.
+//
+// Should the list reject it, which no Parcel providing parcel_plugin_init2
+// does for a diagnostic this builds, the struct's own message is set instead,
+// so a failure is never mistaken for success.
+func writeDiagnosticWithList(raw *C.DiagnosticOptions, err error, list func() C.Diagnostics) {
 	if raw == nil || err == nil {
 		return
 	}
@@ -467,23 +515,78 @@ func writeDiagnostic(raw *C.DiagnosticOptions, err error) {
 		// turn this failure into a success.
 		message = "unknown error"
 	}
-	writeBuffer := func(buf *C.Buffer, s string) {
-		if len(s) == 0 {
-			return
-		}
-		data := []byte(s)
-		*buf = C.parcel_buffer_alloc((*C.uint8_t)(unsafe.Pointer(&data[0])), C.uintptr_t(len(data)))
+
+	target := raw.diagnostics
+	if list != nil {
+		target = list()
 	}
-	writeBuffer(&raw.message, message)
-	raw.severity = C.DiagnosticSeverity(d.Severity)
-	writeBuffer(&raw.file_path, d.FilePath)
-	raw.line = C.uint32_t(d.Line)
-	raw.column = C.uint32_t(d.Column)
-	writeBuffer(&raw.hint, d.Hint)
-	raw.end_line = C.uint32_t(d.EndLine)
-	raw.end_column = C.uint32_t(d.EndColumn)
-	writeBuffer(&raw.highlight_message, d.HighlightMessage)
-	writeBuffer(&raw.documentation_url, d.DocumentationURL)
+	if d.buildInList(target, message) {
+		raw.diagnostics = target
+	} else {
+		raw.message = allocBuffer(message)
+		raw.severity = C.DiagnosticSeverity(d.Severity)
+	}
+}
+
+// buildInList builds d, with message, in list. It returns false, having added
+// nothing, when Parcel rejects it.
+//
+// Parcel copies what it keeps before each call returns, so every string is
+// passed by reference to d's own. They are pinned, since cgo forbids passing C
+// a struct that holds an unpinned pointer into the Go heap.
+func (d *Diagnostic) buildInList(list C.Diagnostics, message string) bool {
+	var pinner runtime.Pinner
+	defer pinner.Unpin()
+	borrow := func(s string) (*C.uint8_t, C.uintptr_t) {
+		if len(s) > 0 {
+			pinner.Pin(unsafe.StringData(s))
+		}
+		return stringPtr(s), C.uintptr_t(len(s))
+	}
+
+	var entry C.DiagnosticEntryOptions
+	entry.size = C.sizeof_DiagnosticEntryOptions
+	entry.severity = C.DiagnosticSeverity(d.Severity)
+	entry.message, entry.message_len = borrow(message)
+	entry.documentation_url, entry.documentation_url_len = borrow(d.DocumentationURL)
+	if !C.parcel_diagnostics_push(list, &entry) {
+		return false
+	}
+
+	for _, frame := range d.CodeFrames {
+		var options C.CodeFrameOptions
+		options.size = C.sizeof_CodeFrameOptions
+		options.file_path, options.file_path_len = borrow(frame.FilePath)
+		options.url, options.url_len = borrow(frame.URL)
+		options.code, options.code_len = borrow(frame.Code)
+		options.language, options.language_len = borrow(frame.Language)
+		C.parcel_diagnostics_add_code_frame(list, &options)
+		for _, highlight := range frame.Highlights {
+			var options C.CodeHighlightOptions
+			options.size = C.sizeof_CodeHighlightOptions
+			options.start_line = C.uint32_t(highlight.StartLine)
+			options.start_column = C.uint32_t(highlight.StartColumn)
+			options.end_line = C.uint32_t(highlight.EndLine)
+			options.end_column = C.uint32_t(highlight.EndColumn)
+			options.message, options.message_len = borrow(highlight.Message)
+			C.parcel_diagnostics_add_code_highlight(list, &options)
+		}
+	}
+	for _, hint := range d.Hints {
+		// Passed directly rather than in a struct, so there is nothing to pin.
+		C.parcel_diagnostics_add_hint(list, stringPtr(hint), C.uintptr_t(len(hint)))
+	}
+	return true
+}
+
+// allocBuffer copies s into a buffer Parcel allocated, or returns an empty
+// buffer for an empty string.
+func allocBuffer(s string) C.Buffer {
+	if len(s) == 0 {
+		return C.Buffer{}
+	}
+	data := []byte(s)
+	return C.parcel_buffer_alloc((*C.uint8_t)(unsafe.Pointer(&data[0])), C.uintptr_t(len(data)))
 }
 
 // Asset represents the asset being transformed. All methods translate directly
@@ -1145,29 +1248,20 @@ const (
 // Example:
 //
 //	return &parcel.Diagnostic{
-//	    Message:  "unsupported syntax",
-//	    FilePath: asset.FilePath(),
-//	    Line:     10,
-//	    Column:   5,
-//	    Hint:     "remove the unsupported feature",
+//	    Message: "unsupported syntax",
+//	    CodeFrames: []parcel.CodeFrame{{
+//	        FilePath:   asset.FilePath(),
+//	        Highlights: []parcel.CodeHighlight{{StartLine: 10, StartColumn: 5}},
+//	    }},
+//	    Hints: []string{"remove the unsupported feature"},
 //	}
 type Diagnostic struct {
 	Message  string
 	Severity DiagnosticSeverity
-	// FilePath is an optional absolute path for a source code frame.
-	FilePath string
-	// Line is the 1-based start line for a code highlight (0 = not set).
-	Line uint32
-	// Column is the 1-based start column (0 = not set).
-	Column uint32
-	// EndLine and EndColumn are the 1-based position of the last highlighted
-	// character (0 = highlight just the start).
-	EndLine   uint32
-	EndColumn uint32
-	// HighlightMessage is an optional message shown at the code highlight.
-	HighlightMessage string
-	// Hint is an optional hint string.
-	Hint string
+	// CodeFrames are excerpts of the code the diagnostic is about.
+	CodeFrames []CodeFrame
+	// Hints are suggestions for fixing the problem.
+	Hints []string
 	// DocumentationURL optionally links to documentation about the diagnostic.
 	DocumentationURL string
 
@@ -1484,7 +1578,8 @@ type CodeFrame struct {
 }
 
 // CodeHighlight is a highlighted range in a [CodeFrame]. Lines and columns are
-// 1-based, and the end is the last highlighted character.
+// 1-based, and the end is the last highlighted character. An EndLine of 0
+// highlights just the character at the start.
 type CodeHighlight struct {
 	StartLine   uint32
 	StartColumn uint32
@@ -1645,14 +1740,13 @@ func (o *Options) LogDiagnostic(diagnostic *Diagnostic) {
 	// Ours to allocate this time: zeroed, with the size this SDK was built with.
 	var raw C.DiagnosticOptions
 	raw.size = C.sizeof_DiagnosticOptions
-	writeDiagnostic(&raw, diagnostic)
+	writeDiagnosticWithList(&raw, diagnostic, func() C.Diagnostics {
+		return C.parcel_diagnostics_create(o.ptr)
+	})
 	// The host copies what it needs rather than taking ownership, unlike the
-	// diagnostic a plugin returns as an error, so these are ours to free.
+	// diagnostic a plugin returns as an error, so the message
+	// writeDiagnosticWithList falls back to, if any, is ours to free.
 	defer C.parcel_buffer_free(&raw.message)
-	defer C.parcel_buffer_free(&raw.file_path)
-	defer C.parcel_buffer_free(&raw.hint)
-	defer C.parcel_buffer_free(&raw.highlight_message)
-	defer C.parcel_buffer_free(&raw.documentation_url)
 	C.parcel_options_log_diagnostic(o.ptr, &raw)
 }
 

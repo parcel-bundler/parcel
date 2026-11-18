@@ -12,19 +12,19 @@ use libloading::{Library, Symbol};
 use parcel_core::{
   Asset as CoreAsset, AssetRequest, AssetType, BufferContent, Content, ContentWithSourceMap,
   Dependency as CoreDependency, DependencyResolution, Diagnostic as CoreDiagnostic, DiagnosticList,
-  FileContent, LogLevel as CoreLogLevel, LogMessage, Optimizer, ParcelOptions, PathId, Reporter,
-  ReporterEvent, Resolver, SourceLocation, SourceUrl, Transformer,
+  FileContent, LogLevel as CoreLogLevel, LogMessage, Optimizer, ParcelOptions, PathId,
+  PluginContext, Reporter, ReporterEvent, Resolver, SourceLocation, SourceUrl, Transformer,
 };
 
 use crate::{
   Asset, AssetIndex, Buffer, Bundle, BundleGraph, Dependency, DiagnosticOptions, DiagnosticsRef,
-  OptionsContext, ParcelPluginDeinitFn, ParcelPluginInitFn, ParcelPluginNameFn,
-  ParcelPluginOptimizeFn, ParcelPluginReportFn, ParcelPluginResolveFn, ParcelPluginTransformFn,
-  diagnostics::DiagnosticsView, parcel_buffer_free, plugin_path, read_cdiagnostic, trusted_str,
-  trusted_utf8,
+  InitArgs, OptionsContext, ParcelPluginDeinitFn, ParcelPluginInit2Fn, ParcelPluginInitFn,
+  ParcelPluginNameFn, ParcelPluginOptimizeFn, ParcelPluginReportFn, ParcelPluginResolveFn,
+  ParcelPluginTransformFn, diagnostics::DiagnosticsView, parcel_buffer_free, plugin_path,
+  read_cdiagnostic, trusted_str, trusted_utf8,
 };
 
-/// Result of a plugin's `parcel_plugin_init()`.
+/// Result of a plugin's `parcel_plugin_init2()` (or `parcel_plugin_init()`).
 ///
 /// A plugin that cannot use the `ParcelApi` table it was
 /// handed returns `PARCEL_INIT_INCOMPATIBLE` without writing a diagnostic — it
@@ -268,7 +268,11 @@ unsafe impl Sync for CPlugin {}
 
 impl CPlugin {
   /// Loads the library at `path` as the plugin .parcelrc names `origin`,
-  /// configured as a `kind` plugin, and initializes it with `config`.
+  /// configured as a `kind` plugin, and initializes it with `config`, the
+  /// options of the entry in the .parcelrc at `config_path`.
+  ///
+  /// `options` are those the plugin can read during initialization. Files it
+  /// reads go through their `input_fs`, so that is where to track them.
   ///
   /// Fails when the library doesn't export the entry point for `kind`, rather
   /// than at the first call. That is checked after initializing it, so a library
@@ -279,6 +283,8 @@ impl CPlugin {
     origin: &str,
     kind: PluginKind,
     config: Option<&serde_json::Value>,
+    config_path: PathId,
+    options: &ParcelOptions,
   ) -> Result<CPlugin, DiagnosticList> {
     let with_origin = |mut diagnostics: DiagnosticList| {
       for diagnostic in &mut diagnostics.0 {
@@ -293,7 +299,7 @@ impl CPlugin {
     // in `entry_points` valid.
     let lib: &'static Library = Box::leak(Box::new(Self::open(path).map_err(with_origin)?));
     let entry_points = EntryPoints::find(lib);
-    let state = Self::call_init(lib, path, config).map_err(with_origin)?;
+    let state = Self::call_init(lib, path, config, config_path, options).map_err(with_origin)?;
     if !entry_points.exports(kind) {
       if let Some(deinit) = entry_points.deinit
         && !state.is_null()
@@ -366,31 +372,56 @@ impl CPlugin {
     lib: &Library,
     path: PathId,
     config: Option<&serde_json::Value>,
+    config_path: PathId,
+    options: &ParcelOptions,
   ) -> Result<*mut c_void, DiagnosticList> {
-    // Returns a raw byte rather than `InitStatus`: a library built before the
+    // Both return a raw byte rather than `InitStatus`: a library built before the
     // status existed returns its state pointer here, and reading an arbitrary
     // byte as the enum would be undefined behavior.
-    let sym: Result<Symbol<ParcelPluginInitFn>, _> = unsafe { lib.get(b"parcel_plugin_init") };
-    let Ok(init_fn) = sym else {
+    let init2: Option<Symbol<ParcelPluginInit2Fn>> =
+      unsafe { lib.get(b"parcel_plugin_init2") }.ok();
+    let init: Option<Symbol<ParcelPluginInitFn>> = match init2 {
+      Some(_) => None,
+      None => unsafe { lib.get(b"parcel_plugin_init") }.ok(),
+    };
+    if init2.is_none() && init.is_none() {
       return Err(incompatible_library(format!(
-        "{} does not export a parcel_plugin_init function, so it is not a Parcel plugin.",
+        "{} does not export a parcel_plugin_init2 function, so it is not a Parcel plugin.",
         path.to_path_buf().display()
       )));
-    };
+    }
 
     let config_bytes = config
       .and_then(|v| serde_json::to_vec(v).ok())
       .unwrap_or_default();
 
     let mut state = ptr::null_mut();
-    let mut diagnostic = DiagnosticOptions::default();
-    let status = init_fn(
-      &crate::PARCEL_API,
-      config_bytes.as_ptr(),
-      config_bytes.len(),
-      &mut state,
-      &mut diagnostic,
-    );
+    let plugin_context = PluginContext::new(options, &options.input_fs);
+    let context = OptionsContext::with_plugin(&plugin_context);
+    let mut diagnostic = context.out_param();
+    let status = if let Some(init2) = init2 {
+      let config_path = config_path.to_path_buf().to_string_lossy().into_owned();
+      let args = InitArgs {
+        api: &crate::PARCEL_API,
+        config: config_bytes.as_ptr(),
+        config_len: config_bytes.len(),
+        config_path: config_path.as_ptr(),
+        config_path_len: config_path.len(),
+        options: context.handle(),
+        ..InitArgs::default()
+      };
+      init2(&args, &mut state, &mut diagnostic)
+    } else {
+      // Built before `parcel_plugin_init2()`, so it gets neither options nor
+      // the config's path, and never needed them.
+      init.unwrap()(
+        &crate::PARCEL_API,
+        config_bytes.as_ptr(),
+        config_bytes.len(),
+        &mut state,
+        &mut diagnostic,
+      )
+    };
 
     match InitStatus::try_from(status) {
       // A plugin may legitimately have no state, so `state` says nothing about
@@ -400,7 +431,7 @@ impl CPlugin {
       // Every SDK writes a diagnostic along with this status, so a missing one
       // also suggests a library built against something else.
       Ok(InitStatus::PARCEL_INIT_ERROR) => Err({
-        let diagnostics = read_cdiagnostic(&mut diagnostic, None);
+        let diagnostics = read_cdiagnostic(&mut diagnostic, Some(&context));
         if diagnostics.is_empty() {
           incompatible_library(format!(
             "{} failed to initialize, without reporting why.",
@@ -460,7 +491,7 @@ impl Transformer for CPlugin {
       (self.entry_points.transform).ok_or_else(|| self.missing("parcel_plugin_transform"))?;
 
     let context = OptionsContext::with_plugin(ctx);
-    let mut diagnostic = DiagnosticOptions::default();
+    let mut diagnostic = context.out_param();
     transform(
       &mut asset as *mut CoreAsset as Asset,
       context.handle(),
@@ -488,10 +519,9 @@ impl Resolver for CPlugin {
       (self.entry_points.resolve).ok_or_else(|| self.missing("parcel_plugin_resolve"))?;
 
     let mut result = ResolveResult::default();
-    let mut diagnostic = DiagnosticOptions::default();
-
     let pipeline_bytes = pipeline.map(|p| p.as_bytes());
     let context = OptionsContext::with_plugin(ctx);
+    let mut diagnostic = context.out_param();
 
     resolve(
       dep as *const CoreDependency as Dependency,
@@ -629,7 +659,7 @@ impl parcel_core::Namer for CPlugin {
 
     let context = OptionsContext::new(options);
     let mut name = Buffer::default();
-    let mut diagnostic = DiagnosticOptions::default();
+    let mut diagnostic = context.out_param();
     name_fn(
       bundle_graph as *const parcel_core::BundleGraph as BundleGraph,
       bundle as *const parcel_core::Bundle as Bundle,
@@ -674,13 +704,13 @@ impl Reporter for CPlugin {
 
     // Both of these are borrowed by `c_event` below, so they have to outlive it.
     let diagnostics = match event {
-      ReporterEvent::BuildFailure { diagnostics } => Some(DiagnosticsView {
-        diagnostics: Cow::Borrowed(&diagnostics.0),
-      }),
+      ReporterEvent::BuildFailure { diagnostics } => {
+        Some(DiagnosticsView::read_only(Cow::Borrowed(&diagnostics.0)))
+      }
       ReporterEvent::Log(log) => match log.message {
-        LogMessage::Diagnostics(diagnostics) => Some(DiagnosticsView {
-          diagnostics: Cow::Borrowed(diagnostics),
-        }),
+        LogMessage::Diagnostics(diagnostics) => {
+          Some(DiagnosticsView::read_only(Cow::Borrowed(diagnostics)))
+        }
         LogMessage::Text(_) => None,
       },
       _ => None,
@@ -740,7 +770,7 @@ impl Reporter for CPlugin {
     }
 
     let context = OptionsContext::new(options);
-    let mut diagnostic = DiagnosticOptions::default();
+    let mut diagnostic = context.out_param();
     report(&c_event, context.handle(), self.state, &mut diagnostic);
 
     if let Some(diagnostics) = self.read_diagnostic(&mut diagnostic, &context) {
@@ -766,8 +796,8 @@ impl Optimizer for CPlugin {
       .map(|contents| contents.source_map().to_vec());
     let contents = contents.read()?;
     let mut result = OptimizeResult::default();
-    let mut diagnostic = DiagnosticOptions::default();
     let context = OptionsContext::new(options);
+    let mut diagnostic = context.out_param();
 
     optimize(
       bundle_graph as *const parcel_core::BundleGraph as BundleGraph,

@@ -1,3 +1,9 @@
+#if canImport(FoundationEssentials)
+  import FoundationEssentials
+#else
+  import Foundation
+#endif
+
 /// A native Parcel plugin.
 ///
 /// Conform to one or more of ``Transformer``, ``Resolver``, ``Namer``,
@@ -6,7 +12,7 @@
 ///
 /// ```swift
 /// struct LineCounter: Transformer {
-///   init(config: NoConfig) {}
+///   init(config: NoConfig, context: InitContext) {}
 ///
 ///   func transform(_ asset: Asset, options: Options) async throws {
 ///     let lines = try asset.content().split(separator: "\n").count
@@ -44,7 +50,36 @@ public protocol Plugin: Sendable {
   associatedtype Config: Decodable & Sendable = NoConfig
 
   /// Called once per `.parcelrc` entry naming this plugin, when Parcel loads it.
-  init(config: Config) async throws
+  ///
+  /// Files read through `context.options`, such as with ``Options/read(_:)``,
+  /// are tracked: when one changes, Parcel starts over and initializes the plugin
+  /// again, so read configuration files that way rather than with Foundation.
+  init(config: Config, context: InitContext) async throws
+}
+
+/// Where a plugin's ``Plugin/Config`` came from, and the build it is
+/// initializing for. Valid only until ``Plugin/init(config:context:)`` returns.
+public struct InitContext: Sendable {
+  /// The absolute path of the `.parcelrc` file whose entry named the plugin.
+  /// When the entry comes from a config that file `extends`, this is that
+  /// config's path.
+  public let configPath: String
+  /// The build's options. Never keep them past initialization.
+  public let options: Options
+
+  init(configPath: String, options: Options) {
+    self.configPath = configPath
+    self.options = options
+  }
+
+  /// Resolves `path`, as written in the options, against the directory of the
+  /// `.parcelrc` they came from. An absolute `path` replaces it. Either way,
+  /// `.` and `..` are resolved lexically, without following symlinks.
+  public func resolvePath(_ path: String) -> String {
+    URL(filePath: path, relativeTo: URL(filePath: configPath))
+      .standardizedFileURL
+      .path(percentEncoded: false)
+  }
 }
 
 /// The ``Plugin/Config`` of a plugin that takes no options.

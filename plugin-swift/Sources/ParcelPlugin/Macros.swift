@@ -6,11 +6,11 @@
 /// #parcelPlugin(MyPlugin.self)
 /// ```
 ///
-/// It expands to the C entry points Parcel loads (`parcel_plugin_init`,
+/// It expands to the C entry points Parcel loads (`parcel_plugin_init2`,
 /// `parcel_plugin_transform`, and so on), each a one-line call into
 /// ``PluginExports``.
 @freestanding(
-  declaration, names: named(__parcel_plugin_init), named(__parcel_plugin_deinit),
+  declaration, names: named(__parcel_plugin_init2), named(__parcel_plugin_deinit),
   named(__parcel_plugin_transform), named(__parcel_plugin_resolve), named(__parcel_plugin_name),
   named(__parcel_plugin_optimize), named(__parcel_plugin_report))
 public macro parcelPlugin<P: Plugin>(_ type: P.Type) =

@@ -62,13 +62,13 @@ pub use source_map::{bundle_source_root, compose_source_map, input_source_map};
 pub use target::*;
 pub use transformer::Transformer;
 
-/// Builds a `PluginFactory` from the file system it should read plugins/configs through.
+/// Builds a `PluginFactory` from the options plugins see while they initialize.
 ///
 /// `Parcel::new` wraps the input file system in a [`TrackingFileSystem`] and hands it to this
-/// builder so that files read by the factory (extended configs, plugin lookups) are tracked
-/// alongside the files core reads directly. The builder is stored so `Parcel` can rebuild itself
-/// from scratch when a configuration file changes.
-pub type FactoryBuilder = dyn Fn(Arc<dyn FileSystem>) -> Box<dyn PluginFactory>;
+/// builder as the options' `input_fs`, so that files read by the factory (extended configs, plugin
+/// lookups) and by plugins initializing are tracked alongside the files core reads directly. The
+/// builder is stored so `Parcel` can rebuild itself from scratch when a configuration file changes.
+pub type FactoryBuilder = dyn Fn(Arc<ParcelOptions>) -> Box<dyn PluginFactory>;
 
 const OUTPUT_WRITER_THREADS: usize = 4;
 
@@ -151,13 +151,37 @@ impl Parcel {
     let mut options = options;
     options.input_fs = tracker.clone();
 
-    let factory = make_factory(tracker.clone());
-    let factory: &dyn PluginFactory = &*factory;
-
     let (resolved_entries, project_root) = resolve_entries(entries, &options)?;
 
     let mut env = options.env;
     load_dotenv(project_root, &*options.input_fs, &mut env)?;
+
+    let content_hash = options
+      .content_hash
+      .unwrap_or(options.mode == BuildMode::Production);
+
+    // The options plugins see while they initialize, which happens while the configuration is
+    // loading: before the reporters it names exist, so their logs go only to the reporters the
+    // build was given, such as the CLI's. Those are also the ones that report it if loading
+    // fails. Files plugins read go through the tracker, so a change to one rebuilds the `Parcel`
+    // and initializes them again.
+    let config_reporters = Reporters::new(options.reporters.clone(), options.log_level.clone());
+    let config_options = Arc::new(ParcelOptions {
+      env: env.clone(),
+      mode: options.mode.clone(),
+      log_level: options.log_level.clone(),
+      project_root,
+      input_fs: tracker.clone(),
+      output_fs: options.output_fs.clone(),
+      cwd: options.cwd,
+      hmr: options.hmr.clone(),
+      reporters: config_reporters.clone(),
+      content_hash,
+      plugin_tracker: None,
+    });
+    config_reporters.attach(Arc::downgrade(&config_options));
+    let factory = make_factory(config_options.clone());
+    let factory: &dyn PluginFactory = &*factory;
 
     let config_file = options
       .config
@@ -199,9 +223,6 @@ impl Parcel {
     let mut reporters = config.reporters.clone();
     reporters.extend(options.reporters.into_iter());
     let reporters = Reporters::new(reporters, options.log_level.clone());
-    let content_hash = options
-      .content_hash
-      .unwrap_or(options.mode == BuildMode::Production);
     let options = Arc::new(ParcelOptions {
       env,
       mode: options.mode,

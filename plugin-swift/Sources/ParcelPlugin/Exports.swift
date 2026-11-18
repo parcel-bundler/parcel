@@ -19,27 +19,43 @@ public enum PluginExports<P: Plugin> {
   // ── Init ─────────────────────────────────────────────────────────────────
 
   public static func initialize(
-    _ api: UnsafeRawPointer?,
-    _ config: UnsafePointer<UInt8>?,
-    _ configLength: Int,
+    _ args: UnsafeRawPointer?,
     _ state: UnsafeMutablePointer<UnsafeMutableRawPointer?>?,
     _ diagnostic: UnsafeMutableRawPointer?
   ) -> UInt8 {
+    // Copied up to the `size` Parcel reports, since a Parcel built before a
+    // field this SDK knows was appended allocates less. Every field read here is
+    // in the first layout, which any Parcel calling `parcel_plugin_init2` fills in.
+    let minSize = MemoryLayout<InitArgs>.offset(of: \.options)! + MemoryLayout<UInt64>.size
+    guard let args, let args = readSized(args, as: InitArgs.self, minSize: minSize) else {
+      return 2  // PARCEL_INIT_INCOMPATIBLE
+    }
     // Must come first: every other SDK call, including writing a diagnostic,
     // goes through this table. Parcel describes the mismatch itself.
-    guard installAPI(api) else {
+    guard installAPI(UnsafeRawPointer(args.api)) else {
       return 2  // PARCEL_INIT_INCOMPATIBLE
     }
 
     let json: [UInt8] =
-      if let config, configLength > 0 {
-        Array(UnsafeBufferPointer(start: config, count: configLength))
+      if let config = args.config, args.config_len > 0 {
+        Array(UnsafeBufferPointer(start: config, count: Int(args.config_len)))
       } else {
         Array("{}".utf8)
       }
+    let configPath: String =
+      if let path = args.config_path, args.config_path_len > 0 {
+        String(decoding: UnsafeBufferPointer(start: path, count: Int(args.config_path_len)), as: UTF8.self)
+      } else {
+        ""
+      }
+    let rawOptions = args.options
+    let scope = CallScope("init")
+    defer { scope.close() }
     let result = runOnHostThread { () async throws -> PluginState in
       let config = try JSONDecoder().decode(P.Config.self, from: Data(json))
-      return PluginState(try await P(config: config))
+      let context = InitContext(
+        configPath: configPath, options: Options(raw: rawOptions, scope: scope))
+      return PluginState(try await P(config: config, context: context))
     }
 
     switch result {
@@ -295,7 +311,7 @@ public enum PluginExports<P: Plugin> {
       reportError(
         Diagnostic(
           "\(plugin.typeName) is configured as \(description), but is not one",
-          hint: "Conform \(plugin.typeName) to \(Self.protocolName(description))."),
+          hints: ["Conform \(plugin.typeName) to \(Self.protocolName(description))."]),
         to: diagnostic)
       return nil
     }

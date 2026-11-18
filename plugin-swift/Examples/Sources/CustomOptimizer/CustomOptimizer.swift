@@ -5,7 +5,7 @@
 import ParcelPlugin
 
 struct CustomOptimizer: Optimizer {
-  init(config: NoConfig) {}
+  init(config: NoConfig, context: InitContext) {}
 
   func optimize(
     _ bundle: OutputBundle, in bundleGraph: BundleGraph, contents: [UInt8], sourceMap: [UInt8]?,

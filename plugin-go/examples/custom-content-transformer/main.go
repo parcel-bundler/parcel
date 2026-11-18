@@ -107,7 +107,7 @@ func (t *CustomContentTransformer) Transform(asset *parcel.Asset, _ *parcel.Opti
 }
 
 func init() {
-	parcel.RegisterPlugin(func(_ []byte) (any, error) {
+	parcel.RegisterPlugin(func(_ *parcel.Config, _ *parcel.Options) (any, error) {
 		return &CustomContentTransformer{}, nil
 	})
 }

@@ -15,8 +15,8 @@ use std::ffi::c_void;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use crate::{
-  Asset, Bundle, BundleGraph, ContentBuffer, Dependency, Diagnostic, Options, Plugin, ReportEvent,
-  api, ffi, panic_message,
+  Asset, Bundle, BundleGraph, Config, ContentBuffer, Dependency, Diagnostic, Options, Plugin,
+  ReportEvent, api, ffi, panic_message,
 };
 
 /// Runs `call`, turning a panic into a diagnostic naming `scope`, and writes
@@ -34,44 +34,52 @@ pub(crate) fn guard<R>(
       panic_message(payload)
     )),
   };
-  // A NULL out-param is written nothing; otherwise it is the one Parcel passed.
-  unsafe { error.write_to_raw(diagnostic) };
+  // A NULL out-param is written nothing; otherwise it is the one Parcel passed,
+  // whose list to build a diagnostic in is already there.
+  unsafe { error.write_to_raw(diagnostic, (*diagnostic).diagnostics) };
   None
 }
 
 /// # Safety
 ///
-/// Called only as `parcel_plugin_init`, with the arguments Parcel passed.
+/// Called only as `parcel_plugin_init2`, with the arguments Parcel passed.
 pub unsafe fn init<T: Plugin>(
-  api: *const c_void,
-  config: *const u8,
-  config_len: usize,
+  args: *const c_void,
   out_state: *mut *mut c_void,
   diagnostic: *mut c_void,
 ) -> u8 {
-  unsafe { init_typed::<T>(api.cast(), config, config_len, out_state, diagnostic.cast()) }.0
+  unsafe { init_typed::<T>(args.cast(), out_state, diagnostic.cast()) }.0
 }
 
 unsafe fn init_typed<T: Plugin>(
-  api: *const ffi::ParcelApi,
-  config: *const u8,
-  config_len: usize,
+  args: *const ffi::InitArgs,
   out_state: *mut *mut c_void,
   diagnostic: *mut ffi::DiagnosticOptions,
 ) -> ffi::InitStatus {
+  if args.is_null() {
+    return ffi::InitStatus::Incompatible;
+  }
+  // Copied up to the `size` Parcel reports, since a Parcel built before a field
+  // this SDK knows was appended allocates less. Every field read here is in the
+  // first layout, which any Parcel calling `parcel_plugin_init2` fills in.
+  let min_size = std::mem::offset_of!(ffi::InitArgs, options) + size_of::<ffi::Options>();
+  let Some(args) = (unsafe { crate::read_sized(args, min_size) }) else {
+    return ffi::InitStatus::Incompatible;
+  };
+
   // Must come first: every other SDK call, including writing a diagnostic, goes
   // through this table. Returning Incompatible rather than a message is what
   // keeps that from being circular — Parcel writes the message.
-  if !unsafe { api::init_api(api) } {
+  if !unsafe { api::init_api(args.api) } {
     return ffi::InitStatus::Incompatible;
   }
 
-  let config = if config.is_null() || config_len == 0 {
-    &[] as &[u8]
-  } else {
-    unsafe { std::slice::from_raw_parts(config, config_len) }
-  };
-  match guard("init", diagnostic, || T::new(config)) {
+  let bytes = unsafe { slice(args.config, args.config_len) };
+  let path = std::str::from_utf8(unsafe { slice(args.config_path, args.config_path_len) })
+    .unwrap_or_default();
+  let config = Config::new(bytes, std::path::Path::new(path));
+  let options = unsafe { Options::from_raw(args.options) };
+  match guard("init", diagnostic, || T::new(&config, &options)) {
     Some(plugin) => {
       if !out_state.is_null() {
         unsafe { *out_state = Box::into_raw(Box::new(plugin)) as *mut c_void };
@@ -79,6 +87,15 @@ unsafe fn init_typed<T: Plugin>(
       ffi::InitStatus::Ok
     }
     None => ffi::InitStatus::Error,
+  }
+}
+
+/// The `len` bytes at `ptr`, which may be NULL when `len` is 0.
+unsafe fn slice<'a>(ptr: *const u8, len: usize) -> &'a [u8] {
+  if ptr.is_null() || len == 0 {
+    &[]
+  } else {
+    unsafe { std::slice::from_raw_parts(ptr, len) }
   }
 }
 

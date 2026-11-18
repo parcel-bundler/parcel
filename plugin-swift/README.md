@@ -38,7 +38,7 @@ struct TxtTransformer: Transformer {
 
   let prefix: String
 
-  init(config: Config) {
+  init(config: Config, context: InitContext) {
     prefix = config.prefix ?? ""
   }
 
@@ -65,7 +65,7 @@ Then build it with `swift build -c release`, and add `.build/release/libTxtTrans
 A plugin conforms to one or more of `Transformer`, `Resolver`, `Namer`,
 `Optimizer`, and `Reporter`. Its `Config` is decoded from the plugin's options in
 the `.parcelrc` with `JSONDecoder`. A plugin without options declares
-`init(config: NoConfig)`. `#parcelPlugin` exports the type, and must appear
+`init(config: NoConfig, context: InitContext)`. `#parcelPlugin` exports the type, and must appear
 exactly once in a library.
 
 The [examples](Examples/Sources) cover every kind of plugin, as well as custom
@@ -109,7 +109,7 @@ tasks at once.
 
 ## Errors
 
-Throw a `Diagnostic` to fail a call with a code frame and a hint. Any other
+Throw a `Diagnostic` to fail a call with code frames and hints. Any other
 `Error` is reported with its description. To warn without failing, use
 `options.log(.warning("..."))`.
 

@@ -85,11 +85,23 @@ func TestDependencyResolutionMapsUnknownTypesToInvalid(t *testing.T) {
 	})
 }
 
-func TestLogDiagnosticSetsSize(t *testing.T) {
+func TestLogDiagnosticSetsSizes(t *testing.T) {
 	withSizedStructHost(func(host sizedHost) {
-		(&Options{}).LogDiagnostic(&Diagnostic{Message: "careful", Hint: "a hint"})
-		if host.diagnosticSize() != diagnosticSize {
-			t.Fatalf("expected Diagnostic.size %d, got %d", diagnosticSize, host.diagnosticSize())
+		(&Options{}).LogDiagnostic(&Diagnostic{
+			Message:    "careful",
+			CodeFrames: []CodeFrame{{FilePath: "/a.js", Highlights: []CodeHighlight{{StartLine: 1}}}},
+			Hints:      []string{"a hint"},
+		})
+		sizes := map[string][2]uintptr{
+			"DiagnosticOptions":      {host.diagnosticSize(), diagnosticSize},
+			"DiagnosticEntryOptions": {host.entrySize(), entrySize},
+			"CodeFrameOptions":       {host.frameSize(), frameSize},
+			"CodeHighlightOptions":   {host.highlightSize(), highlightSize},
+		}
+		for name, size := range sizes {
+			if size[0] != size[1] {
+				t.Fatalf("expected %s.size %d, got %d", name, size[1], size[0])
+			}
 		}
 	})
 }
@@ -113,16 +125,20 @@ func TestWriteDiagnosticWritesTheRangeAndLinks(t *testing.T) {
 		diag, free := sizedDiagnostic(diagnosticSize)
 		defer free()
 		writeDiagnostic(diag, &Diagnostic{
-			Message:          "unexpected token",
-			FilePath:         "/project/a.js",
-			Line:             1,
-			Column:           9,
-			EndLine:          1,
-			EndColumn:        12,
-			HighlightMessage: "expected an expression",
+			Message: "unexpected token",
+			CodeFrames: []CodeFrame{{
+				FilePath: "/project/a.js",
+				Highlights: []CodeHighlight{{
+					StartLine:   1,
+					StartColumn: 9,
+					EndLine:     1,
+					EndColumn:   12,
+					Message:     "expected an expression",
+				}},
+			}},
 			DocumentationURL: "https://parceljs.org/errors/example",
 		})
-		endLine, endColumn, highlight, docs := rangeAndLinks(diag)
+		endLine, endColumn, highlight, docs := rangeAndLinks()
 		if endLine != 1 || endColumn != 12 || highlight != "expected an expression" || docs != "https://parceljs.org/errors/example" {
 			t.Fatalf("not written: %d:%d %q %q", endLine, endColumn, highlight, docs)
 		}
@@ -147,11 +163,11 @@ func TestReportSkipsUndersizedAndUnknownEvents(t *testing.T) {
 	previousFactory := pluginFactory
 	defer func() { pluginFactory = previousFactory }()
 	reporter := &recordingReporter{}
-	pluginFactory = func([]byte) (any, error) { return reporter, nil }
+	pluginFactory = func(*Config, *Options) (any, error) { return reporter, nil }
 
 	withSizedStructHost(func(sizedHost) {
 		var state unsafe.Pointer
-		if status := parcel_plugin_init(parcelAPI(), nil, 0, &state, nil); status != okStatus() {
+		if status := initPlugin(parcelAPI(), &state, nil); status != okStatus() {
 			t.Fatalf("plugin initialization failed with status %d", status)
 		}
 		defer parcel_plugin_deinit(state)

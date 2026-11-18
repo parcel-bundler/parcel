@@ -1,4 +1,4 @@
-use parcel_plugin::{Asset, Diagnostic, Plugin, register_plugin};
+use parcel_plugin::{Asset, Config, Diagnostic, Options, Plugin, register_plugin};
 
 /// Parcel constructs one of these per pipeline entry, passing that entry's
 /// config, so the same library can appear in a .parcelrc more than once with
@@ -8,7 +8,8 @@ struct TxtTransformer {
 }
 
 impl Plugin for TxtTransformer {
-  fn new(config: &[u8]) -> Result<Self, Diagnostic> {
+  fn new(config: &Config, _options: &Options) -> Result<Self, Diagnostic> {
+    let config = config.bytes();
     let prefix = if config.is_empty() {
       String::new()
     } else {
@@ -24,11 +25,7 @@ impl Plugin for TxtTransformer {
     Ok(TxtTransformer { prefix })
   }
 
-  fn transform(
-    &self,
-    asset: &mut Asset,
-    _options: &parcel_plugin::Options,
-  ) -> Result<(), Diagnostic> {
+  fn transform(&self, asset: &mut Asset, _options: &Options) -> Result<(), Diagnostic> {
     // Emit an ES module that default-exports the text content.
     asset.set_content(format!(
       "export default {:?};\n",

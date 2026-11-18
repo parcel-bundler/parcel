@@ -281,6 +281,17 @@ pub struct ParcelApi {
     frame: usize,
     highlight: usize,
   ) -> bool,
+  pub diagnostics_create: unsafe extern "C" fn(options: Options) -> Diagnostics,
+  pub diagnostics_push: unsafe extern "C" fn(
+    diagnostics: Diagnostics,
+    diagnostic: *const DiagnosticEntryOptions,
+  ) -> bool,
+  pub diagnostics_add_code_frame:
+    unsafe extern "C" fn(diagnostics: Diagnostics, frame: *const CodeFrameOptions) -> bool,
+  pub diagnostics_add_code_highlight:
+    unsafe extern "C" fn(diagnostics: Diagnostics, highlight: *const CodeHighlightOptions) -> bool,
+  pub diagnostics_add_hint:
+    unsafe extern "C" fn(diagnostics: Diagnostics, hint: *const u8, hint_len: usize) -> bool,
 }
 
 /// The instance passed to every plugin. Const-initialized, so it is in the
@@ -378,6 +389,11 @@ pub static PARCEL_API: ParcelApi = ParcelApi {
   diagnostic_get_code_frame_count: parcel_diagnostic_get_code_frame_count,
   diagnostic_get_code_frame: parcel_diagnostic_get_code_frame,
   diagnostic_get_code_highlight: parcel_diagnostic_get_code_highlight,
+  diagnostics_create: parcel_diagnostics_create,
+  diagnostics_push: parcel_diagnostics_push,
+  diagnostics_add_code_frame: parcel_diagnostics_add_code_frame,
+  diagnostics_add_code_highlight: parcel_diagnostics_add_code_highlight,
+  diagnostics_add_hint: parcel_diagnostics_add_hint,
 };
 
 #[cfg(test)]
