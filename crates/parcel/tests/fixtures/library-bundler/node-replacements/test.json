@@ -1,0 +1,48 @@
+{
+  "description": "should resolve __dirname and __filename relative to the output in library builds",
+  "input": ".",
+  "options": {
+    "mode": "production"
+  },
+  "output": {
+    "data": "hello",
+    "dirname": "src",
+    "filename": "index.js"
+  },
+  "bundles": [
+    {
+      "assets": [
+        "index.js"
+      ],
+      "outputFormat": "commonjs",
+      "contains": [
+        "var $parcel$bundleDir = __dirname;",
+        "var $parcel$__dirname = $parcel$path.resolve($parcel$bundleDir, \"../src/\");",
+        "var $parcel$__filename = $parcel$path.resolve($parcel$bundleDir, \"../src/index.js\");"
+      ],
+      "notContains": [
+        "var __dirname",
+        "var __filename"
+      ]
+    },
+    {
+      "assets": [
+        "esmodule-helpers.js"
+      ]
+    },
+    {
+      "assets": [
+        "index.js"
+      ],
+      "outputFormat": "esmodule",
+      "contains": [
+        "var $parcel$bundleDir = import.meta.dirname;",
+        "var $parcel$__dirname ="
+      ],
+      "notContains": [
+        "var __dirname",
+        "var __filename"
+      ]
+    }
+  ]
+}

@@ -7,7 +7,7 @@ mod fs;
 mod global_replacer;
 mod mdx;
 mod modules;
-mod node_replacer;
+pub(crate) mod node_replacer;
 mod plugin;
 mod react_compiler;
 mod react_lazy;

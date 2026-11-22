@@ -462,12 +462,14 @@ fn hmr_update_defines_node_globals_through_the_bundle() {
   assert_eq!(outputs.len(), 1);
   let resolve = "module.bundle.nodePath.resolve(module.bundle.bundleDir, module.bundle.distDir, ";
   assert!(
-    outputs[0].contains(&format!(r#"var __filename = {resolve}"../index.js")"#)),
+    outputs[0].contains(&format!(
+      r#"var $parcel$__filename = {resolve}"../index.js")"#
+    )),
     "{}",
     outputs[0]
   );
   assert!(
-    outputs[0].contains(&format!(r#"var __dirname = {resolve}"../")"#)),
+    outputs[0].contains(&format!(r#"var $parcel$__dirname = {resolve}"../")"#)),
     "{}",
     outputs[0]
   );

@@ -3,6 +3,7 @@ use std::{fmt::Write, sync::Arc};
 use crate::transformer::{
   Ast,
   async_module::wrap_async_module,
+  node_replacer,
   refresh::{react_refresh_text, unused_name},
 };
 use indexmap::{IndexMap, IndexSet};
@@ -773,8 +774,8 @@ fn write_node_replacement_decls(
 
   let (filename, dirname) = node_replacement_paths(asset, from);
   for (needed, name, value) in [
-    (content.needs_filename, "__filename", filename),
-    (content.needs_dirname, "__dirname", dirname),
+    (content.needs_filename, node_replacer::FILENAME, filename),
+    (content.needs_dirname, node_replacer::DIRNAME, dirname),
   ] {
     if needed {
       let value = serde_json::to_string(&value).unwrap();
@@ -872,7 +873,7 @@ fn insert_node_replacement_decls(
     let mut items = Vec::with_capacity(2);
 
     if content.needs_filename {
-      let name = Ident::new("__filename".into(), DUMMY_SP, ctxt);
+      let name = Ident::new(node_replacer::FILENAME.into(), DUMMY_SP, ctxt);
       items.push(quote!(
         "var $name = $value" as ModuleItem,
         name: Ident = name,
@@ -881,7 +882,7 @@ fn insert_node_replacement_decls(
     }
 
     if content.needs_dirname {
-      let name = Ident::new("__dirname".into(), DUMMY_SP, ctxt);
+      let name = Ident::new(node_replacer::DIRNAME.into(), DUMMY_SP, ctxt);
       items.push(quote!(
         "var $name = $value" as ModuleItem,
         name: Ident = name,

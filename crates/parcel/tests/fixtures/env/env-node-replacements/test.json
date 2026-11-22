@@ -6,14 +6,14 @@
       "assets": ["index.js", "function.js", "index.js"],
       "contains": [
         "var $parcel$path = module.require('path');",
-        "var __dirname = $parcel$path.resolve($parcel$bundleDir",
-        "var __filename = $parcel$path.resolve($parcel$bundleDir"
+        "var $parcel$__dirname = $parcel$path.resolve($parcel$bundleDir",
+        "var $parcel$__filename = $parcel$path.resolve($parcel$bundleDir"
       ],
       "notContains": [
         "$parcel$dirnameReplace",
         "$parcel$filenameReplace",
-        "$parcel$__dirname",
-        "$parcel$__filename"
+        "var __dirname",
+        "var __filename"
       ]
     }],
     "TODO:output": {
