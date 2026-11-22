@@ -108,6 +108,15 @@ nonisolated(unsafe) private let mockAPI: UnsafeMutablePointer<ParcelApi> = {
     resolution.pointee.resolution_type = UInt8(truncatingIfNeeded: index)
     resolution.pointee.asset = asset
   }
+  // The asset at index n depends on n assets: the ith through dependency i, as asset 10 + i.
+  api.pointee.bundle_graph_get_next_resolved_dependency = { dependency, graph, asset, cursor in
+    guard let dependency, let cursor, cursor.pointee < UInt64(asset) else { return false }
+    sizedStructs.withLock { $0[graph] = rawBytes(of: dependency) }
+    dependency.pointee.dependency_index = UInt(cursor.pointee)
+    dependency.pointee.asset = 10 + UInt32(cursor.pointee)
+    cursor.pointee += 1
+    return true
+  }
   return api
 }()
 
@@ -290,6 +299,7 @@ private func setContent(_ body: (ParcelPlugin.Asset) -> Void) -> SetContentCall?
     #expect(matches(CParcelABI.OptimizeResult.self))
     #expect(matches(CParcelABI.DiagnosticOptions.self))
     #expect(matches(CParcelABI.BundleGraphDependencyResolution.self))
+    #expect(matches(CParcelABI.ResolvedDependency.self))
     #expect(matches(CParcelABI.Engines.self))
     #expect(matches(CParcelABI.ReportEvent.self))
     #if arch(arm64) || arch(x86_64)
@@ -413,6 +423,32 @@ private func setContent(_ body: (ParcelPlugin.Asset) -> Void) -> SetContentCall?
     // A kind of resolution this SDK predates.
     #expect(graph.resolution(ofDependency: 200, of: 3) == .invalid)
     #expect(graph.resolution(ofDependency: -1, of: 3) == .invalid)
+  }
+
+  @Test func bundleGraphResolvedDependencies() {
+    #expect(installAPI(UnsafeRawPointer(mockAPI)))
+    let handle = nextHandle.add(1, ordering: .relaxed).newValue
+    let scope = CallScope("report")
+    defer { scope.close() }
+    let graph = ParcelPlugin.BundleGraph(
+      raw: handle, options: ParcelPlugin.Options(raw: 1, scope: scope))
+
+    #expect(
+      Array(graph.resolvedDependencies(of: 3)) == [
+        ParcelPlugin.ResolvedDependency(dependencyIndex: 0, asset: 10),
+        ParcelPlugin.ResolvedDependency(dependencyIndex: 1, asset: 11),
+        ParcelPlugin.ResolvedDependency(dependencyIndex: 2, asset: 12),
+      ])
+    let size = sizedStructs.withLock { $0[handle] }?.withUnsafeBytes {
+      $0.loadUnaligned(as: UInt.self)
+    }
+    #expect(size == UInt(MemoryLayout<CParcelABI.ResolvedDependency>.size))
+    #expect(Array(graph.resolvedDependencies(of: 0)) == [])
+
+    // Stopping early, and iterating again from the start.
+    let dependencies = graph.resolvedDependencies(of: 3)
+    #expect(dependencies.first(where: { _ in true })?.asset == 10)
+    #expect(dependencies.map(\.asset) == [10, 11, 12])
   }
 
   @Test func targetEngines() {

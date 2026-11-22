@@ -34,6 +34,7 @@
 //! | The prefix for a `Dependency` is `dep_`. Spelled out, `dependency` names something else's dependencies | `parcel_dep_get_flags()`, `parcel_asset_get_dependency()` |
 //! | `get_` reads, `set_` replaces, `add_` appends | `parcel_asset_set_type()`, `parcel_asset_add_dependency()` |
 //! | A list is a `get_<item>_count()` and a `get_<item>()` taking an index | `parcel_bundle_get_asset_count()`, `parcel_bundle_get_asset()` |
+//! | A sequence Parcel computes as it goes, rather than stores, is a `get_next_<item>()` advancing an opaque `uint64_t *cursor` that starts at zero, and returning false at the end | `parcel_bundle_graph_get_next_resolved_dependency()` |
 //! | A string or bytes are returned into a `Buffer *` passed first; a struct into a size-prefixed out-param passed first | `parcel_bundle_get_name(buf, bundle)` |
 //! | `_utf8` marks the variant that takes or returns text Parcel trusts to be UTF-8 | `parcel_asset_set_content_utf8()` |
 //! | Booleans are bits in a `*_flags` bitfield rather than separate getters | `parcel_asset_get_flags()` |
@@ -292,6 +293,12 @@ pub struct ParcelApi {
     unsafe extern "C" fn(diagnostics: Diagnostics, highlight: *const CodeHighlightOptions) -> bool,
   pub diagnostics_add_hint:
     unsafe extern "C" fn(diagnostics: Diagnostics, hint: *const u8, hint_len: usize) -> bool,
+  pub bundle_graph_get_next_resolved_dependency: unsafe extern "C" fn(
+    dependency: *mut ResolvedDependency,
+    bundle_graph: BundleGraph,
+    asset: AssetIndex,
+    cursor: *mut u64,
+  ) -> bool,
 }
 
 /// The instance passed to every plugin. Const-initialized, so it is in the
@@ -394,6 +401,7 @@ pub static PARCEL_API: ParcelApi = ParcelApi {
   diagnostics_add_code_frame: parcel_diagnostics_add_code_frame,
   diagnostics_add_code_highlight: parcel_diagnostics_add_code_highlight,
   diagnostics_add_hint: parcel_diagnostics_add_hint,
+  bundle_graph_get_next_resolved_dependency: parcel_bundle_graph_get_next_resolved_dependency,
 };
 
 #[cfg(test)]

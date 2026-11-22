@@ -2,7 +2,7 @@
 
 use parcel_core::{
   Asset as CoreAsset, AssetIndex as CoreAssetIndex,
-  BundleGraphDependencyResolution as CoreBundleGraphDependencyResolution,
+  BundleGraphDependencyResolution as CoreBundleGraphDependencyResolution, ResolvedDependencies,
 };
 
 use crate::{
@@ -64,6 +64,29 @@ unsafe impl Extensible for BundleGraphDependencyResolution {
   const MIN_SIZE: usize =
     std::mem::offset_of!(BundleGraphDependencyResolution, bundle) + size_of::<BundleIndex>();
 }
+
+/// One of the assets an asset depends on, written by
+/// `parcel_bundle_graph_get_next_resolved_dependency()`.
+///
+/// Initialize it as `ResolvedDependency dependency = {.size = sizeof(dependency)};`.
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ResolvedDependency {
+  /// `sizeof(ResolvedDependency)`, set by the caller. Always the first member.
+  pub size: usize,
+  /// The index of the dependency, among the asset's, that the asset was reached
+  /// through. Pass it to `parcel_bundle_graph_get_dependency_resolution()` to find
+  /// out which bundle `asset` is in.
+  pub dependency_index: usize,
+  /// The asset depended on. Not necessarily the one the dependency itself resolved
+  /// to: a symbol imported through it may resolve past a side-effect free re-export.
+  pub asset: AssetIndex,
+}
+
+impl_extensible!(
+  ResolvedDependency,
+  min_size = std::mem::offset_of!(ResolvedDependency, asset) + size_of::<AssetIndex>()
+);
 
 // ── Bundle graph (read-only) ─────────────────────────────────────────────────
 
@@ -188,4 +211,47 @@ fn dependency_resolution(
     }
   }
   result
+}
+
+/// Writes the next asset that `asset` depends on into `*dependency`, whose `size` the caller
+/// sets, and advances `*cursor`. Start with `*cursor` set to zero and call it until it returns
+/// false; the value is otherwise opaque.
+///
+/// Assets come in the order the asset depends on them: each dependency's own resolution, when
+/// the asset needs it (it has side effects, or the asset re-exports through it), followed by the
+/// assets the symbols imported through it resolved to. The same asset may appear more than
+/// once. Dependencies the asset doesn't need, and side-effect free re-exports, are skipped.
+///
+/// Returns false, writing nothing, at the end, for invalid handles or indices, or when `size` is
+/// unset.
+pub extern "C" fn parcel_bundle_graph_get_next_resolved_dependency(
+  dependency: *mut ResolvedDependency,
+  bundle_graph: BundleGraph,
+  asset: AssetIndex,
+  cursor: *mut u64,
+) -> bool {
+  if dependency.is_null() || cursor.is_null() || bundle_graph == 0 {
+    return false;
+  }
+  let bundle_graph: &parcel_core::BundleGraph =
+    unsafe { &*(bundle_graph as *const parcel_core::BundleGraph) };
+  let asset_graph = &bundle_graph.asset_graph;
+  let Some(asset) = asset_graph.assets.get(asset as usize) else {
+    return false;
+  };
+
+  let mut iter = ResolvedDependencies::resume(asset_graph, asset, unsafe { cursor.read() });
+  let Some((dependency_index, resolved)) = iter.next() else {
+    return false;
+  };
+  let value = ResolvedDependency {
+    dependency_index,
+    asset: resolved.0,
+    ..Default::default()
+  };
+  if !unsafe { write_extensible(dependency, value) } {
+    return false;
+  }
+  unsafe { cursor.write(iter.cursor()) };
+  true
 }

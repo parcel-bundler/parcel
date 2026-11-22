@@ -988,6 +988,30 @@ typedef struct CodeHighlightOptions {
 } CodeHighlightOptions;
 
 /**
+ * One of the assets an asset depends on, written by
+ * `parcel_bundle_graph_get_next_resolved_dependency()`.
+ *
+ * Initialize it as `ResolvedDependency dependency = {.size = sizeof(dependency)};`.
+ */
+typedef struct ResolvedDependency {
+  /**
+   * `sizeof(ResolvedDependency)`, set by the caller. Always the first member.
+   */
+  uintptr_t size;
+  /**
+   * The index of the dependency, among the asset's, that the asset was reached
+   * through. Pass it to `parcel_bundle_graph_get_dependency_resolution()` to find
+   * out which bundle `asset` is in.
+   */
+  uintptr_t dependency_index;
+  /**
+   * The asset depended on. Not necessarily the one the dependency itself resolved
+   * to: a symbol imported through it may resolve past a side-effect free re-export.
+   */
+  AssetIndex asset;
+} ResolvedDependency;
+
+/**
  * The host functions available to a plugin.
  */
 typedef struct ParcelApi {
@@ -1141,6 +1165,10 @@ typedef struct ParcelApi {
   bool (*diagnostics_add_code_highlight)(Diagnostics diagnostics,
                                          const struct CodeHighlightOptions *highlight);
   bool (*diagnostics_add_hint)(Diagnostics diagnostics, const uint8_t *hint, uintptr_t hint_len);
+  bool (*bundle_graph_get_next_resolved_dependency)(struct ResolvedDependency *dependency,
+                                                    BundleGraph bundle_graph,
+                                                    AssetIndex asset,
+                                                    uint64_t *cursor);
 } ParcelApi;
 
 /**
@@ -1835,6 +1863,20 @@ static inline bool parcel_diagnostics_add_hint(Diagnostics diagnostics, const ui
     return zero;
   }
   return parcel_api->diagnostics_add_hint(diagnostics, hint, hint_len);
+}
+
+/** Appended after the first layout: check `parcel_api_has_bundle_graph_get_next_resolved_dependency()`. */
+static inline bool parcel_api_has_bundle_graph_get_next_resolved_dependency(void) {
+  return PARCEL_API_HAS(bundle_graph_get_next_resolved_dependency);
+}
+
+/** Does nothing and returns zero when Parcel is too old to provide it. */
+static inline bool parcel_bundle_graph_get_next_resolved_dependency(struct ResolvedDependency *dependency, BundleGraph bundle_graph, AssetIndex asset, uint64_t *cursor) {
+  if (!PARCEL_API_HAS(bundle_graph_get_next_resolved_dependency)) {
+    bool zero = {0};
+    return zero;
+  }
+  return parcel_api->bundle_graph_get_next_resolved_dependency(dependency, bundle_graph, asset, cursor);
 }
 
 /**

@@ -801,6 +801,28 @@ const _: () = {
   ["Offset of field: CodeHighlightOptions::message_len"]
     [::std::mem::offset_of!(CodeHighlightOptions, message_len) - 32usize];
 };
+#[doc = " One of the assets an asset depends on, written by\n `parcel_bundle_graph_get_next_resolved_dependency()`.\n\n Initialize it as `ResolvedDependency dependency = {.size = sizeof(dependency)};`."]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ResolvedDependency {
+  #[doc = " `sizeof(ResolvedDependency)`, set by the caller. Always the first member."]
+  pub size: usize,
+  #[doc = " The index of the dependency, among the asset's, that the asset was reached\n through. Pass it to `parcel_bundle_graph_get_dependency_resolution()` to find\n out which bundle `asset` is in."]
+  pub dependency_index: usize,
+  #[doc = " The asset depended on. Not necessarily the one the dependency itself resolved\n to: a symbol imported through it may resolve past a side-effect free re-export."]
+  pub asset: AssetIndex,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+  ["Size of ResolvedDependency"][::std::mem::size_of::<ResolvedDependency>() - 24usize];
+  ["Alignment of ResolvedDependency"][::std::mem::align_of::<ResolvedDependency>() - 8usize];
+  ["Offset of field: ResolvedDependency::size"]
+    [::std::mem::offset_of!(ResolvedDependency, size) - 0usize];
+  ["Offset of field: ResolvedDependency::dependency_index"]
+    [::std::mem::offset_of!(ResolvedDependency, dependency_index) - 8usize];
+  ["Offset of field: ResolvedDependency::asset"]
+    [::std::mem::offset_of!(ResolvedDependency, asset) - 16usize];
+};
 #[doc = " The host functions available to a plugin."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1085,10 +1107,18 @@ pub struct ParcelApi {
   pub diagnostics_add_hint: ::std::option::Option<
     unsafe extern "C" fn(diagnostics: Diagnostics, hint: *const u8, hint_len: usize) -> bool,
   >,
+  pub bundle_graph_get_next_resolved_dependency: ::std::option::Option<
+    unsafe extern "C" fn(
+      dependency: *mut ResolvedDependency,
+      bundle_graph: BundleGraph,
+      asset: AssetIndex,
+      cursor: *mut u64,
+    ) -> bool,
+  >,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 752usize];
+  ["Size of ParcelApi"][::std::mem::size_of::<ParcelApi>() - 760usize];
   ["Alignment of ParcelApi"][::std::mem::align_of::<ParcelApi>() - 8usize];
   ["Offset of field: ParcelApi::header"][::std::mem::offset_of!(ParcelApi, header) - 0usize];
   ["Offset of field: ParcelApi::asset_get_content"]
@@ -1275,6 +1305,8 @@ const _: () = {
     [::std::mem::offset_of!(ParcelApi, diagnostics_add_code_highlight) - 736usize];
   ["Offset of field: ParcelApi::diagnostics_add_hint"]
     [::std::mem::offset_of!(ParcelApi, diagnostics_add_hint) - 744usize];
+  ["Offset of field: ParcelApi::bundle_graph_get_next_resolved_dependency"]
+    [::std::mem::offset_of!(ParcelApi, bundle_graph_get_next_resolved_dependency) - 752usize];
 };
 #[doc = " Result filled by an optimizer plugin's `parcel_plugin_optimize()`.\n The struct is zero-initialised by the host before the call, apart from `size`.\n Fill `contents` and optionally `source_map` using `parcel_buffer_write()` or\n `parcel_buffer_write_utf8()`, and only write fields that fit within `size`\n (`PARCEL_HAS_FIELD()` checks)."]
 #[repr(C)]

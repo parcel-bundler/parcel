@@ -42,7 +42,7 @@ static void install_source_map_api(struct ParcelApi *api) {
 // What the sized-struct host below was last passed: the size of each struct, and
 // the specifier of the last dependency.
 static uintptr_t test_dependency_size, test_resolve_result_size, test_resolution_size, test_diagnostic_size,
-    test_engines_size;
+    test_engines_size, test_resolved_dependency_size;
 static char test_specifier[64];
 
 // Go cannot reference static variables, only functions.
@@ -51,6 +51,7 @@ static uintptr_t test_get_resolve_result_size(void) { return test_resolve_result
 static uintptr_t test_get_resolution_size(void) { return test_resolution_size; }
 static uintptr_t test_get_diagnostic_size(void) { return test_diagnostic_size; }
 static uintptr_t test_get_engines_size(void) { return test_engines_size; }
+static uintptr_t test_get_resolved_dependency_size(void) { return test_resolved_dependency_size; }
 static const char *test_get_specifier(void) { return test_specifier; }
 
 static struct Buffer test_buffer_alloc(const uint8_t *data, uintptr_t len) {
@@ -107,6 +108,20 @@ static void test_bundle_graph_get_dependency_resolution(struct BundleGraphDepend
   resolution->resolution_type = (BundleGraphResolutionType)asset;
   resolution->asset = 5;
   resolution->bundle = 6;
+}
+
+// The asset at index n depends on n assets: the ith through dependency i, as asset 10 + i.
+static bool test_bundle_graph_get_next_resolved_dependency(struct ResolvedDependency *dependency,
+                                                           BundleGraph bundle_graph, AssetIndex asset,
+                                                           uint64_t *cursor) {
+  test_resolved_dependency_size = dependency->size;
+  if (*cursor >= asset) {
+    return false;
+  }
+  dependency->dependency_index = *cursor;
+  dependency->asset = 10 + (AssetIndex)*cursor;
+  (*cursor)++;
+  return true;
 }
 
 // Supports Chrome 100, Safari 15.4 and Node 18.2.
@@ -245,6 +260,7 @@ static void install_sized_struct_api(struct ParcelApi *api) {
   api->asset_resolve = test_asset_resolve;
   api->diagnostic_get_message = test_diagnostic_get_message;
   api->bundle_graph_get_dependency_resolution = test_bundle_graph_get_dependency_resolution;
+  api->bundle_graph_get_next_resolved_dependency = test_bundle_graph_get_next_resolved_dependency;
   api->target_get_engines = test_target_get_engines;
   api->options_log_diagnostic = test_options_log_diagnostic;
   api->diagnostics_create = test_diagnostics_create;
@@ -348,19 +364,23 @@ func (sizedHost) entrySize() uintptr         { return uintptr(C.test_get_entry_s
 func (sizedHost) frameSize() uintptr         { return uintptr(C.test_get_frame_size()) }
 func (sizedHost) highlightSize() uintptr     { return uintptr(C.test_get_highlight_size()) }
 func (sizedHost) enginesSize() uintptr       { return uintptr(C.test_get_engines_size()) }
-func (sizedHost) specifier() string          { return C.GoString(C.test_get_specifier()) }
+func (sizedHost) resolvedDependencySize() uintptr {
+	return uintptr(C.test_get_resolved_dependency_size())
+}
+func (sizedHost) specifier() string { return C.GoString(C.test_get_specifier()) }
 
 // The sizes this SDK was built with, which every struct it allocates must carry.
 const (
-	dependencyOptionsSize = C.sizeof_DependencyOptions
-	resolveResultSize     = C.sizeof_ResolveResult
-	resolutionSize        = C.sizeof_BundleGraphDependencyResolution
-	diagnosticSize        = C.sizeof_DiagnosticOptions
-	entrySize             = C.sizeof_DiagnosticEntryOptions
-	frameSize             = C.sizeof_CodeFrameOptions
-	highlightSize         = C.sizeof_CodeHighlightOptions
-	enginesSize           = C.sizeof_Engines
-	reportEventSize       = C.sizeof_ReportEvent
+	dependencyOptionsSize  = C.sizeof_DependencyOptions
+	resolveResultSize      = C.sizeof_ResolveResult
+	resolutionSize         = C.sizeof_BundleGraphDependencyResolution
+	diagnosticSize         = C.sizeof_DiagnosticOptions
+	entrySize              = C.sizeof_DiagnosticEntryOptions
+	frameSize              = C.sizeof_CodeFrameOptions
+	highlightSize          = C.sizeof_CodeHighlightOptions
+	enginesSize            = C.sizeof_Engines
+	resolvedDependencySize = C.sizeof_ResolvedDependency
+	reportEventSize        = C.sizeof_ReportEvent
 )
 
 // reportEventMinSize is the smallest ReportEvent its first layout allows: up to the end of

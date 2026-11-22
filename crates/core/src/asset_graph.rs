@@ -1322,7 +1322,10 @@ impl<'a> AssetGraph<'a> {
 
   /// Iterates over all resolved asset indices that this asset depends on, in dependency order.
   /// NOTE: This may include duplicates. self.symbols.imports must be sorted by dep_index.
-  pub fn resolved_dependencies(&self, asset: &Asset) -> impl Iterator<Item = AssetIndex> {
+  pub fn resolved_dependencies<'g>(
+    &'g self,
+    asset: &'g Asset,
+  ) -> impl Iterator<Item = AssetIndex> + use<'g, 'a> {
     self
       .resolved_dependencies_with_indices(asset)
       .map(|(_, asset)| asset)
@@ -1330,65 +1333,11 @@ impl<'a> AssetGraph<'a> {
 
   /// Like `resolved_dependencies`, but retains the dependency index for priority,
   /// isolation, and ordering information, including for resolved symbol targets.
-  pub fn resolved_dependencies_with_indices(
-    &self,
-    asset: &Asset,
-  ) -> impl Iterator<Item = (usize, AssetIndex)> {
-    let mut dep_index = 0;
-    let mut import_index = 0;
-    std::iter::from_fn(move || {
-      loop {
-        // If a dependency has side effects, emit its resolved asset.
-        // If the namespace of this asset is used, include all dependencies.
-        // If the dependency is referenced by a used indirect or star export,
-        if dep_index < asset.dependencies.len() {
-          let dep = &asset.dependencies[dep_index];
-          if dep.flags.contains(DependencyFlags::SIDE_EFFECTS)
-            || asset.symbols.used_namespace
-            // TODO: check
-            || asset
-              .symbols
-              .indirect
-              .iter()
-              .any(|i| i.dep_index == dep_index as u32 && i.requested)
-            || asset
-              .symbols
-              .star
-              .iter()
-              .any(|i| i.dep_index == dep_index as u32 && i.requested)
-          {
-            if let Some((asset, _)) = self.resolved_asset(dep) {
-              dep_index += 1;
-              return Some((dep_index - 1, asset));
-            }
-          }
-        }
-
-        // Emit all resolved assets for imported symbols in this dependency.
-        // Side-effect free re-exports are not included - they are referenced directly through their importers.
-        while import_index < asset.symbols.imports.len() {
-          let import = &asset.symbols.imports[import_index];
-          if import.dep_index > dep_index as u32 {
-            break;
-          }
-
-          if let Some(asset) = import.resolved.asset_index() {
-            import_index += 1;
-            return Some((import.dep_index as usize, asset));
-          }
-
-          import_index += 1;
-        }
-
-        // Continue looping while there are more dependencies.
-        if dep_index < asset.dependencies.len() {
-          dep_index += 1;
-          continue;
-        }
-
-        return None;
-      }
-    })
+  pub fn resolved_dependencies_with_indices<'g>(
+    &'g self,
+    asset: &'g Asset,
+  ) -> ResolvedDependencies<'g> {
+    ResolvedDependencies::resume(self, asset, 0)
   }
 
   // https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#sec-getexportednames
@@ -1525,5 +1474,250 @@ impl<'a> AssetGraph<'a> {
   #[inline]
   pub fn asset(&'a self, asset_index: AssetIndex) -> &'a Asset {
     &self.assets[asset_index.index()]
+  }
+}
+
+/// The assets an asset depends on, in dependency order, as `(dependency index, asset)` pairs.
+/// See [`AssetGraph::resolved_dependencies_with_indices`].
+///
+/// For each dependency, emits the asset it resolved to when it is needed (it has side effects,
+/// or the asset uses its namespace or re-exports through it), followed by the assets its
+/// imported symbols resolved to, before moving on to the next dependency.
+///
+/// Its position is a [`cursor`](Self::cursor), from which [`resume`](Self::resume) continues
+/// without repeating any work, so callers that can't hold the iterator itself (plugins, across
+/// the ABI) can still walk it in linear time.
+#[derive(Clone)]
+pub struct ResolvedDependencies<'g> {
+  graph: &'g AssetGraph<'g>,
+  asset: &'g Asset,
+  dep_index: u32,
+  import_index: u32,
+  /// Whether the dependency at `dep_index` was itself considered, leaving only its imports.
+  dep_visited: bool,
+}
+
+impl<'g> ResolvedDependencies<'g> {
+  /// Continues from `cursor`, a value returned by [`cursor`](Self::cursor) on an iterator over
+  /// the same asset. Zero starts at the beginning. Any other value yields some suffix of the
+  /// sequence, or nothing, but never panics.
+  pub fn resume(graph: &'g AssetGraph<'g>, asset: &'g Asset, cursor: u64) -> Self {
+    let state = cursor as u32;
+    ResolvedDependencies {
+      graph,
+      asset,
+      dep_index: state >> 1,
+      import_index: (cursor >> 32) as u32,
+      dep_visited: state & 1 != 0,
+    }
+  }
+
+  /// The iterator's position, to [`resume`](Self::resume) from.
+  pub fn cursor(&self) -> u64 {
+    ((self.import_index as u64) << 32) | ((self.dep_index as u64) << 1) | self.dep_visited as u64
+  }
+
+  fn is_dependency_used(&self, dep_index: usize) -> bool {
+    let asset = self.asset;
+    asset.dependencies[dep_index]
+      .flags
+      .contains(DependencyFlags::SIDE_EFFECTS)
+      || asset.symbols.used_namespace
+      // TODO: check
+      || asset
+        .symbols
+        .indirect
+        .iter()
+        .any(|i| i.dep_index == dep_index as u32 && i.requested)
+      || asset
+        .symbols
+        .star
+        .iter()
+        .any(|i| i.dep_index == dep_index as u32 && i.requested)
+  }
+}
+
+impl Iterator for ResolvedDependencies<'_> {
+  type Item = (usize, AssetIndex);
+
+  fn next(&mut self) -> Option<Self::Item> {
+    let dependencies = &self.asset.dependencies;
+    let imports = &self.asset.symbols.imports;
+    loop {
+      let dep_index = self.dep_index as usize;
+
+      // If a dependency has side effects, emit its resolved asset.
+      // If the namespace of this asset is used, include all dependencies.
+      // If the dependency is referenced by a used indirect or star export, include it.
+      if !self.dep_visited && dep_index < dependencies.len() {
+        self.dep_visited = true;
+        if self.is_dependency_used(dep_index)
+          && let Some((asset, _)) = self.graph.resolved_asset(&dependencies[dep_index])
+        {
+          return Some((dep_index, asset));
+        }
+      }
+
+      // Emit all resolved assets for imported symbols in this dependency.
+      // Side-effect free re-exports are not included - they are referenced directly through their importers.
+      while let Some(import) = imports.get(self.import_index as usize) {
+        if import.dep_index > self.dep_index {
+          break;
+        }
+
+        self.import_index += 1;
+        if let Some(asset) = import.resolved.asset_index() {
+          return Some((import.dep_index as usize, asset));
+        }
+      }
+
+      // Continue looping while there are more dependencies.
+      if dep_index >= dependencies.len() {
+        return None;
+      }
+      self.dep_index += 1;
+      self.dep_visited = false;
+    }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use std::{borrow::Cow, sync::Arc};
+
+  use super::*;
+  use crate::{
+    AssetSymbols, BufferContent, ExportsCondition, ImportedSymbol, SpecifierType, Target,
+  };
+
+  fn asset(dependencies: Vec<Dependency>, imports: Vec<ImportedSymbol>) -> Asset {
+    Asset {
+      loc: SourceLocation::default(),
+      ty: AssetType::Js,
+      content: Arc::new(BufferContent::new(Vec::new())),
+      target: Arc::new(Target::default()),
+      pipeline: None,
+      bundle_behavior: BundleBehavior::None,
+      flags: AssetFlags::empty(),
+      unique_key: None,
+      dependencies,
+      symbols: AssetSymbols {
+        imports,
+        ..Default::default()
+      },
+    }
+  }
+
+  fn dependency(resolved: usize, flags: DependencyFlags) -> Dependency {
+    Dependency {
+      specifier: "./dep.js".into(),
+      specifier_type: SpecifierType::Esm,
+      priority: Priority::Sync,
+      bundle_behavior: BundleBehavior::None,
+      import_type: ImportType::JavaScript,
+      flags,
+      concurrent_group: 0,
+      target: Arc::new(Target::default()),
+      loc: None,
+      placeholder: None,
+      resolve_from: None,
+      range: None,
+      conditions: ExportsCondition::empty(),
+      custom_conditions: Default::default(),
+      resolution: DependencyResolution::Asset(AssetNodeIndex::from_index(resolved)),
+    }
+  }
+
+  fn import(dep_index: u32, resolved: usize) -> ImportedSymbol {
+    ImportedSymbol {
+      dep_index,
+      symbol: SymbolName::Namespace,
+      resolved: SymbolResolution::Namespace {
+        asset_index: AssetIndex::from_index(resolved),
+      },
+    }
+  }
+
+  fn graph(assets: Vec<Asset>) -> AssetGraph<'static> {
+    AssetGraph {
+      asset_nodes: Cow::Owned(
+        assets
+          .iter()
+          .enumerate()
+          .map(|(index, asset)| AssetNode::from_asset(AssetIndex::from_index(index), asset))
+          .collect(),
+      ),
+      assets: Cow::Owned(assets),
+      entries: Cow::Owned(Vec::new()),
+    }
+  }
+
+  #[test]
+  fn resolved_dependencies_emit_imports_with_their_dependency() {
+    // Both dependencies have side effects, and each has an import that resolves past the
+    // dependency's asset (e.g. through a side-effect free re-export). Each dependency's imports
+    // must come before the next dependency.
+    let graph = graph(vec![
+      asset(
+        vec![
+          dependency(1, DependencyFlags::SIDE_EFFECTS),
+          dependency(2, DependencyFlags::SIDE_EFFECTS),
+        ],
+        vec![import(0, 3), import(1, 4)],
+      ),
+      asset(Vec::new(), Vec::new()),
+      asset(Vec::new(), Vec::new()),
+      asset(Vec::new(), Vec::new()),
+      asset(Vec::new(), Vec::new()),
+    ]);
+
+    let order: Vec<(usize, usize)> = graph
+      .resolved_dependencies_with_indices(graph.asset(AssetIndex::from_index(0)))
+      .map(|(dep, asset)| (dep, asset.index()))
+      .collect();
+    assert_eq!(order, vec![(0, 1), (0, 3), (1, 2), (1, 4)]);
+  }
+
+  #[test]
+  fn resolved_dependencies_resume_from_any_cursor() {
+    let graph = graph(vec![
+      asset(
+        vec![
+          dependency(1, DependencyFlags::SIDE_EFFECTS),
+          dependency(2, DependencyFlags::empty()),
+          dependency(3, DependencyFlags::SIDE_EFFECTS),
+        ],
+        vec![import(0, 4), import(1, 2), import(1, 4), import(2, 3)],
+      ),
+      asset(Vec::new(), Vec::new()),
+      asset(Vec::new(), Vec::new()),
+      asset(Vec::new(), Vec::new()),
+      asset(Vec::new(), Vec::new()),
+    ]);
+    let source = graph.asset(AssetIndex::from_index(0));
+    let expected: Vec<_> = graph.resolved_dependencies_with_indices(source).collect();
+    assert_eq!(
+      expected
+        .iter()
+        .map(|&(dep, asset)| (dep, asset.index()))
+        .collect::<Vec<_>>(),
+      vec![(0, 1), (0, 4), (1, 2), (1, 4), (2, 3), (2, 3)]
+    );
+
+    // Resuming a fresh iterator after every step yields the same sequence.
+    let mut cursor = 0;
+    let mut resumed = Vec::new();
+    loop {
+      let mut iter = ResolvedDependencies::resume(&graph, source, cursor);
+      let Some(item) = iter.next() else { break };
+      resumed.push(item);
+      cursor = iter.cursor();
+    }
+    assert_eq!(resumed, expected);
+
+    // Garbage cursors end the sequence rather than panicking.
+    for cursor in [u64::MAX, u64::MAX >> 32, 1 << 40, 0xffff_fffe] {
+      let _ = ResolvedDependencies::resume(&graph, source, cursor).count();
+    }
   }
 }

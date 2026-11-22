@@ -35,7 +35,9 @@ use crossbeam_channel::bounded;
 use fixedbitset::FixedBitSet;
 
 pub use asset::*;
-pub use asset_graph::{AssetGraph, AssetGraphBuilder, AssetIndex, AssetNode, AssetNodeIndex};
+pub use asset_graph::{
+  AssetGraph, AssetGraphBuilder, AssetIndex, AssetNode, AssetNodeIndex, ResolvedDependencies,
+};
 pub use bundle::*;
 pub use bundle_graph::*;
 pub use bundler::*;

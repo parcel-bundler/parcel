@@ -4,6 +4,7 @@ package parcel
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"unsafe"
@@ -81,6 +82,36 @@ func TestDependencyResolutionMapsUnknownTypesToInvalid(t *testing.T) {
 			if resolution.Type != BundleGraphResolutionInvalid || resolution.Asset != InvalidAssetIndex {
 				t.Fatalf("type %d: expected an invalid resolution, got %+v", ty, resolution)
 			}
+		}
+	})
+}
+
+func TestResolvedDependenciesWalksTheCursor(t *testing.T) {
+	withSizedStructHost(func(host sizedHost) {
+		graph := &BundleGraph{}
+		// The module targets Go 1.21, before range-over-func, so these call the
+		// iterator directly.
+		collect := func(asset AssetIndex, limit int) [][2]int {
+			var pairs [][2]int
+			graph.ResolvedDependencies(asset)(func(dependencyIndex int, asset AssetIndex) bool {
+				pairs = append(pairs, [2]int{dependencyIndex, int(asset)})
+				return len(pairs) < limit
+			})
+			return pairs
+		}
+
+		if pairs := collect(3, 10); fmt.Sprint(pairs) != "[[0 10] [1 11] [2 12]]" {
+			t.Fatalf("unexpected dependencies %v", pairs)
+		}
+		if host.resolvedDependencySize() != resolvedDependencySize {
+			t.Fatalf("expected ResolvedDependency.size %d, got %d", resolvedDependencySize, host.resolvedDependencySize())
+		}
+		// Stopping early, and iterating again from the start.
+		if pairs := collect(3, 1); fmt.Sprint(pairs) != "[[0 10]]" {
+			t.Fatalf("expected to stop after one dependency, got %v", pairs)
+		}
+		if pairs := collect(0, 10); len(pairs) != 0 {
+			t.Fatalf("expected no dependencies, got %v", pairs)
 		}
 	})
 }

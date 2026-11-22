@@ -1069,6 +1069,117 @@ fn dependency_resolution(
 }
 
 #[test]
+fn bundle_graph_iterates_resolved_dependencies_with_a_cursor() {
+  let target = target_fixture();
+  let mut source = asset_fixture(target.clone());
+  // Dependency 0 has side effects, so its own resolution comes first. Dependency 1 is side
+  // effect free, so only what its imported symbols resolved to is included.
+  for (resolved, flags) in [
+    (1, CoreDependencyFlags::SIDE_EFFECTS),
+    (2, CoreDependencyFlags::empty()),
+  ] {
+    let mut dependency = dependency_fixture(target.clone());
+    dependency.flags = flags;
+    dependency.resolution = DependencyResolution::Asset(AssetNodeIndex::from_index(resolved));
+    source.dependencies.push(dependency);
+  }
+  source.symbols.imports = [(0, 3), (1, 2)]
+    .into_iter()
+    .map(|(dep_index, asset)| parcel_core::ImportedSymbol {
+      dep_index,
+      symbol: parcel_core::SymbolName::Namespace,
+      resolved: parcel_core::SymbolResolution::Namespace {
+        asset_index: CoreAssetIndex(asset),
+      },
+    })
+    .collect();
+  let mut assets = vec![source];
+  assets.extend((0..3).map(|_| asset_fixture(target.clone())));
+
+  let graph = CoreBundleGraph::new(
+    AssetGraph {
+      asset_nodes: Cow::Owned(
+        assets
+          .iter()
+          .enumerate()
+          .map(|(index, asset)| AssetNode::from_asset(CoreAssetIndex::from_index(index), asset))
+          .collect(),
+      ),
+      assets: Cow::Owned(assets),
+      entries: Cow::Owned(Vec::new()),
+    },
+    Vec::new(),
+    HashMap::new(),
+    path("/project"),
+  );
+  let handle = &graph as *const CoreBundleGraph as BundleGraph;
+
+  let collect = |asset: AssetIndex| {
+    let mut cursor = 0u64;
+    let mut out = Vec::new();
+    let mut dependency = ResolvedDependency::default();
+    while parcel_bundle_graph_get_next_resolved_dependency(
+      &mut dependency,
+      handle,
+      asset,
+      &mut cursor,
+    ) {
+      out.push((dependency.dependency_index, dependency.asset));
+    }
+    out
+  };
+  assert_eq!(collect(0), vec![(0, 1), (0, 3), (1, 2)]);
+  assert_eq!(collect(1), vec![]);
+  assert_eq!(collect(4), vec![]);
+
+  let mut dependency = ResolvedDependency::default();
+  let mut cursor = 0u64;
+  assert!(!parcel_bundle_graph_get_next_resolved_dependency(
+    &mut dependency,
+    0,
+    0,
+    &mut cursor
+  ));
+  assert!(!parcel_bundle_graph_get_next_resolved_dependency(
+    ptr::null_mut(),
+    handle,
+    0,
+    &mut cursor
+  ));
+  assert!(!parcel_bundle_graph_get_next_resolved_dependency(
+    &mut dependency,
+    handle,
+    0,
+    ptr::null_mut()
+  ));
+  assert_eq!(cursor, 0);
+
+  // A garbage cursor ends the sequence rather than reading out of bounds.
+  for garbage in [u64::MAX, 0xffff_fffe, 1 << 40] {
+    let mut cursor = garbage;
+    while parcel_bundle_graph_get_next_resolved_dependency(&mut dependency, handle, 0, &mut cursor)
+    {
+    }
+  }
+
+  // One that forgot to set `size` gets nothing written, and the cursor doesn't advance.
+  let mut unsized_dependency = ResolvedDependency {
+    size: 0,
+    asset: 42,
+    ..Default::default()
+  };
+  let mut cursor = 0u64;
+  assert!(!parcel_bundle_graph_get_next_resolved_dependency(
+    &mut unsized_dependency,
+    handle,
+    0,
+    &mut cursor
+  ));
+  assert_eq!(unsized_dependency.asset, 42);
+  assert_eq!(cursor, 0);
+}
+
+#[test]
 fn options_accessors_return_project_root_and_environment_values() {
   let mut options = ParcelOptions {
     project_root: path("/project"),

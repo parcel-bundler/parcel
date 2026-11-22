@@ -375,6 +375,38 @@ func (g *BundleGraph) DependencyResolution(asset AssetIndex, dependencyIndex int
 	}
 }
 
+// ResolvedDependencies iterates over the assets asset depends on, as
+// (dependency index, asset index) pairs, in the order it depends on them: each
+// dependency's own resolution when the asset needs it (it has side effects, or
+// the asset re-exports through it), followed by the assets the symbols imported
+// through it resolved to. These may be past side-effect free re-exports, so not
+// the asset the dependency resolved to. The same asset may appear more than
+// once. Empty for an index out of range, and on a Parcel too old to provide it.
+//
+// Pass the dependency index to [BundleGraph.DependencyResolution] to find out
+// which bundle the asset is in.
+//
+// The result is an iter.Seq2[int, AssetIndex], so with Go 1.23 or later:
+//
+//	for dependencyIndex, asset := range graph.ResolvedDependencies(index) {
+//		// ...
+//	}
+//
+// Each pass over it walks the graph afresh, computing pairs only as they are
+// asked for.
+func (g *BundleGraph) ResolvedDependencies(asset AssetIndex) func(yield func(int, AssetIndex) bool) {
+	return func(yield func(int, AssetIndex) bool) {
+		var dependency C.ResolvedDependency
+		dependency.size = C.sizeof_ResolvedDependency
+		var cursor C.uint64_t
+		for C.parcel_bundle_graph_get_next_resolved_dependency(&dependency, g.ptr, C.AssetIndex(asset), &cursor) {
+			if !yield(int(dependency.dependency_index), AssetIndex(dependency.asset)) {
+				return
+			}
+		}
+	}
+}
+
 // AssetRef is a read-only view of an asset in a BundleGraph.
 type AssetRef struct {
 	ptr     C.Asset

@@ -1789,6 +1789,28 @@ impl<'a> BundleGraph<'a> {
       _ => BundleGraphDependencyResolution::Invalid,
     }
   }
+
+  /// The assets `asset` depends on, as `(dependency index, asset index)` pairs, in the order it
+  /// depends on them: each dependency's own resolution when the asset needs it (it has side
+  /// effects, or the asset re-exports through it), followed by the assets the symbols imported
+  /// through it resolved to. These may be past side-effect free re-exports, so not the asset the
+  /// dependency resolved to. The same asset may appear more than once.
+  ///
+  /// Pass the dependency index to [`dependency_resolution`](Self::dependency_resolution) to find
+  /// out which bundle the asset is in. Empty for an index out of range.
+  pub fn resolved_dependencies(
+    &self,
+    asset: AssetIndex,
+  ) -> impl Iterator<Item = (usize, AssetIndex)> + '_ {
+    let next = host!(bundle_graph_get_next_resolved_dependency);
+    let mut cursor = 0u64;
+    std::iter::from_fn(move || {
+      with_sized(|dependency: &mut ffi::ResolvedDependency| {
+        unsafe { next(dependency, self.raw, asset, &mut cursor) }
+          .then_some((dependency.dependency_index, dependency.asset))
+      })
+    })
+  }
 }
 
 /// Read-only view of an asset in a [`BundleGraph`].

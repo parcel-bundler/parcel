@@ -80,6 +80,74 @@ public struct BundleGraph: Sendable {
     default: return .invalid
     }
   }
+
+  /// The assets `asset` depends on, in the order it depends on them: each
+  /// dependency's own resolution when the asset needs it (it has side effects, or
+  /// the asset re-exports through it), followed by the assets the symbols
+  /// imported through it resolved to. The same asset may appear more than once.
+  /// Empty for an index out of range, and on a Parcel too old to provide it.
+  ///
+  /// Lazy: each iteration walks the graph afresh, computing dependencies only as
+  /// they are asked for. Like everything else from the graph, it is valid only
+  /// for the duration of the plugin call.
+  public func resolvedDependencies(of asset: AssetIndex) -> ResolvedDependencies {
+    ResolvedDependencies(graph: self, asset: asset)
+  }
+
+  /// The next dependency after `cursor`, advancing it, or `nil` at the end.
+  fileprivate func nextResolvedDependency(of asset: AssetIndex, cursor: inout UInt64)
+    -> ResolvedDependency?
+  {
+    host {
+      withSized(CParcelABI.ResolvedDependency.self) { dependency in
+        guard parcel_bundle_graph_get_next_resolved_dependency(dependency, raw, asset, &cursor)
+        else { return nil }
+        return ResolvedDependency(
+          dependencyIndex: Int(dependency.pointee.dependency_index),
+          asset: dependency.pointee.asset)
+      }
+    }
+  }
+}
+
+/// The assets an asset depends on. See ``BundleGraph/resolvedDependencies(of:)``.
+public struct ResolvedDependencies: Sequence, Sendable {
+  let graph: BundleGraph
+  let asset: AssetIndex
+
+  public func makeIterator() -> Iterator {
+    Iterator(graph: graph, asset: asset)
+  }
+
+  public struct Iterator: IteratorProtocol {
+    let graph: BundleGraph
+    let asset: AssetIndex
+    var cursor: UInt64 = 0
+    var done = false
+
+    public mutating func next() -> ResolvedDependency? {
+      guard !done else { return nil }
+      guard let dependency = graph.nextResolvedDependency(of: asset, cursor: &cursor) else {
+        // Stay finished, rather than asking Parcel again.
+        done = true
+        return nil
+      }
+      return dependency
+    }
+  }
+}
+
+/// One of the assets an asset depends on. See
+/// ``BundleGraph/resolvedDependencies(of:)``.
+public struct ResolvedDependency: Hashable, Sendable {
+  /// The index of the dependency, among the asset's, that ``asset`` was reached
+  /// through. Pass it to ``BundleGraph/resolution(ofDependency:of:)`` to find out
+  /// which bundle ``asset`` is in.
+  public let dependencyIndex: Int
+  /// The asset depended on. Not necessarily the one the dependency itself
+  /// resolved to: a symbol imported through it may resolve past a side-effect
+  /// free re-export.
+  public let asset: AssetIndex
 }
 
 /// What a dependency in a ``BundleGraph`` resolved to.
