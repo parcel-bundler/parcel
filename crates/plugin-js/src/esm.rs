@@ -221,6 +221,13 @@ impl Loader for ModuleLoader {
 
     let meta: rquickjs::Object<'js> = module.meta()?;
     meta.prop("url", url::Url::from_file_path(name).unwrap().to_string())?;
+    // As in Node (20.11+), for the file: modules it loads.
+    if self.environment != Environment::Browser {
+      meta.prop("filename", name)?;
+      if let Some(dirname) = Path::new(name).parent().and_then(|p| p.to_str()) {
+        meta.prop("dirname", dirname)?;
+      }
+    }
     Ok(module)
   }
 }

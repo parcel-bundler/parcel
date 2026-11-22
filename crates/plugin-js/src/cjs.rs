@@ -331,14 +331,30 @@ impl CjsLoader {
             })?,
         );
       }
-      let mut code = String::with_capacity(source.len() + 32);
-      code.push_str("(function (module, exports) {");
+      // Node's module wrapper. `__filename` and `__dirname` must be parameters rather than
+      // globals: a `var` with a parameter's name refers to the parameter, so code that redeclares
+      // one, e.g. `var dir = __dirname; var __dirname = path.resolve(dir, '..')`, still reads the
+      // value passed in. As globals, the hoisted `var` would shadow them with `undefined`.
+      let mut code = String::with_capacity(source.len() + 64);
+      code.push_str("(function (exports, require, module, __filename, __dirname) {");
       code.push_str(&source);
       code.push_str("\n})");
       Ok(code)
     })?;
     let f = Function::from_js(ctx, f)?;
-    f.call::<_, ()>((module.clone(), module.get::<_, Value>("exports")?))?;
+    let dirname = Path::new(resolved)
+      .parent()
+      .and_then(|p| p.to_str())
+      .unwrap_or_default();
+    // The global `require`, which has `resolve` and `cache`, and resolves from the module calling
+    // it like the one Node passes.
+    f.call::<_, ()>((
+      module.get::<_, Value>("exports")?,
+      ctx.globals().get::<_, Value>("require")?,
+      module.clone(),
+      resolved,
+      dirname,
+    ))?;
 
     let exports: Value = module.get("exports")?;
     Ok(exports)
