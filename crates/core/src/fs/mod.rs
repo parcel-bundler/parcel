@@ -170,6 +170,15 @@ pub trait FileSystem: Send + Sync {
 
   fn create_dir_all(&self, path: PathId) -> Result<()>;
 
+  /// Creates a new, empty directory. Fails if `path` already exists or its parent doesn't.
+  fn create_dir(&self, path: PathId) -> Result<()>;
+
+  /// Removes an empty directory.
+  fn remove_dir(&self, path: PathId) -> Result<()>;
+
+  /// Removes a directory and everything in it, without following symlinks.
+  fn remove_dir_all(&self, path: PathId) -> Result<()>;
+
   /// Returns the paths matching `pattern`, resolved relative to `cwd`.
   ///
   /// Implementations that track invalidations (see [`TrackingFileSystem`]) override this to record

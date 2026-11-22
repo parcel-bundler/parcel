@@ -271,6 +271,29 @@ impl FileSystem for CachedFileSystem {
     Ok(())
   }
 
+  fn create_dir(&self, path: PathId) -> Result<()> {
+    self.inner.create_dir(path)?;
+    self.invalidate([path]);
+    Ok(())
+  }
+
+  fn remove_dir(&self, path: PathId) -> Result<()> {
+    self.inner.remove_dir(path)?;
+    self.invalidate([path]);
+    Ok(())
+  }
+
+  fn remove_dir_all(&self, path: PathId) -> Result<()> {
+    self.inner.remove_dir_all(path)?;
+    // Everything cached under `path` is gone too.
+    let paths = self.paths.pin();
+    paths.retain(|entry, _| !entry.ancestors().any(|ancestor| ancestor == path));
+    if let Some(parent) = path.parent() {
+      paths.remove(&parent);
+    }
+    Ok(())
+  }
+
   fn as_object_cache(&self) -> Option<&dyn ObjectCache> {
     Some(self)
   }
@@ -360,6 +383,15 @@ mod tests {
     fn create_dir_all(&self, path: PathId) -> Result<()> {
       self.inner.create_dir_all(path)
     }
+    fn create_dir(&self, path: PathId) -> Result<()> {
+      self.inner.create_dir(path)
+    }
+    fn remove_dir(&self, path: PathId) -> Result<()> {
+      self.inner.remove_dir(path)
+    }
+    fn remove_dir_all(&self, path: PathId) -> Result<()> {
+      self.inner.remove_dir_all(path)
+    }
   }
 
   /// Interns a path string for use in tests.
@@ -396,6 +428,22 @@ mod tests {
       2,
       "invalidation should force a refetch"
     );
+  }
+
+  #[test]
+  fn removing_a_directory_invalidates_its_descendants() {
+    let (_counting, fs) = setup();
+    fs.create_dir(pid("/dir/sub")).unwrap();
+    fs.write(pid("/dir/sub/c.js"), b"c").unwrap();
+    assert!(fs.kind(pid("/dir/sub/c.js")).contains(FileKind::IS_FILE));
+    assert!(fs.kind(pid("/dir/a.js")).contains(FileKind::IS_FILE));
+    assert_eq!(fs.read_dir(pid("/")).unwrap().len(), 1);
+
+    fs.remove_dir_all(pid("/dir")).unwrap();
+    assert!(fs.kind(pid("/dir/sub/c.js")).is_empty());
+    assert!(fs.kind(pid("/dir/a.js")).is_empty());
+    assert!(fs.kind(pid("/dir")).is_empty());
+    assert_eq!(fs.read_dir(pid("/")).unwrap().len(), 0);
   }
 
   #[test]
@@ -539,6 +587,15 @@ mod tests {
       Ok(())
     }
     fn create_dir_all(&self, _path: PathId) -> Result<()> {
+      Ok(())
+    }
+    fn create_dir(&self, _path: PathId) -> Result<()> {
+      Ok(())
+    }
+    fn remove_dir(&self, _path: PathId) -> Result<()> {
+      Ok(())
+    }
+    fn remove_dir_all(&self, _path: PathId) -> Result<()> {
       Ok(())
     }
   }

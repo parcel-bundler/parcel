@@ -17,7 +17,7 @@ use rquickjs::{
   function::This, object::Accessor,
 };
 
-use crate::fs::FileSystemData;
+use crate::fs::{FileSystemData, OutputFileSystemData};
 pub use crate::{cjs::CjsLoader, esm::create_esm_loader, macros::call_macro};
 pub use plugin::JsPlugin;
 
@@ -136,8 +136,14 @@ where
   let logs = Rc::new(RefCell::new(Vec::new()));
   let result = with_js_env(options.plugin_fs(), &options.env, options.cwd, |ctx| {
     let outer = ctx.store_userdata(console::ConsoleLogs(logs.clone()))?;
+    let outer_output_fs = ctx.store_userdata(OutputFileSystemData(options.output_fs.clone()))?;
     let result = f(ctx);
     ctx.remove_userdata::<console::ConsoleLogs>()?;
+    ctx.remove_userdata::<OutputFileSystemData>()?;
+    // Called back from another plugin's JS: restore its output file system.
+    if let Some(outer_output_fs) = outer_output_fs {
+      ctx.store_userdata(*outer_output_fs)?;
+    }
     // Called back from another plugin's JS: its call delivers these, in order, once JS returns.
     if let Some(outer) = outer {
       outer

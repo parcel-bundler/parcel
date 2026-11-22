@@ -392,7 +392,7 @@ impl IncrementalTest {
         }
         let id = test_path_id(dir);
         if !deleted.contains(&id) {
-          let _ = self.input_fs.remove_file(id);
+          let _ = self.input_fs.remove_dir(id);
           deleted.push(id);
         }
         ancestor = dir.parent();

@@ -11,6 +11,12 @@ use rquickjs::{
 #[derive(JsLifetime, Trace, Clone)]
 pub struct FileSystemData(#[qjs(skip_trace)] pub Arc<dyn FileSystem>);
 
+/// The file system `fs` writes go to: the build's `output_fs`. Stored for the duration of each
+/// plugin call, since a runtime is shared by every build that reads through the same file system.
+/// Writes fail when it isn't set, e.g. outside a plugin call.
+#[derive(JsLifetime, Trace, Clone)]
+pub struct OutputFileSystemData(#[qjs(skip_trace)] pub Arc<dyn FileSystem>);
+
 fn resolve_fs_path(ctx: &Ctx<'_>, path: &str) -> rquickjs::Result<PathId> {
   let path = Path::new(path);
   if path.is_absolute() {
@@ -44,10 +50,37 @@ const FS_EXPORTS: &[&str] = &[
   "readdir",
   "globSync",
   "glob",
+  "writeFileSync",
+  "writeFile",
+  "copyFileSync",
+  "copyFile",
+  "unlinkSync",
+  "unlink",
+  "mkdirSync",
+  "mkdir",
+  "rmdirSync",
+  "rmdir",
+  "rmSync",
+  "rm",
+  "constants",
 ];
 
 const FS_PROMISES_EXPORTS: &[&str] = &[
-  "Stats", "readFile", "stat", "lstat", "realpath", "readlink", "readdir", "glob",
+  "Stats",
+  "readFile",
+  "stat",
+  "lstat",
+  "realpath",
+  "readlink",
+  "readdir",
+  "glob",
+  "writeFile",
+  "copyFile",
+  "unlink",
+  "mkdir",
+  "rmdir",
+  "rm",
+  "constants",
 ];
 
 fn declare_exports(
@@ -269,6 +302,295 @@ impl Fs {
   }
 }
 
+/// The `encoding` and `flag` of `writeFile`'s options, given as an encoding string or an object.
+fn write_options<'js>(
+  ctx: &Ctx<'js>,
+  options: Option<&Value<'js>>,
+) -> rquickjs::Result<Option<String>> {
+  let Some(options) = options.filter(|o| !o.is_undefined() && !o.is_null()) else {
+    return Ok(None);
+  };
+  if let Some(encoding) = options.as_string() {
+    return Ok(Some(encoding.to_string()?));
+  }
+  let Some(object) = options.as_object() else {
+    return Err(Exception::throw_type(
+      ctx,
+      "options must be a string or an object",
+    ));
+  };
+  if let Some(flag) = object.get::<_, Option<String>>("flag")? {
+    if flag != "w" {
+      return Err(Exception::throw_type(
+        ctx,
+        &format!("Unsupported flag: {flag}"),
+      ));
+    }
+  }
+  object.get::<_, Option<String>>("encoding")
+}
+
+impl Fs {
+  fn write_file_internal<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    data: Value<'js>,
+    options: Option<&Value<'js>>,
+  ) -> rquickjs::Result<Result<(), Exception<'js>>> {
+    let encoding = write_options(&ctx, options)?;
+    let bytes = crate::crypto::value_to_bytes(&ctx, &data, encoding.as_deref())?;
+    let fs = match output_fs(&ctx, "open", &path)? {
+      Ok(fs) => fs,
+      Err(exception) => return Ok(Err(exception)),
+    };
+    match fs.write(resolve_fs_path(&ctx, &path)?, &bytes) {
+      Ok(()) => Ok(Ok(())),
+      Err(err) => Ok(Err(io_exception(ctx, &err, "open", &path)?)),
+    }
+  }
+
+  fn copy_file_internal<'js>(
+    ctx: Ctx<'js>,
+    src: String,
+    dest: String,
+    mode: Option<&Value<'js>>,
+  ) -> rquickjs::Result<Result<(), Exception<'js>>> {
+    let mode = match mode.filter(|m| !m.is_undefined()) {
+      Some(mode) => mode
+        .as_number()
+        .ok_or_else(|| Exception::throw_type(&ctx, "mode must be a number"))?
+        as u32,
+      None => 0,
+    };
+    let fs = match output_fs(&ctx, "copyfile", &src)? {
+      Ok(fs) => fs,
+      Err(exception) => return Ok(Err(exception)),
+    };
+    let from = resolve_fs_path(&ctx, &src)?;
+    let to = resolve_fs_path(&ctx, &dest)?;
+    let result = if mode & COPYFILE_EXCL != 0 && fs.lstat(to).is_some() {
+      Err(std::io::Error::from(std::io::ErrorKind::AlreadyExists))
+    } else {
+      fs.copy(from, to)
+    };
+    match result {
+      Ok(()) => Ok(Ok(())),
+      Err(err) => {
+        let exception = io_exception(ctx, &err, "copyfile", &src)?;
+        exception.set("dest", dest)?;
+        Ok(Err(exception))
+      }
+    }
+  }
+
+  fn unlink_internal<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+  ) -> rquickjs::Result<Result<(), Exception<'js>>> {
+    let fs = match output_fs(&ctx, "unlink", &path)? {
+      Ok(fs) => fs,
+      Err(exception) => return Ok(Err(exception)),
+    };
+    match fs.remove_file(resolve_fs_path(&ctx, &path)?) {
+      Ok(()) => Ok(Ok(())),
+      Err(err) => Ok(Err(io_exception(ctx, &err, "unlink", &path)?)),
+    }
+  }
+
+  /// Returns the first directory created when `recursive` is set, as Node does.
+  fn mkdir_internal<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    options: Option<&Value<'js>>,
+  ) -> rquickjs::Result<Result<Option<String>, Exception<'js>>> {
+    // `mode` (given alone as a number, or in the object) is ignored.
+    let recursive = bool_option(&ctx, options, "recursive")?;
+    let fs = match output_fs(&ctx, "mkdir", &path)? {
+      Ok(fs) => fs,
+      Err(exception) => return Ok(Err(exception)),
+    };
+    let resolved = resolve_fs_path(&ctx, &path)?;
+    let result = if recursive {
+      let first_created = resolved
+        .ancestors()
+        .take_while(|ancestor| fs.kind(*ancestor).is_empty())
+        .last();
+      fs.create_dir_all(resolved)
+        .map(|()| first_created.map(|dir| dir.to_path_buf().to_string_lossy().into_owned()))
+    } else {
+      fs.create_dir(resolved).map(|()| None)
+    };
+    match result {
+      Ok(created) => Ok(Ok(created)),
+      Err(err) => Ok(Err(io_exception(ctx, &err, "mkdir", &path)?)),
+    }
+  }
+
+  fn rmdir_internal<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    options: Option<&Value<'js>>,
+  ) -> rquickjs::Result<Result<(), Exception<'js>>> {
+    // Deprecated in Node in favor of `rm`, but still supported.
+    let recursive = bool_option(&ctx, options, "recursive")?;
+    let fs = match output_fs(&ctx, "rmdir", &path)? {
+      Ok(fs) => fs,
+      Err(exception) => return Ok(Err(exception)),
+    };
+    let resolved = resolve_fs_path(&ctx, &path)?;
+    let result = if recursive {
+      fs.remove_dir_all(resolved)
+    } else {
+      fs.remove_dir(resolved)
+    };
+    match result {
+      Ok(()) => Ok(Ok(())),
+      Err(err) => Ok(Err(io_exception(ctx, &err, "rmdir", &path)?)),
+    }
+  }
+
+  fn rm_internal<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    options: Option<&Value<'js>>,
+  ) -> rquickjs::Result<Result<(), Exception<'js>>> {
+    let recursive = bool_option(&ctx, options, "recursive")?;
+    let force = bool_option(&ctx, options, "force")?;
+    let fs = match output_fs(&ctx, "rm", &path)? {
+      Ok(fs) => fs,
+      Err(exception) => return Ok(Err(exception)),
+    };
+    let resolved = resolve_fs_path(&ctx, &path)?;
+    let result = match fs.lstat(resolved) {
+      None => Err(std::io::Error::from(std::io::ErrorKind::NotFound)),
+      Some(stat) if stat.kind.contains(FileKind::IS_DIR) => {
+        if !recursive {
+          let exception = Exception::from_message(
+            ctx,
+            &format!("Path is a directory: rm returned EISDIR (is a directory) {path}"),
+          )?;
+          exception.set("code", "ERR_FS_EISDIR")?;
+          exception.set("errno", 21)?;
+          exception.set("syscall", "rm")?;
+          exception.set("path", path)?;
+          return Ok(Err(exception));
+        }
+        fs.remove_dir_all(resolved)
+      }
+      Some(_) => fs.remove_file(resolved),
+    };
+    match result {
+      Ok(()) => Ok(Ok(())),
+      Err(err) if force && err.kind() == std::io::ErrorKind::NotFound => Ok(Ok(())),
+      Err(err) => Ok(Err(io_exception(ctx, &err, "rm", &path)?)),
+    }
+  }
+}
+
+/// A boolean property of an options object, defaulting to false. Other kinds of options, e.g. a
+/// `mode` number, have none.
+fn bool_option<'js>(
+  ctx: &Ctx<'js>,
+  options: Option<&Value<'js>>,
+  name: &str,
+) -> rquickjs::Result<bool> {
+  let Some(object) = options.and_then(|options| options.as_object()) else {
+    return Ok(false);
+  };
+  match object.get::<_, Value>(name)? {
+    value if value.is_undefined() => Ok(false),
+    value => value.as_bool().ok_or_else(|| {
+      Exception::throw_type(
+        ctx,
+        &format!("The \"options.{name}\" property must be a boolean"),
+      )
+    }),
+  }
+}
+
+/// `fs.constants.COPYFILE_EXCL`: fail if the destination exists.
+const COPYFILE_EXCL: u32 = 1;
+
+/// The file system writes go to, or an `EROFS` error when there is none.
+fn output_fs<'js>(
+  ctx: &Ctx<'js>,
+  syscall: &str,
+  path: &str,
+) -> rquickjs::Result<Result<Arc<dyn FileSystem>, Exception<'js>>> {
+  if let Some(fs) = ctx.userdata::<OutputFileSystemData>() {
+    return Ok(Ok(fs.0.clone()));
+  }
+  let exception = Exception::from_message(
+    ctx.clone(),
+    &format!("EROFS: read-only file system, {syscall} '{path}'"),
+  )?;
+  exception.set("code", "EROFS")?;
+  exception.set("syscall", syscall)?;
+  exception.set("path", path)?;
+  Ok(Err(exception))
+}
+
+/// Calls a Node-style callback with only an error argument, e.g. `writeFile`'s.
+fn handle_async_void<'js>(
+  callback: &Function<'js>,
+  result: Result<(), Exception<'js>>,
+) -> rquickjs::Result<()> {
+  match result {
+    Ok(()) => callback.call((rquickjs::Null,)),
+    Err(exception) => callback.call((exception,)),
+  }
+}
+
+/// Splits a Node-style `(...optional, callback)` argument list.
+fn split_callback<'a, 'js>(
+  ctx: &Ctx<'js>,
+  rest: &'a [Value<'js>],
+) -> rquickjs::Result<(Option<&'a Value<'js>>, &'a Function<'js>)> {
+  let (option, callback) = if rest.len() >= 2 {
+    (Some(&rest[0]), rest[1].as_function())
+  } else {
+    (None, rest.first().and_then(|v| v.as_function()))
+  };
+  match callback {
+    Some(callback) => Ok((option, callback)),
+    None => Err(Exception::throw_message(
+      ctx,
+      "Required callback not provided",
+    )),
+  }
+}
+
+/// Like `to_promise`, but rejects with an exception `result` threw (e.g. for an invalid
+/// argument), as Node's promise API does, rather than throwing it.
+fn try_to_promise<'js, V: IntoJs<'js>>(
+  ctx: &Ctx<'js>,
+  result: rquickjs::Result<Result<V, Exception<'js>>>,
+) -> rquickjs::Result<Promise<'js>> {
+  match result {
+    Ok(result) => to_promise(ctx, result),
+    Err(rquickjs::Error::Exception) => {
+      let error = ctx.catch();
+      let (promise, _, reject) = Promise::new(ctx)?;
+      reject.call::<_, Value>((error,))?;
+      Ok(promise)
+    }
+    Err(err) => Err(err),
+  }
+}
+
+/// `fs.constants`, with the flags these functions understand.
+fn constants<'js>(ctx: &Ctx<'js>) -> rquickjs::Result<rquickjs::Object<'js>> {
+  let constants = rquickjs::Object::new(ctx.clone())?;
+  constants.set("F_OK", 0)?;
+  constants.set("R_OK", 4)?;
+  constants.set("W_OK", 2)?;
+  constants.set("X_OK", 1)?;
+  constants.set("COPYFILE_EXCL", COPYFILE_EXCL)?;
+  constants.set("COPYFILE_FICLONE", 2)?;
+  constants.set("COPYFILE_FICLONE_FORCE", 4)?;
+  Ok(constants)
+}
+
 /// Creates a Node-style error with a `code` property, which callers like glob
 /// inspect to distinguish expected failures (e.g. ENOENT) from real ones.
 fn io_exception<'js>(
@@ -284,6 +606,8 @@ fn io_exception<'js>(
     ErrorKind::IsADirectory => Some("EISDIR"),
     ErrorKind::PermissionDenied => Some("EACCES"),
     ErrorKind::InvalidInput => Some("EINVAL"),
+    ErrorKind::AlreadyExists => Some("EEXIST"),
+    ErrorKind::DirectoryNotEmpty => Some("ENOTEMPTY"),
     _ => None,
   };
   let Some(code) = code else {
@@ -498,6 +822,134 @@ impl Fs {
     handle_async(&callback, Fs::glob_internal(ctx.clone(), path, options)?)
   }
 
+  pub fn write_file_sync<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    data: Value<'js>,
+    options: rquickjs::function::Opt<Value<'js>>,
+  ) -> rquickjs::Result<()> {
+    handle_sync(
+      &ctx,
+      Fs::write_file_internal(ctx.clone(), path, data, options.0.as_ref())?,
+    )?;
+    Ok(())
+  }
+
+  pub fn write_file<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    data: Value<'js>,
+    rest: rquickjs::function::Rest<Value<'js>>,
+  ) -> rquickjs::Result<()> {
+    let (options, callback) = split_callback(&ctx, &rest.0)?;
+    handle_async_void(
+      callback,
+      Fs::write_file_internal(ctx.clone(), path, data, options)?,
+    )
+  }
+
+  pub fn copy_file_sync<'js>(
+    ctx: Ctx<'js>,
+    src: String,
+    dest: String,
+    mode: rquickjs::function::Opt<Value<'js>>,
+  ) -> rquickjs::Result<()> {
+    handle_sync(
+      &ctx,
+      Fs::copy_file_internal(ctx.clone(), src, dest, mode.0.as_ref())?,
+    )?;
+    Ok(())
+  }
+
+  pub fn copy_file<'js>(
+    ctx: Ctx<'js>,
+    src: String,
+    dest: String,
+    rest: rquickjs::function::Rest<Value<'js>>,
+  ) -> rquickjs::Result<()> {
+    let (mode, callback) = split_callback(&ctx, &rest.0)?;
+    handle_async_void(
+      callback,
+      Fs::copy_file_internal(ctx.clone(), src, dest, mode)?,
+    )
+  }
+
+  pub fn unlink_sync<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<()> {
+    handle_sync(&ctx, Fs::unlink_internal(ctx.clone(), path)?)?;
+    Ok(())
+  }
+
+  pub fn unlink<'js>(ctx: Ctx<'js>, path: String, callback: Function<'js>) -> rquickjs::Result<()> {
+    handle_async_void(&callback, Fs::unlink_internal(ctx.clone(), path)?)
+  }
+
+  pub fn mkdir_sync<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    options: rquickjs::function::Opt<Value<'js>>,
+  ) -> rquickjs::Result<Value<'js>> {
+    handle_sync(
+      &ctx,
+      Fs::mkdir_internal(ctx.clone(), path, options.0.as_ref())?,
+    )
+  }
+
+  pub fn mkdir<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    rest: rquickjs::function::Rest<Value<'js>>,
+  ) -> rquickjs::Result<()> {
+    let (options, callback) = split_callback(&ctx, &rest.0)?;
+    handle_async(callback, Fs::mkdir_internal(ctx.clone(), path, options)?)
+  }
+
+  pub fn rmdir_sync<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    options: rquickjs::function::Opt<Value<'js>>,
+  ) -> rquickjs::Result<()> {
+    handle_sync(
+      &ctx,
+      Fs::rmdir_internal(ctx.clone(), path, options.0.as_ref())?,
+    )?;
+    Ok(())
+  }
+
+  pub fn rmdir<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    rest: rquickjs::function::Rest<Value<'js>>,
+  ) -> rquickjs::Result<()> {
+    let (options, callback) = split_callback(&ctx, &rest.0)?;
+    handle_async_void(callback, Fs::rmdir_internal(ctx.clone(), path, options)?)
+  }
+
+  pub fn rm_sync<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    options: rquickjs::function::Opt<Value<'js>>,
+  ) -> rquickjs::Result<()> {
+    handle_sync(
+      &ctx,
+      Fs::rm_internal(ctx.clone(), path, options.0.as_ref())?,
+    )?;
+    Ok(())
+  }
+
+  pub fn rm<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    rest: rquickjs::function::Rest<Value<'js>>,
+  ) -> rquickjs::Result<()> {
+    let (options, callback) = split_callback(&ctx, &rest.0)?;
+    handle_async_void(callback, Fs::rm_internal(ctx.clone(), path, options)?)
+  }
+
+  #[qjs(get)]
+  fn constants<'js>(ctx: Ctx<'js>) -> rquickjs::Result<rquickjs::Object<'js>> {
+    constants(&ctx)
+  }
+
   pub fn open<'js>(_ctx: Ctx<'js>, path: String, _rest: rquickjs::function::Rest<Value<'js>>) {
     println!("Open {}", path);
   }
@@ -576,6 +1028,69 @@ impl FsPromises {
       &ctx,
       Fs::glob_internal(ctx.clone(), glob, options.0.as_ref())?,
     )
+  }
+
+  pub fn write_file<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    data: Value<'js>,
+    options: rquickjs::function::Opt<Value<'js>>,
+  ) -> rquickjs::Result<Promise<'js>> {
+    try_to_promise(
+      &ctx,
+      Fs::write_file_internal(ctx.clone(), path, data, options.0.as_ref()),
+    )
+  }
+
+  pub fn copy_file<'js>(
+    ctx: Ctx<'js>,
+    src: String,
+    dest: String,
+    mode: rquickjs::function::Opt<Value<'js>>,
+  ) -> rquickjs::Result<Promise<'js>> {
+    try_to_promise(
+      &ctx,
+      Fs::copy_file_internal(ctx.clone(), src, dest, mode.0.as_ref()),
+    )
+  }
+
+  pub fn unlink<'js>(ctx: Ctx<'js>, path: String) -> rquickjs::Result<Promise<'js>> {
+    try_to_promise(&ctx, Fs::unlink_internal(ctx.clone(), path))
+  }
+
+  pub fn mkdir<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    options: rquickjs::function::Opt<Value<'js>>,
+  ) -> rquickjs::Result<Promise<'js>> {
+    try_to_promise(
+      &ctx,
+      Fs::mkdir_internal(ctx.clone(), path, options.0.as_ref()),
+    )
+  }
+
+  pub fn rmdir<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    options: rquickjs::function::Opt<Value<'js>>,
+  ) -> rquickjs::Result<Promise<'js>> {
+    try_to_promise(
+      &ctx,
+      Fs::rmdir_internal(ctx.clone(), path, options.0.as_ref()),
+    )
+  }
+
+  pub fn rm<'js>(
+    ctx: Ctx<'js>,
+    path: String,
+    options: rquickjs::function::Opt<Value<'js>>,
+  ) -> rquickjs::Result<Promise<'js>> {
+    try_to_promise(&ctx, Fs::rm_internal(ctx.clone(), path, options.0.as_ref()))
+  }
+
+  #[qjs(get)]
+  fn constants<'js>(ctx: Ctx<'js>) -> rquickjs::Result<rquickjs::Object<'js>> {
+    constants(&ctx)
   }
 
   pub fn open<'js>(_ctx: Ctx<'js>, path: String, _rest: rquickjs::function::Rest<Value<'js>>) {

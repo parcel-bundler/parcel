@@ -127,6 +127,18 @@ impl FileSystem for OsFileSystem {
     path.with_path(|p| std::fs::create_dir_all(p))
   }
 
+  fn create_dir(&self, path: PathId) -> Result<()> {
+    path.with_path(|p| std::fs::create_dir(p))
+  }
+
+  fn remove_dir(&self, path: PathId) -> Result<()> {
+    path.with_path(|p| std::fs::remove_dir(p))
+  }
+
+  fn remove_dir_all(&self, path: PathId) -> Result<()> {
+    path.with_path(|p| std::fs::remove_dir_all(p))
+  }
+
   fn stat(&self, path: PathId) -> Option<FileStat> {
     path.with_path(|path| {
       path.symlink_metadata().ok().and_then(|meta| {

@@ -95,6 +95,21 @@ impl FileSystem for OverlayFileSystem {
     self.mem.create_dir_all(path)
   }
 
+  fn create_dir(&self, path: PathId) -> Result<()> {
+    if !self.os.kind(path).is_empty() {
+      return Err(Error::new(ErrorKind::AlreadyExists, "already exists"));
+    }
+    self.mem.create_dir(path)
+  }
+
+  fn remove_dir(&self, path: PathId) -> Result<()> {
+    self.mem.remove_dir(path)
+  }
+
+  fn remove_dir_all(&self, path: PathId) -> Result<()> {
+    self.mem.remove_dir_all(path)
+  }
+
   fn stat(&self, path: PathId) -> Option<FileStat> {
     let mem_stat = self.mem.stat(path);
     if mem_stat.is_some() {

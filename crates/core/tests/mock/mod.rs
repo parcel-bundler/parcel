@@ -152,6 +152,20 @@ impl FileSystem for RecordingFileSystem {
   fn create_dir_all(&self, path: PathId) -> IoResult<()> {
     self.inner.create_dir_all(path)
   }
+
+  fn create_dir(&self, path: PathId) -> IoResult<()> {
+    self.inner.create_dir(path)
+  }
+
+  fn remove_dir(&self, path: PathId) -> IoResult<()> {
+    self.removes.lock().unwrap().push(path.to_path_buf());
+    self.inner.remove_dir(path)
+  }
+
+  fn remove_dir_all(&self, path: PathId) -> IoResult<()> {
+    self.removes.lock().unwrap().push(path.to_path_buf());
+    self.inner.remove_dir_all(path)
+  }
 }
 
 // ===========================================================================

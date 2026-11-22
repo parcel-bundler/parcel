@@ -767,13 +767,13 @@ mod tests {
 
   fn test(input: &str, expected: Vec<Entry>) {
     let fs = MemoryFileSystem::new();
-    fs.mkdir(test_path("/root").as_path()).unwrap();
+    fs.create_dir(PathId::new(&test_path("/root"))).unwrap();
     fs.write(
       PathId::new(test_path("/root/package.json").as_path()),
       &input.as_bytes().to_owned(),
     )
     .unwrap();
-    fs.mkdir(test_path("/root/src").as_path()).unwrap();
+    fs.create_dir(PathId::new(&test_path("/root/src"))).unwrap();
     fs.write(
       PathId::new(test_path("/root/src/foo.tsx").as_path()),
       &Vec::new(),
@@ -1396,7 +1396,7 @@ mod tests {
     // A `"source"` field that resolves outside the package directory (e.g. `"../foo.tsx"`)
     // must produce a diagnostic instead of panicking in `dist_dir_entry`'s `strip_prefix`.
     let fs = MemoryFileSystem::new();
-    fs.mkdir(test_path("/root").as_path()).unwrap();
+    fs.create_dir(PathId::new(&test_path("/root"))).unwrap();
     fs.write(
       PathId::new(test_path("/root/package.json").as_path()),
       &br#"
@@ -1439,7 +1439,7 @@ mod tests {
   fn test_node_file_entry_output_format_follows_package_type() {
     let output_format = |pkg: &str, entry: &str| {
       let fs = MemoryFileSystem::new();
-      fs.mkdir(test_path("/root").as_path()).unwrap();
+      fs.create_dir(PathId::new(&test_path("/root"))).unwrap();
       fs.write(
         PathId::new(test_path("/root/package.json").as_path()),
         &pkg.as_bytes().to_vec(),
@@ -1510,7 +1510,7 @@ mod tests {
   #[test]
   fn test_default_target_context_for_file_entry() {
     let fs = MemoryFileSystem::new();
-    fs.mkdir(test_path("/root").as_path()).unwrap();
+    fs.create_dir(PathId::new(&test_path("/root"))).unwrap();
     fs.write(
       PathId::new(test_path("/root/package.json").as_path()),
       &br#"{"targets":{"default":{"context":"react-server"}}}"#.to_vec(),
@@ -1560,7 +1560,7 @@ mod tests {
   /// Resolves `/root/{entry}` with the given package.json, returning each entry's target.
   fn file_entry_targets(pkg: &str, entry: &str, dist_dir: Option<&str>) -> Vec<Arc<Target>> {
     let fs = MemoryFileSystem::new();
-    fs.mkdir(test_path("/root").as_path()).unwrap();
+    fs.create_dir(PathId::new(&test_path("/root"))).unwrap();
     fs.write(
       PathId::new(test_path("/root/package.json").as_path()),
       &pkg.as_bytes().to_vec(),
@@ -1680,8 +1680,8 @@ mod tests {
   /// Resolves the `/root` package with the given package.json.
   fn package_entries(pkg: &str, dist_dir: Option<&str>) -> Result<Vec<Entry>, crate::Diagnostic> {
     let fs = MemoryFileSystem::new();
-    fs.mkdir(test_path("/root").as_path()).unwrap();
-    fs.mkdir(test_path("/root/src").as_path()).unwrap();
+    fs.create_dir(PathId::new(&test_path("/root"))).unwrap();
+    fs.create_dir(PathId::new(&test_path("/root/src"))).unwrap();
     fs.write(
       PathId::new(test_path("/root/package.json").as_path()),
       &pkg.as_bytes().to_vec(),
@@ -1824,7 +1824,7 @@ mod tests {
   fn test_target_optimize() {
     let optimized = |pkg: &str, mode: crate::BuildMode, optimize: Option<bool>| -> Vec<bool> {
       let fs = MemoryFileSystem::new();
-      fs.mkdir(test_path("/root").as_path()).unwrap();
+      fs.create_dir(PathId::new(&test_path("/root"))).unwrap();
       fs.write(
         PathId::new(test_path("/root/package.json").as_path()),
         &pkg.as_bytes().to_vec(),

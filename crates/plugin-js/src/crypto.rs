@@ -557,7 +557,7 @@ pub fn webcrypto_module<'js>(ctx: &Ctx<'js>) -> rquickjs::Result<Object<'js>> {
   Ok(module)
 }
 
-fn value_to_bytes<'js>(
+pub(crate) fn value_to_bytes<'js>(
   ctx: &Ctx<'js>,
   value: &Value<'js>,
   encoding: Option<&str>,

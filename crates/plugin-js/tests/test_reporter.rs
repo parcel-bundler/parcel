@@ -40,6 +40,25 @@ fn report_times(
   config: Option<serde_json::Value>,
   times: usize,
 ) -> Result<(), DiagnosticList> {
+  report_with_output_fs(
+    name,
+    code,
+    event,
+    config,
+    times,
+    Arc::new(OverlayFileSystem::new()),
+  )
+}
+
+/// Like `report_times`, with `output_fs` as the build's output file system.
+fn report_with_output_fs(
+  name: &str,
+  code: &str,
+  event: &ReporterEvent,
+  config: Option<serde_json::Value>,
+  times: usize,
+  output_fs: Arc<dyn FileSystem>,
+) -> Result<(), DiagnosticList> {
   let fs = Arc::new(OverlayFileSystem::new());
   let root = PathId::new(Path::new(env!("CARGO_MANIFEST_DIR")));
   let plugin_path = root.join(Path::new(name));
@@ -69,6 +88,7 @@ fn report_times(
   let plugin = JsPlugin::new(plugin_path, "test-plugin", config);
   let options = ParcelOptions {
     input_fs: fs,
+    output_fs,
     ..Default::default()
   };
   (0..times)
@@ -648,4 +668,252 @@ fn test_the_method_set_is_resolved_once() {
     error.is_ok(),
     "five skipped log events probed the plugin more than once: {error:?}"
   );
+}
+
+#[test]
+fn test_reporter_write_file() {
+  let output_fs = Arc::new(OverlayFileSystem::new());
+  let dir = test_utils::path("/_parcel_out");
+  output_fs
+    .create_dir_all(PathId::new(&dir))
+    .expect("Error creating dir");
+  report_with_output_fs(
+    "reporter-write-file.mjs",
+    r#"
+      import {Reporter} from '@parcel/plugin';
+      import fs from 'fs';
+      import fsPromises from 'fs/promises';
+      import assert from 'assert';
+
+      export default new Reporter({
+        async buildStart() {
+          fs.writeFileSync(testPath('/_parcel_out/sync.txt'), 'sync');
+          fs.writeFileSync(testPath('/_parcel_out/buffer.txt'), Buffer.from('buffer'));
+          fs.writeFileSync(testPath('/_parcel_out/hex.txt'), '6869', 'hex');
+          fs.writeFileSync(testPath('/_parcel_out/view.txt'), new Uint8Array([0, 118, 105, 101, 119]).subarray(1));
+          fs.writeFileSync(testPath('/_parcel_out/options.txt'), 'b3B0aW9ucw==', {encoding: 'base64'});
+
+          let called = false;
+          fs.writeFile(testPath('/_parcel_out/callback.txt'), 'callback', err => {
+            called = true;
+            assert.equal(err, null);
+          });
+          assert.equal(called, true);
+
+          await fsPromises.writeFile(testPath('/_parcel_out/promise.txt'), 'promise');
+          await fs.promises.writeFile(testPath('/_parcel_out/promises.txt'), 'promises', 'utf8');
+
+          // Writes don't go to the input file system.
+          assert.equal(fs.existsSync(testPath('/_parcel_out/sync.txt')), false);
+
+          assert.throws(() => fs.writeFileSync(testPath('/_parcel_out/missing/file.txt'), 'x'), {code: 'ENOENT'});
+          assert.throws(() => fs.writeFileSync(testPath('/_parcel_out/bad.txt'), 42), TypeError);
+          await assert.rejects(fsPromises.writeFile(testPath('/_parcel_out/missing/file.txt'), 'x'), {code: 'ENOENT'});
+          await assert.rejects(fsPromises.writeFile(testPath('/_parcel_out/bad.txt'), 42), TypeError);
+        }
+      });
+    "#,
+    &ReporterEvent::BuildStart,
+    None,
+    1,
+    output_fs.clone(),
+  )
+  .expect("buildStart");
+
+  let read = |name: &str| {
+    output_fs
+      .read_to_string(PathId::new(&dir.join(name)))
+      .unwrap_or_else(|err| panic!("{name}: {err}"))
+  };
+  assert_eq!(read("sync.txt"), "sync");
+  assert_eq!(read("buffer.txt"), "buffer");
+  assert_eq!(read("hex.txt"), "hi");
+  assert_eq!(read("view.txt"), "view");
+  assert_eq!(read("options.txt"), "options");
+  assert_eq!(read("callback.txt"), "callback");
+  assert_eq!(read("promise.txt"), "promise");
+  assert_eq!(read("promises.txt"), "promises");
+}
+
+#[test]
+fn test_reporter_copy_file_and_unlink() {
+  let output_fs = Arc::new(OverlayFileSystem::new());
+  let dir = test_utils::path("/_parcel_out");
+  output_fs
+    .create_dir_all(PathId::new(&dir))
+    .expect("Error creating dir");
+  for name in [
+    "src.txt",
+    "unlink-sync.txt",
+    "unlink-callback.txt",
+    "unlink-promise.txt",
+  ] {
+    output_fs
+      .write(PathId::new(&dir.join(name)), name.as_bytes())
+      .expect("Error writing file");
+  }
+  report_with_output_fs(
+    "reporter-copy-unlink.mjs",
+    r#"
+      import {Reporter} from '@parcel/plugin';
+      import fs from 'fs';
+      import fsPromises from 'fs/promises';
+      import assert from 'assert';
+
+      const out = name => testPath('/_parcel_out/' + name);
+
+      export default new Reporter({
+        async buildStart() {
+          fs.copyFileSync(out('src.txt'), out('copy-sync.txt'));
+          fs.copyFileSync(out('src.txt'), out('copy-sync.txt'));
+
+          let called = false;
+          fs.copyFile(out('src.txt'), out('copy-callback.txt'), err => {
+            called = true;
+            assert.equal(err, null);
+          });
+          assert.equal(called, true);
+
+          await fsPromises.copyFile(out('src.txt'), out('copy-promise.txt'));
+          await fs.promises.copyFile(out('src.txt'), out('copy-excl.txt'), fs.constants.COPYFILE_EXCL);
+
+          assert.throws(() => fs.copyFileSync(out('src.txt'), out('copy-excl.txt'), fs.constants.COPYFILE_EXCL), {code: 'EEXIST'});
+          assert.throws(() => fs.copyFileSync(out('missing.txt'), out('copy-missing.txt')), {code: 'ENOENT', syscall: 'copyfile'});
+          await assert.rejects(fsPromises.copyFile(out('missing.txt'), out('copy-missing.txt')), {code: 'ENOENT'});
+          await assert.rejects(fsPromises.copyFile(out('src.txt'), out('copy-bad.txt'), 'x'), TypeError);
+
+          fs.unlinkSync(out('unlink-sync.txt'));
+          called = false;
+          fs.unlink(out('unlink-callback.txt'), err => {
+            called = true;
+            assert.equal(err, null);
+          });
+          assert.equal(called, true);
+          await fsPromises.unlink(out('unlink-promise.txt'));
+
+          assert.throws(() => fs.unlinkSync(out('unlink-sync.txt')), {code: 'ENOENT', syscall: 'unlink'});
+          await assert.rejects(fs.promises.unlink(out('unlink-sync.txt')), {code: 'ENOENT'});
+        }
+      });
+    "#,
+    &ReporterEvent::BuildStart,
+    None,
+    1,
+    output_fs.clone(),
+  )
+  .expect("buildStart");
+
+  let read = |name: &str| output_fs.read_to_string(PathId::new(&dir.join(name)));
+  for name in [
+    "copy-sync.txt",
+    "copy-callback.txt",
+    "copy-promise.txt",
+    "copy-excl.txt",
+  ] {
+    assert_eq!(
+      read(name).unwrap_or_else(|err| panic!("{name}: {err}")),
+      "src.txt"
+    );
+  }
+  for name in [
+    "unlink-sync.txt",
+    "unlink-callback.txt",
+    "unlink-promise.txt",
+    "copy-missing.txt",
+    "copy-bad.txt",
+  ] {
+    assert!(read(name).is_err(), "{name} should not exist");
+  }
+  assert_eq!(read("src.txt").unwrap(), "src.txt");
+}
+
+#[test]
+fn test_reporter_mkdir_rmdir_rm() {
+  let output_fs = Arc::new(OverlayFileSystem::new());
+  let dir = test_utils::path("/_parcel_out");
+  output_fs
+    .create_dir_all(PathId::new(&dir))
+    .expect("Error creating dir");
+  report_with_output_fs(
+    "reporter-mkdir-rm.mjs",
+    r#"
+      import {Reporter} from '@parcel/plugin';
+      import fs from 'fs';
+      import fsPromises from 'fs/promises';
+      import assert from 'assert';
+
+      const out = name => testPath('/_parcel_out/' + name);
+
+      export default new Reporter({
+        async buildStart() {
+          // mkdir
+          assert.equal(fs.mkdirSync(out('a')), undefined);
+          assert.throws(() => fs.mkdirSync(out('a')), {code: 'EEXIST', syscall: 'mkdir'});
+          assert.throws(() => fs.mkdirSync(out('missing/b')), {code: 'ENOENT'});
+          assert.equal(fs.mkdirSync(out('a/b/c'), {recursive: true}), out('a/b'));
+          assert.equal(fs.mkdirSync(out('a/b/c'), {recursive: true}), undefined);
+          assert.equal(fs.mkdirSync(out('mode'), 0o755), undefined);
+
+          let called = false;
+          fs.mkdir(out('callback'), err => {
+            called = true;
+            assert.equal(err, null);
+          });
+          assert.equal(called, true);
+          called = false;
+          fs.mkdir(out('callback-r/x'), {recursive: true}, (err, path) => {
+            called = true;
+            assert.equal(err, null);
+            assert.equal(path, out('callback-r'));
+          });
+          assert.equal(called, true);
+          assert.equal(await fsPromises.mkdir(out('promise')), undefined);
+          assert.equal(await fs.promises.mkdir(out('promise-r/x/y'), {recursive: true}), out('promise-r'));
+          await assert.rejects(fsPromises.mkdir(out('promise')), {code: 'EEXIST'});
+          await assert.rejects(fsPromises.mkdir(out('bad'), {recursive: 1}), TypeError);
+          for (let name of ['a/b/c', 'callback', 'callback-r/x', 'promise', 'promise-r/x/y']) {
+            assert.equal(fs.existsSync(out(name)), false, 'mkdir should not write to the input fs');
+          }
+
+          // rmdir
+          fs.writeFileSync(out('a/file.txt'), 'x');
+          assert.throws(() => fs.rmdirSync(out('a')), {code: 'ENOTEMPTY', syscall: 'rmdir'});
+          assert.throws(() => fs.rmdirSync(out('a/file.txt')), {code: 'ENOTDIR'});
+          fs.rmdirSync(out('a/b/c'));
+          called = false;
+          fs.rmdir(out('a/b'), err => {
+            called = true;
+            assert.equal(err, null);
+          });
+          assert.equal(called, true);
+          await fsPromises.rmdir(out('promise'));
+          await assert.rejects(fsPromises.rmdir(out('promise')), {code: 'ENOENT'});
+          fs.rmdirSync(out('callback-r'), {recursive: true});
+
+          // rm
+          assert.throws(() => fs.rmSync(out('a')), {code: 'ERR_FS_EISDIR'});
+          assert.throws(() => fs.rmSync(out('nope')), {code: 'ENOENT', syscall: 'rm'});
+          fs.rmSync(out('nope'), {force: true});
+          fs.rmSync(out('a/file.txt'));
+          fs.rmSync(out('a'), {recursive: true});
+          fs.rm(out('mode'), {recursive: true}, err => assert.equal(err, null));
+          fs.rm(out('callback'), err => assert.equal(err.code, 'ERR_FS_EISDIR'));
+          await fsPromises.rm(out('promise-r'), {recursive: true, force: true});
+          await fs.promises.rm(out('promise-r'), {force: true});
+          await assert.rejects(fsPromises.rm(out('promise-r')), {code: 'ENOENT'});
+        }
+      });
+    "#,
+    &ReporterEvent::BuildStart,
+    None,
+    1,
+    output_fs.clone(),
+  )
+  .expect("buildStart");
+
+  let kind = |name: &str| output_fs.kind(PathId::new(&dir.join(name)));
+  for name in ["a", "callback-r", "mode", "promise", "promise-r"] {
+    assert!(kind(name).is_empty(), "{name} should have been removed");
+  }
+  assert!(kind("callback").contains(parcel_core::FileKind::IS_DIR));
 }

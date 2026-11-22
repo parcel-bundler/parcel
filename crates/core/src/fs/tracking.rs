@@ -167,6 +167,18 @@ impl FileSystem for TrackingFileSystem {
     self.inner.create_dir_all(path)
   }
 
+  fn create_dir(&self, path: PathId) -> Result<()> {
+    self.inner.create_dir(path)
+  }
+
+  fn remove_dir(&self, path: PathId) -> Result<()> {
+    self.inner.remove_dir(path)
+  }
+
+  fn remove_dir_all(&self, path: PathId) -> Result<()> {
+    self.inner.remove_dir_all(path)
+  }
+
   fn glob(&self, pattern: &str, cwd: PathId) -> Vec<PathId> {
     // Record a create-glob invalidation so that a new file matching the pattern triggers a
     // rebuild (e.g. a new entry appearing for a glob entry). The pattern is absolutized so it

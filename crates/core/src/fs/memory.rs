@@ -114,34 +114,29 @@ impl MemoryFileSystem {
     }
   }
 
-  pub fn mkdir(&self, path: &Path) -> Result<()> {
-    // Intern first so volume prefixes match the normalized ones every PathId uses.
-    let path = PathId::new(path).to_path_buf();
-    let path = path.as_path();
-    let name = path.file_name().unwrap();
-    if let Some(root) = path.parent().filter(|parent| parent.file_name().is_none()) {
-      self.create_dir_all(PathId::new(root))?;
-    }
-    let mut entries = self.entries.lock().unwrap();
-    let node = path.parent().map_or(Ok(0), |p| Self::dir_in(&entries, p))?;
-    let found = Self::entry_in(&entries, node, name);
-    if found.is_ok() {
-      return Err(std::io::Error::new(
-        std::io::ErrorKind::AlreadyExists,
-        "already exists",
+  /// Finds the entry at `path`, returning it along with its parent directory.
+  fn parent_and_entry(entries: &[Entry], path: &Path) -> Result<(usize, usize)> {
+    let Some(name) = path.file_name() else {
+      return Err(Error::new(
+        ErrorKind::PermissionDenied,
+        "can't remove the root directory",
       ));
-    }
+    };
+    let parent = path.parent().map_or(Ok(0), |p| Self::dir_in(entries, p))?;
+    Ok((parent, Self::entry_in(entries, parent, name)?))
+  }
 
-    let index = entries.len();
-    entries.push(Entry::Directory {
-      name: name.into(),
-      children: vec![],
-      parent: Some(node),
-    });
-    if let Entry::Directory { children, .. } = &mut entries[node] {
-      children.push(index);
-    }
-    Ok(())
+  /// Removes the entry at `path` from its parent directory, after checking it with `check`.
+  fn remove(&self, path: PathId, check: impl FnOnce(&Entry) -> Result<()>) -> Result<()> {
+    path.with_path(|path| {
+      let mut entries = self.entries.lock().unwrap();
+      let (parent, found) = Self::parent_and_entry(&entries, path)?;
+      check(&entries[found])?;
+      if let Entry::Directory { children, .. } = &mut entries[parent] {
+        children.retain(|&c| c != found);
+      }
+      Ok(())
+    })
   }
 }
 
@@ -226,17 +221,59 @@ impl FileSystem for MemoryFileSystem {
   }
 
   fn remove_file(&self, path: PathId) -> Result<()> {
+    self.remove(path, |entry| match entry {
+      Entry::File { .. } => Ok(()),
+      Entry::Directory { .. } => Err(Error::new(ErrorKind::IsADirectory, "is a directory")),
+    })
+  }
+
+  fn remove_dir(&self, path: PathId) -> Result<()> {
+    self.remove(path, |entry| match entry {
+      Entry::Directory { children, .. } if children.is_empty() => Ok(()),
+      Entry::Directory { .. } => Err(Error::new(
+        ErrorKind::DirectoryNotEmpty,
+        "directory not empty",
+      )),
+      Entry::File { .. } => Err(Error::new(ErrorKind::NotADirectory, "not a directory")),
+    })
+  }
+
+  fn remove_dir_all(&self, path: PathId) -> Result<()> {
+    // The removed entries stay in `entries`, unreachable, as `remove_file`'s do.
+    self.remove(path, |entry| match entry {
+      Entry::Directory { .. } => Ok(()),
+      Entry::File { .. } => Err(Error::new(ErrorKind::NotADirectory, "not a directory")),
+    })
+  }
+
+  fn create_dir(&self, path: PathId) -> Result<()> {
     path.with_path(|path| {
-      let name = path.file_name().unwrap();
-      let parent = path.parent().map_or(Ok(0), |p| self.dir(p))?;
-      let found = self.entry(parent, name)?;
-      let mut entries = self.entries.lock().unwrap();
-      if let Entry::Directory { children, .. } = &mut entries[parent] {
-        children.retain(|&c| c != found);
-        Ok(())
-      } else {
-        Err(Error::new(ErrorKind::NotADirectory, "not a directory"))
+      let Some(name) = path.file_name() else {
+        return Err(Error::new(ErrorKind::AlreadyExists, "already exists"));
+      };
+      // Volume roots (e.g. `C:\`) exist implicitly, as they do on a real file system.
+      if let Some(root) = path.parent().filter(|parent| parent.file_name().is_none()) {
+        self.create_dir_all(PathId::new(root))?;
       }
+      let mut entries = self.entries.lock().unwrap();
+      let node = path.parent().map_or(Ok(0), |p| Self::dir_in(&entries, p))?;
+      if !matches!(entries[node], Entry::Directory { .. }) {
+        return Err(Error::new(ErrorKind::NotADirectory, "not a directory"));
+      }
+      if Self::entry_in(&entries, node, name).is_ok() {
+        return Err(Error::new(ErrorKind::AlreadyExists, "already exists"));
+      }
+
+      let index = entries.len();
+      entries.push(Entry::Directory {
+        name: name.into(),
+        children: vec![],
+        parent: Some(node),
+      });
+      if let Entry::Directory { children, .. } = &mut entries[node] {
+        children.push(index);
+      }
+      Ok(())
     })
   }
 
@@ -352,6 +389,64 @@ impl FileSystem for MemoryFileSystem {
 
   fn lstat(&self, path: PathId) -> Option<FileStat> {
     self.stat(path)
+  }
+}
+
+#[cfg(test)]
+mod dir_tests {
+  use super::*;
+  use crate::test_utils::path as test_path;
+
+  fn pid(s: &str) -> PathId {
+    PathId::new(&test_path(s))
+  }
+
+  #[test]
+  fn create_and_remove_directories() {
+    let fs = MemoryFileSystem::new();
+    fs.create_dir(pid("/a")).unwrap();
+    assert_eq!(
+      fs.create_dir(pid("/a")).unwrap_err().kind(),
+      ErrorKind::AlreadyExists
+    );
+    assert_eq!(
+      fs.create_dir(pid("/missing/b")).unwrap_err().kind(),
+      ErrorKind::NotFound
+    );
+    fs.write(pid("/a/file.txt"), b"x").unwrap();
+    assert_eq!(
+      fs.create_dir(pid("/a/file.txt/c")).unwrap_err().kind(),
+      ErrorKind::NotADirectory
+    );
+    fs.create_dir(pid("/a/b")).unwrap();
+    assert_eq!(fs.kind(pid("/a/b")), FileKind::IS_DIR);
+
+    assert_eq!(
+      fs.remove_dir(pid("/a")).unwrap_err().kind(),
+      ErrorKind::DirectoryNotEmpty
+    );
+    assert_eq!(
+      fs.remove_dir(pid("/a/file.txt")).unwrap_err().kind(),
+      ErrorKind::NotADirectory
+    );
+    assert_eq!(
+      fs.remove_file(pid("/a/b")).unwrap_err().kind(),
+      ErrorKind::IsADirectory
+    );
+    assert_eq!(
+      fs.remove_dir_all(pid("/a/file.txt")).unwrap_err().kind(),
+      ErrorKind::NotADirectory
+    );
+    fs.remove_dir(pid("/a/b")).unwrap();
+    assert!(fs.kind(pid("/a/b")).is_empty());
+
+    fs.remove_dir_all(pid("/a")).unwrap();
+    assert!(fs.kind(pid("/a")).is_empty());
+    assert!(fs.kind(pid("/a/file.txt")).is_empty());
+    assert_eq!(
+      fs.remove_dir_all(pid("/a")).unwrap_err().kind(),
+      ErrorKind::NotFound
+    );
   }
 }
 

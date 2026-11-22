@@ -763,7 +763,7 @@ mod tests {
   #[test]
   fn dotenv_local_overrides_base() {
     let fs = MemoryFileSystem::new();
-    fs.mkdir(Path::new("/root")).unwrap();
+    fs.create_dir(PathId::new(Path::new("/root"))).unwrap();
     fs.write(PathId::new(Path::new("/root/.env")), &b"FOO=base".to_vec())
       .unwrap();
     fs.write(
@@ -781,7 +781,7 @@ mod tests {
   #[test]
   fn dotenv_mode_local_overrides_everything() {
     let fs = MemoryFileSystem::new();
-    fs.mkdir(Path::new("/root")).unwrap();
+    fs.create_dir(PathId::new(Path::new("/root"))).unwrap();
     fs.write(PathId::new(Path::new("/root/.env")), &b"FOO=base".to_vec())
       .unwrap();
     fs.write(
@@ -810,7 +810,7 @@ mod tests {
   #[test]
   fn dotenv_defaults_to_development() {
     let fs = MemoryFileSystem::new();
-    fs.mkdir(Path::new("/root")).unwrap();
+    fs.create_dir(PathId::new(Path::new("/root"))).unwrap();
     fs.write(PathId::new(Path::new("/root/.env")), &b"FOO=base".to_vec())
       .unwrap();
     fs.write(
@@ -838,7 +838,7 @@ mod tests {
   #[test]
   fn dotenv_local_skipped_in_test() {
     let fs = MemoryFileSystem::new();
-    fs.mkdir(Path::new("/root")).unwrap();
+    fs.create_dir(PathId::new(Path::new("/root"))).unwrap();
     fs.write(PathId::new(Path::new("/root/.env")), &b"FOO=base".to_vec())
       .unwrap();
     fs.write(

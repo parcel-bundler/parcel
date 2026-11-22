@@ -412,7 +412,7 @@ mod tests {
   #[test]
   fn source_maps_are_linked_from_the_code_that_uses_them() {
     let fs = MemoryFileSystem::new();
-    fs.mkdir(std::path::Path::new("/dist")).unwrap();
+    fs.create_dir(PathId::new(std::path::Path::new("/dist"))).unwrap();
     let js = PathId::new(std::path::Path::new("/dist/a-abcd2345.js"));
     ContentWithSourceMap::new_string("a();".into(), b"{}".to_vec())
       .write(&fs, js)

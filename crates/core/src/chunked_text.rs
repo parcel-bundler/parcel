@@ -233,7 +233,7 @@ mod tests {
     );
 
     let fs = MemoryFileSystem::new();
-    fs.mkdir(std::path::Path::new("/dist")).unwrap();
+    fs.create_dir(PathId::new(std::path::Path::new("/dist"))).unwrap();
     let a = PathId::new(std::path::Path::new("/dist/a.js"));
     let b = PathId::new(std::path::Path::new("/dist/b.js"));
     content.write(&fs, a).unwrap();
