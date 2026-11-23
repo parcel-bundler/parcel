@@ -1,5 +1,6 @@
 mod asset;
 mod asset_graph;
+mod asset_ids;
 mod bundle;
 mod bundle_graph;
 mod bundler;
@@ -35,6 +36,7 @@ use crossbeam_channel::bounded;
 use fixedbitset::FixedBitSet;
 
 pub use asset::*;
+pub use asset_ids::AssetIds;
 pub use asset_graph::{
   AssetGraph, AssetGraphBuilder, AssetIndex, AssetNode, AssetNodeIndex, ResolvedDependencies,
 };

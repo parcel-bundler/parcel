@@ -25,10 +25,10 @@ use crate::transformer::{
 pub enum Resolution<'a> {
   #[serde(serialize_with = "serialize_excluded")]
   Excluded,
-  Asset(String),
-  Symbols(Vec<(&'a str, String, &'a str)>),
+  Asset(Cow<'a, str>),
+  Symbols(Vec<(&'a str, &'a str, &'a str)>),
   #[serde(serialize_with = "serialize_internalized")]
-  Internalized(String),
+  Internalized(&'a str),
   External(Cow<'a, str>),
   #[serde(serialize_with = "serialize_string")]
   String(Cow<'a, str>),
@@ -67,7 +67,7 @@ where
   HashMap::from([("value", value)]).serialize(serializer)
 }
 
-fn serialize_internalized<S>(value: &String, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_internalized<S>(value: &&str, serializer: S) -> Result<S::Ok, S::Error>
 where
   S: serde::Serializer,
 {
@@ -451,13 +451,13 @@ impl<'a> VisitMut for TreeShake<'a> {
               *node = Expr::Object(Default::default());
             }
             Resolution::Asset(resolution) => {
-              **expr = resolution.clone().into();
+              **expr = resolution.as_ref().into();
             }
             Resolution::External(specifier) => {
               **expr = specifier.as_ref().into();
             }
             Resolution::Internalized(id) => {
-              *node = quote!("Promise.resolve().then(()=>$require($id))" as Expr, require: Ident = self.require_ident(), id: Expr = id.clone().into());
+              *node = quote!("Promise.resolve().then(()=>$require($id))" as Expr, require: Ident = self.require_ident(), id: Expr = (*id).into());
             }
             Resolution::String(string) => {
               *node = string.clone().into_owned().into();
@@ -473,7 +473,7 @@ impl<'a> VisitMut for TreeShake<'a> {
               // including symbols that were resolved to a more specific asset. Keep the
               // namespace object intact so its property getters preserve live bindings.
               if let Some((_, id, _)) = symbols.iter().find(|(key, _, _)| *key == "*") {
-                **expr = id.clone().into();
+                **expr = (*id).into();
                 return;
               }
 
@@ -488,7 +488,7 @@ impl<'a> VisitMut for TreeShake<'a> {
                         value: Box::new(quote!(
                           "$require($id)" as Expr,
                           require: Ident = self.require_ident(),
-                          id: Expr = id.clone().into()
+                          id: Expr = (*id).into()
                         )),
                       })
                     } else {
@@ -502,7 +502,7 @@ impl<'a> VisitMut for TreeShake<'a> {
                                 quote!(
                                   "var m = $require($id);" as Stmt,
                                   require: Ident = self.require_ident(),
-                                  id: Expr = id.clone().into(),
+                                  id: Expr = (*id).into(),
                                 ),
                                 quote!("return m.__esModule ? m.default : m;" as Stmt),
                               ]
@@ -510,7 +510,7 @@ impl<'a> VisitMut for TreeShake<'a> {
                               vec![quote!(
                                 "return $require($id)[$exp];" as Stmt,
                                 require: Ident = self.require_ident(),
-                                id: Expr = id.clone().into(),
+                                id: Expr = (*id).into(),
                                 exp: Expr = (*exp).into()
                               )]
                             },

@@ -284,7 +284,7 @@ pub fn asset_dependencies<'a>(
     {
       dependencies.insert(
         (&**placeholder).into(),
-        Resolution::Asset(module.id(bundle_graph)),
+        Resolution::Asset(module.id(bundle_graph).into()),
       );
       if module.needs_async_evaluator(bundle_graph) {
         additional_assets.insert(SyntheticAsset::AsyncEvaluator);
@@ -307,7 +307,7 @@ pub fn asset_dependencies<'a>(
           {
             dependencies.insert(
               (&**placeholder).into(),
-              Resolution::Asset(bundle_graph.asset_id(resolved)),
+              Resolution::Asset(bundle_graph.asset_id(resolved).into()),
             );
             additional_assets.insert(SyntheticAsset::CssModuleExports(resolved));
             continue;
@@ -376,7 +376,7 @@ pub fn asset_dependencies<'a>(
           if all_assets_match && let Some(res) = first_asset {
             dependencies.insert(
               (&**placeholder).into(),
-              Resolution::Asset(bundle_graph.asset_id(res)),
+              Resolution::Asset(bundle_graph.asset_id(res).into()),
             );
           } else {
             dependencies.insert((&**placeholder).into(), Resolution::Symbols(resolutions));
@@ -386,7 +386,7 @@ pub fn asset_dependencies<'a>(
         } else {
           dependencies.insert(
             (&**placeholder).into(),
-            Resolution::Asset(bundle_graph.asset_id(resolved)),
+            Resolution::Asset(bundle_graph.asset_id(resolved).into()),
           );
         }
       }
@@ -486,7 +486,7 @@ pub fn asset_dependencies<'a>(
               bundle: bundle_index,
               kind: BundleShim::Inline(inline_type),
             });
-            Resolution::Asset(BundleShim::Inline(inline_type).id(bundle_index, bundle_graph))
+            Resolution::Asset(BundleShim::Inline(inline_type).id(bundle_index, bundle_graph).into())
           } else if is_lazy_dynamic_import {
             additional_assets.insert(SyntheticAsset::Bundle {
               bundle: bundle_index,
@@ -501,43 +501,42 @@ pub fn asset_dependencies<'a>(
                 kind: BundleShim::AsyncInterop(asset_index),
               });
               Resolution::Asset(
-                BundleShim::AsyncInterop(asset_index).id(bundle_index, bundle_graph),
+                BundleShim::AsyncInterop(asset_index).id(bundle_index, bundle_graph).into(),
               )
             } else {
-              Resolution::Asset(BundleShim::Async(asset_index).id(bundle_index, bundle_graph))
+              Resolution::Asset(BundleShim::Async(asset_index).id(bundle_index, bundle_graph).into())
             }
           } else if is_sync_bundle_dependency(dep, resolved_bundle) {
             additional_assets.insert(SyntheticAsset::Bundle {
               bundle: bundle_index,
               kind: BundleShim::Sync,
             });
-            Resolution::Asset(BundleShim::Sync.id(bundle_index, bundle_graph))
+            Resolution::Asset(BundleShim::Sync.id(bundle_index, bundle_graph).into())
           } else {
             additional_assets.insert(SyntheticAsset::Bundle {
               bundle: bundle_index,
               kind: BundleShim::Url,
             });
-            Resolution::Asset(BundleShim::Url.id(bundle_index, bundle_graph))
+            Resolution::Asset(BundleShim::Url.id(bundle_index, bundle_graph).into())
           };
           dependencies.insert((&**placeholder).into(), resolution);
         }
       }
       BundleGraphDependencyResolution::Internalized(asset_index) => {
-        let resolved = bundle_graph.asset_graph.asset(asset_index);
         // Match the async loader's interop policy even when ESM and CommonJS
         // importers share the same internalized target.
         let resolution = if asset.flags.contains(AssetFlags::IS_ESM) {
           let shim = SyntheticAsset::InternalizedInterop(asset_index);
           let id = shim.id(bundle_graph, project_root);
           additional_assets.insert(shim);
-          Resolution::Asset(id)
+          Resolution::Asset(id.into())
         } else if bundle_graph.is_async_asset(asset_index) {
           // The synthetic module knows how to evaluate an async module; the inlined form doesn't.
           Resolution::Asset(
-            SyntheticAsset::Internalized(asset_index).id(bundle_graph, project_root),
+            SyntheticAsset::Internalized(asset_index).id(bundle_graph, project_root).into(),
           )
         } else {
-          Resolution::Internalized(resolved.id(project_root))
+          Resolution::Internalized(bundle_graph.asset_id(asset_index))
         };
         dependencies.insert((&**placeholder).into(), resolution);
         additional_assets.insert(SyntheticAsset::Internalized(asset_index));

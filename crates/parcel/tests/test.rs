@@ -360,9 +360,8 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
               Environment::Node,
               Some(
                 bundle_graph
-                  .asset_graph
-                  .asset(bundle.main_entry_asset.unwrap())
-                  .id(&bundle_graph.project_root),
+                  .asset_id(bundle.main_entry_asset.unwrap())
+                  .into(),
               ),
               true,
             );
@@ -373,12 +372,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
           } else {
             if scripts.is_empty() {
               if let Some(m) = bundle.main_entry_asset {
-                main = Some(
-                  bundle_graph
-                    .asset_graph
-                    .asset(m)
-                    .id(&bundle_graph.project_root),
-                );
+                main = Some(bundle_graph.asset_id(m).into());
               }
             }
             scripts.push((path.to_path_buf(), script_kind(bundle)));
@@ -435,12 +429,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
                 if let Some(m) = b.main_entry_asset
                   && kind != ScriptKind::Classic
                 {
-                  main = Some(
-                    bundle_graph
-                      .asset_graph
-                      .asset(m)
-                      .id(&bundle_graph.project_root),
-                  );
+                  main = Some(bundle_graph.asset_id(m).into());
                 }
                 (resolved.to_path_buf(), kind)
               }
@@ -1066,12 +1055,7 @@ fn assert_entry_outputs_run_independently(
         output_fs.clone(),
         &fixture_dir,
         entry.target.environment,
-        Some(
-          graph
-            .asset_graph
-            .asset(entry.main_entry_asset.unwrap())
-            .id(&graph.project_root),
-        ),
+        Some(graph.asset_id(entry.main_entry_asset.unwrap()).into()),
         false,
       );
       assert_eq!(output, serde_json::json!(["a", "b"]));

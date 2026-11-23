@@ -5,14 +5,15 @@ use std::{
 };
 
 use fixedbitset::FixedBitSet;
+use rayon::prelude::*;
 use serde::Serialize;
 
 use crate::{
-  Asset, AssetFlags, AssetKey, AssetRequest, AssetRequestKey, AssetType, BundleBehavior, CodeFrame,
-  Dependency, DependencyFlags, DependencyResolution, Diagnostic, DiagnosticList,
-  DiagnosticSeverity, Entry, Environment, EnvironmentFlags, FileContent, ImportType,
-  InvalidationMap, LogLevel, ParcelOptions, PathId, Priority, SourceLocation, SymbolName,
-  SymbolResolution,
+  Asset, AssetFlags, AssetIds, AssetKey, AssetRequest, AssetRequestKey, AssetType, BuildMode,
+  BundleBehavior, CodeFrame, Dependency, DependencyFlags, DependencyResolution, Diagnostic,
+  DiagnosticList, DiagnosticSeverity, Entry, Environment, EnvironmentFlags, FileContent,
+  ImportType, InvalidationMap, LogLevel, ParcelOptions, PathId, Priority, SourceLocation,
+  SymbolName, SymbolResolution,
   config::ParcelConfig,
   request::{RequestResult, TransformQueue},
 };
@@ -146,6 +147,9 @@ pub struct AssetGraph<'a> {
   pub asset_nodes: Cow<'a, [AssetNode]>,
   pub assets: Cow<'a, [Asset]>,
   pub entries: Cow<'a, [Entry]>,
+  /// Each asset's id in packaged output, kept by `AssetGraphBuilder` so that ids stay the same
+  /// across incremental builds.
+  pub asset_ids: Cow<'a, AssetIds>,
 }
 
 #[derive(Debug, Clone)]
@@ -168,6 +172,9 @@ pub struct AssetGraphBuilder {
   /// The asset graph nodes, monotonically growing across builds.
   asset_nodes: Vec<AssetNode>,
   assets: Vec<Asset>,
+  /// The id of each asset in `assets` as of the last successful build. Never changed once
+  /// assigned (see `AssetIds`).
+  asset_ids: AssetIds,
   assets_by_key: HashMap<AssetKey, AssetIndex>,
   /// Deduplication map: stable request identity (everything but content) → slot index
   /// in `asset_nodes`.
@@ -192,6 +199,7 @@ impl AssetGraphBuilder {
     AssetGraphBuilder {
       asset_nodes: Vec::new(),
       assets: Vec::new(),
+      asset_ids: AssetIds::default(),
       assets_by_key: HashMap::new(),
       nodes_by_request: HashMap::new(),
       invalidation_map: InvalidationMap::default(),
@@ -326,6 +334,11 @@ impl AssetGraphBuilder {
 
             let key = asset.key();
             let asset_index = if let Some(&asset_index) = self.assets_by_key.get(&key) {
+              // The asset's id hashes the fields of its key, so it doesn't change.
+              debug_assert_eq!(
+                asset.id_u64(&self.options.project_root),
+                self.assets[asset_index.index()].id_u64(&self.options.project_root)
+              );
               self.assets[asset_index.index()] = asset;
               asset_index
             } else {
@@ -590,11 +603,30 @@ impl AssetGraphBuilder {
     }
     let changed_requests = self.requests.update(&self.assets, &changed);
 
+    // Only assets added since the last build need ids: replaced assets keep theirs.
+    // Production builds re-compute everything (incremental builds don't really happen there yet).
+    let project_root = &self.options.project_root;
+    let start = if self.options.mode == BuildMode::Production {
+      0
+    } else {
+      self.asset_ids.len()
+    };
+    let hashes = self.assets[start..]
+      .par_iter()
+      .map(|asset| asset.id_u64(project_root))
+      .collect();
+    if self.options.mode == BuildMode::Production {
+      self.asset_ids.assign_short(hashes);
+    } else {
+      self.asset_ids.extend(hashes);
+    }
+
     Ok(AssetGraphBuildResult {
       asset_graph: AssetGraph {
         asset_nodes: Cow::Borrowed(&self.asset_nodes),
         assets: Cow::Borrowed(&self.assets),
         entries: Cow::Borrowed(&self.entries),
+        asset_ids: Cow::Borrowed(&self.asset_ids),
       },
       changed_assets,
       changed_requests,
@@ -620,6 +652,7 @@ impl AssetGraphBuilder {
         asset_nodes: Cow::Owned(self.asset_nodes),
         assets: Cow::Owned(self.assets),
         entries: Cow::Owned(self.entries),
+        asset_ids: Cow::Owned(self.asset_ids),
       },
       changed_assets,
       changed_requests,
@@ -1649,6 +1682,7 @@ mod tests {
       ),
       assets: Cow::Owned(assets),
       entries: Cow::Owned(Vec::new()),
+      asset_ids: Cow::Owned(Default::default()),
     }
   }
 

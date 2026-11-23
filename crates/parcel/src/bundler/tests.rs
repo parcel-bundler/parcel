@@ -624,6 +624,7 @@ fn asset_graph(
         .collect(),
     ),
     assets: Cow::Owned(assets),
+    asset_ids: Cow::Owned(Default::default()),
   }
 }
 
@@ -1523,6 +1524,7 @@ fn reindexed(graph: &AssetGraph<'static>, order: &[usize]) -> AssetGraph<'static
     ),
     entries: Cow::Owned(entries),
     assets: Cow::Owned(assets),
+    asset_ids: Cow::Owned(Default::default()),
   }
 }
 
