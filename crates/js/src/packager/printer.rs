@@ -5,6 +5,8 @@ use std::{
 
 use parcel_core::*;
 
+use super::ModuleId;
+
 /// Accumulates the bundle output, tracking the current line/column so that each
 /// module's source map can be recorded as a section of an index map. The output is a
 /// `ChunkedText`, so modules' code is referenced or moved into it rather than copied.
@@ -112,12 +114,14 @@ impl Printer {
     self.output.push_owned(text);
   }
 
+  /// Starts a module of a module table. Modules numbered within the bundle are elements of an
+  /// array, at their numbers (see `LocalModules`).
   #[inline]
-  pub(super) fn write_module_header(&mut self, id: String) -> std::fmt::Result {
-    if self.should_optimize {
-      write!(self, "'{}':", id)
-    } else {
-      writeln!(self, "'{}':[function(module,exports,require) {{", id)
+  pub(super) fn write_module_header(&mut self, id: &ModuleId) -> std::fmt::Result {
+    match id {
+      ModuleId::Local(_) => Ok(()),
+      ModuleId::Global(id) if self.should_optimize => write!(self, "'{}':", id),
+      ModuleId::Global(id) => writeln!(self, "'{}':[function(module,exports,require) {{", id),
     }
   }
 

@@ -5,7 +5,7 @@ use parcel_core::*;
 use parcel_css::{css_module_export_sources, resolve_css_module_export};
 
 use super::{
-  Resolution, rsc,
+  LocalModules, ModuleId, Resolution, rsc,
   synthetic::{BundleShim, InlineType, SyntheticAsset},
 };
 
@@ -242,9 +242,11 @@ pub fn asset_dependencies<'a>(
   additional_assets: &mut IndexSet<SyntheticAsset>,
   // Only library builds embed inline bundles' content in their dependencies' resolutions.
   get_inline_bundle_content: Option<&dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>>,
+  local_modules: &LocalModules,
   project_root: &PathId,
 ) -> Result<IndexMap<String, Resolution<'a>>, DiagnosticList> {
   let mut dependencies = IndexMap::new();
+  let module_id = |asset_index| local_modules.id(bundle_graph, asset_index);
 
   let used_deps: Vec<AssetIndex> = bundle_graph
     .asset_graph
@@ -328,7 +330,7 @@ pub fn asset_dependencies<'a>(
                 } => {
                   resolutions.push((
                     import.symbol.as_str(),
-                    bundle_graph.asset_id(*asset_index),
+                    module_id(*asset_index),
                     name.as_str(),
                   ));
                   if first_asset.is_none() {
@@ -341,7 +343,7 @@ pub fn asset_dependencies<'a>(
                 SymbolResolution::Runtime { asset_index, name } => {
                   resolutions.push((
                     import.symbol.as_str(),
-                    bundle_graph.asset_id(*asset_index),
+                    module_id(*asset_index),
                     name.as_str(),
                   ));
                   if first_asset.is_none() {
@@ -352,11 +354,7 @@ pub fn asset_dependencies<'a>(
                   }
                 }
                 SymbolResolution::Namespace { asset_index } => {
-                  resolutions.push((
-                    import.symbol.as_str(),
-                    bundle_graph.asset_id(*asset_index),
-                    "*",
-                  ));
+                  resolutions.push((import.symbol.as_str(), module_id(*asset_index), "*"));
                   if first_asset.is_none() {
                     first_asset = Some(*asset_index);
                   }
@@ -374,10 +372,7 @@ pub fn asset_dependencies<'a>(
 
         if !resolutions.is_empty() {
           if all_assets_match && let Some(res) = first_asset {
-            dependencies.insert(
-              (&**placeholder).into(),
-              Resolution::Asset(bundle_graph.asset_id(res).into()),
-            );
+            dependencies.insert((&**placeholder).into(), Resolution::Asset(module_id(res)));
           } else {
             dependencies.insert((&**placeholder).into(), Resolution::Symbols(resolutions));
           }
@@ -386,7 +381,7 @@ pub fn asset_dependencies<'a>(
         } else {
           dependencies.insert(
             (&**placeholder).into(),
-            Resolution::Asset(bundle_graph.asset_id(resolved).into()),
+            Resolution::Asset(module_id(resolved)),
           );
         }
       }
@@ -486,7 +481,11 @@ pub fn asset_dependencies<'a>(
               bundle: bundle_index,
               kind: BundleShim::Inline(inline_type),
             });
-            Resolution::Asset(BundleShim::Inline(inline_type).id(bundle_index, bundle_graph).into())
+            Resolution::Asset(
+              BundleShim::Inline(inline_type)
+                .id(bundle_index, bundle_graph)
+                .into(),
+            )
           } else if is_lazy_dynamic_import {
             additional_assets.insert(SyntheticAsset::Bundle {
               bundle: bundle_index,
@@ -501,10 +500,16 @@ pub fn asset_dependencies<'a>(
                 kind: BundleShim::AsyncInterop(asset_index),
               });
               Resolution::Asset(
-                BundleShim::AsyncInterop(asset_index).id(bundle_index, bundle_graph).into(),
+                BundleShim::AsyncInterop(asset_index)
+                  .id(bundle_index, bundle_graph)
+                  .into(),
               )
             } else {
-              Resolution::Asset(BundleShim::Async(asset_index).id(bundle_index, bundle_graph).into())
+              Resolution::Asset(
+                BundleShim::Async(asset_index)
+                  .id(bundle_index, bundle_graph)
+                  .into(),
+              )
             }
           } else if is_sync_bundle_dependency(dep, resolved_bundle) {
             additional_assets.insert(SyntheticAsset::Bundle {
@@ -533,7 +538,9 @@ pub fn asset_dependencies<'a>(
         } else if bundle_graph.is_async_asset(asset_index) {
           // The synthetic module knows how to evaluate an async module; the inlined form doesn't.
           Resolution::Asset(
-            SyntheticAsset::Internalized(asset_index).id(bundle_graph, project_root).into(),
+            SyntheticAsset::Internalized(asset_index)
+              .id(bundle_graph, project_root)
+              .into(),
           )
         } else {
           Resolution::Internalized(bundle_graph.asset_id(asset_index))
@@ -562,17 +569,22 @@ pub(super) fn static_import_ids(
       ids.push(id.to_string());
     }
   };
+  // Bundles with async modules don't number theirs (see `LocalModules::new`).
+  let global = |id: &ModuleId| match id {
+    ModuleId::Global(id) => id.to_string(),
+    ModuleId::Local(_) => unreachable!("async modules' imports are required by global id"),
+  };
   for dep in &asset.dependencies {
     if !dep.is_static_import() {
       continue;
     }
     let placeholder = dep.placeholder.as_ref().unwrap_or(&dep.specifier);
     match dependencies.get(&**placeholder) {
-      Some(Resolution::Asset(id)) => push(id),
+      Some(Resolution::Asset(id)) => push(&global(id)),
       Some(Resolution::External(specifier)) => push(specifier),
       Some(Resolution::Symbols(symbols)) => {
         for (_, id, _) in symbols {
-          push(id);
+          push(&global(id));
         }
       }
       _ => {}

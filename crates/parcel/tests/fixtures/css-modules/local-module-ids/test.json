@@ -1,0 +1,30 @@
+{
+  "description": "JS bundles importing CSS modules and JSON number their private modules",
+  "input": "index.js",
+  "options": {
+    "mode": "production"
+  },
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": [
+        "index.js",
+        "helper.js",
+        "data.json"
+      ],
+      "contains": [
+        "var h=[(function(",
+        "r(0)",
+        "r(1)"
+      ]
+    },
+    {
+      "assets": [
+        "style.module.css"
+      ]
+    }
+  ],
+  "sideEffects": [
+    "helper:json:olFkLq_foo"
+  ]
+}

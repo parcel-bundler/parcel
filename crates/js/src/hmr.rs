@@ -15,8 +15,9 @@ use parcel_css::css_module_export_sources;
 use crate::{
   JsContent,
   packager::{
-    BundleShim, Resolution, SectionMap, SourceMapSection, SyntheticAsset, asset_dependencies,
-    embedded_css_modules, generated_section_map, source_map_index, wrap_generated_code,
+    BundleShim, LocalModules, Resolution, SectionMap, SourceMapSection, SyntheticAsset,
+    asset_dependencies, embedded_css_modules, generated_section_map, source_map_index,
+    wrap_generated_code,
   },
 };
 
@@ -129,6 +130,7 @@ pub fn get_hmr_update<'a>(
           &Default::default(),
         )
       }),
+      &LocalModules::default(),
       &bundle_graph.project_root,
     )
     .unwrap();

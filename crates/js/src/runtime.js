@@ -1,4 +1,4 @@
-/* global parcelRequireName, modules, mainEntry, entries, awaitedBundles, externals, manifest, distDir, publicUrl, bundleUrl */
+/* global parcelRequireName, modules, localModules, mainEntry, entries, awaitedBundles, externals, manifest, distDir, publicUrl, bundleUrl */
 
 // Save the require from previous bundle to this closure if any
 var previousRequire =
@@ -25,6 +25,10 @@ if (
 Object.assign(importMap, manifest);
 var cache = previousRequire.cache || {};
 
+// Modules that nothing outside this bundle refers to are numbered, and kept in an array of their
+// own (`localModules`), as each bundle's numbers are its own.
+var localCache = [];
+
 // Do not use `require` to prevent Webpack from trying to bundle this call
 var nodeRequire =
   typeof module !== 'undefined' &&
@@ -32,6 +36,15 @@ var nodeRequire =
   module.require.bind(module);
 
 function require(name, jumped) {
+  // Modules numbered within this bundle are only required by its own modules.
+  if (typeof name === 'number') {
+    if (!localCache[name]) {
+      var module = (localCache[name] = new Module(name));
+      localModules[name].call(module.exports, module, module.exports);
+    }
+    return localCache[name].exports;
+  }
+
   if (!cache[name]) {
     if (!modules[name]) {
       if (Object.prototype.hasOwnProperty.call(externals, name)) {

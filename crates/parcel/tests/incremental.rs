@@ -2720,3 +2720,39 @@ fn css_module_composes_change_repackages_js_importer() {
     &[],
   );
 }
+
+#[test]
+fn private_module_becomes_referenced_by_another_bundle() {
+  // helper.js starts out referenced only within the entry bundle, so it's numbered locally there.
+  // When the lazy bundle starts importing it, it stays in the entry bundle (an ancestor), and the
+  // entry bundle must give it back its global id even though none of its assets changed.
+  let mut t = IncrementalTest::new_production(&[
+    (
+      "/project/index.js",
+      "import {helper} from './helper.js';\noutput(helper());\nimport('./lazy.js').then(l => output(l.value));",
+    ),
+    ("/project/helper.js", "export function helper() { return 'helper'; }"),
+    ("/project/lazy.js", "export const value = 'lazy';"),
+  ]);
+
+  t.change(
+    &[(
+      "/project/lazy.js",
+      "import {helper} from './helper.js';\nexport const value = 'lazy:' + helper();",
+    )],
+    &[],
+  );
+
+  // And back.
+  t.change(&[("/project/lazy.js", "export const value = 'lazy';")], &[]);
+
+  // A side effect import requests no symbols from it.
+  t.change(
+    &[(
+      "/project/lazy.js",
+      "import './helper.js';\nexport const value = 'lazy';",
+    )],
+    &[],
+  );
+  t.change(&[("/project/lazy.js", "export const value = 'lazy';")], &[]);
+}

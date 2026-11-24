@@ -18,6 +18,7 @@ use swc_core::{
 };
 
 mod dependencies;
+mod local_modules;
 mod printer;
 mod rsc;
 mod script;
@@ -27,10 +28,11 @@ pub mod tree_shake;
 pub use dependencies::asset_dependencies;
 use dependencies::{awaited_bundles, manifest_entries, static_import_ids, static_imports};
 pub(crate) use dependencies::{bundle_dependencies, embedded_assets, embedded_css_modules};
+pub use local_modules::LocalModules;
 pub use rsc::RscModule;
 use synthetic::AsyncRegistration;
 pub use synthetic::{BundleShim, SyntheticAsset};
-pub use tree_shake::{Resolution, tree_shake};
+pub use tree_shake::{ModuleId, Resolution, tree_shake};
 
 use crate::{GeneratedCode, JsContent};
 use printer::Printer;
@@ -48,6 +50,8 @@ const RUNTIME_REQUIRE: &str = "r";
 const RUNTIME_DIST_DIR: &str = "d";
 const RUNTIME_PUBLIC_URL: &str = "u";
 const RUNTIME_BUNDLE_URL: &str = "l";
+/// The table of a bundle's modules numbered within it (see `LocalModules`).
+const RUNTIME_LOCAL_MODULES: &str = "h";
 const NODE_PATH: &str = "$parcel$path";
 const BUNDLE_DIR: &str = "$parcel$bundleDir";
 const IMPORT_META: &str = "$parcel$importMeta";
@@ -96,6 +100,13 @@ impl JsContent {
     // resolutions, such as synchronous bundles in ESM output, must be emitted
     // as top-level imports before the module table.
     let mut synthetic_assets = IndexSet::new();
+    let local_modules = LocalModules::new(
+      bundle_graph,
+      bundle,
+      script.is_some(),
+      should_optimize,
+      options,
+    );
     let script_dependencies = match script {
       Some(asset_index) => asset_dependencies(
         asset_index,
@@ -104,6 +115,7 @@ impl JsContent {
         Some(bundle),
         &mut synthetic_assets,
         None,
+        &local_modules,
         &options.project_root,
       )?,
       None => IndexMap::new(),
@@ -128,11 +140,12 @@ impl JsContent {
           Some(bundle),
           &mut synthetic,
           None,
+          &local_modules,
           &options.project_root,
         )?;
         let module = render_asset_module(
           asset,
-          bundle_graph.asset_id(asset_index).into(),
+          local_modules.id(bundle_graph, asset_index),
           bundle,
           bundle_graph.is_async_asset(asset_index),
           dependencies,
@@ -214,6 +227,10 @@ impl JsContent {
     // Classic scripts share one global scope (a page's, or a worker's with its `importScripts`), so
     // each keeps its module table and runtime to itself. Bundles link through `globalThis`.
     let is_global = bundle.target.output_format == OutputFormat::Global;
+    // Modules numbered within the bundle go in an array of their own, in order (see `LocalModules`).
+    let (local_modules, modules): (Vec<_>, Vec<_>) = modules
+      .into_iter()
+      .partition(|module| matches!(module.id, ModuleId::Local(_)));
     if is_global {
       printer.write_str("(function(){")?;
     }
@@ -224,14 +241,7 @@ impl JsContent {
       false,
     )?;
 
-    let mut first: bool = true;
-    for module in modules {
-      if !first {
-        printer.write_char(',')?;
-      }
-      first = false;
-      module.write(&mut printer)?;
-    }
+    let mut first = !write_modules(&mut printer, modules)?;
 
     let has_url_references = synthetic_assets.iter().any(|synthetic_asset| {
       matches!(
@@ -273,6 +283,12 @@ impl JsContent {
 
     printer.write_str("};")?;
     printer.newline()?;
+    if should_optimize {
+      printer.write_var(RUNTIME_LOCAL_MODULES, "[", false)?;
+      write_modules(&mut printer, local_modules)?;
+      printer.write_str("];")?;
+      printer.newline()?;
+    }
     printer.newline()?;
 
     write_runtime_globals(
@@ -454,8 +470,8 @@ fn write_bundle_references(
 }
 
 /// A module of the bundle's module table, generated independently of the others.
-struct RenderedModule {
-  id: String,
+struct RenderedModule<'a> {
+  id: ModuleId<'a>,
   /// Code written before the module's own, outside of its source map.
   prefix: String,
   code: ModuleCode,
@@ -477,8 +493,8 @@ enum ModuleCode {
   },
 }
 
-impl RenderedModule {
-  fn new(id: String, code: Vec<u8>, map: Option<String>, trailer: Option<String>) -> Self {
+impl<'a> RenderedModule<'a> {
+  fn new(id: ModuleId<'a>, code: Vec<u8>, map: Option<String>, trailer: Option<String>) -> Self {
     RenderedModule {
       id,
       prefix: String::new(),
@@ -490,7 +506,7 @@ impl RenderedModule {
   }
 
   fn write(self, printer: &mut Printer) -> Result<(), DiagnosticList> {
-    printer.write_module_header(self.id)?;
+    printer.write_module_header(&self.id)?;
     printer.write_str(&self.prefix)?;
     printer.add_source_map(self.map);
     match (self.trailer, self.code) {
@@ -524,14 +540,14 @@ impl RenderedModule {
 
 fn render_asset_module<'a>(
   asset: &Asset,
-  id: String,
+  id: ModuleId<'a>,
   bundle: &Bundle,
   is_async: bool,
   dependencies: IndexMap<String, Resolution<'a>>,
   source_root: Option<&Arc<str>>,
   should_build_source_map: bool,
   should_optimize: bool,
-) -> Result<RenderedModule, DiagnosticList> {
+) -> Result<RenderedModule<'a>, DiagnosticList> {
   let Some(content) = asset.content.downcast_ref::<JsContent>() else {
     return Ok(RenderedModule::new(
       id,
@@ -610,13 +626,13 @@ fn render_generated_module<'a>(
   asset: &Asset,
   content: &JsContent,
   generated: &GeneratedCode,
-  id: String,
+  id: ModuleId<'a>,
   bundle: &Bundle,
   is_async: bool,
   dependencies: IndexMap<String, Resolution<'a>>,
   source_root: Option<&Arc<str>>,
   should_build_source_map: bool,
-) -> Result<RenderedModule, DiagnosticList> {
+) -> Result<RenderedModule<'a>, DiagnosticList> {
   let bundle_dir = bundle
     .dist_path()
     .parent()
@@ -988,7 +1004,7 @@ fn write_synthetic_module(
 ) -> Result<(), DiagnosticList> {
   let id = synthetic_asset.id(bundle_graph, project_root);
   let registration = synthetic_asset.async_registration(bundle_graph, bundle);
-  printer.write_module_header(id)?;
+  printer.write_module_header(&id.into())?;
   if should_optimize {
     printer.write_str("function(module,exports){")?;
   }
@@ -1017,6 +1033,22 @@ fn write_synthetic_module(
   }
 
   Ok(())
+}
+
+/// Writes modules of a module table, separated by commas, returning whether it wrote any.
+fn write_modules(
+  printer: &mut Printer,
+  modules: Vec<RenderedModule>,
+) -> Result<bool, DiagnosticList> {
+  let mut first = true;
+  for module in modules {
+    if !first {
+      printer.write_char(',')?;
+    }
+    first = false;
+    module.write(printer)?;
+  }
+  Ok(!first)
 }
 
 fn write_runtime_globals(

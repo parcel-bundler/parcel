@@ -18,6 +18,7 @@ use swc_core::ecma::visit::{VisitMut, VisitMutWith};
 
 const RUNTIME_GLOBALS: &[(&str, &str)] = &[
   ("modules", "m"),
+  ("localModules", "h"),
   ("parcelRequireName", "p"),
   ("externals", "x"),
   ("manifest", "k"),

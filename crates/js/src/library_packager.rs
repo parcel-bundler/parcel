@@ -18,7 +18,9 @@ use swc_core::{
 
 use crate::{
   JsContent,
-  packager::{asset_dependencies, insert_node_replacement_helpers, insert_node_replacements},
+  packager::{
+    LocalModules, asset_dependencies, insert_node_replacement_helpers, insert_node_replacements,
+  },
   transformer::Ast,
 };
 
@@ -43,6 +45,7 @@ impl JsContent {
       Some(bundle),
       &mut synthetic_assets,
       Some(get_inline_bundle_content),
+      &LocalModules::default(),
       &options.project_root,
     )?;
 

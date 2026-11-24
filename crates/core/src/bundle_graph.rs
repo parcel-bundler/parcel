@@ -118,6 +118,9 @@ pub struct BundleGraph<'a> {
   /// Each bundle's `context_closure`, computed on first use. Indexed by bundle index.
   context_closures: OnceLock<Vec<OnceLock<Box<[usize]>>>>,
   bundle_environments: OnceLock<BundleEnvironments>,
+  /// Assets that something outside the one bundle containing them may refer to by id (see
+  /// `is_bundle_private`), computed on first use.
+  externally_referenced: OnceLock<FixedBitSet>,
 }
 
 impl<'a> BundleGraph<'a> {
@@ -139,7 +142,75 @@ impl<'a> BundleGraph<'a> {
       bundle_indices: OnceLock::new(),
       context_closures: OnceLock::new(),
       bundle_environments: OnceLock::new(),
+      externally_referenced: OnceLock::new(),
     }
+  }
+
+  /// Whether nothing outside the one bundle that contains `asset` refers to it by id: no other
+  /// bundle contains it or depends on it (directly, or through an import symbol resolved to it),
+  /// no runtime runs it as an entry, no loader or internalized import requires it, and it doesn't
+  /// evaluate asynchronously (the async module evaluator requires modules by id). Packagers may
+  /// then refer to it by an index local to the bundle.
+  pub fn is_bundle_private(&self, asset: AssetIndex) -> bool {
+    !self
+      .externally_referenced
+      .get_or_init(|| self.compute_externally_referenced())
+      .contains(asset.index())
+  }
+
+  fn compute_externally_referenced(&self) -> FixedBitSet {
+    const NONE: u32 = u32::MAX;
+    let len = self.asset_graph.assets.len();
+    let mut referenced = FixedBitSet::with_capacity(len);
+    // The bundle containing each asset, if exactly one does.
+    let mut owners = vec![NONE; len];
+    for (bundle_index, bundle) in self.bundles.iter().enumerate() {
+      let bundle_index = bundle_index as u32;
+      for asset in &bundle.assets {
+        let owner = &mut owners[asset.index()];
+        if *owner == NONE {
+          *owner = bundle_index;
+        } else if *owner != bundle_index {
+          referenced.insert(asset.index());
+        }
+      }
+      for entry in bundle.entry_assets.iter().chain(&bundle.main_entry_asset) {
+        referenced.insert(entry.index());
+      }
+    }
+
+    for (bundle_index, bundle) in self.bundles.iter().enumerate() {
+      let bundle_index = bundle_index as u32;
+      let reference = |referenced: &mut FixedBitSet, target: AssetIndex| {
+        if owners[target.index()] != bundle_index {
+          referenced.insert(target.index());
+        }
+      };
+      for &asset_index in &bundle.assets {
+        let asset = self.asset_graph.asset(asset_index);
+        for dependency_index in 0..asset.dependencies.len() {
+          match self.dependency_resolution(asset_index, dependency_index) {
+            BundleGraphDependencyResolution::Asset(target) => reference(&mut referenced, target),
+            BundleGraphDependencyResolution::Bundle { asset_index, .. }
+            | BundleGraphDependencyResolution::Internalized(asset_index) => {
+              referenced.insert(asset_index.index())
+            }
+            _ => {}
+          }
+        }
+        // Importers require the asset an imported symbol resolves to, skipping re-exports.
+        for import in &asset.symbols.imports {
+          if let Some(target) = import.resolved.asset_index() {
+            reference(&mut referenced, target);
+          }
+        }
+      }
+    }
+
+    if let Some(async_assets) = self.async_assets() {
+      referenced.union_with(async_assets);
+    }
+    referenced
   }
 
   /// The asset's id in packaged output (see `AssetIds`).
