@@ -227,6 +227,7 @@ pub fn tree_shake<'a>(
         }),
         mangle: Some(MangleOptions {
           top_level: Some(true),
+          disable_char_freq: true,
           ..Default::default()
         }),
         ..Default::default()
