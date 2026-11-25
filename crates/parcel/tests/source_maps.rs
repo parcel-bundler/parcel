@@ -261,6 +261,108 @@ fn css_source_map_maps_to_original_code() {
   );
 }
 
+const CONDITIONAL_INDEX: &str = r#"@import "./shared.css" screen;
+@import "./shared.css" print;
+.index-token { color: red }
+"#;
+
+const CONDITIONAL_SHARED: &str = r#".shared-token { color: pink }
+"#;
+
+#[test]
+fn dev_css_source_map_shares_source_across_assets() {
+  assert_shared_source_css_source_map(BuildMode::Development, Some(false));
+}
+
+#[test]
+fn prod_css_source_map_shares_source_across_assets() {
+  assert_shared_source_css_source_map(BuildMode::Production, Some(true));
+}
+
+/// Each conditional import of shared.css is its own asset, so several assets share a
+/// source. The map lists it once, and every mapping must still point at a source it has.
+fn assert_shared_source_css_source_map(mode: BuildMode, minify: Option<bool>) {
+  let bundles = build_outputs(
+    "shared-source-css",
+    &[
+      ("index.css", CONDITIONAL_INDEX),
+      ("shared.css", CONDITIONAL_SHARED),
+    ],
+    "index.css",
+    AssetType::Css,
+    mode,
+    minify,
+  );
+  let (_, json) = bundles
+    .iter()
+    .find(|(code, _)| code.contains(".index-token"))
+    .expect("CSS bundle");
+  let map = SourceMap::from_json("/", json).unwrap();
+  assert_eq!(map.get_sources().len(), 2, "{json}");
+  for mapping in map.get_mappings() {
+    if let Some(original) = mapping.original {
+      assert!(
+        map.get_source(original.source).is_ok(),
+        "mapping points at missing source {}: {json}",
+        original.source,
+      );
+    }
+  }
+  assert_token_maps_to(
+    &bundles,
+    ".index-token",
+    ".index-token",
+    "index.css",
+    CONDITIONAL_INDEX,
+  );
+  assert_token_maps_to(
+    &bundles,
+    ".shared-token",
+    ".shared-token",
+    "shared.css",
+    CONDITIONAL_SHARED,
+  );
+}
+
+const MACRO_INDEX: &str = r#"import { css } from "./macro.mjs" with { type: "macro" };
+output = css(".first-macro-token { color: red }") +
+  css(".second-macro-token { color: pink }");
+"#;
+
+const MACRO_CSS: &str = r#"export function css(v) {
+  this.addAsset({ type: "css", content: v });
+  return "foo";
+}
+"#;
+
+#[test]
+fn dev_macro_css_source_map_maps_to_macro_call() {
+  assert_macro_css_source_map(BuildMode::Development, Some(false));
+}
+
+#[test]
+fn prod_macro_css_source_map_maps_to_macro_call() {
+  assert_macro_css_source_map(BuildMode::Production, Some(true));
+}
+
+/// CSS a macro emits carries an input map pointing at the macro call, so each rule maps there.
+fn assert_macro_css_source_map(mode: BuildMode, minify: Option<bool>) {
+  let bundles = build_outputs(
+    "macro-css",
+    &[("index.mjs", MACRO_INDEX), ("macro.mjs", MACRO_CSS)],
+    "index.mjs",
+    AssetType::Css,
+    mode,
+    minify,
+  );
+  for (token, call) in [
+    (".first-macro-token", "css(\".first"),
+    (".second-macro-token", "css(\".second"),
+  ] {
+    assert_token_maps_to(&bundles, token, call, "index.mjs", MACRO_INDEX);
+  }
+}
+
 #[test]
 fn dev_babel_source_map_maps_through_input_map() {
   assert_babel_source_map(BuildMode::Development, Some(false));

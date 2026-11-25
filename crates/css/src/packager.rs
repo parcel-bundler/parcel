@@ -55,28 +55,72 @@ impl CssContent {
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     let mut asset_index_to_stylesheet_index: HashMap<AssetIndex, usize> = HashMap::new();
     let mut stylesheets = Vec::new();
-    let mut source_map = SourceMap::new("/");
+    let contents: Vec<(AssetIndex, &Asset, &CssContent, bool)> = bundle
+      .assets
+      .iter()
+      .map(|asset_index| {
+        let asset = bundle_graph.asset_graph.asset(*asset_index);
+        let Some(content) = asset.content.downcast_ref::<CssContent>() else {
+          unreachable!("expected a CSS asset")
+        };
+        let has_input_map = content.stylesheet.source_map(0).is_some();
+        (*asset_index, asset, content, has_input_map)
+      })
+      .collect();
 
-    for asset_index in &bundle.assets {
-      let asset = &bundle_graph.asset_graph.asset(*asset_index);
-      if let Some(content) = asset.content.downcast_ref::<CssContent>() {
-        asset_index_to_stylesheet_index.insert(*asset_index, stylesheets.len());
-        let source_index = stylesheets.len() as u32;
-        stylesheets.push(StyleSheetWrapper {
-          asset_index: *asset_index,
-          stylesheet: content.stylesheet.clone(),
-          parent_stylesheet_index: 0,
-          parent_dep_index: 0,
-          has_parent: false,
-          loc: lightningcss::rules::Location {
-            source_index,
-            line: asset.loc.start.line,
-            column: asset.loc.start.column + 1,
-          },
-        });
-      } else {
-        unreachable!("expected a CSS asset")
+    // Rule locations index into the assembled sheet's sources, and the printer writes
+    // that index into the map as is, unless the sheet has an input map, which it looks
+    // up by the same index and remaps through. SourceMap::add_source dedupes, and
+    // several assets can share a file (e.g. conditional imports of one file), so the
+    // first slots follow the map's sources one to one, and sheets without an input map
+    // point at their file's slot. Sheets with an input map each take a slot after
+    // those; the printer adds the sources their maps reach as it encounters them.
+    let mut source_map = SourceMap::new("/");
+    let mut sources = Vec::new();
+    let mut source_indices: Vec<u32> = contents
+      .iter()
+      .map(|(_, _, content, _)| {
+        let path = &content.stylesheet.sources[0];
+        let index = source_map.add_source(crate::map_source(path));
+        if index as usize == sources.len() {
+          sources.push(path.clone());
+        }
+        index
+      })
+      .collect();
+    let mut source_map_urls = vec![None; sources.len()];
+    for ((_, _, content, has_input_map), source_index) in contents.iter().zip(&mut source_indices) {
+      if *has_input_map {
+        *source_index = sources.len() as u32;
+        sources.push(content.stylesheet.sources[0].clone());
+        source_map_urls.push(content.stylesheet.source_map_urls[0].clone());
       }
+    }
+
+    for ((asset_index, asset, content, has_input_map), source_index) in
+      contents.into_iter().zip(source_indices)
+    {
+      asset_index_to_stylesheet_index.insert(asset_index, stylesheets.len());
+      // Rule locations are relative to the sheet, so offset them by where the asset starts
+      // in its file (e.g. an inline <style>). An input map (e.g. from a macro's addAsset)
+      // already maps the sheet's own positions to the file, so they must stay unshifted.
+      let (line, column) = if has_input_map {
+        (0, 1)
+      } else {
+        (asset.loc.start.line, asset.loc.start.column + 1)
+      };
+      stylesheets.push(StyleSheetWrapper {
+        asset_index,
+        stylesheet: content.stylesheet.clone(),
+        parent_stylesheet_index: 0,
+        parent_dep_index: 0,
+        has_parent: false,
+        loc: lightningcss::rules::Location {
+          source_index,
+          line,
+          column,
+        },
+      });
     }
 
     let mut visited: Vec<bool> = vec![false; stylesheets.len()];
@@ -174,33 +218,13 @@ impl CssContent {
     let dest = rules;
 
     let mut stylesheet = StyleSheet::new(
-      stylesheets
-        .iter()
-        .flat_map(|s| s.stylesheet.sources.clone())
-        .collect(),
+      sources,
       CssRuleList(dest),
       ParserOptions {
         ..Default::default()
       },
     );
-
-    stylesheet.source_map_urls = stylesheets
-      .iter()
-      .flat_map(|s| s.stylesheet.source_map_urls.clone())
-      .collect();
-
-    // Rule locations index into the assembled sheet's sources, so the map needs
-    // them in the same order. Sources reached through input maps are added as
-    // the printer encounters them.
-    if bundle.target.source_map.is_some() {
-      source_map.add_sources(
-        stylesheet
-          .sources
-          .iter()
-          .map(|s| crate::map_source(s))
-          .collect(),
-      );
-    }
+    stylesheet.source_map_urls = source_map_urls;
 
     let targets = Targets {
       browsers: if bundle.target.environment.is_browser() {
