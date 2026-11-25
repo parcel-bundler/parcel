@@ -44,7 +44,7 @@
     "os-browserify": "^0.3.0",
     "oxfmt": "^0.73.0",
     "path-browserify": "^1.0.1",
-    "postcss": "^8.5.3",
+    "postcss": "^8.5.23",
     "postcss-custom-properties": "^12.1.11",
     "postcss-import": "^16.1.0",
     "posthtml-include": "^2.0.1",
