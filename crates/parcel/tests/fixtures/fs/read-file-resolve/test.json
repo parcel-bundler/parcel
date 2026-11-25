@@ -1,0 +1,5 @@
+{
+  "description": "should inline a file when its path is obtained via require.resolve",
+  "input": "index.js",
+  "output": "hello\n"
+}
