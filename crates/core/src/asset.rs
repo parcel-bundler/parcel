@@ -361,16 +361,21 @@ pub struct LocalReference {
 }
 
 impl AssetSymbols {
-  /// Marks an export as requested, along with the exports it references, recursively.
-  pub fn request_export(&mut self, export_index: usize) {
+  /// Marks an export as requested, along with the exports it references, recursively. Returns the
+  /// exports that weren't requested before.
+  pub fn request_export(&mut self, export_index: usize) -> Vec<u32> {
     // An export that is already requested had its references requested along with it.
-    if !std::mem::replace(&mut self.exports[export_index].requested, true) {
-      self.request_references(export_index);
+    if std::mem::replace(&mut self.exports[export_index].requested, true) {
+      return Vec::new();
     }
+    let mut requested = vec![export_index as u32];
+    self.request_references(export_index, &mut requested);
+    requested
   }
 
-  /// Marks the exports `export_index` references as requested, recursively.
-  fn request_references(&mut self, export_index: usize) {
+  /// Marks the exports `export_index` references as requested, recursively, adding them to
+  /// `requested`.
+  fn request_references(&mut self, export_index: usize, requested: &mut Vec<u32>) {
     let mut stack = vec![export_index as u32];
     while let Some(from) = stack.pop() {
       for reference in &self.local_references {
@@ -380,9 +385,43 @@ impl AssetSymbols {
         {
           export.requested = true;
           stack.push(reference.to);
+          requested.push(reference.to);
         }
       }
     }
+  }
+
+  /// Whether an import is needed: the asset uses it unconditionally, or one of the exports that
+  /// use it is requested.
+  pub fn is_import_needed(&self, import: &ImportedSymbol) -> bool {
+    import.owners.is_empty()
+      || import.owners.iter().any(|&owner| {
+        self
+          .exports
+          .get(owner as usize)
+          .is_none_or(|export| export.requested)
+      })
+  }
+
+  /// The imports that requesting `exports` made needed, i.e. those that only exports among them
+  /// use, of the requested ones.
+  pub fn imports_needed_by(&self, exports: &[u32]) -> Vec<usize> {
+    self
+      .imports
+      .iter()
+      .enumerate()
+      .filter(|(_, import)| {
+        import.owners.iter().any(|owner| exports.contains(owner))
+          && !import.owners.iter().any(|&owner| {
+            !exports.contains(&owner)
+              && self
+                .exports
+                .get(owner as usize)
+                .is_none_or(|export| export.requested)
+          })
+      })
+      .map(|(index, _)| index)
+      .collect()
   }
 
   /// Resets every requested flag, except those of the exports the asset references itself (and
@@ -401,7 +440,7 @@ impl AssetSymbols {
     if !self.local_references.is_empty() {
       for export_index in 0..self.exports.len() {
         if self.exports[export_index].self_referenced {
-          self.request_references(export_index);
+          self.request_references(export_index, &mut Vec::new());
         }
       }
     }
@@ -413,6 +452,11 @@ pub struct ImportedSymbol {
   pub dep_index: u32,
   pub symbol: SymbolName,
   pub resolved: SymbolResolution,
+  /// The exports (indices into `AssetSymbols::exports`) whose code is the only code that uses this
+  /// import, e.g. an exported function calling an imported one. The import is only needed when one
+  /// of them is requested, which packagers rely on removing the code of the others. Empty if the
+  /// asset uses the import otherwise, e.g. at the top level, so it is always needed.
+  pub owners: Vec<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
@@ -605,6 +649,37 @@ mod tests {
     let mut symbols = symbols(&["a", "b", "c", "d"], &[], &[(0, 1), (1, 2), (2, 0)]);
     symbols.request_export(0);
     assert_eq!(requested(&symbols), ["a", "b", "c"]);
+  }
+
+  #[test]
+  fn imports_are_needed_by_their_owners() {
+    let mut symbols = symbols(&["a", "b", "c"], &[], &[]);
+    symbols.imports = [vec![], vec![0], vec![0, 1]]
+      .into_iter()
+      .map(|owners| ImportedSymbol {
+        dep_index: 0,
+        symbol: SymbolName::from("x"),
+        resolved: SymbolResolution::None,
+        owners,
+      })
+      .collect();
+    let needed = |symbols: &AssetSymbols| {
+      symbols
+        .imports
+        .iter()
+        .map(|import| symbols.is_import_needed(import))
+        .collect::<Vec<_>>()
+    };
+    assert_eq!(needed(&symbols), [true, false, false]);
+
+    let requested = symbols.request_export(1);
+    assert_eq!(symbols.imports_needed_by(&requested), [2]);
+    assert_eq!(needed(&symbols), [true, false, true]);
+
+    // The last import was already needed because of `b`.
+    let requested = symbols.request_export(0);
+    assert_eq!(symbols.imports_needed_by(&requested), [1]);
+    assert_eq!(needed(&symbols), [true, true, true]);
   }
 
   #[test]

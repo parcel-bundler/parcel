@@ -4,6 +4,7 @@ mod dependency_collector;
 mod env_replacer;
 mod fs;
 mod global_replacer;
+mod import_owners;
 mod mdx;
 mod modules;
 mod node_replacer;
@@ -746,6 +747,23 @@ pub fn transform_to_ast(
             is_module,
           );
           module.visit_with(&mut collect);
+          // Imports only unrequested exports use aren't needed, since tree shaking removes those
+          // exports' functions. Libraries keep every function, and the exports of modules with
+          // React directives are referenced by name at runtime.
+          if config.minify()
+            && !config.is_library()
+            && collect.is_esm
+            && !collect.has_cjs_exports
+            && collect.is_static()
+            && !result.directives.iter().any(|directive| {
+              matches!(
+                directive.as_str(),
+                "use client" | "use server" | "use client-entry" | "use server-entry"
+              )
+            })
+          {
+            collect.import_owners = import_owners::import_owners(&module);
+          }
           if let Some(bailouts) = &collect.bailouts {
             result.bailouts.extend(
               bailouts

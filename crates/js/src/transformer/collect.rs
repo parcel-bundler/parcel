@@ -87,6 +87,9 @@ pub struct Collect {
   /// Exports the module reads from its own exports object (e.g. `exports.foo`), with the export
   /// whose function the read is in, if the read only happens when that export is used.
   pub self_references: Vec<(JsWord, Option<JsWord>)>,
+  /// The exports each import is only used by (see `import_owners`). Imports not in the map are
+  /// always needed.
+  pub import_owners: HashMap<Id, Vec<JsWord>>,
   pub bailouts: Option<Vec<Bailout>>,
   /// The export whose function is being visited (see `self_references`).
   export_owner: Option<JsWord>,
@@ -125,6 +128,7 @@ impl Collect {
       static_require_access: Vec::new(),
       non_static_requires: HashSet::new(),
       self_references: Vec::new(),
+      import_owners: HashMap::new(),
       export_owner: None,
       export_assign_target: None,
       in_module_this: true,
@@ -166,6 +170,7 @@ impl Collect {
       static_require_access,
       non_static_requires,
       self_references,
+      import_owners,
       has_cjs_exports,
       ..
     } = self;
@@ -174,12 +179,13 @@ impl Collect {
     // A namespace import, require or dynamic import that is only accessed statically (e.g.
     // `ns.foo`) imports just the accessed properties. Any other usage, e.g. a computed access,
     // passing the namespace around or re-assigning the binding, observes the whole namespace.
-    let mut imported: Vec<(Span, &JsWord, &JsWord, &JsWord)> = Vec::new();
+    let mut imported: Vec<(Span, &JsWord, &JsWord, &JsWord, Option<&Vec<JsWord>>)> = Vec::new();
     for (local, import) in &imports {
       if !used_imports.contains(local) {
         continue;
       }
 
+      let owners = import_owners.get(local);
       if import.specifier == "*"
         && !non_static_access.contains_key(local)
         && let Some(accesses) = static_access.get(local)
@@ -187,18 +193,24 @@ impl Collect {
         let mut seen = HashSet::new();
         for (name, span) in accesses {
           if seen.insert(name) {
-            imported.push((*span, name, &import.source, name));
+            imported.push((*span, name, &import.source, name, owners));
           }
         }
       } else {
-        imported.push((import.span, &local.0, &import.source, &import.specifier));
+        imported.push((
+          import.span,
+          &local.0,
+          &import.source,
+          &import.specifier,
+          owners,
+        ));
       }
     }
 
     let mut seen = HashSet::new();
     for (source, name, span) in &static_require_access {
       if seen.insert((source, name)) {
-        imported.push((*span, name, source, name));
+        imported.push((*span, name, source, name, None));
       }
     }
 
@@ -207,12 +219,17 @@ impl Collect {
     imported.sort_by(|(a_span, a_name, ..), (b_span, b_name, ..)| {
       (a_span.lo, a_name).cmp(&(b_span.lo, b_name))
     });
+    let mut import_owner_names = Vec::new();
     symbols.imports = imported
       .into_iter()
-      .map(|(_, _, source, symbol)| ImportedSymbol {
-        dep_index: dep_index(source),
-        symbol: SymbolName::from(symbol.as_str()),
-        resolved: SymbolResolution::None,
+      .map(|(_, _, source, symbol, owners)| {
+        import_owner_names.push(owners);
+        ImportedSymbol {
+          dep_index: dep_index(source),
+          symbol: SymbolName::from(symbol.as_str()),
+          resolved: SymbolResolution::None,
+          owners: Vec::new(),
+        }
       })
       .collect();
 
@@ -258,9 +275,22 @@ impl Collect {
         None => self_referenced.push(to),
       }
     }
+
+    // An import is only owned if every export it is used by is one of the module's own.
+    for (import, names) in symbols.imports.iter_mut().zip(import_owner_names) {
+      if let Some(names) = names
+        && let Some(owners) = names
+          .iter()
+          .map(|name| export_index(name).map(|index| index as u32))
+          .collect::<Option<Vec<_>>>()
+      {
+        import.owners = owners;
+      }
+    }
     for index in self_referenced {
       symbols.exports[index].self_referenced = true;
     }
+
     local_references.sort_by_key(|reference| (reference.from, reference.to));
     local_references.dedup();
     symbols.local_references = local_references;
@@ -307,6 +337,7 @@ pub fn import_namespace(symbols: &mut AssetSymbols, dep_index: u32) {
       dep_index,
       symbol: SymbolName::Namespace,
       resolved: SymbolResolution::None,
+      owners: Vec::new(),
     });
   }
 }

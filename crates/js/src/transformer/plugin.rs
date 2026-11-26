@@ -232,6 +232,8 @@ impl Transformer for JsTransformer {
 
     // The result refers to its dependencies by index, after any the asset already has.
     let offset = asset.dependencies.len() as u32;
+    // Likewise for its exports, which imports and local references refer to.
+    let export_offset = asset.symbols.exports.len() as u32;
     asset.dependencies.extend(res.dependencies);
     let symbols = res.symbols;
     asset
@@ -239,6 +241,9 @@ impl Transformer for JsTransformer {
       .imports
       .extend(symbols.imports.into_iter().map(|mut symbol| {
         symbol.dep_index += offset;
+        for owner in &mut symbol.owners {
+          *owner += export_offset;
+        }
         symbol
       }));
     asset
@@ -255,7 +260,6 @@ impl Transformer for JsTransformer {
         symbol.dep_index += offset;
         symbol
       }));
-    let export_offset = asset.symbols.exports.len() as u32;
     asset.symbols.exports.extend(symbols.exports);
     asset
       .symbols

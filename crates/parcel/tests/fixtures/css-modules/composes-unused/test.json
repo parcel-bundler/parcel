@@ -1,0 +1,16 @@
+[
+  {
+    "description": "should tree shake classes composed only by unused classes, keeping the composed file's global rules",
+    "input": "index.js",
+    "options": {"mode": "production"},
+    "bundles": [
+      {"assets": ["index.js"]},
+      {
+        "type": "css",
+        "assets": ["other.module.css", "style.module.css"],
+        "contains": ["global-sentinel"],
+        "notContains": ["composed-sentinel"]
+      }
+    ]
+  }
+]

@@ -259,15 +259,22 @@ fn svg_usage(asset_graph: &AssetGraph, asset_index: AssetIndex) -> SvgUsage {
 /// Appends a transform's dependencies to an asset, with the symbols it imports through them.
 fn add_dependencies(asset: &mut Asset, dependencies: Vec<Dependency>, symbols: AssetSymbols) {
   let offset = asset.dependencies.len() as u32;
+  let export_offset = asset.symbols.exports.len() as u32;
   asset.dependencies.extend(dependencies);
   asset
     .symbols
     .imports
-    .extend(symbols.imports.into_iter().map(|import| ImportedSymbol {
-      dep_index: import.dep_index + offset,
-      ..import
+    .extend(symbols.imports.into_iter().map(|import| {
+      ImportedSymbol {
+        dep_index: import.dep_index + offset,
+        owners: import
+          .owners
+          .iter()
+          .map(|owner| owner + export_offset)
+          .collect(),
+        ..import
+      }
     }));
-  let export_offset = asset.symbols.exports.len() as u32;
   asset.symbols.exports.extend(symbols.exports);
   asset
     .symbols

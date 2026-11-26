@@ -878,6 +878,7 @@ impl<'arena> DependencyCollector<'arena> {
           dep_index,
           symbol,
           resolved: SymbolResolution::None,
+          owners: Vec::new(),
         });
       }
     }

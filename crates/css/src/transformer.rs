@@ -262,10 +262,22 @@ impl Transformer for CssTransformer {
                 custom_conditions: Default::default(),
               });
 
+              // Only this class uses the composed class, so it is only needed if this class is.
+              // Unused classes are only removed when optimizing.
+              let owners = if asset
+                .target
+                .flags
+                .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+              {
+                vec![(offset + index) as u32]
+              } else {
+                Vec::new()
+              };
               asset.symbols.imports.push(ImportedSymbol {
                 dep_index,
                 symbol: SymbolName::from(name),
                 resolved: parcel_core::SymbolResolution::None,
+                owners,
               });
             }
           }
@@ -305,6 +317,7 @@ impl Transformer for CssTransformer {
                 dep_index,
                 symbol: SymbolName::from(name),
                 resolved: parcel_core::SymbolResolution::None,
+                owners: Vec::new(),
               });
             }
           }
@@ -604,6 +617,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
         dep_index,
         symbol,
         resolved: parcel_core::SymbolResolution::None,
+        owners: Vec::new(),
       });
     }
     self.dependencies.push(dep);
