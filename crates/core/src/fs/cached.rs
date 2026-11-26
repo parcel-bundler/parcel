@@ -90,8 +90,8 @@ struct CacheEntry {
   /// with the entry on invalidation, which is how derived artifacts get invalidated centrally.
   /// Created on first use: few paths have objects, and an empty `papaya::HashMap` is costly to
   /// create (it allocates its own garbage collector), while the resolver creates entries for every
-  /// path it probes.
-  objects: OnceLock<papaya::HashMap<TypeId, CachedObject, BuildHasherDefault<FxHasher>>>,
+  /// path it probes. Boxed for the same reason: the map itself is over a kilobyte.
+  objects: OnceLock<Box<papaya::HashMap<TypeId, CachedObject, BuildHasherDefault<FxHasher>>>>,
 }
 
 /// An entry in the path set. Hashed by its precomputed path hash and compared by path, so lookups
