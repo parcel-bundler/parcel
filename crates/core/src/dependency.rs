@@ -331,13 +331,24 @@ impl Eq for AssetRequest {}
 /// requests with the same key refer to the same logical asset (and asset graph node); a
 /// difference between them means that asset needs re-transformation, not that a separate
 /// asset exists.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AssetRequestKey {
   pub loc: SourceLocation,
   pub ty: AssetType,
   pub pipeline: Option<hstr::Atom>,
   pub target: Arc<Target>,
   pub unique_key: Option<Arc<str>>,
+}
+
+impl std::hash::Hash for AssetRequestKey {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    // The target is left out: hashing one is far more expensive than the rest of the key, and
+    // very few requests differ only by target, so it is left to the equality check.
+    self.loc.hash(state);
+    self.ty.hash(state);
+    self.pipeline.hash(state);
+    self.unique_key.hash(state);
+  }
 }
 
 impl AssetRequest {

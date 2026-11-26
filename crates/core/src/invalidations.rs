@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use path_slash::PathExt;
 
@@ -188,7 +188,7 @@ impl InvalidationMap {
     created: &[PathId],
     deleted: &[PathId],
   ) -> HashSet<AssetNodeIndex> {
-    let mut affected: HashSet<AssetNodeIndex> = HashSet::new();
+    let mut affected: HashSet<AssetNodeIndex> = HashSet::default();
 
     for path in changed {
       if let Some(indices) = self.on_file_change.get(path) {

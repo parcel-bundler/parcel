@@ -319,7 +319,7 @@ impl Parcel {
       .asset_graph_builder
       .invalidate(changed, created, deleted);
     Ok(InvalidateResult {
-      affected,
+      affected: affected.into_iter().collect(),
       config_changed: false,
     })
   }

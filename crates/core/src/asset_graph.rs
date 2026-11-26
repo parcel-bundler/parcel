@@ -6,6 +6,7 @@ use std::{
 
 use fixedbitset::FixedBitSet;
 use rayon::prelude::*;
+use rustc_hash::FxHashSet;
 use serde::Serialize;
 
 use crate::{
@@ -224,7 +225,7 @@ impl AssetGraphBuilder {
     changed: &[PathId],
     created: &[PathId],
     deleted: &[PathId],
-  ) -> HashSet<AssetNodeIndex> {
+  ) -> FxHashSet<AssetNodeIndex> {
     let affected = self.invalidation_map.invalidate(changed, created, deleted);
 
     for node_index in &affected {

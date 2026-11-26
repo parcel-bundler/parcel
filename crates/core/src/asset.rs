@@ -28,7 +28,7 @@ pub struct Asset {
   pub symbols: AssetSymbols,
 }
 
-#[derive(Hash, PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct AssetKey {
   pub loc: SourceLocation,
   pub ty: AssetType,
@@ -36,6 +36,18 @@ pub struct AssetKey {
   pub pipeline: Option<hstr::Atom>,
   pub bundle_behavior: BundleBehavior,
   pub unique_key: Option<Arc<str>>,
+}
+
+impl std::hash::Hash for AssetKey {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    // The target is left out: hashing one is far more expensive than the rest of the key, and
+    // very few assets differ only by target, so it is left to the equality check.
+    self.loc.hash(state);
+    self.ty.hash(state);
+    self.pipeline.hash(state);
+    self.bundle_behavior.hash(state);
+    self.unique_key.hash(state);
+  }
 }
 
 impl Asset {
