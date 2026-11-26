@@ -4,7 +4,7 @@
   "options": {"mode": "production", "minify": false},
   "bundles": [
     {
-      "assets": ["esmodule-helpers.js", "icon.svg", "index.js", "jsx-runtime.js", "react-jsx-runtime.development.js", "react.development.js", "react.ts"],
+      "assets": ["icon.svg", "index.js", "jsx-runtime.js", "react-jsx-runtime.development.js", "react.development.js", "react.ts"],
       "contains": ["function SvgComponent", "(0, _jsxRuntime.jsx)(\"svg"]
     }
   ]

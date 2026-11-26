@@ -9,7 +9,6 @@
       "name": "js/index.js",
       "type": "js",
       "assets": [
-        "esmodule-helpers.js",
         "index.js"
       ]
     },

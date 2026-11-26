@@ -5,7 +5,6 @@
     "bundles": [
       {
         "assets": [
-          "esmodule-helpers.js",
           "index.js",
           "polyfill.js"
         ]

@@ -21,7 +21,7 @@
     },
     {
       "type": "js",
-      "assets": ["esmodule-helpers.js", "util.js"]
+      "assets": ["util.js"]
     }
   ]
 }

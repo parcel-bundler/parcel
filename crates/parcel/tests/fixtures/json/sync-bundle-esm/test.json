@@ -7,7 +7,7 @@
   "bundles": [
     {
       "type": "js",
-      "assets": ["esmodule-helpers.js", "index.js"],
+      "assets": ["index.js"],
       "contains": [
         "import __parcelSyncBundle",
         "with {type:\"json\"};",

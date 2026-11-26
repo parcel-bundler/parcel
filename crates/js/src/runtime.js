@@ -18,8 +18,8 @@ if (
   var pageManifests = document.querySelectorAll(
     'script[type="application/json"][data-parcel-manifest]',
   );
-  for (var i = 0; i < pageManifests.length; i++) {
-    Object.assign(importMap, JSON.parse(pageManifests[i].textContent));
+  for (var pageIndex = 0; pageIndex < pageManifests.length; pageIndex++) {
+    Object.assign(importMap, JSON.parse(pageManifests[pageIndex].textContent));
   }
 }
 Object.assign(importMap, manifest);

@@ -13,7 +13,7 @@
         "assets": ["dedicated-worker.js"]
       },
       {
-        "assets": ["esmodule-helpers.js", "index.js"]
+        "assets": ["index.js"]
       },
       {
         "assets": ["shared-worker.js"]

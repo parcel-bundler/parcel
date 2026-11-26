@@ -5,7 +5,6 @@
     "bundles": [
       {
         "assets": [
-          "esmodule-helpers.js",
           "index.js"
         ]
       },
@@ -29,7 +28,6 @@
     "bundles": [
       {
         "assets": [
-          "esmodule-helpers.js",
           "index.js"
         ]
       },

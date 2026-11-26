@@ -3,7 +3,7 @@
   "input": "index.js",
   "bundles": [
     {
-      "assets": ["bar.js", "index.js", "foo.js", "esmodule-helpers.js"],
+      "assets": ["bar.js", "index.js", "foo.js"],
       "references": []
     }
   ],

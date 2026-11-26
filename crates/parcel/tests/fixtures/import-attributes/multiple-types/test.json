@@ -3,7 +3,7 @@
     "description": "should support importing the same file with different type attributes",
     "input": "index.js",
     "bundles": [
-      {"assets": ["esmodule-helpers.js", "index.js", "local.json"]},
+      {"assets": ["index.js", "local.json"]},
       {"type": "json", "assets": ["local.json"]}
     ],
     "output": {

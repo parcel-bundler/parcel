@@ -5,7 +5,7 @@
   "bundles": [
     {
       "type": "js",
-      "assets": ["dep-default.js", "default.js", "esmodule-helpers.js"],
+      "assets": ["dep-default.js", "default.js"],
       "contains": ["used-default"],
       "notContains": ["unused-default-sentinel"]
     }

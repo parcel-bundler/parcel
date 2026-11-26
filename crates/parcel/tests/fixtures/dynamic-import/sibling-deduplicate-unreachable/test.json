@@ -6,7 +6,7 @@
   },
   "bundles": [
     {
-      "assets": ["esmodule-helpers.js", "index.js"],
+      "assets": ["index.js"],
       "references": []
     },
     {

@@ -7,7 +7,7 @@
   "bundles": [
     {
       "type": "js",
-      "assets": ["esmodule-helpers.js", "type-only-import.ts"],
+      "assets": ["type-only-import.ts"],
       "notContains": ["type-only-import-module-sentinel"]
     }
   ]

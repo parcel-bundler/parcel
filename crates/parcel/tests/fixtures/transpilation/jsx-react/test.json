@@ -12,7 +12,7 @@
     "input": "pure-comment.js",
     "options": {"mode": "production"},
     "bundles": [
-      {"assets": ["esmodule-helpers.js", "index.js", "pure-comment.js"], "TODO:contains": ["/*#__PURE__*/ (0, _reactDefault.default).createElement"]}
+      {"assets": ["index.js", "pure-comment.js"], "TODO:contains": ["/*#__PURE__*/ (0, _reactDefault.default).createElement"]}
     ]
   }
 ]

@@ -13,7 +13,6 @@
         "type": "js",
         "assets": [
           "dep-namespace.js",
-          "esmodule-helpers.js",
           "namespace.js"
         ],
         "contains": [

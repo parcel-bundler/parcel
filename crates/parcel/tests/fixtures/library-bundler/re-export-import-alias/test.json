@@ -9,7 +9,6 @@
   },
   "bundles": [
     { "assets": ["index.js"] },
-    { "assets": ["impl.js"] },
-    { "assets": ["esmodule-helpers.js"] }
+    { "assets": ["impl.js"] }
   ]
 }

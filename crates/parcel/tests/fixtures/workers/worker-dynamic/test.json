@@ -8,7 +8,7 @@
         "assets": ["index.js"]
       },
       {
-        "assets": ["async.js", "esmodule-helpers.js"]
+        "assets": ["async.js"]
       },
       {
         "assets": ["worker.js"]
@@ -24,7 +24,7 @@
         "assets": ["index-nested.js"]
       },
       {
-        "assets": ["async.js", "esmodule-helpers.js"]
+        "assets": ["async.js"]
       },
       {
         "assets": ["worker-nested.js"]
@@ -43,7 +43,7 @@
         "assets": ["index-async.js"]
       },
       {
-        "assets": ["async.js", "esmodule-helpers.js"]
+        "assets": ["async.js"]
       },
       {
         "assets": ["worker.js"]

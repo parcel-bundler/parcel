@@ -34,7 +34,10 @@ use synthetic::AsyncRegistration;
 pub use synthetic::{BundleShim, SyntheticAsset};
 pub use tree_shake::{ModuleId, Resolution, tree_shake};
 
-use crate::{GeneratedCode, JsContent};
+use crate::{
+  GeneratedCode, JsContent,
+  runtime_modules::{APP_ESM_HELPERS, EsmHelpers},
+};
 use printer::Printer;
 pub(crate) use printer::{MapJson, SectionMap, SourceMapSection, source_map_index};
 use script::{link_script, minify_script};
@@ -80,6 +83,14 @@ impl JsContent {
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     const RUNTIME: &str = include_str!(concat!(env!("OUT_DIR"), "/runtime.min.js"));
     const DEV_RUNTIME: &str = include_str!("../dev-runtime.js");
+    // The functions modules converted from ESM call (see `EsmHelpers`). Optimized bundles define
+    // those their modules call, by their minified names (see `APP_ESM_HELPERS`). The dev runtime
+    // passes them to every module, including hot updates of modules that didn't call them before,
+    // so development bundles always define them all.
+    const DEV_ESM_HELPER_FUNCTIONS: &str = concat!(
+      include_str!("../esm-helpers.js"),
+      include_str!("../esm-export-all.js")
+    );
 
     let should_build_source_map = bundle.target.source_map.is_some();
     let should_optimize = bundle
@@ -290,6 +301,29 @@ impl JsContent {
       printer.newline()?;
     }
     printer.newline()?;
+
+    if should_optimize {
+      let used = bundle
+        .assets
+        .iter()
+        .filter_map(|asset_index| {
+          bundle_graph
+            .asset_graph
+            .asset(*asset_index)
+            .content
+            .downcast_ref::<JsContent>()
+        })
+        .fold(EsmHelpers::empty(), |used, content| {
+          used | content.used_esm_helpers
+        });
+      for (function, code) in APP_ESM_HELPERS {
+        if EsmHelpers::from_function(function).is_some_and(|(helper, _)| used.contains(helper)) {
+          printer.write_str(code)?;
+        }
+      }
+    } else {
+      printer.write_str(DEV_ESM_HELPER_FUNCTIONS)?;
+    }
 
     write_runtime_globals(
       &mut printer,

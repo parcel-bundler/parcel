@@ -9,7 +9,7 @@
   "bundles": [
     {
       "type": "js",
-      "assets": ["esmodule-helpers.js", "index.js", "used.js"],
+      "assets": ["index.js", "used.js"],
       "contains": [
         "used-package-side-effect-free",
         "unused-package-export-side-effect"

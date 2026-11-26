@@ -6,7 +6,7 @@
     {
       "name": "index.js",
       "type": "js",
-      "assets": ["index.js", "data.txt", "esmodule-helpers.js"],
+      "assets": ["index.js", "data.txt"],
       "contains": ["resolved:theme/colors.txt"]
     }
   ]

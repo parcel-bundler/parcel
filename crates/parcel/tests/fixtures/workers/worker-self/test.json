@@ -8,7 +8,7 @@
         "assets": ["index.js"]
       },
       {
-        "assets": ["esmodule-helpers.js", "workerHelpers.js"]
+        "assets": ["workerHelpers.js"]
       }
     ]
   },
@@ -17,7 +17,7 @@
     "input": "import-meta.js",
     "bundles": [
       {
-        "assets": ["esmodule-helpers.js", "import-meta.js"]
+        "assets": ["import-meta.js"]
       }
     ]
   }

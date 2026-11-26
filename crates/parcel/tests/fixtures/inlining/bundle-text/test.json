@@ -3,7 +3,7 @@
     "description": "should inline a bundle's compiled text with `bundle-text`",
     "input": "index.js",
     "bundles": [
-      {"name": "index.js", "assets": ["esmodule-helpers.js", "index.js"]},
+      {"name": "index.js", "assets": ["index.js"]},
       {"assets": ["img.svg"]},
       {"assets": ["text.css"]}
     ],

@@ -7,7 +7,7 @@
     "bundles": [
       {
         "type": "js",
-        "assets": ["commonjs-dep.js", "commonjs.js", "esm-dep.js", "esmodule-helpers.js"],
+        "assets": ["commonjs-dep.js", "commonjs.js", "esm-dep.js"],
         "contains": ["used-commonjs", "used-computed", "used-esm"],
         "notContains": ["unused-commonjs-sentinel", "unused-esm-sentinel"]
       }

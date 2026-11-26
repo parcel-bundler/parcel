@@ -7,7 +7,7 @@
     "bundles": [
       {
         "type": "js",
-        "assets": ["dep-namespace.js", "esmodule-helpers.js", "namespace.js", "other.js"],
+        "assets": ["dep-namespace.js", "namespace.js", "other.js"],
         "contains": ["used-namespace", "used-other"],
         "notContains": ["unused-namespace-sentinel", "unused-other-sentinel"]
       }

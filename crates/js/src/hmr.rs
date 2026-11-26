@@ -19,6 +19,7 @@ use crate::{
     asset_dependencies, embedded_css_modules, generated_section_map, source_map_index,
     wrap_generated_code,
   },
+  runtime_modules::ESM_HELPER_FUNCTIONS,
 };
 
 #[derive(serde::Serialize, Debug)]
@@ -294,7 +295,16 @@ fn hot_update_code(index: AssetIndex, bundle_graph: &BundleGraph) -> String {
 
   // The code starts on its own line so that the map only needs a line offset, and ends on one so
   // that a trailing line comment can't swallow the closing brace.
-  let mut output = format!("parcelHotUpdate['{id}'] = function (module, exports, require) {{\n");
+  // The update runs outside its bundle, so the runtime passes it the ESM helpers the bundle defines
+  // (see `runtime_modules::ESM_HELPER_FUNCTIONS`), after the global object (see dev-runtime.js).
+  let mut output = format!(
+    "parcelHotUpdate['{id}'] = function (module, exports, require, $parcel$global, {}) {{\n",
+    ESM_HELPER_FUNCTIONS
+      .iter()
+      .map(|(_, function, _)| *function)
+      .collect::<Vec<_>>()
+      .join(", ")
+  );
   output.push_str(&prefix);
   output.push_str(&code);
   output.push_str(&suffix);

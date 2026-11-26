@@ -11,7 +11,6 @@
       "type": "js",
       "assets": [
         "dep-reexport-named-side-effects.js",
-        "esmodule-helpers.js",
         "reexport-named-side-effects-barrel.js",
         "reexport-named-side-effects.js"
       ],

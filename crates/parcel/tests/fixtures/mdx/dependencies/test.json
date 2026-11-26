@@ -6,7 +6,6 @@
       "assets": ["index.mdx"],
       "references": [
         [
-          "esmodule-helpers.js",
           "index.js",
           "jsx-dev-runtime.js"
         ]
@@ -22,7 +21,6 @@
       "assets": ["another.mdx"],
       "references": [
         [
-          "esmodule-helpers.js",
           "index.js",
           "jsx-dev-runtime.js"
         ]
@@ -36,7 +34,6 @@
     },
     {
       "assets": [
-        "esmodule-helpers.js",
         "index.js",
         "jsx-dev-runtime.js"
       ],

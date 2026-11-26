@@ -27,11 +27,6 @@
     },
     {
       "assets": [
-        "esmodule-helpers.js"
-      ]
-    },
-    {
-      "assets": [
         "index.js"
       ],
       "outputFormat": "esmodule",

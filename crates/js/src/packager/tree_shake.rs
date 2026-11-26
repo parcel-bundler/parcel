@@ -15,9 +15,12 @@ use swc_core::{
   quote,
 };
 
-use crate::transformer::{
-  Ast,
-  utils::{is_unresolved, match_member_expr, match_property_name},
+use crate::{
+  runtime_modules::EsmHelpers,
+  transformer::{
+    Ast,
+    utils::{is_unresolved, match_member_expr, match_property_name},
+  },
 };
 
 /// How a module is required.
@@ -350,10 +353,60 @@ impl<'a> TreeShake<'a> {
       SyntaxContext::empty().apply_mark(self.unresolved_mark),
     )
   }
+
+  /// Removes unused export getters from a call to the ESM export helper and returns whether the
+  /// call still defines anything. See `define_exports` for the two forms of the call.
+  fn retain_used_exports(&self, node: &mut Stmt) -> bool {
+    let Stmt::Expr(stmt) = node else {
+      return true;
+    };
+    let Expr::Call(call) = &mut *stmt.expr else {
+      return true;
+    };
+    let Callee::Expr(callee) = &call.callee else {
+      return true;
+    };
+    if !matches!(&**callee, Expr::Ident(id)
+      if id.sym == EsmHelpers::EXPORT.function() && is_unresolved(id, self.unresolved_mark))
+    {
+      return true;
+    }
+
+    match call.args.get_mut(1).map(|arg| &mut *arg.expr) {
+      Some(Expr::Object(object)) => {
+        object.props.retain(|prop| {
+          let PropOrSpread::Prop(prop) = prop else {
+            return true;
+          };
+          match &**prop {
+            Prop::KeyValue(KeyValueProp {
+              key: PropName::Ident(name),
+              ..
+            }) => self.used_symbols.contains(&name.sym),
+            Prop::KeyValue(KeyValueProp {
+              key: PropName::Str(name),
+              ..
+            }) => self.used_symbols.contains(&name.value),
+            _ => true,
+          }
+        });
+        !object.props.is_empty()
+      }
+      Some(Expr::Lit(Lit::Str(name))) => self.used_symbols.contains(&name.value),
+      _ => true,
+    }
+  }
 }
 
 impl<'a> VisitMut for TreeShake<'a> {
   fn visit_mut_stmt(&mut self, node: &mut Stmt) {
+    // Before visiting the call, which renames the helper it calls (see `visit_mut_ident`).
+    if !self.used_symbols.is_empty() && !self.retain_used_exports(node) {
+      *node = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
+      self.mutated = true;
+      return;
+    }
+
     node.visit_mut_children_with(self);
     if self.used_symbols.is_empty() {
       return;
@@ -403,33 +456,6 @@ impl<'a> VisitMut for TreeShake<'a> {
             self.mutated = true;
             return;
           }
-        }
-      }
-      Expr::Call(call) => {
-        let Callee::Expr(expr) = &call.callee else {
-          return;
-        };
-        let Expr::Member(member) = &**expr else {
-          return;
-        };
-
-        if !(matches!(&*member.obj, Expr::Ident(id) if id.sym == "parcelHelpers")
-          && matches!(match_property_name(&member), Some((name, _)) if name == "export"))
-        {
-          return;
-        }
-
-        let Some(ExprOrSpread { expr, .. }) = call.args.get(1) else {
-          return;
-        };
-
-        let Expr::Lit(Lit::Str(name)) = &**expr else {
-          return;
-        };
-
-        if !self.used_symbols.contains(&name.value) {
-          *node = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
-          self.mutated = true;
         }
       }
       _ => {}
@@ -720,8 +746,14 @@ impl<'a> VisitMut for TreeShake<'a> {
       node.ctxt = self.wrapper_ctxt;
     }
 
-    if node.sym == "require" && is_unresolved(node, self.unresolved_mark) {
-      node.sym = self.require_name.clone();
+    if is_unresolved(node, self.unresolved_mark) {
+      if node.sym == "require" {
+        node.sym = self.require_name.clone();
+      } else if !self.is_library
+        && let Some((_, name)) = EsmHelpers::from_function(&node.sym)
+      {
+        node.sym = name.into();
+      }
     }
   }
 }
