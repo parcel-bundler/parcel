@@ -1,5 +1,5 @@
 {
-  "description": "JS bundles importing CSS modules and JSON number their private modules",
+  "description": "JS bundles importing CSS modules and JSON number their private modules, which require later ones by distance",
   "input": "index.js",
   "options": {
     "mode": "production"
@@ -15,7 +15,8 @@
       "contains": [
         "var h=[(function(",
         "r(0)",
-        "r(1)"
+        "function(a,b,c){",
+        "c(1)"
       ]
     },
     {

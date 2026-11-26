@@ -26,7 +26,8 @@ Object.assign(importMap, manifest);
 var cache = previousRequire.cache || {};
 
 // Modules that nothing outside this bundle refers to are numbered, and kept in an array of their
-// own (`localModules`), as each bundle's numbers are its own.
+// own (`localModules`), as each bundle's numbers are its own. They require the numbered modules
+// after them by distance, through a third argument, which compresses better than their numbers.
 var localCache = [];
 
 // Do not use `require` to prevent Webpack from trying to bundle this call
@@ -40,7 +41,14 @@ function require(name, jumped) {
   if (typeof name === 'number') {
     if (!localCache[name]) {
       var module = (localCache[name] = new Module(name));
-      localModules[name].call(module.exports, module, module.exports);
+      localModules[name].call(
+        module.exports,
+        module,
+        module.exports,
+        function (offset) {
+          return require(name + offset);
+        },
+      );
     }
     return localCache[name].exports;
   }

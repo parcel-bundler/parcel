@@ -130,6 +130,7 @@ impl JsContent {
         false,
         true,
         "require".into(),
+        None,
       );
       let prologue = hoist_directives(&mut ast.program.body, &content.directives);
       if should_optimize {

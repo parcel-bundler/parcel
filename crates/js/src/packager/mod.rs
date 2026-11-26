@@ -642,6 +642,10 @@ fn render_asset_module<'a>(
     true,
     false,
     RUNTIME_REQUIRE.into(),
+    match id {
+      ModuleId::Local(index) => Some(index),
+      ModuleId::Global(_) => None,
+    },
   );
   ast.finalize();
   let (code, map) = content.to_code(

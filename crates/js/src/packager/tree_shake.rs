@@ -1,5 +1,6 @@
 use std::{
   borrow::Cow,
+  cell::Cell,
   collections::{HashMap, HashSet},
 };
 
@@ -50,13 +51,21 @@ impl From<&ModuleId<'_>> for Expr {
   fn from(id: &ModuleId<'_>) -> Self {
     match id {
       ModuleId::Global(id) => id.as_ref().into(),
-      ModuleId::Local(index) => Expr::Lit(Lit::Num(Number {
-        span: DUMMY_SP,
-        value: *index as f64,
-        raw: None,
-      })),
+      ModuleId::Local(index) => number_expr(*index),
     }
   }
+}
+
+/// The name, before minification, of the module wrapper's parameter that requires a module
+/// relative to the wrapped one (see `TreeShake::relative_offset`).
+const RELATIVE_REQUIRE: &str = "$parcel$requireRelative";
+
+fn number_expr(value: u32) -> Expr {
+  Expr::Lit(Lit::Num(Number {
+    span: DUMMY_SP,
+    value: value as f64,
+    raw: None,
+  }))
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -150,6 +159,8 @@ pub fn tree_shake<'a>(
   minify: bool,
   is_library: bool,
   require_name: JsWord,
+  // The module's number within its bundle, if it has one (see `LocalModules`).
+  local_index: Option<u32>,
 ) {
   swc_core::common::GLOBALS.set(&*ast.globals, || {
     // A CommonJS module reading its own exports (e.g. `exports.foo` within `exports.bar`) needs
@@ -176,6 +187,9 @@ pub fn tree_shake<'a>(
       is_library,
       require_name,
       in_module_this: true,
+      // Only the wrapper added below has the relative require.
+      local_index: local_index.filter(|_| minify),
+      uses_relative_require: Cell::new(false),
     };
 
     if !minify {
@@ -208,6 +222,12 @@ pub fn tree_shake<'a>(
 
     // Visit the wrapper's children so its body is still treated as the module's top level.
     wrapper.function.visit_mut_children_with(&mut shake);
+    if shake.uses_relative_require.get() {
+      wrapper
+        .function
+        .params
+        .push(shake.relative_require_ident().into());
+    }
 
     let program = swc_core::ecma::minifier::optimize(
       Program::Module(Module {
@@ -343,9 +363,65 @@ struct TreeShake<'a> {
   require_name: JsWord,
   /// Whether `this` refers to the module's exports, i.e. outside of any function or class.
   in_module_this: bool,
+  /// The module's number within its bundle, if it has one (see `LocalModules`).
+  local_index: Option<u32>,
+  /// Whether the module requires another relative to its own number, so its wrapper needs the
+  /// relative require as a parameter.
+  uses_relative_require: Cell<bool>,
 }
 
 impl<'a> TreeShake<'a> {
+  /// The wrapper's parameter that requires a module by its distance after this one in the
+  /// bundle's numbered modules (see `runtime.js`).
+  fn relative_require_ident(&self) -> Ident {
+    Ident::new(RELATIVE_REQUIRE.into(), DUMMY_SP, self.wrapper_ctxt)
+  }
+
+  /// How far after this module `id` is numbered, if both are numbered within the bundle and `id`
+  /// comes later. Modules are numbered in bundle order, where a module's dependencies tend to
+  /// directly follow it, so modules that import alike require the same small distances rather
+  /// than each naming different numbers, which compresses far better. Earlier modules are mostly
+  /// ones many others share, which compress better under the one number everything requires.
+  fn relative_offset(&self, id: &ModuleId<'_>) -> Option<u32> {
+    match (self.local_index, id) {
+      (Some(from), ModuleId::Local(to)) if *to > from => Some(to - from),
+      _ => None,
+    }
+  }
+
+  /// A call requiring the module `id`.
+  fn require_call(&self, id: &ModuleId<'_>) -> Expr {
+    match self.relative_offset(id) {
+      Some(offset) => {
+        self.uses_relative_require.set(true);
+        quote!(
+          "$require($offset)" as Expr,
+          require: Ident = self.relative_require_ident(),
+          offset: Expr = number_expr(offset)
+        )
+      }
+      None => quote!(
+        "$require($id)" as Expr,
+        require: Ident = self.require_ident(),
+        id: Expr = id.into()
+      ),
+    }
+  }
+
+  /// Makes a `require` call's callee and its argument `expr` require the module `id`.
+  fn set_required(&self, callee: &mut Callee, expr: &mut Expr, id: &ModuleId<'_>) {
+    // Only the runtime's require has a relative form; `import()` doesn't.
+    if let Callee::Expr(_) = callee
+      && let Some(offset) = self.relative_offset(id)
+    {
+      self.uses_relative_require.set(true);
+      *callee = Callee::Expr(Box::new(self.relative_require_ident().into()));
+      *expr = number_expr(offset);
+    } else {
+      *expr = id.into();
+    }
+  }
+
   fn require_ident(&self) -> Ident {
     Ident::new(
       self.require_name.clone(),
@@ -514,7 +590,7 @@ impl<'a> VisitMut for TreeShake<'a> {
               *node = Expr::Object(Default::default());
             }
             Resolution::Asset(resolution) => {
-              **expr = resolution.into();
+              self.set_required(&mut call.callee, expr, resolution);
             }
             Resolution::External(specifier) => {
               **expr = specifier.as_ref().into();
@@ -536,7 +612,7 @@ impl<'a> VisitMut for TreeShake<'a> {
               // including symbols that were resolved to a more specific asset. Keep the
               // namespace object intact so its property getters preserve live bindings.
               if let Some((_, id, _)) = symbols.iter().find(|(key, _, _)| *key == "*") {
-                **expr = id.into();
+                self.set_required(&mut call.callee, expr, id);
                 return;
               }
 
@@ -548,11 +624,7 @@ impl<'a> VisitMut for TreeShake<'a> {
                     let prop = if *exp == "*" {
                       Prop::KeyValue(KeyValueProp {
                         key: PropName::Str((*key).into()),
-                        value: Box::new(quote!(
-                          "$require($id)" as Expr,
-                          require: Ident = self.require_ident(),
-                          id: Expr = id.into()
-                        )),
+                        value: Box::new(self.require_call(id)),
                       })
                     } else {
                       Prop::Getter(GetterProp {
@@ -563,17 +635,15 @@ impl<'a> VisitMut for TreeShake<'a> {
                             stmts: if *exp == "default" {
                               vec![
                                 quote!(
-                                  "var m = $require($id);" as Stmt,
-                                  require: Ident = self.require_ident(),
-                                  id: Expr = id.into(),
+                                  "var m = $required;" as Stmt,
+                                  required: Expr = self.require_call(id),
                                 ),
                                 quote!("return m.__esModule ? m.default : m;" as Stmt),
                               ]
                             } else {
                               vec![quote!(
-                                "return $require($id)[$exp];" as Stmt,
-                                require: Ident = self.require_ident(),
-                                id: Expr = id.into(),
+                                "return $required[$exp];" as Stmt,
+                                required: Expr = self.require_call(id),
                                 exp: Expr = (*exp).into()
                               )]
                             },
