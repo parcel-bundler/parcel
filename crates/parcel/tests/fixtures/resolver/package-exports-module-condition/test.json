@@ -1,0 +1,5 @@
+{
+  "description": "should prefer the package.json exports \"module\" condition for both import and require",
+  "input": "index.js",
+  "output": ["module", "module"]
+}
