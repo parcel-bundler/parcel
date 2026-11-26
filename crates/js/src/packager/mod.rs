@@ -338,11 +338,16 @@ impl JsContent {
       options,
     )?;
 
-    printer.write_str(if should_optimize {
-      RUNTIME
+    if !should_optimize {
+      printer.write_str(DEV_RUNTIME)?;
+    } else if bundle.is_context_root() {
+      printer.write_str(RUNTIME)?;
     } else {
-      DEV_RUNTIME
-    })?;
+      write!(
+        printer,
+        "var {RUNTIME_REQUIRE};(globalThis[{RUNTIME_PARCEL_REQUIRE_NAME}]=globalThis[{RUNTIME_PARCEL_REQUIRE_NAME}]||[]).push(g=>{{{RUNTIME_REQUIRE}=g({RUNTIME_MODULES},{RUNTIME_LOCAL_MODULES},{RUNTIME_EXTERNALS},{RUNTIME_MANIFEST},{RUNTIME_DIST_DIR},{RUNTIME_PUBLIC_URL},{RUNTIME_BUNDLE_URL})}})"
+      )?;
+    }
     if is_global {
       printer.write_str("\n})();")?;
     }
@@ -1192,55 +1197,57 @@ fn write_runtime_globals(
     true,
   )?;
 
-  printer.write_var(
-    runtime_name(should_optimize, "entries", RUNTIME_ENTRIES),
-    "[",
-    false,
-  )?;
-  if let Some(entry) = rsc_server_entry {
-    write!(printer, "'{}',", entry)?;
-  }
-  // A classic script's entry runs after the module table rather than from it.
-  let is_script = bundle.target.source_type == SourceType::Script;
-  for entry in bundle.entry_assets.iter().filter(|_| !is_script) {
-    write!(
-      printer,
-      "'{}',",
-      entry_id(bundle_graph, *entry, project_root)
-    )?;
-  }
-
-  printer.write_str("];")?;
-  printer.newline()?;
-
-  printer.write_var(
-    runtime_name(should_optimize, "awaitedBundles", RUNTIME_AWAITED_BUNDLES),
-    "[",
-    false,
-  )?;
-  for index in awaited_bundles(bundle_graph, bundle) {
-    let stable_key = bundle_graph.bundles[index].stable_key();
-    write!(printer, "{},", serde_json::to_string(&stable_key)?)?;
-  }
-  printer.write_str("];")?;
-  printer.newline()?;
-
-  // The runtime runs its main entry on load, to expose its exports. Only bundles that execute on
-  // load may do that: a bundle loaded by Parcel's loader runs once every bundle it depends on has
-  // loaded, which the loader waits for, and it doesn't import them itself.
-  let runtime_main_entry = runtime_name(should_optimize, "mainEntry", RUNTIME_MAIN_ENTRY);
-  if let Some(main) = bundle
-    .main_entry_asset
-    .as_ref()
-    .filter(|_| !bundle.entry_assets.is_empty() && !is_script)
-  {
+  if !should_optimize || bundle.is_context_root() {
     printer.write_var(
-      runtime_main_entry,
-      &format!("'{}'", entry_id(bundle_graph, *main, project_root)),
-      true,
+      runtime_name(should_optimize, "entries", RUNTIME_ENTRIES),
+      "[",
+      false,
     )?;
-  } else {
-    printer.write_var(runtime_main_entry, "null", true)?;
+    if let Some(entry) = rsc_server_entry {
+      write!(printer, "'{}',", entry)?;
+    }
+    // A classic script's entry runs after the module table rather than from it.
+    let is_script = bundle.target.source_type == SourceType::Script;
+    for entry in bundle.entry_assets.iter().filter(|_| !is_script) {
+      write!(
+        printer,
+        "'{}',",
+        entry_id(bundle_graph, *entry, project_root)
+      )?;
+    }
+
+    printer.write_str("];")?;
+    printer.newline()?;
+
+    printer.write_var(
+      runtime_name(should_optimize, "awaitedBundles", RUNTIME_AWAITED_BUNDLES),
+      "[",
+      false,
+    )?;
+    for index in awaited_bundles(bundle_graph, bundle) {
+      let stable_key = bundle_graph.bundles[index].stable_key();
+      write!(printer, "{},", serde_json::to_string(&stable_key)?)?;
+    }
+    printer.write_str("];")?;
+    printer.newline()?;
+
+    // The runtime runs its main entry on load, to expose its exports. Only bundles that execute on
+    // load may do that: a bundle loaded by Parcel's loader runs once every bundle it depends on has
+    // loaded, which the loader waits for, and it doesn't import them itself.
+    let runtime_main_entry = runtime_name(should_optimize, "mainEntry", RUNTIME_MAIN_ENTRY);
+    if let Some(main) = bundle
+      .main_entry_asset
+      .as_ref()
+      .filter(|_| !bundle.entry_assets.is_empty() && !is_script)
+    {
+      printer.write_var(
+        runtime_main_entry,
+        &format!("'{}'", entry_id(bundle_graph, *main, project_root)),
+        true,
+      )?;
+    } else {
+      printer.write_var(runtime_main_entry, "null", true)?;
+    }
   }
 
   if !should_optimize {

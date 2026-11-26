@@ -60,7 +60,7 @@ use swc_core::{
   ecma::{
     ast::{Expr, ExprStmt, Lit, Module, ModuleItem, Program, Stmt, Str},
     atoms::Atom as JsWord,
-    codegen::text_writer::{JsWriter, WriteJs, omit_trailing_semi},
+    codegen::text_writer::JsWriter,
     parser::{EsSyntax, Parser, StringInput, Syntax, TsSyntax, error::Error, lexer::Lexer},
     preset_env::{Mode::Entry, Targets, transform_from_env},
     transforms::{
