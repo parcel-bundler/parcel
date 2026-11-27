@@ -38,6 +38,8 @@ pub fn link_script<'a>(
     false,
     require_name,
     None,
+    Default::default(),
+    false,
   );
 }
 

@@ -339,6 +339,11 @@ impl_bitflags_serde!(AssetFlags);
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct AssetSymbols {
   pub used_namespace: bool,
+  /// Whether something may read the asset's exports object itself, rather than the exports it
+  /// requests: code outside the build, as the asset is an entry, CommonJS, or code given its
+  /// namespace object. Packagers keep the `__esModule` flag of an ES module whose exports object
+  /// is used, and drop it otherwise, since nothing else reads it.
+  pub exports_object_used: bool,
   pub imports: Vec<ImportedSymbol>,
   pub exports: Vec<LocalSymbol>,
   pub indirect: Vec<IndirectSymbol>,
@@ -440,6 +445,7 @@ impl AssetSymbols {
   /// the exports they reference), which are requested regardless of importers.
   pub fn reset_requested(&mut self) {
     self.used_namespace = false;
+    self.exports_object_used = false;
     let mut self_referenced = Vec::new();
     for (index, export) in self.exports.iter_mut().enumerate() {
       export.requested = false;

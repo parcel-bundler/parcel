@@ -132,6 +132,7 @@ pub fn get_hmr_update<'a>(
         )
       }),
       &LocalModules::default(),
+      false,
       &bundle_graph.project_root,
     )
     .unwrap();

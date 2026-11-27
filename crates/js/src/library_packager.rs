@@ -47,6 +47,7 @@ impl JsContent {
       &mut synthetic_assets,
       Some(get_inline_bundle_content),
       &LocalModules::default(),
+      false,
       &options.project_root,
     )?;
 
@@ -131,6 +132,8 @@ impl JsContent {
         true,
         "require".into(),
         None,
+        Default::default(),
+        false,
       );
       let prologue = hoist_directives(&mut ast.program.body, &content.directives);
       if should_optimize {

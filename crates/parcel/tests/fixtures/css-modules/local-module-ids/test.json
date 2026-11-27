@@ -13,9 +13,9 @@
         "data.json"
       ],
       "contains": [
-        "var h=[(function(",
+        "var h=[(a,b",
         "r(0)",
-        "function(a,b,c){",
+        "(a,b,c)=>{",
         "c(1)"
       ]
     },

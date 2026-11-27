@@ -1,0 +1,21 @@
+{
+  "description": "ESM modules in other bundles skip interop, and only define the __esModule flag for what may read it",
+  "input": "index.js",
+  "options": {"mode": "production"},
+  "output": "lazy:shared:true",
+  "bundles": [
+    {
+      "assets": ["index.js"],
+      "notContains": ["m&&m.__esModule"]
+    },
+    {
+      "assets": ["lazy.js", "shared.js"],
+      "notContains": ["__esModule"]
+    },
+    {
+      "assets": ["escaped.js", "shared.js"],
+      "contains": ["__esModule"],
+      "notContains": ["a&&a.__esModule"]
+    }
+  ]
+}

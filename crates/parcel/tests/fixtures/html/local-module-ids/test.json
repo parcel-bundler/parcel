@@ -12,7 +12,7 @@
     },
     {
       "assets": ["a.js", "helper.js"],
-      "contains": ["var h=[(function(", "r(0)"]
+      "contains": ["var h=[(a,b", "r(0)"]
     },
     {
       "assets": ["b.js"],
@@ -24,7 +24,7 @@
     },
     {
       "assets": ["lazy.js", "util.js"],
-      "contains": ["var h=[(function(", "r(0)"]
+      "contains": ["var h=[(a,b", "r(0)"]
     }
   ],
   "sideEffects": ["a:shared:helper", "b:shared", "a:lazy:shared:util", "b:lazy:shared:util"]

@@ -118,6 +118,15 @@ impl JsContent {
       should_optimize,
       options,
     );
+    // Optimized modules skip interop for modules with the `__esModule` flag, and drop the flags
+    // nothing else reads (see `Interop`). Hot updates may replace a module with one without it,
+    // and React looks up client and server references itself.
+    let skips_interop = should_optimize
+      && options.hmr.is_none()
+      && !matches!(
+        bundle.target.environment,
+        Environment::ReactServer | Environment::ReactClient
+      );
     let script_dependencies = match script {
       Some(asset_index) => asset_dependencies(
         asset_index,
@@ -127,6 +136,7 @@ impl JsContent {
         &mut synthetic_assets,
         None,
         &local_modules,
+        skips_interop,
         &options.project_root,
       )?,
       None => IndexMap::new(),
@@ -152,6 +162,7 @@ impl JsContent {
           &mut synthetic,
           None,
           &local_modules,
+          skips_interop,
           &options.project_root,
         )?;
         let module = render_asset_module(
@@ -160,6 +171,7 @@ impl JsContent {
           bundle,
           bundle_graph.is_async_asset(asset_index),
           dependencies,
+          skips_interop && !asset.symbols.exports_object_used,
           source_root.as_ref(),
           should_build_source_map,
           should_optimize,
@@ -172,6 +184,20 @@ impl JsContent {
       let (synthetic, module) = result?;
       synthetic_assets.extend(synthetic);
       modules.push(module);
+    }
+    // The helpers the bundle defines: those its modules still call after packaging removed some
+    // calls, e.g. of unused exports or interop, and those a classic script called when transformed.
+    let mut used_helpers = modules
+      .iter()
+      .fold(EsmHelpers::empty(), |used, module| used | module.helpers);
+    if let Some(asset_index) = script
+      && let Some(content) = bundle_graph
+        .asset_graph
+        .asset(asset_index)
+        .content
+        .downcast_ref::<JsContent>()
+    {
+      used_helpers |= content.used_esm_helpers;
     }
 
     let script = match script {
@@ -303,21 +329,10 @@ impl JsContent {
     printer.newline()?;
 
     if should_optimize {
-      let used = bundle
-        .assets
-        .iter()
-        .filter_map(|asset_index| {
-          bundle_graph
-            .asset_graph
-            .asset(*asset_index)
-            .content
-            .downcast_ref::<JsContent>()
-        })
-        .fold(EsmHelpers::empty(), |used, content| {
-          used | content.used_esm_helpers
-        });
       for (function, code) in APP_ESM_HELPERS {
-        if EsmHelpers::from_function(function).is_some_and(|(helper, _)| used.contains(helper)) {
+        if EsmHelpers::from_function(function)
+          .is_some_and(|(helper, _)| used_helpers.contains(helper))
+        {
           printer.write_str(code)?;
         }
       }
@@ -520,6 +535,8 @@ struct RenderedModule<'a> {
   /// The serialized dependencies written after an unoptimized module, or `None` for an optimized
   /// JS module, which is written as an expression.
   trailer: Option<String>,
+  /// The ESM helpers an optimized module calls, which its bundle defines.
+  helpers: EsmHelpers,
 }
 
 enum ModuleCode {
@@ -541,6 +558,7 @@ impl<'a> RenderedModule<'a> {
       suffix: String::new(),
       map: map.map(SectionMap::new),
       trailer,
+      helpers: EsmHelpers::empty(),
     }
   }
 
@@ -583,6 +601,7 @@ fn render_asset_module<'a>(
   bundle: &Bundle,
   is_async: bool,
   dependencies: IndexMap<String, Resolution<'a>>,
+  unused_interop_flag: bool,
   source_root: Option<&Arc<str>>,
   should_build_source_map: bool,
   should_optimize: bool,
@@ -640,7 +659,7 @@ fn render_asset_module<'a>(
         .map(|e| e.exported.as_str().into()),
     )
     .collect();
-  tree_shake(
+  let helpers = tree_shake(
     &mut ast,
     used_symbols,
     dependencies,
@@ -651,6 +670,11 @@ fn render_asset_module<'a>(
       ModuleId::Local(index) => Some(index),
       ModuleId::Global(_) => None,
     },
+    unused_interop_flag,
+    bundle
+      .target
+      .engines
+      .supports(EnvironmentFeature::ArrowFunctions),
   );
   ast.finalize();
   let (code, map) = content.to_code(
@@ -660,7 +684,10 @@ fn render_asset_module<'a>(
     true,
   )?;
   // Optimized modules are written as expressions, without their dependencies.
-  Ok(RenderedModule::new(id, code, map, None))
+  Ok(RenderedModule {
+    helpers,
+    ..RenderedModule::new(id, code, map, None)
+  })
 }
 
 /// Renders a module from the code generated when it was transformed, applying what packaging adds
@@ -708,6 +735,7 @@ fn render_generated_module<'a>(
     suffix: wrapper.suffix,
     map: generated_section_map(generated, should_build_source_map, source_root.cloned()),
     trailer: Some(serde_json::to_string(&dependencies)?),
+    helpers: content.used_esm_helpers,
   })
 }
 

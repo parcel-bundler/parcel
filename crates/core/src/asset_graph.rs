@@ -13,7 +13,7 @@ use crate::{
   BundleBehavior, CodeFrame, Dependency, DependencyFlags, DependencyResolution, Diagnostic,
   DiagnosticList, DiagnosticSeverity, Entry, Environment, EnvironmentFlags, FileContent,
   ImportType, InvalidationMap, LogLevel, ParcelOptions, PathId, Priority, SourceLocation,
-  SymbolName, SymbolResolution,
+  SpecifierType, SymbolName, SymbolResolution,
   config::ParcelConfig,
   request::{RequestResult, TransformQueue},
 };
@@ -486,7 +486,12 @@ impl AssetGraphBuilder {
       }
       for entry in &self.entries {
         if let Some(node_index) = entry.asset {
-          self.asset_nodes[node_index.index()].loaded = true;
+          let node = &mut self.asset_nodes[node_index.index()];
+          node.loaded = true;
+          // Code outside the build uses the exports of entries.
+          if let Some(asset_index) = node.asset {
+            self.assets[asset_index.index()].symbols.exports_object_used = true;
+          }
         }
       }
 
@@ -535,11 +540,20 @@ impl AssetGraphBuilder {
           };
 
           let asset = &self.assets[asset_index.index()];
-          for dep in &asset.dependencies {
-            if (dep.flags.contains(DependencyFlags::SIDE_EFFECTS) || dep.priority != Priority::Sync)
-              && let DependencyResolution::Asset(target) = dep.resolution
-            {
+          // CommonJS may use the whole exports object of what it requires.
+          let is_esm = asset.flags.contains(AssetFlags::IS_ESM);
+          for dep_index in 0..asset.dependencies.len() {
+            let dep = &self.assets[asset_index.index()].dependencies[dep_index];
+            let DependencyResolution::Asset(target) = dep.resolution else {
+              continue;
+            };
+            if dep.flags.contains(DependencyFlags::SIDE_EFFECTS) || dep.priority != Priority::Sync {
               self.asset_nodes[target.index()].loaded = true;
+            }
+            if !is_esm || dep.specifier_type != SpecifierType::Esm {
+              if let Some(asset) = self.asset_nodes[target.index()].asset {
+                self.assets[asset.index()].symbols.exports_object_used = true;
+              }
             }
           }
 
@@ -849,6 +863,21 @@ fn finalize_import(
   } else {
     requested
   };
+
+  // Importers converted from ESM read only the exports they import, but other importers, and
+  // those given the namespace object, may read the exports object itself, as may an importer in
+  // another environment, which is packaged differently.
+  let asset = &assets[asset_index.index()];
+  let symbol = &asset.symbols.imports[import_index];
+  if let Some(target) = resolution.asset_index()
+    && (!asset.flags.contains(AssetFlags::IS_ESM)
+      || symbol.symbol == SymbolName::Namespace
+      || symbol.symbol.as_str() == "__esModule"
+      || matches!(resolution, SymbolResolution::Namespace { .. })
+      || assets[target.index()].target.environment != asset.target.environment)
+  {
+    assets[target.index()].symbols.exports_object_used = true;
+  }
 
   set_import_resolution(
     assets,
