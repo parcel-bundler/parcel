@@ -60,7 +60,7 @@ use swc_core::{
   ecma::{
     ast::{Expr, ExprStmt, Lit, Module, ModuleItem, Program, Stmt, Str},
     atoms::Atom as JsWord,
-    codegen::text_writer::JsWriter,
+    codegen::text_writer::{JsWriter, WriteJs, omit_trailing_semi},
     parser::{EsSyntax, Parser, StringInput, Syntax, TsSyntax, error::Error, lexer::Lexer},
     preset_env::{Mode::Entry, Targets, transform_from_env},
     transforms::{
@@ -1256,12 +1256,18 @@ fn emit_module_into(
   buf: &mut Vec<u8>,
   src_map_buf: &mut SourceMapBuffer,
 ) -> Result<(), std::io::Error> {
-  let writer = Box::new(JsWriter::new(
+  let writer = JsWriter::new(
     source_map.clone(),
     "\n",
     buf,
     if source_maps { Some(src_map_buf) } else { None },
-  ));
+  );
+  // Minified output leaves out the semicolons that end blocks.
+  let writer: Box<dyn WriteJs> = if minify {
+    Box::new(omit_trailing_semi(writer))
+  } else {
+    Box::new(writer)
+  };
   let config = swc_core::ecma::codegen::Config::default()
     .with_target(swc_core::ecma::ast::EsVersion::Es5)
     // Make sure the output works regardless of whether it's loaded with the correct (utf8) encoding
