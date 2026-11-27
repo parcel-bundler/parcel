@@ -1,0 +1,15 @@
+[
+  {
+    "description": "tree shaking: imports only unused exported functions use are removed from \"use client\" modules outside React environments",
+    "input": "index.js",
+    "options": {"mode": "production"},
+    "output": "light",
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["index.js", "light.js", "utils.js"],
+        "notContains": ["heavy-sentinel"]
+      }
+    ]
+  }
+]

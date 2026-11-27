@@ -825,19 +825,23 @@ pub fn transform_to_ast(
           );
           module.visit_with(&mut collect);
           // Imports only unrequested exports use aren't needed, since tree shaking removes those
-          // exports' functions. Libraries keep every function, and the exports of modules with
-          // React directives are referenced by name at runtime.
+          // exports' functions. Libraries keep every function.
           if config.minify()
             && !config.is_library()
             && collect.is_esm
             && !collect.has_cjs_exports
             && collect.is_static()
-            && !result.directives.iter().any(|directive| {
+            // Directives only matter in React environments, where they become client and server
+            // references whose exports are looked up by name at runtime.
+            && !(matches!(
+              config.environment(),
+              Environment::ReactServer | Environment::ReactClient
+            ) && result.directives.iter().any(|directive| {
               matches!(
                 directive.as_str(),
                 "use client" | "use server" | "use client-entry" | "use server-entry"
               )
-            })
+            }))
           {
             collect.import_owners = import_owners::import_owners(&module);
           }
