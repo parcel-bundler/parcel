@@ -315,31 +315,44 @@ impl Collect {
       }
     }
 
-    // An import only exported functions use is owned by their exports, if tree shaking removes the
-    // functions with them: nothing else references the functions.
+    // Tree shaking removes the functions of unrequested exports, and then the minifier removes the
+    // functions only those referenced, so an import only such functions use is only needed if one
+    // of their exports is. One only unreferenced functions use isn't needed at all.
     if find_import_owners {
-      let references = |id: &Id| owned.get(id).map(|owned| &owned.references);
-      let removable = |function: u32| {
-        !function_exports[function as usize].is_empty()
-          && matches!(
-            references(&functions[function as usize]),
-            Some(References::Functions(functions)) if functions.iter().all(|&f| f == function)
-          )
-      };
+      let owners = function_owners(&owned, &functions, function_exports);
+      let mut needed = Vec::with_capacity(symbols.imports.len());
       for (import, local) in symbols.imports.iter_mut().zip(import_locals) {
-        if let Some(References::Functions(using)) = local.and_then(references)
-          && !using.is_empty()
-          && using.iter().all(|&function| removable(function))
-        {
-          let mut owners: Vec<u32> = using
-            .iter()
-            .flat_map(|&function| function_exports[function as usize].iter().copied())
-            .collect();
-          owners.sort_unstable();
-          owners.dedup();
-          import.owners = owners;
+        let using = match local.and_then(|local| owned.get(local)) {
+          Some(Owned {
+            references: References::Functions(using),
+            ..
+          }) if !using.is_empty() => using,
+          _ => {
+            needed.push(true);
+            continue;
+          }
+        };
+        let mut import_owners = Vec::new();
+        let owned_by_functions = using
+          .iter()
+          .all(|&function| match &owners[function as usize] {
+            Some(owners) => {
+              import_owners.extend_from_slice(owners);
+              true
+            }
+            None => false,
+          });
+        if owned_by_functions {
+          import_owners.sort_unstable();
+          import_owners.dedup();
+          needed.push(!import_owners.is_empty());
+          import.owners = import_owners;
+        } else {
+          needed.push(true);
         }
       }
+      let mut needed = needed.into_iter();
+      symbols.imports.retain(|_| needed.next().unwrap());
     }
 
     local_references.sort_by_key(|reference| (reference.from, reference.to));
@@ -1397,6 +1410,55 @@ impl Collect {
   }
 }
 
+/// The exports that keep each top-level function: its own, and those of the functions that
+/// reference it, transitively. None if something else references it, so it is always kept.
+fn function_owners(
+  owned: &HashMap<Id, Owned>,
+  functions: &[Id],
+  function_exports: Vec<Vec<u32>>,
+) -> Vec<Option<Vec<u32>>> {
+  // The other functions each function references.
+  let mut referenced: Vec<Vec<u32>> = vec![Vec::new(); functions.len()];
+  let mut owners: Vec<Option<Vec<u32>>> = function_exports.into_iter().map(Some).collect();
+  for (function, id) in functions.iter().enumerate() {
+    match &owned[id].references {
+      References::Functions(referencing) => {
+        for &by in referencing {
+          if by as usize != function {
+            referenced[by as usize].push(function as u32);
+          }
+        }
+      }
+      References::Elsewhere => owners[function] = None,
+    }
+  }
+
+  let mut queue: Vec<u32> = (0..functions.len() as u32).collect();
+  while let Some(by) = queue.pop() {
+    let by_owners = owners[by as usize].clone();
+    for &function in &referenced[by as usize] {
+      let changed = match (&by_owners, &mut owners[function as usize]) {
+        (_, None) => false,
+        (None, function_owners) => {
+          *function_owners = None;
+          true
+        }
+        (Some(by_owners), Some(function_owners)) => {
+          let len = function_owners.len();
+          function_owners.extend_from_slice(by_owners);
+          function_owners.sort_unstable();
+          function_owners.dedup();
+          function_owners.len() != len
+        }
+      };
+      if changed {
+        queue.push(function);
+      }
+    }
+  }
+  owners
+}
+
 /// The binding a variable declarator gives a function, which tree shaking removes with the
 /// binding, e.g. `const f = () => {}`. Nothing in the function runs until it is called.
 fn function_binding(decl: &VarDeclarator) -> Option<Id> {
@@ -1750,14 +1812,14 @@ mod tests {
       "import {a} from 'x'; export const f = a;",
       "import {a} from 'x'; export class C { m() { return a; } }",
       // The function is referenced elsewhere, so it isn't removed with its export.
-      "import {a} from 'x'; export function f() { return a; } export function g() { return f(); }",
       "import {a} from 'x'; export function f() { return a; } f.displayName = 'f';",
       "import {a} from 'x'; export let f = () => a; f = null;",
       "import {a} from 'x'; export let f = () => a; [f] = [null];",
       "import {a} from 'x'; function f() { return a; } export default f;",
       "import {a} from 'x'; export function f() { return a; } setTimeout(f);",
-      // Not exported.
-      "import {a} from 'x'; function f() { return a; }",
+      // So are the functions it references.
+      "import {a} from 'x'; function f() { return a; } export function g() { return f(); } g();",
+      "import {a} from 'x'; function f() { return a; } export class C { m() { return f(); } }",
       // Not JavaScript evaluated by the module.
       "import a from 'x' with {type: 'url'}; export function f() { return a; }",
       // References can't be found statically.
@@ -1765,6 +1827,85 @@ mod tests {
     ] {
       assert_eq!(import_owners(code), expected_owners(&[]), "{code}");
     }
+  }
+
+  #[test]
+  fn imports_used_by_functions_exported_functions_use() {
+    assert_eq!(
+      import_owners(
+        "import {a, b} from 'x';
+        function f() { return a; }
+        function g() { return f() + b; }
+        export function h() { return g(); }
+        export const i = () => f();
+        export function j() { return a; }"
+      ),
+      expected_owners(&[("a", &["h", "i", "j"]), ("b", &["h"])])
+    );
+  }
+
+  /// The names a module imports.
+  fn imported_names(code: &str) -> Vec<String> {
+    let (_, symbols) = run_with_transformation(code, |context, module| {
+      let mut collect = Collect::new(
+        context.unresolved_mark,
+        Mark::fresh(Mark::root()),
+        false,
+        true,
+      );
+      collect.find_import_owners = true;
+      module.visit_with(&mut collect);
+      collect.into_symbols(|_| 0)
+    });
+    symbols
+      .imports
+      .iter()
+      .map(|import| import.symbol.as_str().to_string())
+      .collect()
+  }
+
+  #[test]
+  fn imports_only_unreferenced_functions_use_are_not_imported() {
+    for code in [
+      "import {a} from 'x'; function f() { return a; } export const b = 1;",
+      "import {a} from 'x'; const f = () => a; function g() { return f(); } export const b = 1;",
+      "import {a} from 'x'; function f() { return a && g(); } function g() { return f(); }
+      export const b = 1;",
+    ] {
+      assert_eq!(imported_names(code), Vec::<String>::new(), "{code}");
+    }
+    // Unless finding import owners, e.g. when not minifying.
+    let (_, symbols) = run_with_transformation(
+      "import {a} from 'x'; function f() { return a; } export const b = 1;",
+      |context, module| {
+        let mut collect = Collect::new(
+          context.unresolved_mark,
+          Mark::fresh(Mark::root()),
+          false,
+          true,
+        );
+        module.visit_with(&mut collect);
+        collect.into_symbols(|_| 0)
+      },
+    );
+    assert_eq!(symbols.imports.len(), 1);
+  }
+
+  #[test]
+  fn unused_imports_are_not_imported() {
+    let code = "import {a} from 'x'; export const b = 1;";
+    assert_eq!(imported_names(code), Vec::<String>::new());
+    let (_, symbols) = run_with_transformation(code, |context, module| {
+      let mut collect = Collect::new(
+        context.unresolved_mark,
+        Mark::fresh(Mark::root()),
+        false,
+        true,
+      );
+      module.visit_with(&mut collect);
+      collect.into_symbols(|_| 0)
+    });
+    assert!(symbols.imports.is_empty());
   }
 
   #[test]
