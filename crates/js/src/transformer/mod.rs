@@ -5,7 +5,6 @@ mod dependency_collector;
 mod env_replacer;
 mod fs;
 mod global_replacer;
-mod import_owners;
 mod mdx;
 mod modules;
 pub(crate) mod node_replacer;
@@ -823,16 +822,12 @@ pub fn transform_to_ast(
             config.trace_bailouts,
             is_module,
           );
-          module.visit_with(&mut collect);
           // Imports only unrequested exports use aren't needed, since tree shaking removes those
-          // exports' functions. Libraries keep every function.
-          if config.minify()
+          // exports' functions. Libraries keep every function. Directives only matter in React
+          // environments, where they become client and server references whose exports are looked
+          // up by name at runtime.
+          collect.find_import_owners = config.minify()
             && !config.is_library()
-            && collect.is_esm
-            && !collect.has_cjs_exports
-            && collect.is_static()
-            // Directives only matter in React environments, where they become client and server
-            // references whose exports are looked up by name at runtime.
             && !(matches!(
               config.environment(),
               Environment::ReactServer | Environment::ReactClient
@@ -841,10 +836,8 @@ pub fn transform_to_ast(
                 directive.as_str(),
                 "use client" | "use server" | "use client-entry" | "use server-entry"
               )
-            }))
-          {
-            collect.import_owners = import_owners::import_owners(&module);
-          }
+            }));
+          module.visit_with(&mut collect);
           if let Some(bailouts) = &collect.bailouts {
             result.bailouts.extend(
               bailouts

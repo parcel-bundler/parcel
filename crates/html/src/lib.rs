@@ -171,59 +171,82 @@ pub fn transform_svg(options: TransformOptions) -> TransformResult {
 /// references like `sprite.svg#icon`, with the elements each element uses. Scripts may reference
 /// or create elements dynamically, so a document with scripts exports nothing, which keeps all of it.
 fn svg_exports<'arena>(dom: arena::Ref<'arena>) -> (Vec<LocalSymbol>, Vec<LocalReference>) {
-  let mut has_script = false;
-  let mut ids = Vec::new();
-  let mut seen = HashSet::new();
-  dom.walk(&mut |node| {
+  #[derive(Default)]
+  struct Walk {
+    /// Each id's export, after the document's at index 0. Like a fragment URL, an id refers to
+    /// the first element with it.
+    ids: HashMap<String, u32>,
+    /// Between exports. Keeping an element keeps its subtree, so it references the elements with
+    /// ids nearest below it, and what is referenced in between.
+    references: Vec<LocalReference>,
+    /// To ids, which may be of elements later in the document.
+    id_references: Vec<(u32, String)>,
+    has_script: bool,
+  }
+
+  fn walk<'arena>(node: arena::Ref<'arena>, mut owner: Option<u32>, state: &mut Walk) {
     if let NodeData::Element { name, attrs, .. } = &node.data {
-      has_script |= name.expanded() == expanded_name!(svg "script");
-      for attr in attrs.borrow().iter() {
-        if attr.name.expanded() == expanded_name!("", "id")
-          && !attr.value.is_empty()
-          && seen.insert(attr.value.clone())
-        {
-          ids.push(attr.value.clone());
+      state.has_script |= name.expanded() == expanded_name!(svg "script");
+      let attrs = attrs.borrow();
+      if let Some(id) = attrs.iter().find_map(|attr| {
+        (attr.name.expanded() == expanded_name!("", "id") && !attr.value.is_empty())
+          .then_some(&attr.value)
+      }) && !state.ids.contains_key(id.as_ref())
+      {
+        let index = state.ids.len() as u32 + 1;
+        state.ids.insert(id.to_string(), index);
+        if let Some(from) = owner {
+          state.references.push(LocalReference { from, to: index });
         }
+        owner = Some(index);
+      }
+      // Only what elements with ids reference matters.
+      if let Some(from) = owner {
+        oxvg::attribute_references(name, &attrs, |id| state.id_references.push((from, id)));
       }
     }
-  });
+    let mut child = node.first_child.get();
+    while let Some(node) = child {
+      walk(node, owner, state);
+      child = node.next_sibling.get();
+    }
+  }
 
-  if has_script {
+  let mut state = Walk::default();
+  walk(dom, None, &mut state);
+  if state.has_script {
     return (Vec::new(), Vec::new());
   }
 
-  // Element exports follow the document's, at index 0.
-  let export_index: HashMap<&str, u32> = ids
-    .iter()
-    .enumerate()
-    .map(|(index, id)| (id.as_ref(), index as u32 + 1))
-    .collect();
-  let mut local_references = Vec::new();
-  if !ids.is_empty() {
-    for (id, referenced) in oxvg::element_references(dom) {
-      let Some(&from) = export_index.get(id.as_str()) else {
-        continue;
-      };
-      for referenced in referenced {
-        if let Some(&to) = export_index.get(referenced.as_str())
-          && to != from
-        {
-          local_references.push(LocalReference { from, to });
-        }
-      }
+  let Walk {
+    ids,
+    mut references,
+    id_references,
+    ..
+  } = state;
+  for (from, id) in id_references {
+    if let Some(&to) = ids.get(id.as_str())
+      && to != from
+    {
+      references.push(LocalReference { from, to });
     }
-    local_references.sort_by_key(|reference| (reference.from, reference.to));
   }
+  references.sort_unstable_by_key(|reference| (reference.from, reference.to));
+  references.dedup();
 
-  let exports = std::iter::once(SymbolName::Document)
-    .chain(ids.iter().map(|id| SymbolName::Name(id.as_ref().into())))
+  let mut names = vec![SymbolName::Document; ids.len() + 1];
+  for (id, index) in ids {
+    names[index as usize] = SymbolName::Name(id.into());
+  }
+  let exports = names
+    .into_iter()
     .map(|exported| LocalSymbol {
       exported,
       requested: false,
       self_referenced: false,
     })
     .collect();
-  (exports, local_references)
+  (exports, references)
 }
 
 /// What the files referencing an SVG document use of it, from the symbols they request. An
@@ -702,13 +725,12 @@ impl Content for HtmlContent {
   ) -> Result<std::sync::Arc<dyn Content>, DiagnosticList> {
     assert_eq!(bundle.assets.len(), 1);
 
-    let (code, bundles, inline_bundles, stylesheet_media, element_refs) =
-      prepare_to_package(
-        bundle_graph,
-        bundle,
-        get_inline_bundle_content,
-        self.directory_index.as_deref(),
-      )?;
+    let (code, bundles, inline_bundles, stylesheet_media, element_refs) = prepare_to_package(
+      bundle_graph,
+      bundle,
+      get_inline_bundle_content,
+      self.directory_index.as_deref(),
+    )?;
 
     let res = package_html(PackageOptions {
       code,
@@ -848,7 +870,9 @@ fn bundle_reference(
 fn strip_directory_index(url: &mut String, directory_index: &str) {
   if url == directory_index {
     *url = "./".into();
-  } else if url.ends_with(directory_index) && url[..url.len() - directory_index.len()].ends_with('/') {
+  } else if url.ends_with(directory_index)
+    && url[..url.len() - directory_index.len()].ends_with('/')
+  {
     url.truncate(url.len() - directory_index.len());
   }
 }
@@ -1226,6 +1250,8 @@ mod tests {
       xml: true,
       target: Default::default(),
       hmr: false,
+      options: &Default::default(),
+      macro_imports: Vec::new(),
     });
 
     let symbols = &res.symbols;
@@ -1238,6 +1264,46 @@ mod tests {
     assert_eq!(
       references,
       [("home", "fade"), ("badge", "dot"), ("dot", "fade")]
+    );
+  }
+
+  #[test]
+  fn svg_elements_reference_the_elements_with_ids_inside_them() {
+    let res = crate::transform_svg(crate::TransformOptions {
+      code: br##"<svg xmlns="http://www.w3.org/2000/svg">
+        <linearGradient id="fade"><stop offset="0"/></linearGradient>
+        <symbol id="outer"><g id="inner"><path fill="url(#fade)"/></g></symbol>
+        <g id="fade"><use href="#outer"/></g>
+      </svg>"##
+        .to_vec(),
+      url: parcel_core::SourceUrl::parse("file:///sprite.svg").unwrap(),
+      xml: true,
+      target: Default::default(),
+      hmr: false,
+      options: &Default::default(),
+      macro_imports: Vec::new(),
+    });
+
+    let symbols = &res.symbols;
+    let name = |index: u32| symbols.exports[index as usize].exported.as_str();
+    let references: Vec<_> = symbols
+      .local_references
+      .iter()
+      .map(|reference| (name(reference.from), name(reference.to)))
+      .collect();
+    // `outer` keeps `inner`, and with it the gradient. The second element with the `fade` id isn't
+    // the one `url(#fade)` refers to, so it isn't an export, and its reference is the document's.
+    assert_eq!(references, [("outer", "inner"), ("inner", "fade")]);
+    assert_eq!(
+      symbols.exports[0].exported,
+      parcel_core::SymbolName::Document
+    );
+    assert_eq!(
+      symbols.exports[1..]
+        .iter()
+        .map(|export| export.exported.as_str())
+        .collect::<Vec<_>>(),
+      ["fade", "outer", "inner"]
     );
   }
 
@@ -1278,7 +1344,10 @@ mod directory_index_tests {
     assert_eq!(strip("/docs/index.html"), "/docs/");
     assert_eq!(strip("../docs/index.html"), "../docs/");
     assert_eq!(strip("index.html"), "./");
-    assert_eq!(strip("https://example.com/a/index.html"), "https://example.com/a/");
+    assert_eq!(
+      strip("https://example.com/a/index.html"),
+      "https://example.com/a/"
+    );
     assert_eq!(strip("/docs/myindex.html"), "/docs/myindex.html");
     assert_eq!(strip("/about.html"), "/about.html");
   }

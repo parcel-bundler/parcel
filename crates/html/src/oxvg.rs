@@ -1,7 +1,4 @@
-use std::{
-  cell::RefCell,
-  collections::{HashMap, HashSet},
-};
+use std::{cell::RefCell, collections::HashSet};
 
 use crate::arena::{Arena, Node, NodeData, Ref};
 use html5ever::{Attribute, QualName, namespace_url, ns};
@@ -134,53 +131,38 @@ fn remove_unreferenced(root: OxvgElement<'_, '_>, referenced_ids: &HashSet<Strin
   retain(root, referenced_ids);
 }
 
-/// The ids each element of an SVG document references, from its own attributes and its
-/// descendants', e.g. a `<symbol>` containing `<use href="#dot">`. Keeping an element keeps the
-/// elements it references, so these become references between the document's exports.
-pub fn element_references(root: Ref<'_>) -> HashMap<String, HashSet<String>> {
-  let mut references = HashMap::new();
-  let values = OxvgAllocator::new_values();
-  let mut oxvg_arena = OxvgAllocator::new_arena();
-  let allocator = OxvgAllocator::new(&mut oxvg_arena, &values);
-  let Ok(dom) = parcel_to_oxvg(root, &allocator) else {
-    return references;
-  };
-  let Some(root) = dom.find_element() else {
-    return references;
-  };
-
-  for element in root.breadth_first() {
-    let Some(id) = get_attribute!(element, Id).map(|id| id.0.as_str().to_owned()) else {
-      continue;
-    };
-    // Like a fragment URL, a reference to a duplicate id is to the first element with it.
-    if references.contains_key(&id) {
+/// Calls `reference` with each id an element's attributes reference in its document, e.g.
+/// `fill="url(#fade)"`, `href="#dot"` or `aria-labelledby="title"`, as OXVG parses them.
+pub fn attribute_references(
+  name: &QualName,
+  attrs: &[Attribute],
+  mut reference: impl FnMut(String),
+) {
+  let element = ElementId::new(oxvg_prefix(name), OxvgAtom::from(name.local.as_ref()));
+  for attr in attrs {
+    if is_default_xmlns(&attr.name) {
       continue;
     }
-    let mut ids = HashSet::new();
-    for element in std::iter::once(element).chain(element.breadth_first()) {
-      for mut attr in element.attributes().into_iter_mut() {
-        if matches!(attr.name(), OxvgAttrId::Id) {
-          continue;
-        }
-        let mut value = attr.value_mut();
-        value.visit_url(|url| {
-          if let Some(id) = url.strip_prefix('#') {
-            ids.insert(
-              percent_encoding::percent_decode_str(id)
-                .decode_utf8_lossy()
-                .into_owned(),
-            );
-          }
-        });
-        value.visit_id(|id| {
-          ids.insert(id.to_string());
-        });
+    let attr_id = element.parse_attr_id(
+      &oxvg_prefix(&attr.name),
+      OxvgAtom::from(attr.name.local.as_ref()),
+    );
+    if matches!(attr_id, OxvgAttrId::Id) {
+      continue;
+    }
+    let mut attr = OxvgAttr::new(attr_id, attr.value.as_ref());
+    let mut value = attr.value_mut();
+    value.visit_url(|url| {
+      if let Some(id) = url.strip_prefix('#') {
+        reference(
+          percent_encoding::percent_decode_str(id)
+            .decode_utf8_lossy()
+            .into_owned(),
+        );
       }
-    }
-    references.insert(id, ids);
+    });
+    value.visit_id(|id| reference(id.to_string()));
   }
-  references
 }
 
 fn parcel_to_oxvg<'input, 'oxvg>(
@@ -303,7 +285,23 @@ fn parcel_name_to_oxvg_prefix<'input>(
   name: &QualName,
   allocator: &OxvgAllocator<'input, '_>,
 ) -> OxvgPrefix<'input> {
-  let prefix = name
+  let prefix = oxvg_prefix_name(name);
+  OxvgPrefix::new(
+    allocate_atom(allocator, name.ns.as_ref()),
+    prefix.map(|prefix| allocate_atom(allocator, prefix)),
+  )
+}
+
+/// A name's prefix as OXVG borrows it, for parsing without an OXVG document.
+fn oxvg_prefix(name: &QualName) -> OxvgPrefix<'_> {
+  OxvgPrefix::new(
+    OxvgAtom::from(name.ns.as_ref()),
+    oxvg_prefix_name(name).map(OxvgAtom::from),
+  )
+}
+
+fn oxvg_prefix_name(name: &QualName) -> Option<&str> {
+  name
     .prefix
     .as_ref()
     .filter(|prefix| !prefix.is_empty())
@@ -315,11 +313,7 @@ fn parcel_name_to_oxvg_prefix<'input>(
       "http://www.w3.org/1999/xlink" => Some("xlink"),
       "http://www.w3.org/2000/xmlns/" if name.local.as_ref() != "xmlns" => Some("xmlns"),
       _ => None,
-    });
-  OxvgPrefix::new(
-    allocate_atom(allocator, name.ns.as_ref()),
-    prefix.map(|prefix| allocate_atom(allocator, prefix)),
-  )
+    })
 }
 
 fn is_default_xmlns(name: &QualName) -> bool {
