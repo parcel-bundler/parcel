@@ -823,6 +823,9 @@ fn finalize_import(
     name.clone(),
     Some(environment),
     Some((asset_index, dep_index)),
+    // Only synchronous imports read symbols from where they resolve; other imports read them from
+    // the namespace of the module they load.
+    priority != Priority::Sync,
     &mut HashSet::new(),
   );
   // Lazy imports resolve at runtime, but the request above still marks the
@@ -884,6 +887,7 @@ fn finalize_unneeded_import(
       name,
       Some(environment),
       Some((asset_index, dep_index)),
+      false,
       &mut HashSet::new(),
     );
   }
@@ -1086,12 +1090,15 @@ impl SymbolGraph for RequestSymbols<'_> {
       {
         let name = import.symbol.clone();
         let environment = asset.target.environment;
+        let keep_reexports =
+          asset.dependencies[import.dep_index as usize].priority != Priority::Sync;
         resolve_symbol(
           self,
           resolved,
           name,
           Some(environment),
           None,
+          keep_reexports,
           &mut HashSet::new(),
         );
       }
@@ -1180,6 +1187,8 @@ fn request_symbol(
     name,
     boundary_environment,
     None,
+    // Without an importer, the symbol may be read through the module's exports object.
+    true,
     resolve_set,
   )
 }
@@ -1193,6 +1202,7 @@ fn resolve_symbol<G: SymbolGraph>(
   name: SymbolName,
   boundary_environment: Option<Environment>,
   importer: Option<Importer>,
+  keep_reexports: bool,
   resolve_set: &mut HashSet<(AssetNodeIndex, SymbolName)>,
 ) -> SymbolResolution {
   if !resolve_set.insert((asset_node_index, name.clone())) {
@@ -1237,8 +1247,6 @@ fn resolve_symbol<G: SymbolGraph>(
     let export = &asset.symbols.indirect[indirect_index];
     let dep_index = export.dep_index;
     let imported = export.imported.clone();
-    // Preserve the re-export even when its dependency is external and cannot be followed.
-    graph.mark_indirect_requested(asset_node_index, indirect_index);
 
     let asset = graph.asset(asset_index);
     if let DependencyResolution::Asset(resolved_asset_index) =
@@ -1250,17 +1258,29 @@ fn resolve_symbol<G: SymbolGraph>(
         imported,
         boundary_environment,
         Some((asset_index, dep_index)),
+        keep_reexports,
         resolve_set,
       );
 
       // Preserve the first module on the other side of an environment boundary. This is the
       // public facade used by runtimes such as React client and server references.
       if is_environment_boundary && resolution.asset_index().is_some() {
+        graph.mark_indirect_requested(asset_node_index, indirect_index);
         return SymbolResolution::Runtime { asset_index, name };
+      }
+
+      // Static importers read a symbol that resolved to another asset from that asset directly,
+      // so the re-export (and its dependency) is only needed when the symbol didn't resolve past
+      // it, or when the importer reads it through this module's exports object, e.g. a dynamic
+      // import. Re-exports read their dependency's exports in turn (see `keep_reexports`).
+      if keep_reexports || resolution.asset_index().is_none() {
+        graph.mark_indirect_requested(asset_node_index, indirect_index);
       }
 
       return resolution;
     } else {
+      // Preserve the re-export when its dependency is external and cannot be followed.
+      graph.mark_indirect_requested(asset_node_index, indirect_index);
       return SymbolResolution::None;
     }
   }
@@ -1282,6 +1302,7 @@ fn resolve_symbol<G: SymbolGraph>(
           name.clone(),
           boundary_environment,
           None,
+          keep_reexports,
           resolve_set,
         );
 
@@ -1499,6 +1520,7 @@ fn request_runtime_star_exports(
       name.clone(),
       None,
       None,
+      true,
       &mut HashSet::new(),
     ) != SymbolResolution::None;
 
@@ -1708,6 +1730,7 @@ impl<'a> AssetGraph<'a> {
       name,
       Some(boundary_environment),
       None,
+      true,
       &mut HashSet::new(),
     )
   }
