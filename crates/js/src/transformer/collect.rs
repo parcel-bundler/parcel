@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use parcel_core::{
-  AssetFlags, AssetSymbols, ImportedSymbol, IndirectSymbol, LocalSymbol, StarSymbol, SymbolName,
-  SymbolResolution,
+  AssetFlags, AssetSymbols, ImportedSymbol, IndirectSymbol, LocalReference, LocalSymbol,
+  StarSymbol, SymbolName, SymbolResolution,
 };
 
 use swc_core::{
@@ -84,7 +84,17 @@ pub struct Collect {
   /// `require('foo').bar`
   pub static_require_access: Vec<(JsWord, JsWord, Span)>,
   pub non_static_requires: HashSet<JsWord>,
+  /// Exports the module reads from its own exports object (e.g. `exports.foo`), with the export
+  /// whose function the read is in, if the read only happens when that export is used.
+  pub self_references: Vec<(JsWord, Option<JsWord>)>,
+  /// The exports each import is only used by (see `import_owners`). Imports not in the map are
+  /// always needed.
+  pub import_owners: HashMap<Id, Vec<JsWord>>,
   pub bailouts: Option<Vec<Bailout>>,
+  /// The export whose function is being visited (see `self_references`).
+  export_owner: Option<JsWord>,
+  /// The export member expression being assigned to, which is a write rather than a read.
+  export_assign_target: Option<*const MemberExpr>,
   in_module_this: bool,
   in_top_level: bool,
   in_export_decl: bool,
@@ -117,6 +127,10 @@ impl Collect {
       static_access: HashMap::new(),
       static_require_access: Vec::new(),
       non_static_requires: HashSet::new(),
+      self_references: Vec::new(),
+      import_owners: HashMap::new(),
+      export_owner: None,
+      export_assign_target: None,
       in_module_this: true,
       in_top_level: true,
       in_export_decl: false,
@@ -155,6 +169,8 @@ impl Collect {
       static_access,
       static_require_access,
       non_static_requires,
+      self_references,
+      import_owners,
       has_cjs_exports,
       ..
     } = self;
@@ -163,12 +179,13 @@ impl Collect {
     // A namespace import, require or dynamic import that is only accessed statically (e.g.
     // `ns.foo`) imports just the accessed properties. Any other usage, e.g. a computed access,
     // passing the namespace around or re-assigning the binding, observes the whole namespace.
-    let mut imported: Vec<(Span, &JsWord, &JsWord, &JsWord)> = Vec::new();
+    let mut imported: Vec<(Span, &JsWord, &JsWord, &JsWord, Option<&Vec<JsWord>>)> = Vec::new();
     for (local, import) in &imports {
       if !used_imports.contains(local) {
         continue;
       }
 
+      let owners = import_owners.get(local);
       if import.specifier == "*"
         && !non_static_access.contains_key(local)
         && let Some(accesses) = static_access.get(local)
@@ -176,18 +193,24 @@ impl Collect {
         let mut seen = HashSet::new();
         for (name, span) in accesses {
           if seen.insert(name) {
-            imported.push((*span, name, &import.source, name));
+            imported.push((*span, name, &import.source, name, owners));
           }
         }
       } else {
-        imported.push((import.span, &local.0, &import.source, &import.specifier));
+        imported.push((
+          import.span,
+          &local.0,
+          &import.source,
+          &import.specifier,
+          owners,
+        ));
       }
     }
 
     let mut seen = HashSet::new();
     for (source, name, span) in &static_require_access {
       if seen.insert((source, name)) {
-        imported.push((*span, name, source, name));
+        imported.push((*span, name, source, name, None));
       }
     }
 
@@ -196,12 +219,17 @@ impl Collect {
     imported.sort_by(|(a_span, a_name, ..), (b_span, b_name, ..)| {
       (a_span.lo, a_name).cmp(&(b_span.lo, b_name))
     });
+    let mut import_owner_names = Vec::new();
     symbols.imports = imported
       .into_iter()
-      .map(|(_, _, source, symbol)| ImportedSymbol {
-        dep_index: dep_index(source),
-        symbol: SymbolName::from(symbol.as_str()),
-        resolved: SymbolResolution::None,
+      .map(|(_, _, source, symbol, owners)| {
+        import_owner_names.push(owners);
+        ImportedSymbol {
+          dep_index: dep_index(source),
+          symbol: SymbolName::from(symbol.as_str()),
+          resolved: SymbolResolution::None,
+          owners: Vec::new(),
+        }
       })
       .collect();
 
@@ -221,15 +249,58 @@ impl Collect {
         None => symbols.exports.push(LocalSymbol {
           exported,
           requested: false,
+          self_referenced: false,
         }),
       }
     }
+
+    let export_index = |name: &JsWord| {
+      symbols
+        .exports
+        .iter()
+        .position(|export| export.exported.as_str() == name.as_str())
+    };
+    let mut local_references = Vec::new();
+    let mut self_referenced = Vec::new();
+    for (name, owner) in &self_references {
+      let Some(to) = export_index(name) else {
+        continue;
+      };
+      match owner.as_ref().and_then(export_index) {
+        Some(from) if from != to => local_references.push(LocalReference {
+          from: from as u32,
+          to: to as u32,
+        }),
+        Some(_) => {}
+        None => self_referenced.push(to),
+      }
+    }
+
+    // An import is only owned if every export it is used by is one of the module's own.
+    for (import, names) in symbols.imports.iter_mut().zip(import_owner_names) {
+      if let Some(names) = names
+        && let Some(owners) = names
+          .iter()
+          .map(|name| export_index(name).map(|index| index as u32))
+          .collect::<Option<Vec<_>>>()
+      {
+        import.owners = owners;
+      }
+    }
+    for index in self_referenced {
+      symbols.exports[index].self_referenced = true;
+    }
+
+    local_references.sort_by_key(|reference| (reference.from, reference.to));
+    local_references.dedup();
+    symbols.local_references = local_references;
 
     // Add * symbol if there are any CJS exports so that unknown symbols don't cause errors (e.g. default interop).
     if has_cjs_exports {
       symbols.exports.push(LocalSymbol {
         exported: SymbolName::Namespace,
         requested: false,
+        self_referenced: false,
       });
     }
 
@@ -266,6 +337,7 @@ pub fn import_namespace(symbols: &mut AssetSymbols, dep_index: u32) {
       dep_index,
       symbol: SymbolName::Namespace,
       resolved: SymbolResolution::None,
+      owners: Vec::new(),
     });
   }
 }
@@ -634,6 +706,11 @@ impl Visit for Collect {
       () => {
         self.has_cjs_exports = true;
         if let Some((name, span)) = match_property_name(&node) {
+          if self.export_assign_target != Some(node as *const MemberExpr) {
+            self
+              .self_references
+              .push((name.clone(), self.export_owner.clone()));
+          }
           self.exports.insert(
             name.clone(),
             Export {
@@ -817,13 +894,37 @@ impl Visit for Collect {
     }
   }
 
+  fn visit_expr_stmt(&mut self, node: &ExprStmt) {
+    // Tree shaking replaces the assignment of an unused export with its value, which doesn't call
+    // a function. So reads in a function assigned to an export only happen when it is used.
+    if let Expr::Assign(assign) = &*node.expr
+      && assign.op == AssignOp::Assign
+      && matches!(assign.right.unwrap_parens(), Expr::Fn(_) | Expr::Arrow(_))
+      && let Some(name) = self.assigned_export(assign)
+    {
+      let export_owner = self.export_owner.replace(name);
+      node.visit_children_with(self);
+      self.export_owner = export_owner;
+    } else {
+      node.visit_children_with(self);
+    }
+  }
+
   fn visit_assign_expr(&mut self, node: &AssignExpr) {
     // if rhs is a require, record static accesses
     // if lhs is `exports`, mark as CJS exports re-assigned
     // if lhs is `module.exports`
     // if lhs is `module.exports.XXX` or `exports.XXX`, record static export
 
+    // Assigning an export isn't a read of it, unless the assignment also reads it (e.g. `+=`).
+    let export_assign_target = self.export_assign_target;
+    if node.op == AssignOp::Assign
+      && let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &node.left
+    {
+      self.export_assign_target = Some(member as *const MemberExpr);
+    }
     node.left.visit_with(self);
+    self.export_assign_target = export_assign_target;
     node.right.visit_with(self);
     self.add_reassigned_namespaces(&node.left);
 
@@ -1089,6 +1190,24 @@ impl Collect {
   /// re-assigned namespace import keeps the whole namespace, e.g.
   /// `let ns = await import('foo'); ns = other;`. Afterwards, member accesses of the binding may
   /// not refer to the namespace.
+  /// The name of the export an assignment assigns, e.g. `foo` in `exports.foo = ...`.
+  fn assigned_export(&self, node: &AssignExpr) -> Option<JsWord> {
+    let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &node.left else {
+      return None;
+    };
+    let is_exports = match &*member.obj {
+      Expr::Ident(ident) => &*ident.sym == "exports" && is_unresolved(ident, self.unresolved_mark),
+      Expr::Member(obj) => match_member_expr(obj, vec!["module", "exports"], self.unresolved_mark),
+      Expr::This(_) => self.in_module_this && !self.is_module,
+      _ => false,
+    };
+    if is_exports {
+      match_property_name(member).map(|(name, _)| name)
+    } else {
+      None
+    }
+  }
+
   fn add_reassigned_namespaces<N: VisitWith<BindingIdentCollector>>(&mut self, node: &N) {
     let mut collector = BindingIdentCollector { idents: vec![] };
     node.visit_with(&mut collector);
@@ -1331,5 +1450,97 @@ mod tests {
         "{code}"
       );
     }
+  }
+
+  /// The exports a CommonJS script references itself, and the references between its exports.
+  fn self_references(code: &str) -> (Vec<String>, Vec<(String, String)>) {
+    let (_, symbols) = run_with_transformation(code, |context, module| {
+      let mut collect = Collect::new(
+        context.unresolved_mark,
+        Mark::fresh(Mark::root()),
+        false,
+        false,
+      );
+      module.visit_with(&mut collect);
+      collect.into_symbols(|_| 0)
+    });
+    let name = |index: u32| {
+      symbols.exports[index as usize]
+        .exported
+        .as_str()
+        .to_string()
+    };
+    let mut self_referenced: Vec<String> = symbols
+      .exports
+      .iter()
+      .filter(|export| export.self_referenced)
+      .map(|export| export.exported.as_str().to_string())
+      .collect();
+    self_referenced.sort();
+    let references = symbols
+      .local_references
+      .iter()
+      .map(|reference| (name(reference.from), name(reference.to)))
+      .collect();
+    (self_referenced, references)
+  }
+
+  #[test]
+  fn self_references_in_exported_functions() {
+    for code in [
+      "exports.a = 1; exports.b = function () { return exports.a; };",
+      "exports.a = 1; module.exports.b = () => module.exports.a;",
+      "this.a = 1; this.b = () => this.a;",
+      "exports.a = 1; exports.b = (function () { return function () { return exports.a; }; });",
+    ] {
+      assert_eq!(
+        self_references(code),
+        (vec![], vec![("b".into(), "a".into())]),
+        "{code}"
+      );
+    }
+  }
+
+  #[test]
+  fn self_references_outside_exported_functions() {
+    for code in [
+      // Read when the module runs.
+      "exports.a = 1; console.log(exports.a);",
+      "exports.a = 1; exports.b = exports.a + 1;",
+      "exports.a = 1; exports.a += 1;",
+      // Called when the module runs, even if `b` isn't used.
+      "exports.a = 1; exports.b = (function () { return exports.a; })();",
+      "exports.a = 1; exports.b = wrap(() => exports.a);",
+      // The function is also the value of `c`, or used by `f`.
+      "exports.a = 1; exports.b = exports.c = function () { return exports.a; };",
+      "exports.a = 1; function f() { return exports.a; } exports.b = f;",
+      // Not a statement that tree shaking removes.
+      "exports.a = 1; use(exports.b = function () { return exports.a; });",
+    ] {
+      let (self_referenced, references) = self_references(code);
+      assert!(self_referenced.contains(&"a".to_string()), "{code}");
+      assert!(
+        !references.iter().any(|(_, to)| to == "a"),
+        "{code}: {references:?}"
+      );
+    }
+  }
+
+  #[test]
+  fn assigning_an_export_is_not_a_self_reference() {
+    assert_eq!(
+      self_references(
+        "exports.a = 1; module.exports.b = 2; this.c = 3; exports.d = exports.e = 4;"
+      ),
+      (vec![], vec![])
+    );
+  }
+
+  #[test]
+  fn this_in_a_function_is_not_a_self_reference() {
+    assert_eq!(
+      self_references("this.a = 1; exports.b = function () { return this.a; };"),
+      (vec![], vec![])
+    );
   }
 }

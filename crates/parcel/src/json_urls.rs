@@ -45,6 +45,7 @@ impl JsonUrlContent {
         dep_index: dep_index as u32,
         symbol,
         resolved: SymbolResolution::None,
+        owners: Vec::new(),
       });
     }
     asset.dependencies.push(dep);

@@ -103,8 +103,9 @@ pub fn optimize<'arena>(
   Ok(())
 }
 
-/// Removes everything in a document that isn't rendered except for its referenced elements: all
-/// but those elements, their ancestors, and the elements they reference in turn.
+/// Removes everything in a document that isn't rendered except for its referenced elements and
+/// their ancestors. The asset graph also requests the elements those reference in turn (see
+/// `element_references`), so `referenced_ids` includes them.
 fn remove_unreferenced(root: OxvgElement<'_, '_>, referenced_ids: &HashSet<String>) {
   // Stylesheets can select elements by position or relationship, which removing others would
   // change.
@@ -113,44 +114,6 @@ fn remove_unreferenced(root: OxvgElement<'_, '_>, referenced_ids: &HashSet<Strin
     .any(|element| matches!(element.qual_name().unaliased(), ElementId::Style))
   {
     return;
-  }
-
-  let mut elements_by_id = HashMap::new();
-  for element in root.breadth_first() {
-    if let Some(id) = get_attribute!(element, Id) {
-      elements_by_id
-        .entry(id.0.as_str().to_owned())
-        .or_insert(element);
-    }
-  }
-
-  let mut used = HashSet::new();
-  let mut stack: Vec<String> = referenced_ids.iter().cloned().collect();
-  while let Some(id) = stack.pop() {
-    let Some(&element) = elements_by_id.get(&id) else {
-      continue;
-    };
-    if !used.insert(id) {
-      continue;
-    }
-    for element in std::iter::once(element).chain(element.breadth_first()) {
-      for mut attr in element.attributes().into_iter_mut() {
-        if matches!(attr.name(), OxvgAttrId::Id) {
-          continue;
-        }
-        let mut value = attr.value_mut();
-        value.visit_url(|url| {
-          if let Some(id) = url.strip_prefix('#') {
-            stack.push(
-              percent_encoding::percent_decode_str(id)
-                .decode_utf8_lossy()
-                .into_owned(),
-            );
-          }
-        });
-        value.visit_id(|id| stack.push(id.to_string()));
-      }
-    }
   }
 
   fn retain(element: OxvgElement<'_, '_>, used: &HashSet<String>) -> bool {
@@ -168,7 +131,56 @@ fn remove_unreferenced(root: OxvgElement<'_, '_>, referenced_ids: &HashSet<Strin
     contains_used
   }
 
-  retain(root, &used);
+  retain(root, referenced_ids);
+}
+
+/// The ids each element of an SVG document references, from its own attributes and its
+/// descendants', e.g. a `<symbol>` containing `<use href="#dot">`. Keeping an element keeps the
+/// elements it references, so these become references between the document's exports.
+pub fn element_references(root: Ref<'_>) -> HashMap<String, HashSet<String>> {
+  let mut references = HashMap::new();
+  let values = OxvgAllocator::new_values();
+  let mut oxvg_arena = OxvgAllocator::new_arena();
+  let allocator = OxvgAllocator::new(&mut oxvg_arena, &values);
+  let Ok(dom) = parcel_to_oxvg(root, &allocator) else {
+    return references;
+  };
+  let Some(root) = dom.find_element() else {
+    return references;
+  };
+
+  for element in root.breadth_first() {
+    let Some(id) = get_attribute!(element, Id).map(|id| id.0.as_str().to_owned()) else {
+      continue;
+    };
+    // Like a fragment URL, a reference to a duplicate id is to the first element with it.
+    if references.contains_key(&id) {
+      continue;
+    }
+    let mut ids = HashSet::new();
+    for element in std::iter::once(element).chain(element.breadth_first()) {
+      for mut attr in element.attributes().into_iter_mut() {
+        if matches!(attr.name(), OxvgAttrId::Id) {
+          continue;
+        }
+        let mut value = attr.value_mut();
+        value.visit_url(|url| {
+          if let Some(id) = url.strip_prefix('#') {
+            ids.insert(
+              percent_encoding::percent_decode_str(id)
+                .decode_utf8_lossy()
+                .into_owned(),
+            );
+          }
+        });
+        value.visit_id(|id| {
+          ids.insert(id.to_string());
+        });
+      }
+    }
+    references.insert(id, ids);
+  }
+  references
 }
 
 fn parcel_to_oxvg<'input, 'oxvg>(

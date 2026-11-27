@@ -1,0 +1,38 @@
+[
+  {
+    "description": "tree shaking: imports only unused exported functions use are removed",
+    "input": "index.js",
+    "options": {"mode": "production"},
+    "output": "light",
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["index.js", "light.js", "utils.js"],
+        "notContains": ["heavy-sentinel"]
+      }
+    ]
+  },
+  {
+    "description": "tree shaking: imports used exported functions use are kept",
+    "input": "used.js",
+    "options": {"mode": "production"},
+    "output": "heavy-sentinel"
+  },
+  {
+    "description": "tree shaking: imports exported functions use are kept when the export is re-exported and used",
+    "input": "reexport.js",
+    "options": {"mode": "production"},
+    "output": "heavy-sentinel"
+  },
+  {
+    "description": "tree shaking: imports exported functions use are kept when the namespace is used",
+    "input": "namespace.js",
+    "options": {"mode": "production"},
+    "output": ["light", "heavy-sentinel"]
+  },
+  {
+    "description": "tree shaking: imports only unused exported functions use work in development",
+    "input": "index.js",
+    "output": "light"
+  }
+]

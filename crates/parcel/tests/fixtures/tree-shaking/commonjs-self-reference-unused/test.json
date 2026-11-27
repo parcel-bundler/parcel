@@ -1,0 +1,15 @@
+[
+  {
+    "description": "tree shaking: CommonJS exports only read by unused exports are removed",
+    "input": "index.js",
+    "options": {"mode": "production"},
+    "output": "c",
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["dep.js", "index.js"],
+        "notContains": ["a-sentinel"]
+      }
+    ]
+  }
+]

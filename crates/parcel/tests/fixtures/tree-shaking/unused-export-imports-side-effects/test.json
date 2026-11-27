@@ -1,0 +1,15 @@
+[
+  {
+    "description": "tree shaking: modules with side effects still run when only unused exported functions use their imports",
+    "input": "index.js",
+    "options": {"mode": "production"},
+    "output": "light",
+    "sideEffects": ["heavy ran"],
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["heavy.js", "index.js", "light.js", "utils.js"]
+      }
+    ]
+  }
+]

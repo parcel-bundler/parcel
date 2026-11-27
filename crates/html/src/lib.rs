@@ -135,6 +135,8 @@ pub fn transform_svg(options: TransformOptions) -> TransformResult {
     xml5ever::driver::parse_document(Sink::new(&arena), xml5ever::driver::XmlParseOpts::default())
       .from_utf8()
       .one(options.code.as_slice());
+  // Before dependencies are collected, which replaces `url(#id)` references with placeholders.
+  let (exports, local_references) = svg_exports(dom);
   let (deps, imports, assets, mut errors) = collect_dependencies(
     &arena,
     &dom,
@@ -145,7 +147,6 @@ pub fn transform_svg(options: TransformOptions) -> TransformResult {
     options.options,
     &[],
   );
-  let exports = svg_exports(dom);
 
   let mut vec = Vec::new();
   if let Err(err) = serialize_xml::serialize(&mut vec, dom) {
@@ -158,6 +159,7 @@ pub fn transform_svg(options: TransformOptions) -> TransformResult {
     symbols: AssetSymbols {
       imports,
       exports,
+      local_references,
       ..Default::default()
     },
     assets,
@@ -166,9 +168,9 @@ pub fn transform_svg(options: TransformOptions) -> TransformResult {
 }
 
 /// The symbols an SVG document exports: the rendered document, and each element by id for
-/// references like `sprite.svg#icon`. Scripts may reference or create elements dynamically, so a
-/// document with scripts exports nothing, which keeps all of it.
-fn svg_exports<'arena>(dom: arena::Ref<'arena>) -> Vec<LocalSymbol> {
+/// references like `sprite.svg#icon`, with the elements each element uses. Scripts may reference
+/// or create elements dynamically, so a document with scripts exports nothing, which keeps all of it.
+fn svg_exports<'arena>(dom: arena::Ref<'arena>) -> (Vec<LocalSymbol>, Vec<LocalReference>) {
   let mut has_script = false;
   let mut ids = Vec::new();
   let mut seen = HashSet::new();
@@ -187,16 +189,41 @@ fn svg_exports<'arena>(dom: arena::Ref<'arena>) -> Vec<LocalSymbol> {
   });
 
   if has_script {
-    return Vec::new();
+    return (Vec::new(), Vec::new());
   }
 
-  std::iter::once(SymbolName::Document)
+  // Element exports follow the document's, at index 0.
+  let export_index: HashMap<&str, u32> = ids
+    .iter()
+    .enumerate()
+    .map(|(index, id)| (id.as_ref(), index as u32 + 1))
+    .collect();
+  let mut local_references = Vec::new();
+  if !ids.is_empty() {
+    for (id, referenced) in oxvg::element_references(dom) {
+      let Some(&from) = export_index.get(id.as_str()) else {
+        continue;
+      };
+      for referenced in referenced {
+        if let Some(&to) = export_index.get(referenced.as_str())
+          && to != from
+        {
+          local_references.push(LocalReference { from, to });
+        }
+      }
+    }
+    local_references.sort_by_key(|reference| (reference.from, reference.to));
+  }
+
+  let exports = std::iter::once(SymbolName::Document)
     .chain(ids.iter().map(|id| SymbolName::Name(id.as_ref().into())))
     .map(|exported| LocalSymbol {
       exported,
       requested: false,
+      self_referenced: false,
     })
-    .collect()
+    .collect();
+  (exports, local_references)
 }
 
 /// What the files referencing an SVG document use of it, from the symbols they request. An
@@ -240,15 +267,35 @@ fn svg_usage(asset_graph: &AssetGraph, asset_index: AssetIndex) -> SvgUsage {
 /// Appends a transform's dependencies to an asset, with the symbols it imports through them.
 fn add_dependencies(asset: &mut Asset, dependencies: Vec<Dependency>, symbols: AssetSymbols) {
   let offset = asset.dependencies.len() as u32;
+  let export_offset = asset.symbols.exports.len() as u32;
   asset.dependencies.extend(dependencies);
   asset
     .symbols
     .imports
-    .extend(symbols.imports.into_iter().map(|import| ImportedSymbol {
-      dep_index: import.dep_index + offset,
-      ..import
+    .extend(symbols.imports.into_iter().map(|import| {
+      ImportedSymbol {
+        dep_index: import.dep_index + offset,
+        owners: import
+          .owners
+          .iter()
+          .map(|owner| owner + export_offset)
+          .collect(),
+        ..import
+      }
     }));
   asset.symbols.exports.extend(symbols.exports);
+  asset
+    .symbols
+    .local_references
+    .extend(
+      symbols
+        .local_references
+        .into_iter()
+        .map(|reference| LocalReference {
+          from: reference.from + export_offset,
+          to: reference.to + export_offset,
+        }),
+    );
 }
 
 #[derive(Deserialize)]
@@ -1161,6 +1208,36 @@ mod tests {
     assert_eq!(
       std::str::from_utf8(&res.code).unwrap(),
       "<html><head></head><body><template><div>test</div><span>hi</span></template></body></html>"
+    );
+  }
+
+  #[test]
+  fn svg_elements_reference_the_elements_they_use() {
+    let res = crate::transform_svg(crate::TransformOptions {
+      code: br##"<svg xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="fade"><stop offset="0"/></linearGradient></defs>
+        <symbol id="home"><path fill="url(#fade)"/></symbol>
+        <symbol id="badge"><g><use href="#dot"/></g></symbol>
+        <g id="dot" style="fill: url(#fade)"><circle r="4"/></g>
+        <symbol id="other"><use href="other.svg#x"/></symbol>
+      </svg>"##
+        .to_vec(),
+      url: parcel_core::SourceUrl::parse("file:///sprite.svg").unwrap(),
+      xml: true,
+      target: Default::default(),
+      hmr: false,
+    });
+
+    let symbols = &res.symbols;
+    let name = |index: u32| symbols.exports[index as usize].exported.as_str();
+    let references: Vec<_> = symbols
+      .local_references
+      .iter()
+      .map(|reference| (name(reference.from), name(reference.to)))
+      .collect();
+    assert_eq!(
+      references,
+      [("home", "fade"), ("badge", "dot"), ("dot", "fade")]
     );
   }
 

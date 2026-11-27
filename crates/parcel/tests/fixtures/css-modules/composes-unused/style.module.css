@@ -1,0 +1,8 @@
+.a {
+  color: red;
+}
+
+.b {
+  composes: x from './other.module.css';
+  color: green;
+}

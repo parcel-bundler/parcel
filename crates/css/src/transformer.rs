@@ -219,14 +219,31 @@ impl Transformer for CssTransformer {
       let mut refs = HashMap::new();
       // Exports and references are in source order, which the asset's exports and dependencies follow.
       if let Some(exports) = res.exports {
-        for (name, exp) in exports {
+        let offset = asset.symbols.exports.len();
+        // The export index of each scoped class name, which `composes` of a local class refers to.
+        let local_names: HashMap<String, u32> = exports
+          .values()
+          .enumerate()
+          .map(|(index, exp)| (exp.name.clone(), (offset + index) as u32))
+          .collect();
+        for (index, (name, exp)) in exports.into_iter().enumerate() {
+          // Names referenced within the file, e.g. @keyframes used by an animation, are used
+          // whether or not anything imports them.
           asset.symbols.exports.push(LocalSymbol {
             exported: SymbolName::from(name),
-            requested: exp.is_referenced,
+            requested: false,
+            self_referenced: exp.is_referenced,
           });
 
           for composes in exp.composes {
-            if let CssModuleReference::Dependency { name, specifier } = composes {
+            if let CssModuleReference::Local { name } = &composes
+              && let Some(&to) = local_names.get(name)
+            {
+              asset.symbols.local_references.push(LocalReference {
+                from: (offset + index) as u32,
+                to,
+              });
+            } else if let CssModuleReference::Dependency { name, specifier } = composes {
               let dep_index = asset.dependencies.len() as u32;
               asset.dependencies.push(Dependency {
                 specifier: specifier.into_boxed_str(),
@@ -246,10 +263,22 @@ impl Transformer for CssTransformer {
                 custom_conditions: Default::default(),
               });
 
+              // Only this class uses the composed class, so it is only needed if this class is.
+              // Unused classes are only removed when optimizing.
+              let owners = if asset
+                .target
+                .flags
+                .contains(EnvironmentFlags::SHOULD_OPTIMIZE)
+              {
+                vec![(offset + index) as u32]
+              } else {
+                Vec::new()
+              };
               asset.symbols.imports.push(ImportedSymbol {
                 dep_index,
                 symbol: SymbolName::from(name),
                 resolved: parcel_core::SymbolResolution::None,
+                owners,
               });
             }
           }
@@ -289,6 +318,7 @@ impl Transformer for CssTransformer {
                 dep_index,
                 symbol: SymbolName::from(name),
                 resolved: parcel_core::SymbolResolution::None,
+                owners: Vec::new(),
               });
             }
           }
@@ -588,6 +618,7 @@ impl<'i, 'a> lightningcss::visitor::Visitor<'i> for DependencyCollector<'a> {
         dep_index,
         symbol,
         resolved: parcel_core::SymbolResolution::None,
+        owners: Vec::new(),
       });
     }
     self.dependencies.push(dep);
