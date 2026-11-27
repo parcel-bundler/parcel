@@ -335,20 +335,6 @@ impl<'a> Resolver<'a> {
       return Ok(PathId::new(&package_dir));
     }
 
-    // TODO: add file create above invalidation via fs
-
-    // for dir in from.ancestors() {
-    //   // Skip over node_modules directories
-    //   if dir.is_node_modules() {
-    //     continue;
-    //   }
-
-    //   let package_dir = dir.join_module(module, &self.cache);
-    //   if package_dir.is_dir(fs) {
-    //     return Ok(package_dir);
-    //   }
-    // }
-
     // NODE_PATH??
 
     fs.find_ancestor(from, &SubPath::module(module), FileKind::IS_DIR, None)
@@ -403,23 +389,6 @@ impl<'a> Resolver<'a> {
     filename: &SubPath,
     fs: &dyn FileSystem,
   ) -> Option<PathId> {
-    // // TODO: use the fs find_ancestor_file so we get file_create_above invalidation
-    // for dir in from.ancestors() {
-    //   if dir.is_node_modules() {
-    //     break;
-    //   }
-
-    //   let file = dir.join(filename, &self.cache);
-    //   if file.is_file(fs) {
-    //     return Some(file);
-    //   }
-
-    //   if dir == self.project_root {
-    //     break;
-    //   }
-    // }
-    //
-
     fs.find_ancestor(from, filename, FileKind::IS_FILE, Some(self.project_root))
   }
 }
@@ -1089,24 +1058,27 @@ impl<'a> ResolveRequest<'a> {
         // Otherwise, we need to remove the original extension so we can add the suffix.
         // TODO: TypeScript only removes certain extensions here...
         let original_ext = path.extension();
-        let mut s = if ext.is_empty() && original_ext.is_some() {
-          path.with_extension("").to_path_buf().into_os_string()
-        } else {
-          path.to_path_buf().into_os_string()
-        };
+        path.with_path_mut(|path| {
+          let s = if ext.is_empty() && original_ext.is_some() {
+            path.set_extension("");
+            path.as_mut_os_string()
+          } else {
+            path.as_mut_os_string()
+          };
 
-        // Append the suffix (this is not necessarily an extension).
-        s.push(suffix);
+          // Append the suffix (this is not necessarily an extension).
+          s.push(suffix);
 
-        // Re-add the original extension if we removed it earlier.
-        if ext.is_empty() {
-          if let Some(original_ext) = original_ext {
-            s.push(".");
-            s.push(original_ext);
+          // Re-add the original extension if we removed it earlier.
+          if ext.is_empty() {
+            if let Some(original_ext) = original_ext {
+              s.push(".");
+              s.push(original_ext);
+            }
           }
-        }
 
-        Cow::Owned(PathId::new(Path::new(&s)))
+          Cow::Owned(PathId::new(Path::new(&s)))
+        })
       } else {
         Cow::Borrowed(path)
       };
@@ -1134,31 +1106,27 @@ impl<'a> ResolveRequest<'a> {
       // Check the project root package.json first.
       if let Some(package) = self.root_package() {
         let package = unwrap_arc(package)?;
-        if let Ok(s) = path
-          .to_path_buf()
-          .strip_prefix(package.path.parent().unwrap().to_path_buf())
-        {
-          let specifier = Specifier::Relative(Cow::Borrowed(s));
-          if let Some(res) = self.resolve_aliases(&*package, &specifier, Fields::ALIAS)? {
-            return Ok(Some(res));
-          }
+        let res = path.with_relative(package.path.parent().unwrap(), |relative| {
+          let specifier = Specifier::Relative(Cow::Borrowed(relative));
+          self.resolve_aliases(&*package, &specifier, Fields::ALIAS)
+        })?;
+        if let Some(res) = res {
+          return Ok(Some(res));
         }
       }
 
       // Next try the local package.json.
       if let Some(package) = package {
-        if let Ok(s) = path
-          .to_path_buf()
-          .strip_prefix(package.path.parent().unwrap().to_path_buf())
-        {
-          let specifier = Specifier::Relative(Cow::Borrowed(s));
+        let res = path.with_relative(package.path.parent().unwrap(), |relative| {
+          let specifier = Specifier::Relative(Cow::Borrowed(relative));
           let mut fields = Fields::ALIAS;
           if self.resolver.entries.contains(Fields::BROWSER) {
             fields |= Fields::BROWSER;
           }
-          if let Some(res) = self.resolve_aliases(package, &specifier, fields)? {
-            return Ok(Some(res));
-          }
+          self.resolve_aliases(package, &specifier, fields)
+        })?;
+        if let Some(res) = res {
+          return Ok(Some(res));
         }
       }
     }

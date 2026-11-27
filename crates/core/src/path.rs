@@ -158,6 +158,13 @@ impl PathId {
     GLOBAL_INTERNER.with_path(*self, f)
   }
 
+  /// Materializes this path into a thread-local scratch buffer and calls `f` with a borrowed
+  /// `&mut PathBuf`, avoiding the allocation of [`to_path_buf`](Self::to_path_buf). The `PathBuf` must not
+  /// escape `f`. See [`PathInterner::with_path_mut`].
+  pub fn with_path_mut<R, F: FnOnce(&mut PathBuf) -> R>(&self, f: F) -> R {
+    GLOBAL_INTERNER.with_path_mut(*self, f)
+  }
+
   /// Returns the relative path from `from` to this path.
   pub fn relative(&self, from: &PathId) -> PathBuf {
     GLOBAL_INTERNER.relative(*self, *from)
@@ -595,6 +602,39 @@ impl PathInterner {
       path.clear();
       self.push_segments(path, id);
       f(path.as_path())
+    })
+  }
+
+  /// Materializes `id` into a thread-local scratch buffer and calls `f` with a borrowed `&mut PathBuf`,
+  /// avoiding the per-call allocation of [`to_path_buf`](Self::to_path_buf).
+  ///
+  /// The buffer is reused across calls, so after warmup this performs no heap allocation. The
+  /// `PathBuf` must not escape `f`. Reentrant calls on the same thread (e.g. `f` calls `with_path`
+  /// again to materialize a second path at the same time) transparently fall back to a freshly
+  /// allocated `PathBuf`, since a single scratch buffer can only hold one path at a time.
+  pub fn with_path_mut<R, F: FnOnce(&mut PathBuf) -> R>(&self, id: PathId, f: F) -> R {
+    // If the scratch buffer is already lent out on this thread, we can't reuse it without
+    // clobbering the outstanding borrow, so fall back to a heap path for this (rare) nested call.
+    if SCRATCH_IN_USE.with(|in_use| in_use.replace(true)) {
+      return f(&mut self.to_path_buf(id));
+    }
+
+    // Reset the in-use flag even if `f` panics.
+    struct Guard;
+    impl Drop for Guard {
+      fn drop(&mut self) {
+        SCRATCH_IN_USE.with(|in_use| in_use.set(false));
+      }
+    }
+    let _guard = Guard;
+
+    SCRATCH_PATH.with(|cell| {
+      // SAFETY: `SCRATCH_IN_USE` guarantees no other live borrow of this cell exists on this
+      // thread for the duration of `f`, and we don't touch `path` again once `f` holds the `&Path`.
+      let path = unsafe { &mut *cell.get() };
+      path.clear();
+      self.push_segments(path, id);
+      f(path)
     })
   }
 

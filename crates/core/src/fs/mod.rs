@@ -201,13 +201,6 @@ pub trait FileSystem: Send + Sync {
     root: Option<PathId>,
   ) -> Option<PathId> {
     for dir in from.ancestors() {
-      // Break if we hit a node_modules directory
-      // if let Some(filename) = dir.file_name() {
-      //   if filename == "node_modules" {
-      //     break;
-      //   }
-      // }
-
       let candidate = dir.join_subpath(file_name);
       if self.kind(candidate).contains(kind) {
         return Some(candidate);
