@@ -1,7 +1,4 @@
-use std::{
-  cell::RefCell,
-  collections::{HashMap, HashSet},
-};
+use std::{cell::RefCell, collections::HashSet};
 
 use crate::arena::{Arena, Node, NodeData, Ref};
 use html5ever::{Attribute, QualName, namespace_url, ns};
@@ -103,8 +100,9 @@ pub fn optimize<'arena>(
   Ok(())
 }
 
-/// Removes everything in a document that isn't rendered except for its referenced elements: all
-/// but those elements, their ancestors, and the elements they reference in turn.
+/// Removes everything in a document that isn't rendered except for its referenced elements and
+/// their ancestors. The asset graph also requests the elements those reference in turn (see
+/// `element_references`), so `referenced_ids` includes them.
 fn remove_unreferenced(root: OxvgElement<'_, '_>, referenced_ids: &HashSet<String>) {
   // Stylesheets can select elements by position or relationship, which removing others would
   // change.
@@ -113,44 +111,6 @@ fn remove_unreferenced(root: OxvgElement<'_, '_>, referenced_ids: &HashSet<Strin
     .any(|element| matches!(element.qual_name().unaliased(), ElementId::Style))
   {
     return;
-  }
-
-  let mut elements_by_id = HashMap::new();
-  for element in root.breadth_first() {
-    if let Some(id) = get_attribute!(element, Id) {
-      elements_by_id
-        .entry(id.0.as_str().to_owned())
-        .or_insert(element);
-    }
-  }
-
-  let mut used = HashSet::new();
-  let mut stack: Vec<String> = referenced_ids.iter().cloned().collect();
-  while let Some(id) = stack.pop() {
-    let Some(&element) = elements_by_id.get(&id) else {
-      continue;
-    };
-    if !used.insert(id) {
-      continue;
-    }
-    for element in std::iter::once(element).chain(element.breadth_first()) {
-      for mut attr in element.attributes().into_iter_mut() {
-        if matches!(attr.name(), OxvgAttrId::Id) {
-          continue;
-        }
-        let mut value = attr.value_mut();
-        value.visit_url(|url| {
-          if let Some(id) = url.strip_prefix('#') {
-            stack.push(
-              percent_encoding::percent_decode_str(id)
-                .decode_utf8_lossy()
-                .into_owned(),
-            );
-          }
-        });
-        value.visit_id(|id| stack.push(id.to_string()));
-      }
-    }
   }
 
   fn retain(element: OxvgElement<'_, '_>, used: &HashSet<String>) -> bool {
@@ -168,7 +128,41 @@ fn remove_unreferenced(root: OxvgElement<'_, '_>, referenced_ids: &HashSet<Strin
     contains_used
   }
 
-  retain(root, &used);
+  retain(root, referenced_ids);
+}
+
+/// Calls `reference` with each id an element's attributes reference in its document, e.g.
+/// `fill="url(#fade)"`, `href="#dot"` or `aria-labelledby="title"`, as OXVG parses them.
+pub fn attribute_references(
+  name: &QualName,
+  attrs: &[Attribute],
+  mut reference: impl FnMut(String),
+) {
+  let element = ElementId::new(oxvg_prefix(name), OxvgAtom::from(name.local.as_ref()));
+  for attr in attrs {
+    if is_default_xmlns(&attr.name) {
+      continue;
+    }
+    let attr_id = element.parse_attr_id(
+      &oxvg_prefix(&attr.name),
+      OxvgAtom::from(attr.name.local.as_ref()),
+    );
+    if matches!(attr_id, OxvgAttrId::Id) {
+      continue;
+    }
+    let mut attr = OxvgAttr::new(attr_id, attr.value.as_ref());
+    let mut value = attr.value_mut();
+    value.visit_url(|url| {
+      if let Some(id) = url.strip_prefix('#') {
+        reference(
+          percent_encoding::percent_decode_str(id)
+            .decode_utf8_lossy()
+            .into_owned(),
+        );
+      }
+    });
+    value.visit_id(|id| reference(id.to_string()));
+  }
 }
 
 fn parcel_to_oxvg<'input, 'oxvg>(
@@ -291,7 +285,23 @@ fn parcel_name_to_oxvg_prefix<'input>(
   name: &QualName,
   allocator: &OxvgAllocator<'input, '_>,
 ) -> OxvgPrefix<'input> {
-  let prefix = name
+  let prefix = oxvg_prefix_name(name);
+  OxvgPrefix::new(
+    allocate_atom(allocator, name.ns.as_ref()),
+    prefix.map(|prefix| allocate_atom(allocator, prefix)),
+  )
+}
+
+/// A name's prefix as OXVG borrows it, for parsing without an OXVG document.
+fn oxvg_prefix(name: &QualName) -> OxvgPrefix<'_> {
+  OxvgPrefix::new(
+    OxvgAtom::from(name.ns.as_ref()),
+    oxvg_prefix_name(name).map(OxvgAtom::from),
+  )
+}
+
+fn oxvg_prefix_name(name: &QualName) -> Option<&str> {
+  name
     .prefix
     .as_ref()
     .filter(|prefix| !prefix.is_empty())
@@ -303,11 +313,7 @@ fn parcel_name_to_oxvg_prefix<'input>(
       "http://www.w3.org/1999/xlink" => Some("xlink"),
       "http://www.w3.org/2000/xmlns/" if name.local.as_ref() != "xmlns" => Some("xmlns"),
       _ => None,
-    });
-  OxvgPrefix::new(
-    allocate_atom(allocator, name.ns.as_ref()),
-    prefix.map(|prefix| allocate_atom(allocator, prefix)),
-  )
+    })
 }
 
 fn is_default_xmlns(name: &QualName) -> bool {

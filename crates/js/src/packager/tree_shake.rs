@@ -1,5 +1,6 @@
 use std::{
   borrow::Cow,
+  cell::Cell,
   collections::{HashMap, HashSet},
 };
 
@@ -10,25 +11,91 @@ use swc_core::{
     ast::*,
     atoms::Atom as JsWord,
     minifier::option::{CompressOptions, MangleOptions, TopLevelOptions},
-    visit::{Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_type},
+    visit::{Visit, VisitMut, VisitMutWith, VisitWith},
   },
   quote,
 };
 
-use crate::transformer::{
-  Ast,
-  utils::{is_unresolved, match_member_expr, match_property_name},
+use crate::{
+  runtime_modules::EsmHelpers,
+  transformer::{
+    Ast,
+    utils::{is_unresolved, match_member_expr, match_property_name},
+  },
 };
+
+/// How a module is required.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+#[serde(untagged)]
+pub enum ModuleId<'a> {
+  /// By its id in the module table, which any bundle can require.
+  Global(Cow<'a, str>),
+  /// By its index in its bundle's table of modules nothing outside the bundle refers to (see
+  /// `LocalModules`).
+  Local(u32),
+}
+
+impl<'a> From<&'a str> for ModuleId<'a> {
+  fn from(id: &'a str) -> Self {
+    ModuleId::Global(Cow::Borrowed(id))
+  }
+}
+
+impl From<String> for ModuleId<'_> {
+  fn from(id: String) -> Self {
+    ModuleId::Global(Cow::Owned(id))
+  }
+}
+
+impl From<&ModuleId<'_>> for Expr {
+  fn from(id: &ModuleId<'_>) -> Self {
+    match id {
+      ModuleId::Global(id) => id.as_ref().into(),
+      ModuleId::Local(index) => number_expr(*index),
+    }
+  }
+}
+
+/// The name, before minification, of the module wrapper's parameter that requires a module
+/// relative to the wrapped one (see `TreeShake::relative_offset`).
+const RELATIVE_REQUIRE: &str = "$parcel$requireRelative";
+
+fn number_expr(value: u32) -> Expr {
+  Expr::Lit(Lit::Num(Number {
+    span: DUMMY_SP,
+    value: value as f64,
+    raw: None,
+  }))
+}
+
+#[derive(Debug)]
+pub enum ResolvedSymbol<'a> {
+  EsmDefault,
+  Symbol(&'a str),
+}
+
+impl<'a> serde::Serialize for ResolvedSymbol<'a> {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    match self {
+      ResolvedSymbol::EsmDefault => "default".serialize(serializer),
+      ResolvedSymbol::Symbol(s) => s.serialize(serializer),
+    }
+  }
+}
 
 #[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
 pub enum Resolution<'a> {
   #[serde(serialize_with = "serialize_excluded")]
   Excluded,
-  Asset(String),
-  Symbols(Vec<(&'a str, String, &'a str)>),
+  Asset(ModuleId<'a>),
+  EsmAsset(ModuleId<'a>),
+  Symbols(Vec<(&'a str, ModuleId<'a>, ResolvedSymbol<'a>)>),
   #[serde(serialize_with = "serialize_internalized")]
-  Internalized(String),
+  Internalized(&'a str),
   External(Cow<'a, str>),
   #[serde(serialize_with = "serialize_string")]
   String(Cow<'a, str>),
@@ -67,7 +134,7 @@ where
   HashMap::from([("value", value)]).serialize(serializer)
 }
 
-fn serialize_internalized<S>(value: &String, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_internalized<S>(value: &&str, serializer: S) -> Result<S::Ok, S::Error>
 where
   S: serde::Serializer,
 {
@@ -106,25 +173,19 @@ fn stylesheet_expr(text: &str) -> Expr {
 
 pub fn tree_shake<'a>(
   ast: &mut Ast,
-  mut used_symbols: HashSet<JsWord>,
+  used_symbols: HashSet<JsWord>,
   resolutions: IndexMap<String, Resolution<'a>>,
   minify: bool,
   is_library: bool,
   require_name: JsWord,
-) {
+  // The module's number within its bundle, if it has one (see `LocalModules`).
+  local_index: Option<u32>,
+  // Whether nothing reads the module's `__esModule` flag, so it can be removed.
+  unused_interop_flag: bool,
+  // Whether the wrapper minified output is in may be an arrow function.
+  arrow_wrapper: bool,
+) -> EsmHelpers {
   swc_core::common::GLOBALS.set(&*ast.globals, || {
-    // A CommonJS module reading its own exports (e.g. `exports.foo` within `exports.bar`) needs
-    // their assignments even when no importer uses them.
-    if !used_symbols.is_empty() {
-      let mut self_references = SelfReferences {
-        names: HashSet::new(),
-        unresolved_mark: ast.unresolved_mark,
-        in_module_this: true,
-      };
-      ast.program.visit_with(&mut self_references);
-      used_symbols.extend(self_references.names);
-    }
-
     let wrapper_mark = Mark::new();
     let wrapper_ctxt = SyntaxContext::empty().apply_mark(wrapper_mark);
     let mut shake = TreeShake {
@@ -137,11 +198,17 @@ pub fn tree_shake<'a>(
       is_library,
       require_name,
       in_module_this: true,
+      // Only the wrapper added below has the relative require.
+      local_index: local_index.filter(|_| minify),
+      unused_interop_flag,
+      helpers: EsmHelpers::empty(),
+      required: HashMap::new(),
+      uses_relative_require: Cell::new(false),
     };
 
     if !minify {
       ast.program.visit_mut_with(&mut shake);
-      return;
+      return shake.helpers;
     }
 
     let module = std::mem::take(&mut ast.program);
@@ -169,6 +236,12 @@ pub fn tree_shake<'a>(
 
     // Visit the wrapper's children so its body is still treated as the module's top level.
     wrapper.function.visit_mut_children_with(&mut shake);
+    if shake.uses_relative_require.get() {
+      wrapper
+        .function
+        .params
+        .push(shake.relative_require_ident().into());
+    }
 
     let program = swc_core::ecma::minifier::optimize(
       Program::Module(Module {
@@ -187,10 +260,12 @@ pub fn tree_shake<'a>(
         rename: true,
         compress: Some(CompressOptions {
           top_level: Some(TopLevelOptions { functions: true }),
+          ecma: EsVersion::Es2024, // TODO
           ..Default::default()
         }),
         mangle: Some(MangleOptions {
           top_level: Some(true),
+          disable_char_freq: true,
           ..Default::default()
         }),
         ..Default::default()
@@ -210,86 +285,91 @@ pub fn tree_shake<'a>(
     {
       module.body[0] = ModuleItem::Stmt(Stmt::Expr(ExprStmt {
         span: DUMMY_SP,
-        expr: Box::new(Expr::Fn(f)),
+        expr: Box::new(if arrow_wrapper {
+          arrow_wrapper_expr(f)
+        } else {
+          Expr::Fn(f)
+        }),
       }));
     }
 
     ast.program = module;
+    shake.helpers
   })
 }
 
-/// Collects the names of exports a CommonJS module reads from its own exports object through
-/// `exports.foo`, `module.exports.foo` or top-level `this.foo`.
-struct SelfReferences {
-  names: HashSet<JsWord>,
-  unresolved_mark: Mark,
-  /// Whether `this` refers to the module's exports, i.e. outside of any function or class.
-  in_module_this: bool,
+/// The minified module wrapper as an arrow function, which is shorter, unless it has what an
+/// arrow function would take from the code around it instead (`this` is the module's exports).
+fn arrow_wrapper_expr(wrapper: FnExpr) -> Expr {
+  let mut bindings = WrapperBindings { found: false };
+  wrapper.function.visit_children_with(&mut bindings);
+  let function = &*wrapper.function;
+  if bindings.found
+    || function.is_async
+    || function.is_generator
+    || function.body.is_none()
+    || !function.decorators.is_empty()
+    || function
+      .params
+      .iter()
+      .any(|param| !param.decorators.is_empty())
+  {
+    return Expr::Fn(wrapper);
+  }
+
+  let function = *wrapper.function;
+  Expr::Arrow(ArrowExpr {
+    span: function.span,
+    ctxt: function.ctxt,
+    params: function.params.into_iter().map(|param| param.pat).collect(),
+    body: Box::new(ArrowFunctionBody::FunctionBody(function.body.unwrap())),
+    is_async: false,
+    is_generator: false,
+    type_params: None,
+    return_type: None,
+  })
 }
 
-impl SelfReferences {
-  /// The export a member expression of the module's exports object refers to.
-  fn export_name(&self, member: &MemberExpr) -> Option<JsWord> {
-    let is_exports = match &*member.obj {
-      Expr::Ident(ident) => &*ident.sym == "exports" && is_unresolved(ident, self.unresolved_mark),
-      Expr::Member(obj) => match_member_expr(obj, vec!["module", "exports"], self.unresolved_mark),
-      Expr::This(_) => self.in_module_this,
-      _ => false,
-    };
-    if is_exports {
-      match_property_name(member).map(|(name, _)| name)
-    } else {
-      None
-    }
-  }
+/// Finds what a function binds that an arrow function doesn't: `this`, `arguments`, `new.target`
+/// (and `super`, which a module's top level can't have).
+struct WrapperBindings {
+  found: bool,
 }
 
-impl Visit for SelfReferences {
-  noop_visit_type!();
-
-  fn visit_assign_expr(&mut self, node: &AssignExpr) {
-    // Assigning an export isn't a read, unless the assignment also reads it (e.g. `+=`).
-    if node.op == AssignOp::Assign
-      && let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &node.left
-      && self.export_name(member).is_some()
-    {
-      member.prop.visit_with(self);
-    } else {
-      node.left.visit_with(self);
-    }
-    node.right.visit_with(self);
-  }
-
-  fn visit_member_expr(&mut self, node: &MemberExpr) {
-    if let Some(name) = self.export_name(node) {
-      self.names.insert(name);
-    }
-    node.visit_children_with(self);
-  }
-
-  fn visit_function(&mut self, node: &Function) {
-    let in_module_this = std::mem::replace(&mut self.in_module_this, false);
-    node.visit_children_with(self);
-    self.in_module_this = in_module_this;
-  }
-
+impl Visit for WrapperBindings {
+  // Other functions bind their own. Arrow functions, and what classes evaluate outside of their
+  // methods, are visited.
+  fn visit_function(&mut self, _: &Function) {}
+  fn visit_constructor(&mut self, _: &Constructor) {}
   fn visit_getter_prop(&mut self, node: &GetterProp) {
-    let in_module_this = std::mem::replace(&mut self.in_module_this, false);
-    node.visit_children_with(self);
-    self.in_module_this = in_module_this;
+    node.key.visit_with(self);
   }
-
   fn visit_setter_prop(&mut self, node: &SetterProp) {
-    let in_module_this = std::mem::replace(&mut self.in_module_this, false);
-    node.visit_children_with(self);
-    self.in_module_this = in_module_this;
+    node.key.visit_with(self);
   }
 
-  fn visit_class(&mut self, node: &Class) {
-    let in_module_this = std::mem::replace(&mut self.in_module_this, false);
-    node.visit_children_with(self);
-    self.in_module_this = in_module_this;
+  fn visit_this_expr(&mut self, _: &ThisExpr) {
+    self.found = true;
   }
+
+  fn visit_meta_prop_expr(&mut self, _: &MetaPropExpr) {
+    self.found = true;
+  }
+
+  fn visit_ident(&mut self, node: &Ident) {
+    if node.sym == "arguments" {
+      self.found = true;
+    }
+  }
+}
+
+/// The known exports a variable holds (see `TreeShake::required`).
+#[derive(Clone, Copy)]
+enum Required {
+  /// Those of a module with the `__esModule` flag.
+  Flagged,
+  /// The empty object an excluded module is replaced with.
+  Excluded,
 }
 
 struct TreeShake<'a> {
@@ -303,9 +383,150 @@ struct TreeShake<'a> {
   require_name: JsWord,
   /// Whether `this` refers to the module's exports, i.e. outside of any function or class.
   in_module_this: bool,
+  /// The module's number within its bundle, if it has one (see `LocalModules`).
+  local_index: Option<u32>,
+  /// Whether nothing reads the module's `__esModule` flag (see `tree_shake`).
+  unused_interop_flag: bool,
+  /// The ESM helpers the module still calls.
+  helpers: EsmHelpers,
+  /// What the variables declared as a `require` call of a module with the `__esModule` flag, or
+  /// of an excluded module, hold, as modules converted from ESM declare their imports before
+  /// calling the interop helper with them (see `esm2cjs`).
+  required: HashMap<Id, Required>,
+  /// Whether the module requires another relative to its own number, so its wrapper needs the
+  /// relative require as a parameter.
+  uses_relative_require: Cell<bool>,
 }
 
 impl<'a> TreeShake<'a> {
+  /// The wrapper's parameter that requires a module by its distance after this one in the
+  /// bundle's numbered modules (see `runtime.js`).
+  fn relative_require_ident(&self) -> Ident {
+    Ident::new(RELATIVE_REQUIRE.into(), DUMMY_SP, self.wrapper_ctxt)
+  }
+
+  /// How far after this module `id` is numbered, if both are numbered within the bundle and `id`
+  /// comes later. Modules are numbered in bundle order, where a module's dependencies tend to
+  /// directly follow it, so modules that import alike require the same small distances rather
+  /// than each naming different numbers, which compresses far better. Earlier modules are mostly
+  /// ones many others share, which compress better under the one number everything requires.
+  fn relative_offset(&self, id: &ModuleId<'_>) -> Option<u32> {
+    match (self.local_index, id) {
+      (Some(from), ModuleId::Local(to)) if *to > from => Some(to - from),
+      _ => None,
+    }
+  }
+
+  /// What a call to the default interop helper evaluates to, if what it's given is known: the
+  /// exports of a module with the `__esModule` flag, as they are, or those of an excluded
+  /// module. The minifier can't remove a call to the helper whose result is unused.
+  fn static_interop(&self, node: &Expr) -> Option<Expr> {
+    let Expr::Call(call) = node else {
+      return None;
+    };
+    let Callee::Expr(callee) = &call.callee else {
+      return None;
+    };
+    if !matches!(&**callee, Expr::Ident(id)
+      if id.sym == EsmHelpers::INTEROP_DEFAULT.function() && is_unresolved(id, self.unresolved_mark))
+    {
+      return None;
+    }
+    let [ExprOrSpread { spread: None, expr }] = &call.args[..] else {
+      return None;
+    };
+    let Expr::Ident(required) = &**expr else {
+      return None;
+    };
+    match self.required.get(&required.to_id())? {
+      Required::Flagged => Some(Expr::Ident(required.clone())),
+      Required::Excluded => Some(quote!("({ default: {} })" as Expr)),
+    }
+  }
+
+  /// Records what `decl` declares a variable to hold, if it's the exports of a module required
+  /// with known exports (see `TreeShake::required`).
+  fn record_required(&mut self, decl: &VarDeclarator) {
+    let Pat::Ident(name) = &decl.name else {
+      return;
+    };
+    let Some(Expr::Call(call)) = decl.init.as_deref() else {
+      return;
+    };
+    let Callee::Expr(callee) = &call.callee else {
+      return;
+    };
+    if !matches!(&**callee, Expr::Ident(id) if id.sym == "require" && is_unresolved(id, self.unresolved_mark))
+    {
+      return;
+    }
+    let [ExprOrSpread { spread: None, expr }] = &call.args[..] else {
+      return;
+    };
+    let Expr::Lit(Lit::Str(specifier)) = &**expr else {
+      return;
+    };
+    let required = match self
+      .resolutions
+      .get(specifier.value.to_string_lossy().as_ref())
+    {
+      Some(Resolution::EsmAsset(_)) => Required::Flagged,
+      Some(Resolution::Excluded) => Required::Excluded,
+      _ => return,
+    };
+    self.required.insert(name.to_id(), required);
+  }
+
+  /// Whether `node` defines the `__esModule` flag on the module's exports, and nothing reads it
+  /// (see `AssetSymbols::exports_object_used`).
+  fn is_unread_interop_flag(&self, node: &Stmt) -> bool {
+    if !self.unused_interop_flag {
+      return false;
+    }
+    let Stmt::Expr(stmt) = node else {
+      return false;
+    };
+    let Expr::Call(call) = &*stmt.expr else {
+      return false;
+    };
+    matches!(&call.callee, Callee::Expr(callee) if matches!(&**callee, Expr::Ident(id)
+      if id.sym == EsmHelpers::DEFINE_INTEROP_FLAG.function()
+        && is_unresolved(id, self.unresolved_mark)))
+  }
+
+  /// A call requiring the module `id`.
+  fn require_call(&self, id: &ModuleId<'_>) -> Expr {
+    match self.relative_offset(id) {
+      Some(offset) => {
+        self.uses_relative_require.set(true);
+        quote!(
+          "$require($offset)" as Expr,
+          require: Ident = self.relative_require_ident(),
+          offset: Expr = number_expr(offset)
+        )
+      }
+      None => quote!(
+        "$require($id)" as Expr,
+        require: Ident = self.require_ident(),
+        id: Expr = id.into()
+      ),
+    }
+  }
+
+  /// Makes a `require` call's callee and its argument `expr` require the module `id`.
+  fn set_required(&self, callee: &mut Callee, expr: &mut Expr, id: &ModuleId<'_>) {
+    // Only the runtime's require has a relative form; `import()` doesn't.
+    if let Callee::Expr(_) = callee
+      && let Some(offset) = self.relative_offset(id)
+    {
+      self.uses_relative_require.set(true);
+      *callee = Callee::Expr(Box::new(self.relative_require_ident().into()));
+      *expr = number_expr(offset);
+    } else {
+      *expr = id.into();
+    }
+  }
+
   fn require_ident(&self) -> Ident {
     Ident::new(
       self.require_name.clone(),
@@ -313,10 +534,62 @@ impl<'a> TreeShake<'a> {
       SyntaxContext::empty().apply_mark(self.unresolved_mark),
     )
   }
+
+  /// Removes unused export getters from a call to the ESM export helper and returns whether the
+  /// call still defines anything. See `define_exports` for the two forms of the call.
+  fn retain_used_exports(&self, node: &mut Stmt) -> bool {
+    let Stmt::Expr(stmt) = node else {
+      return true;
+    };
+    let Expr::Call(call) = &mut *stmt.expr else {
+      return true;
+    };
+    let Callee::Expr(callee) = &call.callee else {
+      return true;
+    };
+    if !matches!(&**callee, Expr::Ident(id)
+      if id.sym == EsmHelpers::EXPORT.function() && is_unresolved(id, self.unresolved_mark))
+    {
+      return true;
+    }
+
+    match call.args.get_mut(1).map(|arg| &mut *arg.expr) {
+      Some(Expr::Object(object)) => {
+        object.props.retain(|prop| {
+          let PropOrSpread::Prop(prop) = prop else {
+            return true;
+          };
+          match &**prop {
+            Prop::KeyValue(KeyValueProp {
+              key: PropName::Ident(name),
+              ..
+            }) => self.used_symbols.contains(&name.sym),
+            Prop::KeyValue(KeyValueProp {
+              key: PropName::Str(name),
+              ..
+            }) => self.used_symbols.contains(&name.value),
+            _ => true,
+          }
+        });
+        !object.props.is_empty()
+      }
+      Some(Expr::Lit(Lit::Str(name))) => self.used_symbols.contains(&name.value),
+      _ => true,
+    }
+  }
 }
 
 impl<'a> VisitMut for TreeShake<'a> {
   fn visit_mut_stmt(&mut self, node: &mut Stmt) {
+    // Before visiting the call, which renames the helper it calls (see `visit_mut_ident`).
+    if self.is_unread_interop_flag(node)
+      || (!self.used_symbols.is_empty() && !self.retain_used_exports(node))
+    {
+      *node = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
+      self.mutated = true;
+      return;
+    }
+
     node.visit_mut_children_with(self);
     if self.used_symbols.is_empty() {
       return;
@@ -368,35 +641,14 @@ impl<'a> VisitMut for TreeShake<'a> {
           }
         }
       }
-      Expr::Call(call) => {
-        let Callee::Expr(expr) = &call.callee else {
-          return;
-        };
-        let Expr::Member(member) = &**expr else {
-          return;
-        };
-
-        if !(matches!(&*member.obj, Expr::Ident(id) if id.sym == "parcelHelpers")
-          && matches!(match_property_name(&member), Some((name, _)) if name == "export"))
-        {
-          return;
-        }
-
-        let Some(ExprOrSpread { expr, .. }) = call.args.get(1) else {
-          return;
-        };
-
-        let Expr::Lit(Lit::Str(name)) = &**expr else {
-          return;
-        };
-
-        if !self.used_symbols.contains(&name.value) {
-          *node = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
-          self.mutated = true;
-        }
-      }
       _ => {}
     }
+  }
+
+  fn visit_mut_var_declarator(&mut self, node: &mut VarDeclarator) {
+    // Before visiting the call, which rewrites what it requires.
+    self.record_required(node);
+    node.visit_mut_children_with(self);
   }
 
   fn visit_mut_function(&mut self, node: &mut Function) {
@@ -424,6 +676,12 @@ impl<'a> VisitMut for TreeShake<'a> {
   }
 
   fn visit_mut_expr(&mut self, node: &mut Expr) {
+    // Before visiting the call, which renames the helper it calls (see `visit_mut_ident`).
+    if let Some(value) = self.static_interop(node) {
+      *node = value;
+      return;
+    }
+
     node.visit_mut_children_with(self);
     match node {
       Expr::Call(call) => {
@@ -450,14 +708,14 @@ impl<'a> VisitMut for TreeShake<'a> {
             Resolution::Excluded => {
               *node = Expr::Object(Default::default());
             }
-            Resolution::Asset(resolution) => {
-              **expr = resolution.clone().into();
+            Resolution::Asset(resolution) | Resolution::EsmAsset(resolution) => {
+              self.set_required(&mut call.callee, expr, resolution);
             }
             Resolution::External(specifier) => {
               **expr = specifier.as_ref().into();
             }
             Resolution::Internalized(id) => {
-              *node = quote!("Promise.resolve().then(()=>$require($id))" as Expr, require: Ident = self.require_ident(), id: Expr = id.clone().into());
+              *node = quote!("Promise.resolve().then(()=>$require($id))" as Expr, require: Ident = self.require_ident(), id: Expr = (*id).into());
             }
             Resolution::String(string) => {
               *node = string.clone().into_owned().into();
@@ -473,7 +731,7 @@ impl<'a> VisitMut for TreeShake<'a> {
               // including symbols that were resolved to a more specific asset. Keep the
               // namespace object intact so its property getters preserve live bindings.
               if let Some((_, id, _)) = symbols.iter().find(|(key, _, _)| *key == "*") {
-                **expr = id.clone().into();
+                self.set_required(&mut call.callee, expr, id);
                 return;
               }
 
@@ -482,14 +740,10 @@ impl<'a> VisitMut for TreeShake<'a> {
                 props: symbols
                   .iter()
                   .map(|(key, id, exp)| {
-                    let prop = if *exp == "*" {
+                    let prop = if matches!(exp, ResolvedSymbol::Symbol(exp) if *exp == "*") {
                       Prop::KeyValue(KeyValueProp {
                         key: PropName::Str((*key).into()),
-                        value: Box::new(quote!(
-                          "$require($id)" as Expr,
-                          require: Ident = self.require_ident(),
-                          id: Expr = id.clone().into()
-                        )),
+                        value: Box::new(self.require_call(id)),
                       })
                     } else {
                       Prop::Getter(GetterProp {
@@ -497,22 +751,29 @@ impl<'a> VisitMut for TreeShake<'a> {
                         key: PropName::Str((*key).into()),
                         function: Box::new(Function {
                           body: Some(FunctionBody {
-                            stmts: if *exp == "default" {
-                              vec![
-                                quote!(
-                                  "var m = $require($id);" as Stmt,
-                                  require: Ident = self.require_ident(),
-                                  id: Expr = id.clone().into(),
-                                ),
-                                quote!("return m.__esModule ? m.default : m;" as Stmt),
-                              ]
-                            } else {
-                              vec![quote!(
-                                "return $require($id)[$exp];" as Stmt,
-                                require: Ident = self.require_ident(),
-                                id: Expr = id.clone().into(),
-                                exp: Expr = (*exp).into()
-                              )]
+                            stmts: match exp {
+                              ResolvedSymbol::EsmDefault => {
+                                vec![quote!(
+                                  "return $required.default;" as Stmt,
+                                  required: Expr = self.require_call(id),
+                                )]
+                              }
+                              ResolvedSymbol::Symbol(exp) if *exp == "default" => {
+                                vec![
+                                  quote!(
+                                    "var m = $required;" as Stmt,
+                                    required: Expr = self.require_call(id),
+                                  ),
+                                  quote!("return m.__esModule ? m.default : m;" as Stmt),
+                                ]
+                              }
+                              ResolvedSymbol::Symbol(exp) => {
+                                vec![quote!(
+                                  "return $required[$exp];" as Stmt,
+                                  required: Expr = self.require_call(id),
+                                  exp: Expr = (*exp).into()
+                                )]
+                              }
                             },
                             ..Default::default()
                           }),
@@ -683,8 +944,15 @@ impl<'a> VisitMut for TreeShake<'a> {
       node.ctxt = self.wrapper_ctxt;
     }
 
-    if node.sym == "require" && is_unresolved(node, self.unresolved_mark) {
-      node.sym = self.require_name.clone();
+    if is_unresolved(node, self.unresolved_mark) {
+      if node.sym == "require" {
+        node.sym = self.require_name.clone();
+      } else if let Some((helper, name)) = EsmHelpers::from_function(&node.sym) {
+        self.helpers |= helper;
+        if !self.is_library {
+          node.sym = name.into();
+        }
+      }
     }
   }
 }

@@ -4,7 +4,7 @@
     "input": "src/index.js",
     "bundles": [
       {
-        "assets": ["dep.js", "esmodule-helpers.js", "index.js"],
+        "assets": ["dep.js", "index.js"],
         "contains": [
           "legal banner",
           "a regular line comment",
@@ -27,7 +27,7 @@
     "options": {"mode": "production"},
     "bundles": [
       {
-        "assets": ["dep.js", "esmodule-helpers.js", "index.js"],
+        "assets": ["dep.js", "index.js"],
         "notContains": [
           "legal banner",
           "a regular line comment",

@@ -8,7 +8,7 @@
     },
     {
       "type": "js",
-      "assets": ["component-1.js", "esmodule-helpers.js", "obj.js"]
+      "assets": ["component-1.js", "obj.js"]
     },
     {
       "type": "js",

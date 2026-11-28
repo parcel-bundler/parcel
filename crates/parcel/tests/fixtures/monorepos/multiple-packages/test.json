@@ -8,9 +8,7 @@
       {"name": "pkg-a.module.js", "assets": ["index.js"]},
       {"name": "pkg-b.cjs.js", "assets": ["index.js"]},
       {"name": "pkg-b.module.js", "assets": ["index.js"]},
-      {"type": "css", "assets": ["index.module.css"]},
-      {"assets": ["esmodule-helpers.js"]},
-      {"assets": ["esmodule-helpers.js"]}
+      {"type": "css", "assets": ["index.module.css"]}
     ]
   },
   {
@@ -22,9 +20,7 @@
       {"name": "pkg-a.module.js", "assets": ["index.js"]},
       {"name": "pkg-b.cjs.js", "assets": ["index.js"]},
       {"name": "pkg-b.module.js", "assets": ["index.js"]},
-      {"type": "css", "assets": ["index.module.css"]},
-      {"assets": ["esmodule-helpers.js"]},
-      {"assets": ["esmodule-helpers.js"]}
+      {"type": "css", "assets": ["index.module.css"]}
     ]
   },
   {
@@ -32,7 +28,7 @@
     "input": "src/index.js",
     "options": { "mode": "production", "cwd": "packages/pkg-a" },
     "bundles": [
-      {"assets": ["index.js", "esmodule-helpers.js"]}
+      {"assets": ["index.js"]}
     ]
   },
   {
@@ -40,7 +36,7 @@
     "input": "index.js",
     "options": { "mode": "production", "cwd": "packages/pkg-a/src" },
     "bundles": [
-      {"assets": ["index.js", "esmodule-helpers.js"]}
+      {"assets": ["index.js"]}
     ]
   }
 ]

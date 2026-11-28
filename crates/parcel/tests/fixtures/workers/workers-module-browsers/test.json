@@ -21,7 +21,7 @@
         "notContains": ["import \""]
       },
       {
-        "assets": ["esmodule-helpers.js", "index.js"]
+        "assets": ["index.js"]
       }
     ]
   },
@@ -45,7 +45,7 @@
         "notContains": ["import \""]
       },
       {
-        "assets": ["esmodule-helpers.js", "index.js"]
+        "assets": ["index.js"]
       }
     ]
   }

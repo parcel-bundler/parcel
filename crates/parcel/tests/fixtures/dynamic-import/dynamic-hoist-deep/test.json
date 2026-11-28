@@ -2,7 +2,7 @@
   "description": "should support shared modules with async imports",
   "input": "index.js",
   "TODO:bundles": [
-    {"assets": ["index.js", "esmodule-helpers.js"]},
+    {"assets": ["index.js"]},
     {"assets": ["a.js", "c.js"]},
     {"assets": ["1.js"]},
     {"assets": ["b.js", "c.js"]}

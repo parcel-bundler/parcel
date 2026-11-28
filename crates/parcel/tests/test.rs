@@ -360,9 +360,8 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
               Environment::Node,
               Some(
                 bundle_graph
-                  .asset_graph
-                  .asset(bundle.main_entry_asset.unwrap())
-                  .id(&bundle_graph.project_root),
+                  .asset_id(bundle.main_entry_asset.unwrap())
+                  .into(),
               ),
               true,
             );
@@ -373,12 +372,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
           } else {
             if scripts.is_empty() {
               if let Some(m) = bundle.main_entry_asset {
-                main = Some(
-                  bundle_graph
-                    .asset_graph
-                    .asset(m)
-                    .id(&bundle_graph.project_root),
-                );
+                main = Some(bundle_graph.asset_id(m).into());
               }
             }
             scripts.push((path.to_path_buf(), script_kind(bundle)));
@@ -435,12 +429,7 @@ fn run_test_with_options(fixture_dir: &Path, entries: Vec<String>, test: TestJso
                 if let Some(m) = b.main_entry_asset
                   && kind != ScriptKind::Classic
                 {
-                  main = Some(
-                    bundle_graph
-                      .asset_graph
-                      .asset(m)
-                      .id(&bundle_graph.project_root),
-                  );
+                  main = Some(bundle_graph.asset_id(m).into());
                 }
                 (resolved.to_path_buf(), kind)
               }
@@ -1066,12 +1055,7 @@ fn assert_entry_outputs_run_independently(
         output_fs.clone(),
         &fixture_dir,
         entry.target.environment,
-        Some(
-          graph
-            .asset_graph
-            .asset(entry.main_entry_asset.unwrap())
-            .id(&graph.project_root),
-        ),
+        Some(graph.asset_id(entry.main_entry_asset.unwrap()).into()),
         false,
       );
       assert_eq!(output, serde_json::json!(["a", "b"]));
@@ -1228,48 +1212,29 @@ fn asset_path(graph: &BundleGraph, file_name: &str) -> Option<PathBuf> {
 }
 
 #[test]
-fn parcel_runtime_modules_are_embedded() {
-  // The project does not depend on Parcel, as when it is installed globally or run through npx.
-  let input_fs = memory_fs(&[
-    ("/project/package.json", r#"{"name": "project"}"#),
-    (
-      "/project/index.js",
-      "import {a} from './a.js';\nconsole.log(a);\n",
-    ),
-    ("/project/a.js", "export const a = 1;\n"),
-  ]);
-
-  let graph = parcel::build(
-    &vec!["index.js".into()],
-    memory_build_options(input_fs, "/project"),
-  )
-  .unwrap();
-  // Located where a local install would put them, though nothing is there.
-  assert_eq!(
-    asset_path(&graph, "esmodule-helpers.js"),
-    Some(test_utils::path(
-      "/project/node_modules/@parcel/parcel3/src/esmodule-helpers.js"
-    ))
-  );
-}
-
-#[test]
 fn parcel_runtime_module_ids_do_not_depend_on_project_location() {
   let build = |root: &str| {
     let input_fs = memory_fs(&[
-      (&format!("{root}/package.json"), r#"{"name": "project"}"#),
       (
-        &format!("{root}/index.js"),
-        "import {a} from './a.js';\nconsole.log(a);\n",
+        &format!("{root}/package.json"),
+        r#"{"name": "project", "dependencies": {"react": "^19"}}"#,
       ),
-      (&format!("{root}/a.js"), "export const a = 1;\n"),
+      (&format!("{root}/index.mdx"), "```js\nlet x = 1;\n```\n"),
+      (
+        &format!("{root}/node_modules/react/package.json"),
+        r#"{"name": "react", "version": "19.0.0"}"#,
+      ),
+      (
+        &format!("{root}/node_modules/react/jsx-dev-runtime.js"),
+        "exports.jsxDEV = function () {};\nexports.Fragment = 'fragment';\n",
+      ),
     ]);
     let graph = parcel::build(
-      &vec!["index.js".into()],
+      &vec!["index.mdx".into()],
       memory_build_options(input_fs, root),
     )
     .unwrap();
-    let id = find_asset(&graph, "esmodule-helpers.js")
+    let id = find_asset(&graph, "mdx-components.jsx")
       .unwrap()
       .id(&graph.project_root);
     let names: Vec<_> = graph
@@ -1352,7 +1317,6 @@ fn libraries_bundle_parcel_runtime_modules() {
   )
   .unwrap();
   assert!(asset_path(&graph, "mdx-components.jsx").is_some());
-  assert!(asset_path(&graph, "esmodule-helpers.js").is_some());
   for bundle in &graph.bundles {
     let code = output_fs.read_to_string(bundle.dist_path()).unwrap();
     assert!(

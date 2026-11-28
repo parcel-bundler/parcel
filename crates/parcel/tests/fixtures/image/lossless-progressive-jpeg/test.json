@@ -3,7 +3,7 @@
   "input": "index.js",
   "options": {"mode": "production"},
   "bundles": [
-    {"type": "js", "assets": ["esmodule-helpers.js", "index.js"]},
+    {"type": "js", "assets": ["index.js"]},
     {"type": "jpg", "assets": ["banana.jpg"]}
   ]
 }

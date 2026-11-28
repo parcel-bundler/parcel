@@ -3,10 +3,10 @@
   "input": ["a/index.html", "b/c/index.html"],
   "options": {"mode": "production", "contentHash": false},
   "bundles": [
-    {"name": "a/index.html", "type": "html", "assets": ["index.html"], "contains": ["<p>A</p>", "src=/100x100", "let a=\"hi\"", "var d=\"../\";"]},
-    {"name": "b/c/index.html", "type": "html", "assets": ["index.html"], "contains": ["<p>C</p>", "src=/100x100", "let a=\"hi\"", "var d=\"../../\";"]},
+    {"name": "a/index.html", "type": "html", "assets": ["index.html"], "contains": ["<p>A</p>", "src=/100x100", "let c=\"hi\"", "var d=\"../\";"]},
+    {"name": "b/c/index.html", "type": "html", "assets": ["index.html"], "contains": ["<p>C</p>", "src=/100x100", "let c=\"hi\"", "var d=\"../../\";"]},
     {"type": "html", "assets": ["layout.html"]},
-    {"type": "js", "assets": ["esmodule-helpers.js", "layout.html", "message.js"]},
+    {"type": "js", "assets": ["layout.html", "message.js"]},
     {"type": "png", "assets": ["100x100.png"]}
   ]
 }

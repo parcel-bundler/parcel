@@ -274,6 +274,7 @@ mod tests {
         asset_nodes: Cow::Owned(Vec::new()),
         assets: Cow::Owned(Vec::new()),
         entries: Cow::Owned(Vec::new()),
+        asset_ids: Default::default(),
       },
       Vec::new(),
       HashMap::new(),

@@ -13,13 +13,12 @@
     {
       "assets": [
         "barrel.js",
-        "esmodule-helpers.js",
         "preview.js",
         "renderer.js"
       ],
       "references": [],
       "type": "js",
-      "contains": ["\"renderToCanvas\",()=>"],
+      "contains": ["renderToCanvas:()=>"],
       "notContains": ["unused-renderer-export-sentinel"]
     }
   ]

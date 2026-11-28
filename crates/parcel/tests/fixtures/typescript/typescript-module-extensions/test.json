@@ -2,7 +2,7 @@
   "description": "should transform .cjs, .mts and .cts files",
   "input": "index.ts",
   "bundles": [
-    {"assets": ["index.ts", "a.cjs", "b.mts", "c.cts", "esmodule-helpers.js"]}
+    {"assets": ["index.ts", "a.cjs", "b.mts", "c.cts"]}
   ],
   "output": 6
 }

@@ -963,6 +963,7 @@ fn bundle_graph_accessors_cover_every_dependency_resolution() {
       ),
       assets: Cow::Owned(assets),
       entries: Cow::Owned(Vec::new()),
+      asset_ids: Default::default(),
     },
     vec![bundle],
     bundle_resolutions,
@@ -1091,6 +1092,7 @@ fn bundle_graph_iterates_resolved_dependencies_with_a_cursor() {
       resolved: parcel_core::SymbolResolution::Namespace {
         asset_index: CoreAssetIndex(asset),
       },
+      owners: Vec::new(),
     })
     .collect();
   let mut assets = vec![source];
@@ -1107,6 +1109,7 @@ fn bundle_graph_iterates_resolved_dependencies_with_a_cursor() {
       ),
       assets: Cow::Owned(assets),
       entries: Cow::Owned(Vec::new()),
+      asset_ids: Default::default(),
     },
     Vec::new(),
     HashMap::new(),

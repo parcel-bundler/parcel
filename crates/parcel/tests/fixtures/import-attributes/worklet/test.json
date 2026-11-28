@@ -6,14 +6,12 @@
       {
         "name": "index.js",
         "assets": [
-          "esmodule-helpers.js",
           "gain.js",
           "index.js"
         ]
       },
       {
         "assets": [
-          "esmodule-helpers.js",
           "gain.js",
           "worklet.js",
           "worklet.js"

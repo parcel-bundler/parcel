@@ -132,8 +132,9 @@ impl DependencyKind {
   fn conditions(&self) -> ExportsCondition {
     use DependencyKind::*;
     match self {
-      Import | Export | DynamicImport => ExportsCondition::IMPORT,
-      Require => ExportsCondition::REQUIRE,
+      // "module" applies to both import and require (it marks ESM that bundlers can use either way).
+      Import | Export | DynamicImport => ExportsCondition::IMPORT | ExportsCondition::MODULE,
+      Require => ExportsCondition::REQUIRE | ExportsCondition::MODULE,
       WebWorker | ServiceWorker => ExportsCondition::WORKER,
       Worklet => ExportsCondition::WORKLET,
       Url | Id => ExportsCondition::empty(),

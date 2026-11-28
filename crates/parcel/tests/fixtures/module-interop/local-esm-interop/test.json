@@ -1,0 +1,32 @@
+{
+  "description": "numbered ESM modules skip the default interop helper, and only define the __esModule flag for what may read it",
+  "input": "index.js",
+  "options": {
+    "mode": "production"
+  },
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": [
+        "index.js",
+        "only-esm.js",
+        "shared.js",
+        "namespace.js",
+        "escaped.js",
+        "barrel.js",
+        "reexported.js",
+        "cjs.js"
+      ],
+      "contains": [
+        "(a,b)=>{b.default=\"only\"}",
+        "f(b),b.default=\"shared\"",
+        "f(b),b.default=\"namespace\"",
+        "f(b),b.default=\"escaped\"",
+        "r(5).default"
+      ]
+    }
+  ],
+  "sideEffects": [
+    "only:shared:flag:true:namespace:true:reexported"
+  ]
+}

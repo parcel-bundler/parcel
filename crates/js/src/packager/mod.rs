@@ -18,6 +18,7 @@ use swc_core::{
 };
 
 mod dependencies;
+mod local_modules;
 mod printer;
 mod rsc;
 mod script;
@@ -27,12 +28,16 @@ pub mod tree_shake;
 pub use dependencies::asset_dependencies;
 use dependencies::{awaited_bundles, manifest_entries, static_import_ids, static_imports};
 pub(crate) use dependencies::{bundle_dependencies, embedded_assets, embedded_css_modules};
+pub use local_modules::LocalModules;
 pub use rsc::RscModule;
 use synthetic::AsyncRegistration;
 pub use synthetic::{BundleShim, SyntheticAsset};
-pub use tree_shake::{Resolution, tree_shake};
+pub use tree_shake::{ModuleId, Resolution, tree_shake};
 
-use crate::{GeneratedCode, JsContent};
+use crate::{
+  GeneratedCode, JsContent,
+  runtime_modules::{APP_ESM_HELPERS, EsmHelpers},
+};
 use printer::Printer;
 pub(crate) use printer::{MapJson, SectionMap, SourceMapSection, source_map_index};
 use script::{link_script, minify_script};
@@ -48,6 +53,8 @@ const RUNTIME_REQUIRE: &str = "r";
 const RUNTIME_DIST_DIR: &str = "d";
 const RUNTIME_PUBLIC_URL: &str = "u";
 const RUNTIME_BUNDLE_URL: &str = "l";
+/// The table of a bundle's modules numbered within it (see `LocalModules`).
+const RUNTIME_LOCAL_MODULES: &str = "h";
 const NODE_PATH: &str = "$parcel$path";
 const BUNDLE_DIR: &str = "$parcel$bundleDir";
 const IMPORT_META: &str = "$parcel$importMeta";
@@ -76,6 +83,14 @@ impl JsContent {
   ) -> Result<Arc<dyn Content>, DiagnosticList> {
     const RUNTIME: &str = include_str!(concat!(env!("OUT_DIR"), "/runtime.min.js"));
     const DEV_RUNTIME: &str = include_str!("../dev-runtime.js");
+    // The functions modules converted from ESM call (see `EsmHelpers`). Optimized bundles define
+    // those their modules call, by their minified names (see `APP_ESM_HELPERS`). The dev runtime
+    // passes them to every module, including hot updates of modules that didn't call them before,
+    // so development bundles always define them all.
+    const DEV_ESM_HELPER_FUNCTIONS: &str = concat!(
+      include_str!("../esm-helpers.js"),
+      include_str!("../esm-export-all.js")
+    );
 
     let should_build_source_map = bundle.target.source_map.is_some();
     let should_optimize = bundle
@@ -96,6 +111,22 @@ impl JsContent {
     // resolutions, such as synchronous bundles in ESM output, must be emitted
     // as top-level imports before the module table.
     let mut synthetic_assets = IndexSet::new();
+    let local_modules = LocalModules::new(
+      bundle_graph,
+      bundle,
+      script.is_some(),
+      should_optimize,
+      options,
+    );
+    // Optimized modules skip interop for modules with the `__esModule` flag, and drop the flags
+    // nothing else reads (see `Interop`). Hot updates may replace a module with one without it,
+    // and React looks up client and server references itself.
+    let skips_interop = should_optimize
+      && options.hmr.is_none()
+      && !matches!(
+        bundle.target.environment,
+        Environment::ReactServer | Environment::ReactClient
+      );
     let script_dependencies = match script {
       Some(asset_index) => asset_dependencies(
         asset_index,
@@ -104,6 +135,8 @@ impl JsContent {
         Some(bundle),
         &mut synthetic_assets,
         None,
+        &local_modules,
+        skips_interop,
         &options.project_root,
       )?,
       None => IndexMap::new(),
@@ -128,14 +161,17 @@ impl JsContent {
           Some(bundle),
           &mut synthetic,
           None,
+          &local_modules,
+          skips_interop,
           &options.project_root,
         )?;
         let module = render_asset_module(
           asset,
-          bundle_graph.asset_id(asset_index),
+          local_modules.id(bundle_graph, asset_index),
           bundle,
           bundle_graph.is_async_asset(asset_index),
           dependencies,
+          skips_interop && !asset.symbols.exports_object_used,
           source_root.as_ref(),
           should_build_source_map,
           should_optimize,
@@ -148,6 +184,20 @@ impl JsContent {
       let (synthetic, module) = result?;
       synthetic_assets.extend(synthetic);
       modules.push(module);
+    }
+    // The helpers the bundle defines: those its modules still call after packaging removed some
+    // calls, e.g. of unused exports or interop, and those a classic script called when transformed.
+    let mut used_helpers = modules
+      .iter()
+      .fold(EsmHelpers::empty(), |used, module| used | module.helpers);
+    if let Some(asset_index) = script
+      && let Some(content) = bundle_graph
+        .asset_graph
+        .asset(asset_index)
+        .content
+        .downcast_ref::<JsContent>()
+    {
+      used_helpers |= content.used_esm_helpers;
     }
 
     let script = match script {
@@ -184,14 +234,13 @@ impl JsContent {
       }
     }
 
-    let rsc_server_entry =
-      if let Some(module) = rsc::server_entry(bundle, bundle_graph, &options.project_root)? {
-        let id = module.id(bundle_graph);
-        synthetic_assets.insert(SyntheticAsset::Rsc(module));
-        Some(id)
-      } else {
-        None
-      };
+    let rsc_server_entry = if let Some(module) = rsc::server_entry(bundle, bundle_graph)? {
+      let id = module.id(bundle_graph);
+      synthetic_assets.insert(SyntheticAsset::Rsc(module));
+      Some(id)
+    } else {
+      None
+    };
 
     let mut printer = Printer::new(should_build_source_map, should_optimize);
     if let Some(main) = bundle.main_entry_asset {
@@ -215,6 +264,10 @@ impl JsContent {
     // Classic scripts share one global scope (a page's, or a worker's with its `importScripts`), so
     // each keeps its module table and runtime to itself. Bundles link through `globalThis`.
     let is_global = bundle.target.output_format == OutputFormat::Global;
+    // Modules numbered within the bundle go in an array of their own, in order (see `LocalModules`).
+    let (local_modules, modules): (Vec<_>, Vec<_>) = modules
+      .into_iter()
+      .partition(|module| matches!(module.id, ModuleId::Local(_)));
     if is_global {
       printer.write_str("(function(){")?;
     }
@@ -225,14 +278,7 @@ impl JsContent {
       false,
     )?;
 
-    let mut first: bool = true;
-    for module in modules {
-      if !first {
-        printer.write_char(',')?;
-      }
-      first = false;
-      module.write(&mut printer)?;
-    }
+    let mut first = !write_modules(&mut printer, modules)?;
 
     let has_url_references = synthetic_assets.iter().any(|synthetic_asset| {
       matches!(
@@ -274,7 +320,25 @@ impl JsContent {
 
     printer.write_str("};")?;
     printer.newline()?;
+    if should_optimize {
+      printer.write_var(RUNTIME_LOCAL_MODULES, "[", false)?;
+      write_modules(&mut printer, local_modules)?;
+      printer.write_str("];")?;
+      printer.newline()?;
+    }
     printer.newline()?;
+
+    if should_optimize {
+      for (function, code) in APP_ESM_HELPERS {
+        if EsmHelpers::from_function(function)
+          .is_some_and(|(helper, _)| used_helpers.contains(helper))
+        {
+          printer.write_str(code)?;
+        }
+      }
+    } else {
+      printer.write_str(DEV_ESM_HELPER_FUNCTIONS)?;
+    }
 
     write_runtime_globals(
       &mut printer,
@@ -289,11 +353,16 @@ impl JsContent {
       options,
     )?;
 
-    printer.write_str(if should_optimize {
-      RUNTIME
+    if !should_optimize {
+      printer.write_str(DEV_RUNTIME)?;
+    } else if bundle.is_context_root() {
+      printer.write_str(RUNTIME)?;
     } else {
-      DEV_RUNTIME
-    })?;
+      write!(
+        printer,
+        "var {RUNTIME_REQUIRE};(globalThis[{RUNTIME_PARCEL_REQUIRE_NAME}]=globalThis[{RUNTIME_PARCEL_REQUIRE_NAME}]||[]).push(g=>{{{RUNTIME_REQUIRE}=g({RUNTIME_MODULES},{RUNTIME_LOCAL_MODULES},{RUNTIME_EXTERNALS},{RUNTIME_MANIFEST},{RUNTIME_DIST_DIR},{RUNTIME_PUBLIC_URL},{RUNTIME_BUNDLE_URL})}})"
+      )?;
+    }
     if is_global {
       printer.write_str("\n})();")?;
     }
@@ -455,8 +524,8 @@ fn write_bundle_references(
 }
 
 /// A module of the bundle's module table, generated independently of the others.
-struct RenderedModule {
-  id: String,
+struct RenderedModule<'a> {
+  id: ModuleId<'a>,
   /// Code written before the module's own, outside of its source map.
   prefix: String,
   code: ModuleCode,
@@ -466,6 +535,8 @@ struct RenderedModule {
   /// The serialized dependencies written after an unoptimized module, or `None` for an optimized
   /// JS module, which is written as an expression.
   trailer: Option<String>,
+  /// The ESM helpers an optimized module calls, which its bundle defines.
+  helpers: EsmHelpers,
 }
 
 enum ModuleCode {
@@ -478,8 +549,8 @@ enum ModuleCode {
   },
 }
 
-impl RenderedModule {
-  fn new(id: String, code: Vec<u8>, map: Option<String>, trailer: Option<String>) -> Self {
+impl<'a> RenderedModule<'a> {
+  fn new(id: ModuleId<'a>, code: Vec<u8>, map: Option<String>, trailer: Option<String>) -> Self {
     RenderedModule {
       id,
       prefix: String::new(),
@@ -487,11 +558,12 @@ impl RenderedModule {
       suffix: String::new(),
       map: map.map(SectionMap::new),
       trailer,
+      helpers: EsmHelpers::empty(),
     }
   }
 
   fn write(self, printer: &mut Printer) -> Result<(), DiagnosticList> {
-    printer.write_module_header(self.id)?;
+    printer.write_module_header(&self.id)?;
     printer.write_str(&self.prefix)?;
     printer.add_source_map(self.map);
     match (self.trailer, self.code) {
@@ -525,14 +597,15 @@ impl RenderedModule {
 
 fn render_asset_module<'a>(
   asset: &Asset,
-  id: String,
+  id: ModuleId<'a>,
   bundle: &Bundle,
   is_async: bool,
   dependencies: IndexMap<String, Resolution<'a>>,
+  unused_interop_flag: bool,
   source_root: Option<&Arc<str>>,
   should_build_source_map: bool,
   should_optimize: bool,
-) -> Result<RenderedModule, DiagnosticList> {
+) -> Result<RenderedModule<'a>, DiagnosticList> {
   let Some(content) = asset.content.downcast_ref::<JsContent>() else {
     return Ok(RenderedModule::new(
       id,
@@ -586,13 +659,22 @@ fn render_asset_module<'a>(
         .map(|e| e.exported.as_str().into()),
     )
     .collect();
-  tree_shake(
+  let helpers = tree_shake(
     &mut ast,
     used_symbols,
     dependencies,
     true,
     false,
     RUNTIME_REQUIRE.into(),
+    match id {
+      ModuleId::Local(index) => Some(index),
+      ModuleId::Global(_) => None,
+    },
+    unused_interop_flag,
+    bundle
+      .target
+      .engines
+      .supports(EnvironmentFeature::ArrowFunctions),
   );
   ast.finalize();
   let (code, map) = content.to_code(
@@ -602,7 +684,10 @@ fn render_asset_module<'a>(
     true,
   )?;
   // Optimized modules are written as expressions, without their dependencies.
-  Ok(RenderedModule::new(id, code, map, None))
+  Ok(RenderedModule {
+    helpers,
+    ..RenderedModule::new(id, code, map, None)
+  })
 }
 
 /// Renders a module from the code generated when it was transformed, applying what packaging adds
@@ -611,13 +696,13 @@ fn render_generated_module<'a>(
   asset: &Asset,
   content: &JsContent,
   generated: &GeneratedCode,
-  id: String,
+  id: ModuleId<'a>,
   bundle: &Bundle,
   is_async: bool,
   dependencies: IndexMap<String, Resolution<'a>>,
   source_root: Option<&Arc<str>>,
   should_build_source_map: bool,
-) -> Result<RenderedModule, DiagnosticList> {
+) -> Result<RenderedModule<'a>, DiagnosticList> {
   let bundle_dir = bundle
     .dist_path()
     .parent()
@@ -650,6 +735,7 @@ fn render_generated_module<'a>(
     suffix: wrapper.suffix,
     map: generated_section_map(generated, should_build_source_map, source_root.cloned()),
     trailer: Some(serde_json::to_string(&dependencies)?),
+    helpers: content.used_esm_helpers,
   })
 }
 
@@ -988,8 +1074,8 @@ fn write_synthetic_module(
   should_optimize: bool,
 ) -> Result<(), DiagnosticList> {
   let id = synthetic_asset.id(bundle_graph, project_root);
-  let registration = synthetic_asset.async_registration(bundle_graph, bundle, project_root);
-  printer.write_module_header(id)?;
+  let registration = synthetic_asset.async_registration(bundle_graph, bundle);
+  printer.write_module_header(&id.into())?;
   if should_optimize {
     printer.write_str("function(module,exports){")?;
   }
@@ -1007,7 +1093,7 @@ fn write_synthetic_module(
     get_inline_bundle_content,
     project_root,
   )?;
-  let deps = serde_json::to_string(&synthetic_asset.dependencies(bundle_graph, project_root))?;
+  let deps = serde_json::to_string(&synthetic_asset.dependencies(bundle_graph))?;
   if registration.is_some() {
     printer.write_str(ASYNC_MODULE_FOOTER)?;
   }
@@ -1018,6 +1104,22 @@ fn write_synthetic_module(
   }
 
   Ok(())
+}
+
+/// Writes modules of a module table, separated by commas, returning whether it wrote any.
+fn write_modules(
+  printer: &mut Printer,
+  modules: Vec<RenderedModule>,
+) -> Result<bool, DiagnosticList> {
+  let mut first = true;
+  for module in modules {
+    if !first {
+      printer.write_char(',')?;
+    }
+    first = false;
+    module.write(printer)?;
+  }
+  Ok(!first)
 }
 
 fn write_runtime_globals(
@@ -1123,55 +1225,57 @@ fn write_runtime_globals(
     true,
   )?;
 
-  printer.write_var(
-    runtime_name(should_optimize, "entries", RUNTIME_ENTRIES),
-    "[",
-    false,
-  )?;
-  if let Some(entry) = rsc_server_entry {
-    write!(printer, "'{}',", entry)?;
-  }
-  // A classic script's entry runs after the module table rather than from it.
-  let is_script = bundle.target.source_type == SourceType::Script;
-  for entry in bundle.entry_assets.iter().filter(|_| !is_script) {
-    write!(
-      printer,
-      "'{}',",
-      entry_id(bundle_graph, *entry, project_root)
-    )?;
-  }
-
-  printer.write_str("];")?;
-  printer.newline()?;
-
-  printer.write_var(
-    runtime_name(should_optimize, "awaitedBundles", RUNTIME_AWAITED_BUNDLES),
-    "[",
-    false,
-  )?;
-  for index in awaited_bundles(bundle_graph, bundle) {
-    let stable_key = bundle_graph.bundles[index].stable_key();
-    write!(printer, "{},", serde_json::to_string(&stable_key)?)?;
-  }
-  printer.write_str("];")?;
-  printer.newline()?;
-
-  // The runtime runs its main entry on load, to expose its exports. Only bundles that execute on
-  // load may do that: a bundle loaded by Parcel's loader runs once every bundle it depends on has
-  // loaded, which the loader waits for, and it doesn't import them itself.
-  let runtime_main_entry = runtime_name(should_optimize, "mainEntry", RUNTIME_MAIN_ENTRY);
-  if let Some(main) = bundle
-    .main_entry_asset
-    .as_ref()
-    .filter(|_| !bundle.entry_assets.is_empty() && !is_script)
-  {
+  if !should_optimize || bundle.is_context_root() {
     printer.write_var(
-      runtime_main_entry,
-      &format!("'{}'", entry_id(bundle_graph, *main, project_root)),
-      true,
+      runtime_name(should_optimize, "entries", RUNTIME_ENTRIES),
+      "[",
+      false,
     )?;
-  } else {
-    printer.write_var(runtime_main_entry, "null", true)?;
+    if let Some(entry) = rsc_server_entry {
+      write!(printer, "'{}',", entry)?;
+    }
+    // A classic script's entry runs after the module table rather than from it.
+    let is_script = bundle.target.source_type == SourceType::Script;
+    for entry in bundle.entry_assets.iter().filter(|_| !is_script) {
+      write!(
+        printer,
+        "'{}',",
+        entry_id(bundle_graph, *entry, project_root)
+      )?;
+    }
+
+    printer.write_str("];")?;
+    printer.newline()?;
+
+    printer.write_var(
+      runtime_name(should_optimize, "awaitedBundles", RUNTIME_AWAITED_BUNDLES),
+      "[",
+      false,
+    )?;
+    for index in awaited_bundles(bundle_graph, bundle) {
+      let stable_key = bundle_graph.bundles[index].stable_key();
+      write!(printer, "{},", serde_json::to_string(&stable_key)?)?;
+    }
+    printer.write_str("];")?;
+    printer.newline()?;
+
+    // The runtime runs its main entry on load, to expose its exports. Only bundles that execute on
+    // load may do that: a bundle loaded by Parcel's loader runs once every bundle it depends on has
+    // loaded, which the loader waits for, and it doesn't import them itself.
+    let runtime_main_entry = runtime_name(should_optimize, "mainEntry", RUNTIME_MAIN_ENTRY);
+    if let Some(main) = bundle
+      .main_entry_asset
+      .as_ref()
+      .filter(|_| !bundle.entry_assets.is_empty() && !is_script)
+    {
+      printer.write_var(
+        runtime_main_entry,
+        &format!("'{}'", entry_id(bundle_graph, *main, project_root)),
+        true,
+      )?;
+    } else {
+      printer.write_var(runtime_main_entry, "null", true)?;
+    }
   }
 
   if !should_optimize {
@@ -1234,7 +1338,7 @@ fn entry_id(bundle_graph: &BundleGraph, entry: AssetIndex, project_root: &PathId
   if bundle_graph.is_async_asset(entry) {
     SyntheticAsset::AsyncEntry(entry).id(bundle_graph, project_root)
   } else {
-    bundle_graph.asset_graph.asset(entry).id(project_root)
+    bundle_graph.asset_id(entry).into()
   }
 }
 

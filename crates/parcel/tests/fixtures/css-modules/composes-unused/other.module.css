@@ -1,0 +1,7 @@
+.x {
+  content: 'composed-sentinel';
+}
+
+body {
+  content: 'global-sentinel';
+}

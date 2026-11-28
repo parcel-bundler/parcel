@@ -2,6 +2,6 @@
   "description": "should support transpiling using browserlist",
   "input": "index.js",
   "bundles": [
-    {"assets": ["_class_call_check.js", "esmodule-helpers.js", "foo.js", "index.js"], "contains": ["function Foo", "function Bar"]}
+    {"assets": ["_class_call_check.js", "foo.js", "index.js"], "contains": ["function Foo", "function Bar"]}
   ]
 }

@@ -9,11 +9,11 @@
     },
     {
       "type": "js",
-      "assets": ["esmodule-helpers.js", "index.js", "index.js"]
+      "assets": ["index.js", "index.js"]
     },
     {
       "type": "js",
-      "assets": ["esmodule-helpers.js", "index.js", "worker.js"]
+      "assets": ["index.js", "worker.js"]
     }
   ]
 }

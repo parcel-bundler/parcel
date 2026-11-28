@@ -5,7 +5,7 @@
   "bundles": [
     {
       "type": "js",
-      "assets": ["dep-star.js", "esmodule-helpers.js", "reexport-star-barrel.js", "reexport-star.js"],
+      "assets": ["dep-star.js", "reexport-star-barrel.js", "reexport-star.js"],
       "contains": ["used-star"],
       "notContains": ["unused-star-sentinel"]
     }

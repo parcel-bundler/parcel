@@ -1,0 +1,8 @@
+[
+  {
+    "description": "an optimized module script runs with the bundle's ESM helper functions",
+    "input": "index.html",
+    "options": {"mode": "production"},
+    "output": ["cjs", "esm"]
+  }
+]

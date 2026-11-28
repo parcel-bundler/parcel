@@ -1,0 +1,27 @@
+[
+  {
+    "description": "tree shaking: imports only functions removed as dead code use are removed",
+    "input": "index.js",
+    "options": {"mode": "production", "env": {"NODE_ENV": "production"}},
+    "output": "light",
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["index.js", "light.js", "utils.js"],
+        "notContains": ["heavy-sentinel"]
+      }
+    ]
+  },
+  {
+    "description": "tree shaking: imports functions only development code calls use are kept when it isn't removed",
+    "input": "index.js",
+    "options": {"mode": "production"},
+    "output": "light",
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["heavy.js", "index.js", "light.js", "utils.js"]
+      }
+    ]
+  }
+]

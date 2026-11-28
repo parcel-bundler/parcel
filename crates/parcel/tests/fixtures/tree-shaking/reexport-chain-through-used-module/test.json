@@ -1,0 +1,21 @@
+[
+  {
+    "description": "tree shaking: re-exports a symbol resolves through are dropped from modules included for other exports",
+    "input": "index.js",
+    "options": {"mode": "production"},
+    "output": ["kf", "own"],
+    "bundles": [
+      {
+        "type": "js",
+        "assets": ["index.js", "keyframes.js", "styled.js"],
+        "notContains": ["chain-sentinel"]
+      }
+    ]
+  },
+  {
+    "description": "tree shaking: re-exports a dynamic import reads through the loaded module are kept",
+    "input": "dynamic.js",
+    "options": {"mode": "production"},
+    "output": ["kf", "own"]
+  }
+]

@@ -6,8 +6,7 @@
       "assets": [
         "a.js",
         "b.js",
-        "c.js",
-        "esmodule-helpers.js"
+        "c.js"
       ]
     }
   ],

@@ -5,16 +5,16 @@
     {
       "assets": ["index.mdx"],
       "contains": ["+ \"?tab=api\"", "+ \"?tab=props#section\""],
-      "references": [["esmodule-helpers.js", "index.js", "jsx-dev-runtime.js"]],
+      "references": [["index.js", "jsx-dev-runtime.js"]],
       "type": "js"
     },
     {
       "assets": ["another.mdx"],
-      "references": [["esmodule-helpers.js", "index.js", "jsx-dev-runtime.js"]],
+      "references": [["index.js", "jsx-dev-runtime.js"]],
       "type": "js"
     },
     {
-      "assets": ["esmodule-helpers.js", "index.js", "jsx-dev-runtime.js"],
+      "assets": ["index.js", "jsx-dev-runtime.js"],
       "references": [],
       "type": "js"
     }

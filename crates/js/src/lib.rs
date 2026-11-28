@@ -20,6 +20,8 @@ struct JsContent {
   rsc_runtime_dep: Option<u32>,
   needs_filename: bool,
   needs_dirname: bool,
+  /// The ESM helpers the asset calls, which the packager defines alongside it.
+  used_esm_helpers: runtime_modules::EsmHelpers,
   /// See `crate::transformer::async_module::wrap_async_module`.
   esm_prologue_len: usize,
   /// Whether the packager wraps the module for React Refresh (see `transformer::refresh`).

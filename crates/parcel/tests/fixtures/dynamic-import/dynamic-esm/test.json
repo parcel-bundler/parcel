@@ -4,7 +4,7 @@
   "bundles": [
     {
       "name": "index.js",
-      "assets": ["index.js", "esmodule-helpers.js"]
+      "assets": ["index.js"]
     },
     {
       "assets": ["local.js"]

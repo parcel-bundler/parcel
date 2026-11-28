@@ -4,11 +4,9 @@
   "bundles": [
     {"type": "js", "assets": ["index.js"]},
     {"type": "css", "assets": ["bar.module.css"]},
-    {"type": "js", "assets": ["esmodule-helpers.js"]},
     {"type": "js", "assets": ["index.js"]},
     {"type": "js", "assets": ["index.js"]},
     {"type": "css", "assets": ["bar.module.css"]},
-    {"type": "js", "assets": ["esmodule-helpers.js"]},
     {"type": "js", "assets": ["index.js"]}
   ]
 }

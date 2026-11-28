@@ -103,6 +103,10 @@ pub struct PackageJson {
   pub browser: BrowserField,
   pub alias: IndexMap<Specifier<'static>, AliasValue<'static>>,
   pub exports: ExportsField,
+  /// Whether `exports` is an object with both keys starting with "." and keys that don't, which
+  /// is invalid. Checked once when the package is read: packages can have tens of thousands of
+  /// exports, and they're resolved many times.
+  has_invalid_exports: bool,
   pub imports: IndexMap<ExportsKey<'static>, ExportsField>,
   pub side_effects: SideEffects,
   pub dependencies: IndexMap<String, String>,
@@ -320,7 +324,24 @@ impl PackageJson {
 
     parsed.exports.convert_paths(&path, &mut check_in_source);
 
+    let has_invalid_exports = match &parsed.exports {
+      ExportsField::Map(map) => {
+        let has_conditions = map.keys().any(|key| {
+          matches!(
+            key,
+            ExportsKey::Condition(..) | ExportsKey::CustomCondition(..)
+          )
+        });
+        let has_patterns = map
+          .keys()
+          .any(|key| matches!(key, ExportsKey::Pattern(..) | ExportsKey::Main));
+        has_conditions && has_patterns
+      }
+      _ => false,
+    };
+
     PackageJson {
+      has_invalid_exports,
       name: parsed.name,
       module_type: parsed.module_type,
       main: parsed.main.map(|main| path.resolve(&main)),
@@ -372,20 +393,8 @@ impl PackageJson {
     custom_conditions: &[String],
   ) -> Result<PathId, PackageJsonError> {
     // If exports is an Object with both a key starting with "." and a key not starting with ".", throw an Invalid Package Configuration error.
-    if let ExportsField::Map(map) = &self.exports {
-      let mut has_conditions = false;
-      let mut has_patterns = false;
-      for key in map.keys() {
-        has_conditions = has_conditions
-          || matches!(
-            key,
-            ExportsKey::Condition(..) | ExportsKey::CustomCondition(..)
-          );
-        has_patterns = has_patterns || matches!(key, ExportsKey::Pattern(..) | ExportsKey::Main);
-        if has_conditions && has_patterns {
-          return Err(PackageJsonError::InvalidPackageTarget);
-        }
-      }
+    if self.has_invalid_exports {
+      return Err(PackageJsonError::InvalidPackageTarget);
     }
 
     if subpath.is_empty() {

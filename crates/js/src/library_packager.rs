@@ -18,7 +18,10 @@ use swc_core::{
 
 use crate::{
   JsContent,
-  packager::{asset_dependencies, insert_node_replacement_helpers, insert_node_replacements},
+  packager::{
+    LocalModules, asset_dependencies, insert_node_replacement_helpers, insert_node_replacements,
+  },
+  runtime_modules::{EsmHelpers, LIBRARY_ESM_HELPERS},
   transformer::Ast,
 };
 
@@ -43,6 +46,8 @@ impl JsContent {
       Some(bundle),
       &mut synthetic_assets,
       Some(get_inline_bundle_content),
+      &LocalModules::default(),
+      false,
       &options.project_root,
     )?;
 
@@ -126,6 +131,9 @@ impl JsContent {
         false,
         true,
         "require".into(),
+        None,
+        Default::default(),
+        false,
       );
       let prologue = hoist_directives(&mut ast.program.body, &content.directives);
       if should_optimize {
@@ -135,12 +143,14 @@ impl JsContent {
         ast.program.body.splice(0..0, directives);
       }
       ast.finalize();
-      content.to_code(
+      let (mut code, map) = content.to_code(
         &ast,
         bundle.target.source_map.is_some(),
         bundle_source_root(bundle, &options.project_root).as_deref(),
         should_optimize,
-      )?
+      )?;
+      append_esm_helpers(&mut code, content.used_esm_helpers, should_optimize);
+      (code, map)
     } else {
       (asset.content.read()?, None)
     };
@@ -149,6 +159,22 @@ impl JsContent {
       Ok(Arc::new(ContentWithSourceMap::new(code, map.into_bytes())))
     } else {
       Ok(Arc::new(BufferContent::new(code)))
+    }
+  }
+}
+
+/// Defines the ESM helpers a library module calls, since each module is its own output file. They're
+/// function declarations, so appending them after the module's code, where they don't shift its
+/// source map, still defines them before it runs. The module calls them as globals, which the
+/// minifier doesn't rename.
+fn append_esm_helpers(code: &mut Vec<u8>, used: EsmHelpers, minify: bool) {
+  for (function, readable, minified) in LIBRARY_ESM_HELPERS {
+    if EsmHelpers::from_function(function).is_some_and(|(helper, _)| used.contains(helper)) {
+      // On its own line, which also ends a trailing line comment.
+      if !code.ends_with(b"\n") {
+        code.push(b'\n');
+      }
+      code.extend_from_slice(if minify { minified } else { readable }.as_bytes());
     }
   }
 }

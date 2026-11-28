@@ -5,7 +5,6 @@ use std::{
 };
 
 use lightningcss::{
-  css_modules::CssModuleReference,
   media_query::MediaList,
   printer::PrinterOptions,
   rules::{
@@ -441,34 +440,15 @@ fn unused_css_module_symbols(asset: &Asset, content: &CssContent) -> HashSet<Str
     return unused;
   }
 
-  // Exports requested by importers, plus those referenced within the file itself (e.g. @keyframes
-  // used by an animation). Request state is recomputed after transforming, so the latter is read
-  // from the transform result rather than the symbol.
-  let mut used: HashSet<&str> = HashSet::new();
-  let mut stack: Vec<&str> = Vec::new();
-  for export in &asset.symbols.exports {
-    let name = export.exported.as_str();
-    if export.requested || content.exports.get(name).is_some_and(|e| e.is_referenced) {
-      stack.push(name);
-    }
-  }
-
-  // Exports compose other local classes into their value, so those must be kept too.
-  while let Some(name) = stack.pop() {
-    if !used.insert(name) {
-      continue;
-    }
-    let Some(export) = content.exports.get(name) else {
-      continue;
-    };
-    for composes in &export.composes {
-      if let CssModuleReference::Local { name } = composes
-        && let Some((exported, _)) = content.exports.iter().find(|(_, e)| e.name == *name)
-      {
-        stack.push(exported.as_str());
-      }
-    }
-  }
+  // Exports requested by importers, plus those the file uses itself (e.g. @keyframes used by an
+  // animation, or classes composed by requested ones), which the asset graph requests too.
+  let used: HashSet<&str> = asset
+    .symbols
+    .exports
+    .iter()
+    .filter(|export| export.requested)
+    .map(|export| export.exported.as_str())
+    .collect();
 
   for (exported, export) in &content.exports {
     if !used.contains(exported.as_str()) {

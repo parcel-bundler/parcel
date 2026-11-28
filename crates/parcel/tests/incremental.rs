@@ -594,6 +594,82 @@ fn update_file_inlined_by_read_file_sync() {
   assert!(out.contains("data v2"), "got: {out}");
 }
 
+#[test]
+fn stop_using_an_import_of_a_side_effect_free_module() {
+  // heavy.js stays transformed from the first build, but a fresh build never transforms it, so
+  // the output, including the order of modules, must not depend on it.
+  let mut t = IncrementalTest::new_production(&[
+    ("/project/package.json", r#"{"sideEffects": false}"#),
+    (
+      "/project/index.js",
+      "import {heavy} from './heavy.js';\nimport {light} from './light.js';\noutput(light() + heavy());",
+    ),
+    (
+      "/project/heavy.js",
+      "export function heavy() { return 'heavy-sentinel'; }",
+    ),
+    (
+      "/project/light.js",
+      "export function light() { return 'light'; }",
+    ),
+  ]);
+  t.change(
+    &[(
+      "/project/index.js",
+      "import {heavy} from './heavy.js';\nimport {light} from './light.js';\noutput(light());",
+    )],
+    &[],
+  );
+}
+
+#[test]
+fn use_export_whose_function_uses_an_unneeded_import() {
+  let utils = "import {heavy} from './heavy.js';\nimport {light} from './light.js';\nexport function a() { return light(); }\nexport function b() { return heavy(); }";
+  let mut t = IncrementalTest::new_production(&[
+    ("/project/package.json", r#"{"sideEffects": false}"#),
+    (
+      "/project/index.js",
+      "import {a} from './utils.js';\noutput(a());",
+    ),
+    ("/project/utils.js", utils),
+    (
+      "/project/heavy.js",
+      "export function heavy() { return 'heavy-sentinel'; }",
+    ),
+    (
+      "/project/light.js",
+      "export function light() { return 'light'; }",
+    ),
+  ]);
+  assert!(
+    !t.output("/project/dist/index.js")
+      .contains("heavy-sentinel")
+  );
+
+  // heavy.js was never transformed, since nothing needed it.
+  t.change(
+    &[(
+      "/project/index.js",
+      "import {b} from './utils.js';\noutput(b());",
+    )],
+    &[],
+  );
+  let out = t.output("/project/dist/index.js");
+  assert!(out.contains("heavy-sentinel"), "got: {out}");
+
+  t.change(
+    &[(
+      "/project/index.js",
+      "import {a} from './utils.js';\noutput(a());",
+    )],
+    &[],
+  );
+  assert!(
+    !t.output("/project/dist/index.js")
+      .contains("heavy-sentinel")
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Adding and removing dependencies
 // ---------------------------------------------------------------------------
@@ -2719,4 +2795,40 @@ fn css_module_composes_change_repackages_js_importer() {
     )],
     &[],
   );
+}
+
+#[test]
+fn private_module_becomes_referenced_by_another_bundle() {
+  // helper.js starts out referenced only within the entry bundle, so it's numbered locally there.
+  // When the lazy bundle starts importing it, it stays in the entry bundle (an ancestor), and the
+  // entry bundle must give it back its global id even though none of its assets changed.
+  let mut t = IncrementalTest::new_production(&[
+    (
+      "/project/index.js",
+      "import {helper} from './helper.js';\noutput(helper());\nimport('./lazy.js').then(l => output(l.value));",
+    ),
+    ("/project/helper.js", "export function helper() { return 'helper'; }"),
+    ("/project/lazy.js", "export const value = 'lazy';"),
+  ]);
+
+  t.change(
+    &[(
+      "/project/lazy.js",
+      "import {helper} from './helper.js';\nexport const value = 'lazy:' + helper();",
+    )],
+    &[],
+  );
+
+  // And back.
+  t.change(&[("/project/lazy.js", "export const value = 'lazy';")], &[]);
+
+  // A side effect import requests no symbols from it.
+  t.change(
+    &[(
+      "/project/lazy.js",
+      "import './helper.js';\nexport const value = 'lazy';",
+    )],
+    &[],
+  );
+  t.change(&[("/project/lazy.js", "export const value = 'lazy';")], &[]);
 }

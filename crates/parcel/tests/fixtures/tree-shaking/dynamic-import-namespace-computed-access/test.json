@@ -11,7 +11,7 @@
     },
     {
       "type": "js",
-      "assets": ["async-dep.js", "esmodule-helpers.js"],
+      "assets": ["async-dep.js"],
       "contains": ["used-dynamic", "unused-dynamic-sentinel"]
     }
   ]

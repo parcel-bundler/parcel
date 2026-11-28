@@ -506,6 +506,21 @@ impl EnvironmentFeature {
         },
         ..Default::default()
       },
+      EnvironmentFeature::ArrowFunctions => Engines {
+        browsers: Browsers {
+          edge: Some(Version::new(NonZeroU16::new(12).unwrap(), 0)),
+          firefox: Some(Version::new(NonZeroU16::new(22).unwrap(), 0)),
+          chrome: Some(Version::new(NonZeroU16::new(45).unwrap(), 0)),
+          safari: Some(Version::new(NonZeroU16::new(10).unwrap(), 0)),
+          opera: Some(Version::new(NonZeroU16::new(32).unwrap(), 0)),
+          ios_saf: Some(Version::new(NonZeroU16::new(10).unwrap(), 0)),
+          android: Some(Version::new(NonZeroU16::new(45).unwrap(), 0)),
+          samsung: Some(Version::new(NonZeroU16::new(5).unwrap(), 0)),
+          ..Default::default()
+        },
+        node: Some(Version::new(NonZeroU16::new(4).unwrap(), 0)),
+        ..Default::default()
+      },
       _ => todo!(),
     }
   }

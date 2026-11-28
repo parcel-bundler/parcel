@@ -371,6 +371,68 @@ fn incremental_rebuild_adding_dependency_changes_composition() {
   assert!(out.contains("console.log('bar')"), "got: {out}");
 }
 
+/// Each asset's id in packaged output, by file name.
+fn asset_ids(
+  bundle_graph: &parcel_core::BundleGraph,
+) -> std::collections::BTreeMap<String, String> {
+  (0..bundle_graph.asset_graph.assets.len())
+    .map(|index| {
+      let index = parcel_core::AssetIndex::from_index(index);
+      let asset = bundle_graph.asset_graph.asset(index);
+      let path = asset.loc.url.to_file_path().unwrap();
+      (
+        path.file_name().to_string(),
+        bundle_graph.asset_id(index).to_string(),
+      )
+    })
+    .collect()
+}
+
+#[test]
+fn incremental_rebuild_keeps_asset_ids() {
+  // Bundles that aren't re-packaged refer to assets by the ids of the build that packaged them,
+  // so an asset must keep its id while new assets are added and others leave the graph.
+  let (mut parcel, input, _output) = setup(
+    &[
+      ("/project/index.js", "@import ./foo.js"),
+      ("/project/foo.js", "console.log('foo')"),
+      ("/project/bar.js", "console.log('bar')"),
+    ],
+    &["/project/index.js"],
+  );
+  let bundle_graph = parcel.build().expect("initial build failed");
+  assert_eq!(
+    bundle_graph.asset_graph.asset_ids.len(),
+    bundle_graph.asset_graph.assets.len()
+  );
+  let first = asset_ids(&bundle_graph);
+  assert_eq!(first.len(), 2);
+
+  write_file(&input, "/project/index.js", "@import ./bar.js");
+  parcel
+    .invalidate(&[path_id("/project/index.js")], &[], &[])
+    .unwrap();
+  let bundle_graph = parcel.build().expect("incremental build failed");
+  let second = asset_ids(&bundle_graph);
+  assert_eq!(second["index.js"], first["index.js"]);
+  assert_ne!(second["bar.js"], first["index.js"]);
+  assert_ne!(second["bar.js"], first["foo.js"]);
+
+  write_file(
+    &input,
+    "/project/index.js",
+    "@import ./foo.js\n@import ./bar.js",
+  );
+  parcel
+    .invalidate(&[path_id("/project/index.js")], &[], &[])
+    .unwrap();
+  let bundle_graph = parcel.build().expect("incremental build failed");
+  let third = asset_ids(&bundle_graph);
+  assert_eq!(third["index.js"], first["index.js"]);
+  assert_eq!(third["foo.js"], first["foo.js"]);
+  assert_eq!(third["bar.js"], second["bar.js"]);
+}
+
 #[test]
 fn incremental_rebuild_adding_async_bundle_reports_output_path_change() {
   let (mut parcel, input, output) = setup(

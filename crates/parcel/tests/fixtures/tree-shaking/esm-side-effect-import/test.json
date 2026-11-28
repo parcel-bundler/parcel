@@ -9,7 +9,6 @@
       "type": "js",
       "assets": [
         "dep-side-effect-import.js",
-        "esmodule-helpers.js",
         "side-effect-import.js"
       ],
       "contains": ["bare-side-effect-import-ran"]

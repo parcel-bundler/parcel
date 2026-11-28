@@ -15,7 +15,7 @@
     },
     {
       "type": "js",
-      "assets": ["async-side-effectful-unused-export.js", "esmodule-helpers.js"],
+      "assets": ["async-side-effectful-unused-export.js"],
       "contains": [
         "used-dynamic-side-effectful-export",
         "unused-dynamic-side-effectful-export"

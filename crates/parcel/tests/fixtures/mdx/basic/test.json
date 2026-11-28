@@ -2,6 +2,6 @@
   "description": "should support bundling MDX",
   "input": "index.mdx",
   "bundles": [
-    {"type": "js", "assets": ["esmodule-helpers.js", "index.js", "index.mdx", "jsx-dev-runtime.js"]}
+    {"type": "js", "assets": ["index.js", "index.mdx", "jsx-dev-runtime.js"]}
   ]
 }

@@ -5,7 +5,6 @@
     {
       "name": "index.js",
       "assets": [
-        "esmodule-helpers.js",
         "index.js",
         "local.json"
       ]

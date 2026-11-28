@@ -5,9 +5,10 @@ use parcel_core::*;
 use parcel_css::{css_module_export_sources, resolve_css_module_export};
 
 use super::{
-  Resolution, rsc,
+  LocalModules, ModuleId, Resolution, rsc,
   synthetic::{BundleShim, InlineType, SyntheticAsset},
 };
+use crate::{JsContent, packager::tree_shake::ResolvedSymbol, runtime_modules::EsmHelpers};
 
 pub(super) fn is_inline_bundle_dependency(dependency: &Dependency, bundle: &Bundle) -> bool {
   dependency.bundle_behavior == BundleBehavior::Inline
@@ -242,9 +243,15 @@ pub fn asset_dependencies<'a>(
   additional_assets: &mut IndexSet<SyntheticAsset>,
   // Only library builds embed inline bundles' content in their dependencies' resolutions.
   get_inline_bundle_content: Option<&dyn Fn(usize) -> Result<Arc<dyn Content>, DiagnosticList>>,
+  local_modules: &LocalModules,
+  // Whether to skip interop for modules with the `__esModule` flag (see `has_interop_flag`).
+  skips_interop: bool,
   project_root: &PathId,
 ) -> Result<IndexMap<String, Resolution<'a>>, DiagnosticList> {
   let mut dependencies = IndexMap::new();
+  let module_id = |asset_index| local_modules.id(bundle_graph, asset_index);
+  let flagged =
+    |asset_index| skips_interop && has_interop_flag(bundle_graph.asset_graph.asset(asset_index));
 
   let used_deps: Vec<AssetIndex> = bundle_graph
     .asset_graph
@@ -284,7 +291,7 @@ pub fn asset_dependencies<'a>(
     {
       dependencies.insert(
         (&**placeholder).into(),
-        Resolution::Asset(module.id(bundle_graph)),
+        Resolution::Asset(module.id(bundle_graph).into()),
       );
       if module.needs_async_evaluator(bundle_graph) {
         additional_assets.insert(SyntheticAsset::AsyncEvaluator);
@@ -307,7 +314,7 @@ pub fn asset_dependencies<'a>(
           {
             dependencies.insert(
               (&**placeholder).into(),
-              Resolution::Asset(bundle_graph.asset_id(resolved)),
+              Resolution::Asset(bundle_graph.asset_id(resolved).into()),
             );
             additional_assets.insert(SyntheticAsset::CssModuleExports(resolved));
             continue;
@@ -326,11 +333,11 @@ pub fn asset_dependencies<'a>(
                 SymbolResolution::Export {
                   asset_index, name, ..
                 } => {
-                  resolutions.push((
-                    import.symbol.as_str(),
-                    bundle_graph.asset_id(*asset_index),
-                    name.as_str(),
-                  ));
+                  let sym = match name {
+                    SymbolName::Default if flagged(*asset_index) => ResolvedSymbol::EsmDefault,
+                    name => ResolvedSymbol::Symbol(name.as_str()),
+                  };
+                  resolutions.push((import.symbol.as_str(), module_id(*asset_index), sym));
                   if first_asset.is_none() {
                     first_asset = Some(*asset_index);
                   }
@@ -339,11 +346,11 @@ pub fn asset_dependencies<'a>(
                   }
                 }
                 SymbolResolution::Runtime { asset_index, name } => {
-                  resolutions.push((
-                    import.symbol.as_str(),
-                    bundle_graph.asset_id(*asset_index),
-                    name.as_str(),
-                  ));
+                  let sym = match name {
+                    SymbolName::Default if flagged(*asset_index) => ResolvedSymbol::EsmDefault,
+                    name => ResolvedSymbol::Symbol(name.as_str()),
+                  };
+                  resolutions.push((import.symbol.as_str(), module_id(*asset_index), sym));
                   if first_asset.is_none() {
                     first_asset = Some(*asset_index);
                   }
@@ -354,8 +361,8 @@ pub fn asset_dependencies<'a>(
                 SymbolResolution::Namespace { asset_index } => {
                   resolutions.push((
                     import.symbol.as_str(),
-                    bundle_graph.asset_id(*asset_index),
-                    "*",
+                    module_id(*asset_index),
+                    ResolvedSymbol::Symbol("*"),
                   ));
                   if first_asset.is_none() {
                     first_asset = Some(*asset_index);
@@ -374,20 +381,24 @@ pub fn asset_dependencies<'a>(
 
         if !resolutions.is_empty() {
           if all_assets_match && let Some(res) = first_asset {
-            dependencies.insert(
-              (&**placeholder).into(),
-              Resolution::Asset(bundle_graph.asset_id(res)),
-            );
+            let res = if flagged(res) {
+              Resolution::EsmAsset(module_id(res))
+            } else {
+              Resolution::Asset(module_id(res))
+            };
+            dependencies.insert((&**placeholder).into(), res);
           } else {
             dependencies.insert((&**placeholder).into(), Resolution::Symbols(resolutions));
           }
         } else if !used_deps.contains(&resolved) {
           dependencies.insert((&**placeholder).into(), Resolution::Excluded);
         } else {
-          dependencies.insert(
-            (&**placeholder).into(),
-            Resolution::Asset(bundle_graph.asset_id(resolved)),
-          );
+          let res = if flagged(resolved) {
+            Resolution::EsmAsset(module_id(resolved))
+          } else {
+            Resolution::Asset(module_id(resolved))
+          };
+          dependencies.insert((&**placeholder).into(), res);
         }
       }
       BundleGraphDependencyResolution::None => {}
@@ -477,8 +488,11 @@ pub fn asset_dependencies<'a>(
           let is_lazy_dynamic_import = is_async_bundle_dependency(dep, resolved_bundle);
           let is_inline = is_inline_bundle_dependency(dep, resolved_bundle);
           // TODO: this is wrong. It should be if the _target_ module is CJS. But this breaks some dynamic_import tests. Would be a behavior change.
-          let needs_esm_interop =
-            is_lazy_dynamic_import && !is_inline && asset.flags.contains(AssetFlags::IS_ESM);
+          // Interop returns the exports of a module with the `__esModule` flag as they are.
+          let needs_esm_interop = is_lazy_dynamic_import
+            && !is_inline
+            && asset.flags.contains(AssetFlags::IS_ESM)
+            && !flagged(asset_index);
 
           let inline_type = InlineType::from(dep.import_type);
           let resolution = if is_inline {
@@ -486,7 +500,11 @@ pub fn asset_dependencies<'a>(
               bundle: bundle_index,
               kind: BundleShim::Inline(inline_type),
             });
-            Resolution::Asset(BundleShim::Inline(inline_type).id(bundle_index, bundle_graph))
+            Resolution::Asset(
+              BundleShim::Inline(inline_type)
+                .id(bundle_index, bundle_graph)
+                .into(),
+            )
           } else if is_lazy_dynamic_import {
             additional_assets.insert(SyntheticAsset::Bundle {
               bundle: bundle_index,
@@ -501,43 +519,50 @@ pub fn asset_dependencies<'a>(
                 kind: BundleShim::AsyncInterop(asset_index),
               });
               Resolution::Asset(
-                BundleShim::AsyncInterop(asset_index).id(bundle_index, bundle_graph),
+                BundleShim::AsyncInterop(asset_index)
+                  .id(bundle_index, bundle_graph)
+                  .into(),
               )
             } else {
-              Resolution::Asset(BundleShim::Async(asset_index).id(bundle_index, bundle_graph))
+              Resolution::Asset(
+                BundleShim::Async(asset_index)
+                  .id(bundle_index, bundle_graph)
+                  .into(),
+              )
             }
           } else if is_sync_bundle_dependency(dep, resolved_bundle) {
             additional_assets.insert(SyntheticAsset::Bundle {
               bundle: bundle_index,
               kind: BundleShim::Sync,
             });
-            Resolution::Asset(BundleShim::Sync.id(bundle_index, bundle_graph))
+            Resolution::Asset(BundleShim::Sync.id(bundle_index, bundle_graph).into())
           } else {
             additional_assets.insert(SyntheticAsset::Bundle {
               bundle: bundle_index,
               kind: BundleShim::Url,
             });
-            Resolution::Asset(BundleShim::Url.id(bundle_index, bundle_graph))
+            Resolution::Asset(BundleShim::Url.id(bundle_index, bundle_graph).into())
           };
           dependencies.insert((&**placeholder).into(), resolution);
         }
       }
       BundleGraphDependencyResolution::Internalized(asset_index) => {
-        let resolved = bundle_graph.asset_graph.asset(asset_index);
         // Match the async loader's interop policy even when ESM and CommonJS
         // importers share the same internalized target.
-        let resolution = if asset.flags.contains(AssetFlags::IS_ESM) {
+        let resolution = if asset.flags.contains(AssetFlags::IS_ESM) && !flagged(asset_index) {
           let shim = SyntheticAsset::InternalizedInterop(asset_index);
           let id = shim.id(bundle_graph, project_root);
           additional_assets.insert(shim);
-          Resolution::Asset(id)
+          Resolution::Asset(id.into())
         } else if bundle_graph.is_async_asset(asset_index) {
           // The synthetic module knows how to evaluate an async module; the inlined form doesn't.
           Resolution::Asset(
-            SyntheticAsset::Internalized(asset_index).id(bundle_graph, project_root),
+            SyntheticAsset::Internalized(asset_index)
+              .id(bundle_graph, project_root)
+              .into(),
           )
         } else {
-          Resolution::Internalized(resolved.id(project_root))
+          Resolution::Internalized(bundle_graph.asset_id(asset_index))
         };
         dependencies.insert((&**placeholder).into(), resolution);
         additional_assets.insert(SyntheticAsset::Internalized(asset_index));
@@ -549,6 +574,21 @@ pub fn asset_dependencies<'a>(
   }
 
   Ok(dependencies)
+}
+
+/// Whether a module's exports have the `__esModule` flag, which modules converted from ESM define,
+/// so the interop helper returns them as they are. Assigning `module.exports` too may replace the
+/// flagged object.
+pub(crate) fn has_interop_flag(asset: &Asset) -> bool {
+  !asset.flags.contains(AssetFlags::HAS_CJS_EXPORTS)
+    && asset
+      .content
+      .downcast_ref::<JsContent>()
+      .is_some_and(|content| {
+        content
+          .used_esm_helpers
+          .contains(EsmHelpers::DEFINE_INTEROP_FLAG)
+      })
 }
 
 /// The ids of the modules `asset` statically imports, in source order, as the runtime's async
@@ -563,17 +603,22 @@ pub(super) fn static_import_ids(
       ids.push(id.to_string());
     }
   };
+  // Bundles with async modules don't number theirs (see `LocalModules::new`).
+  let global = |id: &ModuleId| match id {
+    ModuleId::Global(id) => id.to_string(),
+    ModuleId::Local(_) => unreachable!("async modules' imports are required by global id"),
+  };
   for dep in &asset.dependencies {
     if !dep.is_static_import() {
       continue;
     }
     let placeholder = dep.placeholder.as_ref().unwrap_or(&dep.specifier);
     match dependencies.get(&**placeholder) {
-      Some(Resolution::Asset(id)) => push(id),
+      Some(Resolution::Asset(id) | Resolution::EsmAsset(id)) => push(&global(id)),
       Some(Resolution::External(specifier)) => push(specifier),
       Some(Resolution::Symbols(symbols)) => {
         for (_, id, _) in symbols {
-          push(id);
+          push(&global(id));
         }
       }
       _ => {}

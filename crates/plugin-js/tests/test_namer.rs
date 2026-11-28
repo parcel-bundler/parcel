@@ -105,6 +105,7 @@ fn run_times(
       ),
       assets: Cow::Owned(assets),
       entries: Cow::Owned(vec![]),
+      asset_ids: Default::default(),
     },
     bundles,
     HashMap::new(),

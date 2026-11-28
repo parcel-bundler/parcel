@@ -9,7 +9,7 @@
       "assets": ["other-entry.js"]
     },
     {
-      "assets": ["a.js", "esmodule-helpers.js", "value.js"]
+      "assets": ["a.js", "value.js"]
     },
     {
       "assets": ["b.js"]

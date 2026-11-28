@@ -1,0 +1,31 @@
+{
+  "description": "JS bundles importing CSS modules and JSON number their private modules, which require later ones by distance",
+  "input": "index.js",
+  "options": {
+    "mode": "production"
+  },
+  "skipNodeModules": true,
+  "bundles": [
+    {
+      "assets": [
+        "index.js",
+        "helper.js",
+        "data.json"
+      ],
+      "contains": [
+        "var h=[(a,b",
+        "r(0)",
+        "(a,b,c)=>{",
+        "c(1)"
+      ]
+    },
+    {
+      "assets": [
+        "style.module.css"
+      ]
+    }
+  ],
+  "sideEffects": [
+    "helper:json:olFkLq_foo"
+  ]
+}
