@@ -1,0 +1,23 @@
+[
+  {
+    "description": "should re-export string literal export names",
+    "input": "index.js",
+    "output": {
+      "a b": "value",
+      "c": "value",
+      "x y": "foo"
+    }
+  },
+  {
+    "description": "should re-export string literal export names with scope hoisting",
+    "input": "index.js",
+    "options": {
+      "mode": "production"
+    },
+    "output": {
+      "a b": "value",
+      "c": "value",
+      "x y": "foo"
+    }
+  }
+]
