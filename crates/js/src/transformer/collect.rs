@@ -408,18 +408,22 @@ impl Visit for Collect {
             Some(exported) => match_export_name(exported),
             None => match_export_name(&named.orig),
           };
-          let orig = match_export_name_ident(&named.orig);
-          let is_reexport = if source.is_none() {
-            // import {foo} from "xyz";
-            // export {foo};
-            self.imports.get(&id!(orig))
-          } else {
-            None
-          };
-          let (source, specifier) = if let Some(reexport) = is_reexport {
-            (Some(reexport.source.clone()), reexport.specifier.clone())
-          } else {
-            (source, orig.sym.clone())
+          let (source, specifier) = match source {
+            // export {foo} from "xyz";
+            // export {"a b"} from "xyz";
+            // `orig` can be a string literal here, so read it as an export name.
+            Some(source) => (Some(source), match_export_name(&named.orig).0),
+            None => {
+              // Without a source, `orig` is always an Ident.
+              let orig = match_export_name_ident(&named.orig);
+              if let Some(reexport) = self.imports.get(&id!(orig)) {
+                // import {foo} from "xyz";
+                // export {foo};
+                (Some(reexport.source.clone()), reexport.specifier.clone())
+              } else {
+                (None, orig.sym.clone())
+              }
+            }
           };
           self.exports.insert(
             exported.0.clone(),
@@ -1175,6 +1179,32 @@ mod tests {
       .collect()
   }
 
+  /// The (exported, source, imported) triples a module re-exports from its dependencies.
+  fn reexported_symbols(code: &str) -> Vec<(String, String, String)> {
+    let (_, symbols) = run_with_transformation(code, |context, module| {
+      let mut collect = Collect::new(
+        context.unresolved_mark,
+        Mark::fresh(Mark::root()),
+        false,
+        true,
+      );
+      module.visit_with(&mut collect);
+      let sources: Vec<JsWord> = vec!["a".into(), "b".into()];
+      collect.into_symbols(|source| sources.iter().position(|s| s == source).unwrap() as u32)
+    });
+    symbols
+      .indirect
+      .iter()
+      .map(|symbol| {
+        (
+          symbol.exported.as_str().to_string(),
+          ["a", "b"][symbol.dep_index as usize].to_string(),
+          symbol.imported.as_str().to_string(),
+        )
+      })
+      .collect()
+  }
+
   fn pairs(pairs: &[(&str, &str)]) -> Vec<(String, String)> {
     pairs
       .iter()
@@ -1331,5 +1361,35 @@ mod tests {
         "{code}"
       );
     }
+  }
+
+  #[test]
+  fn reexport_string_literal_name() {
+    let triples = |items: &[(&str, &str, &str)]| -> Vec<(String, String, String)> {
+      items
+        .iter()
+        .map(|(e, s, i)| (e.to_string(), s.to_string(), i.to_string()))
+        .collect()
+    };
+    assert_eq!(
+      reexported_symbols("export { \"a b\" } from 'a';"),
+      triples(&[("a b", "a", "a b")])
+    );
+    assert_eq!(
+      reexported_symbols("export { \"a b\" as c, \"d\" as \"e f\" } from 'a';"),
+      triples(&[("c", "a", "a b"), ("e f", "a", "d")])
+    );
+    assert_eq!(
+      reexported_symbols("export { foo as \"x y\" } from 'b';"),
+      triples(&[("x y", "b", "foo")])
+    );
+  }
+
+  #[test]
+  fn reexport_of_import() {
+    assert_eq!(
+      reexported_symbols("import { foo } from 'a'; export { foo as bar };"),
+      vec![("bar".to_string(), "a".to_string(), "foo".to_string())]
+    );
   }
 }
