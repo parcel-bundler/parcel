@@ -1092,6 +1092,7 @@ fn bundle_graph_iterates_resolved_dependencies_with_a_cursor() {
       resolved: parcel_core::SymbolResolution::Namespace {
         asset_index: CoreAssetIndex(asset),
       },
+      owners: Vec::new(),
     })
     .collect();
   let mut assets = vec![source];
