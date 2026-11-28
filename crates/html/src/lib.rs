@@ -1246,7 +1246,9 @@ mod tests {
         <symbol id="other"><use href="other.svg#x"/></symbol>
       </svg>"##
         .to_vec(),
-      url: parcel_core::SourceUrl::parse("file:///sprite.svg").unwrap(),
+      url: parcel_core::SourceUrl::from_path(&parcel_core::PathId::new(
+        &std::env::current_dir().unwrap().join("sprite.svg"),
+      )),
       xml: true,
       target: Default::default(),
       hmr: false,
@@ -1276,7 +1278,9 @@ mod tests {
         <g id="fade"><use href="#outer"/></g>
       </svg>"##
         .to_vec(),
-      url: parcel_core::SourceUrl::parse("file:///sprite.svg").unwrap(),
+      url: parcel_core::SourceUrl::from_path(&parcel_core::PathId::new(
+        &std::env::current_dir().unwrap().join("sprite.svg"),
+      )),
       xml: true,
       target: Default::default(),
       hmr: false,
